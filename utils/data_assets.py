@@ -3,66 +3,12 @@ from tqdm import tqdm
 tqdm.pandas()
 
 
-# [CONSOLE USER OPERATIONS]
-#==============================================================================
-# Perform operations to control the console
-#==============================================================================
-class UserOperations:        
-    
-    
-    #--------------------------------------------------------------------------
-    def menu_selection(self, menu):        
-        
-        '''        
-        
-        Presents a custom menu to the user and returns the selected option.
-        
-        Keyword arguments:                      
-            menu (dict): A dictionary containing the options to be presented to the user. 
-                         The keys are integers representing the option numbers, and the 
-                         values are strings representing the option descriptions.
-        
-        Returns:            
-            op_sel (int): The selected option number.
-        
-        '''        
-        indexes = [idx + 1 for idx, val in enumerate(menu)]
-        for key, value in menu.items():
-            print('{0} - {1}'.format(key, value))        
-        print()
-        while True:
-            try:
-                op_sel = int(input('Select the desired operation: '))
-            except:
-                continue            
-            while op_sel not in indexes:
-                try:
-                    op_sel = int(input('Input is not valid, please select a valid option: '))
-                except:
-                    continue
-            break
-        
-        return op_sel        
-
-
 # [DATASET OPERATIONS]
 #==============================================================================
 # Methods to perform operation on the built adsorption dataset
 #==============================================================================
-class AdsorptionDataset:
+class AdsorptionDataset:    
     
-    '''   
-    A class collecting methods to build the NIST adsorption dataset from collected
-    data. Methods are meant to be used sequentially as they are self-referring 
-    (no need to specify input argument in the method). 
-      
-    Methods:
-        
-    extract_molecular_properties(df_mol):  retrieve molecular properties from ChemSpyder
-    split_by_mixcomplexity():              separates single component and binary mixture measurements
-    extract_adsorption_data():             retrieve molecular properties from ChemSpyder    
-    
-    '''
     def __init__(self, dataframe):
         self.dataframe = dataframe      
     
@@ -101,7 +47,6 @@ class AdsorptionDataset:
     def extract_adsorption_data(self, raw_data, num_species=1): 
 
         '''
-
         Extracts adsorption data from the single_compound and binary_mixture dataframes.
         This function creates two new dataframes, df_SC and df_BN, as copies of the single_compound and 
         binary_mixture dataframes, respectively. It then extracts various pieces of information from 

@@ -12,9 +12,8 @@ warnings.simplefilter(action='ignore', category = Warning)
 
 # import modules and classes
 #------------------------------------------------------------------------------
-from modules.components.data_assets import AdsorptionDataset
-from modules.components.scraper_assets import NISTAdsorptionAPI
-import modules.global_variables as GlobVar
+from utils.scraper_assets import NISTAdsorptionAPI
+import utils.global_paths as globpt
 import configurations as cnf
 
 # [BUILD ADSORBATES AND ADSORBENTS DATASETS]
@@ -60,7 +59,7 @@ df_adsorbates_properties = webworker.Get_GuestHost_Data(adsorbates_names, focus 
 df_guests = pd.DataFrame(df_adsorbates_properties)
 print()
 
-# create list of molecular properties of sorbates (using pubchem as reference)
+# create list of molecular properties of sorbates (using PUG REST API as reference)
 #------------------------------------------------------------------------------
 print('Adding physicochemical properties to guest molecules dataset...')
 adsorbates_properties = []
@@ -103,9 +102,9 @@ df_guests_expanded = pd.concat([df_guests, df_properties], axis = 1)
 # save files either as csv locally or in S3 bucket
 #------------------------------------------------------------------------------
 if cnf.output_type == 'HOST':
-    file_loc = os.path.join(GlobVar.data_path, 'adsorbents_dataset.csv') 
+    file_loc = os.path.join(globpt.data_path, 'adsorbents_dataset.csv') 
     df_hosts.to_csv(file_loc, index = False, sep = ';', encoding = 'utf-8')
-    file_loc = os.path.join(GlobVar.data_path, 'adsorbates_dataset.csv') 
+    file_loc = os.path.join(globpt.data_path, 'adsorbates_dataset.csv') 
     df_guests_expanded.to_csv(file_loc, index = False, sep = ';', encoding = 'utf-8')    
 else:
     s3_resource = boto3.resource('s3', region_name=cnf.region_name)
