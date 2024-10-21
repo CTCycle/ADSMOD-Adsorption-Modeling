@@ -72,7 +72,7 @@ if __name__ == '__main__':
                             cnf.PAD_VALUE, unique_adsorbents, unique_sorbates, 
                             cnf.EMBEDDING_DIMS, cnf.SEED, XLA_acceleration=cnf.XLA_ACCELERATION)
 
-    model = modelworker.get_model(summary=True) 
+    model = modelworker.get_model(model_summary=True) 
 
     # generate graphviz plot for the model layout    
     if cnf.GENERATE_MODEL_GRAPH==True:

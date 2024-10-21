@@ -295,7 +295,7 @@ class SCADSModel:
         
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, summary=True):       
+    def get_model(self, model_summary=True):       
        
         # define model inputs using input layers
         feat_inputs = layers.Input(shape = (self.num_features, ))
@@ -314,8 +314,8 @@ class SCADSModel:
         loss = MaskedMeanSquaredError(self.pad_value)
         metrics = MaskedMeanAbsoluteError(self.pad_value)
         model.compile(loss=loss, optimizer=opt, metrics=metrics, run_eagerly=False,
-                      jit_compile=self.XLA_state)     
-        if summary==True:
+                      COMPILE=self.XLA_state)     
+        if model_summary==True:
             model.summary(expand_nested=True)
 
         return model
