@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 tqdm.pandas()
 
-from NISTADS.commons.utils.datamaker.properties import FetchMolecularProperties
+from NISTADS.commons.utils.datamaker.properties import GuestProperties, HostProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -12,22 +12,45 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class BuildMaterialsDataset:
 
-    def __init__(self):
+    def __init__(self):        
+        self.guest_props = GuestProperties()
+        self.host_props = GuestProperties()
+        self.extractor = GetSpeciesFromExperiments() 
+        self.drop_cols = ['InChIKey', 'InChICode', 'formula'] 
 
-        self.moldata= FetchMolecularProperties()
+    #--------------------------------------------------------------------------           
+    def drop_excluded_columns(self, dataframe : pd.DataFrame):
+        df_drop = dataframe.drop(columns=self.drop_cols, axis=1)
 
+        return df_drop
+    
     #--------------------------------------------------------------------------
-    def get_molecular_properties(self):
+    def add_guest_properties(self, guest_data : pd.DataFrame):
 
-        pass
+        guest_data['name'] = guest_data['name'].apply(lambda x : x.lower())
+        guest_names = guest_data['name'].to_list()
+        guest_synonims = guest_data['synonyms'].to_list()
+        # fetch compounds names from the adsorption dataset, and extend the current
+        # list of species, then leave only unique names
+        extra_compounds = self.extractor.extract_species_names()
+        guest_names.extend(extra_compounds)
+        guest_names = [x.lower() for x in list(set(guest_names))]
         
+        guest_properties = self.guest_props.get_properties_for_multiple_guests(guest_names, guest_synonims)
+        df_guest_properties = pd.DataFrame.from_dict(guest_properties)
+
+        # Merging the new guest properties DataFrame with the original guest_data DataFrame
+        merged_data = guest_data.merge(df_guest_properties, on='name', how='outer')
+
+        return merged_data
+    
     #--------------------------------------------------------------------------
-    def get_molecular_properties(self):
+    def add_host_properties(self, host_data : pd.DataFrame):
 
-        pass
-
-
-
+        # currently not implemented!
+        return host_data
+        
+ 
 
 # [DATASET OPERATIONS]
 ###############################################################################
@@ -168,6 +191,7 @@ class GetSpeciesFromExperiments:
         self.binary_mixture_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv') 
         self.single_component_col = 'adsorbate_name'
         self.binary_mixture_cols = ['compound_1', 'compound_2']
+        
 
     #--------------------------------------------------------------------------
     def check_if_dataset_exist(self):
