@@ -1,10 +1,21 @@
-import os
 import pandas as pd
 from tqdm import tqdm
 tqdm.pandas()
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
+
+
+###############################################################################
+def units_conversion(dataframe : pd.DataFrame):
+
+    P_converter = PressureConversion()
+    Q_converter = UptakeConversion()
+    converted_data = P_converter.convert_pressure_units(dataframe)
+    converted_data = Q_converter.convert_uptake_data(converted_data)
+
+    return converted_data
+
       
 
 # [CONVERSION OF PRESSURE]
@@ -14,7 +25,9 @@ class PressureConversion:
     def __init__(self):        
         self.P_COL = 'pressure'
         self.P_UNIT_COL = 'pressureUnits'
-        self.P_TARGET_COL = 'pressure_in_Pascal'                                        
+        self.P_TARGET_COL = 'pressure_in_Pascal'
+
+        self.conversions = {'bar' : self.bar_to_Pascal}                                        
        
     #--------------------------------------------------------------------------
     def bar_to_Pascal(self, p_vals):            
@@ -28,13 +41,17 @@ class PressureConversion:
             return self.bar_to_Pascal(row[self.P_COL])
 
     #--------------------------------------------------------------------------
-    def convert_data(self, dataframe : pd.DataFrame):
-
-        dataframe[self.P_TARGET_COL] = dataframe.apply(lambda x : self.convert_based_on_units(x), axis=1) 
+    def convert_pressure_units(self, dataframe: pd.DataFrame):
+        
+        dataframe[self.P_TARGET_COL] = dataframe.apply(lambda row: self.conversions.get(row[self.P_UNIT_COL], 
+                                                                                        lambda x: x)(row[self.P_COL]),
+                                                                                        axis=1)        
+        
         dataframe.drop(columns=[self.P_COL, self.P_UNIT_COL], inplace=True)    
 
-        return dataframe  
+        return dataframe
     
+
 
 # [CONVERSION OF UPTAKE]
 ###############################################################################
@@ -45,11 +62,19 @@ class UptakeConversion:
         self.Q_UNIT_COL = 'adsorptionUnits'
         self.Q_TARGET_COL = 'uptake_in_mol_g'  
         self.mol_W = 'molecular_weight'
-        self.VALID_UNITS = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 'cm3(STP)/g',
-                            'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g']
-        
-        logger.debug
-        
+
+        # Dictionary mapping units to their respective conversion methods
+        self.conversions = {'mmol/g': self.convert_mmol_g_or_mol_kg,
+                            'mol/kg': self.convert_mmol_g_or_mol_kg,
+                            'mmol/kg': self.convert_mmol_kg,
+                            'mg/g': self.convert_mg_g,
+                            'g/g': self.convert_g_g,
+                            'wt%': self.convert_wt_percent,
+                            'g Adsorbate / 100g Adsorbent': self.convert_g_adsorbate_per_100g_adsorbent,
+                            'g/100g': self.convert_g_adsorbate_per_100g_adsorbent,
+                            'ml(STP)/g': self.convert_ml_stp_g_or_cm3_stp_g,
+                            'cm3(STP)/g': self.convert_ml_stp_g_or_cm3_stp_g}
+
     #--------------------------------------------------------------------------
     def convert_mmol_g_or_mol_kg(self, q_vals):
         return [q_val / 1000 for q_val in q_vals]
@@ -79,32 +104,17 @@ class UptakeConversion:
         return [q_val / 22.414 for q_val in q_vals]
 
     #--------------------------------------------------------------------------
-    def convert_based_on_units(self, row):
-             
-        if row[self.Q_UNIT_COL] in ('mmol/g', 'mol/kg'):
-            return self.convert_mmol_g_or_mol_kg(row[self.Q_COL])
-        elif row[self.Q_UNIT_COL] == 'mmol/kg':
-            return self.convert_mmol_kg(row[self.Q_COL])
-        elif row[self.Q_UNIT_COL] == 'mg/g':
-            return self.convert_mg_g(row[self.Q_COL], row[self.mol_W])
-        elif row[self.Q_UNIT_COL] == 'g/g':
-            return self.convert_g_g(row[self.Q_COL], row[self.mol_W])
-        elif row[self.Q_UNIT_COL] == 'wt%':
-            return self.convert_wt_percent(row[self.Q_COL], row[self.mol_W])
-        elif row[self.Q_UNIT_COL] in ('g Adsorbate / 100g Adsorbent', 'g/100g'):
-            return self.convert_g_adsorbate_per_100g_adsorbent(row[self.Q_COL], row[self.mol_W])
-        elif row[self.Q_UNIT_COL] in ('ml(STP)/g', 'cm3(STP)/g'):
-            return self.convert_ml_stp_g_or_cm3_stp_g(row[self.Q_COL])
-        else:
-            return row[self.Q_COL]
+    def convert_uptake_data(self, dataframe: pd.DataFrame):
         
-    #--------------------------------------------------------------------------
-    def convert_data(self, dataframe : pd.DataFrame):
-
-        dataframe[self.Q_TARGET_COL] = dataframe.apply(lambda x : self.convert_based_on_units(x), axis=1)
+        dataframe[self.Q_TARGET_COL] = dataframe.apply(lambda row: (self.conversions.get(row[self.Q_UNIT_COL], 
+                                                                                         lambda x, *args: x)(
+                                                                                         row[self.Q_COL], *(row[self.mol_W],) if row[self.Q_UNIT_COL] in {
+                                                                                         'mg/g', 'g/g', 'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g'} 
+                                                                                          else ())), axis=1)
+       
         dataframe.drop(columns=[self.Q_COL, self.Q_UNIT_COL], inplace=True)       
+        return dataframe
 
-        return dataframe 
         
     
     

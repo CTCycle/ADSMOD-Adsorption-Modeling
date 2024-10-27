@@ -1,4 +1,7 @@
-import os
+# [SET KERAS BACKEND]
+import os 
+os.environ["KERAS_BACKEND"] = "torch"
+
 import sys
 import json
 import pandas as pd

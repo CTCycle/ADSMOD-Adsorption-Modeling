@@ -48,6 +48,7 @@ class BuildMaterialsDataset:
     def add_host_properties(self, host_data : pd.DataFrame):
 
         # currently not implemented!
+        host_data['name'] = host_data['name'].apply(lambda x : x.lower())
         return host_data
         
  
@@ -109,15 +110,15 @@ class BuildAdsorptionDataset:
 
         '''  
         dataframe['adsorbent_ID'] = dataframe['adsorbent'].apply(lambda x : x['hashkey'])      
-        dataframe['adsorbent_name'] = dataframe['adsorbent'].apply(lambda x : x['name'])           
+        dataframe['adsorbent_name'] = dataframe['adsorbent'].apply(lambda x : x['name'].lower())           
         dataframe['adsorbates_ID'] = dataframe['adsorbates'].apply(lambda x : [f['InChIKey'] for f in x])            
-        dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(lambda x : [f['name'] for f in x])
+        dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(lambda x : [f['name'].lower() for f in x])
 
         # check if the number of guest species is one (single component dataset)
         if (dataframe['numGuests'] == 1).all():
             dataframe['pressure'] = dataframe['isotherm_data'].apply(lambda x : [f['pressure'] for f in x])                
             dataframe['adsorbed_amount'] = dataframe['isotherm_data'].apply(lambda x : [f['total_adsorption'] for f in x])
-            dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(lambda x : [f['name'] for f in x][0])
+            dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(lambda x : [f['name'].lower() for f in x][0])
             dataframe['composition'] = 1.0 
 
         # check if the number of guest species is two (binary mixture dataset)
@@ -125,8 +126,8 @@ class BuildAdsorptionDataset:
             data_placeholder = {'composition' : 1.0, 'adsorption': 1.0}
             dataframe['total_pressure'] = dataframe['isotherm_data'].apply(lambda x : [f['pressure'] for f in x])                
             dataframe['all_species_data'] = dataframe['isotherm_data'].apply(lambda x : [f['species_data'] for f in x])
-            dataframe['compound_1'] = dataframe['adsorbate_name'].apply(lambda x : x[0])        
-            dataframe['compound_2'] = dataframe['adsorbate_name'].apply(lambda x : x[1] if len(x) > 1 else None)              
+            dataframe['compound_1'] = dataframe['adsorbate_name'].apply(lambda x : x[0].lower())        
+            dataframe['compound_2'] = dataframe['adsorbate_name'].apply(lambda x : x[1].lower() if len(x) > 1 else None)              
             dataframe['compound_1_data'] = dataframe['all_species_data'].apply(lambda x : [f[0] for f in x])               
             dataframe['compound_2_data'] = dataframe['all_species_data'].apply(lambda x : [f[1] if len(f) > 1 else data_placeholder for f in x])
             dataframe['compound_1_composition'] = dataframe['compound_1_data'].apply(lambda x : [f['composition'] for f in x])              
@@ -175,8 +176,7 @@ class BuildAdsorptionDataset:
         BM_dataset[explode_cols] = BM_dataset[explode_cols].astype('float32')       
         BM_dataset.reset_index(inplace=True, drop=True)        
         BM_dataset = BM_dataset.drop(columns = drop_columns)
-        BM_dataset.dropna(inplace=True)  
-     
+        BM_dataset.dropna(inplace=True)    
         
         return SC_dataset, BM_dataset
  
