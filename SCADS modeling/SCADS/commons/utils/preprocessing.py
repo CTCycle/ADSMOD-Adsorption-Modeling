@@ -248,7 +248,7 @@ class PreProcessing:
         return train_X, test_X    
     
     #--------------------------------------------------------------------------  
-    def sequence_padding(self, dataset, column, pad_value=-1, pad_length=50):
+    def PQ_series_padding(self, dataset, column, pad_value=-1, pad_length=50):
             
         dataset[column] = process.sequence.pad_sequences(dataset[column], 
                                                                maxlen=pad_length, 
@@ -410,10 +410,10 @@ class PreProcessPipeline:
 
         # apply padding to the pressure and uptake series (default value is -1 to avoid
         # interfering with real values)        
-        train_X = self.processor.sequence_padding(train_X, self.processor.P_COL, self.pad_value, self.pad_length)
-        test_X = self.processor.sequence_padding(test_X, self.processor.P_COL, self.pad_value, self.pad_length)
-        train_Y = self.processor.sequence_padding(train_Y, self.processor.Q_COL, self.pad_value, self.pad_length)
-        test_Y = self.processor.sequence_padding(test_Y, self.processor.Q_COL, self.pad_value, self.pad_length)
+        train_X = self.processor.PQ_series_padding(train_X, self.processor.P_COL, self.pad_value, self.pad_length)
+        test_X = self.processor.PQ_series_padding(test_X, self.processor.P_COL, self.pad_value, self.pad_length)
+        train_Y = self.processor.PQ_series_padding(train_Y, self.processor.Q_COL, self.pad_value, self.pad_length)
+        test_Y = self.processor.PQ_series_padding(test_Y, self.processor.Q_COL, self.pad_value, self.pad_length)
 
         # generate tf.datasets         
         train_dataset, test_dataset = self.processor.create_tf_dataset(train_X, test_X,

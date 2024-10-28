@@ -15,8 +15,7 @@ class AdsorptionDataSanitizer:
         self.P_TARGET_COL = 'pressure'
         self.Q_TARGET_COL = 'adsorbed_amount'
         self.max_pressure = CONFIG['dataset']['MAX_PRESSURE']
-        self.max_uptake = CONFIG['dataset']['MAX_UPTAKE']  
-           
+        self.max_uptake = CONFIG['dataset']['MAX_UPTAKE']             
         
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):

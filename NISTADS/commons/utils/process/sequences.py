@@ -1,8 +1,7 @@
-import os
+import re
 import numpy as np
 import pandas as pd
 from keras.api.preprocessing import sequence
-from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder
 
 from tqdm import tqdm
 tqdm.pandas()
@@ -20,8 +19,8 @@ class PressureUptakeSeriesProcess:
 
         self.P_TARGET_COL = 'pressure' 
         self.Q_TARGET_COL = 'adsorbed_amount'        
-        self.max_points = CONFIG['dataset']['MAX_POINTS']  
-        self.min_points = CONFIG['dataset']['MIN_POINTS']    
+        self.max_points = CONFIG['dataset']['MAX_PQ_POINTS']  
+        self.min_points = CONFIG['dataset']['MIN_PQ_POINTS']    
 
     #--------------------------------------------------------------------------
     def remove_leading_zeros(self, dataframe: pd.DataFrame):
@@ -40,11 +39,10 @@ class PressureUptakeSeriesProcess:
 
         dataframe[[self.P_TARGET_COL, self.Q_TARGET_COL]] = dataframe.apply(_inner_function, axis=1)
         
-        return dataframe  
-
-
+        return dataframe
+    
     #--------------------------------------------------------------------------  
-    def sequence_padding(self, dataset : pd.DataFrame):
+    def PQ_series_padding(self, dataset : pd.DataFrame):
             
         pad_value = -1
         dataset['pressure_in_Pascal'] = sequence.pad_sequences(dataset['pressure_in_Pascal'], 
@@ -68,133 +66,157 @@ class PressureUptakeSeriesProcess:
 
         return dataset
        
-    
-    # normalize sequences using a RobustScaler: X = X - median(X)/IQR(X)
-    # flatten and reshape array to make it compatible with the scaler
-    #--------------------------------------------------------------------------  
-    def normalize_sequences(self, train, test, column):        
-        
-        normalizer = MinMaxScaler(feature_range=(0,1))
-        sequence_array = np.array([item for sublist in train[column] for item in sublist]).reshape(-1, 1)         
-        normalizer.fit(sequence_array)
-        train[column] = train[column].apply(lambda x: normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
-        test[column] = test[column].apply(lambda x: normalizer.transform(np.array(x).reshape(-1, 1)).flatten())
-
-        return train, test, normalizer
-    
-
-    
-# normalize parameters
-###############################################################################  
-def normalize_parameters(train_X, train_Y, test_X, test_Y):
-
-    '''
-    Normalize the input features and output labels for training and testing data.
-    This method normalizes the input features and output labels to facilitate 
-    better model training and evaluation.
-
-    Keyword Arguments:
-        train_X (DataFrame): DataFrame containing the features of the training data.
-        train_Y (list): List containing the labels of the training data.
-        test_X (DataFrame): DataFrame containing the features of the testing data.
-        test_Y (list): List containing the labels of the testing data.
-
-    Returns:
-        Tuple: A tuple containing the normalized training features, normalized training labels,
-                normalized testing features, and normalized testing labels.
-    
-    '''        
-    # cast float type for both the labels and the continuous features columns 
-    norm_columns = ['temperature', 'mol_weight', 'complexity', 'heavy_atoms']       
-    train_X[norm_columns] = train_X[norm_columns].astype(float)        
-    test_X[norm_columns] = test_X[norm_columns].astype(float)
-    
-    # normalize the numerical features (temperature and physicochemical properties)      
-    self.param_normalizer = MinMaxScaler(feature_range=(0, 1))
-    train_X[norm_columns] = self.param_normalizer.fit_transform(train_X[norm_columns])
-    test_X[norm_columns] = self.param_normalizer.transform(test_X[norm_columns])        
-
-    return train_X, train_Y, test_X, test_Y 
-
 
 
 # [TOKENIZERS]
 ###############################################################################
-class PretrainedTokenizers:
+class SMILETokenization:
 
     def __init__(self): 
 
-        self.tokenizer_strings = {'distilbert': 'distilbert/distilbert-base-uncased',
-                                  'bert': 'bert-base-uncased',
-                                  'roberta': 'roberta-base',
-                                  'gpt2': 'gpt2',
-                                  'xlm': 'xlm-mlm-enfr-1024'}
+        self.element_symbols = [
+            'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P',
+            'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',
+            'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc',
+            'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La',
+            'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu',
+            'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At',
+            'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es',
+            'Fm', 'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Fl',
+            'Lv', 'Ts', 'Og']
+        
+        self.organic_subset = ['B', 'C', 'N', 'O', 'P', 'S', 'F', 'Cl', 'Br', 'I']
+        self.SMILE_padding = CONFIG['dataset']['SMILE_PADDING']
+
+        
+    #--------------------------------------------------------------------------
+    def tokenize_SMILE_string(self, SMILE):     
+
+        if isinstance(SMILE, str):
+            tokens = []
+            i = 0
+            length = len(SMILE)
+            while i < length:     
+                c = SMILE[i]
+                # Handle brackets
+                if c == '[':
+                    # Start of bracketed atom
+                    j = i + 1
+                    bracket_content = ''
+                    while j < length and SMILE[j] != ']':
+                        bracket_content += SMILE[j]
+                        j += 1
+                    if j == length:
+                        logger.error(f'Incorrect SMILE sequence: {SMILE}')
+                    # Now bracket_content contains the content inside brackets
+                    # We need to extract the element symbol from bracket_content
+                    # The element symbol is the first one or two letters after optional isotope
+                    m = re.match(r'(\d+)?([A-Z][a-z]?)', bracket_content)
+                    if not m:
+                        raise ValueError(f"Invalid atom in brackets: [{bracket_content}]")
+                    isotope, element = m.groups()
+                    if element not in self.element_symbols:
+                        raise ValueError(f"Unknown element symbol: {element}")
+                    tokens.append('[' + bracket_content + ']')
+                    i = j + 1  # Move past the closing ']'
+                # Handle ring closures with '%'
+                elif c == '%':
+                    # Ring closure with numbers greater than 9
+                    if i + 2 < length and SMILE[i+1:i+3].isdigit():
+                        tokens.append(SMILE[i:i+3])
+                        i += 3
+                    else:
+                        logger.error(f"Invalid ring closure with '%' in SMILE string {SMILE}")
+                # Handle two-character organic subset elements outside brackets
+                elif c == 'C' and i + 1 < length and SMILE[i+1] == 'l':
+                    tokens.append('Cl')
+                    i += 2
+                elif c == 'B' and i + 1 < length and SMILE[i+1] == 'r':
+                    tokens.append('Br')
+                    i += 2
+                # Handle one-character organic subset elements outside brackets
+                elif c in 'BCNOPSFHI':
+                    tokens.append(c)
+                    i += 1
+                # Handle aromatic atoms (lowercase letters)
+                elif c in 'bcnops':
+                    tokens.append(c)
+                    i +=1
+                # Handle digits for ring closures
+                elif c.isdigit():
+                    tokens.append(c)
+                    i +=1
+                # Handle bond symbols
+                elif c in '-=#:/$\\':
+                    tokens.append(c)
+                    i +=1
+                # Handle branch symbols
+                elif c in '()':
+                    tokens.append(c)
+                    i +=1
+                # Handle chirality '@'
+                elif c == '@':
+                    # Check if the next character is also '@'
+                    if i +1 < length and SMILE[i+1] == '@':
+                        tokens.append('@@')
+                        i +=2
+                    else:
+                        tokens.append('@')
+                        i +=1
+                # Handle '+' or '-' charges
+                elif c == '+' or c == '-':
+                    charge = c
+                    j = i +1
+                    while j < length and (SMILE[j] == c or SMILE[j].isdigit()):
+                        charge += SMILE[j]
+                        j +=1
+                    tokens.append(charge)
+                    i = j
+                # Handle wildcard '*'
+                elif c == '*':
+                    tokens.append(c)
+                    i +=1
+                else:
+                    logger.error(f"Unrecognized character '{c}' at position {i}")
+
+        return tokens
     
     #--------------------------------------------------------------------------
-    def get_tokenizer(self, tokenizer_name):
-
-        if tokenizer_name not in self.tokenizer_strings:
-            tokenizer_string = tokenizer_string
-            logger.warning(f'{tokenizer_string} is not among preselected models.')
-        else:
-            tokenizer_string = self.tokenizer_strings[tokenizer_name]                            
+    def SMILE_tokens_encoding(self, data: pd.DataFrame):
         
-        logger.info(f'Loading {tokenizer_string} for text tokenization...')
-        tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
-        os.makedirs(tokenizer_path, exist_ok=True)
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_string, cache_dir=tokenizer_path)
-        vocabulary_size = len(tokenizer.vocab)            
-
-        return tokenizer, vocabulary_size 
-
-    
-# [TOKENIZER]
-###############################################################################
-class TokenWizard:
-    
-    def __init__(self, configuration):        
+        all_SMILE_tokens = set(token for tokens in data['tokenized SMILE'] for token in tokens)
         
-        tokenizer_name = configuration["dataset"]["TOKENIZER"] 
-        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
-        selector = PretrainedTokenizers()
-        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(tokenizer_name)         
+        # Map each token to a unique integer
+        self.token_to_id = {token: idx for idx, token in enumerate(sorted(all_SMILE_tokens))}
+        self.id_to_token = {idx: token for token, idx in self.token_to_id.items()}
+        
+        # Apply the encoding to each tokenized SMILE
+        data['encoded SMILE'] = data['tokenized SMILE'].apply(lambda tokens: [self.token_to_id[token] 
+                                                                              for token in tokens])
+        
+        return data
+    
+    #--------------------------------------------------------------------------  
+    def SMILE_series_padding(self, dataset : pd.DataFrame):
+            
+        pad_value = -1
+        dataset['encoded SMILE'] = sequence.pad_sequences(dataset['encoded SMILE'], 
+                                                 maxlen=self.SMILE_padding, 
+                                                 value=pad_value, 
+                                                 dtype='float32', 
+                                                 padding='post').tolist()          
+
+        return dataset
     
     #--------------------------------------------------------------------------
-    def tokenize_text_corpus(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
+    def process_SMILE_data(self, data : pd.DataFrame): 
 
-        '''      
-        Tokenizes text data using the specified tokenizer and updates the input DataFrames.
+        data['tokenized SMILE'] = data['SMILE'].apply(lambda x : self.tokenize_SMILE_string(x))
+        data = self.SMILE_tokens_encoding(data)
+        data = self.SMILE_series_padding(data)
 
-        Keyword Arguments:
-            train_data (pd.DataFrame): DataFrame containing training data with a 'text' column.
-            validation_data (pd.DataFrame): DataFrame containing validation data with a 'text' column.
+        return data
 
-        Returns:
-            tuple: A tuple containing two elements:
-                - train_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
-                  tokenized version of the 'text' column as lists of token ids.
-                - validation_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
-                  tokenized version of the 'text' column as lists of token ids.        
 
-        '''        
-        self.train_text = train_data['text'].to_list()
-        self.validation_text = validation_data['text'].to_list()
         
-        # tokenize train and validation text using loaded tokenizer 
-        train_tokens = self.tokenizer(self.train_text, padding=True, truncation=True,
-                                      max_length=self.max_report_size, return_tensors='pt')
-        validation_tokens = self.tokenizer(self.validation_text, padding=True, truncation=True, 
-                                           max_length=self.max_report_size, return_tensors='pt')       
-        
-        # extract only token ids from the tokenizer output
-        train_tokens = train_tokens['input_ids'].numpy().tolist() 
-        val_tokens = validation_tokens['input_ids'].numpy().tolist()
-
-        # add tokenizer sequences to the source dataframe, now containing the paths,
-        # original text and tokenized text
-        train_data['tokens'] = [' '.join(map(str, ids)) for ids in train_tokens]  
-        validation_data['tokens'] = [' '.join(map(str, ids)) for ids in val_tokens]        
-        
-        return train_data, validation_data
     
-  

@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from XREPORT.commons.constants import CONFIG
-from XREPORT.commons.logger import logger
+from NISTADS.commons.constants import CONFIG
+from NISTADS.commons.logger import logger
 
 
 # [DATA SPLITTING]
@@ -46,14 +46,5 @@ class DatasetSplit:
         
         return train_X, test_X, train_Y, test_Y
     
-    #--------------------------------------------------------------------------
-    def isolate_inputs(self, X : pd.DataFrame):
-
-        experimental_features = X[self.exp_features]
-        guest_features = X[self.guest_features]
-        host_features = X[self.host_features]
-        pressures = X[self.pressure_series].values    
-        
-        return experimental_features, guest_features, host_features, pressures
-
+    
    

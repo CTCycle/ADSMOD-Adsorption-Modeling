@@ -25,21 +25,23 @@ class BuildMaterialsDataset:
         return df_drop
     
     #--------------------------------------------------------------------------
-    def add_guest_properties(self, guest_data : pd.DataFrame):
+    def add_guest_properties(self, guest_data : pd.DataFrame):              
 
-        guest_data['name'] = guest_data['name'].apply(lambda x : x.lower())
         guest_names = guest_data['name'].to_list()
         guest_synonims = guest_data['synonyms'].to_list()
         # fetch compounds names from the adsorption dataset, and extend the current
         # list of species, then leave only unique names
         extra_compounds = self.extractor.extract_species_names()
         guest_names.extend(extra_compounds)
-        guest_names = [x.lower() for x in list(set(guest_names))]
+        guest_synonims.extend([[] for x in range(len(extra_compounds))])
+        guest_names = list(set(guest_names))          
         
         guest_properties = self.guest_props.get_properties_for_multiple_guests(guest_names, guest_synonims)
         df_guest_properties = pd.DataFrame.from_dict(guest_properties)
 
         # Merging the new guest properties DataFrame with the original guest_data DataFrame
+        guest_data['name'] = guest_data['name'].apply(lambda x : x.lower())
+        df_guest_properties['name'] = df_guest_properties['name'].apply(lambda x : x.lower())
         merged_data = guest_data.merge(df_guest_properties, on='name', how='outer')
 
         return merged_data

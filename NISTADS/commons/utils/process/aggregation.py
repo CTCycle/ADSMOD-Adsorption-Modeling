@@ -21,7 +21,8 @@ def merge_all_datasets(adsorption : pd.DataFrame, guests : pd.DataFrame,
         .merge(guests[guest_properties], left_on='adsorbate_name', right_on='name', how='left')
         .drop(columns=['name'])
         .merge(hosts[host_properties], left_on='adsorbent_name', right_on='name', how='left')
-        .drop(columns=['name']))
+        .drop(columns=['name'])
+        .dropna())
     
     return all_dataset_merge
     

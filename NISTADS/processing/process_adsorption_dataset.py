@@ -12,7 +12,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, load_all_datasets
 from NISTADS.commons.utils.process.sanitizer import AdsorptionDataSanitizer
-from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess
+from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
 from NISTADS.commons.utils.process.splitting import DatasetSplit 
 from NISTADS.commons.utils.process.aggregation import merge_all_datasets, aggregate_adsorption_measurements
 from NISTADS.commons.utils.process.conversion import units_conversion
@@ -55,15 +55,14 @@ if __name__ == '__main__':
     aggregated_data = sequencer.select_by_sequence_size(aggregated_data)    
 
     # convert and normalize units
-    converted_data = units_conversion(aggregated_data)
-    converted_data = sequencer.sequence_padding(converted_data) 
+    converted_data = units_conversion(aggregated_data)    
+    converted_data = sequencer.PQ_series_padding(converted_data) 
 
     # 3. [PROCESS MOLECULAR INPUTS]
     #--------------------------------------------------------------------------  
-    tokenization = TokenWizard(CONFIG)    
-    train_data, validation_data = tokenization.tokenize_text_corpus(train_data, validation_data)
-    vocabulary_size = tokenization.vocabulary_size
-   
+    tokenization = SMILETokenization()    
+    tokenized_data = tokenization.process_SMILE_data(converted_data)
+    
 
     # 3. [PREPARE ML DATASET]
     #--------------------------------------------------------------------------     

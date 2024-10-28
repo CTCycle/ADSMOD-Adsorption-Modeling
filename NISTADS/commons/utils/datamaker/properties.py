@@ -38,12 +38,16 @@ class GuestProperties:
     #--------------------------------------------------------------------------
     def get_properties_for_multiple_guests(self, names : list, synonims=None):
             
+        if synonims is None:
+            synonims = [[] for x in range(len(names))]
         for name, syno in tqdm(zip(names, synonims)):
+            name = name.lower()
             features = self.get_properties_for_single_guest(name)
             
-            if not features and syno:
-                logger.debug(f'Could not find properties of {name}. Now trying with synonims: {synonims}')
+            if not features and syno:                
                 for s in syno:
+                    logger.debug(f'Could not find properties of {name}. Now trying with synonim: {s}')
+                    s = s.lower()
                     features = self.get_properties_for_single_guest(s)
                     if features:
                         break  
