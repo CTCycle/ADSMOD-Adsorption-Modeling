@@ -13,11 +13,11 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class DataGenerator():
 
-    def __init__(self):              
+    def __init__(self, configuration):             
         
-        self.img_shape = CONFIG["model"]["IMG_SHAPE"]       
-        self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]
-        self.augmentation = CONFIG["dataset"]["IMG_AUGMENT"] 
+            
+        self.normalization = configuration["dataset"]["NORMALIZE"]
+        self.configuration = configuration       
         
     
     # load and preprocess a single image
@@ -72,12 +72,11 @@ class DataGenerator():
         num_samples = len(data) 
         if batch_size is None:
             batch_size = CONFIG["training"]["BATCH_SIZE"]
-
-        dataset = tf.data.Dataset.from_tensor_slices(data)
-        dataset = dataset.shuffle(buffer_size=num_samples)          
+        dataset = tf.data.Dataset.from_tensor_slices(data)                
         dataset = dataset.map(self.load_image, num_parallel_calls=buffer_size)        
         dataset = dataset.batch(batch_size)
         dataset = dataset.prefetch(buffer_size=buffer_size)
+        dataset = dataset.shuffle(buffer_size=num_samples)  
 
         return dataset
 

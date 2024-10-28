@@ -57,36 +57,51 @@ class DataSerializer:
 
     # ...
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, train_data, validation_data, path):  
-         
-        combined_data = {'train': train_data, 'validation': validation_data}
-        json_path = os.path.join(path, 'data', 'input_data.json')
-        with open(json_path, 'w') as json_file:
-            json.dump(combined_data, json_file)
-            logger.debug(f'Preprocessed data has been saved at {json_path}')
+    def save_preprocessed_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
+                               vocabulary_size=None): 
+
+        processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
+                           'train_size' : 1.0 - CONFIG["dataset"]["VALIDATION_SIZE"],
+                           'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],
+                           'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],
+                           'vocabulary_size' : vocabulary_size,                           
+                           'date': datetime.now().strftime("%Y-%m-%d")}
+
+        # define paths of .csv and .json files
+        train_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_train.csv')
+        val_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_validation.csv')
+        json_info_path = os.path.join(ML_DATA_PATH, 'preprocessing_metadata.json')
+        
+        # save train and validation data as .csv in the dataset folder
+        train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
+        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8') 
+        logger.debug(f'Preprocessed train data has been saved at {train_pp_path}') 
+        logger.debug(f'Preprocessed validation data has been saved at {val_pp_path}') 
+
+        # save the preprocessing info as .json file in the dataset folder
+        with open(json_info_path, 'w') as file:
+            json.dump(processing_info, file, indent=4) 
+            logger.debug('Preprocessing info:\n%s', file)
 
     # ...
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self, path):
 
-        json_path = os.path.join(path, 'data', 'input_data.json')    
-        if not os.path.exists(json_path):
-            logger.error(f'The file {json_path} does not exist.')
-            
-        with open(json_path, 'r') as json_file:
-            combined_data = json.load(json_file)
-            logger.debug(f'Preprocessed data has been loaded from {json_path}')
-        
-        train_data = combined_data.get('train', None)
-        validation_data = combined_data.get('validation', None)
+        # load preprocessed train and validation data
+        train_file_path = os.path.join(path, 'XREPORT_train.csv') 
+        val_file_path = os.path.join(path, 'XREPORT_validation.csv')
+        train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
+        validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
 
-        # reconstruct images path        
-        train_data = [os.path.join(IMG_DATA_PATH, os.path.basename(x))
-                      for x in train_data if os.path.basename(x) in os.listdir(IMG_DATA_PATH)]   
-        validation_data = [os.path.join(IMG_DATA_PATH, os.path.basename(x))
-                          for x in validation_data if os.path.basename(x) in os.listdir(IMG_DATA_PATH)]     
+        # transform text strings into array of words
+        train_data['tokens'] = train_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
+        validation_data['tokens'] = validation_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
+        # load preprocessing metadata
+        metadata_path = os.path.join(path, 'preprocessing_metadata.json')
+        with open(metadata_path, 'r') as file:
+            metadata = json.load(file)
         
-        return train_data, validation_data  
+        return train_data, validation_data, metadata
 
     
 # [MODEL SERIALIZATION]
@@ -94,7 +109,7 @@ class DataSerializer:
 class ModelSerializer:
 
     def __init__(self):
-        self.model_name = 'FeXT'
+        self.model_name = 'XREPORT'
 
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
@@ -116,7 +131,20 @@ class ModelSerializer:
         os.makedirs(os.path.join(checkpoint_folder_path, 'data'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_folder_path}')
         
-        return checkpoint_folder_path    
+        return checkpoint_folder_path 
+    
+
+    # function to create a folder where to save model checkpoints
+    #--------------------------------------------------------------------------
+    def store_data_in_checkpoint_folder(self, checkpoint_folder):
+
+        data_cp_path = os.path.join(checkpoint_folder, 'data') 
+        for filename in os.listdir(ML_DATA_PATH):            
+            if filename != '.gitkeep':
+                file_path = os.path.join(ML_DATA_PATH, filename)                
+                if os.path.isfile(file_path):
+                    shutil.copy(file_path, data_cp_path)
+                    logger.debug(f'Successfully copied {filename} to {data_cp_path}')
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):
@@ -126,7 +154,7 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
-    def save_model_parameters(self, path, parameters_dict : dict):
+    def save_session_configuration(self, path, history : dict, configurations : dict):
 
         '''
         Saves the model parameters to a JSON file. The parameters are provided 
@@ -141,10 +169,56 @@ class ModelSerializer:
             None  
 
         '''
-        param_path = os.path.join(path, 'model_parameters.json')      
-        with open(param_path, 'w') as f:
-            json.dump(parameters_dict, f)
-            logger.debug(f'Model parameters have been saved at {path}')
+        config_folder = os.path.join(path, 'configurations')
+        os.makedirs(config_folder, exist_ok=True)
+
+        # Paths to the JSON files
+        config_path = os.path.join(config_folder, 'configurations.json')
+        history_path = os.path.join(config_folder, 'session_history.json')
+
+        # Function to merge dictionaries
+        def merge_dicts(original, new_data):
+            for key, value in new_data.items():
+                if key in original:
+                    if isinstance(value, dict) and isinstance(original[key], dict):
+                        merge_dicts(original[key], value)
+                    elif isinstance(value, list) and isinstance(original[key], list):
+                        original[key].extend(value)
+                    else:
+                        original[key] = value
+                else:
+                    original[key] = value    
+
+        # Save the merged configurations
+        with open(config_path, 'w') as f:
+            json.dump(configurations, f)
+
+        # Load existing session history if the file exists and merge
+        if os.path.exists(history_path):
+            with open(history_path, 'r') as f:
+                existing_history = json.load(f)
+            merge_dicts(existing_history, history)
+        else:
+            existing_history = history
+
+        # Save the merged session history
+        with open(history_path, 'w') as f:
+            json.dump(existing_history, f)
+
+        logger.debug(f'Model configuration and session history have been saved and merged at {path}')      
+
+    #--------------------------------------------------------------------------
+    def load_session_configuration(self, path): 
+
+        config_path = os.path.join(path, 'configurations', 'configurations.json')        
+        with open(config_path, 'r') as f:
+            configurations = json.load(f)        
+
+        history_path = os.path.join(path, 'configurations', 'session_history.json')
+        with open(history_path, 'r') as f:
+            history = json.load(f)
+
+        return configurations, history   
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):
@@ -157,7 +231,7 @@ class ModelSerializer:
                        expand_nested=True, rankdir='TB', dpi=400)
             
     #-------------------------------------------------------------------------- 
-    def load_pretrained_model(self):
+    def load_pretrained_model(self): 
 
         '''
         Load a pretrained Keras model from the specified directory. If multiple model 
@@ -214,17 +288,17 @@ class ModelSerializer:
             logger.info('Loading pretrained model directly as only one is available')
             self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])                 
             
-        # effectively load the model using keras builtin method
-        NLP_PATH = os.path.join(self.loaded_model_folder, 'saved_model.keras') 
-        model = keras.models.load_model(NLP_PATH)
+        # Set dictionary of custom objects     
+        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
+                          'MaskedAccuracy': MaskedAccuracy, 
+                          'LRScheduler': LRScheduler}          
         
+        # effectively load the model using keras builtin method
+        # Load the model with the custom objects 
+        model_path = os.path.join(self.loaded_model_folder, 'saved_model.keras')         
+        model = keras.models.load_model(model_path, custom_objects=custom_objects) 
+
         # load configuration data from .json file in checkpoint folder
-        config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                configuration = json.load(f)                   
-        else:
-            logger.warning('model_parameters.json file not found. Model parameters were not loaded.')
-            configuration = None    
+        configuration, history = self.load_session_configuration(self.loaded_model_folder)          
             
-        return model, configuration
+        return model, configuration, history

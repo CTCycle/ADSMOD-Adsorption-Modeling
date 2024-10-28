@@ -12,10 +12,11 @@ class AdsorptionDataSanitizer:
 
     def __init__(self):
 
-        self.P_TARGET_COL = 'pressure_in_Pascal'
-        self.Q_TARGET_COL = 'uptake_in_mmolg'
+        self.P_TARGET_COL = 'pressure'
+        self.Q_TARGET_COL = 'adsorbed_amount'
         self.max_pressure = CONFIG['dataset']['MAX_PRESSURE']
-        self.max_uptake = CONFIG['dataset']['MAX_UPTAKE']        
+        self.max_uptake = CONFIG['dataset']['MAX_UPTAKE']  
+           
         
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):
@@ -26,12 +27,7 @@ class AdsorptionDataSanitizer:
         
         return dataset
     
-    #--------------------------------------------------------------------------
-    def select_by_sequence_size(self, dataset : pd.DataFrame, max_points, min_points):
-        
-        dataset = dataset[dataset[self.P_TARGET_COL].apply(lambda x: min_points <= len(x) <= max_points)]
-
-        return dataset
+    
     
     
 

@@ -10,13 +10,13 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.serializer import load_all_datasets
+from NISTADS.commons.utils.dataloader.serializer import DataSerializer, load_all_datasets
 from NISTADS.commons.utils.process.sanitizer import AdsorptionDataSanitizer
-from NISTADS.commons.utils.process.sequences import SequenceProcessing
+from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess
 from NISTADS.commons.utils.process.splitting import DatasetSplit 
 from NISTADS.commons.utils.process.aggregation import merge_all_datasets, aggregate_adsorption_measurements
 from NISTADS.commons.utils.process.conversion import units_conversion
-from NISTADS.commons.utils.process.sequences import SequenceProcessing
+from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -48,20 +48,26 @@ if __name__ == '__main__':
 
     # rectify sequences of pressure/uptake points through following steps:
     # 1. remove repeated zero values at the beginning of the series
-    sequencer = SequenceProcessing()
+    sequencer = PressureUptakeSeriesProcess()
     aggregated_data = sequencer.remove_leading_zeros(aggregated_data) 
 
     # sanitize experiments removing those where measurements number is outside acceptable values 
-    aggregated_data = sanitizer.select_by_sequence_size(aggregated_data) 
+    aggregated_data = sequencer.select_by_sequence_size(aggregated_data)    
 
     # convert and normalize units
-    converted_data = units_conversion(processed_data)
+    converted_data = units_conversion(aggregated_data)
+    converted_data = sequencer.sequence_padding(converted_data) 
+
+    # 3. [PROCESS MOLECULAR INPUTS]
+    #--------------------------------------------------------------------------  
+    tokenization = TokenWizard(CONFIG)    
+    train_data, validation_data = tokenization.tokenize_text_corpus(train_data, validation_data)
+    vocabulary_size = tokenization.vocabulary_size
    
 
     # 3. [PREPARE ML DATASET]
     #--------------------------------------------------------------------------     
-    
-    # train_X, val_X, train_Y, val_Y = self.splitter.split_train_and_validation(aggregated_data)
+    train_X, val_X, train_Y, val_Y = self.splitter.split_train_and_validation(aggregated_data)
 
     # train_exp, train_guest, train_host, train_pressure = self.splitter.isolate_inputs(train_X)
     # val_exp, val_guest, val_host, val_pressure = self.splitter.isolate_inputs(val_X)
@@ -70,6 +76,12 @@ if __name__ == '__main__':
     #                   'train output' : train_Y,
     #                   'validation' : (val_exp, val_guest, val_host, val_pressure),
     #                   'validation output' :val_Y}
+
+    # 3. [SAVE PREPROCESSED DATA]
+    #--------------------------------------------------------------------------
+    # save preprocessed data using data serializer
+    dataserializer = DataSerializer()
+    dataserializer.save_preprocessed_data(train_data, validation_data, vocabulary_size)
 
 
 

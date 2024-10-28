@@ -12,6 +12,7 @@
                  "MIN_POINTS": 6,
                  "MAX_PRESSURE": 10e06,
                  "MAX_UPTAKE": 10,
+                 "NORMALIZE": true,
                  "SPLIT_SEED" : 45},
 
     "device" : {"DEVICE" : "GPU",
@@ -19,8 +20,7 @@
                 "MIXED_PRECISION" : false,                                                
                 "NUM_PROCESSORS": 6},
 
-    "model" : {"IMG_SHAPE" : [192, 192, 3],
-               "EMBEDDING_DIMS": 256,
+    "model" : {"EMBEDDING_DIMS": 256,
                "SAVE_MODEL_PLOT" : true},
 
     "training" : {"EPOCHS" : 30,

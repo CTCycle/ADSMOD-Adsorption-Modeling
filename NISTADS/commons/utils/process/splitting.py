@@ -22,7 +22,7 @@ class DatasetSplit:
                                'SMILE', 'H_acceptors', 'H_donors']
         self.host_features = ['adsorbent_name']
         self.pressure_series = 'pressure_in_Pascal'
-        self.uptake_series = 'uptake_in_mol_g'  
+        self.uptake_series = 'uptake_in_mmol_g'  
 
 
     #--------------------------------------------------------------------------
