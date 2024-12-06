@@ -16,7 +16,7 @@ class Inference:
         tf.random.set_seed(seed)  
     
     #--------------------------------------------------------------------------
-    def load_pretrained_model(self, path):
+    def select_and_load_checkpoint(self, path):
 
         '''
         Load pretrained keras model (in folders) from the specified directory. 

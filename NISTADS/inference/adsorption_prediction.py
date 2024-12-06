@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # load the model for inference and print summary
     #------------------------------------------------------------------------------
     inference = Inference(cnf.SEED) 
-    model, parameters = inference.load_pretrained_model(CHECKPOINT_PATH)
+    model, parameters = inference.select_and_load_checkpoint(CHECKPOINT_PATH)
     NLP_PATH = inference.folder_path
     model.summary(expand_nested=True)
 

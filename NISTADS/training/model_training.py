@@ -34,10 +34,10 @@ if __name__ == '__main__':
 
     # create subfolder for preprocessing data    
     modelserializer = ModelSerializer()
-    model_folder_path = modelserializer.create_checkpoint_folder() 
+    checkpoint_path = modelserializer.create_checkpoint_folder() 
 
-    model_folder_path, model_folder_name = model_savefolder(CHECKPOINT_PATH, 'SCADS')
-    pp_path = os.path.join(model_folder_path, 'preprocessing')
+    checkpoint_path, model_folder_name = model_savefolder(CHECKPOINT_PATH, 'SCADS')
+    pp_path = os.path.join(checkpoint_path, 'preprocessing')
     os.mkdir(pp_path) if not os.path.exists(pp_path) else None
 
     # load data from .csv files    
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     # generate graphviz plot for the model layout    
     if cnf.GENERATE_MODEL_GRAPH==True:
-        plot_path = os.path.join(model_folder_path, 'model_layout.png')       
+        plot_path = os.path.join(checkpoint_path, 'model_layout.png')       
         plot_model(model, to_file=plot_path, show_shapes=True, 
                 show_layer_names=True, show_layer_activations=True, 
                 expand_nested=True, rankdir='TB', dpi=400)
@@ -89,11 +89,11 @@ if __name__ == '__main__':
     # python -m tensorboard.main --logdir tensorboard/
 
     # initialize real time plot callback     
-    RTH_callback = RealTimeHistory(model_folder_path, validation=True)
+    RTH_callback = RealTimeHistory(checkpoint_path, validation=True)
 
     # initialize tensorboard    
     if cnf.USE_TENSORBOARD == True:
-        log_path = os.path.join(model_folder_path, 'tensorboard')
+        log_path = os.path.join(checkpoint_path, 'tensorboard')
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
         callbacks = [RTH_callback, tensorboard_callback]    
     else:    
@@ -107,7 +107,7 @@ if __name__ == '__main__':
                         workers=cnf.NUM_PROCESSORS,
                         use_multiprocessing=multiprocessing)
 
-    model_files_path = os.path.join(model_folder_path, 'model')
+    model_files_path = os.path.join(checkpoint_path, 'model')
     model.save(model_files_path, save_format='tf')
 
     print(f'Training session is over. Model has been saved in folder {model_folder_name}')
@@ -122,5 +122,5 @@ if __name__ == '__main__':
                   'learning_rate' : cnf.LEARNING_RATE,
                   'epochs' : cnf.EPOCHS}
 
-    trainer.model_parameters(parameters, model_folder_path)
+    trainer.model_parameters(parameters, checkpoint_path)
 

@@ -126,12 +126,12 @@ class ModelSerializer:
         
         '''        
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
-        checkpoint_folder_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
-        os.makedirs(checkpoint_folder_path, exist_ok=True)        
-        os.makedirs(os.path.join(checkpoint_folder_path, 'data'), exist_ok=True)
-        logger.debug(f'Created checkpoint folder at {checkpoint_folder_path}')
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
+        os.makedirs(checkpoint_path, exist_ok=True)        
+        os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
+        logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
-        return checkpoint_folder_path 
+        return checkpoint_path 
     
 
     # function to create a folder where to save model checkpoints
@@ -231,7 +231,7 @@ class ModelSerializer:
                        expand_nested=True, rankdir='TB', dpi=400)
             
     #-------------------------------------------------------------------------- 
-    def load_pretrained_model(self): 
+    def select_and_load_checkpoint(self): 
 
         '''
         Load a pretrained Keras model from the specified directory. If multiple model 

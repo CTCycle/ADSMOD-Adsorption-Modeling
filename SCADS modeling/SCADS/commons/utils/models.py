@@ -27,11 +27,11 @@ def model_savefolder(path, model_name):
     truncated_datetime = today_datetime[:-10]
     today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
     folder_name = f'{model_name}_{today_datetime}'
-    model_folder_path = os.path.join(path, folder_name)
-    if not os.path.exists(model_folder_path):
-        os.mkdir(model_folder_path) 
+    checkpoint_path = os.path.join(path, folder_name)
+    if not os.path.exists(checkpoint_path):
+        os.mkdir(checkpoint_path) 
                 
-    return model_folder_path, folder_name
+    return checkpoint_path, folder_name
 
 
 # [PARAMETRIZER BLOCK]

@@ -29,8 +29,8 @@ if __name__ == '__main__':
     
     # selected and load the pretrained model, then print the summary     
     logger.info('Loading specific checkpoint from pretrained models')   
-    model, parameters = modelserializer.load_pretrained_model()
-    model_folder = modelserializer.loaded_model_folder
+    model, parameters = modelserializer.select_and_load_checkpoint()
+    checkpoint_path = modelserializer.loaded_model_folder
     model.summary(expand_nested=True)      
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # initialize training device, allows changing device prior to initializing the generators
     #--------------------------------------------------------------------------   
     # load saved tf.datasets from the proper folders in the checkpoint directory     
-    train_data, validation_data = dataserializer.load_preprocessed_data(model_folder)
+    train_data, validation_data = dataserializer.load_preprocessed_data(checkpoint_path)
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators   
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # resume training from pretrained model
     session_index = parameters['session_ID'] + 1
-    trainer.train_model(model, train_dataset, validation_dataset, model_folder,
+    trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
                         from_epoch=parameters['epochs'], session_index=session_index)
 
 

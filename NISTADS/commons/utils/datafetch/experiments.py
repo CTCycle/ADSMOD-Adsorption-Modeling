@@ -19,9 +19,9 @@ server.check_status()
 ###############################################################################
 class AdsorptionDataFetch:  
     
-    def __init__(self):        
-        self.exp_fraction = CONFIG["collection"]["EXP_FRACTION"]
-        self.max_parallel_calls = CONFIG["collection"]["PARALLEL_TASKS_EXP"]
+    def __init__(self, configuration):        
+        self.exp_fraction = configuration["collection"]["EXP_FRACTION"]
+        self.max_parallel_calls = configuration["collection"]["PARALLEL_TASKS_EXP"]
         self.url_isotherms = 'https://adsorption.nist.gov/isodb/api/isotherms.json'
         self.exp_identifier = 'filename'
     
