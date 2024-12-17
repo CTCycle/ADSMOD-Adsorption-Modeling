@@ -37,21 +37,25 @@ class GuestProperties:
 
     #--------------------------------------------------------------------------
     def get_properties_for_multiple_guests(self, names : list, synonims=None):
-            
+
+        # if no synonims list is provided, create a placeholder element for synonims  
         if synonims is None:
             synonims = [[] for x in range(len(names))]
+
+        # loop over all available names and their synonims
         for name, syno in tqdm(zip(names, synonims)):
             name = name.lower()
-            features = self.get_properties_for_single_guest(name)
-            
+            # get single molecule properties, then try with synonims if no 
+            # properties are found with the main name
+            features = self.get_properties_for_single_guest(name)            
             if not features and syno:                
                 for s in syno:
-                    logger.debug(f'Could not find properties of {name}. Now trying with synonim: {s}')
-                    s = s.lower()
-                    features = self.get_properties_for_single_guest(s)
+                    logger.debug(f'Could not find properties of {name}. Now trying with synonim: {s}')                    
+                    features = self.get_properties_for_single_guest(s.lower())
                     if features:
                         break  
-          
+
+            # process extracted properties if these have been found
             if features:
                 self.process_extracted_properties(name, features)                
 
@@ -69,11 +73,9 @@ class GuestProperties:
         self.properties['molecular_formula'].append(features.get('molecular_formula', 'NA'))
         self.properties['SMILE'].append(features.get('canonical_smiles', 'NA'))
         self.properties['H_acceptors'].append(features.get('h_bond_acceptor_count', 'NA'))
-        self.properties['H_donors'].append(features.get('h_bond_donor_count', 'NA'))          
-        
+        self.properties['H_donors'].append(features.get('h_bond_donor_count', 'NA'))       
         
     
-
 
 # [DATASET OPERATIONS]
 ###############################################################################

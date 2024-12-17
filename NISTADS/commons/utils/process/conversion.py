@@ -24,25 +24,20 @@ class PressureConversion:
 
     def __init__(self):        
         self.P_COL = 'pressure'
-        self.P_UNIT_COL = 'pressureUnits'
-        self.P_TARGET_COL = 'pressure_in_Pascal'
-
+        self.P_UNIT_COL = 'pressureUnits'     
         self.conversions = {'bar' : self.bar_to_Pascal}                                        
        
     #--------------------------------------------------------------------------
-    def bar_to_Pascal(self, p_vals):            
-                    
-        return [int(p_val * 100000) for p_val in p_vals]     
-    
+    def bar_to_Pascal(self, p_vals):                    
+        return [int(p_val * 100000) for p_val in p_vals]    
 
     #--------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame):
         
-        dataframe[self.P_TARGET_COL] = dataframe.apply(lambda row: self.conversions.get(row[self.P_UNIT_COL], 
-                                                                                        lambda x: x)(row[self.P_COL]),
-                                                                                        axis=1)        
-        
-        dataframe.drop(columns=[self.P_COL, self.P_UNIT_COL], inplace=True)    
+        dataframe[self.P_COL] = dataframe.apply(lambda row: self.conversions.get(row[self.P_UNIT_COL], 
+                                                                                     lambda x: x)(row[self.P_COL]),
+                                                                                     axis=1)           
+        dataframe.drop(columns=self.P_UNIT_COL, inplace=True)    
 
         return dataframe
     
@@ -54,8 +49,7 @@ class UptakeConversion:
 
     def __init__(self):        
         self.Q_COL = 'adsorbed_amount'
-        self.Q_UNIT_COL = 'adsorptionUnits'
-        self.Q_TARGET_COL = 'uptake_in_mmol_g'  
+        self.Q_UNIT_COL = 'adsorptionUnits'          
         self.mol_W = 'molecular_weight'
 
         # Dictionary mapping units to their respective conversion methods
@@ -101,13 +95,13 @@ class UptakeConversion:
     #--------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame):
         
-        dataframe[self.Q_TARGET_COL] = dataframe.apply(lambda row: (self.conversions.get(row[self.Q_UNIT_COL], 
+        dataframe[self.Q_COL] = dataframe.apply(lambda row: (self.conversions.get(row[self.Q_UNIT_COL], 
                                                                                          lambda x, *args: x)(
                                                                                          row[self.Q_COL], *(row[self.mol_W],) if row[self.Q_UNIT_COL] in {
                                                                                          'mg/g', 'g/g', 'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g'} 
-                                                                                          else ())), axis=1)
-       
-        dataframe.drop(columns=[self.Q_COL, self.Q_UNIT_COL], inplace=True)       
+                                                                                          else ())), axis=1)       
+        dataframe.drop(columns=self.Q_UNIT_COL, inplace=True)    
+           
         return dataframe
 
         

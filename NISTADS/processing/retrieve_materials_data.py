@@ -19,7 +19,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # get guest and host indexes invoking API
     logger.info('Collect guest and host indexes from NIST DB')
-    webworker = GuestHostDataFetch()
+    webworker = GuestHostDataFetch(CONFIG)
     guest_index, host_index = webworker.get_guest_host_index()     
 
     # 2. [COLLECT GUEST/HOST DATA]
@@ -30,12 +30,11 @@ if __name__ == '__main__':
     # 6. [PREPARE COLLECTED EXPERIMENTS DATA]
     #--------------------------------------------------------------------------    
     builder = BuildMaterialsDataset()
-   
-    # remove excluded columns from the dataframe
-    # process guest (adsorbed species) data by adding molecular properties
-    df_guest = builder.drop_excluded_columns(df_guest)
-    guest_data = builder.add_guest_properties(df_guest)   
 
+    # remove excluded columns from the dataframe    
+    df_guest = builder.drop_excluded_columns(df_guest)
+    # process guest (adsorbed species) data by adding molecular properties
+    guest_data = builder.add_guest_properties(df_guest)   
     # process host (adsorbent materials) data by adding molecular properties 
     host_data = builder.add_host_properties(df_host)    
   

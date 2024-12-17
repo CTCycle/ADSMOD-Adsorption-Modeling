@@ -18,7 +18,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # get isotherm indexes invoking API
     logger.info('Collect adsorption isotherm indexes')
-    webworker = AdsorptionDataFetch()
+    webworker = AdsorptionDataFetch(CONFIG)
     experiments_index = webworker.get_experiments_index()     
 
     # 2. [COLLECT ADSORPTION EXPERIMENTS DATA]
@@ -29,6 +29,7 @@ if __name__ == '__main__':
     # 6. [PREPARE COLLECTED EXPERIMENTS DATA]
     #--------------------------------------------------------------------------    
     builder = BuildAdsorptionDataset()
+
     # remove excluded columns from the dataframe
     adsorption_data = builder.drop_excluded_columns(adsorption_data)
     # split current dataframe by complexity of the mixture (single component or binary mixture)
@@ -36,11 +37,11 @@ if __name__ == '__main__':
     # extract nested data in dataframe rows and reorganise them into columns
     single_component = builder.extract_nested_data(single_component)
     binary_mixture = builder.extract_nested_data(binary_mixture)
+
     # finally expand the dataset to represent each measurement with a single row
     # save the final version of the adsorption dataset
     single_component, binary_mixture = builder.expand_dataset(single_component, binary_mixture)
-    save_adsorption_datasets(single_component, binary_mixture) 
-    
+    save_adsorption_datasets(single_component, binary_mixture)     
     logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')
   
 

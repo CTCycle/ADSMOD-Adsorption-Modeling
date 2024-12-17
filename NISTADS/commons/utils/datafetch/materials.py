@@ -19,12 +19,12 @@ server.check_status()
 ###############################################################################
 class GuestHostDataFetch: 
 
-    def __init__(self):      
+    def __init__(self, configuration):      
         self.url_GUEST = 'https://adsorption.nist.gov/isodb/api/gases.json'
         self.url_HOST = 'https://adsorption.nist.gov/matdb/api/materials.json'
-        self.guest_fraction = CONFIG["collection"]["GUEST_FRACTION"]
-        self.host_fraction = CONFIG["collection"]["HOST_FRACTION"]        
-        self.max_parallel_calls = CONFIG["collection"]["PARALLEL_TASKS_GH"]
+        self.guest_fraction = configuration["collection"]["GUEST_FRACTION"]
+        self.host_fraction = configuration["collection"]["HOST_FRACTION"]        
+        self.max_parallel_calls = configuration["collection"]["PARALLEL_TASKS_GH"]
         self.guest_identifier = 'InChIKey'
         self.host_identifier = 'hashkey'
 

@@ -19,7 +19,7 @@ class AdsorptionDataSanitizer:
         
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):
-
+        
         dataset = dataset[dataset['temperature'].astype(int) > 0]
         dataset = dataset[dataset['pressure'].astype(float).between(0.0, self.max_pressure)]
         dataset = dataset[dataset['adsorbed_amount'].astype(float).between(0.0, self.max_uptake)]

@@ -15,19 +15,19 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class PressureUptakeSeriesProcess:
 
-    def __init__(self):
+    def __init__(self, configuration):
 
-        self.P_TARGET_COL = 'pressure' 
-        self.Q_TARGET_COL = 'adsorbed_amount'        
-        self.max_points = CONFIG['dataset']['MAX_PQ_POINTS']  
-        self.min_points = CONFIG['dataset']['MIN_PQ_POINTS']    
+        self.P_COL = 'pressure' 
+        self.Q_COL = 'adsorbed_amount'        
+        self.max_points = configuration['dataset']['MAX_PQ_POINTS']  
+        self.min_points = configuration['dataset']['MIN_PQ_POINTS']    
 
     #--------------------------------------------------------------------------
     def remove_leading_zeros(self, dataframe: pd.DataFrame):
         
         def _inner_function(row):
-            pressure_series = row[self.P_TARGET_COL]
-            uptake_series = row[self.Q_TARGET_COL]
+            pressure_series = row[self.P_COL]
+            uptake_series = row[self.Q_COL]
             # Find the index of the first non-zero element or get the last index if all are zeros
             no_zero_index = next((i for i, x in enumerate(pressure_series) if x != 0), len(pressure_series) - 1)                
             # Determine how many leading zeros were removed
@@ -37,7 +37,7 @@ class PressureUptakeSeriesProcess:
 
             return pd.Series([processed_pressure_series, processed_uptake_series])
 
-        dataframe[[self.P_TARGET_COL, self.Q_TARGET_COL]] = dataframe.apply(_inner_function, axis=1)
+        dataframe[[self.P_COL, self.Q_COL]] = dataframe.apply(_inner_function, axis=1)
         
         return dataframe
     
@@ -45,24 +45,24 @@ class PressureUptakeSeriesProcess:
     def PQ_series_padding(self, dataset : pd.DataFrame):
             
         pad_value = -1
-        dataset['pressure_in_Pascal'] = sequence.pad_sequences(dataset['pressure_in_Pascal'], 
-                                                 maxlen=self.max_points, 
-                                                 value=pad_value, 
-                                                 dtype='float32', 
-                                                 padding='post').tolist()  
+        dataset[self.P_COL] = sequence.pad_sequences(dataset[self.P_COL], 
+                                                    maxlen=self.max_points, 
+                                                    value=pad_value, 
+                                                    dtype='float32', 
+                                                    padding='post').tolist()  
 
-        dataset['uptake_in_mmol_g'] = sequence.pad_sequences(dataset['uptake_in_mmol_g'], 
-                                                 maxlen=self.max_points, 
-                                                 value=pad_value, 
-                                                 dtype='float32', 
-                                                 padding='post').tolist()         
+        dataset[self.Q_COL] = sequence.pad_sequences(dataset[self.Q_COL], 
+                                                    maxlen=self.max_points, 
+                                                    value=pad_value, 
+                                                    dtype='float32', 
+                                                    padding='post').tolist()         
 
         return dataset
     
     #--------------------------------------------------------------------------
     def select_by_sequence_size(self, dataset : pd.DataFrame):
         
-        dataset = dataset[dataset[self.P_TARGET_COL].apply(lambda x: self.min_points <= len(x) <= self.max_points)]
+        dataset = dataset[dataset[self.P_COL].apply(lambda x: self.min_points <= len(x) <= self.max_points)]
 
         return dataset
        

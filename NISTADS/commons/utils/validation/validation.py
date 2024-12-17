@@ -16,7 +16,7 @@ class DataValidation:
         self.parameters = ['temperature', 'mol_weight', 'complexity', 'covalent_units', 
                            'H_acceptors', 'H_donors', 'heavy_atoms']
         self.categoricals  = ['adsorbent_name', 'adsorbate_name'] 
-        self.sequences  = ['pressure_in_Pascal', 'uptake_in_mmol_g']        
+        self.sequences  = ['pressure', 'uptake']        
 
     #--------------------------------------------------------------------------
     def check_missing_values(self, dataset):

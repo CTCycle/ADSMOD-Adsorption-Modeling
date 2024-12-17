@@ -25,7 +25,7 @@ class PreProcessing:
         self.max_Q = max_Q
 
         self.ADS_COL, self.SORB_COL  = ['adsorbent_name'], ['adsorbate_name'] 
-        self.P_COL, self.Q_COL  = 'pressure_in_Pascal', 'uptake_in_mmol_g'
+        self.P_COL, self.Q_COL  = 'pressure', 'uptake'
         self.P_UNIT_COL, self.Q_UNIT_COL  = 'pressureUnits', 'adsorptionUnits' 
         self.VALID_UNITS = ['mmol/g', 'mol/kg', 'mol/g', 'mmol/kg', 'mg/g', 'g/g', 'cm3(STP)/g',
                             'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g', 'ml(STP)/g']
@@ -42,8 +42,8 @@ class PreProcessing:
                                 'H_acceptors' : 'first',
                                 'H_donors' : 'first',
                                 'heavy_atoms' : 'first', 
-                                'pressure_in_Pascal' : join_str,
-                                'uptake_in_mmol_g' : join_str}
+                                'pressure' : join_str,
+                                'uptake' : join_str}
         
     #--------------------------------------------------------------------------
     def split_dataset(self, dataset, test_size, seed=42):

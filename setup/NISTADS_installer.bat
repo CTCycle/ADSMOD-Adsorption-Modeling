@@ -26,7 +26,7 @@ if %ERRORLEVEL%==0 (
 echo.
 echo Install python libraries and packages
 call pip install torch==2.5.0+cu121 pip install torchvision==0.20.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
-call pip install tensorflow-cpu==2.18.0 keras==3.6.0
+call pip install tensorflow-cpu==2.18.0 keras==3.7.0
 call pip install transformers==4.43.3 matplotlib==3.9.2 seaborn==0.13.2 scikit-learn==1.5.1
 call pip install numpy==2.1.2 pandas==2.2.3 tqdm==4.66.4 pubchempy==1.0.4 
 

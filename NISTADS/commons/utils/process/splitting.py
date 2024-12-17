@@ -21,8 +21,8 @@ class DatasetSplit:
         self.guest_features = ['molecular_weight', 'elements', 'heavy_atoms', 'molecular_formula',
                                'SMILE', 'H_acceptors', 'H_donors']
         self.host_features = ['adsorbent_name']
-        self.pressure_series = 'pressure_in_Pascal'
-        self.uptake_series = 'uptake_in_mmol_g'  
+        self.pressure_series = 'pressure'
+        self.uptake_series = 'uptake'  
 
 
     #--------------------------------------------------------------------------

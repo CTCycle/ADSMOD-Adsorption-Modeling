@@ -5,11 +5,7 @@ The NISTADS project delves into the fascinating world of adsorption, a surface-b
 
 This could have significant implications for industries that rely on these materials, potentially leading to more efficient processes and better materials design. As such, this project takes a different approach compared to fitting adsorption data with theoretical model for adsorption constants calculation, instead proposing the use of a deep learning approach to understand adsorption isotherm patterns by leveraging a large volume of experimental data.
 
-![Adsorbent material](assets/5A_with_gas.png)  
-
-### 1.2 Supplementary information
-Further information are available in the `docs` folder (to be added).
-
+![Adsorbent material](NISTADS/commons/assets/5A_with_gas.png)  
 
 ## 2. Adsorption datasets
 The user can either collect data regarding adsorbent materials and adsorbate species or fetch adsorption isotherm experimental data directly. Experiments are identified by name upon building the entire database experiments index from the API endpoint. Furthermore, NISTADS exploits the PUG REST API (see https://pubchempy.readthedocs.io/en/latest/ for more information) to enrich the adsorbate species dataset with molecular properties (such as molecular weight, canonical smiles, complexity, heavy atoms, etc.). Conveniently, the app will split adsorption isotherm data in two different datasets (Single Component ADSorption and Binary Mixture ADSorption). Since NISTADS is focused on predicting single component adsorption isotherms, it will make use of the single component dataset (SCADS) for the model training.

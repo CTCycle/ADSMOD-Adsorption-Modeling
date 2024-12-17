@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from tqdm import tqdm
-tqdm.pandas()
+
 
 from NISTADS.commons.utils.datamaker.properties import GuestProperties, HostProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -14,7 +14,7 @@ class BuildMaterialsDataset:
 
     def __init__(self):        
         self.guest_props = GuestProperties()
-        self.host_props = GuestProperties()
+        self.host_props = HostProperties()
         self.extractor = GetSpeciesFromExperiments() 
         self.drop_cols = ['InChIKey', 'InChICode', 'formula'] 
 
@@ -34,12 +34,10 @@ class BuildMaterialsDataset:
         extra_compounds = self.extractor.extract_species_names()
         guest_names.extend(extra_compounds)
         guest_synonims.extend([[] for x in range(len(extra_compounds))])
-        guest_names = list(set(guest_names))          
-        
+        guest_names = list(set(guest_names))         
         guest_properties = self.guest_props.get_properties_for_multiple_guests(guest_names, guest_synonims)
         df_guest_properties = pd.DataFrame.from_dict(guest_properties)
-
-        # Merging the new guest properties DataFrame with the original guest_data DataFrame
+        
         guest_data['name'] = guest_data['name'].apply(lambda x : x.lower())
         df_guest_properties['name'] = df_guest_properties['name'].apply(lambda x : x.lower())
         merged_data = guest_data.merge(df_guest_properties, on='name', how='outer')
@@ -60,31 +58,18 @@ class BuildMaterialsDataset:
 class BuildAdsorptionDataset:
 
     def __init__(self):
-
         self.drop_cols = ['DOI', 'category', 'tabular_data', 'digitizer', 'isotherm_type', 
                           'articleSource', 'concentrationUnits', 'compositionType']
         self.explode_cols = ['pressure', 'adsorbed_amount']
 
     #--------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
-
         df_drop = dataframe.drop(columns=self.drop_cols, axis=1)
 
         return df_drop
 
     #--------------------------------------------------------------------------           
-    def split_by_mixture_complexity(self, dataframe : pd.DataFrame):   
-
-        '''
-        Splits the dataframe into two groups based on the number of adsorbates.
-        
-        Keywords arguments:
-            dataframe (DataFrame): the raw adsorption dataset to be processed.
-
-        Returns:
-            tuple: A tuple containing two dataframes, one for each group (single_compound, binary_mixture)
-        '''
-
+    def split_by_mixture_complexity(self, dataframe : pd.DataFrame):        
         dataframe['numGuests'] = dataframe['adsorbates'].apply(lambda x : len(x))          
         df_grouped = dataframe.groupby('numGuests')
         single_compound = df_grouped.get_group(1)
@@ -93,24 +78,7 @@ class BuildAdsorptionDataset:
         return single_compound, binary_mixture   
 
     #--------------------------------------------------------------------------
-    def extract_nested_data(self, dataframe : pd.DataFrame): 
-
-        '''
-        Processes the experimental data contained in the given DataFrame.
-        
-        This function processes the experimental adsorption data, extracting and 
-        transforming relevant information for single-component and binary mixture 
-        datasets. Specifically, it extracts adsorbent and adsorbate details, 
-        pressure, and adsorption data. The function handles different structures 
-        of data based on the number of guest species present.
-
-        Keywords arguments:
-            dataframe (DataFrame): The input DataFrame containing experimental data.
-
-        Returns:
-            DataFrame: The processed DataFrame with expanded columns for further analysis.
-
-        '''  
+    def extract_nested_data(self, dataframe : pd.DataFrame):         
         dataframe['adsorbent_ID'] = dataframe['adsorbent'].apply(lambda x : x['hashkey'])      
         dataframe['adsorbent_name'] = dataframe['adsorbent'].apply(lambda x : x['name'].lower())           
         dataframe['adsorbates_ID'] = dataframe['adsorbates'].apply(lambda x : [f['InChIKey'] for f in x])            
@@ -143,19 +111,7 @@ class BuildAdsorptionDataset:
     
     #--------------------------------------------------------------------------
     def expand_dataset(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
-
-        '''
-        Expands the datasets by exploding and dropping columns.
-
-        Keywords arguments:
-            single_component (DataFrame): The single-component dataset to be processed.
-            binary_mixture (DataFrame): The binary-component dataset to be processed.
-
-        Returns:
-            SC_exploded_dataset (DataFrame): The expanded single-component dataset.
-            BN_exploded_dataset (DataFrame): The expanded binary-component dataset.
-            
-        '''       
+           
         # processing and exploding data for single component dataset
         explode_cols = ['pressure', 'adsorbed_amount']
         drop_columns = ['date', 'adsorbent', 'adsorbates', 
@@ -188,16 +144,13 @@ class BuildAdsorptionDataset:
 class GetSpeciesFromExperiments:
 
     def __init__(self):
-
         self.single_component_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv')        
         self.binary_mixture_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv') 
         self.single_component_col = 'adsorbate_name'
-        self.binary_mixture_cols = ['compound_1', 'compound_2']
-        
+        self.binary_mixture_cols = ['compound_1', 'compound_2']        
 
     #--------------------------------------------------------------------------
     def check_if_dataset_exist(self):
-
         single_component_exists = os.path.exists(self.single_component_path)
         binary_mixture_exists = os.path.exists(self.binary_mixture_path)
 
