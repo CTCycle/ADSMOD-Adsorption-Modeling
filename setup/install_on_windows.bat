@@ -1,22 +1,37 @@
 @echo off
+cd /d "%~dp0"
+
+set "env_name=NISTADS"
+set "project_name=NISTADS"
+set "env_path=.\environment\%env_name%"
 
 :: [CHECK CUSTOM ENVIRONMENTS] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Check if NISTADS environment is available or use custom environment
+:: Check if FEXT environment is available or use custom environment
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-call conda config --add channels conda-forge
-call conda info --envs | findstr "NISTADS"
-if %ERRORLEVEL%==0 (
-    echo NISTADS environment detected
-    call conda activate NISTADS
-    goto :dependencies
-) else (
-    echo NISTADS environment has not been found, it will now be created using python 3.11
-    echo Depending on your internet connection, this may take a while!
-    call conda create -n NISTADS python=3.11 -y
-    call conda activate NISTADS
-    goto :dependencies
+call conda activate "%env_path%" 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo %env_name% is being created (python version = 3.11)
+    call conda create --prefix "%env_path%" python=3.11 -y
+    call conda activate "%env_path%"
 )
+goto :check_git
+
+:: [INSTALL GIT] 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Install git using conda
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:check_git
+echo.
+echo Checking git installation
+git --version >nul 2>&1
+if errorlevel 1 (
+    echo Git not found. Installing git using conda...
+    call conda install -y git
+) else (
+    echo Git is already installed.
+)
+goto :dependencies
 
 :: [INSTALL DEPENDENCIES] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -26,9 +41,11 @@ if %ERRORLEVEL%==0 (
 echo.
 echo Install python libraries and packages
 call pip install torch==2.5.0+cu121 pip install torchvision==0.20.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
-call pip install tensorflow-cpu==2.18.0 keras==3.7.0
-call pip install transformers==4.43.3 matplotlib==3.9.2 seaborn==0.13.2 scikit-learn==1.5.1
-call pip install numpy==2.1.2 pandas==2.2.3 tqdm==4.66.4 pubchempy==1.0.4 
+call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp311-cp311-win_amd64.whl
+call pip install keras==3.7.0 scikit-learn==1.6.0 transformers==4.43.3
+call pip install numpy==2.1.0 pandas==2.2.3 tqdm==4.66.4 matplotlib==3.9.2 seaborn==0.13.2 
+call pip install pubchempy==1.0.4 
+call pip install jupyter==1.1.1
 
 :: [INSTALL TRITON] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -70,7 +87,6 @@ call pip cache purge
 echo.
 echo List of installed dependencies:
 call conda list
-
 echo.
-echo Installation complete. You can now run NISTADS on this system!
+echo Installation complete. You can now run %env_name% on this system!
 pause

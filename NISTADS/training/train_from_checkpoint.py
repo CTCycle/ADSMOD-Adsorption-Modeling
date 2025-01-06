@@ -7,7 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.generators import training_data_pipeline
+from NISTADS.commons.utils.dataloader.generators import ML_model_dataloader
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.models.training import ModelTraining
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators   
     logger.info('Building data loaders') 
-    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data)
+    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data)
     
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  
