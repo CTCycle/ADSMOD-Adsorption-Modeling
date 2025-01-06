@@ -22,14 +22,14 @@ if %ERRORLEVEL% neq 0 (
         /RegisterPython=0 ^
         /AddToPath=0 ^
         /S ^
-        /D=%USERPROFILE%\Miniconda3    
+        /D=%~dp0setup\miniconda    
     
-    call "%USERPROFILE%\Miniconda3\Scripts\activate.bat" "%USERPROFILE%\Miniconda3"
-    echo Miniconda installation is complete.
+    call "%~dp0..\setup\miniconda\Scripts\activate.bat" "%~dp0..\setup\miniconda"
+    echo Miniconda installation is complete.    
     goto :initial_check
 
 ) else (
-    echo Anaconda/Miniconda already installed. Checking python environment...
+    echo Anaconda/Miniconda already installed. Checking python environment...    
     goto :initial_check
 )
 
@@ -59,19 +59,24 @@ if exist ".setup\environment\%env_name%\" (
 :: Check if NVIDIA GPU is available using nvidia-smi
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :cudacheck
-if /i "%skip_CUDA_check%"=="true" (
-    goto :main_menu
+nvidia-smi >nul 2>&1
+if %ERRORLEVEL%==0 (
+    echo NVIDIA GPU detected. Checking CUDA version...
+    nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 ) else (
-    nvidia-smi >nul 2>&1
-    if %ERRORLEVEL%==0 (
-        echo NVIDIA GPU detected. Checking CUDA version...
-        nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
-        goto :main_menu
-    ) else (
-        echo No NVIDIA GPU detected or NVIDIA drivers are not installed.
-        goto :main_menu
-    )
+    echo No NVIDIA GPU detected or NVIDIA drivers are not installed.
 )
+goto :main_menu
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Precheck for conda source 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:conda_activation
+where conda >nul 2>&1
+if %ERRORLEVEL% neq 0 (   
+    call "%~dp0..\setup\miniconda\Scripts\activate.bat" "%~dp0..\setup\miniconda"       
+    goto :main_menu
+) 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Show main menu

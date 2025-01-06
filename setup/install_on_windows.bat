@@ -5,6 +5,16 @@ set "env_name=NISTADS"
 set "project_name=NISTADS"
 set "env_path=.\environment\%env_name%"
 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Precheck for conda source 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:conda_activation
+where conda >nul 2>&1
+if %ERRORLEVEL% neq 0 (   
+    call "%~dp0miniconda\Scripts\activate.bat" "%~dp0miniconda"       
+    goto :main_menu
+) 
+
 :: [CHECK CUSTOM ENVIRONMENTS] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Check if FEXT environment is available or use custom environment
