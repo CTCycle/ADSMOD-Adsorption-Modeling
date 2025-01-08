@@ -3,5 +3,8 @@ NISTADS/experimental/model/*
 
 *.log
 *.csv
+setup/environment/*
+setup/miniconda/*
+
 *.egg-info
 !.gitkeep
