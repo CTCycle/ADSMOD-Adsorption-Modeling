@@ -1,0 +1,14 @@
+__pycache__
+SCADS/data/validation/*
+SCADS/training/checkpoints/*
+
+*.csv
+
+setup/environment/*
+setup/miniconda/*
+
+*.egg-info
+!.gitkeep
+
+
+
