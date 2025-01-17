@@ -1,8 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 
+for /f "delims=" %%i in ("%~dp0..") do set "project_folder=%%~fi"
 set "env_name=NISTADS"
 set "project_name=NISTADS"
+set "env_path=%project_folder%\setup\environment\%env_name%"
+set "conda_path=%project_folder%\setup\miniconda"
+set "setup_path=%project_folder%\setup"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Check if conda is installed
@@ -11,48 +15,42 @@ set "project_name=NISTADS"
 where conda >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo Anaconda/Miniconda is not installed. Installing Miniconda...   
-    cd /d "%~dp0"        
+    cd /d "%conda_path%"        
     if not exist Miniconda3-latest-Windows-x86_64.exe (
         echo Downloading Miniconda 64-bit installer...
         powershell -Command "Invoke-WebRequest -Uri https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe -OutFile Miniconda3-latest-Windows-x86_64.exe"
     )    
-    echo Installing Miniconda to %USERPROFILE%\Miniconda3
+    echo Installing Miniconda to %conda_path%
     start /wait "" Miniconda3-latest-Windows-x86_64.exe ^
         /InstallationType=JustMe ^
         /RegisterPython=0 ^
         /AddToPath=0 ^
         /S ^
-        /D=%~dp0setup\miniconda    
+        /D=%conda_path%    
     
-    call "%~dp0..\setup\miniconda\Scripts\activate.bat" "%~dp0..\setup\miniconda"
+    call "%conda_path%\Scripts\activate.bat" "%conda_path%"
     echo Miniconda installation is complete.    
-    goto :initial_check
+    goto :check_environment
 
 ) else (
-    echo Anaconda/Miniconda already installed. Checking python environment...    
-    goto :initial_check
+    echo Anaconda/Miniconda already installed.   
+    goto :check_environment
 )
 
-
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Check if the 'FEXT' environment exists when not using a custom environment
+:: Check if the environment exists when not using a custom environment
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:initial_check   
-cd /d "%~dp0\.."
-
 :check_environment
-set "env_path=.setup\environment\%env_name%"
-
-if exist ".setup\environment\%env_name%\" (    
+if exist "%env_path%" (       
     echo Python environment '%env_name%' detected.
-    goto :cudacheck
+    goto :conda_activation
 
 ) else (
-    echo Running first-time installation for %env_name%. 
+    echo Running first-time installation for "%env_name%". 
     echo Please wait until completion and do not close this window!
     echo Depending on your internet connection, this may take a while...
-    call ".\setup\install_on_windows.bat"
-    goto :cudacheck
+    call "%setup_path%\install_on_windows.bat"
+    goto :conda_activation
 )
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -74,7 +72,7 @@ goto :main_menu
 :conda_activation
 where conda >nul 2>&1
 if %ERRORLEVEL% neq 0 (   
-    call "%~dp0..\setup\miniconda\Scripts\activate.bat" "%~dp0..\setup\miniconda"       
+    call "%conda_path%\Scripts\activate.bat" "%conda_path%"      
     goto :main_menu
 ) 
 
@@ -113,7 +111,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-start cmd /k "call conda activate --prefix %env_path% && jupyter notebook .\validation\adsorption_dataset_validation.ipynb"
+start cmd /k "call conda activate %env_path% && jupyter notebook .\validation\adsorption_dataset_validation.ipynb"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -121,7 +119,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :collect
 cls
-call conda activate --prefix %env_path% && python .\database\retrieve_adsorption_data.py
+call conda activate "%env_path%" && python .\database\retrieve_adsorption_data.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -129,7 +127,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :preprocess
 cls
-call conda activate --prefix %env_path% && python .\preprocessing\data_process.py
+call conda activate "%env_path%" && python .\preprocessing\data_process.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -137,7 +135,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :inference
 cls
-call conda activate --prefix %env_path% && python .\inference\adsorption_prediction.py
+call conda activate "%env_path%" && python .\inference\adsorption_prediction.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -168,7 +166,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :train_fs
 cls
-call conda activate --prefix %env_path% && python .\training\model_training.py
+call conda activate "%env_path%" && python .\training\model_training.py
 pause
 goto :ML_menu
 
@@ -177,7 +175,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :train_ckpt
 cls
-call conda activate --prefix %env_path% && python .\training\train_from_checkpoint.py
+call conda activate "%env_path%" && python .\training\train_from_checkpoint.py
 goto :ML_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -185,7 +183,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :modeleval
 cls
-start cmd /k "call conda activate --prefix %env_path% && jupyter notebook .\validation\model_evaluation.ipynb"
+start cmd /k "call conda activate %env_path% && jupyter notebook .\validation\model_evaluation.ipynb"
 goto :ML_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -210,13 +208,13 @@ pause
 goto :setup_menu
 
 :eggs
-call conda activate --prefix %env_path% && cd .. && pip install -e . --use-pep517 && cd %project_name%
+call conda activate "%env_path%" && cd .. && pip install -e . --use-pep517 && cd "%project_name%"
 pause
 goto :setup_menu
 
 :logs
-cd /d "%~dp0..\%project_name%\resources\logs"
+cd "%project_folder%\%project_name%\resources\logs"
 del *.log /q
-cd ..\..
+cd "%project_name%"
 pause
 goto :setup_menu
