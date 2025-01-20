@@ -48,7 +48,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **4) Predict adsorption of compounds:** Run *inference/adsorption_prediction.py* to use the pretrained NISTADS model and predict adsorption of compounds based on pressure.  
 
-**5) Setup and Maintenance:** allows running some options command such as *install project in editable mode* to run the developer model project installation, and *remove logs* to remove all logs saved in *resources/logs*. 
+**5) Setup and Maintenance:** execute optional commands such as *Install project into environment* to run the developer model project installation, *update project* to pull the last updates from github, and *remove logs* to remove all logs saved in *resources/logs*. 
 
 **6) Exit:** close the program immediately 
 
