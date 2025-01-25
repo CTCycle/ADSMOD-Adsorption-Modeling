@@ -10,38 +10,24 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class AdsorptionDataSanitizer:
 
-    def __init__(self):
+    def __init__(self, configuration):
 
         self.P_TARGET_COL = 'pressure'
         self.Q_TARGET_COL = 'adsorbed_amount'
-        self.max_pressure = CONFIG['dataset']['MAX_PRESSURE']
-        self.max_uptake = CONFIG['dataset']['MAX_UPTAKE']             
-        
+        self.T_TARGET_COL = 'temperature'
+        self.max_pressure = configuration['dataset']['MAX_PRESSURE']
+        self.max_uptake = configuration['dataset']['MAX_UPTAKE']
+        self.configuration = configuration  
+    
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):
         
-        dataset = dataset[dataset['temperature'].astype(int) > 0]
-        dataset = dataset[dataset['pressure'].astype(float).between(0.0, self.max_pressure)]
-        dataset = dataset[dataset['adsorbed_amount'].astype(float).between(0.0, self.max_uptake)]
+        dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
+        dataset = dataset[dataset[self.P_TARGET_COL].astype(float).between(0.0, self.max_pressure)]
+        dataset = dataset[dataset[self.Q_TARGET_COL].astype(float).between(0.0, self.max_uptake)]
         
         return dataset
     
     
     
-    
-
-
-
-    
-
-
-    
-
-        
-    
-    
-
-    
- 
-
     

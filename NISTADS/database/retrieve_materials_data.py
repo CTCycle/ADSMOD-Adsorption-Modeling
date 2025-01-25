@@ -3,7 +3,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.serializer import save_materials_datasets
+from NISTADS.commons.utils.dataloader.serializer import DataSerializer
 from NISTADS.commons.utils.datamaker.datasets import BuildMaterialsDataset
 from NISTADS.commons.utils.datafetch.materials import GuestHostDataFetch
 
@@ -30,6 +30,7 @@ if __name__ == '__main__':
     # 6. [PREPARE COLLECTED EXPERIMENTS DATA]
     #--------------------------------------------------------------------------    
     builder = BuildMaterialsDataset()
+    serializer = DataSerializer(CONFIG)
 
     # remove excluded columns from the dataframe    
     df_guest = builder.drop_excluded_columns(df_guest)
@@ -39,7 +40,7 @@ if __name__ == '__main__':
     host_data = builder.add_host_properties(df_host)    
   
     # save the final version of the materials dataset
-    save_materials_datasets(guest_data, host_data)
+    serializer.save_materials_datasets(guest_data, host_data)
     logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')
 
     

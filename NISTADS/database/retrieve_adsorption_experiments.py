@@ -3,7 +3,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.serializer import save_adsorption_datasets
+from NISTADS.commons.utils.dataloader.serializer import DataSerializer
 from NISTADS.commons.utils.datafetch.experiments import AdsorptionDataFetch
 from NISTADS.commons.utils.datamaker.datasets import BuildAdsorptionDataset
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -29,6 +29,7 @@ if __name__ == '__main__':
     # 6. [PREPARE COLLECTED EXPERIMENTS DATA]
     #--------------------------------------------------------------------------    
     builder = BuildAdsorptionDataset()
+    serializer = DataSerializer(CONFIG)
 
     # remove excluded columns from the dataframe
     adsorption_data = builder.drop_excluded_columns(adsorption_data)
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     # finally expand the dataset to represent each measurement with a single row
     # save the final version of the adsorption dataset
     single_component, binary_mixture = builder.expand_dataset(single_component, binary_mixture)
-    save_adsorption_datasets(single_component, binary_mixture)     
+    serializer.save_adsorption_datasets(single_component, binary_mixture)     
     logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')
   
 

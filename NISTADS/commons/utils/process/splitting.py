@@ -8,7 +8,7 @@ from NISTADS.commons.logger import logger
 
 # [DATA SPLITTING]
 ###############################################################################
-class DatasetSplit:
+class TrainValidationSplit:
 
     def __init__(self, ):
 

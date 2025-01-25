@@ -35,7 +35,7 @@ def model_savefolder(path, model_name):
 
 
 # [PARAMETRIZER BLOCK]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='Parametrizer')
 class Parametrizer(layers.Layer):
     def __init__(self, seq_length, seed=42, **kwargs):
@@ -77,7 +77,7 @@ class Parametrizer(layers.Layer):
         
 
 # [BATCH NORMALIZED FFW]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='BNFeedForward')
 class BNFeedForward(layers.Layer):
     def __init__(self, units, seed=42, dropout=0.1, **kwargs):
@@ -115,7 +115,7 @@ class BNFeedForward(layers.Layer):
     
 
 # [GUEST-HOST ENCODER]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='Encoders', name='GHEncoder')
 class GHEncoder(layers.Layer):
     def __init__(self, seq_length, gvocab_size, hvocab_size, embedding_dims, seed=42, **kwargs):
@@ -167,7 +167,7 @@ class GHEncoder(layers.Layer):
      
     
 # [PRESSURE ENCODER]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='Encoders', name='PressureEncoder')
 class PressureEncoder(layers.Layer):
 
@@ -226,7 +226,7 @@ class PressureEncoder(layers.Layer):
      
     
 # [UPTAKE DECODER]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='Decoder', name='QDecoder')
 class QDecoder(layers.Layer):
     def __init__(self, seq_length, seed=42, **kwargs):
@@ -273,7 +273,7 @@ class QDecoder(layers.Layer):
     
     
 # [SCADS MODEL]
-#==============================================================================
+#====================================================================================================================================================
 class SCADSModel:
 
     def __init__(self, learning_rate, num_features, sequence_length, pad_value, adsorbent_dims, 
@@ -322,7 +322,7 @@ class SCADSModel:
                  
 
 # [CUSTOM MASKED LOSS]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='CustomLoss', name='MaskedMeanSquaredError')
 class MaskedMeanSquaredError(keras.losses.Loss):
     def __init__(self, pad_value, reduction=keras.losses.Reduction.AUTO, name='MaskedMeanSquaredError', **kwargs):
@@ -354,7 +354,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         return cls(**config)
 
 # [CUSTOM MASKED METRIC]
-#==============================================================================
+#====================================================================================================================================================
 @keras.utils.register_keras_serializable(package='CustomMetric', name='MaskedMeanAbsoluteError')
 class MaskedMeanAbsoluteError(keras.metrics.Metric):
     def __init__(self, pad_value, name='MaskedMeanAbsoluteError', **kwargs):
@@ -400,9 +400,9 @@ class MaskedMeanAbsoluteError(keras.metrics.Metric):
     
     
 # [TRAINING OPTIONS]
-#==============================================================================
+#====================================================================================================================================================
 # Custom training operations
-#==============================================================================
+#====================================================================================================================================================
 class ModelTraining:
 
     '''

@@ -1,6 +1,4 @@
-# [SET KERAS BACKEND]
 import os 
-os.environ["KERAS_BACKEND"] = "torch"
 
 import sys
 import json
@@ -8,100 +6,80 @@ import pandas as pd
 import keras
 from datetime import datetime
 
-from NISTADS.commons.constants import CONFIG, DATA_PATH, CHECKPOINT_PATH
+from NISTADS.commons.constants import CONFIG, PROCESSED_PATH, DATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
 
-
-# get the path of multiple images from a given directory
-###############################################################################
-def load_all_datasets():    
-    
-    adsorption_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv') 
-    adsorption_data = pd.read_csv(adsorption_path, encoding='utf-8', sep=';')     
-    guest_path = os.path.join(DATA_PATH, 'guests_dataset.csv') 
-    guest_properties = pd.read_csv(guest_path, encoding='utf-8', sep=';')
-    host_path = os.path.join(DATA_PATH, 'hosts_dataset.csv') 
-    host_properties = pd.read_csv(host_path, encoding='utf-8', sep=';')      
-
-    return adsorption_data, guest_properties, host_properties 
-
-###############################################################################
-def save_adsorption_datasets(single_component : pd.DataFrame, binary_mixture : pd.DataFrame): 
-    
-    file_loc = os.path.join(DATA_PATH, 'single_component_adsorption.csv') 
-    single_component.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-    file_loc = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv') 
-    binary_mixture.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-
-
-###############################################################################
-def save_materials_datasets(guest_data, host_data):
-
-    dataframe = pd.DataFrame.from_dict(guest_data)  
-    file_loc = os.path.join(DATA_PATH, 'guests_dataset.csv') 
-    dataframe.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
-
-    dataframe = pd.DataFrame.from_dict(host_data)  
-    file_loc = os.path.join(DATA_PATH, 'hosts_dataset.csv') 
-    dataframe.to_csv(file_loc, index=False, sep=';', encoding='utf-8') 
 
 
 # [DATA SERIALIZATION]
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self):        
-        pass
-            
+    def __init__(self, configuration):        
+        
+        self.SCADS_data_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv') 
+        self.BMADS_data_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv')
+        self.guest_path = os.path.join(DATA_PATH, 'guests_dataset.csv')  
+        self.host_path = os.path.join(DATA_PATH, 'hosts_dataset.csv') 
+
+        self.processed_SCADS_path = os.path.join(PROCESSED_PATH, 'SCADS_dataset.csv')
+        self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json') 
+        self.vocabulary_path = os.path.join(PROCESSED_PATH, 'SMILE_tokenization_index.json')
+
+        self.parameters = configuration["dataset"]
+        self.configuration = configuration          
+        
+    #--------------------------------------------------------------------------
+    def load_all_datasets(self):       
+        adsorption_data = pd.read_csv(self.SCADS_data_path, encoding='utf-8', sep=';')        
+        guest_properties = pd.read_csv(self.guest_path, encoding='utf-8', sep=';')
+        host_path = os.path.join(DATA_PATH, 'hosts_dataset.csv') 
+        host_properties = pd.read_csv(host_path, encoding='utf-8', sep=';')      
+
+        return adsorption_data, guest_properties, host_properties 
+
+    #--------------------------------------------------------------------------
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={}): 
+
+        metadata = self.configuration.copy()
+        metadata['date'] = datetime.now().strftime("%Y-%m-%d")
+        metadata['vocabulary_size'] = len(smile_vocabulary)              
+        processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')        
+        with open(self.metadata_path, 'w') as file:
+            json.dump(metadata, file, indent=4)              
+        with open(self.vocabulary_path, 'w') as file:
+            json.dump(smile_vocabulary, file, indent=4)             
+
+    #--------------------------------------------------------------------------
+    def load_preprocessed_data(self):                            
+        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';', low_memory=False)        
+        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
+        with open(self.metadata_path, 'r') as file:
+            metadata = json.load(file)        
+        with open(self.vocabulary_path, 'r') as file:
+            vocabulary = json.load(file)
+        
+        return processed_data, metadata, vocabulary
     
-
-    # ...
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
-                               vocabulary_size=None): 
+    def save_materials_datasets(self, guest_data, host_data):
+        dataframe = pd.DataFrame.from_dict(guest_data)          
+        dataframe.to_csv(self.guest_path, index=False, sep=';', encoding='utf-8')
+        dataframe = pd.DataFrame.from_dict(host_data)          
+        dataframe.to_csv(self.host_path, index=False, sep=';', encoding='utf-8')    
 
-        processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
-                           'train_size' : 1.0 - CONFIG["dataset"]["VALIDATION_SIZE"],
-                           'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],
-                           'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],
-                           'vocabulary_size' : vocabulary_size,                           
-                           'date': datetime.now().strftime("%Y-%m-%d")}
-
-        # define paths of .csv and .json files
-        train_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_train.csv')
-        val_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_validation.csv')
-        json_info_path = os.path.join(ML_DATA_PATH, 'preprocessing_metadata.json')
-        
-        # save train and validation data as .csv in the dataset folder
-        train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
-        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8') 
-        logger.debug(f'Preprocessed train data has been saved at {train_pp_path}') 
-        logger.debug(f'Preprocessed validation data has been saved at {val_pp_path}') 
-
-        # save the preprocessing info as .json file in the dataset folder
-        with open(json_info_path, 'w') as file:
-            json.dump(processing_info, file, indent=4) 
-            logger.debug('Preprocessing info:\n%s', file)
-
-    # ...
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self, path):
+    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):        
+        single_component.to_csv(self.SCADS_data_path, index=False, sep=';', encoding='utf-8')        
+        binary_mixture.to_csv(self.BMADS_data_path, index=False, sep=';', encoding='utf-8')
 
-        # load preprocessed train and validation data
-        train_file_path = os.path.join(path, 'XREPORT_train.csv') 
-        val_file_path = os.path.join(path, 'XREPORT_validation.csv')
-        train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
-        validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
-
-        # transform text strings into array of words
-        train_data['tokens'] = train_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
-        validation_data['tokens'] = validation_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
-        # load preprocessing metadata
-        metadata_path = os.path.join(path, 'preprocessing_metadata.json')
-        with open(metadata_path, 'r') as file:
-            metadata = json.load(file)
+    #--------------------------------------------------------------------------
+    def copy_data_to_checkpoint(self, checkpoint_path):        
+        data_folder = os.path.join(checkpoint_path, 'data')        
+        os.makedirs(data_folder, exist_ok=True)        
+        os.system(f'cp {self.processed_data_path} {data_folder}')
+        os.system(f'cp {self.metadata_path} {data_folder}')
         
-        return train_data, validation_data, metadata
 
     
 # [MODEL SERIALIZATION]
@@ -109,7 +87,7 @@ class DataSerializer:
 class ModelSerializer:
 
     def __init__(self):
-        self.model_name = 'XREPORT'
+        self.model_name = 'SCADS'
 
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
@@ -131,20 +109,7 @@ class ModelSerializer:
         os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
-        return checkpoint_path 
-    
-
-    # function to create a folder where to save model checkpoints
-    #--------------------------------------------------------------------------
-    def store_data_in_checkpoint_folder(self, checkpoint_folder):
-
-        data_cp_path = os.path.join(checkpoint_folder, 'data') 
-        for filename in os.listdir(ML_DATA_PATH):            
-            if filename != '.gitkeep':
-                file_path = os.path.join(ML_DATA_PATH, filename)                
-                if os.path.isfile(file_path):
-                    shutil.copy(file_path, data_cp_path)
-                    logger.debug(f'Successfully copied {filename} to {data_cp_path}')
+        return checkpoint_path    
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):

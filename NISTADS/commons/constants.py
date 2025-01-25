@@ -5,8 +5,8 @@ from os.path import join, dirname, abspath
 ###############################################################################
 PROJECT_DIR = dirname(dirname(abspath(__file__)))
 RSC_PATH = join(PROJECT_DIR, 'resources')
-DATA_PATH = join(RSC_PATH, 'datasets')
-PP_DATA_PATH = join(DATA_PATH, 'processed data')
+DATA_PATH = join(RSC_PATH, 'dataset')
+PROCESSED_PATH = join(DATA_PATH, 'processed_data')
 NLP_PATH = join(RSC_PATH, 'NLP models')
 VALIDATION_PATH = join(RSC_PATH, 'validation')
 CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')

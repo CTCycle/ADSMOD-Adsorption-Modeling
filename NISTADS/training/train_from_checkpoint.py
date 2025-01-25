@@ -7,7 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.generators import ML_model_dataloader
+from NISTADS.commons.utils.dataloader.generators import build_model_dataloader
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.models.training import ModelTraining
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -34,7 +34,6 @@ if __name__ == '__main__':
     model.summary(expand_nested=True)      
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
-    #--------------------------------------------------------------------------
     # initialize training device, allows changing device prior to initializing the generators
     #--------------------------------------------------------------------------   
     # load saved tf.datasets from the proper folders in the checkpoint directory     
@@ -43,10 +42,9 @@ if __name__ == '__main__':
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators   
     logger.info('Building data loaders') 
-    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data)
+    train_dataset, validation_dataset = build_model_dataloader(train_data, validation_data)
     
-    # 3. [TRAINING MODEL]  
-    #--------------------------------------------------------------------------  
+    # 3. [TRAINING MODEL]
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/ 

@@ -2,7 +2,6 @@ import os
 import pandas as pd
 from tqdm import tqdm
 
-
 from NISTADS.commons.utils.datamaker.properties import GuestProperties, HostProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -16,7 +15,7 @@ class BuildMaterialsDataset:
         self.guest_props = GuestProperties()
         self.host_props = HostProperties()
         self.extractor = GetSpeciesFromExperiments() 
-        self.drop_cols = ['InChIKey', 'InChICode', 'formula'] 
+        self.drop_cols = ['InChIKey', 'InChICode'] 
 
     #--------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
@@ -114,7 +113,7 @@ class BuildAdsorptionDataset:
            
         # processing and exploding data for single component dataset
         explode_cols = ['pressure', 'adsorbed_amount']
-        drop_columns = ['date', 'adsorbent', 'adsorbates', 
+        drop_columns = ['date', 'adsorbent', 'adsorbates', 'numGuests', 
                         'isotherm_data', 'adsorbent_ID', 'adsorbates_ID']
                 
         SC_dataset = single_component.explode(explode_cols)
@@ -133,7 +132,7 @@ class BuildAdsorptionDataset:
         BM_dataset = binary_mixture.explode(explode_cols)
         BM_dataset[explode_cols] = BM_dataset[explode_cols].astype('float32')       
         BM_dataset.reset_index(inplace=True, drop=True)        
-        BM_dataset = BM_dataset.drop(columns = drop_columns)
+        BM_dataset = BM_dataset.drop(columns=drop_columns)
         BM_dataset.dropna(inplace=True)    
         
         return SC_dataset, BM_dataset
@@ -171,7 +170,7 @@ class GetSpeciesFromExperiments:
             for col in self.binary_mixture_cols:
                 species_names.update(binary_mixture[col].dropna().unique())
         else:
-            logger.info('Adsorption experiments dataset has not been found. Species names will not be retrieved')
+            logger.warning('Adsorption experiments dataset has not been found. Species names will not be retrieved')
 
         return sorted(list(species_names))
      

@@ -82,9 +82,9 @@ if %ERRORLEVEL% neq 0 (
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :main_menu
 echo.
-echo =======================================
+echo ==========================================================================
 echo       NISTADS adsorption modeling
-echo =======================================
+echo ==========================================================================
 echo 1. Data analysis
 echo 2. Collect adsorption data
 echo 3. Preprocess adsorption data
@@ -128,7 +128,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :preprocess
 cls
-start cmd /k "call conda activate "%env_path%" && python "%app_path%"\preprocessing\data_process.py"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\database\build_adsorption_dataset.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -144,9 +144,9 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :ML_menu
 cls
-echo =======================================
+echo ==========================================================================
 echo              NISTADS ML
-echo =======================================
+echo ==========================================================================
 echo 1. Train from scratch
 echo 2. Train from checkpoint
 echo 3. Evaluate model performances
@@ -191,9 +191,9 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :setup_menu
 cls
-echo =======================================
-echo         Setup and Maintenance
-echo =======================================
+echo ==========================================================================
+echo                         Setup  and Maintenance                          
+echo ==========================================================================
 echo 1. Install project in editable mode
 echo 2. Update project
 echo 3. Remove logs

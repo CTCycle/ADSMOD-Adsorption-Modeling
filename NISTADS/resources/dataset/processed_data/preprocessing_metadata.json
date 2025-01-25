@@ -1,0 +1,45 @@
+{
+    "SEED": 54,
+    "collection": {
+        "GUEST_FRACTION": 0.1,
+        "HOST_FRACTION": 0.1,
+        "EXP_FRACTION": 0.1,
+        "PARALLEL_TASKS_GH": 60,
+        "PARALLEL_TASKS_EXP": 30
+    },
+    "dataset": {
+        "SAMPLE_SIZE": 1.0,
+        "VALIDATION_SIZE": 0.15,
+        "MAX_PQ_POINTS": 40,
+        "MIN_PQ_POINTS": 5,
+        "SMILE_PADDING": 30,
+        "MAX_PRESSURE": 10000000.0,
+        "MAX_UPTAKE": 10,
+        "NORMALIZE": true,
+        "SPLIT_SEED": 45,
+        "INCLUDE_BINARY_MIXTURES": true
+    },
+    "device": {
+        "DEVICE": "GPU",
+        "DEVICE_ID": 0,
+        "MIXED_PRECISION": false,
+        "NUM_PROCESSORS": 6
+    },
+    "model": {
+        "EMBEDDING_DIMS": 256,
+        "SAVE_MODEL_PLOT": true
+    },
+    "training": {
+        "EPOCHS": 30,
+        "ADDITIONAL_EPOCHS": 20,
+        "LEARNING_RATE": 0.001,
+        "BATCH_SIZE": 16,
+        "USE_TENSORBOARD": false,
+        "PLOT_EPOCH_GAP": 5
+    },
+    "evaluation": {
+        "BATCH_SIZE": 20
+    },
+    "date": "2025-01-25",
+    "vocabulary_size": 19
+}
