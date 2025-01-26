@@ -26,7 +26,7 @@ if __name__ == '__main__':
     logger.info('Extracting adsorption isotherms data')
     adsorption_data = webworker.get_experiments_data(experiments_index) 
         
-    # 6. [PREPARE COLLECTED EXPERIMENTS DATA]
+    # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
     #--------------------------------------------------------------------------    
     builder = BuildAdsorptionDataset()
     serializer = DataSerializer(CONFIG)
@@ -39,8 +39,10 @@ if __name__ == '__main__':
     single_component = builder.extract_nested_data(single_component)
     binary_mixture = builder.extract_nested_data(binary_mixture)
 
+    # 4. [SAVE DATASET]
     # finally expand the dataset to represent each measurement with a single row
     # save the final version of the adsorption dataset
+    #--------------------------------------------------------------------------    
     single_component, binary_mixture = builder.expand_dataset(single_component, binary_mixture)
     serializer.save_adsorption_datasets(single_component, binary_mixture)     
     logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')

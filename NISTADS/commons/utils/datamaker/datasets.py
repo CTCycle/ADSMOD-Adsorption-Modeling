@@ -11,21 +11,32 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class BuildMaterialsDataset:
 
-    def __init__(self):        
+    def __init__(self, configuration):        
         self.guest_props = GuestProperties()
         self.host_props = HostProperties()
         self.extractor = GetSpeciesFromExperiments() 
-        self.drop_cols = ['InChIKey', 'InChICode'] 
+        self.drop_cols = ['InChIKey', 'InChICode']
+        self.configuration = configuration       
 
     #--------------------------------------------------------------------------           
+    def retrieve_materials_from_experiments(self, experiments : pd.DataFrame, 
+                                            guests : pd.DataFrame, hosts : pd.DataFrame):
+      
+        adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
+        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])        
+        guests = pd.concat([guests, adsorbates], ignore_index=True)
+        hosts = pd.concat([hosts, adsorbents], ignore_index=True)
+
+        return guests, hosts
+       
+    #--------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
-        df_drop = dataframe.drop(columns=self.drop_cols, axis=1)
+        df_drop = dataframe.drop(columns=self.drop_cols, axis=1, errors='ignore')
 
         return df_drop
     
     #--------------------------------------------------------------------------
-    def add_guest_properties(self, guest_data : pd.DataFrame):              
-
+    def add_guest_properties(self, guest_data : pd.DataFrame):
         guest_names = guest_data['name'].to_list()
         guest_synonims = guest_data['synonyms'].to_list()
         # fetch compounds names from the adsorption dataset, and extend the current
@@ -45,10 +56,8 @@ class BuildMaterialsDataset:
     
     #--------------------------------------------------------------------------
     def add_host_properties(self, host_data : pd.DataFrame):
-
-        # currently not implemented!
-        host_data['name'] = host_data['name'].apply(lambda x : x.lower())
-        return host_data
+        
+        pass
         
  
 

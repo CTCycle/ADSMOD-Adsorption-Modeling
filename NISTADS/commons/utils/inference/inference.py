@@ -1,96 +1,53 @@
 import os
 import numpy as np
-import json
-import tensorflow as tf
+import keras
+from tqdm import tqdm
 
-    
-# [TOOLKIT TO USE THE PRETRAINED MODEL]
-#====================================================================================================================================================
-# Custom training operations
-#====================================================================================================================================================
-class Inference:
+from FEXT.commons.utils.dataloader.serializer import DataSerializer
+from FEXT.commons.constants import ENCODED_PATH
+from FEXT.commons.logger import logger
 
-    def __init__(self, seed):
-        self.seed = seed
-        np.random.seed(seed)
-        tf.random.set_seed(seed)  
+
+# [INFERENCE]
+###############################################################################
+class ImageEncoding:
     
+    def __init__(self, model : keras.Model, configuration):
+       
+        keras.utils.set_random_seed(configuration["SEED"])  
+        self.dataserializer = DataSerializer(configuration)  
+        self.img_shape = configuration["model"]["IMG_SHAPE"]
+        self.configuration = configuration
+        self.model = model 
+
+        # isolate the encoder submodel from the autoencoder model, and use it for inference             
+        encoder_output = model.get_layer('compression_layer').output 
+        self.encoder_model = keras.Model(inputs=model.input, outputs=encoder_output)              
+
     #--------------------------------------------------------------------------
-    def select_and_load_checkpoint(self, path):
-
-        '''
-        Load pretrained keras model (in folders) from the specified directory. 
-        If multiple model directories are found, the user is prompted to select one,
-        while if only one model directory is found, that model is loaded directly.
-        If `load_parameters` is True, the function also loads the model parameters 
-        from the target .json file in the same directory. 
-
-        Keyword arguments:
-            path (str): The directory path where the pretrained models are stored.
-            load_parameters (bool, optional): If True, the function also loads the 
-                                              model parameters from a JSON file. 
-                                              Default is True.
-
-        Returns:
-            model (keras.Model): The loaded Keras model.
-
-        '''        
-        model_folders = []
-        for entry in os.scandir(path):
-            if entry.is_dir():
-                model_folders.append(entry.name)
-        if len(model_folders) > 1:
-            model_folders.sort()
-            index_list = [idx + 1 for idx, item in enumerate(model_folders)]     
-            print('Please select a pretrained model:') 
-            print()
-            for i, directory in enumerate(model_folders):
-                print(f'{i + 1} - {directory}')        
-            print()               
-            while True:
-                try:
-                    dir_index = int(input('Type the model index to select it: '))
-                    print()
-                except:
-                    continue
-                break                         
-            while dir_index not in index_list:
-                try:
-                    dir_index = int(input('Input is not valid! Try again: '))
-                    print()
-                except:
-                    continue
-            self.folder_path = os.path.join(path, model_folders[dir_index - 1])
-
-        elif len(model_folders) == 1:
-            self.folder_path = os.path.join(path, model_folders[0])                 
+    def encoder_images(self, images_paths):
         
-        NLP_PATH = os.path.join(self.folder_path, 'model') 
-        model = tf.keras.models.load_model(NLP_PATH, compile=False)
-        path = os.path.join(self.folder_path, 'model_parameters.json')
-        with open(path, 'r') as f:
-            configuration = json.load(f)               
-        
-        return model, configuration    
-   
-    #--------------------------------------------------------------------------
-    def sequence_recovery(self, pressure, true_Y, pred_Y, pad_value, 
-                          pressure_normalizer, uptake_normalizer):
-        
-        indices_to_remove = [np.where(pressure[i] == pad_value)[0] for i in range(len(pressure))]        
-        true_Y_recovered = [np.delete(true_Y[i], indices_to_remove[i]) for i in range(len(pressure))]
-        pred_Y_recovered = [np.delete(pred_Y[i], indices_to_remove[i]) for i in range(len(pressure))]
-        pressure_recovered = [np.delete(pressure[i], indices_to_remove[i]) for i in range(len(pressure))]
-        true_Y_recovered = [uptake_normalizer.inverse_transform(x.reshape(-1, 1)) for x in true_Y_recovered]
-        pred_Y_recovered = [uptake_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pred_Y_recovered]
-        pressure_recovered = [pressure_normalizer.inverse_transform(x.reshape(-1, 1)) for x in pressure_recovered]
+        features = {}
+        for pt in tqdm(images_paths):
+            try:
+                image = self.dataserializer.load_image(pt)
+                image = keras.ops.expand_dims(image, axis=0)
+                extracted_features = self.encoder_model.predict(image, verbose=0)
+                features[pt] = extracted_features
+            except Exception as e:
+                features[pt] = f'Could not extract features: {str(e)}'
+                logger.error(f'Could not extract features from image at {pt}: {str(e)}')
 
-        return pressure_recovered, true_Y_recovered, pred_Y_recovered
-        
-    
-   
+        # combine extracted features with images name and save them in numpy arrays    
+        structured_data = np.array([(image, features[image]) for image in features], dtype=object)
+        file_loc = os.path.join(ENCODED_PATH, 'extracted_features.npy')
+        np.save(file_loc, structured_data)
 
-        
-          
-    
-            
+        logger.debug(f'Extracted img features saved as numpy array at {file_loc}')
+
+        return features
+
+
+
+
+

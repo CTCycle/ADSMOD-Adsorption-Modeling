@@ -1,7 +1,7 @@
 {   
     "SEED" : 54,
-    "collection" : {"GUEST_FRACTION" : 0.1,
-                    "HOST_FRACTION" : 0.1,
+    "collection" : {"GUEST_FRACTION" : 0.01,
+                    "HOST_FRACTION" : 0.01,
                     "EXP_FRACTION" : 0.1,    
                     "PARALLEL_TASKS_GH" : 60,
                     "PARALLEL_TASKS_EXP" : 30},
@@ -14,8 +14,7 @@
                  "MAX_PRESSURE": 10e06,
                  "MAX_UPTAKE": 10,
                  "NORMALIZE": true,
-                 "SPLIT_SEED" : 45,
-                 "INCLUDE_BINARY_MIXTURES" : true},
+                 "SPLIT_SEED" : 45},
 
     "device" : {"DEVICE" : "GPU",
                 "DEVICE_ID" : 0,
@@ -28,7 +27,7 @@
     "training" : {"EPOCHS" : 30,
                   "ADDITIONAL_EPOCHS" : 20,
                   "LEARNING_RATE" : 0.001,
-                  "BATCH_SIZE" : 16,                  
+                  "BATCH_SIZE" : 16,                             
                   "USE_TENSORBOARD" : false,               
                   "PLOT_EPOCH_GAP": 5},                  
                   

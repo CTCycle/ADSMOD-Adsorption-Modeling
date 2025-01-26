@@ -1,50 +1,31 @@
-import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
 
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
-
 
 # [DATA SPLITTING]
 ###############################################################################
 class TrainValidationSplit:
 
-    def __init__(self, ):
+    def __init__(self, configuration, dataframe: pd.DataFrame):
 
-        # Set the sizes for the train and validation datasets       
-        self.sample_size = CONFIG["dataset"]["SAMPLE_SIZE"]         
-        self.validation_size = CONFIG["dataset"]["VALIDATION_SIZE"]
+        # Set the sizes for the train and validation datasets        
+        self.validation_size = configuration["dataset"]["VALIDATION_SIZE"]
+        self.seed = configuration["dataset"]["SPLIT_SEED"]
         self.train_size = 1.0 - self.validation_size
-
-        self.exp_features = ['temperature']
-        self.guest_features = ['molecular_weight', 'elements', 'heavy_atoms', 'molecular_formula',
-                               'SMILE', 'H_acceptors', 'H_donors']
-        self.host_features = ['adsorbent_name']
-        self.pressure_series = 'pressure'
-        self.uptake_series = 'uptake'  
-
-
-    #--------------------------------------------------------------------------
-    def dataset_downsampling(self, dataset: pd.DataFrame):
-       
-        if CONFIG["dataset"]["SAMPLE_SIZE"] is not None: 
-            sample_size = int(np.ceil(dataset.shape[0] * CONFIG["dataset"]["SAMPLE_SIZE"]))      
-            dataset = dataset.sample(n=sample_size, random_state=CONFIG["dataset"]["SPLIT_SEED"])
-            
-        return dataset         
+        self.dataframe = dataframe        
+        
+        total_samples = len(dataframe)
+        self.train_size = int(total_samples * self.train_size)
+        self.val_size = int(total_samples * self.validation_size)
         
     #--------------------------------------------------------------------------
-    def split_train_and_validation(self, dataset: pd.DataFrame):
-
-        dataset = self.dataset_downsampling(dataset)
-        inputs = dataset[[x for x in dataset.columns if x != self.uptake_series]]
-        labels = dataset[self.uptake_series]
-        train_X, test_X, train_Y, test_Y = train_test_split(inputs, labels, test_size=self.validation_size, 
-                                                            random_state=CONFIG["SEED"], shuffle=True, 
-                                                            stratify=None) 
+    def split_train_and_validation(self):       
+        self.dataframe = shuffle(self.dataframe, random_state=self.seed).reset_index(drop=True) 
+        train_data = self.dataframe.iloc[:self.train_size]
+        validation_data = self.dataframe.iloc[self.train_size:self.train_size + self.val_size]
         
-        return train_X, test_X, train_Y, test_Y
-    
+        return train_data, validation_data
     
    

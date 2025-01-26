@@ -119,8 +119,8 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :collect
 cls
-start cmd /k "call conda activate "%env_path%" && %app_path%"\database\retrieve_materials_data.py
-start cmd /k "call conda activate "%env_path%" && %app_path%"\database\retrieve_adsorption_experiments.py"
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\database\retrieve_adsorption_experiments.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\database\retrieve_materials_data.py""
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

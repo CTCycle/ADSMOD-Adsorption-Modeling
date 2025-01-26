@@ -16,8 +16,7 @@
         "MAX_PRESSURE": 10000000.0,
         "MAX_UPTAKE": 10,
         "NORMALIZE": true,
-        "SPLIT_SEED": 45,
-        "INCLUDE_BINARY_MIXTURES": true
+        "SPLIT_SEED": 45
     },
     "device": {
         "DEVICE": "GPU",
@@ -40,6 +39,6 @@
     "evaluation": {
         "BATCH_SIZE": 20
     },
-    "date": "2025-01-25",
+    "date": "2025-01-26",
     "vocabulary_size": 19
 }

@@ -15,8 +15,7 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):        
-        
+    def __init__(self, configuration):       
         self.SCADS_data_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv') 
         self.BMADS_data_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv')
         self.guest_path = os.path.join(DATA_PATH, 'guests_dataset.csv')  
@@ -26,24 +25,28 @@ class DataSerializer:
         self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json') 
         self.vocabulary_path = os.path.join(PROCESSED_PATH, 'SMILE_tokenization_index.json')
 
+        self.P_COL = 'pressure' 
+        self.Q_COL = 'adsorbed_amount'
+        self.SMILE_COL = 'encoded_SMILE'      
         self.parameters = configuration["dataset"]
         self.configuration = configuration          
         
     #--------------------------------------------------------------------------
-    def load_all_datasets(self):       
-        adsorption_data = pd.read_csv(self.SCADS_data_path, encoding='utf-8', sep=';')        
-        guest_properties = pd.read_csv(self.guest_path, encoding='utf-8', sep=';')
-        host_path = os.path.join(DATA_PATH, 'hosts_dataset.csv') 
-        host_properties = pd.read_csv(host_path, encoding='utf-8', sep=';')      
+    def load_datasets(self, get_materials=True): 
+        guest_properties, host_properties = None, None             
+        adsorption_data = pd.read_csv(self.SCADS_data_path, encoding='utf-8', sep=';') 
+        if get_materials:       
+            guest_properties = pd.read_csv(self.guest_path, encoding='utf-8', sep=';')        
+            host_properties = pd.read_csv(self.host_path, encoding='utf-8', sep=';')      
 
         return adsorption_data, guest_properties, host_properties 
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={}): 
-
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={}):
         metadata = self.configuration.copy()
         metadata['date'] = datetime.now().strftime("%Y-%m-%d")
-        metadata['vocabulary_size'] = len(smile_vocabulary)              
+        metadata['vocabulary_size'] = len(smile_vocabulary)  
+                 
         processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')        
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4)              
@@ -53,7 +56,10 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self):                            
         processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';', low_memory=False)        
-        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
+        processed_data[self.SMILE_COL] = processed_data[self.SMILE_COL].apply(lambda x : [float(f) for f in x.split()])   
+        processed_data[self.P_COL] = processed_data[self.P_COL].apply(lambda x : [float(f) for f in x.split()])   
+        processed_data[self.Q_COL] = processed_data[self.Q_COL].apply(lambda x : [float(f) for f in x.split()])   
+
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         with open(self.vocabulary_path, 'r') as file:
@@ -77,7 +83,7 @@ class DataSerializer:
     def copy_data_to_checkpoint(self, checkpoint_path):        
         data_folder = os.path.join(checkpoint_path, 'data')        
         os.makedirs(data_folder, exist_ok=True)        
-        os.system(f'cp {self.processed_data_path} {data_folder}')
+        os.system(f'cp {self.processed_SCADS_path} {data_folder}')
         os.system(f'cp {self.metadata_path} {data_folder}')
         
 

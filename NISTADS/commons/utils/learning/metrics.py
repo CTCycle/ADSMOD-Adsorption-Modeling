@@ -1,0 +1,109 @@
+import torch
+import keras
+
+from NISTADS.commons.constants import CONFIG
+from NISTADS.commons.logger import logger
+
+
+   
+# [METRICS]
+###############################################################################
+class MaskedAccuracy(keras.metrics.Metric):
+
+    def __init__(self, name='MaskedAccuracy', **kwargs):
+        super(MaskedAccuracy, self).__init__(name=name, **kwargs)
+        self.total = self.add_weight(name='total', initializer='zeros')
+        self.count = self.add_weight(name='count', initializer='zeros')
+        
+    #--------------------------------------------------------------------------
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        
+        y_true = keras.ops.cast(y_true, dtype=torch.float32)
+        y_pred_argmax = keras.ops.cast(keras.ops.argmax(y_pred, axis=2), dtype=torch.float32)
+        accuracy = keras.ops.equal(y_true, y_pred_argmax)        
+        # Create a mask to ignore padding (assuming padding value is 0)
+        mask = keras.ops.not_equal(y_true, 0)        
+        # Apply the mask to the accuracy
+        accuracy = keras.ops.logical_and(mask, accuracy)        
+        # Cast the boolean values to float32
+        accuracy = keras.ops.cast(accuracy, dtype=torch.float32)
+        mask = keras.ops.cast(mask, dtype=torch.float32)
+        
+        if sample_weight is not None:
+            sample_weight = keras.ops.cast(sample_weight, dtype=torch.float32)
+            accuracy = keras.ops.multiply(accuracy, sample_weight)
+            mask = keras.ops.multiply(mask, sample_weight)
+        
+        # Update the state variables
+        self.total.assign_add(keras.ops.sum(accuracy))
+        self.count.assign_add(keras.ops.sum(mask))
+    
+    #--------------------------------------------------------------------------
+    def result(self):
+        return self.total / (self.count + keras.backend.epsilon())
+    
+    #--------------------------------------------------------------------------
+    def reset_states(self):
+        self.total.assign(0)
+        self.count.assign(0)
+
+    #--------------------------------------------------------------------------
+    def get_config(self):
+        base_config = super(MaskedAccuracy, self).get_config()
+        return {**base_config, 'name': self.name}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+
+
+
+
+
+
+# [LOSS FUNCTION]
+###############################################################################
+@keras.utils.register_keras_serializable(package='CustomMetric', name='MaskedMeanAbsoluteError')
+class MaskedMeanAbsoluteError(keras.metrics.Metric):
+    def __init__(self, pad_value, name='MaskedMeanAbsoluteError', **kwargs):
+        super(MaskedMeanAbsoluteError, self).__init__(name=name, **kwargs)
+        self.pad_value = pad_value
+        self.total = self.add_weight(name="total", initializer="zeros")
+        self.count = self.add_weight(name="count", initializer="zeros")
+
+    # update metric status
+    #--------------------------------------------------------------------------
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        mask = tf.not_equal(y_true, self.pad_value)
+        y_true_masked = tf.boolean_mask(y_true, mask)
+        y_pred_masked = tf.boolean_mask(y_pred, mask)
+        
+        error = tf.abs(y_true_masked - y_pred_masked)
+        self.total.assign_add(tf.reduce_sum(error))
+        self.count.assign_add(tf.cast(tf.size(y_true_masked), tf.float32))
+
+    # results
+    #--------------------------------------------------------------------------
+    def result(self):
+        return tf.math.divide_no_nan(self.total, self.count)
+
+    # The state of the metric will be reset at the start of each epoch
+    #--------------------------------------------------------------------------
+    def reset_states(self):        
+        self.total.assign(0)
+        self.count.assign(0)
+
+    # serialize loss for saving  
+    #--------------------------------------------------------------------------
+    def get_config(self):       
+        config = super(MaskedMeanAbsoluteError, self).get_config()
+        config.update({'pad_value': self.pad_value})
+        return config
+
+    # deserialization method  
+    #--------------------------------------------------------------------------
+    @classmethod
+    def from_config(cls, config):        
+        return cls(**config)
+    

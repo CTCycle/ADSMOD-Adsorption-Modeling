@@ -2,9 +2,7 @@ import re
 import numpy as np
 import pandas as pd
 from keras.api.preprocessing import sequence
-
 from tqdm import tqdm
-tqdm.pandas()
       
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -16,11 +14,13 @@ from NISTADS.commons.logger import logger
 class PressureUptakeSeriesProcess:
 
     def __init__(self, configuration):
-
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'        
         self.max_points = configuration['dataset']['MAX_PQ_POINTS']  
-        self.min_points = configuration['dataset']['MIN_PQ_POINTS']    
+        self.min_points = configuration['dataset']['MIN_PQ_POINTS'] 
+        self.max_pressure = configuration['dataset']['MAX_PRESSURE']
+        self.max_uptake = configuration['dataset']['MAX_UPTAKE']     
+        self.pad_value = -1
 
     #--------------------------------------------------------------------------
     def remove_leading_zeros(self, dataframe: pd.DataFrame):
@@ -42,31 +42,45 @@ class PressureUptakeSeriesProcess:
         return dataframe
     
     #--------------------------------------------------------------------------  
-    def PQ_series_padding(self, dataset : pd.DataFrame):
-            
-        pad_value = -1
-        dataset[self.P_COL] = sequence.pad_sequences(dataset[self.P_COL], 
-                                                    maxlen=self.max_points, 
-                                                    value=pad_value, 
-                                                    dtype='float32', 
-                                                    padding='post').tolist()  
+    def PQ_series_padding(self, dataset : pd.DataFrame):            
+        
+        dataset[self.P_COL] = sequence.pad_sequences(
+            dataset[self.P_COL], maxlen=self.max_points, value=self.pad_value, 
+            dtype='float32', padding='post').tolist()  
 
-        dataset[self.Q_COL] = sequence.pad_sequences(dataset[self.Q_COL], 
-                                                    maxlen=self.max_points, 
-                                                    value=pad_value, 
-                                                    dtype='float32', 
-                                                    padding='post').tolist()         
+        dataset[self.Q_COL] = sequence.pad_sequences(
+            dataset[self.Q_COL], maxlen=self.max_points, value=self.pad_value, 
+            dtype='float32', padding='post').tolist()          
+
+        return dataset
+    
+    #--------------------------------------------------------------------------  
+    def series_normalization(self, dataset : pd.DataFrame):        
+
+        dataset[self.P_COL] = dataset[self.P_COL].apply(
+            lambda x : [v/self.max_pressure if v != self.pad_value else v for v in x])
+                    
+        dataset[self.Q_COL] = dataset[self.Q_COL].apply(
+            lambda x : [v/self.max_uptake if v != self.pad_value else v for v in x])
 
         return dataset
     
     #--------------------------------------------------------------------------
-    def filter_by_sequence_size(self, dataset : pd.DataFrame):
+    def filter_by_sequence_size(self, dataset : pd.DataFrame):        
+        dataset = dataset[dataset[self.P_COL].apply(
+            lambda x: self.min_points <= len(x) <= self.max_points)]
+
+        return dataset
         
-        dataset = dataset[dataset[self.P_COL].apply(lambda x: self.min_points <= len(x) <= self.max_points)]
+    #--------------------------------------------------------------------------
+    def convert_to_values_string(self, dataset : pd.DataFrame):        
+        dataset[self.P_COL] = dataset[self.P_COL].apply(lambda x : ' '.join(map(str, x))) 
+        dataset[self.Q_COL] = dataset[self.Q_COL].apply(lambda x : ' '.join(map(str, x)))
 
         return dataset
        
 
+  
 
 # [TOKENIZERS]
 ###############################################################################
@@ -87,7 +101,7 @@ class SMILETokenization:
         
         self.organic_subset = ['B', 'C', 'N', 'O', 'P', 'S', 'F', 'Cl', 'Br', 'I']
         self.SMILE_padding = configuration['dataset']['SMILE_PADDING']
-
+        self.pad_value = -1
         
     #--------------------------------------------------------------------------
     def tokenize_SMILE_string(self, SMILE):     
@@ -182,36 +196,31 @@ class SMILETokenization:
         return tokens
     
     #--------------------------------------------------------------------------
-    def SMILE_tokens_encoding(self, data: pd.DataFrame):
-        
-        all_SMILE_tokens = set(token for tokens in data['tokenized SMILE'] for token in tokens)        
+    def SMILE_tokens_encoding(self, data: pd.DataFrame):        
+        all_SMILE_tokens = set(token for tokens in data['tokenized_SMILE'] for token in tokens)        
         # Map each token to a unique integer
         token_to_id = {token: idx for idx, token in enumerate(sorted(all_SMILE_tokens))}
         id_to_token = {idx: token for token, idx in token_to_id.items()}        
         # Apply the encoding to each tokenized SMILE
-        data['encoded SMILE'] = data['tokenized SMILE'].apply(lambda tokens: [token_to_id[token] 
-                                                                              for token in tokens])
+        data['encoded_SMILE'] = data['tokenized_SMILE'].apply(
+            lambda tokens: [int(token_to_id[token]) for token in tokens])
         
         return data, id_to_token
     
     #--------------------------------------------------------------------------  
-    def SMILE_series_padding(self, dataset : pd.DataFrame):
-            
-        pad_value = -1
-        dataset['encoded SMILE'] = sequence.pad_sequences(dataset['encoded SMILE'], 
-                                                 maxlen=self.SMILE_padding, 
-                                                 value=pad_value, 
-                                                 dtype='float32', 
-                                                 padding='post').tolist()          
+    def SMILE_series_padding(self, dataset : pd.DataFrame):       
+        dataset['encoded_SMILE'] = sequence.pad_sequences(
+            dataset['encoded_SMILE'], maxlen=self.SMILE_padding, 
+            value=self.pad_value, dtype='float32', padding='post').tolist()          
 
         return dataset
     
     #--------------------------------------------------------------------------
-    def process_SMILE_data(self, data : pd.DataFrame): 
-
-        data['tokenized SMILE'] = data['SMILE'].apply(lambda x : self.tokenize_SMILE_string(x))
-        data, smile_vocabulary = self.SMILE_tokens_encoding(data)
+    def process_SMILE_data(self, data : pd.DataFrame):
+        data['tokenized_SMILE'] = data['SMILE'].apply(lambda x : self.tokenize_SMILE_string(x))             
+        data, smile_vocabulary = self.SMILE_tokens_encoding(data)        
         data = self.SMILE_series_padding(data)
+        data['encoded_SMILE'] = data['encoded_SMILE'].apply(lambda x : ' '.join(map(str, x)))
 
         return data, smile_vocabulary
 

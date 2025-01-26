@@ -1,6 +1,5 @@
 import pandas as pd
 from tqdm import tqdm
-tqdm.pandas()
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -8,7 +7,6 @@ from NISTADS.commons.logger import logger
 
 ###############################################################################
 def units_conversion(dataframe : pd.DataFrame):
-
     P_converter = PressureConversion()
     Q_converter = UptakeConversion()
     converted_data = P_converter.convert_pressure_units(dataframe)
@@ -32,11 +30,9 @@ class PressureConversion:
         return [int(p_val * 100000) for p_val in p_vals]    
 
     #--------------------------------------------------------------------------
-    def convert_pressure_units(self, dataframe: pd.DataFrame):
-        
-        dataframe[self.P_COL] = dataframe.apply(lambda row: self.conversions.get(row[self.P_UNIT_COL], 
-                                                                                     lambda x: x)(row[self.P_COL]),
-                                                                                     axis=1)           
+    def convert_pressure_units(self, dataframe: pd.DataFrame):        
+        dataframe[self.P_COL] = dataframe.apply(
+            lambda row: self.conversions.get(row[self.P_UNIT_COL], lambda x: x)(row[self.P_COL]), axis=1)           
         dataframe.drop(columns=self.P_UNIT_COL, inplace=True)    
 
         return dataframe
@@ -93,13 +89,12 @@ class UptakeConversion:
         return [q_val / 22.414 * 1000 for q_val in q_vals]
 
     #--------------------------------------------------------------------------
-    def convert_uptake_data(self, dataframe: pd.DataFrame):
-        
-        dataframe[self.Q_COL] = dataframe.apply(lambda row: (self.conversions.get(row[self.Q_UNIT_COL], 
-                                                                                         lambda x, *args: x)(
-                                                                                         row[self.Q_COL], *(row[self.mol_W],) if row[self.Q_UNIT_COL] in {
-                                                                                         'mg/g', 'g/g', 'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g'} 
-                                                                                          else ())), axis=1)       
+    def convert_uptake_data(self, dataframe: pd.DataFrame):        
+        dataframe[self.Q_COL] = dataframe.apply(
+            lambda row: (self.conversions.get(row[self.Q_UNIT_COL], lambda x, *args: x)(
+                row[self.Q_COL], *(row[self.mol_W],) if row[self.Q_UNIT_COL] in {
+                    'mg/g', 'g/g', 'wt%', 'g Adsorbate / 100g Adsorbent', 'g/100g'} else ())), axis=1)
+               
         dataframe.drop(columns=self.Q_UNIT_COL, inplace=True)    
            
         return dataframe
