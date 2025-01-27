@@ -26,14 +26,11 @@ class BuildMaterialsDataset:
         hosts = pd.concat([hosts, adsorbents], ignore_index=True)        
         guests, hosts = guests.dropna(subset=['name']), hosts.dropna(subset=['name'])
         
-        # remove all duplicated names, keeping only rows where InChiKey is available
-        # fill nan with empty lists
-        guests['name'] = guests['name'].str.lower()
-        hosts['name'] = hosts['name'].str.lower()
+        # remove all duplicated names, keeping only rows where InChiKey is available   
+        guests['name'], hosts['name'] = guests['name'].str.lower(), hosts['name'].str.lower()        
         guests = self.remove_duplicates_without_identifiers(guests)
         hosts = self.remove_duplicates_without_identifiers(hosts)
-        guests, hosts = guests.fillna('[]'), hosts.fillna('[]')
-    
+            
         return guests, hosts    
 
     # Define a function to handle duplicates, keeping rows with InChIKey

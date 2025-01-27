@@ -4,6 +4,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer
+from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.datamaker.datasets import BuildMaterialsDataset
 from NISTADS.commons.utils.datafetch.materials import GuestHostDataFetch
 
@@ -34,15 +35,11 @@ if __name__ == '__main__':
      
     # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
     #-------------------------------------------------------------------------   
-    builder = BuildMaterialsDataset(CONFIG)      
-    guest_data, host_data = builder.retrieve_materials_from_experiments(experiments, guest_data, host_data) 
-    
-    # process guest (adsorbed species) data by adding molecular properties
-    logger.info('Retrieving molecular properties for sorbate species')
-    guest_data = builder.add_guest_properties(guest_data)   
-    # process host (adsorbent materials) data by adding molecular properties
-    logger.info('Retrieving molecular properties for adsorbent materials') 
-    host_data = builder.add_host_properties(host_data)    
+    builder = BuildMaterialsDataset(CONFIG) 
+    sanitizer = DataSanitizer(CONFIG)     
+    guest_data, host_data = builder.retrieve_materials_from_experiments(experiments, guest_data, host_data)  
+    guest_data = sanitizer.convert_series_to_string(guest_data) 
+    host_data = sanitizer.convert_series_to_string(host_data)   
   
     # save the final version of the materials dataset
     serializer = DataSerializer(CONFIG)

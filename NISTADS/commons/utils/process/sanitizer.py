@@ -8,7 +8,7 @@ from NISTADS.commons.logger import logger
 # further filter the dataset to remove experiments which values are outside desired boundaries, 
 # such as experiments with negative temperature, pressure and uptake values 
 ###############################################################################
-class AdsorptionDataSanitizer:
+class DataSanitizer:
 
     def __init__(self, configuration):
 
@@ -18,6 +18,9 @@ class AdsorptionDataSanitizer:
         self.max_pressure = configuration['dataset']['MAX_PRESSURE']
         self.max_uptake = configuration['dataset']['MAX_UPTAKE']
         self.configuration = configuration  
+
+        self.drop_cols = ['adsorbate_SMILE', 'adsorbent_SMILE', 
+                          'adsorbate_tokenized_SMILE', 'adsorbent_tokenized_SMILE']
     
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):        
@@ -28,8 +31,16 @@ class AdsorptionDataSanitizer:
         return dataset
     
     #--------------------------------------------------------------------------
-    def reduce_dataset_features(self, dataset : pd.DataFrame):    
-        pass
+    def reduce_dataset_features(self, dataset : pd.DataFrame): 
+        dataset.drop(self.drop_cols, axis=1, inplace=True)   
+
+    #--------------------------------------------------------------------------
+    def convert_series_to_string(self, dataset : pd.DataFrame):   
+        dataset = dataset.apply(lambda x : ' '.join(map(str, x)) if isinstance(x, list) else x)         
+
+        return dataset
+        
+      
     
    
     

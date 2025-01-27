@@ -69,14 +69,8 @@ class PressureUptakeSeriesProcess:
         dataset = dataset[dataset[self.P_COL].apply(
             lambda x: self.min_points <= len(x) <= self.max_points)]
 
-        return dataset
-        
-    #--------------------------------------------------------------------------
-    def convert_to_values_string(self, dataset : pd.DataFrame):        
-        dataset[self.P_COL] = dataset[self.P_COL].apply(lambda x : ' '.join(map(str, x))) 
-        dataset[self.Q_COL] = dataset[self.Q_COL].apply(lambda x : ' '.join(map(str, x)))
-
-        return dataset
+        return dataset       
+    
        
 
   
@@ -237,11 +231,11 @@ class SMILETokenization:
         data, smile_vocabulary = self.SMILE_tokens_encoding(data)        
         data = self.SMILE_series_padding(data)
 
-        data['adsorbate_tokenized_SMILE'] = data['adsorbate_SMILE'].apply(
-            lambda x: ' '.join(map(str, x)) if not isinstance(x, float) else x)
-        data['adsorbent_tokenized_SMILE'] = data['adsorbent_SMILE'].apply(
-            lambda x: ' '.join(map(str, x)) if not isinstance(x, float) else x)
-
+        data['adsorbate_encoded_SMILE'] = data['adsorbate_encoded_SMILE'].apply(
+            lambda x : ' '.join(map(str, x)) if isinstance(x, list) else x)
+        data['adsorbent_encoded_SMILE'] = data['adsorbent_encoded_SMILE'].apply(
+            lambda x : ' '.join(map(str, x)) if isinstance(x, list) else x)
+        
         return data, smile_vocabulary
 
 

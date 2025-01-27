@@ -11,11 +11,12 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class TensorDatasetBuilder:
 
-    def __init__(self, configuration):
-        self.selected_features = ['temperature', 'pressure', 'adsorbed_amount',
-                                  'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
+    def __init__(self, configuration):        
         self.generator = DataGenerator(configuration) 
         self.configuration = configuration
+        self.selected_features = ['temperature', 'pressure', 'adsorbed_amount',
+                                  'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE',
+                                  'adsorbent_molecular_weight', 'adsorbent_encoded_SMILE']
 
     #--------------------------------------------------------------------------
     def _shape_fingerprint(self, dataset : tf.data.Dataset):
@@ -25,18 +26,11 @@ class TensorDatasetBuilder:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def _build_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):     
+    def _build_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):    
         
-        num_samples = data.shape[0]
-        
-        temperature = data['temperature'].to_list()
-        P_series = data['pressure'].to_list()
-        input1, input2 = data['path'].to_list(), data['tokens'].to_list()
-        output = data['adsorbed_amount'].to_list()       
-        
+        num_samples = data.shape[0]                
         batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
-
-        dataset = tf.data.Dataset.from_tensor_slices((input1, input2, output))                 
+        dataset = tf.data.Dataset.from_tensor_slices(data.to_numpy())                 
         dataset = dataset.map(self.generator.process_data, num_parallel_calls=buffer_size)        
         dataset = dataset.batch(batch_size)
         dataset = dataset.prefetch(buffer_size=buffer_size)

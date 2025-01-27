@@ -24,7 +24,7 @@ class GuestHostDataFetch:
         self.url_HOST = 'https://adsorption.nist.gov/matdb/api/materials.json'
         self.guest_fraction = configuration["collection"]["GUEST_FRACTION"]
         self.host_fraction = configuration["collection"]["HOST_FRACTION"]        
-        self.max_parallel_calls = configuration["collection"]["PARALLEL_TASKS_GH"]
+        self.max_parallel_calls = configuration["collection"]["PARALLEL_TASKS"]
         self.guest_identifier = 'InChIKey'
         self.host_identifier = 'hashkey'
 

@@ -1,5 +1,4 @@
-import os 
-
+import os
 import sys
 import json
 import pandas as pd
@@ -27,7 +26,8 @@ class DataSerializer:
 
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
-        self.SMILE_COL = 'encoded_SMILE'      
+        self.adsorbate_SMILE_COL = 'adsorbate_encoded_SMILE'   
+        self.adsorbent_SMILE_COL = 'adsorbent_encoded_SMILE'     
         self.parameters = configuration["dataset"]
         self.configuration = configuration          
         
@@ -56,7 +56,11 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self):                            
         processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';', low_memory=False)        
-        processed_data[self.SMILE_COL] = processed_data[self.SMILE_COL].apply(lambda x : [float(f) for f in x.split()])   
+        processed_data[self.adsorbate_SMILE_COL] = processed_data[self.adsorbate_SMILE_COL].apply(
+            lambda x : [float(f) for f in x.split()])   
+        processed_data[self.adsorbent_SMILE_COL] = processed_data[self.adsorbent_SMILE_COL].apply(
+            lambda x : [float(f) for f in x.split()]) 
+        
         processed_data[self.P_COL] = processed_data[self.P_COL].apply(lambda x : [float(f) for f in x.split()])   
         processed_data[self.Q_COL] = processed_data[self.Q_COL].apply(lambda x : [float(f) for f in x.split()])   
 
@@ -97,18 +101,7 @@ class ModelSerializer:
 
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
-    def create_checkpoint_folder(self):
-
-        '''
-        Creates a folder with the current date and time to save the model.
-
-        Keyword arguments:
-            None
-
-        Returns:
-            str: A string containing the path of the folder where the model will be saved.
-        
-        '''        
+    def create_checkpoint_folder(self):           
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
         checkpoint_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True)        

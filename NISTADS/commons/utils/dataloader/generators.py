@@ -18,11 +18,22 @@ class DataGenerator():
         self.configuration = configuration    
 
     #--------------------------------------------------------------------------
+    def separate_features_and_output(self, data): 
+
+        parameters = data[['temperature', 'adsorbate_molecular_weight', 'adsorbent_molecular_weight']]
+        smiles = data['adsorbate_SMILE', 'adsorbent_SMILE'].to_list()
+        P_series = data['pressure'].to_list()        
+        Q_series = data['adsorbed_amount'].to_list()     
+
+    #--------------------------------------------------------------------------
     def process_data(self, path, text):        
         input_text = text[:-1]
         output_text = text[1:]      
 
-        return input_text, output_text              
+        return input_text, output_text  
+
+
+                     
     
 
     
