@@ -12,6 +12,7 @@ class DataSanitizer:
 
     def __init__(self, configuration):
 
+        self.separator = ' - '
         self.P_TARGET_COL = 'pressure'
         self.Q_TARGET_COL = 'adsorbed_amount'
         self.T_TARGET_COL = 'temperature'
@@ -35,11 +36,16 @@ class DataSanitizer:
         dataset.drop(self.drop_cols, axis=1, inplace=True)   
 
     #--------------------------------------------------------------------------
-    def convert_series_to_string(self, dataset : pd.DataFrame):   
-        dataset = dataset.apply(lambda x : ' '.join(map(str, x)) if isinstance(x, list) else x)         
-
+    def convert_series_to_string(self, dataset: pd.DataFrame):        
+        dataset = dataset.applymap(lambda x: self.separator.join(map(str, x)) if isinstance(x, list) else x)
         return dataset
-        
+
+    #--------------------------------------------------------------------------
+    def convert_string_to_series(self, dataset: pd.DataFrame):  
+        dataset = dataset.applymap(
+            lambda x: x.split() if isinstance(x, str) and self.separator in x else x)
+        return dataset
+                    
       
     
    

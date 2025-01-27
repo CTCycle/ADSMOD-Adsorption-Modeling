@@ -5,7 +5,6 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
-from NISTADS.commons.utils.datamaker.datasets import BuildMaterialsDataset
 from NISTADS.commons.utils.datafetch.materials import GuestHostDataFetch
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -34,12 +33,10 @@ if __name__ == '__main__':
     guest_data, host_data = webworker.get_guest_host_data(guest_index, host_index)   
      
     # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
-    #-------------------------------------------------------------------------   
-    builder = BuildMaterialsDataset(CONFIG) 
-    sanitizer = DataSanitizer(CONFIG)     
-    guest_data, host_data = builder.retrieve_materials_from_experiments(experiments, guest_data, host_data)  
+    #--------------------------------------------------------------------------    
+    sanitizer = DataSanitizer(CONFIG)      
     guest_data = sanitizer.convert_series_to_string(guest_data) 
-    host_data = sanitizer.convert_series_to_string(host_data)   
+    host_data = sanitizer.convert_series_to_string(host_data)  
   
     # save the final version of the materials dataset
     serializer = DataSerializer(CONFIG)

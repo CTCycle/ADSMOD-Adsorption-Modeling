@@ -55,21 +55,14 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self):                            
-        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';', low_memory=False)        
-        processed_data[self.adsorbate_SMILE_COL] = processed_data[self.adsorbate_SMILE_COL].apply(
-            lambda x : [float(f) for f in x.split()])   
-        processed_data[self.adsorbent_SMILE_COL] = processed_data[self.adsorbent_SMILE_COL].apply(
-            lambda x : [float(f) for f in x.split()]) 
-        
-        processed_data[self.P_COL] = processed_data[self.P_COL].apply(lambda x : [float(f) for f in x.split()])   
-        processed_data[self.Q_COL] = processed_data[self.Q_COL].apply(lambda x : [float(f) for f in x.split()])   
+        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';', low_memory=False)          
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         with open(self.vocabulary_path, 'r') as file:
             vocabulary = json.load(file)
         
-        return processed_data, metadata, vocabulary
+        return processed_data, metadata, vocabulary         
     
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data, host_data):

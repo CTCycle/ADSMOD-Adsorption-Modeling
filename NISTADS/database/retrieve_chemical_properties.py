@@ -4,8 +4,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer
-from NISTADS.commons.utils.datamaker.datasets import BuildMaterialsDataset
-from NISTADS.commons.utils.datafetch.materials import GuestHostDataFetch
+from NISTADS.commons.utils.process.sanitizer import DataSanitizer
+from NISTADS.commons.utils.datamaker.properties import MaterialsProperties
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -19,22 +19,27 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     logger.info(f'Loading NISTADS datasets from {DATA_PATH}')
     dataserializer = DataSerializer(CONFIG)
-    adsorption_data, guest_data, host_data = dataserializer.load_datasets()    
+    experiments, guest_data, host_data = dataserializer.load_datasets()
+
+    sanitizer = DataSanitizer(CONFIG)       
+    guest_data = sanitizer.convert_string_to_series(guest_data) 
+    host_data = sanitizer.convert_string_to_series(host_data)    
      
     # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
     #-------------------------------------------------------------------------   
-    builder = BuildMaterialsDataset(CONFIG)      
+    properties = MaterialsProperties(CONFIG)       
+
     # process guest (adsorbed species) data by adding molecular properties
     logger.info('Retrieving molecular properties for sorbate species')
-    guest_data = builder.add_guest_properties(guest_data)   
+    guest_data = properties.fetch_guest_properties(experiments, guest_data)   
     # process host (adsorbent materials) data by adding molecular properties
-    logger.info('Retrieving molecular properties for adsorbent materials') 
-    host_data = builder.add_host_properties(host_data)    
+    # logger.info('Retrieving molecular properties for adsorbent materials') 
+    # host_data = builder.add_host_properties(host_data)    
   
-    # save the final version of the materials dataset
-    serializer = DataSerializer(CONFIG)
-    serializer.save_materials_datasets(guest_data, host_data)
-    logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')
+    # # save the final version of the materials dataset
+    # serializer = DataSerializer(CONFIG)
+    # serializer.save_materials_datasets(guest_data, host_data)
+    # logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')
 
     
    

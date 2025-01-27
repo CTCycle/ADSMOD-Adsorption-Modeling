@@ -9,66 +9,6 @@ from NISTADS.commons.logger import logger
 
 # [DATASET OPERATIONS]
 ###############################################################################
-class BuildMaterialsDataset:
-
-    def __init__(self, configuration):        
-        self.guest_props = GuestProperties()
-        self.host_props = HostProperties()                
-        self.configuration = configuration       
-
-    #--------------------------------------------------------------------------           
-    def retrieve_materials_from_experiments(self, experiments : pd.DataFrame, 
-                                            guests : pd.DataFrame, hosts : pd.DataFrame):
-      
-        adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
-        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])                
-        guests = pd.concat([guests, adsorbates], ignore_index=True)
-        hosts = pd.concat([hosts, adsorbents], ignore_index=True)        
-        guests, hosts = guests.dropna(subset=['name']), hosts.dropna(subset=['name'])
-        
-        # remove all duplicated names, keeping only rows where InChiKey is available   
-        guests['name'], hosts['name'] = guests['name'].str.lower(), hosts['name'].str.lower()        
-        guests = self.remove_duplicates_without_identifiers(guests)
-        hosts = self.remove_duplicates_without_identifiers(hosts)
-            
-        return guests, hosts    
-
-    # Define a function to handle duplicates, keeping rows with InChIKey
-    #--------------------------------------------------------------------------
-    def remove_duplicates_without_identifiers(self, data : pd.DataFrame):
-        if 'InChIKey' in data.columns:
-            data['has_inchikey'] = data['InChIKey'].notna()  
-            data = data.sort_values(by=['name', 'has_inchikey'], ascending=[True, False])
-            data = data.drop_duplicates(subset=['name'], keep='first')  
-            data = data.drop(columns=['has_inchikey'])
-        else:
-            data = data.drop_duplicates(subset=['name'], keep='first')  
-
-        return data       
-    
-    #--------------------------------------------------------------------------
-    def add_guest_properties(self, data : pd.DataFrame):                     
-        properties = self.guest_props.get_properties_for_multiple_guests(data)
-        property_table = pd.DataFrame.from_dict(properties)        
-        data['name'] = data['name'].apply(lambda x : x.lower())
-        property_table['name'] = property_table['name'].apply(lambda x : x.lower())
-        merged_data = data.merge(property_table, on='name', how='outer')
-
-        return merged_data
-    
-    #--------------------------------------------------------------------------
-    def add_host_properties(self, data : pd.DataFrame):                
-        properties = self.host_props.get_properties_for_multiple_hosts(data)
-        property_table = pd.DataFrame.from_dict(properties)        
-        data['name'] = data['name'].apply(lambda x : x.lower())
-        property_table['name'] = property_table['name'].apply(lambda x : x.lower())
-        merged_data = data.merge(property_table, on='name', how='outer')
-
-        return merged_data
- 
-
-# [DATASET OPERATIONS]
-###############################################################################
 class BuildAdsorptionDataset:
 
     def __init__(self):

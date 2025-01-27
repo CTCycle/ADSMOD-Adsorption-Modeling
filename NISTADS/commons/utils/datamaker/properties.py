@@ -1,9 +1,80 @@
 import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
+
+
+
+# [DATASET OPERATIONS]
+###############################################################################
+class MaterialsProperties:
+
+    def __init__(self, configuration):        
+        self.guest_properties = GuestProperties()
+        self.host_properties = HostProperties()                
+        self.configuration = configuration       
+
+    #--------------------------------------------------------------------------           
+    def get_complete_materials_pool(self, experiments : pd.DataFrame, 
+                                    guests : pd.DataFrame, hosts : pd.DataFrame):
+      
+        adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
+        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])
+
+        guests = pd.concat([guests, adsorbates], ignore_index=True)
+        hosts = pd.concat([hosts, adsorbents], ignore_index=True)        
+        guests, hosts = guests.dropna(subset=['name']), hosts.dropna(subset=['name'])
+        
+        # remove all duplicated names, keeping only rows where InChiKey is available   
+        guests['name'], hosts['name'] = guests['name'].str.lower(), hosts['name'].str.lower()        
+            
+        return guests, hosts    
+
+    # Define a function to handle duplicates, keeping rows with InChIKey
+    #--------------------------------------------------------------------------
+    def remove_duplicates_without_identifiers(self, data : pd.DataFrame):
+        if 'InChIKey' in data.columns:
+            data['has_inchikey'] = data['InChIKey'].notna()  
+            data = data.sort_values(by=['name', 'has_inchikey'], ascending=[True, False])
+            data = data.drop_duplicates(subset=['name'], keep='first')  
+            data = data.drop(columns=['has_inchikey'])
+        else:
+            data = data.drop_duplicates(subset=['name'], keep='first')  
+
+        return data       
+    
+    #--------------------------------------------------------------------------
+    def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame):  
+
+        adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
+        all_guests = pd.concat([data, adsorbates], ignore_index=True)
+        all_guests['name'] = all_guests['name'].str.lower()
+
+        properties = self.guest_properties.get_properties_for_multiple_compounds(data)
+
+        # property_table = pd.DataFrame.from_dict(properties)        
+        # data['name'] = data['name'].apply(lambda x : x.lower())
+        # property_table['name'] = property_table['name'].apply(lambda x : x.lower())
+        # merged_data = data.merge(property_table, on='name', how='outer')
+
+        #return merged_data
+    
+    #--------------------------------------------------------------------------
+    def add_host_properties(self, data : pd.DataFrame):                
+        properties = self.host_props.get_properties_for_multiple_hosts(data)
+        property_table = pd.DataFrame.from_dict(properties)        
+        data['name'] = data['name'].apply(lambda x : x.lower())
+        property_table['name'] = property_table['name'].apply(lambda x : x.lower())
+        merged_data = data.merge(property_table, on='name', how='outer')
+
+        return merged_data
+ 
+
 
  
 # [DATASET OPERATIONS]
@@ -11,24 +82,21 @@ from NISTADS.commons.logger import logger
 class GuestProperties:    
     
     def __init__(self):
-        self.properties = {'name' : [],                             
-                           'adsorbate_molecular_weight' : [],
-                           'adsorbate_molecular_formula' : [],
-                           'adsorbate_SMILE' : []}
+        pass   
+        
     
     #--------------------------------------------------------------------------
-    def get_properties_for_single_guest(self, identifier, namespace):            
+    def get_properties(self, identifier, namespace):            
         compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
-        properties = compounds[0].to_dict() if compounds else None
+        properties = compounds[0].to_dict() if compounds else {}
 
-        return properties        
+        return {identifier : properties}        
     
     #--------------------------------------------------------------------------    
-    def get_properties_for_multiple_guests(self, dataset : pd.DataFrame):               
-        names = dataset['name'].str.strip().str.lower().tolist()
-        synonyms = dataset['synonyms'].apply(lambda x: x if isinstance(x, list) else []).tolist()
-        inchikeys = dataset['InChIKey'].str.strip().tolist()
-        inchicodes = dataset['InChICode'].str.strip().tolist()       
+    def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame): 
+
+        
+        
         
         for name, syno, inchikey, inchicode in tqdm(zip(names, synonyms, inchikeys, inchicodes), total=len(names)):
             features = None
