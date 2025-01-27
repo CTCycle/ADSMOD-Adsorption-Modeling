@@ -2,10 +2,10 @@
     "SEED": 54,
     "collection": {
         "GUEST_FRACTION": 0.1,
-        "HOST_FRACTION": 0.1,
+        "HOST_FRACTION": 0.01,
         "EXP_FRACTION": 0.1,
         "PARALLEL_TASKS_GH": 60,
-        "PARALLEL_TASKS_EXP": 30
+        "PARALLEL_TASKS_EXP": 50
     },
     "dataset": {
         "SAMPLE_SIZE": 1.0,
@@ -39,6 +39,6 @@
     "evaluation": {
         "BATCH_SIZE": 20
     },
-    "date": "2025-01-26",
-    "vocabulary_size": 19
+    "date": "2025-01-27",
+    "vocabulary_size": 42
 }

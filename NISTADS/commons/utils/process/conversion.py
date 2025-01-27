@@ -46,7 +46,7 @@ class UptakeConversion:
     def __init__(self):        
         self.Q_COL = 'adsorbed_amount'
         self.Q_UNIT_COL = 'adsorptionUnits'          
-        self.mol_W = 'molecular_weight'
+        self.mol_W = 'adsorbate_molecular_weight'
 
         # Dictionary mapping units to their respective conversion methods
         self.conversions = {'mmol/g': self.convert_mmol_g_or_mol_kg,

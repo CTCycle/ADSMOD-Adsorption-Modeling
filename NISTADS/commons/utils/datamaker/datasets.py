@@ -13,9 +13,7 @@ class BuildMaterialsDataset:
 
     def __init__(self, configuration):        
         self.guest_props = GuestProperties()
-        self.host_props = HostProperties()
-        self.extractor = GetSpeciesFromExperiments() 
-        self.drop_cols = ['InChIKey', 'InChICode']
+        self.host_props = HostProperties()                
         self.configuration = configuration       
 
     #--------------------------------------------------------------------------           
@@ -23,42 +21,53 @@ class BuildMaterialsDataset:
                                             guests : pd.DataFrame, hosts : pd.DataFrame):
       
         adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
-        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])        
+        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])                
         guests = pd.concat([guests, adsorbates], ignore_index=True)
-        hosts = pd.concat([hosts, adsorbents], ignore_index=True)
+        hosts = pd.concat([hosts, adsorbents], ignore_index=True)        
+        guests, hosts = guests.dropna(subset=['name']), hosts.dropna(subset=['name'])
+        
+        # remove all duplicated names, keeping only rows where InChiKey is available
+        # fill nan with empty lists
+        guests['name'] = guests['name'].str.lower()
+        hosts['name'] = hosts['name'].str.lower()
+        guests = self.remove_duplicates_without_identifiers(guests)
+        hosts = self.remove_duplicates_without_identifiers(hosts)
+        guests, hosts = guests.fillna('[]'), hosts.fillna('[]')
+    
+        return guests, hosts    
 
-        return guests, hosts
-       
-    #--------------------------------------------------------------------------           
-    def drop_excluded_columns(self, dataframe : pd.DataFrame):
-        df_drop = dataframe.drop(columns=self.drop_cols, axis=1, errors='ignore')
+    # Define a function to handle duplicates, keeping rows with InChIKey
+    #--------------------------------------------------------------------------
+    def remove_duplicates_without_identifiers(self, data : pd.DataFrame):
+        if 'InChIKey' in data.columns:
+            data['has_inchikey'] = data['InChIKey'].notna()  
+            data = data.sort_values(by=['name', 'has_inchikey'], ascending=[True, False])
+            data = data.drop_duplicates(subset=['name'], keep='first')  
+            data = data.drop(columns=['has_inchikey'])
+        else:
+            data = data.drop_duplicates(subset=['name'], keep='first')  
 
-        return df_drop
+        return data       
     
     #--------------------------------------------------------------------------
-    def add_guest_properties(self, guest_data : pd.DataFrame):
-        guest_names = guest_data['name'].to_list()
-        guest_synonims = guest_data['synonyms'].to_list()
-        # fetch compounds names from the adsorption dataset, and extend the current
-        # list of species, then leave only unique names
-        extra_compounds = self.extractor.extract_species_names()
-        guest_names.extend(extra_compounds)
-        guest_synonims.extend([[] for x in range(len(extra_compounds))])
-        guest_names = list(set(guest_names))         
-        guest_properties = self.guest_props.get_properties_for_multiple_guests(guest_names, guest_synonims)
-        df_guest_properties = pd.DataFrame.from_dict(guest_properties)
-        
-        guest_data['name'] = guest_data['name'].apply(lambda x : x.lower())
-        df_guest_properties['name'] = df_guest_properties['name'].apply(lambda x : x.lower())
-        merged_data = guest_data.merge(df_guest_properties, on='name', how='outer')
+    def add_guest_properties(self, data : pd.DataFrame):                     
+        properties = self.guest_props.get_properties_for_multiple_guests(data)
+        property_table = pd.DataFrame.from_dict(properties)        
+        data['name'] = data['name'].apply(lambda x : x.lower())
+        property_table['name'] = property_table['name'].apply(lambda x : x.lower())
+        merged_data = data.merge(property_table, on='name', how='outer')
 
         return merged_data
     
     #--------------------------------------------------------------------------
-    def add_host_properties(self, host_data : pd.DataFrame):
-        
-        pass
-        
+    def add_host_properties(self, data : pd.DataFrame):                
+        properties = self.host_props.get_properties_for_multiple_hosts(data)
+        property_table = pd.DataFrame.from_dict(properties)        
+        data['name'] = data['name'].apply(lambda x : x.lower())
+        property_table['name'] = property_table['name'].apply(lambda x : x.lower())
+        merged_data = data.merge(property_table, on='name', how='outer')
+
+        return merged_data
  
 
 # [DATASET OPERATIONS]
@@ -147,43 +156,6 @@ class BuildAdsorptionDataset:
         return SC_dataset, BM_dataset
  
     
-# [DATASET OPERATIONS]
-###############################################################################
-class GetSpeciesFromExperiments:
-
-    def __init__(self):
-        self.single_component_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv')        
-        self.binary_mixture_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv') 
-        self.single_component_col = 'adsorbate_name'
-        self.binary_mixture_cols = ['compound_1', 'compound_2']        
-
-    #--------------------------------------------------------------------------
-    def check_if_dataset_exist(self):
-        single_component_exists = os.path.exists(self.single_component_path)
-        binary_mixture_exists = os.path.exists(self.binary_mixture_path)
-
-        return {'single_component': single_component_exists,
-                'binary_mixture': binary_mixture_exists}
-
-    #--------------------------------------------------------------------------
-    def extract_species_names(self):
-
-        check_existence = self.check_if_dataset_exist()
-
-        species_names = set()
-        if check_existence['single_component']:
-            single_component = pd.read_csv(self.single_component_path, encoding='utf-8', sep=';')  
-            species_names.update(single_component[self.single_component_col].dropna().unique())
-        if check_existence['binary_mixture']:            
-            binary_mixture = pd.read_csv(self.binary_mixture_path, encoding='utf-8', sep=';') 
-            for col in self.binary_mixture_cols:
-                species_names.update(binary_mixture[col].dropna().unique())
-        else:
-            logger.warning('Adsorption experiments dataset has not been found. Species names will not be retrieved')
-
-        return sorted(list(species_names))
-     
-
 
 
 

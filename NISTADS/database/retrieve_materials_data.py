@@ -33,10 +33,8 @@ if __name__ == '__main__':
     guest_data, host_data = webworker.get_guest_host_data(guest_index, host_index)   
      
     # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
-    #--------------------------------------------------------------------------   
-    builder = BuildMaterialsDataset(CONFIG)  
-    guest_data = builder.drop_excluded_columns(guest_data)
-    host_data = builder.drop_excluded_columns(host_data)
+    #-------------------------------------------------------------------------   
+    builder = BuildMaterialsDataset(CONFIG)      
     guest_data, host_data = builder.retrieve_materials_from_experiments(experiments, guest_data, host_data) 
     
     # process guest (adsorbed species) data by adding molecular properties

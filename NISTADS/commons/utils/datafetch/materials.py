@@ -67,10 +67,8 @@ class GuestHostDataFetch:
 
     # function to retrieve HTML data
     #--------------------------------------------------------------------------
-    def get_guest_host_data(self, df_guest=None, df_host=None):       
-        
+    def get_guest_host_data(self, df_guest=None, df_host=None):        
         loop = asyncio.get_event_loop()
-
         guest_data = None
         if df_guest is not None and isinstance(df_guest, pd.DataFrame):
             guest_samples = int(np.ceil(self.guest_fraction * df_guest.shape[0]))
@@ -90,7 +88,7 @@ class GuestHostDataFetch:
             host_data = [data for data in host_data if data is not None] 
             df_host = pd.DataFrame(host_data)            
         else:
-            logger.error('No available host data has been found.')
+            logger.error('No available host data has been found.')        
             
         return df_guest, df_host 
 

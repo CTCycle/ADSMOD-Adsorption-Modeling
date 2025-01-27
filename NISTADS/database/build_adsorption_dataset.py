@@ -1,6 +1,5 @@
 # [SET KERAS BACKEND]
 import os 
-os.environ["KERAS_BACKEND"] = "torch"
 
 # [IMPORT LIBRARIES]
 import pandas as pd
@@ -76,7 +75,7 @@ if __name__ == '__main__':
 
     # 5. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
-    # save preprocessed data using data serializer    
+    # save preprocessed data using data serializer       
     dataserializer.save_preprocessed_data(tokenized_data, smile_vocabulary)
 
 

@@ -18,8 +18,8 @@ class DataSerializer:
     def __init__(self, configuration):       
         self.SCADS_data_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv') 
         self.BMADS_data_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv')
-        self.guest_path = os.path.join(DATA_PATH, 'guests_dataset.csv')  
-        self.host_path = os.path.join(DATA_PATH, 'hosts_dataset.csv') 
+        self.guest_path = os.path.join(DATA_PATH, 'adsorbates_dataset.csv')  
+        self.host_path = os.path.join(DATA_PATH, 'adsorbents_dataset.csv') 
 
         self.processed_SCADS_path = os.path.join(PROCESSED_PATH, 'SCADS_dataset.csv')
         self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json') 
