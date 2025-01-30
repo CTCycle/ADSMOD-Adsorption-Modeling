@@ -19,14 +19,19 @@ def evaluation_report(model : keras.Model, train_dataset, validation_dataset):
 
 ###############################################################################
 def log_training_report(train_data, validation_data, config : dict, 
-                        vocabulary_size=None, from_checkpoint=False):
+                        metadata={}, from_checkpoint=False):
+    
+
+    smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
+    ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)
 
     logger.info('--------------------------------------------------------------')
     logger.info('NISTADS training report')
     logger.info('--------------------------------------------------------------')    
     logger.info(f'Number of train samples:       {len(train_data)}')
     logger.info(f'Number of validation samples:  {len(validation_data)}')
-    logger.info(f'Vocabulary size:               {vocabulary_size}')
+    logger.info(f'SMILE vocabulary size:         {smile_vocab_size}')
+    logger.info(f'Adsorbents vocabulary size:    {ads_vocab_size}')
     
     for key, value in config.items():
         if isinstance(value, dict):

@@ -9,6 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
+from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.dataloader.tensordata import TensorDatasetBuilder
 from NISTADS.commons.utils.learning.models import SCADSModel
@@ -26,8 +27,10 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata, vocabulary = dataserializer.load_preprocessed_data() 
-    vocabulary_size = metadata['vocabulary_size']
+    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()
+    
+    sanitizer = DataSanitizer(CONFIG)        
+    processed_data = sanitizer.convert_string_to_series(processed_data)    
 
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
@@ -58,10 +61,10 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
-    log_training_report(train_data, validation_data, CONFIG, vocabulary_size=vocabulary_size)
+    log_training_report(train_data, validation_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
-    captioner = SCADSModel(vocabulary_size, CONFIG)
+    captioner = SCADSModel(metadata, CONFIG)
     model = captioner.get_model(model_summary=True) 
 
     # generate graphviz plot fo the model layout       

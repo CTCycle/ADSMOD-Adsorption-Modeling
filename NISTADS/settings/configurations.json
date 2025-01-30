@@ -20,7 +20,10 @@
                 "MIXED_PRECISION" : false,                                                
                 "NUM_PROCESSORS": 6},
 
-    "model" : {"EMBEDDING_DIMS": 256,
+    "model" : {"GUEST_EMBEDDING_DIMS": 256,
+               "HOST_EMBEDDING_DIMS": 64,
+               "NUM_ENCODERS" : 3,
+               "ATTENTION_HEADS" : 2,
                "SAVE_MODEL_PLOT" : true},
 
     "training" : {"EPOCHS" : 30,

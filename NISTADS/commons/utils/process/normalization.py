@@ -25,7 +25,7 @@ class AdsorbentEncoder:
     def encode_adsorbents_by_name(self, dataset : pd.DataFrame, train_dataset: pd.DataFrame):        
         self.scaler.fit(train_dataset[self.norm_columns])         
         mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}           
-        dataset[self.norm_columns] = dataset[self.norm_columns].map(
+        dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
                 mapping).fillna(self.unknown_class_index).astype(int)           
 
         return dataset, mapping

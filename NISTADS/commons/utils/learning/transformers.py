@@ -85,50 +85,7 @@ class FeedForward(keras.layers.Layer):
     def from_config(cls, config):
         return cls(**config)
     
-         
-# [CLASSIFIER]
-###############################################################################
-@keras.utils.register_keras_serializable(package='CustomLayers', name='SoftMaxClassifier')
-class SoftMaxClassifier(keras.layers.Layer):
-    def __init__(self, dense_units, output_size, temperature=1.0, **kwargs):
-        super(SoftMaxClassifier, self).__init__(**kwargs)
-        self.dense_units = dense_units
-        self.output_size = output_size
-        self.temperature = temperature
-        self.dense1 = layers.Dense(dense_units, kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(output_size, kernel_initializer='he_uniform', dtype=torch.float32)        
-
-    # build method for the custom layer 
-    #--------------------------------------------------------------------------
-    def build(self, input_shape):        
-        super(SoftMaxClassifier, self).build(input_shape)             
-
-    # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
-    def call(self, x, training=None):
-        layer = self.dense1(x)
-        layer = activations.relu(layer)
-        layer = self.dense2(layer)
-        layer = layer/self.temperature 
-        output = activations.softmax(layer)         
-
-        return output
-    
-    # serialize layer for saving  
-    #--------------------------------------------------------------------------
-    def get_config(self):
-        config = super(SoftMaxClassifier, self).get_config()
-        config.update({'dense_units' : self.dense_units,
-                       'output_size' : self.output_size,
-                       'temperature' : self.temperature})
-        return config
-
-    # deserialization method 
-    #--------------------------------------------------------------------------
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
+        
 
 # [TRANSFORMER ENCODER]
 ###############################################################################
@@ -183,6 +140,8 @@ class TransformerEncoder(keras.layers.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+    
+    
     
 
 # [TRANSFORMER DECODER]

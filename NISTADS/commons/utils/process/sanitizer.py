@@ -20,7 +20,7 @@ class DataSanitizer:
         self.max_uptake = configuration['dataset']['MAX_UPTAKE']
         self.configuration = configuration  
 
-        self.included_cols = ['temperature', 'pressure', 'adsorbed_amount',
+        self.included_cols = ['temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent',
                               'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
 
     
@@ -44,7 +44,9 @@ class DataSanitizer:
     #--------------------------------------------------------------------------
     def convert_string_to_series(self, dataset: pd.DataFrame):  
         dataset = dataset.applymap(
-            lambda x: x.split() if isinstance(x, str) and self.separator in x else x)
+            lambda x: [float(f) for f in x.split(self.separator)] 
+                       if isinstance(x, str) and self.separator in x else x)
+        
         return dataset
                     
       

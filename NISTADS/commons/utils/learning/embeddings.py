@@ -32,7 +32,7 @@ class PositionalEmbedding(keras.layers.Layer):
         full_embedding = embedded_tokens + embedded_positions
         
         if self.mask_zero:
-            mask = keras.ops.not_equal(inputs, 0)
+            mask = keras.ops.not_equal(inputs, -1)
             mask = keras.ops.expand_dims(keras.ops.cast(mask, torch.float32), axis=-1)
             full_embedding *= mask
 
@@ -41,7 +41,7 @@ class PositionalEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, 0)        
+        mask = keras.ops.not_equal(inputs, -1)        
         
         return mask
     

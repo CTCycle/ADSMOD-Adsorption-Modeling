@@ -47,7 +47,8 @@ class DataSerializer:
                                adsorbent_vocabulary={}):
         metadata = self.configuration.copy()
         metadata['date'] = datetime.now().strftime("%Y-%m-%d")
-        metadata['vocabulary_size'] = len(smile_vocabulary)  
+        metadata['SMILE_vocabulary_size'] = len(smile_vocabulary)  
+        metadata['adsorbent_vocabulary_size'] = len(adsorbent_vocabulary) 
                  
         processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')        
         with open(self.metadata_path, 'w') as file:
@@ -59,14 +60,16 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self):                            
-        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';', low_memory=False)          
+        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';')          
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
-        with open(self.vocabulary_path, 'r') as file:
-            vocabulary = json.load(file)
+        with open(self.smile_vocabulary_path, 'r') as file:
+            smile_vocabulary = json.load(file)
+        with open(self.smile_vocabulary_path, 'r') as file:
+            ads_vocabulary = json.load(file)
         
-        return processed_data, metadata, vocabulary         
+        return processed_data, metadata, smile_vocabulary, ads_vocabulary         
     
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data, host_data):

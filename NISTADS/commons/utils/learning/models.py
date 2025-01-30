@@ -1,67 +1,79 @@
-import os
-import numpy as np
-import json
-from datetime import datetime
+import torch
+from keras import layers, Model, optimizers
+from transformers import AutoFeatureExtractor, AutoModel
 import tensorflow as tf
-from keras import layers, activations
 
-               
+from NISTADS.commons.utils.learning.transformers import TransformerEncoder
+from NISTADS.commons.utils.learning.embeddings import PositionalEmbedding
+from NISTADS.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 
 
+# [XREP CAPTIONING MODEL]
+###############################################################################
+class SCADSModel: 
 
+    def __init__(self, metadata, configuration):
 
-    
-
-     
-    
-
-    
-    
-# [SCADS MODEL]
-#====================================================================================================================================================
-class SCADSModel:
-
-    def __init__(self, learning_rate, num_features, sequence_length, pad_value, adsorbent_dims, 
-                 adsorbates_dims, embedding_dims, seed=42, XLA_acceleration=False):
-
-        self.learning_rate = learning_rate
-        self.num_features = num_features
-        self.sequence_length = sequence_length
-        self.pad_value = pad_value
-        self.adsorbent_dims = adsorbent_dims
-        self.adsorbates_dims = adsorbates_dims 
-        self.embedding_dims = embedding_dims
-        self.seed = seed
-        self.XLA_state = XLA_acceleration
-        self.parametrizer = Parametrizer(sequence_length, seed)
-        self.embedder = GHEncoder(sequence_length, adsorbates_dims, adsorbent_dims, embedding_dims, seed)
-        self.encoder = PressureEncoder(pad_value, seed)
-        self.decoder = QDecoder(sequence_length, seed)
+        self.smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
+        self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
         
+        self.seed = configuration["SEED"]
+        self.smile_length = configuration["dataset"]["SMILE_PADDING"]
+        self.series_length = configuration["dataset"]["MAX_PQ_POINTS"]       
+        self.smile_embedding_dims = configuration["model"]["GUEST_EMBEDDING_DIMS"] 
+        self.ads_embedding_dims = configuration["model"]["HOST_EMBEDDING_DIMS"] 
+        self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
+        self.num_encoders = configuration["model"]["NUM_ENCODERS"]         
+        self.jit_compile = configuration["model"]["JIT_COMPILE"]
+        self.jit_backend = configuration["model"]["JIT_BACKEND"]             
+        self.learning_rate = configuration["training"]["LEARNING_RATE"]        
+        self.temperature = configuration["training"]["TEMPERATURE"]
+        self.configuration = configuration
+        
+        # initialize the image encoder and the transformers encoders and decoders
+        self.parameters_input = layers.Input(shape=(2,), name='parameters_input')
+        self.adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
+        self.adsorbates_input = layers.Input(shape=(self.smile_length), name='adsorbate_input')
+        self.pressure_input = layers.Input(shape=(self.series_length), name='pressure_input')       
+
+        self.encoders = [TransformerEncoder(self.smile_embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
+        self.smile_embeddings = PositionalEmbedding(
+            self.smile_vocab_size, self.smile_embedding_dims, self.smile_length) 
+        self.adsorbent_embeddings = PositionalEmbedding(
+            self.ads_vocab_size, self.ads_embedding_dims, self.series_length)   
+
     # build model given the architecture
     #--------------------------------------------------------------------------
     def get_model(self, model_summary=True):       
-       
-        # define model inputs using input layers
-        feat_inputs = layers.Input(shape = (self.num_features, ))
-        host_inputs = layers.Input(shape = (1,))
-        guest_inputs = layers.Input(shape = (1,))
-        pressure_inputs = layers.Input(shape = (self.sequence_length, ))
-               
-        parametrizer = self.parametrizer(feat_inputs)
-        GH_encoder = self.embedder(host_inputs, guest_inputs)        
-        pressure_encoder = self.encoder(pressure_inputs)
-        decoder = self.decoder(parametrizer, GH_encoder, pressure_encoder)        
+        # encode images and extract their features using the convolutional 
+        # image encoder or a selected pretrained model
+             
+        smile_embeddings = self.smile_embeddings(self.adsorbates_input)
+        smile_padding_mask = self.smile_embeddings.compute_mask(self.adsorbates_input)         
+                
+        encoder_output = smile_embeddings
+           
+        for encoder in self.encoders:
+            encoder_output = encoder(encoder_output, training=False)       
+
+        # wrap the model and compile it with AdamW optimizer
+        model = Model(inputs=[self.parameters_input, self.adsorbents_input, 
+                      self.adsorbates_input, self.pressure_input], 
+                      outputs=encoder_output)       
         
-        model = Model(inputs=[feat_inputs, host_inputs, guest_inputs, pressure_inputs],
-                      outputs=decoder, name='SCADS')
-        opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
-        loss = MaskedMeanSquaredError(self.pad_value)
-        metrics = MaskedMeanAbsoluteError(self.pad_value)
-        model.compile(loss=loss, optimizer=opt, metrics=metrics, run_eagerly=False,
-                      COMPILE=self.XLA_state)     
-        if model_summary==True:
+        loss = MaskedSparseCategoricalCrossentropy()  
+        metric = [MaskedAccuracy()]
+        opt = optimizers.AdamW(learning_rate=self.learning_rate)          
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
+
+        if self.jit_compile:
+            model = torch.compile(model, backend=self.jit_backend, mode='default')       
+
+        if model_summary:
             model.summary(expand_nested=True)
 
-        return model
+        return model     
+    
+    
+
                  

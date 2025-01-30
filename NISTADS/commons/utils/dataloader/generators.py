@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import keras
+import torch
 
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
@@ -13,26 +14,19 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class DataGenerator():
 
-    def __init__(self, configuration):             
-        self.normalization = configuration["dataset"]["NORMALIZE"]
-        self.configuration = configuration    
+    def __init__(self, configuration):       
+        self.configuration = configuration       
 
     #--------------------------------------------------------------------------
-    def separate_features_and_output(self, data): 
+    def process_data(self, inputs, output):
+        parameters, adsorbent, adsorbate, pressure = inputs
+        # parameters = keras.ops.cast(parameters, dtype=torch.float32)        
+        # adsorbent = keras.ops.cast(adsorbent, dtype=torch.float32)
+        # adsorbate = keras.ops.cast(adsorbate, dtype=torch.float32)
+        # pressure = keras.ops.cast(pressure, dtype=torch.float32)       
+        # output = keras.ops.cast(output, dtype=torch.float32)
 
-        parameters = data[['temperature', 'adsorbate_molecular_weight', 'adsorbent_molecular_weight']]
-        smiles = data['adsorbate_SMILE', 'adsorbent_SMILE'].to_list()
-        P_series = data['pressure'].to_list()        
-        Q_series = data['adsorbed_amount'].to_list()     
-
-    #--------------------------------------------------------------------------
-    def process_data(self, path, text):        
-        input_text = text[:-1]
-        output_text = text[1:]      
-
-        return input_text, output_text  
-
-
+        return (parameters, adsorbent, adsorbate,pressure, ), output
                      
     
 

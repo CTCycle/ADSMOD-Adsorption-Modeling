@@ -81,6 +81,7 @@ class SMILETokenization:
 
     def __init__(self, configuration): 
 
+        self.separator = ' - '
         self.element_symbols = [
             'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P',
             'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',
@@ -231,9 +232,9 @@ class SMILETokenization:
         data = self.SMILE_series_padding(data)
 
         data['adsorbate_encoded_SMILE'] = data['adsorbate_encoded_SMILE'].apply(
-            lambda x : ' '.join(map(str, x)) if isinstance(x, list) else x)
+            lambda x : self.separator.join(map(str, x)) if isinstance(x, list) else x)
         data['adsorbent_encoded_SMILE'] = data['adsorbent_encoded_SMILE'].apply(
-            lambda x : ' '.join(map(str, x)) if isinstance(x, list) else x)
+            lambda x : self.separator.join(map(str, x)) if isinstance(x, list) else x)
         
         return data, smile_vocabulary
 

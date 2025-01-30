@@ -33,12 +33,12 @@ class AggregateDatasets:
     def aggregate_adsorption_measurements(self, dataset : pd.DataFrame):
 
         aggregate_dict = {'temperature' : 'first',                  
-                        'adsorbent_name' : 'first',
-                        'adsorbate_name' : 'first',
-                        'pressureUnits' : 'first',
-                        'adsorptionUnits' : 'first',                            
-                        'pressure' : list,
-                        'adsorbed_amount' : list}   
+                          'adsorbent_name' : 'first',
+                          'adsorbate_name' : 'first',
+                          'pressureUnits' : 'first',
+                          'adsorptionUnits' : 'first',                            
+                          'pressure' : list,
+                          'adsorbed_amount' : list}   
 
         grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()
         grouped_data.drop(columns=['filename'], inplace=True)
