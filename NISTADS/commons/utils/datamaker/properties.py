@@ -1,8 +1,8 @@
+import re
 import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
-from rdkit import Chem
-from rdkit.Chem import AllChem
+import requests
 
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -12,28 +12,13 @@ from NISTADS.commons.logger import logger
 
 # [DATASET OPERATIONS]
 ###############################################################################
-class MaterialsProperties:
+class MolecularProperties:
 
     def __init__(self, configuration):        
         self.guest_properties = GuestProperties()
         self.host_properties = HostProperties()                
         self.configuration = configuration       
-
-    #--------------------------------------------------------------------------           
-    def get_complete_materials_pool(self, experiments : pd.DataFrame, 
-                                    guests : pd.DataFrame, hosts : pd.DataFrame):
-      
-        adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
-        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])
-
-        guests = pd.concat([guests, adsorbates], ignore_index=True)
-        hosts = pd.concat([hosts, adsorbents], ignore_index=True)        
-        guests, hosts = guests.dropna(subset=['name']), hosts.dropna(subset=['name'])
-        
-        # remove all duplicated names, keeping only rows where InChiKey is available   
-        guests['name'], hosts['name'] = guests['name'].str.lower(), hosts['name'].str.lower()        
-            
-        return guests, hosts    
+   
 
     # Define a function to handle duplicates, keeping rows with InChIKey
     #--------------------------------------------------------------------------
@@ -49,24 +34,32 @@ class MaterialsProperties:
         return data       
     
     #--------------------------------------------------------------------------
-    def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame):  
-
+    def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
+        # merge adsorbates names with those found in the experiments dataset
         adsorbates = pd.DataFrame(experiments['adsorbate_name'].unique().tolist(), columns=['name'])
         all_guests = pd.concat([data, adsorbates], ignore_index=True)
-        all_guests['name'] = all_guests['name'].str.lower()
+        all_guests['name'] = all_guests['name'].astype(str).str.strip().str.lower()
 
-        properties = self.guest_properties.get_properties_for_multiple_compounds(data)
+        # fetch adsorbates molecular properties using pubchem API
+        properties = self.guest_properties.get_properties_for_multiple_compounds(all_guests)
 
-        # property_table = pd.DataFrame.from_dict(properties)        
-        # data['name'] = data['name'].apply(lambda x : x.lower())
-        # property_table['name'] = property_table['name'].apply(lambda x : x.lower())
-        # merged_data = data.merge(property_table, on='name', how='outer')
+        # build the enriched dataset using the extracted molecular properties
+        property_table = pd.DataFrame.from_dict(properties)       
+        data['name'] = data['name'].apply(lambda x : x.lower())
+        property_table['name'] = property_table['name'].apply(lambda x : x.lower())
+        merged_data = data.merge(property_table, on='name', how='outer')
 
-        #return merged_data
+        return merged_data
     
     #--------------------------------------------------------------------------
-    def add_host_properties(self, data : pd.DataFrame):                
-        properties = self.host_props.get_properties_for_multiple_hosts(data)
+    def fetch_host_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
+        adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])
+        all_hosts = pd.concat([data, adsorbents], ignore_index=True)
+        all_hosts['name'] = all_hosts['name'].astype(str).str.strip().str.lower()
+        
+        # fetch adsorbents molecular properties using pubchem API
+        properties = self.host_properties.get_properties_for_multiple_compounds(all_hosts)
+        
         property_table = pd.DataFrame.from_dict(properties)        
         data['name'] = data['name'].apply(lambda x : x.lower())
         property_table['name'] = property_table['name'].apply(lambda x : x.lower())
@@ -82,75 +75,49 @@ class MaterialsProperties:
 class GuestProperties:    
     
     def __init__(self):
-        pass   
-        
+        self.properties = {'name' : [],
+                           'adsorbate_molecular_weight' : [],
+                           'adsorbate_molecular_formula' : [],
+                           'adsorbate_SMILE' : []}      
     
     #--------------------------------------------------------------------------
-    def get_properties(self, identifier, namespace):            
-        compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
-        properties = compounds[0].to_dict() if compounds else {}
+    def get_properties(self, identifier, namespace): 
+        try:           
+            compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
+            properties = compounds[0].to_dict() if compounds else {}
+        except:
+            logger.error(f'Cannot fetch molecules properties for identifier: [{identifier}]')
+            properties = {}
 
-        return {identifier : properties}        
+        return properties     
     
     #--------------------------------------------------------------------------    
     def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame): 
-
         
-        
-        
-        for name, syno, inchikey, inchicode in tqdm(zip(names, synonyms, inchikeys, inchicodes), total=len(names)):
-            features = None
-
-            # attempt to find molecular properties using the compound name
-            if name:
-                try:
-                    features = self.get_properties_for_single_guest(name, namespace='name')
-                except Exception as e:
-                    logger.error(f"Error fetching properties for name '{name}': {e}")
-
-            # attempt to find molecular properties using the synonims for the compounds, 
-            # where the main name does not lead to valid properties
-            if not features and syno:
-                for synonym in syno:
-                    try:
-                        features = self.get_properties_for_single_guest(synonym.lower(), namespace='name')
-                        if features:
-                            break
-                    except:
-                        logger.error(f"Error fetching properties for synonym '{synonym}'")
-
-            # attempt to find molecular properties using the InChIKey for the compounds, 
-            # where the main name and synonyms do not lead to valid properties
-            if not features and inchikey:
-                try:
-                    features = self.get_properties_for_single_guest(inchikey, namespace='inchikey')
-                except:
-                    logger.error(f"Error fetching properties for InChIKey '{inchikey}'")
-
-            # attempt to find molecular properties using the InChICode for the compounds, 
-            # where the main name synonyms and InChIKey do not lead to valid properties
-            if not features and inchicode:
-                try:
-                    features = self.get_properties_for_single_guest(inchicode, namespace='inchi')
-                except:
-                    logger.error(f"Error fetching properties for InChICode '{inchicode}'")
+        for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]):  
+            if pd.notna(row.name):
+                properties = self.get_properties(row.name, namespace='name')                
+            if not properties and pd.notna(row.synonyms):
+                for synonym in row.synonyms:
+                    properties = self.get_properties(synonym, namespace='name')
+                    if properties:
+                        continue
             
-            if features:
-                try:
-                    self.process_extracted_properties(name, features)
-                except:
-                    logger.error(f"Error processing extracted properties for '{name}'")
-            else:
-                logger.warning(f"No properties found for {name}, synonyms, InChIKey, or InChICode")
+            if not properties and pd.notna(row.InChIKey):
+                properties = self.get_properties(row.name, namespace='inchikey')            
+            if not properties and pd.notna(row.InChICode):
+                properties = self.get_properties(row.name, namespace='inchi')            
+            if properties:                
+                self.process_extracted_properties(row.name, properties)                          
 
         return self.properties
     
     #--------------------------------------------------------------------------
-    def process_extracted_properties(self, name, features):           
+    def process_extracted_properties(self, name, features):               
         self.properties['name'].append(name)        
         self.properties['adsorbate_molecular_weight'].append(features.get('molecular_weight', 'NA'))
         self.properties['adsorbate_molecular_formula'].append(features.get('molecular_formula', 'NA'))
-        self.properties['adsorbate_SMILE'].append(features.get('canonical_smiles', 'NA'))       
+        self.properties['adsorbate_SMILE'].append(features.get('canonical_smiles', 'NA'))
     
 
 # [DATASET OPERATIONS]
@@ -158,60 +125,49 @@ class GuestProperties:
 class HostProperties:    
     
     def __init__(self):
-        self.properties = {'name' : [],                           
+        self.properties = {'name' : [],
                            'adsorbent_molecular_weight' : [],
                            'adsorbent_molecular_formula' : [],
-                           'adsorbent_SMILE' : []}
+                           'adsorbent_SMILE' : []}  
     
     #--------------------------------------------------------------------------
-    def get_properties_for_single_host(self, identifier, namespace):          
-        compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
-        properties = compounds[0].to_dict() if compounds else None
+    def get_properties(self, identifier, namespace): 
+        try:           
+            compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
+            properties = compounds[0].to_dict() if compounds else {}
+        except:
+            logger.error(f'Cannot fetch molecules properties for identifier: [{identifier}]')
+            properties = {}
 
-        return properties
+        return properties   
 
     #--------------------------------------------------------------------------
-    def get_properties_for_multiple_hosts(self, dataset : pd.DataFrame):
-        names = dataset['name'].str.strip().str.lower().tolist()
-        synonyms = dataset['synonyms'].apply(lambda x: x if isinstance(x, list) else []).tolist()
-        formula = dataset['formula'].apply(lambda x: x if isinstance(x, list) else []).tolist()
+    def is_chemical_formula(self, string):    
+        formula_pattern = r"^[A-Za-z0-9\[\](){}·.,+\-_/]+$"
+        return bool(re.match(formula_pattern, string))
 
-        for name, syno, form in tqdm(zip(names, synonyms, formula), total=len(names)):
-            features = None
+    #--------------------------------------------------------------------------
+    def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame):
+        
+        for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]):  
+            formula_as_name = self.is_chemical_formula(row.name)
+            if pd.notna(row.name):
+                properties = self.get_properties(row.name, namespace='name')
 
-            # attempt to find molecular properties using the compound name
-            if name:
-                try:
-                    features = self.get_properties_for_single_host(name, namespace='name')
-                except:
-                    logger.error(f"Error fetching properties for name '{s}'")
+            # adsorbents are often named as their chemical formula, so the name
+            # is checked for pattern matching with chemical formulas and if true
+            # the name is used as formula identifier to fetch properties                       
+            if not properties and pd.notna(row.name) and formula_as_name:
+                properties = self.get_properties(row.name, namespace='formula')
 
-            # attempt to find molecular properties using the synonims for the compounds, 
-            # where the main name does not lead to valid properties
-            if not features and syno:
-                for s in syno:
-                    try:
-                        features = self.get_properties_for_single_host(s, namespace='name')                        
-                    except:
-                        logger.error(f"Error fetching properties for synonym '{s}'")
-
-            # attempt to find molecular properties using the synonims for the compounds, 
-            # where the main name does not lead to valid properties
-            if not features and form:
-                for f in form:
-                    try:
-                        features = self.get_properties_for_single_host(f, namespace='formula')                        
-                    except:
-                        logger.error(f"Error fetching properties for formula '{f}'")
-
-            # Process extracted properties or log warning
-            if features:
-                try:
-                    self.process_extracted_properties(name, features)
-                except Exception as e:
-                    logger.error(f"Error processing extracted properties for '{name}': {e}")
-            else:
-                logger.warning(f"No properties found for {name} nor synonyms or formula")
+            if not properties and pd.notna(row.synonyms):
+                for synonym in row.synonyms:
+                    properties = self.get_properties(synonym, namespace='name')
+                    if properties:
+                        continue          
+                   
+            if properties:                
+                self.process_extracted_properties(row.name, properties)                
 
         return self.properties
     
