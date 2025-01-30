@@ -10,40 +10,43 @@ from NISTADS.commons.logger import logger
 
 # [MERGE DATASETS]
 ###############################################################################
-def merge_all_datasets(adsorption : pd.DataFrame, guests : pd.DataFrame,
-                       hosts : pd.DataFrame):
+class AggregateDatasets:
 
-    guest_properties = ['name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
-    host_properties = ['name', 'adsorbent_molecular_weight', 'adsorbent_SMILE']
+    def __init__(self, configurations):
+        self.configurations = configurations
+        self.guest_properties = ['name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
+        self.host_properties = ['name', 'adsorbent_molecular_weight', 'adsorbent_SMILE']
 
-    all_dataset_merge = (adsorption
-        .merge(guests[guest_properties], left_on='adsorbate_name', right_on='name', how='left')
-        .drop(columns=['name'])
-        .merge(hosts[host_properties], left_on='adsorbent_name', right_on='name', how='left')
-        .drop(columns=['name']))
-    
-    return all_dataset_merge
-    
-    
-# [MERGE DATASETS]
-###############################################################################
-def aggregate_adsorption_measurements(dataset : pd.DataFrame):
+    #--------------------------------------------------------------------------
+    def join_materials_properties(self, adsorption : pd.DataFrame, guests : pd.DataFrame,
+                                  hosts : pd.DataFrame):        
 
-    aggregate_dict = {'temperature' : 'first',                  
-                    'adsorbent_name' : 'first',
-                    'adsorbate_name' : 'first',
-                    'pressureUnits' : 'first',
-                    'adsorptionUnits' : 'first',                            
-                    'pressure' : list,
-                    'adsorbed_amount' : list}   
-
-    grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()
-    grouped_data.drop(columns=['filename'], inplace=True)
-
-    return grouped_data
-
+        all_dataset_merge = (adsorption
+            .merge(guests[self.guest_properties], left_on='adsorbate_name', right_on='name', how='left')
+            .drop(columns=['name'])
+            .merge(hosts[self.host_properties], left_on='adsorbent_name', right_on='name', how='left')
+            .drop(columns=['name']))
         
-
-
-
+        return all_dataset_merge        
         
+    #--------------------------------------------------------------------------
+    def aggregate_adsorption_measurements(self, dataset : pd.DataFrame):
+
+        aggregate_dict = {'temperature' : 'first',                  
+                        'adsorbent_name' : 'first',
+                        'adsorbate_name' : 'first',
+                        'pressureUnits' : 'first',
+                        'adsorptionUnits' : 'first',                            
+                        'pressure' : list,
+                        'adsorbed_amount' : list}   
+
+        grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()
+        grouped_data.drop(columns=['filename'], inplace=True)
+
+        return grouped_data
+
+            
+
+
+
+            

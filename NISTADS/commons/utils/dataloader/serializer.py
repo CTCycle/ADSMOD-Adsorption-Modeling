@@ -22,7 +22,8 @@ class DataSerializer:
 
         self.processed_SCADS_path = os.path.join(PROCESSED_PATH, 'SCADS_dataset.csv')
         self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json') 
-        self.vocabulary_path = os.path.join(PROCESSED_PATH, 'SMILE_tokenization_index.json')
+        self.smile_vocabulary_path = os.path.join(PROCESSED_PATH, 'SMILE_tokenization_index.json')
+        self.ads_vocabulary_path = os.path.join(PROCESSED_PATH, 'adsorbents_index.json')
 
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
@@ -42,7 +43,8 @@ class DataSerializer:
         return adsorption_data, guest_properties, host_properties 
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={}):
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
+                               adsorbent_vocabulary={}):
         metadata = self.configuration.copy()
         metadata['date'] = datetime.now().strftime("%Y-%m-%d")
         metadata['vocabulary_size'] = len(smile_vocabulary)  
@@ -50,8 +52,10 @@ class DataSerializer:
         processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')        
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4)              
-        with open(self.vocabulary_path, 'w') as file:
-            json.dump(smile_vocabulary, file, indent=4)             
+        with open(self.smile_vocabulary_path, 'w') as file:
+            json.dump(smile_vocabulary, file, indent=4)    
+        with open(self.ads_vocabulary_path, 'w') as file:
+            json.dump(adsorbent_vocabulary, file, indent=4)             
 
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self):                            

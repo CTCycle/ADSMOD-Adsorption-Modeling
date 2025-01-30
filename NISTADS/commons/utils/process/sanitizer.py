@@ -20,8 +20,9 @@ class DataSanitizer:
         self.max_uptake = configuration['dataset']['MAX_UPTAKE']
         self.configuration = configuration  
 
-        self.drop_cols = ['adsorbate_SMILE', 'adsorbent_SMILE', 
-                          'adsorbate_tokenized_SMILE', 'adsorbent_tokenized_SMILE']
+        self.included_cols = ['temperature', 'pressure', 'adsorbed_amount',
+                              'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
+
     
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):        
@@ -32,9 +33,9 @@ class DataSanitizer:
         return dataset
     
     #--------------------------------------------------------------------------
-    def reduce_dataset_features(self, dataset : pd.DataFrame): 
-        dataset.drop(self.drop_cols, axis=1, inplace=True)   
-
+    def isolate_preprocessed_features(self, dataset : pd.DataFrame): 
+        return dataset[self.included_cols]
+    
     #--------------------------------------------------------------------------
     def convert_series_to_string(self, dataset: pd.DataFrame):        
         dataset = dataset.applymap(lambda x: self.separator.join(map(str, x)) if isinstance(x, list) else x)

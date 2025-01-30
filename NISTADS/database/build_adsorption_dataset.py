@@ -6,9 +6,9 @@ warnings.simplefilter(action='ignore', category=Warning)
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
-from NISTADS.commons.utils.process.normalization import FeatureNormalizer
+from NISTADS.commons.utils.process.normalization import FeatureNormalizer, AdsorbentEncoder
 from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
-from NISTADS.commons.utils.process.aggregation import merge_all_datasets, aggregate_adsorption_measurements
+from NISTADS.commons.utils.process.aggregation import AggregateDatasets
 from NISTADS.commons.utils.process.conversion import units_conversion
 from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -37,9 +37,10 @@ if __name__ == '__main__':
     processed_data = sanitizer.exclude_outside_boundary(adsorption_data)
 
     # group data from single measurements based in the experiments  
-    # merge adsorption data with materials properties (guest and host) 
-    processed_data = aggregate_adsorption_measurements(processed_data)
-    processed_data = merge_all_datasets(processed_data, guest_data, host_data)   
+    # merge adsorption data with materials properties (guest and host)
+    aggregator = AggregateDatasets(CONFIG)
+    processed_data = aggregator.aggregate_adsorption_measurements(processed_data)
+    processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)   
 
     # convert and normalize pressure and uptake units:
     # pressure to Pascal, uptake to mol/g
@@ -57,21 +58,25 @@ if __name__ == '__main__':
     # 3. [PROCESS MOLECULAR INPUTS]
     #--------------------------------------------------------------------------  
     tokenization = SMILETokenization(CONFIG)    
-    processed_data, smile_vocabulary = tokenization.process_SMILE_data(processed_data)
+    processed_data, smile_vocabulary = tokenization.process_SMILE_data(processed_data)    
 
-    # 4. [SPLIT BASED NORMALIZATION]
+    # 4. [SPLIT BASED NORMALIZATION AND ENCODING]
     #-------------------------------------------------------------------------- 
-    splitter = TrainValidationSplit(CONFIG, processed_data)    
-    normalizer = FeatureNormalizer(CONFIG) 
+    splitter = TrainValidationSplit(CONFIG, processed_data)         
     train_data, validation_data = splitter.split_train_and_validation()
-    processed_data = normalizer.normalize_molecular_features(processed_data, train_data)     
+
+    normalizer = FeatureNormalizer(CONFIG)
+    processed_data = normalizer.normalize_molecular_features(processed_data, train_data)
+
+    encoding = AdsorbentEncoder(CONFIG)    
+    processed_data, adsorbent_vocabulary = encoding.encode_adsorbents_by_name(processed_data, train_data)     
 
     # 5. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer   
-    processed_data = sanitizer.reduce_dataset_features(processed_data)
+    processed_data = sanitizer.isolate_preprocessed_features(processed_data)
     processed_data = sanitizer.convert_series_to_string(processed_data)       
-    dataserializer.save_preprocessed_data(processed_data, smile_vocabulary)
+    dataserializer.save_preprocessed_data(processed_data, smile_vocabulary, adsorbent_vocabulary)
 
 
 
