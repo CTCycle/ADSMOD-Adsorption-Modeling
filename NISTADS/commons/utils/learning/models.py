@@ -3,8 +3,9 @@ from keras import layers, Model, optimizers
 from transformers import AutoFeatureExtractor, AutoModel
 import tensorflow as tf
 
-from NISTADS.commons.utils.learning.transformers import TransformerEncoder
+from NISTADS.commons.utils.learning.transformers import TranSMILEncoder
 from NISTADS.commons.utils.learning.embeddings import PositionalEmbedding
+from NISTADS.commons.utils.learning.encoders import StateEncoder
 from NISTADS.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 
 
@@ -31,12 +32,14 @@ class SCADSModel:
         self.configuration = configuration
         
         # initialize the image encoder and the transformers encoders and decoders
-        self.parameters_input = layers.Input(shape=(2,), name='parameters_input')
+        self.state_input = layers.Input(shape=(2,), name='state_input')
         self.adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
         self.adsorbates_input = layers.Input(shape=(self.smile_length), name='adsorbate_input')
         self.pressure_input = layers.Input(shape=(self.series_length), name='pressure_input')       
 
-        self.encoders = [TransformerEncoder(self.smile_embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
+        self.state_encoder = StateEncoder(128, dropout=0.2, seed=self.seed)
+        self.smile_encoders = [TranSMILEncoder(
+            self.smile_embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
         self.smile_embeddings = PositionalEmbedding(
             self.smile_vocab_size, self.smile_embedding_dims, self.smile_length) 
         self.adsorbent_embeddings = PositionalEmbedding(
@@ -44,17 +47,25 @@ class SCADSModel:
 
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, model_summary=True):       
-        # encode images and extract their features using the convolutional 
-        # image encoder or a selected pretrained model
+    def get_model(self, model_summary=True): 
+
+
+        encoded_states = self.state_encoder(self.state_input)          
              
-        smile_embeddings = self.smile_embeddings(self.adsorbates_input)
-        smile_padding_mask = self.smile_embeddings.compute_mask(self.adsorbates_input)         
-                
-        encoder_output = smile_embeddings
-           
-        for encoder in self.encoders:
-            encoder_output = encoder(encoder_output, training=False)       
+        smile_embeddings = self.smile_embeddings(self.adsorbates_input)  
+
+        encoder_output = smile_embeddings           
+        for encoder in self.smile_encoders:
+            encoder_output = encoder(encoder_output, training=False)  
+
+        
+
+
+
+
+
+
+
 
         # wrap the model and compile it with AdamW optimizer
         model = Model(inputs=[self.parameters_input, self.adsorbents_input, 
