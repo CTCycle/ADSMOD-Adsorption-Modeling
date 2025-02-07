@@ -108,15 +108,15 @@ class TranSMILEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, training=None):        
+    def call(self, smiles, training=None): 
 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized     
-        attention_output = self.attention(query=inputs, value=inputs, key=inputs,
+        attention_output = self.attention(query=smiles, value=smiles, key=smiles,
                                           attention_mask=None, training=training)
          
-        addnorm = self.addnorm1([inputs, attention_output])
+        addnorm = self.addnorm1([smiles, attention_output])
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs

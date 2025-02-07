@@ -9,12 +9,11 @@ from NISTADS.commons.logger import logger
 class MaskedMeanSquaredError(keras.losses.Loss):
     
     def __init__(self, name='MaskedMeanSquaredError', **kwargs):
-        super(MaskedMeanSquaredError, self).__init__(name=name, **kwargs)
-        self.loss = keras.losses.MeanSquaredError(reduction=None)
+        super(MaskedMeanSquaredError, self).__init__(name=name, **kwargs)        
         
     #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
-        loss = self.loss(y_true, y_pred)
+        loss = keras.ops.square(y_true - y_pred)
         mask = keras.ops.not_equal(y_true, -1)        
         mask = keras.ops.cast(mask, dtype=loss.dtype)        
         loss *= mask
@@ -34,48 +33,56 @@ class MaskedMeanSquaredError(keras.losses.Loss):
    
 # [METRICS]
 ###############################################################################
-class MaskedAccuracy(keras.metrics.Metric):
+class MaskedRSquared(keras.metrics.Metric):
 
-    def __init__(self, name='MaskedAccuracy', **kwargs):
-        super(MaskedAccuracy, self).__init__(name=name, **kwargs)
-        self.total = self.add_weight(name='total', initializer='zeros')
+    def __init__(self, name='MaskedR2', **kwargs):
+        super(MaskedRSquared, self).__init__(name=name, **kwargs)
+        self.ssr = self.add_weight(name='ssr', initializer='zeros')
+        self.sst = self.add_weight(name='sst', initializer='zeros')
         self.count = self.add_weight(name='count', initializer='zeros')
         
-    #--------------------------------------------------------------------------
+    #--------------------------------------------------------------------------  
     def update_state(self, y_true, y_pred, sample_weight=None):
+        y_true = keras.ops.cast(y_true, dtype='float32')
+        y_pred = keras.ops.cast(y_pred, dtype='float32')
         
-        y_true = keras.ops.cast(y_true, dtype=torch.float32)
-        y_pred_argmax = keras.ops.cast(keras.ops.argmax(y_pred, axis=2), dtype=torch.float32)
-        accuracy = keras.ops.equal(y_true, y_pred_argmax)        
-        # Create a mask to ignore padding (assuming padding value is 0)
-        mask = keras.ops.not_equal(y_true, 0)        
-        # Apply the mask to the accuracy
-        accuracy = keras.ops.logical_and(mask, accuracy)        
-        # Cast the boolean values to float32
-        accuracy = keras.ops.cast(accuracy, dtype=torch.float32)
-        mask = keras.ops.cast(mask, dtype=torch.float32)
+        # Create a mask to ignore padding values (assuming padding value is 0)
+        mask = keras.ops.not_equal(y_true, -1)
+        mask = keras.ops.cast(mask, dtype='float32')
+        
+        # Compute residual sum of squares (SSR)
+        residuals = keras.ops.square(y_true - y_pred)
+        residuals = keras.ops.multiply(residuals, mask)
+        
+        # Compute total sum of squares (SST)
+        mean_y_true = keras.ops.sum(y_true * mask) / (keras.ops.sum(mask) + keras.backend.epsilon())
+        total_variance = keras.ops.square(y_true - mean_y_true)
+        total_variance = keras.ops.multiply(total_variance, mask)
         
         if sample_weight is not None:
-            sample_weight = keras.ops.cast(sample_weight, dtype=torch.float32)
-            accuracy = keras.ops.multiply(accuracy, sample_weight)
+            sample_weight = keras.ops.cast(sample_weight, dtype='float32')
+            residuals = keras.ops.multiply(residuals, sample_weight)
+            total_variance = keras.ops.multiply(total_variance, sample_weight)
             mask = keras.ops.multiply(mask, sample_weight)
         
         # Update the state variables
-        self.total.assign_add(keras.ops.sum(accuracy))
+        self.ssr.assign_add(keras.ops.sum(residuals))
+        self.sst.assign_add(keras.ops.sum(total_variance))
         self.count.assign_add(keras.ops.sum(mask))
     
-    #--------------------------------------------------------------------------
+    #--------------------------------------------------------------------------  
     def result(self):
-        return self.total / (self.count + keras.backend.epsilon())
+        return 1 - (self.ssr / (self.sst + keras.backend.epsilon()))
     
-    #--------------------------------------------------------------------------
+    #--------------------------------------------------------------------------  
     def reset_states(self):
-        self.total.assign(0)
+        self.ssr.assign(0)
+        self.sst.assign(0)
         self.count.assign(0)
-
-    #--------------------------------------------------------------------------
+    
+    #--------------------------------------------------------------------------  
     def get_config(self):
-        base_config = super(MaskedAccuracy, self).get_config()
+        base_config = super(MaskedRSquared, self).get_config()
         return {**base_config, 'name': self.name}
     
     @classmethod

@@ -19,10 +19,10 @@ class TensorDatasetBuilder:
 
     #--------------------------------------------------------------------------
     def _define_IO_features(self, data : pd.DataFrame):
-        inputs = {'state': np.column_stack([data['temperature'].values, data['adsorbate_molecular_weight'].values]),
-                  'adsorbent': data['encoded_adsorbent'].values,
-                  'adsorbate': np.vstack(data['adsorbate_encoded_SMILE'].values),
-                  'pressure': np.vstack(data['pressure'].values)}
+        inputs = {'state_input': np.column_stack([data['temperature'].values, data['adsorbate_molecular_weight'].values]),
+                  'adsorbent_input': data['encoded_adsorbent'].values,
+                  'adsorbate_input': np.vstack(data['adsorbate_encoded_SMILE'].values),
+                  'pressure_input': np.vstack(data['pressure'].values)}
                 
         output = np.vstack(data[self.output].values)
 

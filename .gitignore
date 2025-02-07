@@ -1,6 +1,7 @@
 __pycache__
 NISTADS/experimental/model/*
 NISTADS/resources/dataset/processed_data/*
+NISTADS/resources/checkpoints/*
 
 *.log
 *.csv

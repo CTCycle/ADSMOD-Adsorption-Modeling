@@ -20,8 +20,7 @@
                 "MIXED_PRECISION" : false,                                                
                 "NUM_PROCESSORS": 6},
 
-    "model" : {"GUEST_EMBEDDING_DIMS": 256,
-               "HOST_EMBEDDING_DIMS": 64,
+    "model" : {"MOLECULAR_EMBEDDING": 256,               
                "NUM_ENCODERS" : 3,
                "ATTENTION_HEADS" : 2,               
                "JIT_COMPILE" : true,
@@ -31,8 +30,9 @@
                   "ADDITIONAL_EPOCHS" : 20,
                   "LEARNING_RATE" : 0.001,
                   "BATCH_SIZE" : 16,                             
-                  "USE_TENSORBOARD" : false,               
-                  "PLOT_EPOCH_GAP": 5},                  
+                  "USE_TENSORBOARD" : false,  
+                  "SAVE_CHECKPOINTS": false
+                  },                  
                   
     "evaluation" : {"BATCH_SIZE" : 20}     
       

@@ -1,10 +1,11 @@
 import torch
+import keras
 from keras import layers, Model, optimizers
 
-from NISTADS.commons.utils.learning.transformers import TranSMILEncoder
-from NISTADS.commons.utils.learning.embeddings import PositionalEmbedding
-from NISTADS.commons.utils.learning.encoders import StateEncoder
-from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedAccuracy
+from NISTADS.commons.utils.learning.transformers import TranSMILEncoder, AddNorm
+from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
+from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder
+from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 
 
 # [XREP CAPTIONING MODEL]
@@ -19,8 +20,7 @@ class SCADSModel:
         self.seed = configuration["SEED"]
         self.smile_length = configuration["dataset"]["SMILE_PADDING"]
         self.series_length = configuration["dataset"]["MAX_PQ_POINTS"]       
-        self.smile_embedding_dims = configuration["model"]["GUEST_EMBEDDING_DIMS"] 
-        self.ads_embedding_dims = configuration["model"]["HOST_EMBEDDING_DIMS"] 
+        self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]        
         self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
         self.num_encoders = configuration["model"]["NUM_ENCODERS"]         
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
@@ -34,36 +34,37 @@ class SCADSModel:
         self.adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
         self.pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')       
 
-        self.state_encoder = StateEncoder(dropout=0.2, seed=self.seed)
+        self.state_encoder = StateEncoder(0.2, self.series_length, seed=self.seed)
         self.smile_encoders = [TranSMILEncoder(
-            self.smile_embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
-        self.smile_embeddings = PositionalEmbedding(
-            self.smile_vocab_size, self.smile_embedding_dims, self.smile_length) 
-        self.adsorbent_embeddings = layers.Embedding(self.ads_vocab_size, self.ads_embedding_dims)   
+            self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
+        self.molecular_embeddings = MolecularEmbedding(
+            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length)         
+        self.pressure_encoder = PressureSerierEncoder(256, dropout=0.2, seed=self.seed) 
+        self.Q_decoder = QDecoder(
+            self.embedding_dims, self.series_length, dropout=0.2, depth=4, seed=self.seed)
+
+        self.addnorm = AddNorm()
 
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, model_summary=True): 
-            
-        smile_embeddings = self.smile_embeddings(self.adsorbates_input)
-        encoder_output = smile_embeddings           
+    def get_model(self, model_summary=True):         
+
+        molecular_embeddings = self.molecular_embeddings(self.adsorbates_input, self.adsorbents_input)
+        encoder_output = molecular_embeddings          
         for encoder in self.smile_encoders:
-            encoder_output = encoder(encoder_output, training=False) 
+            encoder_output = encoder(encoder_output, training=False)
 
-        ads_embeddings = self.adsorbent_embeddings(self.adsorbents_input) 
-
-
-
-
-        encoded_states = self.state_encoder(self.state_input)
+        encoded_states = self.state_encoder(self.state_input, training=False)
+        encoded_pressure = self.pressure_encoder(self.pressure_input, training=False)
+        output = self.Q_decoder(encoder_output, encoded_pressure, encoded_states, training=False)
 
         # wrap the model and compile it with AdamW optimizer
         model = Model(inputs=[self.state_input, self.adsorbents_input, 
                       self.adsorbates_input, self.pressure_input], 
-                      outputs=encoder_output)       
+                      outputs=output)       
         
         loss = MaskedMeanSquaredError()  
-        metric = [MaskedAccuracy()]
+        metric = [MaskedRSquared()]
         opt = optimizers.AdamW(learning_rate=self.learning_rate)          
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
 
