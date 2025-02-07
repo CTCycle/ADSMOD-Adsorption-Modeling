@@ -23,8 +23,9 @@
     "model" : {"GUEST_EMBEDDING_DIMS": 256,
                "HOST_EMBEDDING_DIMS": 64,
                "NUM_ENCODERS" : 3,
-               "ATTENTION_HEADS" : 2,
-               "SAVE_MODEL_PLOT" : true},
+               "ATTENTION_HEADS" : 2,               
+               "JIT_COMPILE" : true,
+               "JIT_BACKEND" : "inductor"},
 
     "training" : {"EPOCHS" : 30,
                   "ADDITIONAL_EPOCHS" : 20,

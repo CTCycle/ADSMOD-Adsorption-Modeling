@@ -41,8 +41,7 @@ if __name__ == '__main__':
 
     # create subfolder for preprocessing data
     modelserializer = ModelSerializer()
-    checkpoint_path = modelserializer.create_checkpoint_folder()
-    dataserializer.copy_data_to_checkpoint(checkpoint_path)   
+    checkpoint_path = modelserializer.create_checkpoint_folder()       
 
     # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------

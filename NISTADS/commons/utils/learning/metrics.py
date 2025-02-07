@@ -4,7 +4,33 @@ import keras
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 
+# [LOSS FUNCTION]
+###############################################################################
+class MaskedMeanSquaredError(keras.losses.Loss):
+    
+    def __init__(self, name='MaskedMeanSquaredError', **kwargs):
+        super(MaskedMeanSquaredError, self).__init__(name=name, **kwargs)
+        self.loss = keras.losses.MeanSquaredError(reduction=None)
+        
+    #--------------------------------------------------------------------------    
+    def call(self, y_true, y_pred):
+        loss = self.loss(y_true, y_pred)
+        mask = keras.ops.not_equal(y_true, -1)        
+        mask = keras.ops.cast(mask, dtype=loss.dtype)        
+        loss *= mask
+        loss = keras.ops.sum(loss)/(keras.ops.sum(mask) + keras.backend.epsilon())
 
+        return loss
+    
+    #--------------------------------------------------------------------------    
+    def get_config(self):
+        base_config = super(MaskedMeanSquaredError, self).get_config()
+        return {**base_config, 'name': self.name}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
    
 # [METRICS]
 ###############################################################################
@@ -62,48 +88,3 @@ class MaskedAccuracy(keras.metrics.Metric):
 
 
 
-# [LOSS FUNCTION]
-###############################################################################
-@keras.utils.register_keras_serializable(package='CustomMetric', name='MaskedMeanAbsoluteError')
-class MaskedMeanAbsoluteError(keras.metrics.Metric):
-    def __init__(self, pad_value, name='MaskedMeanAbsoluteError', **kwargs):
-        super(MaskedMeanAbsoluteError, self).__init__(name=name, **kwargs)
-        self.pad_value = pad_value
-        self.total = self.add_weight(name="total", initializer="zeros")
-        self.count = self.add_weight(name="count", initializer="zeros")
-
-    # update metric status
-    #--------------------------------------------------------------------------
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        mask = tf.not_equal(y_true, self.pad_value)
-        y_true_masked = tf.boolean_mask(y_true, mask)
-        y_pred_masked = tf.boolean_mask(y_pred, mask)
-        
-        error = tf.abs(y_true_masked - y_pred_masked)
-        self.total.assign_add(tf.reduce_sum(error))
-        self.count.assign_add(tf.cast(tf.size(y_true_masked), tf.float32))
-
-    # results
-    #--------------------------------------------------------------------------
-    def result(self):
-        return tf.math.divide_no_nan(self.total, self.count)
-
-    # The state of the metric will be reset at the start of each epoch
-    #--------------------------------------------------------------------------
-    def reset_states(self):        
-        self.total.assign(0)
-        self.count.assign(0)
-
-    # serialize loss for saving  
-    #--------------------------------------------------------------------------
-    def get_config(self):       
-        config = super(MaskedMeanAbsoluteError, self).get_config()
-        config.update({'pad_value': self.pad_value})
-        return config
-
-    # deserialization method  
-    #--------------------------------------------------------------------------
-    @classmethod
-    def from_config(cls, config):        
-        return cls(**config)
-    
