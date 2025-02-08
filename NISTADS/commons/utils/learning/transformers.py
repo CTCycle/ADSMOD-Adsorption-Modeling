@@ -23,9 +23,8 @@ class AddNorm(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------        
-    def call(self, inputs):
-        x1, x2 = inputs
-        x_add = self.add([x1, x2])
+    def call(self, inputs):        
+        x_add = self.add([x for x in inputs])
         x_norm = self.layernorm(x_add)
 
         return x_norm
@@ -88,10 +87,10 @@ class FeedForward(keras.layers.Layer):
 
 # [TRANSFORMER ENCODER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Encoders', name='TranSMILEncoder')
-class TranSMILEncoder(keras.layers.Layer):
+@keras.utils.register_keras_serializable(package='Encoders', name='TransMolecularEncoder')
+class TransMolecularEncoder(keras.layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
-        super(TranSMILEncoder, self).__init__(**kwargs)
+        super(TransMolecularEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads         
         self.seed = seed                
@@ -104,7 +103,7 @@ class TranSMILEncoder(keras.layers.Layer):
     # build method for the custom layer 
     #--------------------------------------------------------------------------
     def build(self, input_shape):        
-        super(TranSMILEncoder, self).build(input_shape)    
+        super(TransMolecularEncoder, self).build(input_shape)    
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
@@ -128,7 +127,7 @@ class TranSMILEncoder(keras.layers.Layer):
     # serialize layer for saving  
     #--------------------------------------------------------------------------
     def get_config(self):
-        config = super(TranSMILEncoder, self).get_config()
+        config = super(TransMolecularEncoder, self).get_config()
         config.update({'embedding_dims': self.embedding_dims,
                        'num_heads': self.num_heads,
                        'seed' : self.seed})

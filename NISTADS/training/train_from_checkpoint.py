@@ -7,9 +7,13 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.generators import build_model_dataloader
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.models.training import ModelTraining
+from NISTADS.commons.utils.process.sanitizer import DataSanitizer
+from NISTADS.commons.utils.process.splitting import TrainValidationSplit
+from NISTADS.commons.utils.dataloader.tensordata import TensorDatasetBuilder
+from NISTADS.commons.utils.learning.models import SCADSModel
+from NISTADS.commons.utils.learning.training import ModelTraining
+from NISTADS.commons.utils.validation.reports import log_training_report
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -20,49 +24,61 @@ if __name__ == '__main__':
 
     # 1. [LOAD PRETRAINED MODEL]
     #--------------------------------------------------------------------------    
-    dataserializer = DataSerializer()   
-    modelserializer = ModelSerializer() 
-
-    # setting device for training    
-    trainer = ModelTraining()
-    trainer.set_device()    
-    
     # selected and load the pretrained model, then print the summary     
-    logger.info('Loading specific checkpoint from pretrained models')   
-    model, parameters = modelserializer.select_and_load_checkpoint()
-    checkpoint_path = modelserializer.loaded_model_folder
-    model.summary(expand_nested=True)      
+    logger.info('Loading specific checkpoint from pretrained models') 
+    modelserializer = ModelSerializer()      
+    model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()    
+    model.summary(expand_nested=True)  
+    
+    # setting device for training    
+    trainer = ModelTraining(configuration)    
+    trainer.set_device()
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     # initialize training device, allows changing device prior to initializing the generators
-    #--------------------------------------------------------------------------   
-    # load saved tf.datasets from the proper folders in the checkpoint directory     
-    train_data, validation_data = dataserializer.load_preprocessed_data(checkpoint_path)
+    #--------------------------------------------------------------------------    
+    # load saved tf.datasets from the proper folders in the checkpoint directory
+    logger.info('Loading preprocessed data and building dataloaders')     
+    dataserializer = DataSerializer(configuration) 
+    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data(checkpoint_path)
 
-    # initialize the TensorDataSet class with the generator instances
-    # create the tf.datasets using the previously initialized generators   
-    logger.info('Building data loaders') 
-    train_dataset, validation_dataset = build_model_dataloader(train_data, validation_data)
-    
-    # 3. [TRAINING MODEL]
+    sanitizer = DataSanitizer(metadata)        
+    processed_data = sanitizer.convert_string_to_series(processed_data) 
+
+    # 2. [SPLIT DATA]
+    #--------------------------------------------------------------------------
+    # split data into train set and validation set
+    logger.info('Preparing dataset of images and captions based on splitting size')  
+    splitter = TrainValidationSplit(configuration, processed_data)     
+    train_data, validation_data = splitter.split_train_and_validation()  
+
+    # create subfolder for preprocessing data
+    modelserializer = ModelSerializer()
+    checkpoint_path = modelserializer.create_checkpoint_folder()       
+
+    # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
+    #--------------------------------------------------------------------------
+    # initialize training device 
+    # allows changing device prior to initializing the generators
+    logger.info('Building NISTADS model and data loaders')     
+    trainer = ModelTraining(configuration) 
+    trainer.set_device()    
+       
+    # create the tf.datasets using the previously initialized generators 
+    builder = TensorDatasetBuilder(configuration)   
+    train_dataset, validation_dataset = builder.build_model_dataloader(train_data, validation_data) 
+
+    # 4. [TRAINING MODEL]  
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
-    # use the bash command: python -m tensorboard.main --logdir tensorboard/ 
-    #--------------------------------------------------------------------------
-    logger.info('--------------------------------------------------------------')
-    logger.info('FeXT resume training report')
-    logger.info('--------------------------------------------------------------')    
-    logger.info(f'Number of train samples:       {len(train_data)}')
-    logger.info(f'Number of validation samples:  {len(validation_data)}')      
-    logger.info(f'Picture shape:                 {CONFIG["model"]["IMG_SHAPE"]}')   
-    logger.info(f'Batch size:                    {CONFIG["training"]["BATCH_SIZE"]}')
-    logger.info(f'Epochs:                        {CONFIG["training"]["EPOCHS"]}')  
-    logger.info('--------------------------------------------------------------\n')      
+    # use the bash command: python -m tensorboard.main --logdir tensorboard/     
+    #--------------------------------------------------------------------------    
+    log_training_report(train_data, validation_data, configuration, 
+                        vocabulary_size=vocabulary_size, from_checkpoint=True)    
 
-    # resume training from pretrained model
-    session_index = parameters['session_ID'] + 1
+    # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
-                        from_epoch=parameters['epochs'], session_index=session_index)
+                        from_checkpoint=True)
 
 
 

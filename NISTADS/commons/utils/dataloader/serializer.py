@@ -81,14 +81,24 @@ class DataSerializer:
             json.dump(adsorbent_vocabulary, file, indent=4)             
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):                            
-        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';')          
+    def load_preprocessed_data(self, from_checkpoint=None): 
+        data_path = self.processed_SCADS_path
+        metadata_path = self.metadata_path
+        smile_path = self.smile_vocabulary_path
+        adsorbents_path = self.ads_vocabulary_path
 
-        with open(self.metadata_path, 'r') as file:
+        if from_checkpoint is not None:
+            data_path = os.path.join(from_checkpoint, 'data', 'SCADS_dataset.csv')              
+            metadata_path = os.path.join(from_checkpoint, 'data', 'preprocessing_metadata.json')
+            smile_path = os.path.join(from_checkpoint, 'data', 'SMILE_tokenization_index.json')
+            adsorbents_path = os.path.join(from_checkpoint, 'data', 'adsorbents_index.json')                
+
+        processed_data = pd.read_csv(data_path, encoding='utf-8', sep=';', low_memory=False)        
+        with open(metadata_path, 'r') as file:
             metadata = json.load(file)        
-        with open(self.smile_vocabulary_path, 'r') as file:
+        with open(smile_path, 'r') as file:
             smile_vocabulary = json.load(file)
-        with open(self.smile_vocabulary_path, 'r') as file:
+        with open(adsorbents_path, 'r') as file:
             ads_vocabulary = json.load(file)
         
         return processed_data, metadata, smile_vocabulary, ads_vocabulary         
@@ -103,7 +113,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):        
         single_component.to_csv(self.SCADS_data_path, index=False, sep=';', encoding='utf-8')        
-        binary_mixture.to_csv(self.BMADS_data_path, index=False, sep=';', encoding='utf-8')
+        binary_mixture.to_csv(self.BMADS_data_path, index=False, sep=';', encoding='utf-8')    
 
     #--------------------------------------------------------------------------
     def copy_data_to_checkpoint(self, checkpoint_path):        

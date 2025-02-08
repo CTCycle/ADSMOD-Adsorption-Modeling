@@ -1,7 +1,7 @@
 # NISTADS: NIST/ARPA-E dataset composer and adsorption modeling
 
 ## 1. Project Overview
-The NISTADS project delves into the fascinating world of adsorption, a surface-based process where a film of particles (adsorbate) accumulate on the surface of a material (adsorbent). This phenomenon plays a pivotal role in numerous industries. For instance, it is widely applied in water treatment facilities for the purification of water, in air filters to improve air quality, and in the automotive industry within catalytic converters to reduce harmful emissions. The adsorption of compounds is usually quantified by measuring the adsorption isotherm a given adsorbate/adsorbent combination. The objective of NISTADS is two-fold: 1) to collect adsorption isotherms data from the NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials (https://adsorption.nist.gov/index.php#home) through their dedicated API; 2) build a model that can accurately predict the adsorbed amount of a specific guest-host combination under various conditions, by leveraging the data from the NIST/ARPA-E Database.
+The NISTADS project delves into the fascinating world of adsorption, a surface-based process where a film of particles (adsorbate) accumulate on the surface of a material (adsorbent). This phenomenon plays a pivotal role in numerous industries. For instance, it is widely applied in water treatment facilities for the purification of water, in air filters to improve air quality, and in the automotive industry within catalytic converters to reduce harmful emissions. The adsorption of compounds is usually quantified by measuring the adsorption isotherm a given adsorbate/adsorbent combination. The objective of this project is two-fold: 1) to collect adsorption isotherms data from the NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials (https://adsorption.nist.gov/index.php#home) through their dedicated API; 2) build a machine learning model that can accurately predict the adsorbed amount of a specific guest-host combination under various conditions, by leveraging the data from the NIST/ARPA-E Database.
 
 This could have significant implications for industries that rely on these materials, potentially leading to more efficient processes and better materials design. As such, this project takes a different approach compared to fitting adsorption data with theoretical model for adsorption constants calculation, instead proposing the use of a deep learning approach to understand adsorption isotherm patterns by leveraging a large volume of experimental data.
 
@@ -78,7 +78,7 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 | EXP_FRACTION          | fraction of adsorption isotherm data to fetch         |
 | PARALLEL_TASKS_GH     | parallel calls to get guest/host data                 |
 | PARALLEL_TASKS_EXP    | parallel calls to get experiment data                 |
-| SEED               | Global seed for all numerical operations                 |
+| SEED                  | Global seed for all numerical operations              |
                                         
 #### Dataset Configuration
 
@@ -93,9 +93,7 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
-| IMG_SHAPE          | Shape of the input images (height, width, channels)      |
-| APPLY_SOBEL        | Apply Sobel filter in the encoder model                  |
-| RESIDUALS          | Apply residual connections in convolution layers         |
+
 | JIT_COMPILE        | Apply Just-In_time (JIT) compiler for model optimization |
 | JIT_BACKEND        | Just-In_time (JIT) backend                               |
 

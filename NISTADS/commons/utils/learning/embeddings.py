@@ -32,8 +32,7 @@ class MolecularEmbedding(keras.layers.Layer):
 
         ads_embeddings = self.ads_embeddings(adsorbent)          
         ads_embeddings = keras.ops.expand_dims(ads_embeddings, axis=1)
-        ads_repeated_embeddings = keras.ops.tile(
-            ads_embeddings, [1, self.sequence_length, 1])
+        ads_embeddings = keras.ops.tile(ads_embeddings, [1, self.sequence_length, 1])
         ads_embeddings *= self.embedding_scale
 
         length = keras.ops.shape(smiles)[-1] 
@@ -42,10 +41,10 @@ class MolecularEmbedding(keras.layers.Layer):
         embedded_smile = self.smile_embeddings(smiles)
         embedded_smile *= self.embedding_scale        
         embedded_positions = self.position_embeddings(positions)        
-        full_embedding = embedded_smile + embedded_positions + ads_repeated_embeddings
+        full_embedding = embedded_smile + embedded_positions + ads_embeddings
         
         if self.mask_values:
-            mask = keras.ops.not_equal(smiles, 0)
+            mask = keras.ops.not_equal(smiles, -1)
             mask = keras.ops.expand_dims(keras.ops.cast(mask, torch.float32), axis=-1)
             full_embedding *= mask
 
@@ -54,7 +53,7 @@ class MolecularEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, 0)        
+        mask = keras.ops.not_equal(inputs, -1)        
         
         return mask
     

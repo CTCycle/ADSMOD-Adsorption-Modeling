@@ -63,8 +63,8 @@ if __name__ == '__main__':
     log_training_report(train_data, validation_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
-    captioner = SCADSModel(metadata, CONFIG)
-    model = captioner.get_model(model_summary=True) 
+    wrapper = SCADSModel(metadata, CONFIG)
+    model = wrapper.get_model(model_summary=True) 
 
     # generate graphviz plot fo the model layout       
     modelserializer.save_model_plot(model, checkpoint_path)              
