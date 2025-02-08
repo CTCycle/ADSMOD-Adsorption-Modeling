@@ -44,7 +44,7 @@ class DataSanitizer:
     #--------------------------------------------------------------------------
     def convert_string_to_series(self, dataset: pd.DataFrame):  
         dataset = dataset.applymap(
-            lambda x: [float(f) for f in x.split(self.separator)] 
+            lambda x: [f for f in x.split(self.separator)] 
                        if isinstance(x, str) and self.separator in x else x)
         
         return dataset

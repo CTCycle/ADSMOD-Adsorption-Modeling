@@ -97,7 +97,7 @@ class GuestProperties:
         for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]):  
             if pd.notna(row.name):
                 properties = self.get_properties(row.name, namespace='name')                
-            if not properties and pd.notna(row.synonyms):
+            if not properties and isinstance(row.synonyms, list):
                 for synonym in row.synonyms:
                     properties = self.get_properties(synonym, namespace='name')
                     if properties:
@@ -160,7 +160,7 @@ class HostProperties:
             if not properties and pd.notna(row.name) and formula_as_name:
                 properties = self.get_properties(row.name, namespace='formula')
 
-            if not properties and pd.notna(row.synonyms):
+            if not properties and isinstance(row.synonyms, list):
                 for synonym in row.synonyms:
                     properties = self.get_properties(synonym, namespace='name')
                     if properties:
