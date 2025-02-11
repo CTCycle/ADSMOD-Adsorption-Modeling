@@ -2,9 +2,9 @@ import torch
 import keras
 from keras import layers, activations, Model, optimizers
 
-from NISTADS.commons.utils.learning.transformers import TransMolecularEncoder, AddNorm
+from NISTADS.commons.utils.learning.layers import AddNorm
 from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
-from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder
+from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder, MolecularEncoder
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 
 
@@ -18,73 +18,59 @@ class SCADSModel:
         self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
         
         self.seed = configuration["SEED"]
-        self.smile_length = configuration["dataset"]["SMILE_PADDING"]
-        self.series_length = configuration["dataset"]["MAX_PQ_POINTS"]       
-        self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]        
-        self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
-        self.num_encoders = configuration["model"]["NUM_ENCODERS"]         
+        self.smile_length = metadata["dataset"]["SMILE_PADDING"]
+        self.series_length = metadata["dataset"]["MAX_PQ_POINTS"]       
+        self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]            
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
         self.jit_backend = configuration["model"]["JIT_BACKEND"]             
         self.learning_rate = configuration["training"]["LEARNING_RATE"]           
-        self.configuration = configuration
-        
-        # initialize the image encoder and the transformers encoders and decoders
-        self.state_input = layers.Input(shape=(2,), name='state_input')
-        self.adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
-        self.adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
-        self.pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')
+        self.configuration = configuration       
 
-        self.state_encoder = StateEncoder(0.2,seed=self.seed)
-        self.smile_encoders = [TransMolecularEncoder(
-            self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
+        self.state_encoder = StateEncoder(0.2,seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
-            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length)         
+            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length)   
+        self.smile_encoders = MolecularEncoder(self.embedding_dims, self.seed)       
         self.pressure_encoder = PressureSerierEncoder(self.embedding_dims, dropout=0.2, seed=self.seed) 
+        self.Qdecoder = QDecoder(self.embedding_dims, 0.2, seed=self.seed)
 
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, model_summary=True):         
+    def get_model(self, model_summary=True):  
+
+        # initialize the image encoder and the transformers encoders and decoders
+        state_input = layers.Input(shape=(2,), name='state_input')
+        adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
+        adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
+        pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')       
 
         # create combined embeddings of both the adsorbates and adsorbents 
         # molecular representations, where the adsorbate is embedded as a SMILE sequence
         # to which we add the adsorbent and positional contribution
-        molecular_embeddings = self.molecular_embeddings(self.adsorbates_input, self.adsorbents_input)
+        molecular_embeddings = self.molecular_embeddings(adsorbates_input, adsorbents_input) 
+        smile_mask = self.molecular_embeddings.compute_mask(adsorbates_input)   
 
-        # pass the molecular embeddings through the transformer encoders
-        encoder_output = molecular_embeddings          
-        for encoder in self.smile_encoders:
-            encoder_output = encoder(encoder_output, training=False)
-
-        mean_encoder_output = keras.ops.mean(encoder_output, axis=1)
+        # pass the molecular embeddings through the transformer encoders               
+        encoder_output = self.smile_encoders(molecular_embeddings, smile_mask, training=False)
 
         # encode temperature and molecular weight of the adsorbate as a single vector
         # and tile it to match the SMILE sequence length
-        encoded_states = self.state_encoder(self.state_input, training=False)
+        encoded_states = self.state_encoder(state_input, training=False)
 
         # create a molecular context by concatenating the mean molecular embeddings
-        # together with the encoded states (temperature and molecular weight)
-        molecular_context = layers.Concatenate()([mean_encoder_output, encoded_states])        
+        # together with the encoded states (temperature and molecular weight)        
+        molecular_context = layers.Concatenate()([encoder_output, encoded_states])        
 
         # encode the pressure series and add information from the molecular context
-        encoded_pressure = self.pressure_encoder(self.pressure_input, molecular_context, training=False)        
-
-        Q_logits = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform')(encoded_pressure)
-        Q_logits = activations.relu(Q_logits)
-        Q_logits = layers.Dense(self.embedding_dims//2, kernel_initializer='he_uniform')(Q_logits)
-        Q_logits = activations.relu(Q_logits)
-        Q_logits = layers.Dense(self.embedding_dims//4, kernel_initializer='he_uniform')(Q_logits)
-        Q_logits = activations.relu(Q_logits)
-        Q_logits = layers.Dense(1, kernel_initializer='he_uniform')(Q_logits)        
-        output = activations.relu(Q_logits)
+        encoded_pressure = self.pressure_encoder(pressure_input, molecular_context, training=False) 
+        output = self.Qdecoder(encoded_pressure)        
 
         # wrap the model and compile it with AdamW optimizer
-        model = Model(inputs=[self.state_input, self.adsorbents_input, 
-                              self.adsorbates_input, self.pressure_input], 
-                      outputs=output)       
+        model = Model(inputs=[state_input, adsorbents_input, adsorbates_input, pressure_input], 
+                      outputs=output, name='SCADS_model')       
         
+        opt = optimizers.Adam(learning_rate=self.learning_rate)  
         loss = MaskedMeanSquaredError()  
-        metric = [MaskedRSquared()]
-        opt = optimizers.AdamW(learning_rate=self.learning_rate)          
+        metric = [MaskedRSquared()]                
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
 
         if self.jit_compile:

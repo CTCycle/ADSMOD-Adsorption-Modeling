@@ -15,7 +15,7 @@ class AggregateDatasets:
     def __init__(self, configurations):
         self.configurations = configurations
         self.guest_properties = ['name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
-        self.host_properties = ['name', 'adsorbent_molecular_weight', 'adsorbent_SMILE']
+        self.host_properties = ['name']
 
     #--------------------------------------------------------------------------
     def join_materials_properties(self, adsorption : pd.DataFrame, guests : pd.DataFrame,

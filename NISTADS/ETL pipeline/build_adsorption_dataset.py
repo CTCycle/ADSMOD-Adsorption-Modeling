@@ -74,8 +74,7 @@ if __name__ == '__main__':
     # 5. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer   
-    processed_data = sanitizer.isolate_preprocessed_features(processed_data)
-    processed_data = sanitizer.convert_series_to_string(processed_data)       
+    processed_data = sanitizer.isolate_preprocessed_features(processed_data)          
     dataserializer.save_preprocessed_data(processed_data, smile_vocabulary, adsorbent_vocabulary)
 
 

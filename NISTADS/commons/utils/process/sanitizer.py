@@ -1,6 +1,6 @@
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
-tqdm.pandas()      
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -44,7 +44,7 @@ class DataSanitizer:
     #--------------------------------------------------------------------------
     def convert_string_to_series(self, dataset: pd.DataFrame):  
         dataset = dataset.applymap(
-            lambda x: [f for f in x.split(self.separator)] 
+            lambda x: [np.float32(f) for f in x.split(self.separator)] 
                        if isinstance(x, str) and self.separator in x else x)
         
         return dataset

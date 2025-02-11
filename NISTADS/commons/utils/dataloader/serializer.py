@@ -5,6 +5,7 @@ import pandas as pd
 import keras
 from datetime import datetime
 
+from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.commons.constants import CONFIG, PROCESSED_PATH, DATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
@@ -52,7 +53,9 @@ class DataSerializer:
         self.adsorbate_SMILE_COL = 'adsorbate_encoded_SMILE'   
         self.adsorbent_SMILE_COL = 'adsorbent_encoded_SMILE'     
         self.parameters = configuration["dataset"]
-        self.configuration = configuration          
+        self.configuration = configuration 
+
+        self.sanitizer = DataSanitizer(configuration)         
         
     #--------------------------------------------------------------------------
     def load_datasets(self, get_materials=True): 
@@ -67,12 +70,14 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
                                adsorbent_vocabulary={}):
+        
         metadata = self.configuration.copy()
         metadata['date'] = datetime.now().strftime("%Y-%m-%d")
         metadata['SMILE_vocabulary_size'] = len(smile_vocabulary)  
         metadata['adsorbent_vocabulary_size'] = len(adsorbent_vocabulary) 
-                 
-        processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')        
+
+        processed_data = self.sanitizer.convert_series_to_string(processed_data)         
+        processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')               
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4)              
         with open(self.smile_vocabulary_path, 'w') as file:
@@ -81,25 +86,15 @@ class DataSerializer:
             json.dump(adsorbent_vocabulary, file, indent=4)             
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self, from_checkpoint=None): 
-        data_path = self.processed_SCADS_path
-        metadata_path = self.metadata_path
-        smile_path = self.smile_vocabulary_path
-        adsorbents_path = self.ads_vocabulary_path
-
-        if from_checkpoint is not None:
-            data_path = os.path.join(from_checkpoint, 'data', 'SCADS_dataset.csv')              
-            metadata_path = os.path.join(from_checkpoint, 'data', 'preprocessing_metadata.json')
-            smile_path = os.path.join(from_checkpoint, 'data', 'SMILE_tokenization_index.json')
-            adsorbents_path = os.path.join(from_checkpoint, 'data', 'adsorbents_index.json')                
-
-        processed_data = pd.read_csv(data_path, encoding='utf-8', sep=';', low_memory=False)        
-        with open(metadata_path, 'r') as file:
+    def load_preprocessed_data(self): 
+        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';') 
+        processed_data = self.sanitizer.convert_string_to_series(processed_data)
+        with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
-        with open(smile_path, 'r') as file:
+        with open(self.smile_vocabulary_path, 'r') as file:
             smile_vocabulary = json.load(file)
-        with open(adsorbents_path, 'r') as file:
-            ads_vocabulary = json.load(file)
+        with open(self.ads_vocabulary_path, 'r') as file:
+            ads_vocabulary = json.load(file)            
         
         return processed_data, metadata, smile_vocabulary, ads_vocabulary         
     

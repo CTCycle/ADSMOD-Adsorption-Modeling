@@ -20,10 +20,8 @@
                 "MIXED_PRECISION" : false,                                                
                 "NUM_PROCESSORS": 6},
 
-    "model" : {"MOLECULAR_EMBEDDING": 128,               
-               "NUM_ENCODERS" : 2,
-               "ATTENTION_HEADS" : 1,               
-               "JIT_COMPILE" : true,
+    "model" : {"MOLECULAR_EMBEDDING": 256,                                            
+               "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
     "training" : {"EPOCHS" : 30,

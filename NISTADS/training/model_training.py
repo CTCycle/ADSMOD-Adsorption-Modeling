@@ -6,10 +6,8 @@ os.environ["KERAS_BACKEND"] = "torch"
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
-
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.dataloader.tensordata import TensorDatasetBuilder
 from NISTADS.commons.utils.learning.models import SCADSModel
@@ -27,11 +25,8 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()
+    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()    
     
-    sanitizer = DataSanitizer(CONFIG)        
-    processed_data = sanitizer.convert_string_to_series(processed_data)    
-
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
     # split data into train set and validation set

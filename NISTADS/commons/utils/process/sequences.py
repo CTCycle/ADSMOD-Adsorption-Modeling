@@ -193,18 +193,11 @@ class SMILETokenization:
     
     #--------------------------------------------------------------------------
     def SMILE_tokens_encoding(self, data: pd.DataFrame): 
-
-        adsorbate_SMILE_tokens = set(token for tokens in data['adsorbate_tokenized_SMILE'] for token in tokens)   
-        adsorbent_SMILE_tokens = set(token for tokens in data['adsorbent_tokenized_SMILE'] for token in tokens)  
-        all_SMILE_tokens = adsorbate_SMILE_tokens | adsorbent_SMILE_tokens        
-             
+        adsorbate_SMILE_tokens = set(token for tokens in data['adsorbate_tokenized_SMILE'] for token in tokens)            
         # Map each token to a unique integer
-        token_to_id = {token: idx for idx, token in enumerate(sorted(all_SMILE_tokens))}        
+        token_to_id = {token: idx for idx, token in enumerate(sorted(adsorbate_SMILE_tokens))}        
         # Apply the encoding to each tokenized SMILE
         data['adsorbate_encoded_SMILE'] = data['adsorbate_tokenized_SMILE'].apply(
-            lambda tokens: [int(token_to_id[token]) for token in tokens])
-        
-        data['adsorbent_encoded_SMILE'] = data['adsorbent_tokenized_SMILE'].apply(
             lambda tokens: [int(token_to_id[token]) for token in tokens])
         
         return data, token_to_id
@@ -214,28 +207,20 @@ class SMILETokenization:
         dataset['adsorbate_encoded_SMILE'] = sequence.pad_sequences(
             dataset['adsorbate_encoded_SMILE'], maxlen=self.SMILE_padding, 
             value=self.pad_value, dtype='float32', padding='post').tolist() 
-
-        dataset['adsorbent_encoded_SMILE'] = sequence.pad_sequences(
-            dataset['adsorbent_encoded_SMILE'], maxlen=self.SMILE_padding, 
-            value=self.pad_value, dtype='float32', padding='post').tolist()         
-
+        
         return dataset
     
     #--------------------------------------------------------------------------
     def process_SMILE_data(self, data : pd.DataFrame):
         data['adsorbate_tokenized_SMILE'] = data['adsorbate_SMILE'].apply(
             lambda x : self.tokenize_SMILE_string(x)) 
-        data['adsorbent_tokenized_SMILE'] = data['adsorbent_SMILE'].apply(
-            lambda x : self.tokenize_SMILE_string(x))
-
+        
         data, smile_vocabulary = self.SMILE_tokens_encoding(data)        
         data = self.SMILE_series_padding(data)
 
         data['adsorbate_encoded_SMILE'] = data['adsorbate_encoded_SMILE'].apply(
             lambda x : self.separator.join(map(str, x)) if isinstance(x, list) else x)
-        data['adsorbent_encoded_SMILE'] = data['adsorbent_encoded_SMILE'].apply(
-            lambda x : self.separator.join(map(str, x)) if isinstance(x, list) else x)
-        
+       
         return data, smile_vocabulary
 
 

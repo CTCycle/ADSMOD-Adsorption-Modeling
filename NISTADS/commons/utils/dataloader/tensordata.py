@@ -32,12 +32,11 @@ class TensorDatasetBuilder:
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def build_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):    
-        data = data.dropna(subset=self.features.append(self.output))
+        data = data.dropna(how='any')
         num_samples = data.shape[0]                
         batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
         inputs, output = self._define_IO_features(data)
-        dataset = tf.data.Dataset.from_tensor_slices((inputs, output))                      
-               
+        dataset = tf.data.Dataset.from_tensor_slices((inputs, output))              
         dataset = dataset.batch(batch_size)
         dataset = dataset.prefetch(buffer_size=buffer_size)
         dataset = dataset.shuffle(buffer_size=num_samples)       
