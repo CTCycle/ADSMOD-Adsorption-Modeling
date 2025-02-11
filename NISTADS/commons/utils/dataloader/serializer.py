@@ -105,10 +105,12 @@ class DataSerializer:
     
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data, host_data):
-        dataframe = pd.DataFrame.from_dict(guest_data)          
-        dataframe.to_csv(self.guest_path, index=False, sep=';', encoding='utf-8')
-        dataframe = pd.DataFrame.from_dict(host_data)          
-        dataframe.to_csv(self.host_path, index=False, sep=';', encoding='utf-8')    
+        if guest_data is not None:
+            dataframe = pd.DataFrame.from_dict(guest_data)          
+            dataframe.to_csv(self.guest_path, index=False, sep=';', encoding='utf-8')
+        if host_data is not None:
+            dataframe = pd.DataFrame.from_dict(host_data)          
+            dataframe.to_csv(self.host_path, index=False, sep=';', encoding='utf-8')    
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):        

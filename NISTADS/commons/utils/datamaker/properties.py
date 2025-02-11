@@ -51,6 +51,8 @@ class MolecularProperties:
 
         return merged_data
     
+    # this function is not used in the current version of the code, since it is 
+    # difficult to find a reliable source for the adsorbent materials properties
     #--------------------------------------------------------------------------
     def fetch_host_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
         adsorbents = pd.DataFrame(experiments['adsorbent_name'].unique().tolist(), columns=['name'])
@@ -66,6 +68,8 @@ class MolecularProperties:
         merged_data = data.merge(property_table, on='name', how='outer')
 
         return merged_data
+
+        
  
 
 
@@ -157,14 +161,14 @@ class HostProperties:
             # adsorbents are often named as their chemical formula, so the name
             # is checked for pattern matching with chemical formulas and if true
             # the name is used as formula identifier to fetch properties                       
-            if not properties and pd.notna(row.name) and formula_as_name:
-                properties = self.get_properties(row.name, namespace='formula')
+            # if not properties and pd.notna(row.name) and formula_as_name:
+            #     properties = self.get_properties(row.name, namespace='formula')
 
-            if not properties and isinstance(row.synonyms, list):
-                for synonym in row.synonyms:
-                    properties = self.get_properties(synonym, namespace='name')
-                    if properties:
-                        continue          
+            # if not properties and isinstance(row.synonyms, list):
+            #     for synonym in row.synonyms:
+            #         properties = self.get_properties(synonym, namespace='name')
+            #         if properties:
+            #             continue          
                    
             if properties:                
                 self.process_extracted_properties(row.name, properties)                
