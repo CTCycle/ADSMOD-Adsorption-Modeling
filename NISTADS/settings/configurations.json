@@ -1,0 +1,39 @@
+{   
+    "SEED" : 54,
+    "collection" : {"GUEST_FRACTION" : 1.0,
+                    "HOST_FRACTION" : 1.0,
+                    "EXP_FRACTION" : 1.0,    
+                    "PARALLEL_TASKS" : 60},
+
+    "dataset" : {"SAMPLE_SIZE" : 1.0,
+                 "VALIDATION_SIZE" : 0.2,                 
+                 "MAX_PQ_POINTS": 20,                 
+                 "MIN_PQ_POINTS": 4,
+                 "SMILE_PADDING": 30,
+                 "MAX_PRESSURE": 10e06,
+                 "MAX_UPTAKE": 10,                 
+                 "SPLIT_SEED" : 45},
+
+    "device" : {"DEVICE" : "GPU",
+                "DEVICE_ID" : 0,
+                "MIXED_PRECISION" : false,                                                
+                "NUM_PROCESSORS": 6},
+
+    "model" : {"MOLECULAR_EMBEDDING": 256,                                            
+               "JIT_COMPILE" : false,
+               "JIT_BACKEND" : "inductor"},
+
+    "training" : {"EPOCHS" : 2,
+                  "ADDITIONAL_EPOCHS" : 2,                  
+                  "BATCH_SIZE" : 512,                             
+                  "USE_TENSORBOARD" : true,  
+                  "SAVE_CHECKPOINTS": false,
+                  "LR_SCHEDULER" : {"INITIAL_LR" : 0.001,
+                                    "CONSTANT_STEPS": 10,
+                                    "DECAY_STEPS" : 5}   
+                  },                  
+                  
+    "evaluation" : {"BATCH_SIZE" : 20}     
+      
+}
+

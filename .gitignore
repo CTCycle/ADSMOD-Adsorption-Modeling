@@ -1,7 +1,12 @@
 __pycache__
-NISTCOLLECT/experimental/model/*
+NISTADS/experimental/model/*
+NISTADS/resources/dataset/processed_data/*
+NISTADS/resources/checkpoints/*
 
 *.log
 *.csv
+setup/environment/*
+setup/miniconda/*
+
 *.egg-info
 !.gitkeep
