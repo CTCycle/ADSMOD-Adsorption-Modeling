@@ -1,42 +1,43 @@
-import os
-import sys
-import pandas as pd
-import numpy as np
-import pickle 
+# [SET KERAS BACKEND]
+import os 
+os.environ["KERAS_BACKEND"] = "torch"
 
-# set warnings
-#------------------------------------------------------------------------------
+# [SETTING WARNINGS]
 import warnings
-warnings.simplefilter(action='ignore', category = Warning)
+warnings.simplefilter(action='ignore', category=Warning)
 
-# add parent folder path to the namespace
-#------------------------------------------------------------------------------
-sys.path.append(os.path.join(os.path.dirname(__file__), '..')) 
-
-# import modules and classes
-#------------------------------------------------------------------------------
-from NISTADS.commons.utils.preprocessing import PreProcessing
-from NISTADS.commons.utils.inference import Inference
-from NISTADS.commons.utils.validation import ModelValidation
-from NISTADS.commons.pathfinder import DATA_PATH, CHECKPOINT_PATH, INFERENCE_PATH
-import NISTADS.commons.configurations as cnf
+# [IMPORT CUSTOM MODULES]
+from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
+from NISTADS.commons.utils.process.splitting import TrainValidationSplit
+from NISTADS.commons.utils.dataloader.tensordata import TensorDatasetBuilder
+from NISTADS.commons.utils.learning.training import ModelTraining
+from NISTADS.commons.utils.validation.reports import log_training_report
+from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.logger import logger
 
 
 # [RUN MAIN]
-if __name__ == '__main__':    
+###############################################################################
+if __name__ == '__main__':
 
-    # 1. [LOAD MODEL AND DATA]  
+    # 1. [LOAD PRETRAINED MODEL]
+    #--------------------------------------------------------------------------    
+    # selected and load the pretrained model, then print the summary     
+    logger.info('Loading specific checkpoint from pretrained models') 
+    modelserializer = ModelSerializer()      
+    model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()    
+    model.summary(expand_nested=True)  
+    
+    # setting device for training    
+    trainer = ModelTraining(configuration)    
+    trainer.set_device()
 
-    # load the model for inference and print summary
-    #------------------------------------------------------------------------------
-    inference = Inference(cnf.SEED) 
-    model, parameters = inference.select_and_load_checkpoint(CHECKPOINT_PATH)
-    NLP_PATH = inference.folder_path
-    model.summary(expand_nested=True)
-
-    file_loc = os.path.join(INFERENCE_PATH, 'adsorption_inputs.csv') 
-    df_predictions = pd.read_csv(file_loc, sep=';', encoding='utf-8')
-    file_loc = os.path.join(INFERENCE_PATH, 'adsorbates_dataset.csv') 
-    df_adsorbates = pd.read_csv(file_loc, sep=';', encoding='utf-8')
+    # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
+    # initialize training device, allows changing device prior to initializing the generators
+    #--------------------------------------------------------------------------    
+    # load saved tf.datasets from the proper folders in the checkpoint directory
+    logger.info('Loading preprocessed data and building dataloaders')     
+    dataserializer = DataSerializer(configuration) 
+    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()
 
 

@@ -8,6 +8,7 @@ set "setup_path=%project_folder%\setup"
 set "env_path=%setup_path%\environment\%env_name%"
 set "conda_path=%setup_path%\miniconda"
 set "app_path=%project_folder%\%project_name%"
+
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Check if conda is installed
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -120,7 +121,7 @@ goto :main_menu
 cls
 start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_adsorption_experiments.py""
 start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_materials_data.py""
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_chemical_prop.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_chemical_properties.py""
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
