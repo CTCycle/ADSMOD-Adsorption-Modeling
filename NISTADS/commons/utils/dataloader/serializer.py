@@ -7,6 +7,7 @@ from datetime import datetime
 
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
+from NISTADS.commons.utils.learning.scheduler import LRScheduler
 from NISTADS.commons.constants import CONFIG, PROCESSED_PATH, DATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
 
@@ -141,7 +142,6 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):
-
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model has been saved in folder {path}')
@@ -195,7 +195,8 @@ class ModelSerializer:
     #--------------------------------------------------------------------------
     def load_checkpoint(self, checkpoint_name):                     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
-                          'MaskedAccuracy': MaskedRSquared}        
+                          'MaskedAccuracy': MaskedRSquared,
+                          'LRScheduler': LRScheduler}             
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
@@ -204,10 +205,8 @@ class ModelSerializer:
         return model
             
     #-------------------------------------------------------------------------- 
-    def select_and_load_checkpoint(self): 
-        
+    def select_and_load_checkpoint(self):         
         model_folders = self.scan_checkpoints_folder()
-
         # quit the script if no pretrained models are found 
         if len(model_folders) == 0:
             logger.error('No pretrained model checkpoints in resources')

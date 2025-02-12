@@ -8,33 +8,39 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 @keras.utils.register_keras_serializable(package='LRScheduler')
 class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, post_warmup_lr, warmup_steps, **kwargs):
-        super(LRScheduler).__init__(**kwargs)
-        self.post_warmup_lr = post_warmup_lr
-        self.warmup_steps = warmup_steps
+    def __init__(self, initial_lr, constant_steps, decay_steps, **kwargs):
+        super(LRScheduler, self).__init__(**kwargs)
+        self.initial_lr = initial_lr
+        self.constant_steps = constant_steps
+        self.decay_steps = decay_steps
 
-    # implement encoder through call method  
     #--------------------------------------------------------------------------
     def __call__(self, step):
+        # Cast step and the phase lengths to torch.float32 for computation
         global_step = keras.ops.cast(step, torch.float32)
-        warmup_steps = keras.ops.cast(self.warmup_steps, torch.float32)
-        warmup_progress = global_step/warmup_steps
-        warmup_learning_rate = self.post_warmup_lr * warmup_progress
+        constant_steps = keras.ops.cast(self.constant_steps, torch.float32)
+        decay_steps = keras.ops.cast(self.decay_steps, torch.float32)        
+        # Constant phase: LR remains equal to post_warmup_lr
+        constant_lr = self.initial_lr        
+        # Decay phase: linear decay from post_warmup_lr to 0
+        # Calculate progress in the decay phase: 0.0 at the start, 1.0 at the end.
+        decay_progress = (global_step - constant_steps) / decay_steps
+        decayed_lr = self.initial_lr * (1.0 - decay_progress)
+        # Clamp to zero so that lr never goes negative
+        decayed_lr = keras.ops.maximum(decayed_lr, torch.tensor(0.0, dtype=torch.float32))        
+        
+        learning_rate = keras.ops.cond(global_step < constant_steps,
+                                       lambda: constant_lr,
+                                       lambda: decayed_lr)
+        
+        return learning_rate
 
-        return keras.ops.cond(global_step < warmup_steps, lambda: warmup_learning_rate,
-                              lambda: self.post_warmup_lr)
-    
-    # custom configurations
     #--------------------------------------------------------------------------
     def get_config(self):
-        
-        config = {'post_warmup_lr': self.post_warmup_lr,
-                 'warmup_steps': self.warmup_steps}
-        
-        return config        
-    
-    # deserialization method 
-    #--------------------------------------------------------------------------
+        return {'initial_lr': self.initial_lr,
+                'constant_steps': self.constant_steps,
+                'decay_steps': self.decay_steps}
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)

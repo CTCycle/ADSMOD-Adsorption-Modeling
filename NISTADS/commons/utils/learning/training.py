@@ -59,7 +59,6 @@ class ModelTraining:
         RTH_callback, callbacks_list = callbacks_handler(self.configuration, checkpoint_path, history)       
         
         # run model fit using keras API method.  
-        model.optimizer.learning_rate.assign(CONFIG["training"]["LEARNING_RATE"])           
         training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
                              callbacks=callbacks_list, initial_epoch=from_epoch)
         

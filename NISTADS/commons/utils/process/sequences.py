@@ -42,8 +42,7 @@ class PressureUptakeSeriesProcess:
         return dataframe
     
     #--------------------------------------------------------------------------  
-    def PQ_series_padding(self, dataset : pd.DataFrame):            
-        
+    def PQ_series_padding(self, dataset : pd.DataFrame):        
         dataset[self.P_COL] = sequence.pad_sequences(
             dataset[self.P_COL], maxlen=self.max_points, value=self.pad_value, 
             dtype='float32', padding='post').tolist()  
@@ -57,10 +56,9 @@ class PressureUptakeSeriesProcess:
     #--------------------------------------------------------------------------  
     def series_normalization(self, dataset : pd.DataFrame):
         dataset[self.P_COL] = dataset[self.P_COL].apply(
-            lambda x : [v/self.max_pressure if v != self.pad_value else v for v in x])
-                    
+            lambda x : [v/self.max_pressure for v in x])                    
         dataset[self.Q_COL] = dataset[self.Q_COL].apply(
-            lambda x : [v/self.max_uptake if v != self.pad_value else v for v in x])
+            lambda x : [v/self.max_uptake for v in x])
 
         return dataset
     

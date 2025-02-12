@@ -31,29 +31,29 @@ if __name__ == '__main__':
 
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------     
-    # exlude all data outside given boundaries, such as negative temperature values 
-    # and pressure and uptake values below or above the given boundaries
-    sanitizer = DataSanitizer(CONFIG)
-    processed_data = sanitizer.exclude_outside_boundary(adsorption_data)
-
     # group data from single measurements based in the experiments  
     # merge adsorption data with materials properties (guest and host)
     aggregator = AggregateDatasets(CONFIG)
-    processed_data = aggregator.aggregate_adsorption_measurements(processed_data)
+    processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
     processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)   
 
     # convert and normalize pressure and uptake units:
     # pressure to Pascal, uptake to mol/g
     sequencer = PressureUptakeSeriesProcess(CONFIG)
-    processed_data = units_conversion(processed_data)     
+    processed_data = units_conversion(processed_data)  
+
+    # exlude all data outside given boundaries, such as negative temperature values 
+    # and pressure and uptake values below or above the given boundaries
+    sanitizer = DataSanitizer(CONFIG)
+    processed_data = sanitizer.exclude_outside_boundary(processed_data)   
 
     # rectify sequences of pressure/uptake points through following steps:
     # remove repeated zero values at the beginning of the series  
     # sanitize experiments removing those where measurements number is outside acceptable values 
     processed_data = sequencer.remove_leading_zeros(processed_data)   
-    processed_data = sequencer.filter_by_sequence_size(processed_data) 
-    processed_data = sequencer.PQ_series_padding(processed_data)
-    processed_data = sequencer.series_normalization(processed_data)    
+    processed_data = sequencer.filter_by_sequence_size(processed_data)
+    processed_data = sequencer.series_normalization(processed_data)  
+    processed_data = sequencer.PQ_series_padding(processed_data)       
 
     # 3. [PROCESS MOLECULAR INPUTS]
     #--------------------------------------------------------------------------  

@@ -11,8 +11,7 @@
                  "MIN_PQ_POINTS": 4,
                  "SMILE_PADDING": 30,
                  "MAX_PRESSURE": 10e06,
-                 "MAX_UPTAKE": 10,
-                 "NORMALIZE": true,
+                 "MAX_UPTAKE": 10,                 
                  "SPLIT_SEED" : 45},
 
     "device" : {"DEVICE" : "GPU",
@@ -25,11 +24,13 @@
                "JIT_BACKEND" : "inductor"},
 
     "training" : {"EPOCHS" : 30,
-                  "ADDITIONAL_EPOCHS" : 20,
-                  "LEARNING_RATE" : 0.0001,
+                  "ADDITIONAL_EPOCHS" : 20,                  
                   "BATCH_SIZE" : 32,                             
                   "USE_TENSORBOARD" : false,  
-                  "SAVE_CHECKPOINTS": false
+                  "SAVE_CHECKPOINTS": false,
+                  "LR_SCHEDULER" : {"INITIAL_LR" : 0.001,
+                                    "CONSTANT_STEPS": 10,
+                                    "WARMUP_STEPS" : 5}   
                   },                  
                   
     "evaluation" : {"BATCH_SIZE" : 20}     

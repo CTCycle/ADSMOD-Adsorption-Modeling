@@ -82,11 +82,11 @@ if %ERRORLEVEL% neq 0 (
 :main_menu
 echo.
 echo ==========================================================================
-echo       NISTADS adsorption modeling
+echo                      NISTADS adsorption modeling
 echo ==========================================================================
 echo 1. Data analysis
 echo 2. Collect adsorption data
-echo 3. Preprocess adsorption data
+echo 3. Build adsorption dataset
 echo 4. Model training and evaluation
 echo 5. Predict adsorption of compounds
 echo 6. Setup and Maintenance
@@ -118,8 +118,9 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :collect
 cls
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\database\retrieve_adsorption_experiments.py""
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\database\retrieve_materials_data.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_adsorption_experiments.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_materials_data.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_chemical_prop.py""
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -127,7 +128,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :preprocess
 cls
-start cmd /k "call conda activate "%env_path%" && python "%app_path%"\database\build_adsorption_dataset.py"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\ETL\build_adsorption_dataset.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -1,10 +1,10 @@
 import torch
-import keras
-from keras import layers, activations, Model, optimizers
+from keras import layers, Model, optimizers
 
-from NISTADS.commons.utils.learning.layers import AddNorm
+
+from NISTADS.commons.utils.learning.scheduler import LRScheduler
 from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
-from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder, MolecularEncoder
+from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, MolecularEncoder, QDecoder
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 
 
@@ -16,7 +16,6 @@ class SCADSModel:
 
         self.smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
         self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
-        
         self.seed = configuration["SEED"]
         self.smile_length = metadata["dataset"]["SMILE_PADDING"]
         self.series_length = metadata["dataset"]["MAX_PQ_POINTS"]       
@@ -26,7 +25,7 @@ class SCADSModel:
         self.learning_rate = configuration["training"]["LEARNING_RATE"]           
         self.configuration = configuration       
 
-        self.state_encoder = StateEncoder(0.2,seed=self.seed)        
+        self.state_encoder = StateEncoder(0.2, seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
             self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length)   
         self.smile_encoders = MolecularEncoder(self.embedding_dims, self.seed)       
@@ -68,19 +67,23 @@ class SCADSModel:
         model = Model(inputs=[state_input, adsorbents_input, adsorbates_input, pressure_input], 
                       outputs=output, name='SCADS_model')       
         
+        lr_schedule = LRScheduler(self.learning_rate, warmup_steps=10)
         opt = optimizers.Adam(learning_rate=self.learning_rate)  
         loss = MaskedMeanSquaredError()  
         metric = [MaskedRSquared()]                
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
 
-        if self.jit_compile:
-            model = torch.compile(model, backend=self.jit_backend, mode='default')       
-
         if model_summary:
             model.summary(expand_nested=True)
-
-        return model     
     
+        if self.jit_compile:
+            model = torch.compile(model, backend=self.jit_backend, mode='default')
+
+        return model 
+    
+        
+
+        
     
 
                  

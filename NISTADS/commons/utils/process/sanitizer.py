@@ -27,9 +27,11 @@ class DataSanitizer:
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):        
         dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
-        dataset = dataset[dataset[self.P_TARGET_COL].astype(float).between(0.0, self.max_pressure)]
-        dataset = dataset[dataset[self.Q_TARGET_COL].astype(float).between(0.0, self.max_uptake)]
-        
+        dataset[self.P_TARGET_COL] = dataset[self.P_TARGET_COL].apply(
+            lambda x: [float(v) for v in x if 0.0 <= float(v) <= self.max_pressure])
+        dataset[self.Q_TARGET_COL] = dataset[self.Q_TARGET_COL].apply(
+            lambda x: [float(v) for v in x if 0.0 <= float(v) <= self.max_uptake])
+    
         return dataset
     
     #--------------------------------------------------------------------------

@@ -8,10 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.dataloader.tensordata import TensorDatasetBuilder
-from NISTADS.commons.utils.learning.models import SCADSModel
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.validation.reports import log_training_report
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -40,11 +38,8 @@ if __name__ == '__main__':
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration) 
-    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data(checkpoint_path)
-
-    sanitizer = DataSanitizer(metadata)        
-    processed_data = sanitizer.convert_string_to_series(processed_data) 
-
+    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()
+    
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
     # split data into train set and validation set
@@ -74,7 +69,7 @@ if __name__ == '__main__':
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
     #--------------------------------------------------------------------------    
     log_training_report(train_data, validation_data, configuration, 
-                        vocabulary_size=vocabulary_size, from_checkpoint=True)    
+                        from_checkpoint=True)    
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
