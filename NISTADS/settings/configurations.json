@@ -23,14 +23,14 @@
                "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
-    "training" : {"EPOCHS" : 30,
-                  "ADDITIONAL_EPOCHS" : 20,                  
-                  "BATCH_SIZE" : 32,                             
-                  "USE_TENSORBOARD" : false,  
+    "training" : {"EPOCHS" : 2,
+                  "ADDITIONAL_EPOCHS" : 2,                  
+                  "BATCH_SIZE" : 512,                             
+                  "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,
                   "LR_SCHEDULER" : {"INITIAL_LR" : 0.001,
                                     "CONSTANT_STEPS": 10,
-                                    "WARMUP_STEPS" : 5}   
+                                    "DECAY_STEPS" : 5}   
                   },                  
                   
     "evaluation" : {"BATCH_SIZE" : 20}     

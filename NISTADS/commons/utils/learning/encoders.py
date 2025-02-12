@@ -13,13 +13,13 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 @keras.utils.register_keras_serializable(package='encoder', name='StateEncoder')
 class StateEncoder(keras.layers.Layer):
-    def __init__(self, dropout, seed, **kwargs):
+    def __init__(self, dropout_rate, seed, **kwargs):
         super(StateEncoder, self).__init__(**kwargs)        
-        self.dropout_rate = dropout        
+        self.dropout_rate = dropout_rate        
         self.dense1 = layers.Dense(32, kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(48, kernel_initializer='he_uniform') 
         self.dense3 = layers.Dense(64, kernel_initializer='he_uniform')        
-        self.dropout = layers.Dropout(rate=dropout, seed=seed)        
+        self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)        
         self.seed = seed
 
     # build method for the custom layer 
@@ -59,10 +59,10 @@ class StateEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='encoder', name='PressureSerierEncoder')
 class PressureSerierEncoder(keras.layers.Layer):
-    def __init__(self, units, dropout, seed, **kwargs):
+    def __init__(self, units, dropout_rate, seed, **kwargs):
         super(PressureSerierEncoder, self).__init__(**kwargs)        
         self.units = units
-        self.dropout_rate = dropout       
+        self.dropout_rate = dropout_rate       
         self.context_addnorm = AddNorm()
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
@@ -75,7 +75,7 @@ class PressureSerierEncoder(keras.layers.Layer):
         self.dense2 = layers.Dense(self.units, kernel_initializer='he_uniform') 
         self.dense3 = layers.Dense(self.units, kernel_initializer='he_uniform')
         self.outdense = layers.Dense(1, kernel_initializer='he_uniform') 
-        self.dropout = layers.Dropout(rate=dropout, seed=seed)
+        self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
         self.seed = seed
         self.supports_masking = True
 
@@ -197,15 +197,15 @@ class MolecularEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='decoder', name='QDecoder')
 class QDecoder(keras.layers.Layer):
-    def __init__(self, units, dropout, seed, **kwargs):
+    def __init__(self, units, dropout_rate, seed, **kwargs):
         super(QDecoder, self).__init__(**kwargs)        
         self.units = units
-        self.dropout_rate = dropout       
+        self.dropout_rate = dropout_rate       
         self.Q1 = layers.Dense(units, kernel_initializer='he_uniform')        
         self.Q2 = layers.Dense(units//2, kernel_initializer='he_uniform')      
         self.Q3 = layers.Dense(units//4, kernel_initializer='he_uniform')
         self.Q_output = layers.Dense(1, kernel_initializer='he_uniform')
-        self.dropout = layers.Dropout(rate=dropout, seed=seed)
+        self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
         self.seed = seed
         self.supports_masking = True
 

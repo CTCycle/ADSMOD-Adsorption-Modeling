@@ -45,11 +45,7 @@ if __name__ == '__main__':
     # split data into train set and validation set
     logger.info('Preparing dataset of images and captions based on splitting size')  
     splitter = TrainValidationSplit(configuration, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()  
-
-    # create subfolder for preprocessing data
-    modelserializer = ModelSerializer()
-    checkpoint_path = modelserializer.create_checkpoint_folder()       
+    train_data, validation_data = splitter.split_train_and_validation()         
 
     # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------

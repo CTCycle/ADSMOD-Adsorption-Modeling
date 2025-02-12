@@ -29,7 +29,6 @@ class MolecularEmbedding(keras.layers.Layer):
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------    
     def call(self, smiles, adsorbent, training=False):
-
         ads_embeddings = self.ads_embeddings(adsorbent)          
         ads_embeddings = keras.ops.expand_dims(ads_embeddings, axis=1)
         ads_embeddings = keras.ops.tile(ads_embeddings, [1, self.sequence_length, 1])
@@ -61,10 +60,10 @@ class MolecularEmbedding(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(MolecularEmbedding, self).get_config()
-        config.update({'smile_vocabulary_size': self.smile_vocab_size,
-                       'ads_vocabulary_size': self.ads_vocab_size,
-                       'sequence_length': self.sequence_length,                       
-                       'embedding_dims': self.embedding_dims,                       
+        config.update({'smile_vocab_size': self.smile_vocab_size,
+                       'ads_vocab_size': self.ads_vocab_size,                                              
+                       'embedding_dims': self.embedding_dims,             
+                       'sequence_length': self.sequence_length,          
                        'mask_values': self.mask_values})
         return config
 

@@ -8,7 +8,7 @@ tqdm.pandas()
     
 # [DATA VALIDATION]
 ###############################################################################
-class DataValidation:   
+class AdsorptionDataValidation:   
 
     #--------------------------------------------------------------------------
     def class_distribution(self, df, column, title='', y_label=''):      

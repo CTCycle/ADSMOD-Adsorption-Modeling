@@ -21,16 +21,20 @@ class SCADSModel:
         self.series_length = metadata["dataset"]["MAX_PQ_POINTS"]       
         self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]            
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
-        self.jit_backend = configuration["model"]["JIT_BACKEND"]             
-        self.learning_rate = configuration["training"]["LEARNING_RATE"]           
+        self.jit_backend = configuration["model"]["JIT_BACKEND"]
+
+        self.scheduler_config = configuration["training"]["LR_SCHEDULER"] 
+        self.initial_lr = self.scheduler_config["INITIAL_LR"]
+        self.constant_lr_steps = self.scheduler_config["CONSTANT_STEPS"]       
+        self.decay_steps = self.scheduler_config["DECAY_STEPS"]         
         self.configuration = configuration       
 
         self.state_encoder = StateEncoder(0.2, seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
-            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length)   
+            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length, mask_values=True)   
         self.smile_encoders = MolecularEncoder(self.embedding_dims, self.seed)       
-        self.pressure_encoder = PressureSerierEncoder(self.embedding_dims, dropout=0.2, seed=self.seed) 
-        self.Qdecoder = QDecoder(self.embedding_dims, 0.2, seed=self.seed)
+        self.pressure_encoder = PressureSerierEncoder(self.embedding_dims, dropout_rate=0.2, seed=self.seed) 
+        self.Qdecoder = QDecoder(self.embedding_dims, dropout_rate=0.2, seed=self.seed)
 
     # build model given the architecture
     #--------------------------------------------------------------------------
@@ -67,8 +71,8 @@ class SCADSModel:
         model = Model(inputs=[state_input, adsorbents_input, adsorbates_input, pressure_input], 
                       outputs=output, name='SCADS_model')       
         
-        lr_schedule = LRScheduler(self.learning_rate, warmup_steps=10)
-        opt = optimizers.Adam(learning_rate=self.learning_rate)  
+        lr_schedule = LRScheduler(self.initial_lr, self.constant_lr_steps, self.decay_steps)
+        opt = optimizers.Adam(learning_rate=lr_schedule)  
         loss = MaskedMeanSquaredError()  
         metric = [MaskedRSquared()]                
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
