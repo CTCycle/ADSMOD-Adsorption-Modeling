@@ -157,23 +157,28 @@ class MolecularEncoder(keras.layers.Layer):
     # build method for the custom layer 
     #--------------------------------------------------------------------------
     def build(self, input_shape):        
-        super(MolecularEncoder, self).build(input_shape)    
+        super(MolecularEncoder, self).build(input_shape) 
+
+    # compute the mask for padded sequences  
+    #--------------------------------------------------------------------------
+    def compute_mask(self, inputs, mask=None):        
+        mask = keras.ops.not_equal(inputs, -1)   
+        mask = keras.ops.expand_dims(keras.ops.cast(mask, torch.float32), axis=-1)     
+        
+        return mask   
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, smiles, mask=None, training=None):
-        
-        if mask is not None:       
-            mask = keras.ops.expand_dims(mask, axis=-1)           
-
+    def call(self, smiles, mask=None, training=None):       
         smiles = self.dense1(smiles)
         smiles = activations.relu(smiles)      
         smiles = self.dense2(smiles)
         smiles = activations.relu(smiles)
         smiles = self.dense1(smiles)
-        smiles = activations.relu(smiles) 
+        smiles = activations.relu(smiles)
 
-        output = smiles * mask if mask is not None else smiles
+        mask = self.compute_mask(smiles) if mask is None else mask
+        output = smiles * mask
         output = self.flatten(output)      
         
         return output
