@@ -1,7 +1,6 @@
 import torch
 from keras import layers, Model, optimizers
 
-
 from NISTADS.commons.utils.learning.scheduler import LRScheduler
 from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
 from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, MolecularEncoder, QDecoder
@@ -13,7 +12,6 @@ from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, Maske
 class SCADSModel: 
 
     def __init__(self, metadata, configuration):
-
         self.smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
         self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
         self.seed = configuration["SEED"]

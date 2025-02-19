@@ -11,20 +11,24 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class TensorDatasetBuilder:
 
-    def __init__(self, configuration):                
+    def __init__(self, configuration, shuffle=True):                
         self.configuration = configuration
-        self.features = ['temperature', 'pressure', 'encoded_adsorbent',
-                         'adsorbate_encoded_SMILE', 'adsorbate_molecular_weight']
+        self.shuffle = shuffle
         self.output = 'adsorbed_amount'
+        self.features = ['temperature', 
+                         'pressure', 
+                         'encoded_adsorbent',
+                         'adsorbate_encoded_SMILE', 
+                         'adsorbate_molecular_weight']        
 
     #--------------------------------------------------------------------------
-    def _define_IO_features(self, data : pd.DataFrame):
+    def define_IO_features(self, data : pd.DataFrame):
         inputs = {'state_input': np.column_stack([data['temperature'].values, data['adsorbate_molecular_weight'].values]),
                   'adsorbent_input': data['encoded_adsorbent'].values,
                   'adsorbate_input': np.vstack(data['adsorbate_encoded_SMILE'].values),
                   'pressure_input': np.vstack(data['pressure'].values)}
 
-        # the outout is reshaped to match the expected shape of the model (batch size, pressure points, 1)  
+        # output is reshaped to match the expected shape of the model (batch size, pressure points, 1)  
         output = np.reshape(np.vstack(data[self.output].values), newshape=(data.shape[0], -1, 1))   
 
         return inputs, output
@@ -35,11 +39,11 @@ class TensorDatasetBuilder:
         data = data.dropna(how='any')
         num_samples = data.shape[0]                
         batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
-        inputs, output = self._define_IO_features(data)
+        inputs, output = self.define_IO_features(data)
         dataset = tf.data.Dataset.from_tensor_slices((inputs, output))              
         dataset = dataset.batch(batch_size)
         dataset = dataset.prefetch(buffer_size=buffer_size)
-        dataset = dataset.shuffle(buffer_size=num_samples)       
+        dataset = dataset.shuffle(buffer_size=num_samples) if self.shuffle else dataset       
 
         return dataset
         

@@ -52,7 +52,8 @@ class MolecularEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, -1)           
+        mask = keras.ops.not_equal(inputs, -1) 
+        mask = keras.ops.expand_dims(keras.ops.cast(mask, torch.float32), axis=-1)           
         
         return mask
     

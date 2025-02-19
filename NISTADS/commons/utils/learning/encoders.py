@@ -169,15 +169,15 @@ class MolecularEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, smiles, mask=None, training=None):       
-        smiles = self.dense1(smiles)
+    def call(self, inputs, mask=None, training=None):       
+        smiles = self.dense1(inputs)
         smiles = activations.relu(smiles)      
         smiles = self.dense2(smiles)
         smiles = activations.relu(smiles)
         smiles = self.dense1(smiles)
         smiles = activations.relu(smiles)
 
-        mask = self.compute_mask(smiles) if mask is None else mask
+        mask = self.compute_mask(inputs) if mask is None else mask
         output = smiles * mask
         output = self.flatten(output)      
         
