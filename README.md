@@ -33,6 +33,12 @@ This project leverages Just-In-Time model compilation through `torch.compile`, e
 ## 4. How to use
 On Windows, run *start_on_windows.bat* to launch the main navigation menu and browse through the various options. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
 
+**Environmental variables** are stored in *resources/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *resources/variables* directory.
+
+**KERAS_BACKEND** – Sets the backend for Keras, default is PyTorch.
+
+**TF_CPP_MIN_LOG_LEVEL** – Controls TensorFlow logging verbosity. Setting it to 1 reduces log messages, showing only warnings and errors.
+
 ### 4.1 Navigation menu
 
 **1) Data analysis:** perform data validation using a series of metrics for the analysis of the dataset. 

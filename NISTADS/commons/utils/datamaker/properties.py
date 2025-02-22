@@ -4,7 +4,6 @@ import pubchempy as pcp
 from tqdm import tqdm
 import requests
 
-
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -17,8 +16,7 @@ class MolecularProperties:
     def __init__(self, configuration):        
         self.guest_properties = GuestProperties()
         self.host_properties = HostProperties()                
-        self.configuration = configuration       
-   
+        self.configuration = configuration   
 
     # Define a function to handle duplicates, keeping rows with InChIKey
     #--------------------------------------------------------------------------

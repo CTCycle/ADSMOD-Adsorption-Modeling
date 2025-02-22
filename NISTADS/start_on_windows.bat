@@ -83,7 +83,7 @@ if %ERRORLEVEL% neq 0 (
 :main_menu
 echo.
 echo ==========================================================================
-echo                      NISTADS adsorption modeling
+echo                       NISTADS adsorption modeling
 echo ==========================================================================
 echo 1. Data analysis
 echo 2. Collect adsorption data
