@@ -3,7 +3,8 @@
     "collection" : {"GUEST_FRACTION" : 1.0,
                     "HOST_FRACTION" : 1.0,
                     "EXP_FRACTION" : 1.0,    
-                    "PARALLEL_TASKS" : 60},
+                    "PARALLEL_TASKS" : 60,
+                    "OPENAI_MODEL" : "gpt-4o-mini"},
 
     "dataset" : {"SAMPLE_SIZE" : 1.0,
                  "VALIDATION_SIZE" : 0.2,                 

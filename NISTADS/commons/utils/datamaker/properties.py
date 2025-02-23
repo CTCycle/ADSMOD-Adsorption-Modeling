@@ -3,6 +3,7 @@ import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
 
+from NISTADS.commons.utils.datamaker.completion import OpenAIMolecularProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -13,8 +14,8 @@ class MolecularProperties:
 
     def __init__(self, configuration): 
         self.molecular_identifier = 'InChIKey'       
-        self.guest_properties = GuestProperties()
-        self.host_properties = HostProperties()                
+        self.guest_properties = GuestProperties(configuration)
+        self.host_properties = HostProperties(configuration)                
         self.configuration = configuration   
 
     # Define a function to handle duplicates, keeping rows with InChIKey
@@ -83,7 +84,8 @@ class MolecularProperties:
 ###############################################################################
 class GuestProperties:    
     
-    def __init__(self):
+    def __init__(self, configuration):
+        self.configuration = configuration
         self.properties = {'name' : [],
                            'adsorbate_molecular_weight' : [],
                            'adsorbate_molecular_formula' : [],
@@ -125,7 +127,9 @@ class GuestProperties:
 ###############################################################################
 class HostProperties:    
     
-    def __init__(self):
+    def __init__(self, configuration):
+        self.endpoint = OpenAIMolecularProperties(configuration)
+        self.configuration = configuration        
         self.properties = {'name' : [],
                            'adsorbent_molecular_weight' : [],
                            'adsorbent_molecular_formula' : [],
@@ -134,24 +138,15 @@ class HostProperties:
     #--------------------------------------------------------------------------
     def is_chemical_formula(self, string):    
         formula_pattern = r"^[A-Za-z0-9\[\](){}·.,+\-_/]+$"
-        return bool(re.match(formula_pattern, string))  
-    
-    #--------------------------------------------------------------------------
-    def get_molecular_properties(self, identifier, namespace): 
-        try:           
-            compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
-            properties = compounds[0].to_dict() if compounds else {}
-        except:
-            logger.error(f'Cannot fetch molecules properties for identifier {identifier}: [{namespace}]')
-            properties = {}
-
-        return properties     
+        return bool(re.match(formula_pattern, string))     
     
     #--------------------------------------------------------------------------    
     def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame):         
         for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]): 
             formula_as_name = self.is_chemical_formula(row.name) 
-                                  
+            properties = self.endpoint.ask_properties_to_LLM(row.name)
+            if properties:                
+                self.process_extracted_properties(row.name, properties)                                    
 
         return self.properties
     
