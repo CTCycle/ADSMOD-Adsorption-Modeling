@@ -34,8 +34,8 @@ if __name__ == '__main__':
     # process host (adsorbent materials) data by adding molecular properties
     # not used in the current version of the code since it is difficult to find 
     # a reliable source for the adsorbent materials properties
-    # logger.info('Retrieving molecular properties for adsorbent materials') 
-    # host_data = properties.fetch_host_properties(experiments, host_data)    
+    logger.info('Retrieving molecular properties for adsorbent materials') 
+    host_data = properties.fetch_host_properties(experiments, host_data)    
   
     # save the final version of the materials dataset    
     serializer.save_materials_datasets(guest_data, host_data=None)

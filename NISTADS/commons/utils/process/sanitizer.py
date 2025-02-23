@@ -23,6 +23,13 @@ class DataSanitizer:
         self.included_cols = ['temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent',
                               'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
 
+    #--------------------------------------------------------------------------
+    def is_convertible_to_float(self, value):
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
     
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):        
@@ -40,14 +47,16 @@ class DataSanitizer:
     
     #--------------------------------------------------------------------------
     def convert_series_to_string(self, dataset: pd.DataFrame):        
-        dataset = dataset.applymap(lambda x: self.separator.join(map(str, x)) if isinstance(x, list) else x)
+        dataset = dataset.applymap(
+            lambda x: self.separator.join(map(str, x)) if isinstance(x, list) else x)
         return dataset
 
     #--------------------------------------------------------------------------
     def convert_string_to_series(self, dataset: pd.DataFrame):  
         dataset = dataset.applymap(
-            lambda x: [np.float32(f) for f in x.split(self.separator)] 
-                       if isinstance(x, str) and self.separator in x else x)
+            lambda x : (
+            [np.float32(f) for f in x.split(self.separator) if self.is_convertible_to_float(f)]
+            if isinstance(x, str) and self.separator in x else x) if pd.notna(x) else x)
         
         return dataset
                     
