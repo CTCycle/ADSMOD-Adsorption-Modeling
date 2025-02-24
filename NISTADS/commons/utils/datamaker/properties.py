@@ -3,7 +3,7 @@ import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
 
-from NISTADS.commons.utils.datamaker.completion import OpenAIMolecularProperties
+from NISTADS.commons.utils.agents.chemometrics import OpenAIMolecularProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -35,14 +35,14 @@ class MolecularProperties:
     def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
         # merge adsorbates names with those found in the experiments dataset
         all_guests = pd.DataFrame(
-            pd.concat([data['name'], experiments['adsorbate_name']], ignore_index=True)
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .unique(), 
-            columns=['name'])
-
+            experiments['adsorbate_name']
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .unique(),
+                columns=['name'])
+                   
         # fetch adsorbates molecular properties using pubchem API
         properties = self.guest_properties.get_properties_for_multiple_compounds(all_guests)
 
@@ -60,13 +60,13 @@ class MolecularProperties:
     def fetch_host_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
         # merge adsorbates names with those found in the experiments dataset
         all_hosts = pd.DataFrame(
-            pd.concat([data['name'], experiments['adsorbent_name']], ignore_index=True)
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .unique(), 
-            columns=['name'])
+            experiments['adsorbent_name']
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .unique(),
+                columns=['name'])
         
         # fetch adsorbents molecular properties using pubchem API
         properties = self.host_properties.get_properties_for_multiple_compounds(all_hosts)
@@ -105,11 +105,7 @@ class GuestProperties:
     #--------------------------------------------------------------------------    
     def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame):         
         for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]):  
-            properties = self.get_molecular_properties(row.name, namespace='name')            
-            if not properties and pd.notna(row.InChIKey):
-                properties = self.get_molecular_properties(row.InChIKey, namespace='inchikey')            
-            if not properties and pd.notna(row.InChICode):
-                properties = self.get_molecular_properties(row.InChICode, namespace='inchi')            
+            properties = self.get_molecular_properties(row.name, namespace='name')               
             if properties:                
                 self.process_extracted_properties(row.name, properties)                          
 
@@ -118,9 +114,12 @@ class GuestProperties:
     #--------------------------------------------------------------------------
     def process_extracted_properties(self, name, features):               
         self.properties['name'].append(name)        
-        self.properties['adsorbate_molecular_weight'].append(features.get('molecular_weight', 'NA'))
-        self.properties['adsorbate_molecular_formula'].append(features.get('molecular_formula', 'NA'))
-        self.properties['adsorbate_SMILE'].append(features.get('canonical_smiles', 'NA'))
+        self.properties['adsorbate_molecular_weight'].append(
+            features.get('molecular_weight', 'NA'))
+        self.properties['adsorbate_molecular_formula'].append(
+            features.get('molecular_formula', 'NA'))
+        self.properties['adsorbate_SMILE'].append(
+            features.get('canonical_smiles', 'NA'))
     
 
 # [DATASET OPERATIONS]
@@ -155,7 +154,7 @@ class HostProperties:
         self.properties['name'].append(name)        
         self.properties['adsorbent_molecular_weight'].append(features.get('molecular_weight', 'NA'))
         self.properties['adsorbent_molecular_formula'].append(features.get('molecular_formula', 'NA'))
-        self.properties['adsorbent_SMILE'].append(features.get('canonical_smiles', 'NA'))
+        self.properties['adsorbent_SMILE'].append(features.get('smile', 'NA'))
     
 
     

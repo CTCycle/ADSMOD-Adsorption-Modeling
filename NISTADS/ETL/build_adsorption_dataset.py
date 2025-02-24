@@ -1,3 +1,7 @@
+# [SETTING ENVIRONMENT VARIABLES]
+from NISTADS.commons.variables import EnvironmentVariables
+EV = EnvironmentVariables()
+
 # [SETTING WARNINGS]
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
@@ -58,7 +62,7 @@ if __name__ == '__main__':
     # 3. [PROCESS MOLECULAR INPUTS]
     #--------------------------------------------------------------------------  
     tokenization = SMILETokenization(CONFIG)    
-    processed_data, smile_vocabulary = tokenization.process_SMILE_data(processed_data)    
+    processed_data, smile_vocabulary = tokenization.process_SMILE_sequences(processed_data)    
 
     # 4. [SPLIT BASED NORMALIZATION AND ENCODING]
     #-------------------------------------------------------------------------- 

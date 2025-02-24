@@ -39,7 +39,7 @@ class AdsorptionDataFetch:
     #--------------------------------------------------------------------------
     def get_experiments_data(self, experiments_data : pd.DataFrame):           
         n_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))        
-        if isinstance(experiments_data, pd.DataFrame and experiments_data.shape[0] > 0):
+        if isinstance(experiments_data, pd.DataFrame) and experiments_data.shape[0] > 0:
             loop = asyncio.get_event_loop()            
             exp_URLs = [f'https://adsorption.nist.gov/isodb/api/isotherm/{n}.json' 
                         for n in experiments_data[self.exp_identifier].to_list()[:n_samples]]

@@ -46,7 +46,7 @@ class GuestHostDataFetch:
         # initialize the asyncronous event loop         
         loop = asyncio.get_event_loop()
         guest_data, host_data = None, None
-        if isinstance(guest_index, pd.DataFrame and guest_index.shape[0] > 0):
+        if isinstance(guest_index, pd.DataFrame) and guest_index.shape[0] > 0:
             # Calculate the number of samples to retrieve for the guest data
             # Create a list of URLs for guest data based on the guest identifiers
             n_samples = int(np.ceil(self.guest_fraction * guest_index.shape[0]))            
@@ -62,7 +62,7 @@ class GuestHostDataFetch:
         else:
             logger.error('No available guest data has been found. Skipping directly to host index')
             
-        if isinstance(host_index, pd.DataFrame and host_index.shape[0] > 0):
+        if isinstance(host_index, pd.DataFrame) and host_index.shape[0] > 0:
             # Calculate the number of samples to retrieve for the host data
             # Create a list of URLs for host data based on the host identifiers
             n_samples = int(np.ceil(self.host_fraction * host_index.shape[0]))                   

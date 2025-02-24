@@ -1,3 +1,7 @@
+# [SETTING ENVIRONMENT VARIABLES]
+from NISTADS.commons.variables import EnvironmentVariables
+EV = EnvironmentVariables()
+
 # [SETTING WARNINGS]
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
@@ -19,18 +23,14 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     logger.info(f'Loading NISTADS datasets from {DATA_PATH}')
     serializer = DataSerializer(CONFIG)
-    experiments, guest_data, host_data = serializer.load_datasets()
-
-    sanitizer = DataSanitizer(CONFIG)       
-    guest_data = sanitizer.convert_string_to_series(guest_data) 
-    host_data = sanitizer.convert_string_to_series(host_data)    
+    experiments, guest_data, host_data = serializer.load_datasets()   
      
     # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
     #-------------------------------------------------------------------------   
     properties = MolecularProperties(CONFIG)  
     # process guest (adsorbed species) data by adding molecular properties
-    # logger.info('Retrieving molecular properties for sorbate species using PubChem API')
-    # guest_data = properties.fetch_guest_properties(experiments, guest_data)   
+    logger.info('Retrieving molecular properties for sorbate species using PubChem API')
+    guest_data = properties.fetch_guest_properties(experiments, guest_data)   
     # process host (adsorbent materials) data by adding molecular properties   
     logger.info('Retrieving molecular properties for adsorbent materials using OpenAI') 
     host_data = properties.fetch_host_properties(experiments, host_data)    

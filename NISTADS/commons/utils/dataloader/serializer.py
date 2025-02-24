@@ -64,7 +64,10 @@ class DataSerializer:
         adsorption_data = pd.read_csv(self.SCADS_data_path, encoding='utf-8', sep=';') 
         if get_materials:       
             guest_properties = pd.read_csv(self.guest_path, encoding='utf-8', sep=';')        
-            host_properties = pd.read_csv(self.host_path, encoding='utf-8', sep=';')      
+            host_properties = pd.read_csv(self.host_path, encoding='utf-8', sep=';')
+
+        guest_properties = self.sanitizer.convert_string_to_series(guest_properties) 
+        host_properties = self.sanitizer.convert_string_to_series(host_properties)                 
 
         return adsorption_data, guest_properties, host_properties 
 
@@ -100,16 +103,20 @@ class DataSerializer:
         return processed_data, metadata, smile_vocabulary, ads_vocabulary         
     
     #--------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data, host_data):
+    def save_materials_datasets(self, guest_data, host_data):                   
         if guest_data is not None:
+            guest_data = self.sanitizer.convert_series_to_string(guest_data) 
             dataframe = pd.DataFrame.from_dict(guest_data)          
             dataframe.to_csv(self.guest_path, index=False, sep=';', encoding='utf-8')
         if host_data is not None:
+            host_data = self.sanitizer.convert_series_to_string(host_data)     
             dataframe = pd.DataFrame.from_dict(host_data)          
             dataframe.to_csv(self.host_path, index=False, sep=';', encoding='utf-8')    
 
     #--------------------------------------------------------------------------
-    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):        
+    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame): 
+        single_component = self.sanitizer.convert_series_to_string(single_component) 
+        binary_mixture = self.sanitizer.convert_series_to_string(binary_mixture)         
         single_component.to_csv(self.SCADS_data_path, index=False, sep=';', encoding='utf-8')        
         binary_mixture.to_csv(self.BMADS_data_path, index=False, sep=';', encoding='utf-8')    
 

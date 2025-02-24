@@ -1,8 +1,4 @@
-import os
-import numpy as np
 import pandas as pd
-from tqdm import tqdm
-tqdm.pandas()
       
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -14,13 +10,14 @@ class AggregateDatasets:
 
     def __init__(self, configurations):
         self.configurations = configurations
-        self.guest_properties = ['name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
-        self.host_properties = ['name']
+        self.guest_properties = [
+            'name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
+        self.host_properties = [
+            'name', 'adsorbent_molecular_weight', 'adsorbent_SMILE']
 
     #--------------------------------------------------------------------------
     def join_materials_properties(self, adsorption : pd.DataFrame, guests : pd.DataFrame,
-                                  hosts : pd.DataFrame):        
-
+                                  hosts : pd.DataFrame): 
         all_dataset_merge = (adsorption
             .merge(guests[self.guest_properties], left_on='adsorbate_name', right_on='name', how='left')
             .drop(columns=['name'])
@@ -31,7 +28,6 @@ class AggregateDatasets:
         
     #--------------------------------------------------------------------------
     def aggregate_adsorption_measurements(self, dataset : pd.DataFrame):
-
         aggregate_dict = {'temperature' : 'first',                  
                           'adsorbent_name' : 'first',
                           'adsorbate_name' : 'first',
