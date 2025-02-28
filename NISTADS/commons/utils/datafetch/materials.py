@@ -25,7 +25,7 @@ class GuestHostDataFetch:
         self.host_identifier = 'hashkey'
 
     #--------------------------------------------------------------------------
-    def get_guest_host_index(self):       
+    def get_materials_index(self):       
         guest_json, guest_data = r.get(self.url_GUEST), None
         host_json, host_data = r.get(self.url_HOST), None
         if guest_json.status_code == 200:             
@@ -42,7 +42,7 @@ class GuestHostDataFetch:
         return guest_data, host_data   
     
     #--------------------------------------------------------------------------
-    def get_guest_host_data(self, guest_index=None, host_index=None):
+    def get_materials_data(self, guest_index=None, host_index=None):
         # initialize the asyncronous event loop         
         loop = asyncio.get_event_loop()
         guest_data, host_data = None, None

@@ -23,13 +23,16 @@ class TensorDatasetBuilder:
 
     #--------------------------------------------------------------------------
     def define_IO_features(self, data : pd.DataFrame):
-        inputs = {'state_input': np.column_stack([data['temperature'].values, data['adsorbate_molecular_weight'].values]),
+        inputs = {'state_input': data['temperature'].values,
+                  'chemo_input': data['adsorbate_molecular_weight'].values,
                   'adsorbent_input': data['encoded_adsorbent'].values,
                   'adsorbate_input': np.vstack(data['adsorbate_encoded_SMILE'].values),
                   'pressure_input': np.vstack(data['pressure'].values)}
 
-        # output is reshaped to match the expected shape of the model (batch size, pressure points, 1)  
-        output = np.reshape(np.vstack(data[self.output].values), newshape=(data.shape[0], -1, 1))   
+        # output is reshaped to match the expected shape of the model 
+        # (batch size, pressure points, 1)  
+        output = np.reshape(np.vstack(
+            data[self.output].values), newshape=(data.shape[0], -1, 1))   
 
         return inputs, output
 

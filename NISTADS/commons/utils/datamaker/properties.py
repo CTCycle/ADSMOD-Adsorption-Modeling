@@ -3,7 +3,6 @@ import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
 
-from NISTADS.commons.utils.agents.chemometrics import OpenAIMolecularProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -107,12 +106,12 @@ class GuestProperties:
         for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]):  
             properties = self.get_molecular_properties(row.name, namespace='name')               
             if properties:                
-                self.process_extracted_properties(row.name, properties)                          
+                self.distribute_extracted_data(row.name, properties)                          
 
         return self.properties
     
     #--------------------------------------------------------------------------
-    def process_extracted_properties(self, name, features):               
+    def distribute_extracted_data(self, name, features):               
         self.properties['name'].append(name)        
         self.properties['adsorbate_molecular_weight'].append(
             features.get('molecular_weight', 'NA'))
@@ -126,8 +125,7 @@ class GuestProperties:
 ###############################################################################
 class HostProperties:    
     
-    def __init__(self, configuration):
-        self.endpoint = OpenAIMolecularProperties(configuration)
+    def __init__(self, configuration):        
         self.configuration = configuration        
         self.properties = {'name' : [],
                            'adsorbent_molecular_weight' : [],
@@ -137,24 +135,38 @@ class HostProperties:
     #--------------------------------------------------------------------------
     def is_chemical_formula(self, string):    
         formula_pattern = r"^[A-Za-z0-9\[\](){}·.,+\-_/]+$"
-        return bool(re.match(formula_pattern, string))     
+        return bool(re.match(formula_pattern, string))   
+
+    #--------------------------------------------------------------------------
+    def get_molecular_properties(self, identifier, namespace): 
+        try:           
+            compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
+            properties = compounds[0].to_dict() if compounds else {}
+        except:
+            logger.error(f'Cannot fetch molecules properties for identifier {identifier}: [{namespace}]')
+            properties = {}
+
+        return properties     
     
     #--------------------------------------------------------------------------    
     def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame):         
         for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]): 
             formula_as_name = self.is_chemical_formula(row.name) 
-            properties = self.endpoint.ask_properties_to_LLM(row.name)
+            properties = self.get_molecular_properties(row.name, namespace='name')             
             if properties:                
-                self.process_extracted_properties(row.name, properties)                                    
+                self.distribute_extracted_data(row.name, properties)                                    
 
         return self.properties
     
     #--------------------------------------------------------------------------
-    def process_extracted_properties(self, name, features):               
+    def distribute_extracted_data(self, name, features):               
         self.properties['name'].append(name)        
-        self.properties['adsorbent_molecular_weight'].append(features.get('molecular_weight', 'NA'))
-        self.properties['adsorbent_molecular_formula'].append(features.get('molecular_formula', 'NA'))
-        self.properties['adsorbent_SMILE'].append(features.get('smile', 'NA'))
+        self.properties['adsorbent_molecular_weight'].append(
+            features.get('molecular_weight', 'NA'))
+        self.properties['adsorbent_molecular_formula'].append(
+            features.get('molecular_formula', 'NA'))
+        self.properties['adsorbent_SMILE'].append(
+            features.get('canonical_smile', 'NA'))
     
 
     

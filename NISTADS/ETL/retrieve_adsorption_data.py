@@ -50,27 +50,25 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------    
     single_component, binary_mixture = builder.expand_dataset(single_component, binary_mixture)
     serializer.save_adsorption_datasets(single_component, binary_mixture)     
-    logger.info('Experiments data collection is concluded')
-    logger.info(f'Generated files have been saved in {DATA_PATH}')    
+    logger.info('Experiments data collection is concluded')        
 
     # 5. [COLLECT GUEST/HOST INDEXES]
     #--------------------------------------------------------------------------
     # get guest and host indexes invoking API
     logger.info('Collect guest and host indices from NIST-ARPA-E database')
     webworker = GuestHostDataFetch(CONFIG)
-    guest_index, host_index = webworker.get_guest_host_index()     
+    guest_index, host_index = webworker.get_materials_index()     
 
     # 6. [COLLECT GUEST/HOST DATA]
     #--------------------------------------------------------------------------
     logger.info('Extracting adsorbents and sorbates data from relative indices')
-    guest_data, host_data = webworker.get_guest_host_data(guest_index, host_index)   
+    guest_data, host_data = webworker.get_materials_data(guest_index, host_index)   
      
     # 7. [SAVE EXPERIMENTS DATA]
     #--------------------------------------------------------------------------  
     # save the final version of the materials dataset 
     serializer.save_materials_datasets(guest_data, host_data)
     logger.info('Materials data collection is concluded')
-    logger.info(f'Generated files have been saved in {DATA_PATH}')   
-  
+    
 
     

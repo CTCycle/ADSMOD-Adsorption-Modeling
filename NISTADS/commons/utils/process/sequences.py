@@ -23,8 +23,7 @@ class PressureUptakeSeriesProcess:
         self.pad_value = -1
 
     #--------------------------------------------------------------------------
-    def remove_leading_zeros(self, dataframe: pd.DataFrame):
-        
+    def remove_leading_zeros(self, dataframe: pd.DataFrame):        
         def _inner_function(row):
             pressure_series = row[self.P_COL]
             uptake_series = row[self.Q_COL]
@@ -68,9 +67,6 @@ class PressureUptakeSeriesProcess:
             lambda x: self.min_points <= len(x) <= self.max_points)]
 
         return dataset       
-    
-       
-
   
 
 # [TOKENIZERS]
@@ -94,8 +90,7 @@ class SMILETokenization:
         self.pad_value = -1
         
     #--------------------------------------------------------------------------
-    def tokenize_SMILE_string(self, SMILE):     
-
+    def tokenize_SMILE_string(self, SMILE):
         tokens = []
         if isinstance(SMILE, str):  
             tokens = []          
@@ -189,22 +184,14 @@ class SMILETokenization:
     
     #--------------------------------------------------------------------------
     def encode_SMILE_tokens(self, data: pd.DataFrame): 
-        adsorbate_SMILE_tokens = set(
+        SMILE_tokens = set(
             token for tokens in data['adsorbate_tokenized_SMILE'] 
-            for token in tokens)    
-        adsorbent_SMILE_tokens = set(
-            token for tokens in data['adsorbent_tokenized_SMILE'] 
-            for token in tokens)   
-        
-        SMILE_tokens = adsorbate_SMILE_tokens | adsorbent_SMILE_tokens
+            for token in tokens)           
 
         # Map each token to a unique integer
         token_to_id = {token: idx for idx, token in enumerate(sorted(SMILE_tokens))}
-
         # Apply the encoding to each tokenized SMILE
         data['adsorbate_encoded_SMILE'] = data['adsorbate_tokenized_SMILE'].apply(
-            lambda tokens: [int(token_to_id[token]) for token in tokens])        
-        data['adsorbent_encoded_SMILE'] = data['adsorbent_tokenized_SMILE'].apply(
             lambda tokens: [int(token_to_id[token]) for token in tokens])        
         
         return data, token_to_id
@@ -214,18 +201,13 @@ class SMILETokenization:
         dataset['adsorbate_encoded_SMILE'] = sequence.pad_sequences(
             dataset['adsorbate_encoded_SMILE'], maxlen=self.SMILE_padding, 
             value=self.pad_value, dtype='float32', padding='post').tolist() 
-        dataset['adsorbent_encoded_SMILE'] = sequence.pad_sequences(
-            dataset['adsorbent_encoded_SMILE'], maxlen=self.SMILE_padding, 
-            value=self.pad_value, dtype='float32', padding='post').tolist()        
-        
+                
         return dataset
     
     #--------------------------------------------------------------------------
     def process_SMILE_sequences(self, data : pd.DataFrame):
         data['adsorbate_tokenized_SMILE'] = data['adsorbate_SMILE'].apply(
-            lambda x : self.tokenize_SMILE_string(x)) 
-        data['adsorbent_tokenized_SMILE'] = data['adsorbent_SMILE'].apply(
-            lambda x : self.tokenize_SMILE_string(x)) 
+            lambda x : self.tokenize_SMILE_string(x))         
         
         data, smile_vocabulary = self.encode_SMILE_tokens(data)        
         data = self.SMILE_series_padding(data)       

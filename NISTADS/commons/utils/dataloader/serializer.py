@@ -103,7 +103,7 @@ class DataSerializer:
         return processed_data, metadata, smile_vocabulary, ads_vocabulary         
     
     #--------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data, host_data):                   
+    def save_materials_datasets(self, guest_data=None, host_data=None):                   
         if guest_data is not None:
             guest_data = self.sanitizer.convert_series_to_string(guest_data) 
             dataframe = pd.DataFrame.from_dict(guest_data)          

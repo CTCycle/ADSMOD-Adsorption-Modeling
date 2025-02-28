@@ -3,14 +3,13 @@
     "collection" : {"GUEST_FRACTION" : 1.0,
                     "HOST_FRACTION" : 1.0,
                     "EXP_FRACTION" : 1.0,    
-                    "PARALLEL_TASKS" : 60,
-                    "OPENAI_MODEL" : "gpt-4o-mini"},
+                    "PARALLEL_TASKS" : 60},
 
     "dataset" : {"SAMPLE_SIZE" : 1.0,
                  "VALIDATION_SIZE" : 0.2,                 
                  "MAX_PQ_POINTS": 20,                 
                  "MIN_PQ_POINTS": 4,
-                 "SMILE_PADDING": 30,
+                 "SMILE_PADDING": 12,
                  "MAX_PRESSURE": 10e06,
                  "MAX_UPTAKE": 10,                 
                  "SPLIT_SEED" : 45},
@@ -20,7 +19,9 @@
                 "MIXED_PRECISION" : false,                                                
                 "NUM_PROCESSORS": 6},
 
-    "model" : {"MOLECULAR_EMBEDDING": 256,                                            
+    "model" : {"MOLECULAR_EMBEDDING": 256,
+               "NUM_ENCODERS" : 4,
+               "ATTENTION_HEADS" : 3,                                                       
                "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 

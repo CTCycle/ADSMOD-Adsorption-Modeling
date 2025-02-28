@@ -8,9 +8,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.dataloader.serializer import DataSerializer
-from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.datamaker.properties import MolecularProperties
-
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -32,12 +30,12 @@ if __name__ == '__main__':
     logger.info('Retrieving molecular properties for sorbate species using PubChem API')
     guest_data = properties.fetch_guest_properties(experiments, guest_data)   
     # process host (adsorbent materials) data by adding molecular properties   
-    logger.info('Retrieving molecular properties for adsorbent materials using OpenAI') 
+    logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
     host_data = properties.fetch_host_properties(experiments, host_data)    
   
     # save the final version of the materials dataset    
     serializer.save_materials_datasets(guest_data, host_data)
-    logger.info(f'Data collection is concluded, files have been saved in {DATA_PATH}')
+    logger.info('Data collection is concluded')
 
     
    

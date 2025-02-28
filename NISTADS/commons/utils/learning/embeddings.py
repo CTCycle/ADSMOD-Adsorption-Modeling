@@ -18,8 +18,11 @@ class MolecularEmbedding(keras.layers.Layer):
         self.smile_vocab_size = smile_vocab_size
         self.ads_vocab_size = ads_vocab_size
         self.mask_values = mask_values
-        self.ads_embeddings = layers.Embedding(
-            input_dim=ads_vocab_size, output_dim=self.embedding_dims, mask_zero=mask_values)
+        
+        self.adsorbent_embeddings = layers.Embedding(
+            input_dim=self.ads_vocab_size, output_dim=self.embedding_dims)
+        self.chemo_embeddings = layers.Dense(
+            embedding_dims, kernel_initializer='he_uniform')
         self.smile_embeddings = layers.Embedding(
             input_dim=smile_vocab_size, output_dim=self.embedding_dims, mask_zero=mask_values)
         self.position_embeddings = layers.Embedding(
@@ -28,11 +31,17 @@ class MolecularEmbedding(keras.layers.Layer):
     
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------    
-    def call(self, smiles, adsorbent, training=False):
-        ads_embeddings = self.ads_embeddings(adsorbent)          
-        ads_embeddings = keras.ops.expand_dims(ads_embeddings, axis=1)
+    def call(self, smiles, adsorbent, chemometrics, training=False): 
+        adsorbent = keras.ops.expand_dims(adsorbent, axis=1)       
+        ads_embeddings = self.adsorbent_embeddings(adsorbent)         
         ads_embeddings = keras.ops.tile(ads_embeddings, [1, self.sequence_length, 1])
         ads_embeddings *= self.embedding_scale
+
+        chemometrics = keras.ops.expand_dims(chemometrics, axis=1)
+        chemo_embeddings = self.chemo_embeddings(chemometrics) 
+        chemo_embeddings = keras.ops.expand_dims(chemo_embeddings, axis=1)          
+        chemo_embeddings = keras.ops.tile(chemo_embeddings, [1, self.sequence_length, 1])
+        chemo_embeddings *= self.embedding_scale        
 
         length = keras.ops.shape(smiles)[-1] 
         positions = keras.ops.arange(start=0, stop=length, step=1)
@@ -40,7 +49,7 @@ class MolecularEmbedding(keras.layers.Layer):
         embedded_smile = self.smile_embeddings(smiles)
         embedded_smile *= self.embedding_scale        
         embedded_positions = self.position_embeddings(positions)        
-        full_embedding = embedded_smile + embedded_positions + ads_embeddings
+        full_embedding = embedded_smile + embedded_positions + ads_embeddings + chemo_embeddings
         
         if self.mask_values:
             mask = keras.ops.not_equal(smiles, -1)

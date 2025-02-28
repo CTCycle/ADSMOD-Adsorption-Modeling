@@ -37,7 +37,7 @@ class AggregateDatasets:
                           'adsorbed_amount' : list}   
 
         grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()
-        grouped_data.drop(columns=['filename'], inplace=True)
+        grouped_data.drop(columns=['filename'], inplace=True)        
 
         return grouped_data
 

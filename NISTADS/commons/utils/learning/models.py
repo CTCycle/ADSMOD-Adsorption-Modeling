@@ -31,43 +31,44 @@ class SCADSModel:
         self.molecular_embeddings = MolecularEmbedding(
             self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length, mask_values=True)   
         self.smile_encoders = MolecularEncoder(self.embedding_dims, self.seed)       
-        self.pressure_encoder = PressureSerierEncoder(self.embedding_dims, dropout_rate=0.2, seed=self.seed) 
+        self.pressure_encoder = PressureSerierEncoder(
+            self.embedding_dims, dropout_rate=0.2, seed=self.seed) 
         self.Qdecoder = QDecoder(self.embedding_dims, dropout_rate=0.2, seed=self.seed)
+
+        self.state_input = layers.Input(shape=(), name='state_input')
+        self.chemo_input = layers.Input(shape=(), name='chemo_input')
+        self.adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
+        self.adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
+        self.pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')    
 
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, model_summary=True):  
-
-        # initialize the image encoder and the transformers encoders and decoders
-        state_input = layers.Input(shape=(2,), name='state_input')
-        adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
-        adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
-        pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')       
-
+    def get_model(self, model_summary=True): 
         # create combined embeddings of both the adsorbates and adsorbents 
         # molecular representations, where the adsorbate is embedded as a SMILE sequence
-        # to which we add the adsorbent and positional contribution
-        molecular_embeddings = self.molecular_embeddings(adsorbates_input, adsorbents_input) 
-        smile_mask = self.molecular_embeddings.compute_mask(adsorbates_input)   
+        # to which we add the adsorbent and positional contribution together with the chemometrics
+        molecular_embeddings = self.molecular_embeddings(
+            self.adsorbates_input, self.adsorbents_input, self.chemo_input) 
+        smile_mask = self.molecular_embeddings.compute_mask(self.adsorbates_input)   
 
         # pass the molecular embeddings through the transformer encoders               
-        encoder_output = self.smile_encoders(molecular_embeddings, smile_mask, training=False)
+        encoder_output = self.smile_encoders(
+            molecular_embeddings, smile_mask, training=False)
 
         # encode temperature and molecular weight of the adsorbate as a single vector
         # and tile it to match the SMILE sequence length
-        encoded_states = self.state_encoder(state_input, training=False)
-
-        # create a molecular context by concatenating the mean molecular embeddings
-        # together with the encoded states (temperature and molecular weight)        
-        molecular_context = layers.Concatenate()([encoder_output, encoded_states])        
+        encoded_states = self.state_encoder(self.state_input, training=False)           
 
         # encode the pressure series and add information from the molecular context
-        encoded_pressure = self.pressure_encoder(pressure_input, molecular_context, training=False) 
-        output = self.Qdecoder(encoded_pressure)        
+        encoded_pressure = self.pressure_encoder(
+            self.pressure_input, encoder_output, encoded_states, training=False) 
+        
+        output = self.Qdecoder(encoded_pressure, self.pressure_input)        
 
-        # wrap the model and compile it with AdamW optimizer
-        model = Model(inputs=[state_input, adsorbents_input, adsorbates_input, pressure_input], 
-                      outputs=output, name='SCADS_model')       
+        # wrap the model and compile it with Adam optimizer
+        model = Model(
+            inputs=[self.state_input, self.adsorbents_input, self.adsorbates_input, 
+                    self.pressure_input], outputs=output, name='SCADS_model')       
         
         lr_schedule = LRScheduler(self.initial_lr, self.constant_lr_steps, self.decay_steps)
         opt = optimizers.Adam(learning_rate=lr_schedule)  

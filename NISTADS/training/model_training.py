@@ -48,7 +48,8 @@ if __name__ == '__main__':
        
     # create the tf.datasets using the previously initialized generators 
     builder = TensorDatasetBuilder(CONFIG)   
-    train_dataset, validation_dataset = builder.build_model_dataloader(train_data, validation_data)  
+    train_dataset, validation_dataset = builder.build_model_dataloader(
+        train_data, validation_data)  
 
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  

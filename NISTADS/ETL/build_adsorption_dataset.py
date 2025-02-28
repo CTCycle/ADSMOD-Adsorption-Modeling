@@ -39,7 +39,8 @@ if __name__ == '__main__':
     # merge adsorption data with materials properties (guest and host)
     aggregator = AggregateDatasets(CONFIG)
     processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
-    processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)   
+    processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
+    logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')   
 
     # convert and normalize pressure and uptake units:
     # pressure to Pascal, uptake to mol/g
@@ -61,7 +62,8 @@ if __name__ == '__main__':
 
     # 3. [PROCESS MOLECULAR INPUTS]
     #--------------------------------------------------------------------------  
-    tokenization = SMILETokenization(CONFIG)    
+    tokenization = SMILETokenization(CONFIG) 
+    logger.info('Tokenizing SMILE sequences for adsorbate species')   
     processed_data, smile_vocabulary = tokenization.process_SMILE_sequences(processed_data)    
 
     # 4. [SPLIT BASED NORMALIZATION AND ENCODING]
