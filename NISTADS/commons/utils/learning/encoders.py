@@ -10,7 +10,7 @@ from NISTADS.commons.logger import logger
 
 # [FEED FORWARD]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='encoder', name='StateEncoder')
+@keras.utils.register_keras_serializable(package='Encoders', name='StateEncoder')
 class StateEncoder(keras.layers.Layer):
     def __init__(self, dropout_rate, seed, **kwargs):
         super(StateEncoder, self).__init__(**kwargs)        
@@ -32,7 +32,7 @@ class StateEncoder(keras.layers.Layer):
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
     def call(self, x, training=None):
-        x = keras.ops.expand_dims(x, axis=1)
+        x = keras.ops.expand_dims(x, axis=-1)        
         x = self.dense1(x)
         x = activations.elu(x)
         x = self.batch_norm1(x, training=training)
@@ -63,7 +63,7 @@ class StateEncoder(keras.layers.Layer):
 
 # [FEED FORWARD]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='encoder', name='PressureSerierEncoder')
+@keras.utils.register_keras_serializable(package='Encoders', name='PressureSerierEncoder')
 class PressureSerierEncoder(keras.layers.Layer):
     def __init__(self, embedding_dims, dropout_rate, seed, **kwargs):
         super(PressureSerierEncoder, self).__init__(**kwargs)        
@@ -73,8 +73,11 @@ class PressureSerierEncoder(keras.layers.Layer):
             num_heads=3, key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()        
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)   
+        self.addnorm3 = AddNorm()
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed) 
+        self.ffn2 = FeedForward(self.embedding_dims, 0.3, seed)   
         self.P_dense = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
+        self.state_dense = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
         self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
         self.seed = seed
         self.supports_masking = True
@@ -88,6 +91,7 @@ class PressureSerierEncoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
         mask = keras.ops.not_equal(inputs, -1)  
+        mask = keras.ops.expand_dims(inputs, axis=-1) 
         mask = keras.ops.cast(mask, torch.float32)       
         
         return mask
@@ -95,21 +99,28 @@ class PressureSerierEncoder(keras.layers.Layer):
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
     def call(self, pressure, context, state, mask=None, training=None):
-        pressure = keras.ops.expand_dims(pressure, axis=-1)
-        pressure = self.P_dense(pressure)
+        pressure = keras.ops.expand_dims(pressure, axis=-1)        
+        pressure = self.P_dense(pressure)        
         attention_output = self.attention(
-            query=pressure, key=context, value=context, attention_mask=None, 
-            training=training)
+            query=pressure, key=context, value=context, 
+            attention_mask=mask, training=training)
          
         addnorm = self.addnorm1([pressure, attention_output])
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
         ffn_out = self.ffn1(addnorm, training=training)
-        output = self.addnorm2([addnorm, ffn_out])          
+        ffn_out = self.addnorm2([addnorm, ffn_out])  
 
-        mask = self.compute_mask(pressure) if mask is None else mask               
-        output = output * mask 
+        # calculate the reciprocal of the state tensor, since this represents temperature
+        # ideally, higher temperature should decrease the adsorbed amount, therefor
+        # the inverse state is subtracted from the encoder hidden state values
+        inverse_state = 1.0/state
+        inverse_state = self.state_dense(inverse_state)
+        inverse_state = keras.ops.expand_dims(inverse_state, axis=1) 
+
+        ffn_out = self.ffn2(ffn_out, training=training)
+        output = ffn_out - inverse_state
         
         return output
     
@@ -126,64 +137,13 @@ class PressureSerierEncoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
-        return cls(**config)  
+        return cls(**config)     
     
-    
-# [TRANSFORMER ENCODER]
+
+
+# [UPTAKE DECODER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Encoders', name='MolecularEncoder')
-class MolecularEncoder(keras.layers.Layer):
-    def __init__(self, embedding_dims, num_heads=4, num_encoders=2, seed=42, **kwargs):
-        super(MolecularEncoder, self).__init__(**kwargs)
-        self.embedding_dims = embedding_dims                
-        self.seed = seed
-        self.num_heads = num_heads
-        self.num_encoders = num_encoders  
-        self.encoders = [TransformerEncoder(
-            self.embedding_dims, num_heads, self.seed) for _ in range(num_encoders)]
-        
-        self.dense1 = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
-        self.dense3 = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform')  
-        self.flatten = layers.Flatten()      
-        self.supports_masking = True       
-
-    # build method for the custom layer 
-    #--------------------------------------------------------------------------
-    def build(self, input_shape):        
-        super(MolecularEncoder, self).build(input_shape)    
-
-    # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
-    def call(self, inputs, mask=None, training=None):         
-        encoder_output = inputs    
-        for encoder in self.encoders:
-            encoder_output = encoder(encoder_output, training=False)
-
-        output = encoder_output * mask if mask is not None else encoder_output            
-        
-        return output
-    
-    # serialize layer for saving  
-    #--------------------------------------------------------------------------
-    def get_config(self):
-        config = super(MolecularEncoder, self).get_config()
-        config.update({'num_heads' : self.num_heads,
-                       'num_encoders' : self.num_encoders,
-                       'embedding_dims': self.embedding_dims,                       
-                       'seed' : self.seed})
-        return config
-
-    # deserialization method 
-    #--------------------------------------------------------------------------
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-      
-
-# [FEED FORWARD]
-###############################################################################
-@keras.utils.register_keras_serializable(package='decoder', name='QDecoder')
+@keras.utils.register_keras_serializable(package='Decoders', name='QDecoder')
 class QDecoder(keras.layers.Layer):
     def __init__(self, num_layers, dropout_rate, seed, **kwargs):
         super(QDecoder, self).__init__(**kwargs)        
@@ -207,26 +167,25 @@ class QDecoder(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, -1)   
+        mask = keras.ops.not_equal(inputs, -1) 
+        mask = keras.ops.expand_dims(mask, axis=-1)  
         mask = keras.ops.cast(mask, torch.float32)  
         
         return mask
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, P_logits, pressure, mask=None, training=None):
-
-        pressure = keras.ops.expand_dims(pressure, axis=-1)
+    def call(self, P_logits, pressure, mask=None, training=None):        
         mask = self.compute_mask(pressure) if mask is None else mask
-        layer = P_logits * mask if mask is not None else P_logits
-        
+        layer = P_logits * mask if mask is not None else P_logits        
         for dense, bn in zip(self.dense, self.batch_norm):
             layer = dense(layer)
             layer = activations.relu(layer)
             layer = bn(layer, training=training)
 
         logits = self.Q_output(layer)       
-        output = activations.relu(logits)            
+        output = activations.relu(logits) 
+        output = keras.ops.squeeze(output, axis=-1)           
 
         return output
     

@@ -1,9 +1,11 @@
 import torch
+import keras
 from keras import layers, Model, optimizers
 
 from NISTADS.commons.utils.learning.scheduler import LRScheduler
 from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
-from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, MolecularEncoder, QDecoder
+from NISTADS.commons.utils.learning.transformers import TransformerEncoder
+from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 
 
@@ -17,7 +19,9 @@ class SCADSModel:
         self.seed = configuration["SEED"]
         self.smile_length = metadata["dataset"]["SMILE_PADDING"]
         self.series_length = metadata["dataset"]["MAX_PQ_POINTS"]       
-        self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]            
+        self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]
+        self.num_heads = configuration["model"]["ATTENTION_HEADS"]   
+        self.num_encoders = configuration["model"]["NUM_ENCODERS"]            
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
         self.jit_backend = configuration["model"]["JIT_BACKEND"]
 
@@ -25,12 +29,16 @@ class SCADSModel:
         self.initial_lr = self.scheduler_config["INITIAL_LR"]
         self.constant_lr_steps = self.scheduler_config["CONSTANT_STEPS"]       
         self.decay_steps = self.scheduler_config["DECAY_STEPS"]         
-        self.configuration = configuration       
+        self.configuration = configuration  
+
+        self.encoders = [TransformerEncoder(
+            self.embedding_dims, self.num_heads, self.seed)
+            for _ in range(self.num_encoders)]       
 
         self.state_encoder = StateEncoder(0.2, seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
-            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, self.smile_length, mask_values=True)   
-        self.smile_encoders = MolecularEncoder(self.embedding_dims, self.seed)       
+            self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, 
+            self.smile_length, mask_values=True)                
         self.pressure_encoder = PressureSerierEncoder(
             self.embedding_dims, dropout_rate=0.2, seed=self.seed) 
         self.Qdecoder = QDecoder(self.embedding_dims, dropout_rate=0.2, seed=self.seed)
@@ -48,12 +56,13 @@ class SCADSModel:
         # molecular representations, where the adsorbate is embedded as a SMILE sequence
         # to which we add the adsorbent and positional contribution together with the chemometrics
         molecular_embeddings = self.molecular_embeddings(
-            self.adsorbates_input, self.adsorbents_input, self.chemo_input) 
-        smile_mask = self.molecular_embeddings.compute_mask(self.adsorbates_input)   
+            self.adsorbates_input, self.adsorbents_input, self.chemo_input)         
+        smile_mask = self.molecular_embeddings.compute_mask(self.adsorbates_input)        
 
-        # pass the molecular embeddings through the transformer encoders               
-        encoder_output = self.smile_encoders(
-            molecular_embeddings, smile_mask, training=False)
+        # pass the molecular embeddings through the transformer encoders                   
+        encoder_output = molecular_embeddings    
+        for encoder in self.encoders:
+            encoder_output = encoder(encoder_output, smile_mask, training=False)
 
         # encode temperature and molecular weight of the adsorbate as a single vector
         # and tile it to match the SMILE sequence length
@@ -66,9 +75,8 @@ class SCADSModel:
         output = self.Qdecoder(encoded_pressure, self.pressure_input)        
 
         # wrap the model and compile it with Adam optimizer
-        model = Model(
-            inputs=[self.state_input, self.adsorbents_input, self.adsorbates_input, 
-                    self.pressure_input], outputs=output, name='SCADS_model')       
+        model = Model(inputs=[self.state_input, self.chemo_input, self.adsorbents_input, self.adsorbates_input, 
+                      self.pressure_input], outputs=output, name='SCADS_model')       
         
         lr_schedule = LRScheduler(self.initial_lr, self.constant_lr_steps, self.decay_steps)
         opt = optimizers.Adam(learning_rate=lr_schedule)  

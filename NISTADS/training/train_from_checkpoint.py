@@ -57,7 +57,8 @@ if __name__ == '__main__':
        
     # create the tf.datasets using the previously initialized generators 
     builder = TensorDatasetBuilder(configuration)   
-    train_dataset, validation_dataset = builder.build_model_dataloader(train_data, validation_data) 
+    train_dataset, validation_dataset = builder.build_model_dataloader(
+        train_data, validation_data) 
 
     # 4. [TRAINING MODEL]  
     # Setting callbacks and training routine for the features extraction model 

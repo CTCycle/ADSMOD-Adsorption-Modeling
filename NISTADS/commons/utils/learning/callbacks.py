@@ -78,7 +78,6 @@ class LoggingCallback(keras.callbacks.Callback):
 # [CALLBACKS HANDLER]
 ###############################################################################
 def callbacks_handler(configuration, checkpoint_path, history):
-
     RTH_callback = RealTimeHistory(checkpoint_path, configuration, past_logs=history)
     logger_callback = LoggingCallback()   
     callbacks_list = [RTH_callback, logger_callback]

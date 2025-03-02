@@ -23,22 +23,26 @@ class TensorDatasetBuilder:
 
     #--------------------------------------------------------------------------
     def define_IO_features(self, data : pd.DataFrame):
-        inputs = {'state_input': data['temperature'].values,
-                  'chemo_input': data['adsorbate_molecular_weight'].values,
-                  'adsorbent_input': data['encoded_adsorbent'].values,
-                  'adsorbate_input': np.vstack(data['adsorbate_encoded_SMILE'].values),
-                  'pressure_input': np.vstack(data['pressure'].values)}
+        inputs = {'state_input': np.array(
+                    data['temperature'].values, dtype=np.float32),
+                  'chemo_input': np.array(
+                    data['adsorbate_molecular_weight'].values, dtype=np.float32),
+                  'adsorbent_input': np.array(
+                    data['encoded_adsorbent'].values, dtype=np.int32),
+                  'adsorbate_input': np.vstack(
+                    data['adsorbate_encoded_SMILE'].values).astype(np.float32),
+                  'pressure_input': np.vstack(
+                    data['pressure'].values).astype(np.float32)}
 
         # output is reshaped to match the expected shape of the model 
         # (batch size, pressure points, 1)  
-        output = np.reshape(np.vstack(
-            data[self.output].values), newshape=(data.shape[0], -1, 1))   
+        output = np.vstack(data[self.output].values).astype(np.float32)
 
         return inputs, output
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def build_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):    
+    def compose_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):    
         data = data.dropna(how='any')
         num_samples = data.shape[0]                
         batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
@@ -54,8 +58,8 @@ class TensorDatasetBuilder:
     def build_model_dataloader(self, train_data : pd.DataFrame, validation_data : pd.DataFrame, 
                                batch_size=None):            
         
-        train_dataset = self.build_tensor_dataset(train_data, batch_size)
-        validation_dataset = self.build_tensor_dataset(validation_data, batch_size)         
+        train_dataset = self.compose_tensor_dataset(train_data, batch_size)
+        validation_dataset = self.compose_tensor_dataset(validation_data, batch_size)         
 
         return train_dataset, validation_dataset
 

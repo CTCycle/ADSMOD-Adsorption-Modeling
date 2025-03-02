@@ -52,10 +52,13 @@ class FeedForward(keras.layers.Layer):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout_rate = dropout
-        self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
+        self.dense1 = layers.Dense(
+            dense_units, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(
+            dense_units, activation='relu', kernel_initializer='he_uniform')        
         self.dropout = layers.Dropout(rate=dropout, seed=seed)
         self.seed = seed
+        self.supports_masking = True  
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -96,11 +99,16 @@ class TransformerEncoder(keras.layers.Layer):
         self.num_heads = num_heads         
         self.seed = seed                
         self.attention = layers.MultiHeadAttention(
-            num_heads=self.num_heads, key_dim=self.embedding_dims)
+            num_heads=self.num_heads, key_dim=self.embedding_dims, 
+            seed=self.seed)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)    
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed) 
 
+        # set mask supports to True but mask propagation is handled
+        # throuhg the attention layer call 
+        self.supports_masking = True
+        
     # build method for the custom layer 
     #--------------------------------------------------------------------------
     def build(self, input_shape):        
@@ -108,14 +116,16 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, training=None):        
-
+    def call(self, inputs, mask=None, training=None):
+        # compute attention mask
+        attention_mask = self.compute_mask(inputs, mask)
+    
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
-        # to the inputs and normalized     
+        # to the inputs and normalized            
         attention_output = self.attention(
-            query=inputs, value=inputs, key=inputs, attention_mask=None, 
-            training=training)
+            query=inputs, value=inputs, key=inputs, 
+            attention_mask=attention_mask, training=training)
          
         addnorm = self.addnorm1([inputs, attention_output])
 
@@ -124,7 +134,18 @@ class TransformerEncoder(keras.layers.Layer):
         ffn_out = self.ffn1(addnorm, training=training)
         output = self.addnorm2([addnorm, ffn_out])      
 
-        return output
+        return output  
+
+    # compute the mask for padded sequences  
+    #--------------------------------------------------------------------------
+    def compute_mask(self, inputs, mask=None):        
+        if mask is not None: 
+            transposed_mask = keras.ops.transpose(mask, axes=[0, 2, 1])
+            mask = mask * transposed_mask 
+            mask = keras.ops.expand_dims(mask, axis=1)
+            mask = keras.ops.tile(mask, [1, self.num_heads, 1, 1])
+        
+            return mask  
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------
