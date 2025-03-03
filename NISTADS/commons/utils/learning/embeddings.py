@@ -13,10 +13,10 @@ class MolecularEmbedding(keras.layers.Layer):
     def __init__(self, smile_vocab_size, ads_vocab_size, embedding_dims, sequence_length, 
                  mask_values=True, **kwargs):
         super(MolecularEmbedding, self).__init__(**kwargs)
-        self.embedding_dims = embedding_dims
-        self.sequence_length = sequence_length 
         self.smile_vocab_size = smile_vocab_size
         self.ads_vocab_size = ads_vocab_size
+        self.embedding_dims = embedding_dims
+        self.sequence_length = sequence_length         
         self.mask_values = mask_values
         
         self.adsorbent_embeddings = layers.Embedding(
@@ -57,7 +57,9 @@ class MolecularEmbedding(keras.layers.Layer):
         full_embedding = embedded_smile + embedded_positions + ads_embeddings + chemo_embeddings
         
         if self.mask_values:
-            mask = self.compute_mask(smiles)
+            mask = keras.ops.not_equal(smiles, -1) 
+            mask = keras.ops.expand_dims(mask, axis=-1)
+            mask = keras.ops.cast(mask, torch.float32) 
             full_embedding *= mask
 
         return full_embedding
@@ -69,10 +71,10 @@ class MolecularEmbedding(keras.layers.Layer):
     
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, -1) 
-        mask = keras.ops.expand_dims(mask, axis=-1)
-        mask = keras.ops.cast(mask, torch.float32)          
+    def compute_mask(self, inputs, mask=None):
+        if mask is None:        
+            mask = keras.ops.not_equal(inputs, -1) 
+            mask = keras.ops.cast(mask, torch.float32)                  
         
         return mask    
     

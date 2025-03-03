@@ -65,12 +65,14 @@ class StateEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='PressureSerierEncoder')
 class PressureSerierEncoder(keras.layers.Layer):
-    def __init__(self, embedding_dims, dropout_rate, seed, **kwargs):
+    def __init__(self, embedding_dims, dropout_rate, num_heads, seed, **kwargs):
         super(PressureSerierEncoder, self).__init__(**kwargs)        
         self.embedding_dims = embedding_dims
-        self.dropout_rate = dropout_rate          
+        self.dropout_rate = dropout_rate  
+        self.num_heads = num_heads  
+        self.seed = seed       
         self.attention = layers.MultiHeadAttention(
-            num_heads=3, key_dim=self.embedding_dims)
+            num_heads=num_heads, key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()        
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
@@ -79,31 +81,27 @@ class PressureSerierEncoder(keras.layers.Layer):
         self.P_dense = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
         self.state_dense = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
         self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
-        self.seed = seed
+        
         self.supports_masking = True
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
     def build(self, input_shape):        
-        super(PressureSerierEncoder, self).build(input_shape)
-
-    # compute the mask for padded sequences  
-    #--------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, -1)  
-        mask = keras.ops.expand_dims(inputs, axis=-1) 
-        mask = keras.ops.cast(mask, torch.float32)       
-        
-        return mask
+        super(PressureSerierEncoder, self).build(input_shape)    
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, pressure, context, state, mask=None, training=None):
+    def call(self, pressure, context, state, key_mask=None, training=None):
+        # compute query mask as the masked pressure series
+        query_mask = self.compute_mask(pressure)
+        # project the pressure series into the embedding space using 
         pressure = keras.ops.expand_dims(pressure, axis=-1)        
-        pressure = self.P_dense(pressure)        
+        pressure = self.P_dense(pressure)   
+
         attention_output = self.attention(
             query=pressure, key=context, value=context, 
-            attention_mask=mask, training=training)
+            query_mask=query_mask, key_mask=key_mask, value_mask=key_mask,
+            training=training)
          
         addnorm = self.addnorm1([pressure, attention_output])
 
@@ -112,17 +110,24 @@ class PressureSerierEncoder(keras.layers.Layer):
         ffn_out = self.ffn1(addnorm, training=training)
         ffn_out = self.addnorm2([addnorm, ffn_out])  
 
-        # calculate the reciprocal of the state tensor, since this represents temperature
         # ideally, higher temperature should decrease the adsorbed amount, therefor
-        # the inverse state is subtracted from the encoder hidden state values
-        inverse_state = 1.0/state
-        inverse_state = self.state_dense(inverse_state)
-        inverse_state = keras.ops.expand_dims(inverse_state, axis=1) 
+        # temperature is used to compute an inverse scaling factor for the output        
+        state = self.state_dense(state)
+        temperature_scaling = keras.ops.expand_dims(
+            keras.ops.exp(-state), axis=1)        
 
         ffn_out = self.ffn2(ffn_out, training=training)
-        output = ffn_out - inverse_state
+        output = ffn_out * temperature_scaling
         
         return output
+    
+    # compute the mask for padded sequences  
+    #--------------------------------------------------------------------------
+    def compute_mask(self, inputs, mask=None):        
+        mask = keras.ops.not_equal(inputs, -1)        
+        mask = keras.ops.cast(mask, torch.float32)       
+        
+        return mask
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------

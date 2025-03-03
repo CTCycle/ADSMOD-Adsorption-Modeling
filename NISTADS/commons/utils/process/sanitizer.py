@@ -34,10 +34,9 @@ class DataSanitizer:
     #--------------------------------------------------------------------------
     def exclude_outside_boundary(self, dataset : pd.DataFrame):        
         dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
-        dataset[self.P_TARGET_COL] = dataset[self.P_TARGET_COL].apply(
-            lambda x: [float(v) for v in x if 0.0 <= float(v) <= self.max_pressure])
-        dataset[self.Q_TARGET_COL] = dataset[self.Q_TARGET_COL].apply(
-            lambda x: [float(v) for v in x if 0.0 <= float(v) <= self.max_uptake])
+        dataset = dataset[
+        (dataset[self.P_TARGET_COL].between(0.0, self.max_pressure)) &
+        (dataset[self.Q_TARGET_COL].between(0.0, self.max_uptake))]    
     
         return dataset
     
@@ -55,7 +54,7 @@ class DataSanitizer:
     def convert_string_to_series(self, dataset: pd.DataFrame):  
         dataset = dataset.applymap(
             lambda x : (
-            [np.float32(f) for f in x.split(self.separator) if self.is_convertible_to_float(f)]
+            [float(f) for f in x.split(self.separator) if self.is_convertible_to_float(f)]
             if isinstance(x, str) and self.separator in x else x) if pd.notna(x) else x)
         
         return dataset

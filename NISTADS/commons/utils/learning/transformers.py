@@ -106,7 +106,7 @@ class TransformerEncoder(keras.layers.Layer):
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed) 
 
         # set mask supports to True but mask propagation is handled
-        # throuhg the attention layer call 
+        # through the attention layer call 
         self.supports_masking = True
         
     # build method for the custom layer 
@@ -116,16 +116,14 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, mask=None, training=None):
-        # compute attention mask
-        attention_mask = self.compute_mask(inputs, mask)
-    
+    def call(self, inputs, mask=None, training=None):   
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
-        # to the inputs and normalized            
+        # to the inputs and normalized          
         attention_output = self.attention(
             query=inputs, value=inputs, key=inputs, 
-            attention_mask=attention_mask, training=training)
+            query_mask=mask, value_mask=mask, key_mask=mask, 
+            training=training)
          
         addnorm = self.addnorm1([inputs, attention_output])
 
@@ -134,18 +132,7 @@ class TransformerEncoder(keras.layers.Layer):
         ffn_out = self.ffn1(addnorm, training=training)
         output = self.addnorm2([addnorm, ffn_out])      
 
-        return output  
-
-    # compute the mask for padded sequences  
-    #--------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None):        
-        if mask is not None: 
-            transposed_mask = keras.ops.transpose(mask, axes=[0, 2, 1])
-            mask = mask * transposed_mask 
-            mask = keras.ops.expand_dims(mask, axis=1)
-            mask = keras.ops.tile(mask, [1, self.num_heads, 1, 1])
-        
-            return mask  
+        return output   
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------

@@ -34,7 +34,12 @@ if __name__ == '__main__':
     logger.info(f'{host_data.shape[0]} total hosts (adsorbent materials) in the dataset')
 
     # 2. [PREPROCESS DATA]
-    #--------------------------------------------------------------------------     
+    #-------------------------------------------------------------------------- 
+    # exlude all data outside given boundaries, such as negative temperature values 
+    # and pressure and uptake values below or above the given boundaries
+    sanitizer = DataSanitizer(CONFIG)
+    processed_data = sanitizer.exclude_outside_boundary(adsorption_data)  
+
     # group data from single measurements based in the experiments  
     # merge adsorption data with materials properties (guest and host)
     aggregator = AggregateDatasets(CONFIG)
@@ -45,12 +50,7 @@ if __name__ == '__main__':
     # convert and normalize pressure and uptake units:
     # pressure to Pascal, uptake to mol/g
     sequencer = PressureUptakeSeriesProcess(CONFIG)
-    processed_data = units_conversion(processed_data)  
-
-    # exlude all data outside given boundaries, such as negative temperature values 
-    # and pressure and uptake values below or above the given boundaries
-    sanitizer = DataSanitizer(CONFIG)
-    processed_data = sanitizer.exclude_outside_boundary(processed_data)   
+    processed_data = units_conversion(processed_data)     
 
     # rectify sequences of pressure/uptake points through following steps:
     # remove repeated zero values at the beginning of the series  

@@ -62,7 +62,7 @@ class SCADSModel:
         # pass the molecular embeddings through the transformer encoders                   
         encoder_output = molecular_embeddings    
         for encoder in self.encoders:
-            encoder_output = encoder(encoder_output, smile_mask, training=False)
+            encoder_output = encoder(encoder_output, mask=smile_mask,training=False)
 
         # encode temperature and molecular weight of the adsorbate as a single vector
         # and tile it to match the SMILE sequence length

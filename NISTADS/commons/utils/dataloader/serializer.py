@@ -55,7 +55,6 @@ class DataSerializer:
         self.adsorbent_SMILE_COL = 'adsorbent_encoded_SMILE'     
         self.parameters = configuration["dataset"]
         self.configuration = configuration 
-
         self.sanitizer = DataSanitizer(configuration)         
         
     #--------------------------------------------------------------------------
