@@ -111,7 +111,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-start cmd /k "call conda activate "%env_path%" && jupyter notebook "%app_path%"\validation\adsorption_dataset_validation.ipynb"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\validation\adsorption_dataset_validation.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -119,8 +119,8 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :collect
 cls
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_adsorption_data.py""
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\ETL\retrieve_chemical_properties.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\dataset\retrieve_adsorption_data.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\dataset\retrieve_chemical_properties.py""
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -128,7 +128,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :preprocess
 cls
-start cmd /k "call conda activate "%env_path%" && python "%app_path%"\ETL\build_adsorption_dataset.py"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\dataset\build_adsorption_dataset.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -183,7 +183,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :modeleval
 cls
-start cmd /k "call conda activate "%env_path%" && jupyter notebook "%app_path%"\validation\model_evaluation.ipynb"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\validation\model_evaluation.py"
 goto :ML_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
