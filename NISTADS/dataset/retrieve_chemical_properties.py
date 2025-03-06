@@ -23,16 +23,18 @@ if __name__ == '__main__':
     serializer = DataSerializer(CONFIG)
     experiments, guest_data, host_data = serializer.load_datasets()   
      
-    # 3. [PREPARE COLLECTED EXPERIMENTS DATA]
-    #-------------------------------------------------------------------------   
+    # 2. [FETCH MOLECULAR PROPERTIES]
+    #--------------------------------------------------------------------------   
     properties = MolecularProperties(CONFIG)  
     # process guest (adsorbed species) data by adding molecular properties
     logger.info('Retrieving molecular properties for sorbate species using PubChem API')
     guest_data = properties.fetch_guest_properties(experiments, guest_data)   
     # process host (adsorbent materials) data by adding molecular properties   
     logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
-    host_data = properties.fetch_host_properties(experiments, host_data)    
+    host_data = properties.fetch_host_properties(experiments, host_data)   
   
+    # 3. [SAVE MATERIALS DATASET]
+    #--------------------------------------------------------------------------
     # save the final version of the materials dataset    
     serializer.save_materials_datasets(guest_data, host_data)
     logger.info('Data collection is concluded')

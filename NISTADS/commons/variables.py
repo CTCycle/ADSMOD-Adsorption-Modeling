@@ -18,9 +18,6 @@ class EnvironmentVariables:
     #--------------------------------------------------------------------------
     def get_environment_variables(self):                  
         return {"KERAS_BACKEND": os.getenv("KERAS_BACKEND", "torch"),
-                "TF_CPP_MIN_LOG_LEVEL": os.getenv("TF_CPP_MIN_LOG_LEVEL", "1"),
-                "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", "NA"),}
-    #--------------------------------------------------------------------------
-    def get_openai_access_key(self):
-        return os.getenv("OPENAI_API_KEY", "NA")
-       
+                "TF_CPP_MIN_LOG_LEVEL": os.getenv("TF_CPP_MIN_LOG_LEVEL", "1")}
+    
+           

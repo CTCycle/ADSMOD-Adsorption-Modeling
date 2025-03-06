@@ -64,7 +64,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------  
     tokenization = SMILETokenization(CONFIG) 
     logger.info('Tokenizing SMILE sequences for adsorbate species')   
-    processed_data, smile_vocabulary = tokenization.process_SMILE_sequences(processed_data)    
+    processed_data, smile_vocab = tokenization.process_SMILE_sequences(processed_data)    
 
     # 4. [SPLIT BASED NORMALIZATION AND ENCODING]
     #-------------------------------------------------------------------------- 
@@ -72,16 +72,18 @@ if __name__ == '__main__':
     train_data, validation_data = splitter.split_train_and_validation()
 
     normalizer = FeatureNormalizer(CONFIG)
-    processed_data = normalizer.normalize_molecular_features(processed_data, train_data)
+    processed_data = normalizer.normalize_molecular_features(
+        processed_data, train_data)
 
     encoding = AdsorbentEncoder(CONFIG)    
-    processed_data, adsorbent_vocabulary = encoding.encode_adsorbents_by_name(processed_data, train_data)     
+    processed_data, adsorbent_vocab = encoding.encode_adsorbents_by_name(
+        processed_data, train_data)     
 
     # 5. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer   
     processed_data = sanitizer.isolate_preprocessed_features(processed_data)          
-    dataserializer.save_preprocessed_data(processed_data, smile_vocabulary, adsorbent_vocabulary)
+    dataserializer.save_preprocessed_data(processed_data, smile_vocab, adsorbent_vocab)
 
 
 

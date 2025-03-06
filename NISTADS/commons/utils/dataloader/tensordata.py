@@ -9,7 +9,7 @@ from NISTADS.commons.logger import logger
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
-class TensorDatasetBuilder:
+class TrainingDatasetBuilder:
 
     def __init__(self, configuration, shuffle=True):                
         self.configuration = configuration

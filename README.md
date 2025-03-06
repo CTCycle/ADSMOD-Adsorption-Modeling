@@ -18,7 +18,7 @@ The collected data is saved locally in 4 different .csv files. Adsorption isothe
 The single component adsorption dataset is processed using a tailored pipeline. At first experiments featuring negative values for temperature, pressure, and uptake are removed, together with single measurements falling outside predefined boundaries for pressure and uptake ranges (which can be selected by the user through the configuration file). Pressure and uptakes are standardized to a uniform unit — Pascal for pressure and mol/g for uptakes. Following this refinement, the experiments data is enriched with molecular properties such as molecular weight and SMILE encoding for the adsorbate species and adsorbent materials. Pressure and uptake series are normalized, utilizing upper boundaries as the normalization ceiling, and all sequences are eventually reshaped to have the same length using post-padding with a specified padding value (defaulting to -1 to avoid conflicts with actual values) and then normalized.
 
 ## 3. Installation
-The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run *start_on_windows.bat.* On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, it will automatically download and install the latest Miniconda release from https://docs.anaconda.com/miniconda/. After setting up Anaconda/Miniconda, the installation script will proceed with the installation of all necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.4) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing *setup/install_on_windows.bat*.
+The installation process on Windows has been designed to be fully automated. To begin, simply run *start_on_windows.bat.* On its first execution, the installation procedure will execute with minimal user input required. The script will check if either Anaconda or Miniconda is installed and can be accessed from your system path. If neither is found, it will automatically download and install the latest Miniconda release from https://docs.anaconda.com/miniconda/. Following this step, the script will proceed with the installation of all necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.4) to enable GPU acceleration. Should you prefer to handle the installation process separately, you can run the standalone installer by running *setup/install_on_windows.bat*.
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
 
@@ -35,7 +35,7 @@ This project leverages Just-In-Time model compilation through `torch.compile`, e
 ## 4. How to use
 On Windows, run *start_on_windows.bat* to launch the main navigation menu and browse through the various options. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
 
-**Environmental variables** are stored in *resources/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *resources/variables* directory.
+**Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
 
 **KERAS_BACKEND** – Sets the backend for Keras, default is PyTorch.
 
@@ -56,16 +56,16 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **5) Predict adsorption of compounds:** use the pretrained NISTADS model and predict adsorption of compounds based on pressure.  
 
-**6) Setup and Maintenance:** execute optional commands such as *Install project into environment* to run the developer model project installation, *update project* to pull the last updates from github, and *remove logs* to remove all logs saved in *resources/logs*. 
+**6) Setup and Maintenance:** execute optional commands such as *Install project into environment* to reinstall the project within your environment, *update project* to pull the last updates from github, and *remove logs* to remove all logs saved in *resources/logs*. 
 
 **7) Exit:** close the program immediately 
 
 ### 4.2 Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
-**datasets:** ....
+**datasets:** ..
 
-**predictions:** ...
+**predictions:** ..
 
 **checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 

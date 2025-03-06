@@ -48,7 +48,8 @@ if __name__ == '__main__':
     # finally expand the dataset to represent each measurement with a single row
     # save the final version of the adsorption dataset
     #--------------------------------------------------------------------------    
-    single_component, binary_mixture = builder.expand_dataset(single_component, binary_mixture)
+    single_component, binary_mixture = builder.expand_dataset(
+        single_component, binary_mixture)
     serializer.save_adsorption_datasets(single_component, binary_mixture)     
     logger.info('Experiments data collection is concluded')        
 
