@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-for /f "delims=" %%i in ("%~dp0.") do set "project_folder=%%~fi"
+for /f "delims=" %%i in ("%~dp0..") do set "project_folder=%%~fi"
 set "env_name=NISTADS"
 set "project_name=NISTADS"
 set "setup_path=%project_folder%\setup"
