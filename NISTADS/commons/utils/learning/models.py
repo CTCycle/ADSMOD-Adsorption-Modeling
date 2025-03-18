@@ -40,7 +40,7 @@ class SCADSModel:
             self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, 
             self.smile_length, mask_values=True)                
         self.pressure_encoder = PressureSerierEncoder(
-            self.embedding_dims, dropout_rate=0.2, seed=self.seed) 
+            self.embedding_dims, dropout_rate=0.2, num_heads=self.num_heads, seed=self.seed) 
         self.Qdecoder = QDecoder(self.embedding_dims, dropout_rate=0.2, seed=self.seed)
 
         self.state_input = layers.Input(shape=(), name='state_input')
@@ -62,7 +62,8 @@ class SCADSModel:
         # pass the molecular embeddings through the transformer encoders                   
         encoder_output = molecular_embeddings    
         for encoder in self.encoders:
-            encoder_output = encoder(encoder_output, mask=smile_mask,training=False)
+            encoder_output = encoder(
+                encoder_output, mask=smile_mask,training=False)
 
         # encode temperature and molecular weight of the adsorbate as a single vector
         # and tile it to match the SMILE sequence length

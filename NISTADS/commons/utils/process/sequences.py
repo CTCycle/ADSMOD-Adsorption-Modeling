@@ -23,22 +23,19 @@ class PressureUptakeSeriesProcess:
         self.pad_value = -1
 
     #--------------------------------------------------------------------------
-    def remove_leading_zeros(self, dataframe: pd.DataFrame):        
-        def _inner_function(row):
-            pressure_series = row[self.P_COL]
-            uptake_series = row[self.Q_COL]
-            # Find the index of the first non-zero element or get the last index if all are zeros
-            no_zero_index = next((i for i, x in enumerate(pressure_series) if x != 0), len(pressure_series) - 1)                
-            # Determine how many leading zeros were removed
-            zeros_removed = max(0, no_zero_index - 1)                
-            processed_pressure_series = pressure_series[zeros_removed:]             
-            processed_uptake_series = uptake_series[zeros_removed:]
+    def trim_series(self, series):        
+        arr = np.asarray(series)    
+        nonzero_indices = np.flatnonzero(arr)       
+        start_idx = max(nonzero_indices[0] - 1, 0) if nonzero_indices.size > 0 else 0
 
-            return pd.Series([processed_pressure_series, processed_uptake_series])
+        return series[start_idx:]
 
-        dataframe[[self.P_COL, self.Q_COL]] = dataframe.apply(_inner_function, axis=1)
+    #--------------------------------------------------------------------------
+    def remove_leading_zeros(self, dataframe: pd.DataFrame):         
+        dataframe[self.P_COL] = [self.trim_series(p) for p in dataframe[self.P_COL]]
+        dataframe[self.Q_COL] = [self.trim_series(q) for q in dataframe[self.Q_COL]]
         
-        return dataframe
+        return dataframe        
     
     #--------------------------------------------------------------------------  
     def PQ_series_padding(self, dataset : pd.DataFrame):        
@@ -53,11 +50,13 @@ class PressureUptakeSeriesProcess:
         return dataset
     
     #--------------------------------------------------------------------------  
-    def series_normalization(self, dataset : pd.DataFrame):
+    def PQ_series_normalization(self, dataset : pd.DataFrame, Z_scores : dict):
+        P_scores = Z_scores[self.P_COL]
+        Q_scores = Z_scores[self.Q_COL]        
         dataset[self.P_COL] = dataset[self.P_COL].apply(
-            lambda x : [v/self.max_pressure for v in x])                    
+            lambda x : [(v - P_scores['mean'])/P_scores['std'] for v in x])                    
         dataset[self.Q_COL] = dataset[self.Q_COL].apply(
-            lambda x : [v/self.max_uptake for v in x])
+            lambda x : [(v - Q_scores['mean'])/Q_scores['std'] for v in x])
 
         return dataset
     

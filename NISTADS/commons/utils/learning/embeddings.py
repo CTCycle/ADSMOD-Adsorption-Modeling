@@ -19,11 +19,12 @@ class MolecularEmbedding(keras.layers.Layer):
         self.sequence_length = sequence_length         
         self.mask_values = mask_values
         
+        self.embedding_projector = layers.Dense(self.embedding_dims)
         self.adsorbent_embeddings = layers.Embedding(
             mask_zero=False, input_dim=self.ads_vocab_size, 
             output_dim=self.embedding_dims)
         self.chemo_embeddings = layers.Dense(
-            embedding_dims, kernel_initializer='he_uniform')
+            self.embedding_dims, kernel_initializer='he_uniform')
         self.smile_embeddings = layers.Embedding(
             mask_zero=False, input_dim=smile_vocab_size, 
             output_dim=self.embedding_dims)
@@ -41,7 +42,8 @@ class MolecularEmbedding(keras.layers.Layer):
         positions = keras.ops.cast(positions, dtype=smiles.dtype)        
         embedded_smile = self.smile_embeddings(smiles)
         embedded_smile *= self.embedding_scale        
-        embedded_positions = self.position_embeddings(positions)   
+        embedded_positions = self.position_embeddings(positions)
+        embedded_smile = embedded_smile + embedded_positions  
 
         adsorbent = keras.ops.expand_dims(adsorbent, axis=1)              
         ads_embeddings = self.adsorbent_embeddings(adsorbent)         
@@ -54,8 +56,11 @@ class MolecularEmbedding(keras.layers.Layer):
         chemo_embeddings = keras.ops.tile(chemo_embeddings, [1, self.sequence_length, 1])
         chemo_embeddings *= self.embedding_scale  
 
-        full_embedding = embedded_smile + embedded_positions + ads_embeddings + chemo_embeddings
-        
+        # concatenate and linearly project all the embeddings
+        combined_embeddings = keras.ops.concatenate(
+            [embedded_smile, ads_embeddings, chemo_embeddings], axis=-1)
+        full_embedding = self.embedding_projector(combined_embeddings) 
+
         if self.mask_values:
             mask = keras.ops.not_equal(smiles, -1) 
             mask = keras.ops.expand_dims(mask, axis=-1)

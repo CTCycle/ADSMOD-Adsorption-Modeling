@@ -72,12 +72,17 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
-                               adsorbent_vocabulary={}):
+                               adsorbent_vocabulary={}, Z_scores={}):
         
         metadata = self.configuration.copy()
         metadata['date'] = datetime.now().strftime("%Y-%m-%d")
         metadata['SMILE_vocabulary_size'] = len(smile_vocabulary)  
-        metadata['adsorbent_vocabulary_size'] = len(adsorbent_vocabulary) 
+        metadata['adsorbent_vocabulary_size'] = len(adsorbent_vocabulary)
+
+        metadata['Pressure mean'] = Z_scores[self.P_COL]['mean']
+        metadata['Pressure STD'] = Z_scores[self.P_COL]['std']
+        metadata['Uptake mean'] = Z_scores[self.Q_COL]['mean']
+        metadata['Uptake STD'] = Z_scores[self.Q_COL]['std']    
 
         processed_data = self.sanitizer.convert_series_to_string(processed_data)         
         processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')               

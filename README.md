@@ -61,7 +61,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 **7) Exit:** close the program immediately 
 
 ### 4.2 Resources
-This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
+This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here you can find the following folders:
 
 **datasets:** ..
 

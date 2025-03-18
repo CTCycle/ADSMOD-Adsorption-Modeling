@@ -155,9 +155,11 @@ class QDecoder(keras.layers.Layer):
         self.num_layers = num_layers
         self.dropout_rate = dropout_rate 
         self.seed = seed  
-        self.batch_norm = [layers.BatchNormalization() for _ in range(num_layers)]       
-        self.dense = [layers.Dense(256, kernel_initializer='he_uniform')
-                      for _ in range(num_layers)]        
+        self.batch_norm = [
+            layers.BatchNormalization() for _ in range(num_layers)]       
+        self.dense = [
+            layers.Dense(256, kernel_initializer='he_uniform')
+            for _ in range(num_layers)]        
         
         self.Q_output = layers.Dense(1, kernel_initializer='he_uniform')
         self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)

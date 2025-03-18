@@ -6,7 +6,7 @@ from NISTADS.commons.logger import logger
 
 
 ###############################################################################
-def units_conversion(dataframe : pd.DataFrame):
+def PQ_units_conversion(dataframe : pd.DataFrame):
     P_converter = PressureConversion()
     Q_converter = UptakeConversion()
     converted_data = P_converter.convert_pressure_units(dataframe)

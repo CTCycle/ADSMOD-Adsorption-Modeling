@@ -13,8 +13,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
     #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
         mask = keras.ops.not_equal(y_true, -1)        
-        mask = keras.ops.cast(mask, dtype=loss.dtype)   
-
+        mask = keras.ops.cast(mask, dtype=y_true.dtype) 
         loss = keras.ops.square(y_true - y_pred)             
         loss *= mask
         loss = keras.ops.sum(loss)/(keras.ops.sum(mask) + keras.backend.epsilon())
