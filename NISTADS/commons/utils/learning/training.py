@@ -2,7 +2,7 @@ import torch
 import keras
 
 from NISTADS.commons.utils.learning.callbacks import callbacks_handler
-from NISTADS.commons.utils.dataloader.serializer import ModelSerializer
+from NISTADS.commons.utils.data.serializer import ModelSerializer
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 

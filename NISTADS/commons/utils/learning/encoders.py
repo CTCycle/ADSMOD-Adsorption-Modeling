@@ -2,22 +2,21 @@ import keras
 from keras import layers, activations
 import torch
 
-from NISTADS.commons.utils.learning.transformers import AddNorm, FeedForward, TransformerEncoder
+from NISTADS.commons.utils.learning.transformers import AddNorm, FeedForward
 from NISTADS.commons.constants import CONFIG, PAD_VALUE
 from NISTADS.commons.logger import logger   
 
 
-
-# [FEED FORWARD]
+# [STATE ENCODER]
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='StateEncoder')
 class StateEncoder(keras.layers.Layer):
     def __init__(self, dropout_rate, seed, **kwargs):
         super(StateEncoder, self).__init__(**kwargs)        
         self.dropout_rate = dropout_rate        
-        self.dense1 = layers.Dense(32, kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(48, kernel_initializer='he_uniform') 
-        self.dense3 = layers.Dense(64, kernel_initializer='he_uniform') 
+        self.dense1 = layers.Dense(64, kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(96, kernel_initializer='he_uniform') 
+        self.dense3 = layers.Dense(128, kernel_initializer='he_uniform') 
         self.batch_norm1 = layers.BatchNormalization()
         self.batch_norm2 = layers.BatchNormalization()  
         self.batch_norm3 = layers.BatchNormalization()       
@@ -28,8 +27,7 @@ class StateEncoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def build(self, input_shape):        
         super(StateEncoder, self).build(input_shape)
-
-    # implement transformer encoder through call method  
+      
     #--------------------------------------------------------------------------    
     def call(self, x, training=None):
         x = keras.ops.expand_dims(x, axis=-1)        
@@ -75,8 +73,7 @@ class PressureSerierEncoder(keras.layers.Layer):
             num_heads=num_heads, key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()        
         self.addnorm2 = AddNorm()
-        self.addnorm3 = AddNorm()
-        self.layernorm = layers.LayerNormalization()
+        self.addnorm3 = AddNorm()        
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed) 
         self.ffn2 = FeedForward(self.embedding_dims, 0.3, seed)   
         self.P_dense = layers.Dense(
@@ -99,9 +96,10 @@ class PressureSerierEncoder(keras.layers.Layer):
         query_mask = self.compute_mask(pressure)
         # project the pressure series into the embedding space using 
         pressure = keras.ops.expand_dims(pressure, axis=-1)        
-        pressure = self.P_dense(pressure) 
-        pressure = activations.elu(pressure)  
+        pressure = self.P_dense(pressure)         
 
+        # cross-attention between the pressure series and the molecular context
+        # the latter being generated from self-attention of the enriched SMILE sequences
         attention_output = self.attention(
             query=pressure, key=context, value=context, 
             query_mask=query_mask, key_mask=key_mask, value_mask=key_mask,
@@ -117,12 +115,9 @@ class PressureSerierEncoder(keras.layers.Layer):
         # ideally, higher temperature should decrease the adsorbed amount, therefor
         # temperature is used to compute an inverse scaling factor for the output        
         state = self.state_dense(state)
-        state = activations.relu(state)
-        state = self.layernorm(keras.ops.expand_dims(state, axis=1))
-        # temperature_scaling = keras.ops.expand_dims(
-        #     keras.ops.exp(-state), axis=1)   
-        #         
-        output = ffn_out - state
+        state = activations.relu(state)        
+        temperature_scaling = keras.ops.expand_dims(keras.ops.exp(-state), axis=1)                
+        output = ffn_out * temperature_scaling
         
         return output
     
@@ -155,19 +150,18 @@ class PressureSerierEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Decoders', name='QDecoder')
 class QDecoder(keras.layers.Layer):
-    def __init__(self, num_layers, dropout_rate, seed, **kwargs):
+    def __init__(self, num_layers, dropout_rate, embedding_dims, seed, **kwargs):
         super(QDecoder, self).__init__(**kwargs)        
         self.num_layers = num_layers
-        self.dropout_rate = dropout_rate 
+        self.dropout_rate = dropout_rate
+        self.embedding_dims = embedding_dims 
         self.seed = seed  
-        self.batch_norm = [
-            layers.BatchNormalization() for _ in range(num_layers)]       
-        self.dense = [
-            layers.Dense(256, kernel_initializer='he_uniform')
-            for _ in range(num_layers)]        
+        self.batch_norm = [layers.BatchNormalization() for _ in range(num_layers)]
+        self.dropouts = [layers.Dropout(rate=dropout_rate, seed=seed) for _ in range(num_layers)]       
+        self.dense = [layers.Dense(self.embedding_dims, kernel_initializer='he_uniform')
+                      for _ in range(num_layers)]        
         
-        self.Q_output = layers.Dense(1, kernel_initializer='he_uniform')
-        self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
+        self.Q_output = layers.Dense(1, kernel_initializer='he_uniform')        
         self.seed = seed
         self.supports_masking = True
 
@@ -190,11 +184,12 @@ class QDecoder(keras.layers.Layer):
     def call(self, P_logits, pressure, mask=None, training=None):        
         mask = self.compute_mask(pressure) if mask is None else mask
         layer = P_logits * mask if mask is not None else P_logits        
-        for dense, bn in zip(self.dense, self.batch_norm):
+        for dense, bn, dp in zip(self.dense, self.batch_norm, self.dropouts):
             layer = dense(layer)
-            layer = activations.elu(layer)
+            layer = activations.relu(layer)
             layer = bn(layer, training=training)
-
+            layer = dp(layer, training=training)
+        
         logits = self.Q_output(layer)         
         output = keras.ops.squeeze(logits, axis=-1)           
 
@@ -206,6 +201,7 @@ class QDecoder(keras.layers.Layer):
         config = super(QDecoder, self).get_config()
         config.update({'num_layers' : self.num_layers,
                        'dropout_rate' : self.dropout_rate,
+                       'embedding_dims' : self.embedding_dims,
                        'seed' : self.seed})
         return config
 

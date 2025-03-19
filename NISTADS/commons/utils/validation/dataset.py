@@ -3,7 +3,10 @@ import seaborn as sns
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-tqdm.pandas()
+
+from NISTADS.commons.utils.data.serializer import ModelSerializer
+from NISTADS.commons.constants import CONFIG, CHECKPOINT_PATH, VALIDATION_PATH
+from NISTADS.commons.logger import logger
 
     
 # [DATA VALIDATION]

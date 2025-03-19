@@ -1,4 +1,3 @@
-import torch
 import keras
 from keras import layers, activations    
 
@@ -43,7 +42,8 @@ class AddNorm(keras.layers.Layer):
     def from_config(cls, config):
         return cls(**config)
     
-    
+     
+
 # [FEED FORWARD]
 ###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
@@ -69,9 +69,9 @@ class FeedForward(keras.layers.Layer):
     #--------------------------------------------------------------------------    
     def call(self, x, training=None):
         x = self.dense1(x)
-        x = activations.elu(x)
+        x = activations.relu(x)
         x = self.dense2(x)
-        x = activations.elu(x)  
+        x = activations.relu(x)  
         output = self.dropout(x, training=training) 
         return output
     
@@ -89,6 +89,7 @@ class FeedForward(keras.layers.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config) 
+    
     
 
 # [TRANSFORMER ENCODER]

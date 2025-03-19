@@ -7,14 +7,13 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.serializer import DataSerializer
+from NISTADS.commons.utils.data.serializer import DataSerializer
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.process.normalization import FeatureNormalizer, AdsorbentEncoder
 from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
 from NISTADS.commons.utils.process.aggregation import AggregateDatasets
 from NISTADS.commons.utils.process.conversion import PQ_units_conversion
-from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -70,11 +69,12 @@ if __name__ == '__main__':
     # split source data into train and validation datasets 
     train_data, validation_data = splitter.split_train_and_validation()
     # get training set mean and standard deviation for Z-score normalization
-    Z_scores = splitter.get_normalization_parameters(train_data)
+    normalization_scores = splitter.get_normalization_parameters(train_data)
 
-    # normalize pressure and uptake series using z-scores precomputed from 
-    # the training set and pad sequences to a fixed length
-    processed_data = sequencer.PQ_series_normalization(processed_data, Z_scores)  
+    # normalize pressure and uptake series using max values computed from 
+    # the training set, then pad sequences to a fixed length
+    processed_data = sequencer.PQ_series_normalization(
+        processed_data, normalization_scores)  
     processed_data = sequencer.PQ_series_padding(processed_data) 
 
     normalizer = FeatureNormalizer(CONFIG)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     # save preprocessed data using data serializer   
     processed_data = sanitizer.isolate_preprocessed_features(processed_data)          
     dataserializer.save_preprocessed_data(
-        processed_data, smile_vocab, adsorbent_vocab, Z_scores)
+        processed_data, smile_vocab, adsorbent_vocab, normalization_scores)
 
 
 

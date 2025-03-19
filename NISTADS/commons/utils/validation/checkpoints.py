@@ -2,7 +2,7 @@ import os
 import shutil
 import pandas as pd
 
-from NISTADS.commons.utils.dataloader.serializer import ModelSerializer
+from NISTADS.commons.utils.data.serializer import ModelSerializer
 from NISTADS.commons.constants import CONFIG, CHECKPOINT_PATH, VALIDATION_PATH
 from NISTADS.commons.logger import logger
 

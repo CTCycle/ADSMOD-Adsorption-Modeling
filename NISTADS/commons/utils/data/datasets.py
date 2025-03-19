@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 
-from NISTADS.commons.utils.datamaker.properties import GuestProperties, HostProperties
+from NISTADS.commons.utils.data.properties import GuestProperties, HostProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 

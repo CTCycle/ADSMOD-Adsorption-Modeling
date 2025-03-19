@@ -2,11 +2,9 @@ import re
 import numpy as np
 import pandas as pd
 from keras.api.preprocessing import sequence
-from tqdm import tqdm
       
-from NISTADS.commons.constants import CONFIG, DATA_PATH, PAD_VALUE
+from NISTADS.commons.constants import CONFIG, PAD_VALUE
 from NISTADS.commons.logger import logger
-
 
 
 # [MERGE DATASETS]
@@ -30,7 +28,9 @@ class PressureUptakeSeriesProcess:
         return series[start_idx:]
 
     #--------------------------------------------------------------------------
-    def remove_leading_zeros(self, dataframe: pd.DataFrame):         
+    def remove_leading_zeros(self, dataframe: pd.DataFrame):
+        # remove contiguous leading zeros from pressure and uptake series 
+        # leaves a single zero value at the series start if present        
         dataframe[self.P_COL] = [self.trim_series(p) for p in dataframe[self.P_COL]]
         dataframe[self.Q_COL] = [self.trim_series(q) for q in dataframe[self.Q_COL]]
         
@@ -49,13 +49,13 @@ class PressureUptakeSeriesProcess:
         return dataset
     
     #--------------------------------------------------------------------------  
-    def PQ_series_normalization(self, dataset : pd.DataFrame, Z_scores : dict):
-        P_scores = Z_scores[self.P_COL]
-        Q_scores = Z_scores[self.Q_COL]        
+    def PQ_series_normalization(self, dataset : pd.DataFrame, boundaries : dict):
+        P_scores = boundaries[self.P_COL]
+        Q_scores = boundaries[self.Q_COL]        
         dataset[self.P_COL] = dataset[self.P_COL].apply(
-            lambda x : [(v - P_scores['mean'])/P_scores['std'] for v in x])                    
+            lambda x : [(v/P_scores['max']) for v in x])                    
         dataset[self.Q_COL] = dataset[self.Q_COL].apply(
-            lambda x : [(v - Q_scores['mean'])/Q_scores['std'] for v in x])
+            lambda x : [(v/Q_scores['max']) for v in x])
 
         return dataset
     

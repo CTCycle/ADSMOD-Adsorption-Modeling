@@ -1,5 +1,4 @@
 import pandas as pd
-from tqdm import tqdm
 
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger

@@ -8,8 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.validation.reports import DataAnalysisPDF
-from NISTADS.commons.utils.dataloader.serializer import DataSerializer
 from NISTADS.commons.utils.validation.dataset import AdsorptionDataValidation
+from NISTADS.commons.utils.data.serializer import DataSerializer
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 

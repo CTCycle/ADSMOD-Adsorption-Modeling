@@ -7,10 +7,11 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.serializer import DataSerializer
-from NISTADS.commons.utils.datafetch.experiments import AdsorptionDataFetch
-from NISTADS.commons.utils.datamaker.datasets import BuildAdsorptionDataset
-from NISTADS.commons.utils.datafetch.materials import GuestHostDataFetch
+from NISTADS.commons.utils.data.serializer import DataSerializer
+from NISTADS.commons.utils.data.datasets import BuildAdsorptionDataset
+from NISTADS.commons.utils.API.experiments import AdsorptionDataFetch
+from NISTADS.commons.utils.API.materials import GuestHostDataFetch
+
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 

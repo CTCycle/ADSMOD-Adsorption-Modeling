@@ -3,8 +3,8 @@ import pandas as pd
 import requests as r
 import asyncio
 
-from NISTADS.commons.utils.datafetch.status import GetServerStatus
-from NISTADS.commons.utils.datafetch.asynchronous import AsyncDataFetcher
+from NISTADS.commons.utils.API.status import GetServerStatus
+from NISTADS.commons.utils.API.asynchronous import AsyncDataFetcher
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 

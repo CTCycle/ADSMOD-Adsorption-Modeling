@@ -7,9 +7,9 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
+from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
+from NISTADS.commons.utils.data.tensordata import TrainingDatasetBuilder
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
-from NISTADS.commons.utils.dataloader.tensordata import TrainingDatasetBuilder
 from NISTADS.commons.utils.learning.models import SCADSModel
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.validation.reports import log_training_report
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()    
+    processed_data, metadata, _, _ = dataserializer.load_preprocessed_data()    
     
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------

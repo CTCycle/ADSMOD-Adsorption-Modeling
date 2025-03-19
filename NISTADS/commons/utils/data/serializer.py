@@ -5,6 +5,7 @@ import pandas as pd
 import keras
 from datetime import datetime
 
+from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.commons.utils.learning.scheduler import LRScheduler
@@ -38,13 +39,7 @@ def checkpoint_selection_menu(models_list):
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):       
-        self.SCADS_data_path = os.path.join(DATA_PATH, 'single_component_adsorption.csv') 
-        self.BMADS_data_path = os.path.join(DATA_PATH, 'binary_mixture_adsorption.csv')
-        self.guest_path = os.path.join(DATA_PATH, 'adsorbates_dataset.csv')  
-        self.host_path = os.path.join(DATA_PATH, 'adsorbents_dataset.csv') 
-
-        self.processed_SCADS_path = os.path.join(PROCESSED_PATH, 'SCADS_dataset.csv')
+    def __init__(self, configuration):  
         self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json') 
         self.smile_vocabulary_path = os.path.join(PROCESSED_PATH, 'SMILE_tokenization_index.json')
         self.ads_vocabulary_path = os.path.join(PROCESSED_PATH, 'adsorbents_index.json')
@@ -54,28 +49,44 @@ class DataSerializer:
         self.adsorbate_SMILE_COL = 'adsorbate_encoded_SMILE'   
         self.adsorbent_SMILE_COL = 'adsorbent_encoded_SMILE'     
         self.parameters = configuration["dataset"]
+        self.save_as_csv = self.parameters["SAVE_CSV"]
         self.configuration = configuration 
+
+        self.csv_kwargs = {'index': False, 'sep': ';', 'encoding': 'utf-8'}
+        self.database = AdsorptionDatabase(configuration)
         self.sanitizer = DataSanitizer(configuration)         
         
     #--------------------------------------------------------------------------
-    def load_datasets(self, get_materials=True): 
-        guest_properties, host_properties = None, None             
-        adsorption_data = pd.read_csv(self.SCADS_data_path, encoding='utf-8', sep=';') 
-        if get_materials:       
-            guest_properties = pd.read_csv(self.guest_path, encoding='utf-8', sep=';')        
-            host_properties = pd.read_csv(self.host_path, encoding='utf-8', sep=';')
+    def load_datasets(self): 
+        adsorption_data, guests, hosts = self.database.load_source_datasets()                 
 
-        guest_properties = self.sanitizer.convert_string_to_series(guest_properties) 
-        host_properties = self.sanitizer.convert_string_to_series(host_properties)                 
+        return adsorption_data, guests, hosts 
+    
+    #--------------------------------------------------------------------------
+    def load_preprocessed_data(self): 
+        # load preprocessed data from database  
+        processed_data = self.database.load_processed_data()
 
-        return adsorption_data, guest_properties, host_properties 
+        with open(self.metadata_path, 'r') as file:
+            metadata = json.load(file)        
+        with open(self.smile_vocabulary_path, 'r') as file:
+            smile_vocabulary = json.load(file)
+        with open(self.ads_vocabulary_path, 'r') as file:
+            ads_vocabulary = json.load(file)            
+        
+        return processed_data, metadata, smile_vocabulary, ads_vocabulary  
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
-                               adsorbent_vocabulary={}, Z_scores={}):        
-        processed_data = self.sanitizer.convert_series_to_string(processed_data)         
-        processed_data.to_csv(
-            self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')  
+                               adsorbent_vocabulary={}, scores={}):
+
+        if self.save_as_csv:
+            processed_data_path = os.path.join(PROCESSED_PATH, 'SCADS_dataset.csv')        
+            processed_data = self.sanitizer.convert_series_to_string(processed_data)         
+            processed_data.to_csv(processed_data_path, **self.csv_kwargs) 
+
+        # save dataframe as a table in sqlite database
+        self.database.save_processed_data_table(processed_data)  
                          
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
@@ -87,49 +98,50 @@ class DataSerializer:
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
                     'adsorbent_vocabulary_size' : len(adsorbent_vocabulary),
-                    'Pressure mean' : Z_scores[self.P_COL]['mean'],
-                    'Pressure STD' : Z_scores[self.P_COL]['std'],
-                    'Uptake mean' : Z_scores[self.Q_COL]['mean'],
-                    'Uptake STD' : Z_scores[self.Q_COL]['std']}  
+                    'Pressure mean' : float(scores[self.P_COL]['mean']),
+                    'Pressure STD' : float(scores[self.P_COL]['std']),
+                    'Pressure max' : float(scores[self.P_COL]['max']),
+                    'Uptake mean' : float(scores[self.Q_COL]['mean']),
+                    'Uptake STD' : float(scores[self.Q_COL]['std']),
+                    'Uptake max' : float(scores[self.Q_COL]['max'])}  
                
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
-
+   
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self): 
-        processed_data = pd.read_csv(
-            self.processed_SCADS_path, encoding='utf-8', sep=';') 
-        processed_data = self.sanitizer.convert_string_to_series(processed_data)
-        with open(self.metadata_path, 'r') as file:
-            metadata = json.load(file)        
-        with open(self.smile_vocabulary_path, 'r') as file:
-            smile_vocabulary = json.load(file)
-        with open(self.ads_vocabulary_path, 'r') as file:
-            ads_vocabulary = json.load(file)            
-        
-        return processed_data, metadata, smile_vocabulary, ads_vocabulary         
-    
-    #--------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data=None, host_data=None):                   
+    def save_materials_datasets(self, guest_data : dict, host_data : dict):                   
         if guest_data is not None:
-            guest_data = self.sanitizer.convert_series_to_string(guest_data) 
-            dataframe = pd.DataFrame.from_dict(guest_data)          
-            dataframe.to_csv(
-                self.guest_path, index=False, sep=';', encoding='utf-8')
+            guest_data = pd.DataFrame.from_dict(guest_data)
+            if self.save_as_csv:
+                logger.info('Export to CSV requested. Now saving guest data to CSV file')
+                guest_path = os.path.join(DATA_PATH, 'adsorbates_dataset.csv')                
+                guest_data = self.sanitizer.convert_series_to_string(guest_data)                   
+                guest_data.to_csv(guest_path, **self.csv_kwargs)              
         if host_data is not None:
-            host_data = self.sanitizer.convert_series_to_string(host_data)     
-            dataframe = pd.DataFrame.from_dict(host_data)          
-            dataframe.to_csv(
-                self.host_path, index=False, sep=';', encoding='utf-8')    
+            host_data = pd.DataFrame.from_dict(host_data)
+            if self.save_as_csv:
+                logger.info('Export to CSV requested. Now saving hostt data to CSV file')
+                host_path = os.path.join(DATA_PATH, 'adsorbents_dataset.csv')                 
+                host_data = self.sanitizer.convert_series_to_string(host_data)                         
+                host_data.to_csv(host_path, **self.csv_kwargs)  
+
+        # save dataframe as a table in sqlite database
+        self.database.save_materials_table(guest_data, host_data)
 
     #--------------------------------------------------------------------------
-    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame): 
-        single_component = self.sanitizer.convert_series_to_string(single_component) 
-        binary_mixture = self.sanitizer.convert_series_to_string(binary_mixture)         
-        single_component.to_csv(
-            self.SCADS_data_path, index=False, sep=';', encoding='utf-8')        
-        binary_mixture.to_csv(
-            self.BMADS_data_path, index=False, sep=';', encoding='utf-8')   
+    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
+        # save adsorption data as .csv if requested by configurations
+        if self.save_as_csv: 
+            logger.info('Export to CSV requested. Now saving adsorption data to CSV files')
+            SCADS_data_path = os.path.join(DATA_PATH, 'SC_adsorption_dataset.csv') 
+            BMADS_data_path = os.path.join(DATA_PATH, 'BM_adsorption_dataset.csv')
+            single_component = self.sanitizer.convert_series_to_string(single_component) 
+            binary_mixture = self.sanitizer.convert_series_to_string(binary_mixture)           
+            single_component.to_csv(SCADS_data_path, **self.csv_kwargs)  
+            binary_mixture.to_csv(BMADS_data_path, **self.csv_kwargs) 
+
+        # save dataframe as a table in sqlite database
+        self.database.save_experiments_table(single_component, binary_mixture)
 
     
 # [MODEL SERIALIZATION]
