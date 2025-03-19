@@ -33,9 +33,11 @@ class TrainValidationSplit:
         return train_data, validation_data
     
     #--------------------------------------------------------------------------
-    def get_normalization_parameters(self, train_data : pd.DataFrame): 
+    def get_normalization_parameters(self, train_data : pd.DataFrame):
+        # concatenate all values together to obtain a flattened array     
         p_values = np.concatenate(train_data[self.P_COL].to_numpy())
-        q_values = np.concatenate(train_data[self.Q_COL].to_numpy())        
+        q_values = np.concatenate(train_data[self.Q_COL].to_numpy())
+        # calculate mean and srandard deviation for pressure and uptake values        
         mean_p, std_p = p_values.mean(), p_values.std()
         mean_q, std_q = q_values.mean(), q_values.std()
 

@@ -8,9 +8,9 @@
     "dataset" : {"SAMPLE_SIZE" : 1.0,
                  "VALIDATION_SIZE" : 0.2,                 
                  "MAX_PQ_POINTS": 30,                 
-                 "MIN_PQ_POINTS": 4,
+                 "MIN_PQ_POINTS": 6,
                  "SMILE_PADDING": 20,
-                 "MAX_PRESSURE": 10e06,
+                 "MAX_PRESSURE": 1000000,
                  "MAX_UPTAKE": 10,                 
                  "SPLIT_SEED" : 45},
 
@@ -19,20 +19,20 @@
                 "MIXED_PRECISION" : false,                                                
                 "NUM_PROCESSORS": 6},
 
-    "model" : {"MOLECULAR_EMBEDDING": 128,
+    "model" : {"MOLECULAR_EMBEDDING": 200,
                "NUM_ENCODERS" : 3,
                "ATTENTION_HEADS" : 2,                                                       
                "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
-    "training" : {"EPOCHS" : 2,
+    "training" : {"EPOCHS" : 10,
                   "ADDITIONAL_EPOCHS" : 2,                  
                   "BATCH_SIZE" : 64,                             
                   "USE_TENSORBOARD" : false,  
                   "SAVE_CHECKPOINTS": false,
-                  "LR_SCHEDULER" : {"INITIAL_LR" : 0.001,
-                                    "CONSTANT_STEPS": 10,
-                                    "DECAY_STEPS" : 5}   
+                  "LR_SCHEDULER" : {"INITIAL_LR" : 0.0005,
+                                    "CONSTANT_STEPS": 15000,
+                                    "DECAY_STEPS" : 2000}   
                   },                  
                   
     "evaluation" : {"BATCH_SIZE" : 20}     

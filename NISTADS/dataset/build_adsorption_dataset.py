@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     # 1. [LOAD DATA]
     #--------------------------------------------------------------------------     
-    # load data from csv, retrieve and merge molecular properties 
+    # load source data from csv files
     logger.info(f'Loading NISTADS datasets from {DATA_PATH}')
     dataserializer = DataSerializer(CONFIG)
     adsorption_data, guest_data, host_data = dataserializer.load_datasets() 
@@ -35,27 +35,26 @@ if __name__ == '__main__':
 
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
-    # group data from single measurements based in the experiments  
-    # merge adsorption data with materials properties (guest and host)
+    # group single component data based on the experiment name 
+    # merge adsorption data with retrieved materials properties (guest and host)
     aggregator = AggregateDatasets(CONFIG)
     processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
     processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
     logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')         
 
-    # convert and normalize pressure and uptake units:
+    # convert pressure and uptake into standard units:
     # pressure to Pascal, uptake to mol/g
     sequencer = PressureUptakeSeriesProcess(CONFIG)
     logger.info('Converting pressure into Pascal and uptake into mol/g')   
     processed_data = PQ_units_conversion(processed_data) 
 
     # exlude all data outside given boundaries, such as negative temperature values 
-    # and pressure and uptake values below or above the given boundaries
+    # and pressure and uptake values below zero or above upper limits
     sanitizer = DataSanitizer(CONFIG)  
     processed_data = sanitizer.exclude_OOB_values(processed_data)
-
-    # rectify sequences of pressure/uptake points through following steps:
-    # remove repeated zero values at the beginning of the series  
-    # sanitize experiments removing those where measurements number is outside acceptable values 
+    
+    # remove repeated zero values at the beginning of pressure and uptake series  
+    # then filter out experiments with not enough measurements 
     processed_data = sequencer.remove_leading_zeros(processed_data)   
     processed_data = sequencer.filter_by_sequence_size(processed_data)          
 
@@ -67,8 +66,10 @@ if __name__ == '__main__':
 
     # 4. [SPLIT BASED NORMALIZATION AND ENCODING]
     #-------------------------------------------------------------------------- 
-    splitter = TrainValidationSplit(CONFIG, processed_data)         
+    splitter = TrainValidationSplit(CONFIG, processed_data)    
+    # split source data into train and validation datasets 
     train_data, validation_data = splitter.split_train_and_validation()
+    # get training set mean and standard deviation for Z-score normalization
     Z_scores = splitter.get_normalization_parameters(train_data)
 
     # normalize pressure and uptake series using z-scores precomputed from 

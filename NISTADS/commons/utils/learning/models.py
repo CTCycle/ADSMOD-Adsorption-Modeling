@@ -80,7 +80,7 @@ class SCADSModel:
                       self.pressure_input], outputs=output, name='SCADS_model')       
         
         lr_schedule = LRScheduler(self.initial_lr, self.constant_lr_steps, self.decay_steps)
-        opt = optimizers.Adam(learning_rate=lr_schedule)  
+        opt = optimizers.AdamW(learning_rate=lr_schedule)  
         loss = MaskedMeanSquaredError()  
         metric = [MaskedRSquared()]                
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 

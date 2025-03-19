@@ -4,7 +4,7 @@ import pandas as pd
 from keras.api.preprocessing import sequence
 from tqdm import tqdm
       
-from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.constants import CONFIG, DATA_PATH, PAD_VALUE
 from NISTADS.commons.logger import logger
 
 
@@ -19,8 +19,7 @@ class PressureUptakeSeriesProcess:
         self.max_points = configuration['dataset']['MAX_PQ_POINTS']  
         self.min_points = configuration['dataset']['MIN_PQ_POINTS'] 
         self.max_pressure = configuration['dataset']['MAX_PRESSURE']
-        self.max_uptake = configuration['dataset']['MAX_UPTAKE']     
-        self.pad_value = -1
+        self.max_uptake = configuration['dataset']['MAX_UPTAKE']          
 
     #--------------------------------------------------------------------------
     def trim_series(self, series):        
@@ -40,11 +39,11 @@ class PressureUptakeSeriesProcess:
     #--------------------------------------------------------------------------  
     def PQ_series_padding(self, dataset : pd.DataFrame):        
         dataset[self.P_COL] = sequence.pad_sequences(
-            dataset[self.P_COL], maxlen=self.max_points, value=self.pad_value, 
+            dataset[self.P_COL], maxlen=self.max_points, value=PAD_VALUE, 
             dtype='float32', padding='post').tolist()  
 
         dataset[self.Q_COL] = sequence.pad_sequences(
-            dataset[self.Q_COL], maxlen=self.max_points, value=self.pad_value, 
+            dataset[self.Q_COL], maxlen=self.max_points, value=PAD_VALUE, 
             dtype='float32', padding='post').tolist()          
 
         return dataset
@@ -85,8 +84,7 @@ class SMILETokenization:
             'Lv', 'Ts', 'Og']
         
         self.organic_subset = ['B', 'C', 'N', 'O', 'P', 'S', 'F', 'Cl', 'Br', 'I']
-        self.SMILE_padding = configuration['dataset']['SMILE_PADDING']
-        self.pad_value = -1
+        self.SMILE_padding = configuration['dataset']['SMILE_PADDING']      
         
     #--------------------------------------------------------------------------
     def tokenize_SMILE_string(self, SMILE):
@@ -199,7 +197,7 @@ class SMILETokenization:
     def SMILE_series_padding(self, dataset : pd.DataFrame):       
         dataset['adsorbate_encoded_SMILE'] = sequence.pad_sequences(
             dataset['adsorbate_encoded_SMILE'], maxlen=self.SMILE_padding, 
-            value=self.pad_value, dtype='float32', padding='post').tolist() 
+            value=PAD_VALUE, dtype='float32', padding='post').tolist() 
                 
         return dataset
     

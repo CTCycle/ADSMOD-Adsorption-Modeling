@@ -3,7 +3,7 @@ from keras import layers, activations
 import torch
 
 from NISTADS.commons.utils.learning.transformers import AddNorm, FeedForward, TransformerEncoder
-from NISTADS.commons.constants import CONFIG
+from NISTADS.commons.constants import CONFIG, PAD_VALUE
 from NISTADS.commons.logger import logger   
 
 
@@ -34,13 +34,13 @@ class StateEncoder(keras.layers.Layer):
     def call(self, x, training=None):
         x = keras.ops.expand_dims(x, axis=-1)        
         x = self.dense1(x)
-        x = activations.elu(x)
+        x = activations.relu(x)
         x = self.batch_norm1(x, training=training)
         x = self.dense2(x) 
-        x = activations.elu(x)
+        x = activations.relu(x)
         x = self.batch_norm2(x, training=training)
         x = self.dense3(x) 
-        x = activations.elu(x) 
+        x = activations.relu(x) 
         x = self.batch_norm3(x, training=training)       
         output = self.dropout(x, training=training) 
         
@@ -76,10 +76,13 @@ class PressureSerierEncoder(keras.layers.Layer):
         self.addnorm1 = AddNorm()        
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
+        self.layernorm = layers.LayerNormalization()
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed) 
         self.ffn2 = FeedForward(self.embedding_dims, 0.3, seed)   
-        self.P_dense = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
-        self.state_dense = layers.Dense(self.embedding_dims, kernel_initializer='he_uniform') 
+        self.P_dense = layers.Dense(
+            self.embedding_dims, kernel_initializer='he_uniform') 
+        self.state_dense = layers.Dense(
+            self.embedding_dims, kernel_initializer='he_uniform') 
         self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
         
         self.supports_masking = True
@@ -96,7 +99,8 @@ class PressureSerierEncoder(keras.layers.Layer):
         query_mask = self.compute_mask(pressure)
         # project the pressure series into the embedding space using 
         pressure = keras.ops.expand_dims(pressure, axis=-1)        
-        pressure = self.P_dense(pressure)   
+        pressure = self.P_dense(pressure) 
+        pressure = activations.elu(pressure)  
 
         attention_output = self.attention(
             query=pressure, key=context, value=context, 
@@ -113,18 +117,19 @@ class PressureSerierEncoder(keras.layers.Layer):
         # ideally, higher temperature should decrease the adsorbed amount, therefor
         # temperature is used to compute an inverse scaling factor for the output        
         state = self.state_dense(state)
-        temperature_scaling = keras.ops.expand_dims(
-            keras.ops.exp(-state), axis=1)        
-
-        ffn_out = self.ffn2(ffn_out, training=training)
-        output = ffn_out * temperature_scaling
+        state = activations.relu(state)
+        state = self.layernorm(keras.ops.expand_dims(state, axis=1))
+        # temperature_scaling = keras.ops.expand_dims(
+        #     keras.ops.exp(-state), axis=1)   
+        #         
+        output = ffn_out - state
         
         return output
     
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, -1)        
+        mask = keras.ops.not_equal(inputs, PAD_VALUE)        
         mask = keras.ops.cast(mask, torch.float32)       
         
         return mask
@@ -174,7 +179,7 @@ class QDecoder(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, -1) 
+        mask = keras.ops.not_equal(inputs, PAD_VALUE) 
         mask = keras.ops.expand_dims(mask, axis=-1)  
         mask = keras.ops.cast(mask, torch.float32)  
         
@@ -187,12 +192,11 @@ class QDecoder(keras.layers.Layer):
         layer = P_logits * mask if mask is not None else P_logits        
         for dense, bn in zip(self.dense, self.batch_norm):
             layer = dense(layer)
-            layer = activations.relu(layer)
+            layer = activations.elu(layer)
             layer = bn(layer, training=training)
 
-        logits = self.Q_output(layer)       
-        output = activations.relu(logits) 
-        output = keras.ops.squeeze(output, axis=-1)           
+        logits = self.Q_output(layer)         
+        output = keras.ops.squeeze(logits, axis=-1)           
 
         return output
     

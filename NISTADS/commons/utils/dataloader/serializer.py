@@ -72,30 +72,33 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
-                               adsorbent_vocabulary={}, Z_scores={}):
-        
-        metadata = self.configuration.copy()
-        metadata['date'] = datetime.now().strftime("%Y-%m-%d")
-        metadata['SMILE_vocabulary_size'] = len(smile_vocabulary)  
-        metadata['adsorbent_vocabulary_size'] = len(adsorbent_vocabulary)
-
-        metadata['Pressure mean'] = Z_scores[self.P_COL]['mean']
-        metadata['Pressure STD'] = Z_scores[self.P_COL]['std']
-        metadata['Uptake mean'] = Z_scores[self.Q_COL]['mean']
-        metadata['Uptake STD'] = Z_scores[self.Q_COL]['std']    
-
+                               adsorbent_vocabulary={}, Z_scores={}):        
         processed_data = self.sanitizer.convert_series_to_string(processed_data)         
-        processed_data.to_csv(self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')               
-        with open(self.metadata_path, 'w') as file:
-            json.dump(metadata, file, indent=4)              
+        processed_data.to_csv(
+            self.processed_SCADS_path, index=False, sep=';', encoding='utf-8')  
+                         
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
         with open(self.ads_vocabulary_path, 'w') as file:
-            json.dump(adsorbent_vocabulary, file, indent=4)             
+            json.dump(adsorbent_vocabulary, file, indent=4)        
+         
+        metadata = {'seed' : self.configuration['SEED'], 
+                    'dataset' : self.configuration['dataset'],
+                    'date' : datetime.now().strftime("%Y-%m-%d"),
+                    'SMILE_vocabulary_size' : len(smile_vocabulary),
+                    'adsorbent_vocabulary_size' : len(adsorbent_vocabulary),
+                    'Pressure mean' : Z_scores[self.P_COL]['mean'],
+                    'Pressure STD' : Z_scores[self.P_COL]['std'],
+                    'Uptake mean' : Z_scores[self.Q_COL]['mean'],
+                    'Uptake STD' : Z_scores[self.Q_COL]['std']}  
+               
+        with open(self.metadata_path, 'w') as file:
+            json.dump(metadata, file, indent=4) 
 
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self): 
-        processed_data = pd.read_csv(self.processed_SCADS_path, encoding='utf-8', sep=';') 
+        processed_data = pd.read_csv(
+            self.processed_SCADS_path, encoding='utf-8', sep=';') 
         processed_data = self.sanitizer.convert_string_to_series(processed_data)
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
@@ -111,26 +114,22 @@ class DataSerializer:
         if guest_data is not None:
             guest_data = self.sanitizer.convert_series_to_string(guest_data) 
             dataframe = pd.DataFrame.from_dict(guest_data)          
-            dataframe.to_csv(self.guest_path, index=False, sep=';', encoding='utf-8')
+            dataframe.to_csv(
+                self.guest_path, index=False, sep=';', encoding='utf-8')
         if host_data is not None:
             host_data = self.sanitizer.convert_series_to_string(host_data)     
             dataframe = pd.DataFrame.from_dict(host_data)          
-            dataframe.to_csv(self.host_path, index=False, sep=';', encoding='utf-8')    
+            dataframe.to_csv(
+                self.host_path, index=False, sep=';', encoding='utf-8')    
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame): 
         single_component = self.sanitizer.convert_series_to_string(single_component) 
         binary_mixture = self.sanitizer.convert_series_to_string(binary_mixture)         
-        single_component.to_csv(self.SCADS_data_path, index=False, sep=';', encoding='utf-8')        
-        binary_mixture.to_csv(self.BMADS_data_path, index=False, sep=';', encoding='utf-8')    
-
-    #--------------------------------------------------------------------------
-    def copy_data_to_checkpoint(self, checkpoint_path):        
-        data_folder = os.path.join(checkpoint_path, 'data')        
-        os.makedirs(data_folder, exist_ok=True)        
-        os.system(f'cp {self.processed_SCADS_path} {data_folder}')
-        os.system(f'cp {self.metadata_path} {data_folder}')
-        
+        single_component.to_csv(
+            self.SCADS_data_path, index=False, sep=';', encoding='utf-8')        
+        binary_mixture.to_csv(
+            self.BMADS_data_path, index=False, sep=';', encoding='utf-8')   
 
     
 # [MODEL SERIALIZATION]
@@ -158,11 +157,10 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
-    def save_session_configuration(self, path, history : dict, configurations : dict):
-        
+    def save_session_configuration(self, path, history : dict, configurations : dict):        
         os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
         config_path = os.path.join(path, 'configurations', 'configurations.json')
-        history_path = os.path.join(path, 'configurations', 'session_history.json')        
+        history_path = os.path.join(path, 'configurations', 'session_history.json') 
 
         # Save training and model configurations
         with open(config_path, 'w') as f:

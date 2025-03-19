@@ -2,7 +2,7 @@ import torch
 import keras
 from keras import layers 
 
-from NISTADS.commons.constants import CONFIG
+from NISTADS.commons.constants import CONFIG, PAD_VALUE
 from NISTADS.commons.logger import logger
       
 
@@ -17,9 +17,8 @@ class MolecularEmbedding(keras.layers.Layer):
         self.ads_vocab_size = ads_vocab_size
         self.embedding_dims = embedding_dims
         self.sequence_length = sequence_length         
-        self.mask_values = mask_values
+        self.mask_values = mask_values        
         
-        self.embedding_projector = layers.Dense(self.embedding_dims)
         self.adsorbent_embeddings = layers.Embedding(
             mask_zero=False, input_dim=self.ads_vocab_size, 
             output_dim=self.embedding_dims)
@@ -37,6 +36,9 @@ class MolecularEmbedding(keras.layers.Layer):
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------    
     def call(self, smiles, adsorbent, chemometrics, training=False):
+        # compute the positional embeddings for the SMILE sequences
+        # and add it to the SMILE embeddings upon casting to same dtype
+        # SMILE embeddings are scaled by the square root of the embedding dimensions
         length = keras.ops.shape(smiles)[-1] 
         positions = keras.ops.arange(start=0, stop=length, step=1)
         positions = keras.ops.cast(positions, dtype=smiles.dtype)        
@@ -57,12 +59,10 @@ class MolecularEmbedding(keras.layers.Layer):
         chemo_embeddings *= self.embedding_scale  
 
         # concatenate and linearly project all the embeddings
-        combined_embeddings = keras.ops.concatenate(
-            [embedded_smile, ads_embeddings, chemo_embeddings], axis=-1)
-        full_embedding = self.embedding_projector(combined_embeddings) 
+        full_embedding = embedded_smile + ads_embeddings + chemo_embeddings
 
         if self.mask_values:
-            mask = keras.ops.not_equal(smiles, -1) 
+            mask = keras.ops.not_equal(smiles, PAD_VALUE) 
             mask = keras.ops.expand_dims(mask, axis=-1)
             mask = keras.ops.cast(mask, torch.float32) 
             full_embedding *= mask
@@ -78,7 +78,7 @@ class MolecularEmbedding(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):
         if mask is None:        
-            mask = keras.ops.not_equal(inputs, -1) 
+            mask = keras.ops.not_equal(inputs, PAD_VALUE) 
             mask = keras.ops.cast(mask, torch.float32)                  
         
         return mask    

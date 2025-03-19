@@ -14,6 +14,10 @@ CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
 PREDS_PATH = join(RSC_PATH, 'predictions')
 LOGS_PATH = join(PROJECT_DIR, 'resources', 'logs')
 
+
+###############################################################################
+PAD_VALUE = -10
+
 # [CONFIGURATIONS]
 ###############################################################################
 CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configurations.json')

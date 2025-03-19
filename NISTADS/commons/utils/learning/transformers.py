@@ -53,9 +53,9 @@ class FeedForward(keras.layers.Layer):
         self.dense_units = dense_units
         self.dropout_rate = dropout
         self.dense1 = layers.Dense(
-            dense_units, activation='relu', kernel_initializer='he_uniform')
+            dense_units, kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(
-            dense_units, activation='relu', kernel_initializer='he_uniform')        
+            dense_units, kernel_initializer='he_uniform')        
         self.dropout = layers.Dropout(rate=dropout, seed=seed)
         self.seed = seed
         self.supports_masking = True  
@@ -69,7 +69,9 @@ class FeedForward(keras.layers.Layer):
     #--------------------------------------------------------------------------    
     def call(self, x, training=None):
         x = self.dense1(x)
-        x = self.dense2(x)  
+        x = activations.elu(x)
+        x = self.dense2(x)
+        x = activations.elu(x)  
         output = self.dropout(x, training=training) 
         return output
     

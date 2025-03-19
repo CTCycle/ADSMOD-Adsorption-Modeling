@@ -1,6 +1,6 @@
 import keras
 
-from NISTADS.commons.constants import CONFIG
+from NISTADS.commons.constants import CONFIG, PAD_VALUE
 from NISTADS.commons.logger import logger
 
 # [LOSS FUNCTION]
@@ -12,7 +12,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         
     #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
-        mask = keras.ops.not_equal(y_true, -1)        
+        mask = keras.ops.not_equal(y_true, PAD_VALUE)        
         mask = keras.ops.cast(mask, dtype=y_true.dtype) 
         loss = keras.ops.square(y_true - y_pred)             
         loss *= mask
@@ -45,8 +45,8 @@ class MaskedRSquared(keras.metrics.Metric):
         y_true = keras.ops.cast(y_true, dtype='float32')
         y_pred = keras.ops.cast(y_pred, dtype='float32')
         
-        # Create a mask to ignore padding values (assuming padding value is 0)
-        mask = keras.ops.not_equal(y_true, -1)
+        # Create a mask to ignore padding values 
+        mask = keras.ops.not_equal(y_true, PAD_VALUE)
         mask = keras.ops.cast(mask, dtype='float32')
         
         # Compute residual sum of squares (SSR)
