@@ -35,11 +35,8 @@ This project leverages Just-In-Time model compilation through `torch.compile`, e
 ## 4. How to use
 On Windows, run *start_on_windows.bat* to launch the main navigation menu and browse through the various options. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
 
-**Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
+Data is saved by defualt into an SQLite database (optionally, one can select to export data into .csv as well). Should you wish to visualize the database files, we advice to download and install https://sqlitebrowser.org/dl/.
 
-**KERAS_BACKEND** – Sets the backend for Keras, default is PyTorch.
-
-**TF_CPP_MIN_LOG_LEVEL** – Controls TensorFlow logging verbosity. Setting it to 1 reduces log messages, showing only warnings and errors.
 
 ### 4.1 Navigation menu
 
@@ -63,7 +60,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 ### 4.2 Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here you can find the following folders:
 
-**datasets:** ..
+- **dataset:** contains images used to train the XREPORT model, as well as the source file *XREPORT_dataset.csv* that should be provided. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. Preprocessed data is saved within a database in the *preprocessed_dataset* subfolder, while the data can also be saved as .csv if requested in configurations.
 
 **predictions:** ..
 
@@ -102,6 +99,7 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 | MAX_PRESSURE       | Max allowed pressure in Pascal                           |
 | MAX_UPTAKE         | Max allowed uptake in mol/g                              |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
+| SAVE_CSV           | Save preprocessed data as .csv file                      |
 
 #### Model Configuration
 
@@ -138,7 +136,12 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 | POST_WARMUP_LR     | Learning rate value after initial warmup                 |
 | WARMUP_STEPS       | Number of warmup epochs                                  |
             
-                 
+**Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
+
+| Variable              | Description                                              |
+|-----------------------|----------------------------------------------------------|
+| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch           |
+| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                             |           
  
 ## 6. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.

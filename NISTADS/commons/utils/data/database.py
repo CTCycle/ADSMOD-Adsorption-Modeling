@@ -2,7 +2,7 @@ import os
 import sqlite3
 import pandas as pd
 
-from NISTADS.commons.constants import PROCESSED_PATH
+from NISTADS.commons.constants import DATA_PATH
 from NISTADS.commons.logger import logger
 
 # [DATABASE]
@@ -10,7 +10,7 @@ from NISTADS.commons.logger import logger
 class AdsorptionDatabase:
 
     def __init__(self, configuration):             
-        self.db_path = os.path.join(PROCESSED_PATH, 'NISTADS_dataset.csv')        
+        self.db_path = os.path.join(DATA_PATH, 'NISTADS_dataset.db')        
         self.configuration = configuration
 
     #--------------------------------------------------------------------------

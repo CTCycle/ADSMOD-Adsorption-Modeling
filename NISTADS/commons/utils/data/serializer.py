@@ -9,7 +9,7 @@ from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.commons.utils.learning.scheduler import LRScheduler
-from NISTADS.commons.constants import CONFIG, PROCESSED_PATH, DATA_PATH, CHECKPOINT_PATH
+from NISTADS.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
 
 
@@ -40,9 +40,9 @@ def checkpoint_selection_menu(models_list):
 class DataSerializer:
 
     def __init__(self, configuration):  
-        self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json') 
-        self.smile_vocabulary_path = os.path.join(PROCESSED_PATH, 'SMILE_tokenization_index.json')
-        self.ads_vocabulary_path = os.path.join(PROCESSED_PATH, 'adsorbents_index.json')
+        self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json') 
+        self.smile_vocabulary_path = os.path.join(METADATA_PATH, 'SMILE_tokenization_index.json')
+        self.ads_vocabulary_path = os.path.join(METADATA_PATH, 'adsorbents_index.json')
 
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
@@ -64,8 +64,9 @@ class DataSerializer:
     
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self): 
-        # load preprocessed data from database  
+        # load preprocessed data from database and convert joint strings to list 
         processed_data = self.database.load_processed_data()
+        processed_data = self.sanitizer.convert_string_to_series(processed_data)  
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
@@ -79,9 +80,8 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
                                adsorbent_vocabulary={}, scores={}):
-
         if self.save_as_csv:
-            processed_data_path = os.path.join(PROCESSED_PATH, 'SCADS_dataset.csv')        
+            processed_data_path = os.path.join(DATA_PATH, 'SCADS_dataset.csv')        
             processed_data = self.sanitizer.convert_series_to_string(processed_data)         
             processed_data.to_csv(processed_data_path, **self.csv_kwargs) 
 
@@ -112,17 +112,17 @@ class DataSerializer:
     def save_materials_datasets(self, guest_data : dict, host_data : dict):                   
         if guest_data is not None:
             guest_data = pd.DataFrame.from_dict(guest_data)
+            guest_data = self.sanitizer.convert_series_to_string(guest_data)  
             if self.save_as_csv:
                 logger.info('Export to CSV requested. Now saving guest data to CSV file')
-                guest_path = os.path.join(DATA_PATH, 'adsorbates_dataset.csv')                
-                guest_data = self.sanitizer.convert_series_to_string(guest_data)                   
+                guest_path = os.path.join(DATA_PATH, 'adsorbates_dataset.csv')                                 
                 guest_data.to_csv(guest_path, **self.csv_kwargs)              
         if host_data is not None:
             host_data = pd.DataFrame.from_dict(host_data)
+            host_data = self.sanitizer.convert_series_to_string(host_data) 
             if self.save_as_csv:
                 logger.info('Export to CSV requested. Now saving hostt data to CSV file')
-                host_path = os.path.join(DATA_PATH, 'adsorbents_dataset.csv')                 
-                host_data = self.sanitizer.convert_series_to_string(host_data)                         
+                host_path = os.path.join(DATA_PATH, 'adsorbents_dataset.csv')                                          
                 host_data.to_csv(host_path, **self.csv_kwargs)  
 
         # save dataframe as a table in sqlite database
@@ -173,11 +173,9 @@ class ModelSerializer:
         os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
         config_path = os.path.join(path, 'configurations', 'configurations.json')
         history_path = os.path.join(path, 'configurations', 'session_history.json') 
-
         # Save training and model configurations
         with open(config_path, 'w') as f:
-            json.dump(configurations, f)       
-
+            json.dump(configurations, f)    
         # Save session history
         with open(history_path, 'w') as f:
             json.dump(history, f)
@@ -197,8 +195,7 @@ class ModelSerializer:
     def load_session_configuration(self, path):
         config_path = os.path.join(path, 'configurations', 'configurations.json')        
         with open(config_path, 'r') as f:
-            configurations = json.load(f)        
-
+            configurations = json.load(f) 
         history_path = os.path.join(path, 'configurations', 'session_history.json')
         with open(history_path, 'r') as f:
             history = json.load(f)
@@ -215,9 +212,10 @@ class ModelSerializer:
             
     #--------------------------------------------------------------------------
     def load_checkpoint(self, checkpoint_name):                     
-        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
-                          'MaskedAccuracy': MaskedRSquared,
-                          'LRScheduler': LRScheduler}             
+        custom_objects = {
+            'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
+            'MaskedAccuracy': MaskedRSquared,
+            'LRScheduler': LRScheduler}             
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 

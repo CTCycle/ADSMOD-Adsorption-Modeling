@@ -1,13 +1,14 @@
-__pycache__
 NISTADS/experimental/model/*
 NISTADS/resources/dataset/processed_data/*
 NISTADS/resources/checkpoints/*
 
-*.log
-*.csv
 setup/environment/*
 setup/miniconda/*
 setup/variables/.env
 
+__pycache__
+*.log
+*.csv
+*.db
 *.egg-info
 !.gitkeep

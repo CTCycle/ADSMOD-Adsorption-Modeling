@@ -81,8 +81,9 @@ class BuildAdsorptionDataset:
         explode_cols = ['compound_1_pressure', 'compound_2_pressure',
                         'compound_1_adsorption', 'compound_2_adsorption',
                         'compound_1_composition', 'compound_2_composition']
-        drop_columns.extend(['adsorbate_name', 'all_species_data', 'compound_1_data', 
-                             'compound_2_data', 'adsorbent_ID', 'adsorbates_ID'])        
+        drop_columns.extend(
+            ['adsorbate_name', 'total_pressure', 'all_species_data', 
+            'compound_1_data', 'compound_2_data', 'adsorbent_ID', 'adsorbates_ID'])        
 
         BM_dataset = binary_mixture.explode(explode_cols)
         BM_dataset[explode_cols] = BM_dataset[explode_cols].astype('float32')       

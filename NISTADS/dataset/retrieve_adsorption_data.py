@@ -36,7 +36,8 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------    
     builder = BuildAdsorptionDataset()
     serializer = DataSerializer(CONFIG)
-    logger.info('Cleaning and processing adsorption dataset, experiments will be split based on mixture complexity')
+    logger.info('Cleaning and processing adsorption dataset')
+    logger.info('Experiments will be split based on mixture complexity')
     # remove excluded columns from the dataframe
     adsorption_data = builder.drop_excluded_columns(adsorption_data)
     # split current dataframe by complexity of the mixture (single component or binary mixture)

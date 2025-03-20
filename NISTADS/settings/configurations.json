@@ -13,7 +13,7 @@
                  "MAX_PRESSURE": 1000000,
                  "MAX_UPTAKE": 10,                 
                  "SPLIT_SEED" : 45,
-                 "SAVE_CSV" : true},
+                 "SAVE_CSV" : false},
 
     "device" : {"DEVICE" : "GPU",
                 "DEVICE_ID" : 0,

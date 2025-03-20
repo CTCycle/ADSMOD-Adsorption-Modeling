@@ -12,7 +12,7 @@ class DataSanitizer:
 
     def __init__(self, configuration):
 
-        self.separator = ' | '
+        self.separator = ' '
         self.P_TARGET_COL = 'pressure'
         self.Q_TARGET_COL = 'adsorbed_amount'
         self.T_TARGET_COL = 'temperature'
