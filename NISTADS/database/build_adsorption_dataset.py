@@ -68,18 +68,15 @@ if __name__ == '__main__':
     splitter = TrainValidationSplit(CONFIG, processed_data)    
     # split source data into train and validation datasets 
     train_data, validation_data = splitter.split_train_and_validation()
-    # get training set mean and standard deviation for Z-score normalization
-    normalization_scores = splitter.get_normalization_parameters(train_data)
 
     # normalize pressure and uptake series using max values computed from 
     # the training set, then pad sequences to a fixed length
-    processed_data = sequencer.PQ_series_normalization(
-        processed_data, normalization_scores)  
-    processed_data = sequencer.PQ_series_padding(processed_data) 
-
-    normalizer = FeatureNormalizer(CONFIG)
-    processed_data = normalizer.normalize_molecular_features(
-        processed_data, train_data)
+    normalizer = FeatureNormalizer(CONFIG, train_data)
+    processed_data = normalizer.normalize_molecular_features(processed_data)    
+    processed_data = normalizer.PQ_series_normalization(processed_data) 
+   
+    # add padding to pressure and uptake series to match max length
+    processed_data = sequencer.PQ_series_padding(processed_data)     
 
     encoding = AdsorbentEncoder(CONFIG)    
     processed_data, adsorbent_vocab = encoding.encode_adsorbents_by_name(
@@ -90,7 +87,7 @@ if __name__ == '__main__':
     # save preprocessed data using data serializer   
     processed_data = sanitizer.isolate_preprocessed_features(processed_data)          
     dataserializer.save_preprocessed_data(
-        processed_data, smile_vocab, adsorbent_vocab, normalization_scores)
+        processed_data, smile_vocab, adsorbent_vocab, normalizer.statistics)
 
 
 

@@ -1,0 +1,21 @@
+{
+    "seed": 54,
+    "dataset": {
+        "SAMPLE_SIZE": 1.0,
+        "VALIDATION_SIZE": 0.2,
+        "MAX_PQ_POINTS": 30,
+        "MIN_PQ_POINTS": 6,
+        "SMILE_PADDING": 20,
+        "MAX_PRESSURE": 1000000,
+        "MAX_UPTAKE": 10,
+        "SPLIT_SEED": 45,
+        "SAVE_CSV": false
+    },
+    "date": "2025-03-20",
+    "SMILE_vocabulary_size": 33,
+    "adsorbent_vocabulary_size": 1946,
+    "Pressure_max": 1000000.0,
+    "Uptake_max": 10.0,
+    "Temperature_max": 677.0,
+    "Molecular_weight_max": 271.5
+}

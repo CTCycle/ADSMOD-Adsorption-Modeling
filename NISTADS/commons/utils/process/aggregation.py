@@ -12,8 +12,7 @@ class AggregateDatasets:
         self.configurations = configurations
         self.guest_properties = [
             'name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
-        self.host_properties = [
-            'name', 'adsorbent_molecular_weight', 'adsorbent_SMILE']
+        self.host_properties = ['name']
 
     #--------------------------------------------------------------------------
     def join_materials_properties(self, adsorption : pd.DataFrame, guests : pd.DataFrame,
@@ -22,7 +21,8 @@ class AggregateDatasets:
             .merge(guests[self.guest_properties], left_on='adsorbate_name', right_on='name', how='left')
             .drop(columns=['name'])
             .merge(hosts[self.host_properties], left_on='adsorbent_name', right_on='name', how='left')
-            .drop(columns=['name']))
+            .drop(columns=['name'])
+            .dropna())
         
         return all_dataset_merge        
         

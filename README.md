@@ -58,13 +58,18 @@ Data is saved by defualt into an SQLite database (optionally, one can select to 
 **7) Exit:** close the program immediately 
 
 ### 4.2 Resources
-This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here you can find the following folders:
+This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database; however, users have the option to export data into separate CSV files if desired. To visualize and interact with SQLite database files, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/.
 
-- **dataset:** contains images used to train the XREPORT model, as well as the source file *XREPORT_dataset.csv* that should be provided. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. Preprocessed data is saved within a database in the *preprocessed_dataset* subfolder, while the data can also be saved as .csv if requested in configurations.
+The directory structure includes the following folders:
 
-**predictions:** ..
+- **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-**checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
+- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Graphical validation outputs will be saved separately within *database/validation*.
+
+- **inference:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
+
+- **logs:** log files are saved here
+
 
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using *settings/configurations.json* 
@@ -135,6 +140,7 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 |--------------------|----------------------------------------------------------|
 | POST_WARMUP_LR     | Learning rate value after initial warmup                 |
 | WARMUP_STEPS       | Number of warmup epochs                                  |
+
             
 **Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
 

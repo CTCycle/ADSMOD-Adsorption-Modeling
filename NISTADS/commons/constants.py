@@ -6,15 +6,15 @@ from os.path import join, abspath
 ROOT_DIR = abspath(join(__file__, "../../.."))
 PROJECT_DIR = join(ROOT_DIR, 'NISTADS')
 RSC_PATH = join(PROJECT_DIR, 'resources')
-DATA_PATH = join(RSC_PATH, 'dataset')
+DATA_PATH = join(RSC_PATH, 'database')
 METADATA_PATH = join(DATA_PATH, 'metadata')
-VALIDATION_PATH = join(RSC_PATH, 'validation')
+VALIDATION_PATH = join(DATA_PATH, 'validation')
 CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
 INFERENCE_PATH = join(RSC_PATH, 'inference')
 LOGS_PATH = join(RSC_PATH, 'logs')
 
 ###############################################################################
-PAD_VALUE = -10
+PAD_VALUE = -1
 
 # [CONFIGURATIONS]
 ###############################################################################

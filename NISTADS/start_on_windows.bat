@@ -119,8 +119,8 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :collect
 cls
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\dataset\retrieve_adsorption_data.py""
-start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\dataset\retrieve_chemical_properties.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\database\retrieve_adsorption_data.py""
+start /wait cmd /k "call conda activate "%env_path%" && "%app_path%"\database\retrieve_chemical_properties.py""
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -128,7 +128,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :preprocess
 cls
-start cmd /k "call conda activate "%env_path%" && python "%app_path%"\dataset\build_adsorption_dataset.py"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\database\build_adsorption_dataset.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

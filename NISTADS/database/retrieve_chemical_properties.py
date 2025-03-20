@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # 3. [SAVE MATERIALS DATASET]
     #--------------------------------------------------------------------------
     # save the final version of the materials dataset    
-    serializer.save_materials_datasets(guest_data, host_data)
+    serializer.save_materials_datasets(guest_data, host_data=None)
     logger.info('Data collection is concluded')
 
     

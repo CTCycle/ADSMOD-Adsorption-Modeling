@@ -46,18 +46,7 @@ class PressureUptakeSeriesProcess:
             dataset[self.Q_COL], maxlen=self.max_points, value=PAD_VALUE, 
             dtype='float32', padding='post').tolist()          
 
-        return dataset
-    
-    #--------------------------------------------------------------------------  
-    def PQ_series_normalization(self, dataset : pd.DataFrame, boundaries : dict):
-        P_scores = boundaries[self.P_COL]
-        Q_scores = boundaries[self.Q_COL]        
-        dataset[self.P_COL] = dataset[self.P_COL].apply(
-            lambda x : [(v/P_scores['max']) for v in x])                    
-        dataset[self.Q_COL] = dataset[self.Q_COL].apply(
-            lambda x : [(v/Q_scores['max']) for v in x])
-
-        return dataset
+        return dataset   
     
     #--------------------------------------------------------------------------
     def filter_by_sequence_size(self, dataset : pd.DataFrame):        

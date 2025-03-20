@@ -34,8 +34,7 @@ class PressureConversion:
             lambda row: self.conversions.get(row[self.P_UNIT_COL], lambda x: x)(row[self.P_COL]), axis=1)           
         dataframe.drop(columns=self.P_UNIT_COL, inplace=True)    
 
-        return dataframe
-    
+        return dataframe    
 
 
 # [CONVERSION OF UPTAKE]

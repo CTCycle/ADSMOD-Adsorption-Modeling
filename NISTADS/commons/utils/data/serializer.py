@@ -15,7 +15,6 @@ from NISTADS.commons.logger import logger
 
 ###############################################################################
 def checkpoint_selection_menu(models_list):
-
     index_list = [idx + 1 for idx, item in enumerate(models_list)]     
     print('Currently available pretrained models:')             
     for i, directory in enumerate(models_list):
@@ -66,7 +65,7 @@ class DataSerializer:
     def load_preprocessed_data(self): 
         # load preprocessed data from database and convert joint strings to list 
         processed_data = self.database.load_processed_data()
-        processed_data = self.sanitizer.convert_string_to_series(processed_data)  
+        processed_data = self.sanitizer.convert_string_to_series(processed_data) 
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
@@ -79,10 +78,11 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
-                               adsorbent_vocabulary={}, scores={}):
+                               adsorbent_vocabulary={}, normalization_stats={}):
+        
+        processed_data = self.sanitizer.convert_series_to_string(processed_data)
         if self.save_as_csv:
-            processed_data_path = os.path.join(DATA_PATH, 'SCADS_dataset.csv')        
-            processed_data = self.sanitizer.convert_series_to_string(processed_data)         
+            processed_data_path = os.path.join(DATA_PATH, 'SCADS_dataset.csv')                    
             processed_data.to_csv(processed_data_path, **self.csv_kwargs) 
 
         # save dataframe as a table in sqlite database
@@ -97,13 +97,11 @@ class DataSerializer:
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
-                    'adsorbent_vocabulary_size' : len(adsorbent_vocabulary),
-                    'Pressure mean' : float(scores[self.P_COL]['mean']),
-                    'Pressure STD' : float(scores[self.P_COL]['std']),
-                    'Pressure max' : float(scores[self.P_COL]['max']),
-                    'Uptake mean' : float(scores[self.Q_COL]['mean']),
-                    'Uptake STD' : float(scores[self.Q_COL]['std']),
-                    'Uptake max' : float(scores[self.Q_COL]['max'])}  
+                    'adsorbent_vocabulary_size' : len(adsorbent_vocabulary),                   
+                    'Pressure_max' : float(normalization_stats[self.P_COL]),                    
+                    'Uptake_max' : float(normalization_stats[self.Q_COL]),
+                    'Temperature_max' : float(normalization_stats['temperature']),
+                    'Molecular_weight_max' : float(normalization_stats['adsorbate_molecular_weight'])}  
                
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
