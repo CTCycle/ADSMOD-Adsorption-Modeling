@@ -35,12 +35,9 @@ This project leverages Just-In-Time model compilation through `torch.compile`, e
 ## 4. How to use
 On Windows, run *start_on_windows.bat* to launch the main navigation menu and browse through the various options. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
 
-Data is saved by defualt into an SQLite database (optionally, one can select to export data into .csv as well). Should you wish to visualize the database files, we advice to download and install https://sqlitebrowser.org/dl/.
-
-
 ### 4.1 Navigation menu
 
-**1) Data analysis:** perform data validation using a series of metrics for the analysis of the dataset. 
+**1) Data analysis:** analyze and validate the adsorption dataset using different metrics.  
 
 **2) Collect adsorption data:** extract data from the NIST DB and organise them into a readable .csv format. Data is collected through NIST/ARPA-E Database API in a concurrent fashion, allowing for fast data retrieval by selecting a maximum number of parallel HTTP requests. Once the data has been collected, Pug REST API is used to fetch adsorbates molecular properties that will be added to the main dataset. 
 
@@ -70,6 +67,7 @@ The directory structure includes the following folders:
 
 - **logs:** log files are saved here
 
+- **templates:** reference template files can be found here
 
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using *settings/configurations.json* 
@@ -86,7 +84,7 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 #### Data Collection Configuration
 
 | Setting               | Description                                           |
-|-------------------------------------------------------------------------------|
+|-----------------------|-------------------------------------------------------|
 | GUEST_FRACTION        | fraction of adsorbate species data to fetch           |
 | HOST_FRACTION         | fraction of adsorbent materials data to fetch         |
 | EXP_FRACTION          | fraction of adsorption isotherm data to fetch         |

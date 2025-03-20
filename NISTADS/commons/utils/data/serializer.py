@@ -79,14 +79,13 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
                                adsorbent_vocabulary={}, normalization_stats={}):
-        
-        processed_data = self.sanitizer.convert_series_to_string(processed_data)
+        # convert list to joint string and save preprocessed data to database
+        processed_data = self.sanitizer.convert_series_to_string(processed_data)        
+        self.database.save_processed_data_table(processed_data) 
+        # save processed adsorption data as .csv if requested by configurations
         if self.save_as_csv:
             processed_data_path = os.path.join(DATA_PATH, 'SCADS_dataset.csv')                    
-            processed_data.to_csv(processed_data_path, **self.csv_kwargs) 
-
-        # save dataframe as a table in sqlite database
-        self.database.save_processed_data_table(processed_data)  
+            processed_data.to_csv(processed_data_path, **self.csv_kwargs)  
                          
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
@@ -128,6 +127,8 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
+        # save dataframe as a table in sqlite database
+        self.database.save_experiments_table(single_component, binary_mixture)
         # save adsorption data as .csv if requested by configurations
         if self.save_as_csv: 
             logger.info('Export to CSV requested. Now saving adsorption data to CSV files')
@@ -136,10 +137,7 @@ class DataSerializer:
             single_component = self.sanitizer.convert_series_to_string(single_component) 
             binary_mixture = self.sanitizer.convert_series_to_string(binary_mixture)           
             single_component.to_csv(SCADS_data_path, **self.csv_kwargs)  
-            binary_mixture.to_csv(BMADS_data_path, **self.csv_kwargs) 
-
-        # save dataframe as a table in sqlite database
-        self.database.save_experiments_table(single_component, binary_mixture)
+            binary_mixture.to_csv(BMADS_data_path, **self.csv_kwargs)
 
     
 # [MODEL SERIALIZATION]

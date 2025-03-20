@@ -64,8 +64,7 @@ class BuildAdsorptionDataset:
         return dataframe           
     
     #--------------------------------------------------------------------------
-    def expand_dataset(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
-           
+    def expand_dataset(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):           
         # processing and exploding data for single component dataset
         explode_cols = ['pressure', 'adsorbed_amount']
         drop_columns = ['date', 'adsorbent', 'adsorbates', 'numGuests', 
