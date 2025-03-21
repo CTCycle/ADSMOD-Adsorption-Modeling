@@ -44,8 +44,11 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 **3) Data preprocessing:** prepare the adsorption dataset for machine learning, including normalization of numerical variables and SMILE sequence encoding using a regex-based tokenizer.
 
 **4) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
+
 - **train from scratch:** start training an instance of the NISTADS model from scratch using the available data and parameters. 
-- **train from checkpoint:** start training a pretrained NISTADS checkpoint for an additional amount of epochs, using pretrained model settings and data.  
+
+- **train from checkpoint:** resume training from a pretrained checkpoint for an additional amount of epochs, using pretrained model settings and data. 
+
 - **model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics. 
 
 **5) Predict adsorption of compounds:** use the pretrained NISTADS model and predict adsorption of compounds based on pressure.  

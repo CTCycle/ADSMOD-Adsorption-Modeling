@@ -45,27 +45,24 @@ class MolecularEmbedding(keras.layers.Layer):
         embedded_smile = self.smile_embeddings(smiles)
         embedded_smile *= self.embedding_scale        
         embedded_positions = self.position_embeddings(positions)
-        embedded_smile = embedded_smile + embedded_positions  
-
+        embedded_smile = embedded_smile + embedded_positions
         # project adsorbents embeddings from their vocabulary 
         # tile them to match the sequence length
         # Embeddings are scaled by the square root of their dimensions
         adsorbent = keras.ops.expand_dims(adsorbent, axis=1)              
         ads_embeddings = self.adsorbent_embeddings(adsorbent)         
         ads_embeddings = keras.ops.tile(ads_embeddings, [1, self.sequence_length, 1])
-        ads_embeddings *= self.embedding_scale
-        
+        ads_embeddings *= self.embedding_scale        
         # finally, project the chemometrics embeddings and process them
         # similarly to the other embeddings prior to addition
         chemometrics = keras.ops.expand_dims(chemometrics, axis=-1)
         chemo_embeddings = self.chemo_embeddings(chemometrics) 
         chemo_embeddings = keras.ops.expand_dims(chemo_embeddings, axis=1)          
         chemo_embeddings = keras.ops.tile(chemo_embeddings, [1, self.sequence_length, 1])
-        chemo_embeddings *= self.embedding_scale  
-
+        chemo_embeddings *= self.embedding_scale
         # add all embeddings together to obtain the full embeddings 
         full_embedding = embedded_smile + ads_embeddings + chemo_embeddings
-
+        # mask SMILE padding values if selected
         if self.mask_values:
             mask = keras.ops.not_equal(smiles, PAD_VALUE) 
             mask = keras.ops.expand_dims(mask, axis=-1)

@@ -124,9 +124,8 @@ class TransformerEncoder(keras.layers.Layer):
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized          
         attention_output = self.attention(
-            query=inputs, value=inputs, key=inputs, 
-            query_mask=mask, value_mask=mask, key_mask=mask, 
-            training=training)
+            query=inputs, value=inputs, key=inputs, query_mask=mask, 
+            value_mask=mask, key_mask=mask, training=training)
          
         addnorm = self.addnorm1([inputs, attention_output])
 

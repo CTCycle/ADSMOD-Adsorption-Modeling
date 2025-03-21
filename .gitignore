@@ -1,5 +1,4 @@
-NISTADS/experimental/model/*
-NISTADS/resources/dataset/processed_data/*
+NISTADS/resources/database/metadataa/*
 NISTADS/resources/checkpoints/*
 
 setup/environment/*

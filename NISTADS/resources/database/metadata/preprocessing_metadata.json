@@ -11,7 +11,7 @@
         "SPLIT_SEED": 45,
         "SAVE_CSV": false
     },
-    "date": "2025-03-20",
+    "date": "2025-03-21",
     "SMILE_vocabulary_size": 33,
     "adsorbent_vocabulary_size": 1946,
     "Pressure_max": 1000000.0,

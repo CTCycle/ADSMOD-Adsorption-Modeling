@@ -13,7 +13,9 @@ class MaskedMeanSquaredError(keras.losses.Loss):
     #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
         mask = keras.ops.not_equal(y_true, PAD_VALUE)        
-        mask = keras.ops.cast(mask, dtype=y_true.dtype) 
+        mask = keras.ops.cast(mask, dtype=y_true.dtype)
+        # squeeze output dimensions: (batch size, points, 1) --> (batch size, points)
+        y_pred = keras.ops.squeeze(y_pred, axis=-1)  
         loss = keras.ops.square(y_true - y_pred)             
         loss *= mask
         loss = keras.ops.sum(loss)/(keras.ops.sum(mask) + keras.backend.epsilon())
@@ -42,6 +44,9 @@ class MaskedRSquared(keras.metrics.Metric):
         
     #--------------------------------------------------------------------------  
     def update_state(self, y_true, y_pred, sample_weight=None):
+        # squeeze output dimensions: (batch size, points, 1) --> (batch size, points)
+        y_pred = keras.ops.squeeze(y_pred, axis=-1)  
+        
         y_true = keras.ops.cast(y_true, dtype='float32')
         y_pred = keras.ops.cast(y_pred, dtype='float32')
         

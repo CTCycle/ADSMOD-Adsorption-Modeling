@@ -1,5 +1,4 @@
 import torch
-import keras
 from keras import layers, Model, optimizers
 
 from NISTADS.commons.utils.learning.scheduler import LRScheduler
@@ -29,20 +28,18 @@ class SCADSModel:
         self.initial_lr = self.scheduler_config["INITIAL_LR"]
         self.constant_lr_steps = self.scheduler_config["CONSTANT_STEPS"]       
         self.decay_steps = self.scheduler_config["DECAY_STEPS"]         
-        self.configuration = configuration  
-
-        self.encoders = [TransformerEncoder(
-            self.embedding_dims, self.num_heads, self.seed)
-            for _ in range(self.num_encoders)]       
-
+        self.configuration = configuration 
+        
         self.state_encoder = StateEncoder(0.2, seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
             self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, 
-            self.smile_length, mask_values=True)                
+            self.smile_length, mask_values=True) 
+        self.encoders = [TransformerEncoder(
+            self.embedding_dims, self.num_heads, self.seed)
+            for _ in range(self.num_encoders)]               
         self.pressure_encoder = PressureSerierEncoder(
             self.embedding_dims, 0.2, self.num_heads, self.seed) 
-        self.Qdecoder = QDecoder(
-            self.embedding_dims, 0.2, self.embedding_dims, self.seed)
+        self.Qdecoder = QDecoder(self.embedding_dims, 0.2, self.seed)
 
         self.state_input = layers.Input(shape=(), name='state_input')
         self.chemo_input = layers.Input(shape=(), name='chemo_input')
@@ -73,9 +70,9 @@ class SCADSModel:
 
         # encode the pressure series and add information from the molecular context
         encoded_pressure = self.pressure_encoder(
-            self.pressure_input, encoder_output, encoded_states, training=False) 
+            self.pressure_input, encoder_output, smile_mask, training=False) 
         
-        output = self.Qdecoder(encoded_pressure, self.pressure_input)        
+        output = self.Qdecoder(encoded_pressure, self.pressure_input, encoded_states)        
 
         # wrap the model and compile it with Adam optimizer
         model = Model(inputs=[self.state_input, self.chemo_input, self.adsorbents_input, self.adsorbates_input, 
