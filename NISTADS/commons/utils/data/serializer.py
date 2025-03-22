@@ -48,10 +48,8 @@ class DataSerializer:
         self.adsorbate_SMILE_COL = 'adsorbate_encoded_SMILE'   
         self.adsorbent_SMILE_COL = 'adsorbent_encoded_SMILE'     
         self.parameters = configuration["dataset"]
-        self.save_as_csv = self.parameters["SAVE_CSV"]
         self.configuration = configuration 
 
-        self.csv_kwargs = {'index': False, 'sep': ';', 'encoding': 'utf-8'}
         self.database = AdsorptionDatabase(configuration)
         self.sanitizer = DataSanitizer(configuration)         
         
@@ -82,11 +80,7 @@ class DataSerializer:
         # convert list to joint string and save preprocessed data to database
         processed_data = self.sanitizer.convert_series_to_string(processed_data)        
         self.database.save_processed_data_table(processed_data) 
-        # save processed adsorption data as .csv if requested by configurations
-        if self.save_as_csv:
-            processed_data_path = os.path.join(DATA_PATH, 'SCADS_dataset.csv')                    
-            processed_data.to_csv(processed_data_path, **self.csv_kwargs)  
-                         
+        
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
         with open(self.ads_vocabulary_path, 'w') as file:
@@ -109,18 +103,10 @@ class DataSerializer:
     def save_materials_datasets(self, guest_data : dict, host_data : dict):                   
         if guest_data is not None:
             guest_data = pd.DataFrame.from_dict(guest_data)
-            guest_data = self.sanitizer.convert_series_to_string(guest_data)  
-            if self.save_as_csv:
-                logger.info('Export to CSV requested. Now saving guest data to CSV file')
-                guest_path = os.path.join(DATA_PATH, 'adsorbates_dataset.csv')                                 
-                guest_data.to_csv(guest_path, **self.csv_kwargs)              
+            guest_data = self.sanitizer.convert_series_to_string(guest_data)            
         if host_data is not None:
             host_data = pd.DataFrame.from_dict(host_data)
-            host_data = self.sanitizer.convert_series_to_string(host_data) 
-            if self.save_as_csv:
-                logger.info('Export to CSV requested. Now saving hostt data to CSV file')
-                host_path = os.path.join(DATA_PATH, 'adsorbents_dataset.csv')                                          
-                host_data.to_csv(host_path, **self.csv_kwargs)  
+            host_data = self.sanitizer.convert_series_to_string(host_data)            
 
         # save dataframe as a table in sqlite database
         self.database.save_materials_table(guest_data, host_data)
@@ -129,15 +115,7 @@ class DataSerializer:
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
         # save dataframe as a table in sqlite database
         self.database.save_experiments_table(single_component, binary_mixture)
-        # save adsorption data as .csv if requested by configurations
-        if self.save_as_csv: 
-            logger.info('Export to CSV requested. Now saving adsorption data to CSV files')
-            SCADS_data_path = os.path.join(DATA_PATH, 'SC_adsorption_dataset.csv') 
-            BMADS_data_path = os.path.join(DATA_PATH, 'BM_adsorption_dataset.csv')
-            single_component = self.sanitizer.convert_series_to_string(single_component) 
-            binary_mixture = self.sanitizer.convert_series_to_string(binary_mixture)           
-            single_component.to_csv(SCADS_data_path, **self.csv_kwargs)  
-            binary_mixture.to_csv(BMADS_data_path, **self.csv_kwargs)
+        
 
     
 # [MODEL SERIALIZATION]
@@ -176,7 +154,7 @@ class ModelSerializer:
         with open(history_path, 'w') as f:
             json.dump(history, f)
 
-        logger.debug(f'Model configuration and session history have been saved at {path}')  
+        logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')  
 
     #-------------------------------------------------------------------------- 
     def scan_checkpoints_folder(self):

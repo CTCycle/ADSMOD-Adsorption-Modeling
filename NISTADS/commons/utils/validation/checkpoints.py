@@ -15,10 +15,8 @@ class ModelEvaluationSummary:
     def __init__(self, configuration, remove_invalid=False):
         self.remove_invalid = remove_invalid
         self.serializer = ModelSerializer()
-
-        self.csv_kwargs = {'index': 'False', 'sep': ';', 'encoding': 'utf-8'}
+       
         self.database = AdsorptionDatabase(configuration)
-        self.save_as_csv = configuration["dataset"]["SAVE_CSV"]
         self.configurations = configuration
 
     #---------------------------------------------------------------------------
@@ -70,12 +68,7 @@ class ModelEvaluationSummary:
             model_parameters.append(chkp_config)
 
         dataframe = pd.DataFrame(model_parameters)
-        self.database.save_checkpoints_summary(dataframe) 
-
-        if self.save_as_csv:
-            logger.info('Export to CSV requested. Now saving checkpoint summary to CSV file')             
-            csv_path = os.path.join(DATA_PATH, 'checkpoints_summary.csv')     
-            dataframe.to_csv(csv_path, **self.csv_kwargs)              
+        self.database.save_checkpoints_summary(dataframe)      
             
         return dataframe
     

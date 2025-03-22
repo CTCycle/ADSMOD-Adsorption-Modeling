@@ -183,7 +183,8 @@ class QDecoder(keras.layers.Layer):
             layer = activations.relu(layer)            
             layer = layer * T_scale
         
-        output = self.Q_output(layer)                
+        output = self.Q_output(layer)
+        output = activations.relu(output)                
 
         return output
     

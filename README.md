@@ -58,7 +58,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 **7) Exit:** close the program immediately 
 
 ### 4.2 Resources
-This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database; however, users have the option to export data into separate CSV files if desired. To visualize and interact with SQLite database files, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/.
+This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database. To visualize and interact with the SQLite database, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/.
 
 The directory structure includes the following folders:
 
@@ -105,7 +105,6 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 | MAX_PRESSURE       | Max allowed pressure in Pascal                           |
 | MAX_UPTAKE         | Max allowed uptake in mol/g                              |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
-| SAVE_CSV           | Save preprocessed data as .csv file                      |
 
 #### Model Configuration
 
