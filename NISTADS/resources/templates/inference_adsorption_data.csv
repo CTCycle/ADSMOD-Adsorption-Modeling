@@ -1,0 +1,18 @@
+﻿filename;temperature;adsorbent_name;adsorbates_name;pressure
+ceEVFV667;303;Zeolite 5A;ethanol;10
+ceEVFV667;303;Zeolite 5A;ethanol;100
+ceEVFV667;303;Zeolite 5A;ethanol;200
+ceEVFV667;303;Zeolite 5A;ethanol;300
+ceEVFV667;303;Zeolite 5A;ethanol;400
+ceEVFV667;303;Zeolite 5A;ethanol;1000
+ceEVFV667;303;Zeolite 5A;ethanol;2000
+ceEVFV667;303;Zeolite 5A;ethanol;3000
+ceEVFV667;303;Zeolite 5A;ethanol;5000
+ceEVFV669;303;Zeolite 5A;methanol;250
+ceEVFV669;303;Zeolite 5A;methanol;500
+ceEVFV669;303;Zeolite 5A;methanol;1000
+ceEVFV669;303;Zeolite 5A;methanol;2000
+ceEVFV669;303;Zeolite 5A;methanol;5000
+ceEVFV669;303;Zeolite 5A;methanol;10000
+ceEVFV669;303;Zeolite 5A;methanol;15000
+ceEVFV669;303;Zeolite 5A;methanol;30000

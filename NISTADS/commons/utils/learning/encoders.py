@@ -76,6 +76,7 @@ class PressureSerierEncoder(keras.layers.Layer):
         self.dropout = layers.Dropout(rate=dropout_rate, seed=seed)
         
         self.supports_masking = True
+        self.attention_scores = {}  
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -93,12 +94,13 @@ class PressureSerierEncoder(keras.layers.Layer):
 
         # cross-attention between the pressure series and the molecular context
         # the latter being generated from self-attention of the enriched SMILE sequences
-        attention_output = self.attention(
-            query=pressure, key=context, value=context, 
-            query_mask=query_mask, key_mask=key_mask, value_mask=key_mask,
-            training=training)
-         
+        attention_output, cross_attention_scores = self.attention(
+            query=pressure, key=context, value=context, query_mask=query_mask, 
+            key_mask=key_mask, value_mask=key_mask, training=training,
+            return_attention_scores=True)        
         addnorm = self.addnorm1([pressure, attention_output])
+        # store cross-attention scores for later retrieval
+        self.attention_scores['cross_attention_scores'] = cross_attention_scores 
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
@@ -106,6 +108,10 @@ class PressureSerierEncoder(keras.layers.Layer):
         output = self.addnorm2([addnorm, ffn_out])        
         
         return output
+    
+    #--------------------------------------------------------------------------
+    def get_attention_scores(self):        
+        return self.attention_scores 
     
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------

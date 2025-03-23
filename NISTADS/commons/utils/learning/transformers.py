@@ -111,6 +111,7 @@ class TransformerEncoder(keras.layers.Layer):
         # set mask supports to True but mask propagation is handled
         # through the attention layer call 
         self.supports_masking = True
+        self.attention_scores = {}  
         
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -123,18 +124,23 @@ class TransformerEncoder(keras.layers.Layer):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized          
-        attention_output = self.attention(
+        attention_output, self_attention_scores = self.attention(
             query=inputs, value=inputs, key=inputs, query_mask=mask, 
-            value_mask=mask, key_mask=mask, training=training)
-         
+            value_mask=mask, key_mask=mask, training=training, return_attention_scores=True)               
         addnorm = self.addnorm1([inputs, attention_output])
+        # store self-attention scores for later retrieval
+        self.attention_scores['self_attention_scores'] = self_attention_scores 
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
         ffn_out = self.ffn1(addnorm, training=training)
         output = self.addnorm2([addnorm, ffn_out])      
 
-        return output   
+        return output  
+
+    #--------------------------------------------------------------------------
+    def get_attention_scores(self):        
+        return self.attention_scores 
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------

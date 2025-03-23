@@ -1,4 +1,5 @@
-NISTADS/resources/database/metadataa/*
+NISTADS/resources/database/metadata/*
+NISTADS/resources/inference/*
 NISTADS/resources/checkpoints/*
 
 setup/environment/*
@@ -7,7 +8,6 @@ setup/variables/.env
 
 __pycache__
 *.log
-*.csv
 *.db
 *.egg-info
 !.gitkeep

@@ -2,7 +2,7 @@ import os
 import sqlite3
 import pandas as pd
 
-from NISTADS.commons.constants import DATA_PATH, VALIDATION_PATH
+from NISTADS.commons.constants import DATA_PATH, INFERENCE_PATH, VALIDATION_PATH
 from NISTADS.commons.logger import logger
 
 # [DATABASE]
@@ -10,9 +10,12 @@ from NISTADS.commons.logger import logger
 class AdsorptionDatabase:
 
     def __init__(self, configuration):             
-        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')        
+        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')   
+        self.inference_path = os.path.join(
+            INFERENCE_PATH, 'inference_adsorption_data.csv')     
         self.configuration = configuration 
         self.initialize_database()
+        self.update_database()
 
     #--------------------------------------------------------------------------       
     def initialize_database(self):        
@@ -89,7 +92,20 @@ class AdsorptionDatabase:
             adsorbate_molecular_weight REAL,
             adsorbate_encoded_SMILE TEXT     
         );
-        '''       
+        '''    
+
+        create_inference_data_table = '''
+        CREATE TABLE IF NOT EXISTS PREDICTED_ADSORPTION (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            experiment TEXT,
+            temperature REAL,            
+            adsorbent_name TEXT,
+            adsorbate_name TEXT,
+            pressure REAL,
+            adsorbed_amount REAL,
+            predicted_adsorbed_amount REAL                
+        );
+        '''   
         
         create_checkpoints_summary_table = '''
         CREATE TABLE IF NOT EXISTS CHECKPOINTS_SUMMARY (
@@ -124,10 +140,16 @@ class AdsorptionDatabase:
         cursor.execute(create_adsorbates_table)
         cursor.execute(create_adsorbents_table)
         cursor.execute(create_processed_data_table)    
+        cursor.execute(create_inference_data_table)    
         cursor.execute(create_checkpoints_summary_table)
 
         conn.commit()
         conn.close()
+
+    #--------------------------------------------------------------------------
+    def update_database(self):               
+        dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
+        self.save_inference_data(dataset)
        
     #--------------------------------------------------------------------------
     def load_source_datasets(self): 
@@ -176,12 +198,19 @@ class AdsorptionDatabase:
 
     #--------------------------------------------------------------------------
     def save_processed_data_table(self, processed_data : pd.DataFrame): 
-        # connect to sqlite database and save adsorption data in different tables
-        # one for single components, and the other for binary mixture experiments
+        # connect to sqlite database and save processed data as table
         conn = sqlite3.connect(self.db_path)         
         processed_data.to_sql('PROCESSED_DATA', conn, if_exists='replace')       
         conn.commit()
-        conn.close()    
+        conn.close()  
+
+    #--------------------------------------------------------------------------
+    def save_inference_data(self, data : pd.DataFrame): 
+        # connect to sqlite database and save the inference input data as table
+        conn = sqlite3.connect(self.db_path)         
+        data.to_sql('PREDICTED_ADSORPTION', conn, if_exists='replace')
+        conn.commit()
+        conn.close()   
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame): 
