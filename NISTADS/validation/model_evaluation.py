@@ -8,7 +8,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
-from NISTADS.commons.utils.data.tensordata import TrainingDatasetBuilder
+from NISTADS.commons.utils.data.loader import TrainingDataLoader
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
@@ -40,16 +40,16 @@ if __name__ == '__main__':
     dataserializer = DataSerializer(CONFIG)
     processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data() 
 
-    # initialize the TensorDataSet class with the generator instances
+    # initialize the loaderSet class with the generator instances
     # create the tf.datasets using the previously initialized generators
     splitter = TrainValidationSplit(configuration, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()    
 
     # 3. [LOAD AND SPLIT DATA]
     #--------------------------------------------------------------------------
-    # initialize the TensorDataSet class with the generator instances
+    # initialize the loaderSet class with the generator instances
     # create the tf.datasets using the previously initialized generators    
-    builder = TrainingDatasetBuilder(configuration)  
+    builder = TrainingDataLoader(configuration)  
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data, configuration)
 

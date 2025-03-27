@@ -8,8 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.data.tensordata import TrainingDatasetBuilder
-from NISTADS.commons.utils.process.splitting import TrainValidationSplit
+from NISTADS.commons.utils.data.loader import TrainingDataLoader
+from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.learning.models import SCADSModel
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.validation.reports import log_training_report
@@ -47,13 +47,13 @@ if __name__ == '__main__':
     trainer.set_device()    
        
     # create the tf.datasets using the previously initialized generators 
-    builder = TrainingDatasetBuilder(CONFIG)   
+    builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data)  
 
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  
-    # Setting callbacks and training routine for the features extraction model 
+    # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
     log_training_report(train_data, validation_data, CONFIG, metadata)

@@ -8,7 +8,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.data.tensordata import TrainingDatasetBuilder
+from NISTADS.commons.utils.data.loader import TrainingDataLoader
 from NISTADS.commons.utils.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.validation.reports import log_training_report

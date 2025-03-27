@@ -28,16 +28,16 @@ if __name__ == '__main__':
     properties = MolecularProperties(CONFIG)  
     # process guest (adsorbed species) data by adding molecular properties
     logger.info('Retrieving molecular properties for sorbate species using PubChem API')
-    guest_data = properties.fetch_guest_properties(experiments, guest_data)   
+    guest_data = properties.fetch_guest_properties(experiments, guest_data) 
+    # save the final version of the materials dataset    
+    serializer.save_materials_datasets(guest_data=guest_data)
+
     # process host (adsorbent materials) data by adding molecular properties   
     logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
-    host_data = properties.fetch_host_properties(experiments, host_data)   
-  
-    # 3. [SAVE MATERIALS DATASET]
-    #--------------------------------------------------------------------------
+    host_data = properties.fetch_host_properties(experiments, host_data) 
     # save the final version of the materials dataset    
-    serializer.save_materials_datasets(guest_data, host_data=None)
-    logger.info('Data collection is concluded')
+    serializer.save_materials_datasets(host_data=host_data)  
+  
 
     
    

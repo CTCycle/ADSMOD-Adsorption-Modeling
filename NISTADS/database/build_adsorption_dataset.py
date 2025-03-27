@@ -8,12 +8,12 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.serializer import DataSerializer
-from NISTADS.commons.utils.process.sanitizer import DataSanitizer
-from NISTADS.commons.utils.process.splitting import TrainValidationSplit
-from NISTADS.commons.utils.process.normalization import FeatureNormalizer, AdsorbentEncoder
-from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
-from NISTADS.commons.utils.process.aggregation import AggregateDatasets
-from NISTADS.commons.utils.process.conversion import PQ_units_conversion
+from NISTADS.commons.utils.data.process.sanitizer import DataSanitizer
+from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
+from NISTADS.commons.utils.data.process.normalization import FeatureNormalizer, AdsorbentEncoder
+from NISTADS.commons.utils.data.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
+from NISTADS.commons.utils.data.process.aggregation import AggregateDatasets
+from NISTADS.commons.utils.data.process.conversion import PQ_units_conversion
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 

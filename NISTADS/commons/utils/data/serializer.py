@@ -6,7 +6,7 @@ import keras
 from datetime import datetime
 
 from NISTADS.commons.utils.data.database import AdsorptionDatabase
-from NISTADS.commons.utils.process.sanitizer import DataSanitizer
+from NISTADS.commons.utils.data.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.commons.utils.learning.scheduler import LRScheduler
 from NISTADS.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, CHECKPOINT_PATH
@@ -39,9 +39,12 @@ def checkpoint_selection_menu(models_list):
 class DataSerializer:
 
     def __init__(self, configuration):  
-        self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json') 
-        self.smile_vocabulary_path = os.path.join(METADATA_PATH, 'SMILE_tokenization_index.json')
-        self.ads_vocabulary_path = os.path.join(METADATA_PATH, 'adsorbents_index.json')
+        self.metadata_path = os.path.join(
+            METADATA_PATH, 'preprocessing_metadata.json') 
+        self.smile_vocabulary_path = os.path.join(
+            METADATA_PATH, 'SMILE_tokenization_index.json')
+        self.ads_vocabulary_path = os.path.join(
+            METADATA_PATH, 'adsorbents_index.json')
 
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
@@ -55,8 +58,7 @@ class DataSerializer:
         
     #--------------------------------------------------------------------------
     def load_datasets(self): 
-        adsorption_data, guests, hosts = self.database.load_source_datasets()                 
-
+        adsorption_data, guests, hosts = self.database.load_source_datasets()       
         return adsorption_data, guests, hosts 
     
     #--------------------------------------------------------------------------
@@ -100,7 +102,7 @@ class DataSerializer:
             json.dump(metadata, file, indent=4) 
    
     #--------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data : dict, host_data : dict):                   
+    def save_materials_datasets(self, guest_data=None, host_data=None):                   
         if guest_data is not None:
             guest_data = pd.DataFrame.from_dict(guest_data)
             guest_data = self.sanitizer.convert_series_to_string(guest_data)            
@@ -114,8 +116,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
         # save dataframe as a table in sqlite database
-        self.database.save_experiments_table(single_component, binary_mixture)
-        
+        self.database.save_experiments_table(single_component, binary_mixture)        
 
     
 # [MODEL SERIALIZATION]
@@ -129,7 +130,8 @@ class ModelSerializer:
     #--------------------------------------------------------------------------
     def create_checkpoint_folder(self):           
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
+        checkpoint_path = os.path.join(
+            CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True)        
         os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')

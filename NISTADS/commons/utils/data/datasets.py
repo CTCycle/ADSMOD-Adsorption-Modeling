@@ -1,8 +1,5 @@
-import os
 import pandas as pd
-from tqdm import tqdm
 
-from NISTADS.commons.utils.data.properties import GuestProperties, HostProperties
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -12,9 +9,10 @@ from NISTADS.commons.logger import logger
 class BuildAdsorptionDataset:
 
     def __init__(self):
-        self.drop_cols = ['DOI', 'category', 'tabular_data', 'digitizer', 'isotherm_type', 
-                          'articleSource', 'concentrationUnits', 'compositionType']
         self.explode_cols = ['pressure', 'adsorbed_amount']
+        self.drop_cols = [
+            'DOI', 'category', 'tabular_data', 'digitizer', 'isotherm_type', 
+            'articleSource', 'concentrationUnits', 'compositionType']        
 
     #--------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
@@ -33,33 +31,52 @@ class BuildAdsorptionDataset:
 
     #--------------------------------------------------------------------------
     def extract_nested_data(self, dataframe : pd.DataFrame):         
-        dataframe['adsorbent_ID'] = dataframe['adsorbent'].apply(lambda x : x['hashkey'])      
-        dataframe['adsorbent_name'] = dataframe['adsorbent'].apply(lambda x : x['name'].lower())           
-        dataframe['adsorbates_ID'] = dataframe['adsorbates'].apply(lambda x : [f['InChIKey'] for f in x])            
-        dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(lambda x : [f['name'].lower() for f in x])
+        dataframe['adsorbent_ID'] = dataframe['adsorbent'].apply(
+            lambda x : x['hashkey']).astype(str)      
+        dataframe['adsorbent_name'] = dataframe['adsorbent'].apply(
+            lambda x : x['name'].lower()).astype(str)           
+        dataframe['adsorbates_ID'] = dataframe['adsorbates'].apply(
+            lambda x : [f['InChIKey'] for f in x]).astype(str)            
+        dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(
+            lambda x : [f['name'].lower() for f in x]).astype(str)
 
         # check if the number of guest species is one (single component dataset)
         if (dataframe['numGuests'] == 1).all():
-            dataframe['pressure'] = dataframe['isotherm_data'].apply(lambda x : [f['pressure'] for f in x])                
-            dataframe['adsorbed_amount'] = dataframe['isotherm_data'].apply(lambda x : [f['total_adsorption'] for f in x])
-            dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(lambda x : [f['name'].lower() for f in x][0])
+            dataframe['pressure'] = dataframe['isotherm_data'].apply(
+                lambda x : [f['pressure'] for f in x])                
+            dataframe['adsorbed_amount'] = dataframe['isotherm_data'].apply(
+                lambda x : [f['total_adsorption'] for f in x])
+            dataframe['adsorbate_name'] = dataframe['adsorbates'].apply(
+                lambda x : [f['name'].lower() for f in x][0])
             dataframe['composition'] = 1.0 
 
         # check if the number of guest species is two (binary mixture dataset)
         elif (dataframe['numGuests'] == 2).all():
             data_placeholder = {'composition' : 1.0, 'adsorption': 1.0}
-            dataframe['total_pressure'] = dataframe['isotherm_data'].apply(lambda x : [f['pressure'] for f in x])                
-            dataframe['all_species_data'] = dataframe['isotherm_data'].apply(lambda x : [f['species_data'] for f in x])
-            dataframe['compound_1'] = dataframe['adsorbate_name'].apply(lambda x : x[0].lower())        
-            dataframe['compound_2'] = dataframe['adsorbate_name'].apply(lambda x : x[1].lower() if len(x) > 1 else None)              
-            dataframe['compound_1_data'] = dataframe['all_species_data'].apply(lambda x : [f[0] for f in x])               
-            dataframe['compound_2_data'] = dataframe['all_species_data'].apply(lambda x : [f[1] if len(f) > 1 else data_placeholder for f in x])
-            dataframe['compound_1_composition'] = dataframe['compound_1_data'].apply(lambda x : [f['composition'] for f in x])              
-            dataframe['compound_2_composition'] = dataframe['compound_2_data'].apply(lambda x : [f['composition'] for f in x])            
-            dataframe['compound_1_pressure'] = dataframe.apply(lambda x: [a * b for a, b in zip(x['compound_1_composition'], x['total_pressure'])], axis=1)             
-            dataframe['compound_2_pressure'] = dataframe.apply(lambda x: [a * b for a, b in zip(x['compound_2_composition'], x['total_pressure'])], axis=1)                
-            dataframe['compound_1_adsorption'] = dataframe['compound_1_data'].apply(lambda x : [f['adsorption'] for f in x])               
-            dataframe['compound_2_adsorption'] = dataframe['compound_2_data'].apply(lambda x : [f['adsorption'] for f in x])
+            dataframe['total_pressure'] = dataframe['isotherm_data'].apply(
+                lambda x : [f['pressure'] for f in x])                
+            dataframe['all_species_data'] = dataframe['isotherm_data'].apply(
+                lambda x : [f['species_data'] for f in x])
+            dataframe['compound_1'] = dataframe['adsorbate_name'].apply(
+                lambda x : x[0].lower())        
+            dataframe['compound_2'] = dataframe['adsorbate_name'].apply(
+                lambda x : x[1].lower() if len(x) > 1 else None)              
+            dataframe['compound_1_data'] = dataframe['all_species_data'].apply(
+                lambda x : [f[0] for f in x])               
+            dataframe['compound_2_data'] = dataframe['all_species_data'].apply(
+                lambda x : [f[1] if len(f) > 1 else data_placeholder for f in x])
+            dataframe['compound_1_composition'] = dataframe['compound_1_data'].apply(
+                lambda x : [f['composition'] for f in x])              
+            dataframe['compound_2_composition'] = dataframe['compound_2_data'].apply(
+                lambda x : [f['composition'] for f in x])            
+            dataframe['compound_1_pressure'] = dataframe.apply(
+                lambda x: [a * b for a, b in zip(x['compound_1_composition'], x['total_pressure'])], axis=1)             
+            dataframe['compound_2_pressure'] = dataframe.apply(
+                lambda x: [a * b for a, b in zip(x['compound_2_composition'], x['total_pressure'])], axis=1)                
+            dataframe['compound_1_adsorption'] = dataframe['compound_1_data'].apply(
+                lambda x : [f['adsorption'] for f in x])               
+            dataframe['compound_2_adsorption'] = dataframe['compound_2_data'].apply(
+                lambda x : [f['adsorption'] for f in x])
 
         return dataframe           
     
@@ -70,22 +87,21 @@ class BuildAdsorptionDataset:
         drop_columns = ['date', 'adsorbent', 'adsorbates', 'numGuests', 
                         'isotherm_data', 'adsorbent_ID', 'adsorbates_ID']
                 
-        SC_dataset = single_component.explode(explode_cols)
-        SC_dataset[explode_cols] = SC_dataset[explode_cols].astype('float32')
+        SC_dataset = single_component.explode(explode_cols)        
         SC_dataset.reset_index(inplace=True, drop=True)       
         SC_dataset = SC_dataset.drop(columns=drop_columns, axis=1)
         SC_dataset.dropna(inplace=True)
                  
         # processing and exploding data for binary mixture dataset
-        explode_cols = ['compound_1_pressure', 'compound_2_pressure',
-                        'compound_1_adsorption', 'compound_2_adsorption',
-                        'compound_1_composition', 'compound_2_composition']
+        explode_cols = [
+            'compound_1_pressure', 'compound_2_pressure',
+            'compound_1_adsorption', 'compound_2_adsorption',
+            'compound_1_composition', 'compound_2_composition']
         drop_columns.extend(
             ['adsorbate_name', 'total_pressure', 'all_species_data', 
             'compound_1_data', 'compound_2_data', 'adsorbent_ID', 'adsorbates_ID'])        
 
-        BM_dataset = binary_mixture.explode(explode_cols)
-        BM_dataset[explode_cols] = BM_dataset[explode_cols].astype('float32')       
+        BM_dataset = binary_mixture.explode(explode_cols)               
         BM_dataset.reset_index(inplace=True, drop=True)        
         BM_dataset = BM_dataset.drop(columns=drop_columns)
         BM_dataset.dropna(inplace=True)    

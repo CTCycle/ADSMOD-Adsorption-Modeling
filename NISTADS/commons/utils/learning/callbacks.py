@@ -7,7 +7,6 @@ import webbrowser
 import subprocess
 import time
 
-from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 
     

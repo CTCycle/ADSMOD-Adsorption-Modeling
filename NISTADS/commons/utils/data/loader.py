@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 
-from NISTADS.commons.utils.data.generators import DatasetGenerator
+from NISTADS.commons.utils.data.process.runtime import TrainingDataLoaderProcessor
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger   
 
@@ -10,10 +10,10 @@ from NISTADS.commons.logger import logger
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
-class TrainingDatasetBuilder:
+class TrainingDataLoader:
 
     def __init__(self, configuration, shuffle=True): 
-        self.generator = DatasetGenerator(configuration)                
+        self.generator = TrainingDataLoaderProcessor(configuration)                
         self.configuration = configuration
         self.shuffle = shuffle
         self.output = 'adsorbed_amount'
@@ -28,8 +28,8 @@ class TrainingDatasetBuilder:
         state = np.array(inputs['temperature'].values, dtype=np.float32)
         chemo = np.array(inputs['adsorbate_molecular_weight'].values, dtype=np.float32)
         adsorbent = np.array(inputs['encoded_adsorbent'].values, dtype=np.int32)
-        adsorbate = np.vstack(inputs['adsorbate_encoded_SMILE'].values).astype(np.float32)
-        pressure = np.vstack(inputs['pressure'].values).astype(np.float32)
+        adsorbate = np.vstack(inputs['adsorbate_encoded_SMILE'].values, dtype=np.int32)
+        pressure = np.vstack(inputs['pressure'].values, dtype=np.int32)
 
         inputs_dict = {'state_input': state,
                        'chemo_input': chemo,
@@ -40,7 +40,7 @@ class TrainingDatasetBuilder:
         # output is reshaped to match the expected shape of the model 
         # (batch size, pressure points, 1)
         output = data[self.output]  
-        output = np.vstack(output.values).astype(np.float32)        
+        output = np.vstack(output.values, dtype=np.int32)        
   
         return inputs_dict, output   
 
@@ -62,10 +62,8 @@ class TrainingDatasetBuilder:
     #--------------------------------------------------------------------------
     def build_model_dataloader(self, train_data : pd.DataFrame, validation_data : pd.DataFrame, 
                                batch_size=None):       
-        train_dataset = self.compose_tensor_dataset(
-            train_data, batch_size)
-        validation_dataset = self.compose_tensor_dataset(
-            validation_data, batch_size)         
+        train_dataset = self.compose_tensor_dataset(train_data, batch_size)
+        validation_dataset = self.compose_tensor_dataset(validation_data, batch_size)         
 
         return train_dataset, validation_dataset
 

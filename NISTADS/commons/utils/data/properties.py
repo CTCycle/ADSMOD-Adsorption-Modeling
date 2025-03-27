@@ -32,17 +32,14 @@ class MolecularProperties:
     
     #--------------------------------------------------------------------------
     def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
-        # merge adsorbates names with those found in the experiments dataset
-        all_guests = pd.DataFrame(
-            experiments['adsorbate_name']
-                .dropna()
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                .unique(),
-                columns=['name'])
-                   
+        # Combine guest names from experiments and data, cleaning them to ensure consistency
+        guest_names = pd.concat([
+            experiments['adsorbate_name'].dropna(),
+            data['name'].dropna()
+            ]).astype(str).str.strip().str.lower().unique()        
+        
         # fetch adsorbates molecular properties using pubchem API
+        all_guests = pd.DataFrame(guest_names, columns=['name'])                   
         properties = self.guest_properties.get_properties_for_multiple_compounds(all_guests)
 
         # build the enriched dataset using the extracted molecular properties
@@ -58,16 +55,13 @@ class MolecularProperties:
     #--------------------------------------------------------------------------
     def fetch_host_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
         # merge adsorbates names with those found in the experiments dataset
-        all_hosts = pd.DataFrame(
-            experiments['adsorbent_name']
-                .dropna()
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                .unique(),
-                columns=['name'])
+        all_hosts = pd.concat([
+            experiments['adsorbate_name'].dropna(),
+            data['name'].dropna()
+            ]).astype(str).str.strip().str.lower().unique()        
         
         # fetch adsorbents molecular properties using pubchem API
+        all_hosts = pd.DataFrame(all_hosts, columns=['name'])
         properties = self.host_properties.get_properties_for_multiple_compounds(all_hosts)
         
         # build the enriched dataset using the extracted molecular properties

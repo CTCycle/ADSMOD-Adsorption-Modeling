@@ -66,7 +66,7 @@ The directory structure includes the following folders:
 
 - **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Graphical validation outputs will be saved separately within *database/validation*.
 
-- **inference:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
+- **inference:** adsorption data that should be used as input for inference must be provided as a CSV file named *inference_adsorption_data.csv*. A template of the expected dataset columns is available at *resources/templates/inference_adsorption_data.csv*. 
 
 - **logs:** log files are saved here
 

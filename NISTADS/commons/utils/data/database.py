@@ -156,7 +156,8 @@ class AdsorptionDatabase:
         # Connect to the database and inject a select all query
         # convert the extracted data directly into a pandas dataframe          
         conn = sqlite3.connect(self.db_path)        
-        adsorption_data = pd.read_sql_query(f"SELECT * FROM SINGLE_COMPONENT_ADSORPTION", conn)
+        adsorption_data = pd.read_sql_query(
+            f"SELECT * FROM SINGLE_COMPONENT_ADSORPTION", conn)
         guest_data = pd.read_sql_query(f"SELECT * FROM ADSORBATES", conn)
         host_data = pd.read_sql_query(f"SELECT * FROM ADSORBENTS", conn)
         conn.close()  
@@ -179,8 +180,10 @@ class AdsorptionDatabase:
         # connect to sqlite database and save adsorption data in different tables
         # one for single components, and the other for binary mixture experiments
         conn = sqlite3.connect(self.db_path)         
-        single_components.to_sql('SINGLE_COMPONENT_ADSORPTION', conn, if_exists='replace')
-        binary_mixture.to_sql('BINARY_MIXTURE_ADSORPTION', conn, if_exists='replace')
+        single_components.to_sql(
+            'SINGLE_COMPONENT_ADSORPTION', conn, if_exists='replace')
+        binary_mixture.to_sql(
+            'BINARY_MIXTURE_ADSORPTION', conn, if_exists='replace')
         conn.commit()
         conn.close() 
 
