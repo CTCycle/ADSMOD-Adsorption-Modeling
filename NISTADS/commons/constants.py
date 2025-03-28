@@ -9,8 +9,8 @@ RSC_PATH = join(PROJECT_DIR, 'resources')
 DATA_PATH = join(RSC_PATH, 'database')
 METADATA_PATH = join(DATA_PATH, 'metadata')
 VALIDATION_PATH = join(DATA_PATH, 'validation')
+INFERENCE_PATH = join(DATA_PATH, 'inference')
 CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
-INFERENCE_PATH = join(RSC_PATH, 'inference')
 LOGS_PATH = join(RSC_PATH, 'logs')
 
 ###############################################################################
