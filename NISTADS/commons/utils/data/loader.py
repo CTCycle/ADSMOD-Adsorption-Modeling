@@ -1,3 +1,4 @@
+import cv2
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -66,11 +67,6 @@ class TrainingDataLoader:
         validation_dataset = self.compose_tensor_dataset(validation_data, batch_size)         
 
         return train_dataset, validation_dataset
-
-
-
-
-
 
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset

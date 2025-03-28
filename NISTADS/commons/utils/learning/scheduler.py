@@ -6,10 +6,10 @@ from NISTADS.commons.logger import logger
            
 # [LEARNING RATE SCHEDULER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='LRScheduler')
-class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
+@keras.utils.register_keras_serializable(package='LinearDecayLRScheduler')
+class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, initial_lr, constant_steps, decay_steps, final_lr, **kwargs):
-        super(LRScheduler, self).__init__(**kwargs)
+        super(LinearDecayLRScheduler, self).__init__(**kwargs)
         self.initial_lr = initial_lr
         self.constant_steps = constant_steps
         self.decay_steps = decay_steps

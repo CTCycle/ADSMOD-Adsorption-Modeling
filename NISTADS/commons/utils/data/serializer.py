@@ -8,7 +8,7 @@ from datetime import datetime
 from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.utils.data.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
-from NISTADS.commons.utils.learning.scheduler import LRScheduler
+from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
 from NISTADS.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
 
@@ -191,7 +191,7 @@ class ModelSerializer:
         custom_objects = {
             'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
             'MaskedAccuracy': MaskedRSquared,
-            'LRScheduler': LRScheduler}             
+            'LinearDecayLRScheduler': LinearDecayLRScheduler}             
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 

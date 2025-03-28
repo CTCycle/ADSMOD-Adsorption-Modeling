@@ -1,7 +1,7 @@
 import torch
 from keras import layers, Model, optimizers
 
-from NISTADS.commons.utils.learning.scheduler import LRScheduler
+from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
 from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
 from NISTADS.commons.utils.learning.transformers import TransformerEncoder
 from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder
@@ -27,7 +27,8 @@ class SCADSModel:
         self.scheduler_config = configuration["training"]["LR_SCHEDULER"] 
         self.initial_lr = self.scheduler_config["INITIAL_LR"]
         self.constant_lr_steps = self.scheduler_config["CONSTANT_STEPS"]       
-        self.decay_steps = self.scheduler_config["DECAY_STEPS"]         
+        self.decay_steps = self.scheduler_config["DECAY_STEPS"]   
+        self.final_lr = self.scheduler_config["FINAL_LR"]         
         self.configuration = configuration 
         
         self.state_encoder = StateEncoder(0.2, seed=self.seed)        
@@ -78,7 +79,8 @@ class SCADSModel:
         model = Model(inputs=[self.state_input, self.chemo_input, self.adsorbents_input, self.adsorbates_input, 
                       self.pressure_input], outputs=output, name='SCADS_model')       
         
-        lr_schedule = LRScheduler(self.initial_lr, self.constant_lr_steps, self.decay_steps)
+        lr_schedule = LinearDecayLRScheduler(
+            self.initial_lr, self.constant_lr_steps, self.decay_steps, self.final_lr)
         opt = optimizers.AdamW(learning_rate=lr_schedule)  
         loss = MaskedMeanSquaredError()  
         metric = [MaskedRSquared()]                
