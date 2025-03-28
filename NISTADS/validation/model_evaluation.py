@@ -7,10 +7,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.process.splitting import TrainValidationSplit
+from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.data.loader import TrainingDataLoader
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
+from NISTADS.commons.utils.validation.reports import evaluation_report
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -50,13 +50,10 @@ if __name__ == '__main__':
     # initialize the loaderSet class with the generator instances
     # create the tf.datasets using the previously initialized generators    
     builder = TrainingDataLoader(configuration)  
-    train_dataset, validation_dataset = builder.build_model_dataloader(
+    train_dataset, validation_dataset = builder.build_training_dataloader(
         train_data, validation_data, configuration)
 
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------   
     evaluation_report(model, train_dataset, validation_dataset)     
 
-    # 2. [INITIALIZE PDF REPORT]
-    #--------------------------------------------------------------------------
-    report = DataAnalysisPDF()

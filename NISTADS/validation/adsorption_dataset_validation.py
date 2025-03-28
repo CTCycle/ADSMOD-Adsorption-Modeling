@@ -7,7 +7,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.validation.reports import DataAnalysisPDF
 from NISTADS.commons.utils.validation.dataset import AdsorptionDataValidation
 from NISTADS.commons.utils.data.serializer import DataSerializer
 from NISTADS.commons.constants import CONFIG, DATA_PATH
@@ -29,20 +28,3 @@ if __name__ == '__main__':
     dataserializer = DataSerializer(CONFIG)
     processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()   
     
-    # 2. [COMPUTE IMAGE STATISTICS]
-    #--------------------------------------------------------------------------
-    # validate splitting based on random seed
-    # print('\nValidation best random seed for data splitting\n')
-    # min_diff, best_seed, best_split = validator.data_split_validation(dataset, cnf.TEST_SIZE, 500)
-    # print(f'''\nBest split found with split_seed of {best_seed}, with total difference equal to {round(min_diff, 3)}
-    # Mean and standard deviation differences per features (X and Y):''')
-    # for key, val in best_split.items():
-    #     print(f'{key} ---> mean difference = {val[0]}, STD difference = {val[1]}')
-
-    # 3. [COMPARE TRAIN AND TEST DATASETS]
-    #--------------------------------------------------------------------------
-    
-
-    # 2. [INITIALIZE PDF REPORT]
-    #--------------------------------------------------------------------------
-    report = DataAnalysisPDF()

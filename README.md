@@ -138,9 +138,10 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
-| POST_WARMUP_LR     | Learning rate value after initial warmup                 |
-| WARMUP_STEPS       | Number of warmup epochs                                  |
-
+| INITIAL_LR         | Initial value of learning rate                           |
+| CONSTANT_STEPS     | Number of steps (batch) to keep the learning rate stable |
+| DECAY_STEPS        | Number of steps (batch) to decay learning rate           |
+| FINAL_LR           | Final value of learning rate (target)                    |
             
 **Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
 

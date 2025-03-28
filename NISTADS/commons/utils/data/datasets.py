@@ -9,14 +9,27 @@ from NISTADS.commons.logger import logger
 class BuildAdsorptionDataset:
 
     def __init__(self):
-        self.explode_cols = ['pressure', 'adsorbed_amount']
-        self.drop_cols = [
+        self.raw_explode_cols = ['pressure', 'adsorbed_amount']
+        self.raw_drop_cols = [
             'DOI', 'category', 'tabular_data', 'digitizer', 'isotherm_type', 
-            'articleSource', 'concentrationUnits', 'compositionType']        
+            'articleSource', 'concentrationUnits', 'compositionType'] 
+        self.SC_explode_cols = ['pressure', 'adsorbed_amount']
+        self.SC_drop_columns = [
+            'date', 'adsorbent', 'adsorbates', 'numGuests', 
+            'isotherm_data', 'adsorbent_ID', 'adsorbates_ID']
+        self.BM_explode_cols = [
+            'compound_1_pressure', 'compound_2_pressure',
+            'compound_1_adsorption', 'compound_2_adsorption',
+            'compound_1_composition', 'compound_2_composition']
+        self.BM_drop_columns = [
+            'date', 'adsorbent', 'adsorbates', 'numGuests', 
+            'isotherm_data', 'adsorbent_ID', 'adsorbates_ID',
+            'adsorbate_name', 'total_pressure', 'all_species_data', 
+            'compound_1_data', 'compound_2_data', 'adsorbent_ID', 'adsorbates_ID']       
 
     #--------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
-        df_drop = dataframe.drop(columns=self.drop_cols, axis=1)
+        df_drop = dataframe.drop(columns=self.raw_drop_cols, axis=1)
 
         return df_drop
 
@@ -82,28 +95,16 @@ class BuildAdsorptionDataset:
     
     #--------------------------------------------------------------------------
     def expand_dataset(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):           
-        # processing and exploding data for single component dataset
-        explode_cols = ['pressure', 'adsorbed_amount']
-        drop_columns = ['date', 'adsorbent', 'adsorbates', 'numGuests', 
-                        'isotherm_data', 'adsorbent_ID', 'adsorbates_ID']
-                
-        SC_dataset = single_component.explode(explode_cols)        
+        # processing and exploding data for single component dataset                
+        SC_dataset = single_component.explode(self.SC_explode_cols)        
         SC_dataset.reset_index(inplace=True, drop=True)       
-        SC_dataset = SC_dataset.drop(columns=drop_columns, axis=1)
+        SC_dataset = SC_dataset.drop(columns=self.SC_drop_columns, axis=1)
         SC_dataset.dropna(inplace=True)
                  
         # processing and exploding data for binary mixture dataset
-        explode_cols = [
-            'compound_1_pressure', 'compound_2_pressure',
-            'compound_1_adsorption', 'compound_2_adsorption',
-            'compound_1_composition', 'compound_2_composition']
-        drop_columns.extend(
-            ['adsorbate_name', 'total_pressure', 'all_species_data', 
-            'compound_1_data', 'compound_2_data', 'adsorbent_ID', 'adsorbates_ID'])        
-
-        BM_dataset = binary_mixture.explode(explode_cols)               
+        BM_dataset = binary_mixture.explode(self.BM_explode_cols)               
         BM_dataset.reset_index(inplace=True, drop=True)        
-        BM_dataset = BM_dataset.drop(columns=drop_columns)
+        BM_dataset = BM_dataset.drop(columns=self.BM_drop_columns)
         BM_dataset.dropna(inplace=True)    
         
         return SC_dataset, BM_dataset

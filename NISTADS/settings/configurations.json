@@ -25,15 +25,15 @@
                "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
-    "training" : {"EPOCHS" : 500,
+    "training" : {"EPOCHS" : 300,
                   "ADDITIONAL_EPOCHS" : 2,                  
                   "BATCH_SIZE" : 128,                             
                   "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,
-                  "LR_SCHEDULER" : {"INITIAL_LR" : 0.0005,
-                                    "CONSTANT_STEPS": 15000,
-                                    "DECAY_STEPS" : 2000}   
-                  },                  
+                  "LR_SCHEDULER" : {"INITIAL_LR" : 0.001,
+                                    "CONSTANT_STEPS": 20000,
+                                    "DECAY_STEPS" : 10,
+                                    "FINAL_LR" : 0.0001}},                  
                   
     "evaluation" : {"BATCH_SIZE" : 20}     
       

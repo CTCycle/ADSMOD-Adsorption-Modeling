@@ -172,7 +172,15 @@ class AdsorptionDatabase:
         data = pd.read_sql_query(f"SELECT * FROM PROCESSED_DATA", conn)
         conn.close()  
 
-        return data       
+        return data  
+
+    #--------------------------------------------------------------------------
+    def load_inference_data(self, data : pd.DataFrame): 
+        # connect to sqlite database and save the inference input data as table
+        conn = sqlite3.connect(self.db_path)         
+        data.to_sql('PREDICTED_ADSORPTION', conn, if_exists='replace')
+        conn.commit()
+        conn.close()       
 
     #--------------------------------------------------------------------------
     def save_experiments_table(self, single_components : pd.DataFrame,

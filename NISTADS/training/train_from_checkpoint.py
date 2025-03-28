@@ -12,7 +12,7 @@ from NISTADS.commons.utils.data.loader import TrainingDataLoader
 from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.validation.reports import log_training_report
-from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 
 
@@ -26,7 +26,11 @@ if __name__ == '__main__':
     logger.info('Loading specific checkpoint from pretrained models') 
     modelserializer = ModelSerializer()      
     model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()    
-    model.summary(expand_nested=True)    
+    model.summary(expand_nested=True) 
+
+    # setting device for training    
+    trainer = ModelTraining(configuration)    
+    trainer.set_device()     
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     # initialize training device, allows changing device prior to initializing the generators
@@ -39,31 +43,23 @@ if __name__ == '__main__':
     # 3. [SPLIT DATA]
     #--------------------------------------------------------------------------
     # split data into train set and validation set
-    logger.info('Preparing dataset of images and captions based on splitting size')  
+    logger.info('Preparing dataset based on splitting size')  
     splitter = TrainValidationSplit(configuration, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()         
 
     # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
-    #--------------------------------------------------------------------------
-    # initialize training device 
-    # allows changing device prior to initializing the generators
-    logger.info('Building NISTADS model and data loaders')     
-    trainer = ModelTraining(CONFIG) 
-    trainer.set_device()    
-       
+    #--------------------------------------------------------------------------   
     # create the tf.datasets using the previously initialized generators 
     builder = TrainingDataLoader(CONFIG)   
-    train_dataset, validation_dataset = builder.build_model_dataloader(
+    train_dataset, validation_dataset = builder.build_training_dataloader(
         train_data, validation_data)
 
     # 4. [TRAINING MODEL]  
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
-    #--------------------------------------------------------------------------  
-      
-    log_training_report(train_data, validation_data, configuration, 
-                        from_checkpoint=True)    
+    #--------------------------------------------------------------------------        
+    log_training_report(train_data, validation_data, configuration, metadata)                       
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,

@@ -1,6 +1,6 @@
-# [SET KERAS BACKEND]
-import os 
-os.environ["KERAS_BACKEND"] = "torch"
+# [SETTING ENVIRONMENT VARIABLES]
+from NISTADS.commons.variables import EnvironmentVariables
+EV = EnvironmentVariables()
 
 # [SETTING WARNINGS]
 import warnings
@@ -8,10 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from NISTADS.commons.utils.data.loader import TrainingDataLoader
-from NISTADS.commons.utils.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.learning.training import ModelTraining
-from NISTADS.commons.utils.validation.reports import log_training_report
+from NISTADS.commons.utils.inference.predictor import AdsorptionPredictions
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -32,12 +30,11 @@ if __name__ == '__main__':
     trainer = ModelTraining(configuration)    
     trainer.set_device()
 
-    # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
-    # initialize training device, allows changing device prior to initializing the generators
-    #--------------------------------------------------------------------------    
-    # load saved tf.datasets from the proper folders in the checkpoint directory
-    logger.info('Loading preprocessed data and building dataloaders')     
-    dataserializer = DataSerializer(configuration) 
-    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()
+    # 2. [GENERATE REPORTS]
+    # One can select different either greedy_search or beam search to genarate
+    # reports with a pretrained decoder 
+    #--------------------------------------------------------------------------
+    predictor = AdsorptionPredictions()
+
 
 

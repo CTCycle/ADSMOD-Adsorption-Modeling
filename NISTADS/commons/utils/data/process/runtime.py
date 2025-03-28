@@ -11,7 +11,7 @@ from NISTADS.commons.logger import logger
 # Generate and preprocess input and output for the machine learning model and build
 # a tensor dataset with prefetching and batching
 ###############################################################################
-class TrainingDataLoaderProcessor():
+class DataLoaderProcessor():
 
     def __init__(self, configuration):        
         self.configuration = configuration   

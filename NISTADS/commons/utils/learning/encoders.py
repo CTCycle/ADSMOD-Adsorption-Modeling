@@ -58,7 +58,7 @@ class StateEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='PressureSerierEncoder')
 class PressureSerierEncoder(keras.layers.Layer):
-    def __init__(self, embedding_dims, dropout_rate, num_heads, seed, **kwargs):
+    def __init__(self, embedding_dims, dropout_rate, num_heads, seed=42, **kwargs):
         super(PressureSerierEncoder, self).__init__(**kwargs)        
         self.embedding_dims = embedding_dims
         self.dropout_rate = dropout_rate  
@@ -127,6 +127,7 @@ class PressureSerierEncoder(keras.layers.Layer):
         config = super(PressureSerierEncoder, self).get_config()
         config.update({'embedding_dims' : self.embedding_dims,
                        'dropout_rate' : self.dropout_rate,
+                       'num_heads' : self.num_heads,
                        'seed' : self.seed})
         return config
 
