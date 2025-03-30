@@ -1,4 +1,5 @@
 import re
+import numpy as np
 import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
@@ -108,11 +109,11 @@ class GuestProperties:
     def distribute_extracted_data(self, name, features):               
         self.properties['name'].append(name)        
         self.properties['adsorbate_molecular_weight'].append(
-            features.get('molecular_weight', 'NA'))
+            features.get('molecular_weight', np.nan))
         self.properties['adsorbate_molecular_formula'].append(
-            features.get('molecular_formula', 'NA'))
+            features.get('molecular_formula', np.nan))
         self.properties['adsorbate_SMILE'].append(
-            features.get('canonical_smiles', 'NA'))
+            features.get('canonical_smiles', np.nan))
     
 
 # [DATASET OPERATIONS]
@@ -156,11 +157,11 @@ class HostProperties:
     def distribute_extracted_data(self, name, features):               
         self.properties['name'].append(name)        
         self.properties['adsorbent_molecular_weight'].append(
-            features.get('molecular_weight', 'NA'))
+            features.get('molecular_weight', np.nan))
         self.properties['adsorbent_molecular_formula'].append(
-            features.get('molecular_formula', 'NA'))
+            features.get('molecular_formula', np.nan))
         self.properties['adsorbent_SMILE'].append(
-            features.get('canonical_smile', 'NA'))
+            features.get('canonical_smile', np.nan))
     
 
     

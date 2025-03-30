@@ -23,6 +23,10 @@ class GuestHostDataFetch:
         self.host_fraction = configuration["collection"]["HOST_FRACTION"]       
         self.guest_identifier = 'InChIKey'
         self.host_identifier = 'hashkey'
+        self.extra_guest_columns = [
+            'adsorbate_molecular_weight', 'adsorbate_molecular_formula', 'adsorbate_SMILE']
+        self.extra_host_columns = [
+            'adsorbent_molecular_weight', 'adsorbent_molecular_formula', 'adsorbent_SMILE']
 
     #--------------------------------------------------------------------------
     def get_materials_index(self):       
@@ -59,6 +63,8 @@ class GuestHostDataFetch:
                 self.async_fetcher.get_call_to_multiple_endpoints(guest_urls))
             guest_data = [data for data in guest_data if data is not None]
             guest_data = pd.DataFrame(guest_data) 
+            guest_data = guest_data.assign(
+                **{col : np.nan for col in self.extra_guest_columns})
         else:
             logger.error('No available guest data has been found. Skipping directly to host index')
             
@@ -74,7 +80,9 @@ class GuestHostDataFetch:
             host_data = loop.run_until_complete(
                 self.async_fetcher.get_call_to_multiple_endpoints(host_urls))        
             host_data = [data for data in host_data if data is not None] 
-            host_data = pd.DataFrame(host_data)            
+            host_data = pd.DataFrame(host_data) 
+            host_data = host_data.assign(
+                **{col : np.nan for col in self.extra_host_columns})           
         else:
             logger.error('No available host data has been found.')        
             

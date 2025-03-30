@@ -1,8 +1,8 @@
 {   
     "SEED" : 54,
-    "collection" : {"GUEST_FRACTION" : 1.0,
-                    "HOST_FRACTION" : 1.0,
-                    "EXP_FRACTION" : 1.0,    
+    "collection" : {"GUEST_FRACTION" : 0.1,
+                    "HOST_FRACTION" : 0.1,
+                    "EXP_FRACTION" : 0.1,    
                     "PARALLEL_TASKS" : 50},
 
     "dataset" : {"SAMPLE_SIZE" : 1.0,
@@ -10,7 +10,7 @@
                  "MAX_PQ_POINTS": 30,                 
                  "MIN_PQ_POINTS": 4,
                  "SMILE_PADDING": 20,
-                 "MAX_PRESSURE": 1500000,
+                 "MAX_PRESSURE": 20000000,
                  "MAX_UPTAKE": 10,                 
                  "SPLIT_SEED" : 45},
 
@@ -31,9 +31,9 @@
                   "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,
                   "LR_SCHEDULER" : {"INITIAL_LR" : 0.001,
-                                    "CONSTANT_STEPS": 20000,
+                                    "CONSTANT_STEPS": 40000,
                                     "DECAY_STEPS" : 10,
-                                    "FINAL_LR" : 0.0001}},                  
+                                    "FINAL_LR" : 0.00005}},                  
                   
     "evaluation" : {"BATCH_SIZE" : 20}     
       
