@@ -29,7 +29,23 @@ class MolecularProperties:
         else:
             data = data.drop_duplicates(subset=['name'], keep='first')  
 
-        return data       
+        return data  
+
+    #--------------------------------------------------------------------------
+    def map_fetched_properties(self, data : pd.DataFrame, properties : dict):
+        # set all names to lowcase to avoid mismatch
+        properties['name'] = [x.lower() for x in properties['name']]
+        data['name'] = data['name'].str.lower() 
+        # create indexed dataframes using the column name as index 
+        indexed_properties = pd.DataFrame(properties).set_index('name')
+        indexed_data = data.set_index('name')        
+        # update the dataset and reset the index to avoid using names
+        indexed_data.update(indexed_properties) 
+        dataset = indexed_data.reset_index()
+
+        return dataset
+    
+   
     
     #--------------------------------------------------------------------------
     def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
@@ -43,13 +59,10 @@ class MolecularProperties:
         all_guests = pd.DataFrame(guest_names, columns=['name'])                   
         properties = self.guest_properties.get_properties_for_multiple_compounds(all_guests)
 
-        # build the enriched dataset using the extracted molecular properties
-        property_table = pd.DataFrame.from_dict(properties)       
-        data['name'] = data['name'].str.lower()
-        property_table['name'] = property_table['name'].str.lower()        
-        merged_data = data.merge(property_table, on='name', how='outer')
+        # build the enriched dataset using the extracted molecular properties        
+        dataset = self.map_fetched_properties(data, properties)
 
-        return merged_data
+        return dataset
     
     # this function is not used in the current version of the code, since it is 
     # difficult to find a reliable source for the adsorbent materials properties
@@ -57,7 +70,7 @@ class MolecularProperties:
     def fetch_host_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
         # merge adsorbates names with those found in the experiments dataset
         all_hosts = pd.concat([
-            experiments['adsorbate_name'].dropna(),
+            experiments['adsorbent_name'].dropna(),
             data['name'].dropna()
             ]).astype(str).str.strip().str.lower().unique()        
         
@@ -65,14 +78,10 @@ class MolecularProperties:
         all_hosts = pd.DataFrame(all_hosts, columns=['name'])
         properties = self.host_properties.get_properties_for_multiple_compounds(all_hosts)
         
-        # build the enriched dataset using the extracted molecular properties
-        property_table = pd.DataFrame.from_dict(properties)       
-        data['name'] = data['name'].str.lower()
-        property_table['name'] = property_table['name'].str.lower()        
-        merged_data = data.merge(property_table, on='name', how='outer')
+        # build the enriched dataset using the extracted molecular properties        
+        dataset = self.map_fetched_properties(data, properties)  
 
-        return merged_data
-
+        return dataset
  
 # [DATASET OPERATIONS]
 ###############################################################################

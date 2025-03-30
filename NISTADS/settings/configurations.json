@@ -1,8 +1,8 @@
 {   
     "SEED" : 54,
-    "collection" : {"GUEST_FRACTION" : 0.1,
-                    "HOST_FRACTION" : 0.1,
-                    "EXP_FRACTION" : 0.1,    
+    "collection" : {"GUEST_FRACTION" : 0.01,
+                    "HOST_FRACTION" : 0.01,
+                    "EXP_FRACTION" : 0.01,    
                     "PARALLEL_TASKS" : 50},
 
     "dataset" : {"SAMPLE_SIZE" : 1.0,

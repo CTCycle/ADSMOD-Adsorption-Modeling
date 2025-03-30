@@ -145,9 +145,9 @@ class AdsorbentsDataTable:
             'formula': 'VARCHAR',
             'synonyms': 'VARCHAR',
             'External_Resources': 'VARCHAR',
-            'adsorbate_molecular_weight': 'FLOAT',
-            'adsorbate_molecular_formula': 'VARCHAR',
-            'adsorbate_SMILE': 'VARCHAR'}
+            'adsorbent_molecular_weight': 'FLOAT',
+            'adsorbent_molecular_formula': 'VARCHAR',
+            'adsorbent_SMILE': 'VARCHAR'}
 
     #--------------------------------------------------------------------------
     def get_dtypes(self):
@@ -163,9 +163,9 @@ class AdsorbentsDataTable:
             formula VARCHAR,
             synonyms VARCHAR,
             External_Resources VARCHAR
-            adsorbate_molecular_weight FLOAT,
-            adsorbate_molecular_formula VARCHAR,
-            adsorbate_SMILE VARCHAR     
+            adsorbent_molecular_weight FLOAT,
+            adsorbent_molecular_formula VARCHAR,
+            adsorbent_SMILE VARCHAR     
         );
         '''
         cursor.execute(query)
