@@ -18,10 +18,10 @@ class DataSanitizer:
         self.T_TARGET_COL = 'temperature'
         self.max_pressure = configuration['dataset']['MAX_PRESSURE']
         self.max_uptake = configuration['dataset']['MAX_UPTAKE']
-        self.configuration = configuration  
-
-        self.included_cols = ['temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent',
-                              'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
+        self.configuration = configuration
+        self.included_cols = [
+            'temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent',
+            'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
 
     #--------------------------------------------------------------------------
     def is_convertible_to_float(self, value):

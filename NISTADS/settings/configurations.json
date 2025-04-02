@@ -1,8 +1,8 @@
 {   
     "SEED" : 54,
-    "collection" : {"GUEST_FRACTION" : 0.01,
-                    "HOST_FRACTION" : 0.01,
-                    "EXP_FRACTION" : 0.01,    
+    "collection" : {"GUEST_FRACTION" : 1.0,
+                    "HOST_FRACTION" : 1.0,
+                    "EXP_FRACTION" : 1.0,    
                     "PARALLEL_TASKS" : 50},
 
     "dataset" : {"SAMPLE_SIZE" : 1.0,
@@ -35,7 +35,7 @@
                                     "DECAY_STEPS" : 10,
                                     "FINAL_LR" : 0.00005}},                  
                   
-    "evaluation" : {"BATCH_SIZE" : 20}     
+    "validation" : {"BATCH_SIZE" : 20}     
       
 }
 

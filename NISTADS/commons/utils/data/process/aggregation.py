@@ -26,6 +26,8 @@ class AggregateDatasets:
         
         return all_dataset_merge        
         
+    # aggregate plain dataset of adsorption measurements (source data) that has
+    # been composed from the NIST database API requests
     #--------------------------------------------------------------------------
     def aggregate_adsorption_measurements(self, dataset : pd.DataFrame):
         aggregate_dict = {'temperature' : 'first',                  
@@ -40,6 +42,8 @@ class AggregateDatasets:
         grouped_data.drop(columns=['filename'], inplace=True)        
 
         return grouped_data
+    
+    
 
             
 

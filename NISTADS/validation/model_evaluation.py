@@ -8,7 +8,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
-from NISTADS.commons.utils.data.loader import TrainingDataLoader
+from NISTADS.commons.utils.data.loader import InferenceDataLoader
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.validation.reports import evaluation_report
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
@@ -18,14 +18,11 @@ from NISTADS.commons.logger import logger
 
 # [RUN MAIN]
 ###############################################################################
-if __name__ == '__main__':
-
-    evaluation_batch_size = 64
-    num_images_to_evaluate = 6
+if __name__ == '__main__':    
 
     # 1. [LOAD DATASET]
     #--------------------------------------------------------------------------  
-    summarizer = ModelEvaluationSummary()    
+    summarizer = ModelEvaluationSummary(CONFIG)    
     checkpoints_summary = summarizer.checkpoints_summary() 
     logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')  
     
@@ -37,7 +34,7 @@ if __name__ == '__main__':
     model.summary(expand_nested=True)   
 
     # load data from csv, add paths to images 
-    dataserializer = DataSerializer(CONFIG)
+    dataserializer = DataSerializer(configuration)
     processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data() 
 
     # initialize the loaderSet class with the generator instances
@@ -49,9 +46,9 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # initialize the loaderSet class with the generator instances
     # create the tf.datasets using the previously initialized generators    
-    builder = TrainingDataLoader(configuration)  
-    train_dataset, validation_dataset = builder.build_training_dataloader(
-        train_data, validation_data, configuration)
+    loader = InferenceDataLoader(configuration)  
+    train_dataset = loader.build_inference_dataloader(train_data)
+    validation_dataset = loader.build_inference_dataloader(validation_data)
 
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------   

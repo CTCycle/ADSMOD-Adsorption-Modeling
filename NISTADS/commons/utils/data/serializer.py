@@ -57,14 +57,17 @@ class DataSerializer:
         self.sanitizer = DataSanitizer(configuration)         
         
     #--------------------------------------------------------------------------
-    def load_datasets(self): 
-        adsorption_data, guests, hosts = self.database.load_source_datasets()       
-        return adsorption_data, guests, hosts 
+    def load_datasets(self):                
+        return self.database.load_source_data_table()
+    
+    #--------------------------------------------------------------------------
+    def load_inference_data(self):              
+        return self.database.load_inference_data_table()   
     
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self): 
         # load preprocessed data from database and convert joint strings to list 
-        processed_data = self.database.load_processed_data()
+        processed_data = self.database.load_processed_data_table()
         processed_data = self.sanitizer.convert_string_to_series(processed_data) 
 
         with open(self.metadata_path, 'r') as file:
@@ -108,14 +111,12 @@ class DataSerializer:
             guest_data = self.sanitizer.convert_series_to_string(guest_data)            
         if host_data is not None:
             host_data = pd.DataFrame.from_dict(host_data)
-            host_data = self.sanitizer.convert_series_to_string(host_data)            
+            host_data = self.sanitizer.convert_series_to_string(host_data)    
 
-        # save dataframe as a table in sqlite database
         self.database.save_materials_table(guest_data, host_data)
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
-        # save dataframe as a table in sqlite database
         self.database.save_experiments_table(single_component, binary_mixture)        
 
     

@@ -29,16 +29,26 @@ class AdsorbentEncoder:
 
         return dataset, mapping
 
+    #--------------------------------------------------------------------------
+    def encode_adsorbents_from_vocabulary(self, dataset : pd.DataFrame, vocabulary: dict):              
+        mapping = {label: idx for idx, label in vocabulary.items()}           
+        dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
+            vocabulary).fillna(self.unknown_class_index).astype(int)           
+
+        return dataset, mapping
+    
 
 ###############################################################################
 class FeatureNormalizer:
 
-    def __init__(self, configuration, train_dataset: pd.DataFrame): 
+    def __init__(self, configuration, train_dataset: pd.DataFrame, statistics=None): 
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'       
-        self.norm_columns = ['temperature', 'adsorbate_molecular_weight']         
-        self.statistics = self.get_normalization_parameters(train_dataset)
-        self.configuration = configuration       
+        self.norm_columns = ['temperature', 'adsorbate_molecular_weight']       
+        self.configuration = configuration 
+
+        self.statistics = self.get_normalization_parameters(
+            train_dataset) if statistics is None and train_dataset is None else statistics    
 
     #--------------------------------------------------------------------------
     def get_normalization_parameters(self, train_data : pd.DataFrame):

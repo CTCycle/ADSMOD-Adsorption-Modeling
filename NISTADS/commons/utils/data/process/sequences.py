@@ -199,6 +199,8 @@ class SMILETokenization:
         data = self.SMILE_series_padding(data)       
        
         return data, smile_vocabulary
+    
+    
 
 
         

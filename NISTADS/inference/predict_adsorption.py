@@ -9,6 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.learning.training import ModelTraining
+
 from NISTADS.commons.utils.inference.predictor import AdsorptionPredictions
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -30,11 +31,16 @@ if __name__ == '__main__':
     trainer = ModelTraining(configuration)    
     trainer.set_device()
 
-    # 2. [GENERATE REPORTS]
-    # One can select different either greedy_search or beam search to genarate
-    # reports with a pretrained decoder 
+    # 2. [LOAD AND PROCEPROCESS DATA]
+    #--------------------------------------------------------------------------  
+    dataserializer = DataSerializer(configuration)    
+    inference_data = dataserializer.load_inference_data()       
+
+    # 3. [PREDICT ADSORPTION] 
     #--------------------------------------------------------------------------
-    predictor = AdsorptionPredictions()
+    logger.info('Preprocessing inference input data according to model configurations')
+    predictor = AdsorptionPredictions(model, configuration, checkpoint_path)
+    predictions = predictor.predict_adsorption_isotherm(inference_data)
 
 
 

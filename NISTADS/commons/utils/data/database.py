@@ -346,10 +346,10 @@ class AdsorptionDatabase:
     #--------------------------------------------------------------------------
     def update_database(self):               
         dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
-        self.save_inference_data(dataset)
+        self.save_inference_data_table(dataset)
        
     #--------------------------------------------------------------------------
-    def load_source_datasets(self):          
+    def load_source_data_table(self):          
         conn = sqlite3.connect(self.db_path)        
         adsorption_data = pd.read_sql_query(
             f"SELECT * FROM {self.single_component.name}", conn)
@@ -362,7 +362,7 @@ class AdsorptionDatabase:
         return adsorption_data, guest_data, host_data
 
     #--------------------------------------------------------------------------
-    def load_processed_data(self):       
+    def load_processed_data_table(self):       
         conn = sqlite3.connect(self.db_path)        
         data = pd.read_sql_query(
             f"SELECT * FROM {self.processed_data.name}", conn)
@@ -371,7 +371,7 @@ class AdsorptionDatabase:
         return data  
 
     #--------------------------------------------------------------------------
-    def load_inference_data(self):         
+    def load_inference_data_table(self):         
         conn = sqlite3.connect(self.db_path)         
         data = pd.read_sql_query(
             f"SELECT * FROM {self.inference_data.name}", conn)
@@ -418,7 +418,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_inference_data(self, data : pd.DataFrame):      
+    def save_inference_data_table(self, data : pd.DataFrame):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.inference_data.name, conn, if_exists='replace',
@@ -427,7 +427,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary(self, data : pd.DataFrame):         
+    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.checkpoints_summary.name, conn, if_exists='replace',

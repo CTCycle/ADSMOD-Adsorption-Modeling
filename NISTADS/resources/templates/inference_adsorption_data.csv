@@ -1,4 +1,4 @@
-﻿filename;temperature;adsorbent_name;adsorbates_name;pressure
+﻿filename;temperature;adsorbent_name;adsorbate_name;pressure
 ceEVFV667;303;Zeolite 5A;ethanol;10
 ceEVFV667;303;Zeolite 5A;ethanol;100
 ceEVFV667;303;Zeolite 5A;ethanol;200
