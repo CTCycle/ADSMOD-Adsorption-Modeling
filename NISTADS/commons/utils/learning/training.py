@@ -11,14 +11,14 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self, configuration, metadata=None):        
+    def __init__(self, configuration, metadata):        
         keras.utils.set_random_seed(configuration["SEED"])        
         self.selected_device = CONFIG["device"]["DEVICE"]
         self.device_id = CONFIG["device"]["DEVICE_ID"]
         self.mixed_precision = configuration["device"]["MIXED_PRECISION"] 
         self.serializer = ModelSerializer()
         self.configuration = configuration
-        self.metadata = metadata      
+        self.metadata = metadata          
 
     # set device
     #--------------------------------------------------------------------------
@@ -67,6 +67,9 @@ class ModelTraining:
                    'val_history' : RTH_callback.val_history,
                    'total_epochs' : epochs}
         
+        # save pretrained model as serialized keras model 
+        # save metadata and training history in json files, including preprocessing metadata
+        # and indexes for both the SMILE guest encoding and adsorbents encoding      
         self.serializer.save_pretrained_model(model, checkpoint_path)       
         self.serializer.save_session_configuration(
             checkpoint_path, history, self.configuration, self.metadata)

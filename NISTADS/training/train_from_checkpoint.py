@@ -32,29 +32,26 @@ if __name__ == '__main__':
     trainer = ModelTraining(configuration, metadata)    
     trainer.set_device()     
 
-    # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
-    # initialize training device, allows changing device prior to initializing the generators
+    # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]  
     #--------------------------------------------------------------------------    
-    # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration)
-    processed_data, _, _, _ = dataserializer.load_preprocessed_data()   
+    data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data() 
     
     # 3. [SPLIT DATA]
     #--------------------------------------------------------------------------
     # split data into train set and validation set
     logger.info('Preparing dataset based on splitting size')  
-    splitter = TrainValidationSplit(configuration, processed_data)     
+    splitter = TrainValidationSplit(configuration, data)     
     train_data, validation_data = splitter.split_train_and_validation()         
 
-    # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
+    # 4. [BUILD TRAINING DATALODER]
     #--------------------------------------------------------------------------   
-    # create the tf.datasets using the previously initialized generators 
     builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
         train_data, validation_data)
 
-    # 4. [TRAINING MODEL]  
+    # 4. [TRAIN MODEL]  
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     

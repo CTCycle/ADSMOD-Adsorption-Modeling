@@ -28,7 +28,7 @@ if __name__ == '__main__':
     model.summary(expand_nested=True)  
     
     # setting device for training    
-    trainer = ModelTraining(configuration)    
+    trainer = ModelTraining(configuration, metadata)    
     trainer.set_device()
 
     # 2. [LOAD AND PROCEPROCESS DATA]
@@ -41,8 +41,10 @@ if __name__ == '__main__':
     logger.info('Preprocessing inference input data according to model configurations')
     predictor = AdsorptionPredictions(model, configuration, metadata, checkpoint_path)
     predictions = predictor.predict_adsorption_isotherm(inference_data)
+    predictions_dataset = predictor.merge_predictions_to_dataset(inference_data, predictions)
+    dataserializer.save_predictions_dataset(predictions_dataset)
+    logger.info('Predictions dataset saved successfully in database')
 
-    print()
-
+   
 
 

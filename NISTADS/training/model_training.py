@@ -21,44 +21,42 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 if __name__ == '__main__':
 
-    # 1. [LOAD PREPROCESSED DATA]
-    #--------------------------------------------------------------------------     
-    # load data from csv, add paths to images 
+    # 1. [LOAD AND SPLIT DATA]
+    #--------------------------------------------------------------------------   
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata, _, _ = dataserializer.load_preprocessed_data()    
-    
-    # 2. [SPLIT DATA]
-    #--------------------------------------------------------------------------
+    data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data()         
+  
     # split data into train set and validation set
     logger.info('Preparing dataset of images and captions based on splitting size')  
-    splitter = TrainValidationSplit(CONFIG, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()  
+    splitter = TrainValidationSplit(CONFIG, data)     
+    train_data, validation_data = splitter.split_train_and_validation()
+
+    # 2. [SET DEVICE AND CREATE CHECKPOITN FOLDER]
+    #--------------------------------------------------------------------------
+    logger.info('Setting device for training operations based on user configurations') 
+    trainer = ModelTraining(CONFIG, metadata) 
+    trainer.set_device()         
 
     # create subfolder for preprocessing data
     modelserializer = ModelSerializer()
     checkpoint_path = modelserializer.create_checkpoint_folder()       
 
-    # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
-    #--------------------------------------------------------------------------
-    # initialize training device 
-    # allows changing device prior to initializing the generators
-    logger.info('Building NISTADS model and data loaders')     
-    trainer = ModelTraining(CONFIG, metadata) 
-    trainer.set_device()    
-       
-    # create the tf.datasets using the previously initialized generators 
+    # 3. [BUILD TRAINING DATALODER]
+    #-------------------------------------------------------------------------- 
+    logger.info('Building model data loaders with prefetching and parallel processing')   
     builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
         train_data, validation_data)  
 
-    # 3. [TRAINING MODEL]  
+    # 4. [TRAIN MODEL]  
     #--------------------------------------------------------------------------  
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
     log_training_report(train_data, validation_data, CONFIG, metadata)
 
-    # initialize and compile the captioning model    
+    # initialize and compile the captioning model  
+    logger.info('Building SCADS model based on user configurations')  
     wrapper = SCADSModel(metadata, CONFIG)
     model = wrapper.get_model(model_summary=True) 
 

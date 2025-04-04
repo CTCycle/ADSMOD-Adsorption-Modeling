@@ -39,12 +39,12 @@ class InferenceDataLoaderProcessor:
         # load source datasets to obtain the guest and host data references
         # then load the metadata from the processed dataset. At any time, 
         # only a single instance of the processed dataset may exist, therefor
-        # the user should be careful about loading a model trained on a different
-        # version of said dataset
+        # the user should be careful about loading a model trained on a different dataset
         dataserializer = DataSerializer(configuration)  
         _, self.guest_data, self.host_data = dataserializer.load_datasets() 
         _, self.metadata, self.smile_vocab, self.ads_vocab = dataserializer.load_preprocessed_data() 
 
+        self.norm_config = self.metadata['normalization']
         self.pressure_padding = int(self.metadata['dataset']['MAX_PQ_POINTS'])
         self.smile_padding = int(self.metadata['dataset']['SMILE_PADDING'])  
   
@@ -80,17 +80,17 @@ class InferenceDataLoaderProcessor:
     def remove_invalid_measurements(self, data : pd.DataFrame):
         data = data[data['temperature'] >= 0] 
         data = data[(data['pressure'] >= 0) & 
-                    (data['pressure'] <= self.metadata["Pressure_max"])]  
+                    (data['pressure'] <= self.norm_config['pressure'])]  
         
         return data
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def normalize_from_references(self, data : pd.DataFrame):
-        data['temperature'] = data['temperature']/self.metadata['Temperature_max']
-        data['adsorbate_molecular_weight'] = data['adsorbate_molecular_weight']/self.metadata['Molecular_weight_max']
+        data['temperature'] = data['temperature']/self.norm_config['temperature']
+        data['adsorbate_molecular_weight'] = data['adsorbate_molecular_weight']/self.norm_config['adsorbate_molecular_weight']
         data['pressure'] = data['pressure'].apply(
-            lambda x : [s/self.metadata['Pressure_max'] for s in x])
+            lambda x : [s/self.norm_config['pressure'] for s in x])
 
         return data
     
@@ -248,7 +248,7 @@ class InferenceDataLoader:
         return inputs_dict, output   
 
     #--------------------------------------------------------------------------
-    def preprocess_inference_inputs(self, data : pd.DataFrame):
+    def process_inference_inputs(self, data : pd.DataFrame):
         processed_data = self.processor.remove_invalid_measurements(data)
         processed_data = self.processor.aggregate_inference_data(processed_data)
         processed_data = self.processor.add_properties_to_inference_inputs(processed_data)
@@ -258,16 +258,7 @@ class InferenceDataLoader:
         processed_data = self.processor.apply_padding(processed_data) 
         inference_inputs = self.separate_inputs(processed_data)
 
-        return inference_inputs   
-    
-    #--------------------------------------------------------------------------
-    def postprocess_inference_output(self, inputs : dict, predictions : np.array):
-        
-        metadata, smile_vocab, ads_vocab = self.processor.get_processing_metadata()
-        # reshape predictions from (samples, measurements, 1) to (samples, measurements)
-        predictions = np.squeeze(predictions, axis=-1)
-        
-        return predictions
+        return inference_inputs       
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------

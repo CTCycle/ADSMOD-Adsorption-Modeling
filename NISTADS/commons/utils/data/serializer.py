@@ -116,7 +116,15 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
-        self.database.save_experiments_table(single_component, binary_mixture)        
+        self.database.save_experiments_table(single_component, binary_mixture)  
+
+    #--------------------------------------------------------------------------
+    def save_predictions_dataset(self, data : pd.DataFrame):
+        self.database.save_inference_data_table(data)  
+
+    
+
+          
 
     
 # [MODEL SERIALIZATION]
@@ -148,7 +156,8 @@ class ModelSerializer:
     def save_session_configuration(self, path, history : dict, configurations : dict, metadata : dict):        
         os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
         config_path = os.path.join(path, 'configurations', 'configurations.json')
-        metadata_path = os.path.join(path, 'configurations', 'metadata.json') 
+        metadata_path = os.path.join(path, 'configurations', 'metadata.json')       
+        history_path = os.path.join(path, 'configurations', 'session_history.json') 
         history_path = os.path.join(path, 'configurations', 'session_history.json') 
 
         # Save training and model configurations
@@ -157,7 +166,7 @@ class ModelSerializer:
 
         # Save metadata
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f) 
+            json.dump(metadata, f)     
 
         # Save session history
         with open(history_path, 'w') as f:
