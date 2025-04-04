@@ -14,48 +14,28 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class AdsorptionPredictions:
     
-    def __init__(self, model : keras.Model, configuration : dict, checkpoint_path : str):        
+    def __init__(self, model : keras.Model, configuration : dict, metadata : dict, checkpoint_path : str):        
         keras.utils.set_random_seed(configuration["SEED"])  
         # initialize the inference data loader that prepares the data 
         # for using the model in inference mode (predictions)
-        self.dataloader = InferenceDataLoader(configuration)
-                          
+        self.dataloader = InferenceDataLoader(configuration)                          
         self.checkpoint_name = os.path.basename(checkpoint_path)        
         self.configuration = configuration
-        self.model = model 
+        self.metadata = metadata
+        self.model = model     
 
     #--------------------------------------------------------------------------
-    def predict_adsorption_isotherm(self, data : pd.DataFrame):
+    def predict_adsorption_isotherm(self, data : pd.DataFrame):       
         processed_inputs = self.dataloader.preprocess_inference_inputs(data)
+        predictions = self.model.predict(processed_inputs, verbose=1)
+        predictions = self.dataloader.postprocess_inference_output(processed_inputs, predictions)
 
-        pass
-        
-        
-        # for pt in tqdm(images_paths, desc='Encoding images', total=len(images_paths)):
-        #     image_name = os.path.basename(pt)
-        #     try:
-        #         image = self.dataloader.load_image_as_array(pt)
-        #         image = np.expand_dims(image, axis=0)
-        #         extracted_features = self.encoder_model.predict(image, verbose=0)
-        #         features[pt] = extracted_features
-        #     except Exception as e:
-        #         features[pt] = f'Error during encoding: {str(e)}'
-        #         logger.error(f'Could not encode image {image_name}: {str(e)}')
 
-        # # combine extracted features with images name and save them in numpy arrays    
-        # structured_data = np.array(
-        #     [(image, features[image]) for image in features], dtype=object)
-        # file_loc = os.path.join(
-        #     INFERENCE_PATH, f'encoded_images_{self.checkpoint_name}.npy')
-        # np.save(file_loc, structured_data)
-        
-        #return features
+        return predictions
 
-    
-    
   
         
-
+      
 
 
 

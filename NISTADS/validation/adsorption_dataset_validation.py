@@ -7,7 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.validation.dataset import AdsorptionDataValidation
+from NISTADS.commons.utils.validation.experiments import AdsorptionDataValidation
 from NISTADS.commons.utils.data.serializer import DataSerializer
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     logger.info(f'{guest_data.shape[0]} adsorbates species in the dataset')
     logger.info(f'{host_data.shape[0]} adsorbent materials in the dataset')
 
-    # load data from csv, add paths to images 
+    # load preprocessed data and associated metadata
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data()   
+    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data()   
     

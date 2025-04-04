@@ -146,13 +146,20 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
-    def save_session_configuration(self, path, history : dict, configurations : dict):        
+    def save_session_configuration(self, path, history : dict, configurations : dict, metadata : dict):        
         os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
         config_path = os.path.join(path, 'configurations', 'configurations.json')
+        metadata_path = os.path.join(path, 'configurations', 'metadata.json') 
         history_path = os.path.join(path, 'configurations', 'session_history.json') 
+
         # Save training and model configurations
         with open(config_path, 'w') as f:
-            json.dump(configurations, f)    
+            json.dump(configurations, f)
+
+        # Save metadata
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f) 
+
         # Save session history
         with open(history_path, 'w') as f:
             json.dump(history, f)
@@ -170,14 +177,23 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def load_session_configuration(self, path):
-        config_path = os.path.join(path, 'configurations', 'configurations.json')        
+        config_path = os.path.join(path, 'configurations', 'configurations.json')
+        metadata_path = os.path.join(path, 'configurations', 'metadata.json') 
+        history_path = os.path.join(path, 'configurations', 'session_history.json') 
+
+        # Load training and model configurations
         with open(config_path, 'r') as f:
             configurations = json.load(f) 
-        history_path = os.path.join(path, 'configurations', 'session_history.json')
+         
+        # Load metadata
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f) 
+       
+        # Load session history
         with open(history_path, 'r') as f:
             history = json.load(f)
 
-        return configurations, history
+        return configurations, metadata, history
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):        
@@ -221,6 +237,6 @@ class ModelSerializer:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         model = self.load_checkpoint(checkpoint_path)       
-        configuration, history = self.load_session_configuration(checkpoint_path)           
+        configuration, metadata, history = self.load_session_configuration(checkpoint_path)           
             
-        return model, configuration, history, checkpoint_path
+        return model, configuration, metadata, history, checkpoint_path

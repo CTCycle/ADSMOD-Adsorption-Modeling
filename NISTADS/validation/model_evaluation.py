@@ -20,7 +20,7 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 if __name__ == '__main__':    
 
-    # 1. [LOAD DATASET]
+    # 1. [CREATE CHECKPOINTS SUMMARY]
     #--------------------------------------------------------------------------  
     summarizer = ModelEvaluationSummary(CONFIG)    
     checkpoints_summary = summarizer.checkpoints_summary() 
@@ -33,9 +33,9 @@ if __name__ == '__main__':
     model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()
     model.summary(expand_nested=True)   
 
-    # load data from csv, add paths to images 
+    # load preprocessed data and associated metadata
     dataserializer = DataSerializer(configuration)
-    processed_data, metadata, smile_vocabulary, ads_vocabulary = dataserializer.load_preprocessed_data() 
+    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data() 
 
     # initialize the loaderSet class with the generator instances
     # create the tf.datasets using the previously initialized generators

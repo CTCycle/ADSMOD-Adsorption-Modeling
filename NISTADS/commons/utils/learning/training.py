@@ -11,13 +11,14 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self, configuration):
-        self.configuration = configuration
+    def __init__(self, configuration, metadata=None):        
         keras.utils.set_random_seed(configuration["SEED"])        
         self.selected_device = CONFIG["device"]["DEVICE"]
         self.device_id = CONFIG["device"]["DEVICE_ID"]
-        self.mixed_precision = self.configuration["device"]["MIXED_PRECISION"] 
-        self.serializer = ModelSerializer()      
+        self.mixed_precision = configuration["device"]["MIXED_PRECISION"] 
+        self.serializer = ModelSerializer()
+        self.configuration = configuration
+        self.metadata = metadata      
 
     # set device
     #--------------------------------------------------------------------------
