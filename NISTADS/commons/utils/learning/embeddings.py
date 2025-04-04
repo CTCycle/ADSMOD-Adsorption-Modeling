@@ -8,8 +8,8 @@ from NISTADS.commons.logger import logger
 
 # [POSITIONAL EMBEDDING]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Embeddings', name='MolecularEmbedding')
-class MolecularEmbedding(keras.layers.Layer):
+@keras.saving.register_keras_serializable(package='Embeddings', name='MolecularEmbedding')
+class MolecularEmbedding(layers.Layer):
     def __init__(self, smile_vocab_size, ads_vocab_size, embedding_dims, sequence_length, 
                  mask_values=True, **kwargs):
         super(MolecularEmbedding, self).__init__(**kwargs)

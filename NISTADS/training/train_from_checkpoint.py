@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration)
-    processed_data, metadata, _, _ = dataserializer.load_preprocessed_data()   
+    processed_data, _, _, _ = dataserializer.load_preprocessed_data()   
     
     # 3. [SPLIT DATA]
     #--------------------------------------------------------------------------

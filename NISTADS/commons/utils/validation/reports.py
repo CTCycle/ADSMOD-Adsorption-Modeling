@@ -26,16 +26,16 @@ def log_training_report(train_data, validation_data, config : dict, metadata={})
     logger.info(f'SMILE vocabulary size:         {smile_vocab_size}')
     logger.info(f'Adsorbents vocabulary size:    {ads_vocab_size}')    
     for key, value in config.items():
-        if isinstance(value, dict):
+        if isinstance(value, dict) and 'validation' not in key:
             for sub_key, sub_value in value.items():
                 if sub_key == 'ADDITIONAL_EPOCHS':
                     sub_value = CONFIG['training']['ADDITIONAL_EPOCHS']                
                 if isinstance(sub_value, dict):
                     for inner_key, inner_value in sub_value.items():
-                        logger.info(f'{key}.{sub_key}.{inner_key}: {inner_value}')
+                        logger.info(f'{key} - {sub_key} - {inner_key}: {inner_value}')
                 else:
-                    logger.info(f'{key}.{sub_key}: {sub_value}')
-        else:
+                    logger.info(f'{key} - {sub_key}: {sub_value}')
+        elif 'validation' not in key:
             logger.info(f'{key}: {value}')
 
     logger.info('--------------------------------------------------------------\n')

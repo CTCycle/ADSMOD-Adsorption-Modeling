@@ -7,7 +7,7 @@ from NISTADS.commons.logger import logger
 
 # [ADD NORM LAYER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='CustomLayers', name='AddNorm')
+@keras.saving.register_keras_serializable(package='CustomLayers', name='AddNorm')
 class AddNorm(keras.layers.Layer):
     def __init__(self, epsilon=10e-5, **kwargs):
         super(AddNorm, self).__init__(**kwargs)
@@ -46,7 +46,7 @@ class AddNorm(keras.layers.Layer):
 
 # [FEED FORWARD]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
+@keras.saving.register_keras_serializable(package='CustomLayers', name='FeedForward')
 class FeedForward(keras.layers.Layer):
     def __init__(self, dense_units, dropout, seed, **kwargs):
         super(FeedForward, self).__init__(**kwargs)
@@ -94,7 +94,7 @@ class FeedForward(keras.layers.Layer):
 
 # [TRANSFORMER ENCODER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoder')
+@keras.saving.register_keras_serializable(package='Encoders', name='TransformerEncoder')
 class TransformerEncoder(keras.layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerEncoder, self).__init__(**kwargs)

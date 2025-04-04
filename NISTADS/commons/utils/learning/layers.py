@@ -7,7 +7,7 @@ from NISTADS.commons.logger import logger
 
 # [ADD NORM LAYER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='CustomLayers', name='AddNorm')
+@keras.saving.register_keras_serializable(package='CustomLayers', name='AddNorm')
 class AddNorm(keras.layers.Layer):
     def __init__(self, epsilon=10e-5, **kwargs):
         super(AddNorm, self).__init__(**kwargs)

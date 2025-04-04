@@ -47,9 +47,7 @@ class DataSerializer:
             METADATA_PATH, 'adsorbents_index.json')
 
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'
-        self.adsorbate_SMILE_COL = 'adsorbate_encoded_SMILE'   
-        self.adsorbent_SMILE_COL = 'adsorbent_encoded_SMILE'     
+        self.Q_COL = 'adsorbed_amount'             
         self.parameters = configuration["dataset"]
         self.configuration = configuration 
 
@@ -95,11 +93,12 @@ class DataSerializer:
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
-                    'adsorbent_vocabulary_size' : len(adsorbent_vocabulary),                   
-                    'Pressure_max' : float(normalization_stats[self.P_COL]),                    
-                    'Uptake_max' : float(normalization_stats[self.Q_COL]),
-                    'Temperature_max' : float(normalization_stats['temperature']),
-                    'Molecular_weight_max' : float(normalization_stats['adsorbate_molecular_weight'])}  
+                    'adsorbent_vocabulary_size' : len(adsorbent_vocabulary), 
+                    'normalization' : {
+                        self.P_COL : float(normalization_stats[self.P_COL]),
+                        self.Q_COL : float(normalization_stats[self.Q_COL]),
+                        'temperature' : float(normalization_stats['temperature']),
+                        'adsorbate_molecular_weight' : float(normalization_stats['adsorbate_molecular_weight'])}}  
                
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 

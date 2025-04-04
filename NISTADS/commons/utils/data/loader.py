@@ -258,13 +258,14 @@ class InferenceDataLoader:
         processed_data = self.processor.apply_padding(processed_data) 
         inference_inputs = self.separate_inputs(processed_data)
 
-        return inference_inputs
+        return inference_inputs   
     
-    # wrapper method to run the postprocessing operations on the model output
-    # postprocessing logic is implemented in the inference data loader processor
     #--------------------------------------------------------------------------
     def postprocess_inference_output(self, inputs : dict, predictions : np.array):
+        
         metadata, smile_vocab, ads_vocab = self.processor.get_processing_metadata()
+        # reshape predictions from (samples, measurements, 1) to (samples, measurements)
+        predictions = np.squeeze(predictions, axis=-1)
         
         return predictions
     

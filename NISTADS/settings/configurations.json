@@ -25,8 +25,8 @@
                "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
-    "training" : {"EPOCHS" : 300,
-                  "ADDITIONAL_EPOCHS" : 2,                  
+    "training" : {"EPOCHS" : 1,
+                  "ADDITIONAL_EPOCHS" : 1,                  
                   "BATCH_SIZE" : 128,                             
                   "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,

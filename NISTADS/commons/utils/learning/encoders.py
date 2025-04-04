@@ -9,7 +9,7 @@ from NISTADS.commons.logger import logger
 
 # [STATE ENCODER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Encoders', name='StateEncoder')
+@keras.saving.register_keras_serializable(package='Encoders', name='StateEncoder')
 class StateEncoder(keras.layers.Layer):
     def __init__(self, dropout_rate=0.2, seed=42, **kwargs):
         super(StateEncoder, self).__init__(**kwargs)        
@@ -56,7 +56,7 @@ class StateEncoder(keras.layers.Layer):
 
 # [FEED FORWARD]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Encoders', name='PressureSerierEncoder')
+@keras.saving.register_keras_serializable(package='Encoders', name='PressureSerierEncoder')
 class PressureSerierEncoder(keras.layers.Layer):
     def __init__(self, embedding_dims, dropout_rate, num_heads, seed=42, **kwargs):
         super(PressureSerierEncoder, self).__init__(**kwargs)        
@@ -141,7 +141,7 @@ class PressureSerierEncoder(keras.layers.Layer):
 
 # [UPTAKE DECODER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Decoders', name='QDecoder')
+@keras.saving.register_keras_serializable(package='Decoders', name='QDecoder')
 class QDecoder(keras.layers.Layer):
     def __init__(self, embedding_dims=128, dropout_rate=0.2, seed=42, **kwargs):
         super(QDecoder, self).__init__(**kwargs)        

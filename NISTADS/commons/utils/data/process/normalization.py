@@ -46,9 +46,8 @@ class FeatureNormalizer:
         self.Q_COL = 'adsorbed_amount'       
         self.norm_columns = ['temperature', 'adsorbate_molecular_weight']       
         self.configuration = configuration 
-
         self.statistics = self.get_normalization_parameters(
-            train_dataset) if statistics is None and train_dataset is None else statistics    
+            train_dataset) if statistics is None and train_dataset is not None else statistics    
 
     #--------------------------------------------------------------------------
     def get_normalization_parameters(self, train_data : pd.DataFrame):
