@@ -29,24 +29,23 @@ if __name__ == '__main__':
     # split data into train set and validation set
     logger.info('Preparing dataset of images and captions based on splitting size')  
     splitter = TrainValidationSplit(CONFIG, data)     
-    train_data, validation_data = splitter.split_train_and_validation()
+    train_data, validation_data = splitter.split_train_and_validation()        
 
-    # 2. [SET DEVICE AND CREATE CHECKPOITN FOLDER]
-    #--------------------------------------------------------------------------
-    logger.info('Setting device for training operations based on user configurations') 
-    trainer = ModelTraining(CONFIG, metadata) 
-    trainer.set_device()         
-
-    # create subfolder for preprocessing data
-    modelserializer = ModelSerializer()
-    checkpoint_path = modelserializer.create_checkpoint_folder()       
-
-    # 3. [BUILD TRAINING DATALODER]
+    # 2. [BUILD TRAINING DATALODER]
     #-------------------------------------------------------------------------- 
     logger.info('Building model data loaders with prefetching and parallel processing')   
     builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
-        train_data, validation_data)  
+        train_data, validation_data) 
+    
+    modelserializer = ModelSerializer()
+    checkpoint_path = modelserializer.create_checkpoint_folder()
+    
+    # 3. [SET DEVICE]
+    #-------------------------------------------------------------------------- 
+    logger.info('Setting device for training operations based on user configurations') 
+    trainer = ModelTraining(CONFIG, metadata) 
+    trainer.set_device()  
 
     # 4. [TRAIN MODEL]  
     #--------------------------------------------------------------------------  

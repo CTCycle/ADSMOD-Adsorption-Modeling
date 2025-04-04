@@ -47,7 +47,6 @@ class AdsorptionDataValidation:
 
     #--------------------------------------------------------------------------
     def features_scatterplot(self, df, columns, title='', x_label='', y_label=''):
-
         df_selected = df[columns]        
         plt.figure(figsize=(14, 12))  
         sns.scatterplot(data=df_selected, x=columns[0], y=columns[1], 
@@ -61,9 +60,7 @@ class AdsorptionDataValidation:
         plt.show(block=False)
 
     #--------------------------------------------------------------------------
-    def DBSCAN_clustering(self, df, min_samples, title='', x_label='', y_label=''):
-
-             
+    def DBSCAN_clustering(self, df, min_samples, title='', x_label='', y_label=''):             
         X_scaled = StandardScaler().fit_transform(df.values)        
         dbscan = DBSCAN(eps=0.75, min_samples=min_samples, algorithm='ball_tree')        
         dbscan.fit(X_scaled)        
@@ -92,3 +89,10 @@ class AdsorptionDataValidation:
 
     
 
+# [LOAD MODEL]
+################################################################################
+class AdsorptionIsothermsQuality:
+
+    def __init__(self, configuration, model):               
+        self.configurations = configuration
+        self.model = model

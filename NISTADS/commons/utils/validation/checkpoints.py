@@ -14,8 +14,7 @@ class ModelEvaluationSummary:
 
     def __init__(self, configuration, remove_invalid=False):
         self.remove_invalid = remove_invalid
-        self.serializer = ModelSerializer()
-       
+        self.serializer = ModelSerializer()       
         self.database = AdsorptionDatabase(configuration)
         self.configurations = configuration
 

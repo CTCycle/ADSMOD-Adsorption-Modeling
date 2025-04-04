@@ -2,7 +2,7 @@ import os
 import sqlite3
 import pandas as pd
 
-from NISTADS.commons.constants import DATA_PATH, INFERENCE_PATH, VALIDATION_PATH
+from NISTADS.commons.constants import DATA_PATH, INFERENCE_PATH
 from NISTADS.commons.logger import logger
 
 
@@ -327,8 +327,7 @@ class AdsorptionDatabase:
         self.update_database()
 
     #--------------------------------------------------------------------------       
-    def initialize_database(self):        
-        # Connect to the SQLite database and create the database if does not exist
+    def initialize_database(self): 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
@@ -385,12 +384,11 @@ class AdsorptionDatabase:
                                binary_mixture : pd.DataFrame):        
         conn = sqlite3.connect(self.db_path)         
         single_components.to_sql(
-            self.single_component.name, conn, if_exists='replace',
+            self.single_component.name, conn, if_exists='replace', index=False,
             dtype=self.single_component.get_dtypes())
         binary_mixture.to_sql(
-            self.binary_mixture.name, conn, if_exists='replace',
-            dtype=self.binary_mixture.get_dtypes())
-           
+            self.binary_mixture.name, conn, if_exists='replace', index=False,
+            dtype=self.binary_mixture.get_dtypes())           
         conn.commit()
         conn.close() 
 
@@ -399,11 +397,11 @@ class AdsorptionDatabase:
         conn = sqlite3.connect(self.db_path)
         if adsorbates is not None:         
             adsorbates.to_sql(
-                self.adsorbates.name, conn, if_exists='replace',
+                self.adsorbates.name, conn, if_exists='replace', index=False,
                 dtype=self.adsorbates.get_dtypes())
         if adsorbents is not None:
             adsorbents.to_sql(
-                self.adsorbents.name, conn, if_exists='replace',
+                self.adsorbents.name, conn, if_exists='replace', index=False,
                 dtype=self.adsorbents.get_dtypes())
         conn.commit()
         conn.close() 
@@ -412,7 +410,7 @@ class AdsorptionDatabase:
     def save_processed_data_table(self, processed_data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         processed_data.to_sql(
-            self.processed_data.name, conn, if_exists='replace',
+            self.processed_data.name, conn, if_exists='replace', index=False,
             dtype=self.processed_data.get_dtypes())    
         conn.commit()
         conn.close()  
@@ -421,7 +419,7 @@ class AdsorptionDatabase:
     def save_inference_data_table(self, data : pd.DataFrame):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
-            self.inference_data.name, conn, if_exists='replace',
+            self.inference_data.name, conn, if_exists='replace', index=False,
             dtype=self.inference_data.get_dtypes())
         conn.commit()
         conn.close()  
@@ -430,7 +428,7 @@ class AdsorptionDatabase:
     def save_checkpoints_summary_table(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
-            self.checkpoints_summary.name, conn, if_exists='replace',
+            self.checkpoints_summary.name, conn, if_exists='replace', index=False,
             dtype=self.checkpoints_summary.get_dtypes())
         conn.commit()
         conn.close()   

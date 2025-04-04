@@ -41,7 +41,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **2) Collect adsorption data:** extract data from the NIST DB and organise them into a readable .csv format. Data is collected through NIST/ARPA-E Database API in a concurrent fashion, allowing for fast data retrieval by selecting a maximum number of parallel HTTP requests. Once the data has been collected, Pug REST API is used to fetch adsorbates molecular properties that will be added to the main dataset. 
 
-**3) Data preprocessing:** prepare the adsorption dataset for machine learning, including normalization of numerical variables and SMILE sequence encoding using a regex-based tokenizer.
+**3) Data preprocessing:** prepare the adsorption dataset for machine learning by normalizing its numerical variables and encoding SMILE sequences with a regex-based tokenizer. Note that only one instance of the processed dataset may exist at any given moment, so any loaded checkpoints will reference the current version regardless of the original configurations.
 
 **4) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 
@@ -106,11 +106,11 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 
 #### Model Configuration
 
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| MOLECULAR_EMBEDDING| Embedding dimensions for the molecular properties        |  
-| JIT_COMPILE        | Apply Just-In_time (JIT) compiler for model optimization |
-| JIT_BACKEND        | Just-In_time (JIT) backend                               |
+| Parameter            | Description                                              |
+|----------------------|----------------------------------------------------------|
+| MOLECULAR_EMBEDDING  | Embedding dimensions for the molecular properties        |  
+| JIT_COMPILE          | Apply Just-In_time (JIT) compiler for model optimization |
+| JIT_BACKEND          | Just-In_time (JIT) backend                               |
 
 #### Device Configuration
 

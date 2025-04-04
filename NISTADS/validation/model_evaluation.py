@@ -12,6 +12,7 @@ from NISTADS.commons.utils.data.loader import InferenceDataLoader
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.validation.reports import evaluation_report
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from NISTADS.commons.utils.validation.experiments import AdsorptionIsothermsQuality
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -52,5 +53,10 @@ if __name__ == '__main__':
 
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------   
-    evaluation_report(model, train_dataset, validation_dataset)     
+    evaluation_report(model, train_dataset, validation_dataset)  
+
+    # 5. [COMPARE RECONTRUCTED IMAGES]
+    #--------------------------------------------------------------------------   
+    validator = AdsorptionIsothermsQuality(configuration, model)      
+    #validator.visualize_reconstructed_images(train_images, validation_images)       
 
