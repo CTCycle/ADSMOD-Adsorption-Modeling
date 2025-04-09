@@ -1,6 +1,6 @@
-import numpy as np
 import pandas as pd
 from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
@@ -11,7 +11,9 @@ class TrainValidationSplit:
 
     def __init__(self, configuration, dataframe: pd.DataFrame):
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'     
+        self.Q_COL = 'adsorbed_amount'
+        self.adsorbate_col = 'adsorbate_name'
+        self.adsorbent_col = 'adsorbent_name'     
 
         # Set the sizes for the train and validation datasets        
         self.validation_size = configuration["dataset"]["VALIDATION_SIZE"]
@@ -24,11 +26,12 @@ class TrainValidationSplit:
         self.val_size = int(total_samples * self.validation_size)
             
     #--------------------------------------------------------------------------
-    def split_train_and_validation(self):       
-        self.dataframe = shuffle(
-            self.dataframe, random_state=self.seed).reset_index(drop=True) 
-        train_data = self.dataframe.iloc[:self.train_size]
-        validation_data = self.dataframe.iloc[self.train_size:self.train_size + self.val_size]
+    def split_train_and_validation(self):          
+        train_data, validation_data = train_test_split(
+            self.dataframe, test_size=self.validation_size, random_state=self.seed,
+            stratify=self.dataframe['combination']) 
+        train_data = train_data.drop(columns=['combination'])
+        validation_data = validation_data.drop(columns=['combination'])        
         
         return train_data, validation_data
     

@@ -21,7 +21,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     logger.info(f'Loading NISTADS datasets from {DATA_PATH}')
     serializer = DataSerializer(CONFIG)
-    experiments, guest_data, host_data = serializer.load_datasets()   
+    experiments, guest_data, host_data = serializer.load_source_datasets()   
      
     # 2. [FETCH MOLECULAR PROPERTIES]
     #--------------------------------------------------------------------------   

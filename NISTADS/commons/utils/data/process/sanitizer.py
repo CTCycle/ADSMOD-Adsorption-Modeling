@@ -16,12 +16,14 @@ class DataSanitizer:
         self.P_TARGET_COL = 'pressure'
         self.Q_TARGET_COL = 'adsorbed_amount'
         self.T_TARGET_COL = 'temperature'
+        self.adsorbate_col = 'adsorbate_name'
+        self.adsorbent_col = 'adsorbent_name' 
         self.max_pressure = configuration['dataset']['MAX_PRESSURE']
         self.max_uptake = configuration['dataset']['MAX_UPTAKE']
         self.configuration = configuration
         self.included_cols = [
-            'temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent',
-            'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
+            'temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent', 'adsorbent_name',
+            'adsorbate_molecular_weight', 'adsorbate_name', 'adsorbate_encoded_SMILE']
 
     #--------------------------------------------------------------------------
     def is_convertible_to_float(self, value):
@@ -60,13 +62,22 @@ class DataSanitizer:
         filtered_series = dataset.apply(
             self.filter_elements_outside_boundaries, axis=1)
         dataset[self.P_TARGET_COL] = filtered_series[self.P_TARGET_COL]
-        dataset[self.Q_TARGET_COL] = filtered_series[self.Q_TARGET_COL]
-        
+        dataset[self.Q_TARGET_COL] = filtered_series[self.Q_TARGET_COL]        
            
         return dataset
     
     #--------------------------------------------------------------------------
-    def isolate_preprocessed_features(self, dataset : pd.DataFrame): 
+    def remove_underpopulated_classes(self, dataset : pd.DataFrame):        
+        dataset['combination'] = (dataset[self.adsorbate_col].astype(str) 
+                                  + "_" + dataset[self.adsorbent_col].astype(str))
+        combo_counts = dataset['combination'].value_counts()
+        valid_combinations = combo_counts[combo_counts >= 2].index    
+        dataset = dataset[dataset['combination'].isin(valid_combinations)]              
+           
+        return dataset
+    
+    #--------------------------------------------------------------------------
+    def isolate_processed_features(self, dataset : pd.DataFrame): 
         processed_dataset = dataset[self.included_cols]
         
         return processed_dataset

@@ -174,6 +174,7 @@ class TrainDataTable:
             'adsorbed_amount': 'FLOAT',
             'encoded_adsorbent': 'INTEGER',
             'adsorbate_molecular_weight': 'FLOAT',
+            'adsorbate_name': 'VARCHAR',
             'adsorbate_encoded_SMILE': 'VARCHAR'}
 
     #--------------------------------------------------------------------------
@@ -189,6 +190,7 @@ class TrainDataTable:
             adsorbed_amount FLOAT,
             encoded_adsorbent INTEGER,
             adsorbate_molecular_weight FLOAT,
+            adsorbate_name VARCHAR,  
             adsorbate_encoded_SMILE VARCHAR             
         );
         '''
@@ -206,6 +208,7 @@ class ValidationDataTable:
             'adsorbed_amount': 'FLOAT',
             'encoded_adsorbent': 'INTEGER',
             'adsorbate_molecular_weight': 'FLOAT',
+            'adsorbate_name': 'VARCHAR',
             'adsorbate_encoded_SMILE': 'VARCHAR'}
 
     #--------------------------------------------------------------------------
@@ -221,6 +224,7 @@ class ValidationDataTable:
             adsorbed_amount FLOAT,
             encoded_adsorbent INTEGER,
             adsorbate_molecular_weight FLOAT,
+            adsorbate_name VARCHAR,  
             adsorbate_encoded_SMILE VARCHAR             
         );
         '''

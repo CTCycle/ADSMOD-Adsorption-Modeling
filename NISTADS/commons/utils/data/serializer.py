@@ -55,7 +55,7 @@ class DataSerializer:
         self.sanitizer = DataSanitizer(configuration)         
         
     #--------------------------------------------------------------------------
-    def load_datasets(self):                
+    def load_source_datasets(self):                
         return self.database.load_source_data_table()
     
     #--------------------------------------------------------------------------

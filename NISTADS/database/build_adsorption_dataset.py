@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # load source data from csv files
     logger.info(f'Loading NISTADS datasets from {DATA_PATH}')
     dataserializer = DataSerializer(CONFIG)
-    adsorption_data, guest_data, host_data = dataserializer.load_datasets() 
+    adsorption_data, guest_data, host_data = dataserializer.load_source_datasets() 
     logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
     logger.info(f'{guest_data.shape[0]} total guests (adsorbates species) in the dataset')
     logger.info(f'{host_data.shape[0]} total hosts (adsorbent materials) in the dataset')
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     # and pressure and uptake values below zero or above upper limits
     sanitizer = DataSanitizer(CONFIG)  
     processed_data = sanitizer.exclude_OOB_values(processed_data)
+    processed_data = sanitizer.remove_underpopulated_classes(processed_data)
     
     # remove repeated zero values at the beginning of pressure and uptake series  
     # then filter out experiments with not enough measurements 
@@ -90,8 +91,8 @@ if __name__ == '__main__':
     # 5. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer   
-    train_data = sanitizer.isolate_preprocessed_features(train_data)
-    validation_data = sanitizer.isolate_preprocessed_features(validation_data)           
+    train_data = sanitizer.isolate_processed_features(train_data)
+    validation_data = sanitizer.isolate_processed_features(validation_data)           
     dataserializer.save_train_and_validation_data(
         train_data, validation_data, smile_vocab, 
         adsorbent_vocab, normalizer.statistics)

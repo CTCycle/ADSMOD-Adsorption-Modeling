@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # 1. [CREATE CHECKPOINTS SUMMARY]
     #--------------------------------------------------------------------------  
     summarizer = ModelEvaluationSummary(CONFIG)    
-    checkpoints_summary = summarizer.checkpoints_summary() 
+    checkpoints_summary = summarizer.checkpoints_summary()     
     logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')  
     
     # 2. [LOAD MODEL]
@@ -33,18 +33,21 @@ if __name__ == '__main__':
     model, configuration, metadata, _, checkpoint_path = modelserializer.select_and_load_checkpoint()
     model.summary(expand_nested=True)   
 
-    # 3. [LOAD AND SPLIT DATA]
+    # 3. [LOAD DATA]
     #--------------------------------------------------------------------------  
     # load preprocessed data and associated metadata
     dataserializer = DataSerializer(configuration)
-    train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()  
+    train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
+    logger.info(f'Train and validation data have been loaded')
+    logger.info(f'Train samples: ({train_data.shape[0]} - Validation samples: {val_data.shape[0]}')  
    
     loader = InferenceDataLoader(configuration)  
     train_dataset = loader.build_inference_dataloader(train_data)
     validation_dataset = loader.build_inference_dataloader(val_data)
 
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
-    #--------------------------------------------------------------------------   
+    #-------------------------------------------------------------------------- 
+    logger.info('Calculating model evaluation loss and metrics')    
     evaluation_report(model, train_dataset, validation_dataset)  
 
     # 5. [COMPARE RECONTRUCTED ISOTHERMS]
