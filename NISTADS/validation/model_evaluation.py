@@ -12,7 +12,7 @@ from NISTADS.commons.utils.data.loader import InferenceDataLoader
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.validation.reports import evaluation_report
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
-from NISTADS.commons.utils.validation.experiments import AdsorptionIsothermsQuality
+from NISTADS.commons.utils.validation.experiments import AdsorptionPredictionsQuality
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -31,32 +31,32 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # selected and load the pretrained model, then print the summary 
     modelserializer = ModelSerializer()         
-    model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()
+    model, configuration, metadata, _, checkpoint_path = modelserializer.select_and_load_checkpoint()
     model.summary(expand_nested=True)   
 
+    # 3. [LOAD AND SPLIT DATA]
+    #--------------------------------------------------------------------------  
     # load preprocessed data and associated metadata
     dataserializer = DataSerializer(configuration)
-    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data() 
+    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_processed_data() 
 
     # initialize the loaderSet class with the generator instances
     # create the tf.datasets using the previously initialized generators
     splitter = TrainValidationSplit(configuration, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()    
-
-    # 3. [LOAD AND SPLIT DATA]
-    #--------------------------------------------------------------------------
-    # initialize the loaderSet class with the generator instances
-    # create the tf.datasets using the previously initialized generators    
+    train_data, validation_data = splitter.split_train_and_validation() 
+   
     loader = InferenceDataLoader(configuration)  
     train_dataset = loader.build_inference_dataloader(train_data)
     validation_dataset = loader.build_inference_dataloader(validation_data)
 
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------   
-    evaluation_report(model, train_dataset, validation_dataset)  
+    #evaluation_report(model, train_dataset, validation_dataset)  
 
-    # 5. [COMPARE RECONTRUCTED IMAGES]
-    #--------------------------------------------------------------------------   
-    validator = AdsorptionIsothermsQuality(configuration, model)      
-    #validator.visualize_reconstructed_images(train_images, validation_images)       
+    # 5. [COMPARE RECONTRUCTED ISOTHERMS]
+    #--------------------------------------------------------------------------
+    # logger.info('')   
+    validator = AdsorptionPredictionsQuality(
+        model, CONFIG, metadata, checkpoint_path)      
+    validator.visualize_adsorption_isotherms(train_data, validation_data)       
 

@@ -11,8 +11,7 @@ class SingleComponentAdsorptionTable:
 
     def __init__(self):
         self.name = 'SINGLE_COMPONENT_ADSORPTION'
-        self.dtypes = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        self.dtypes = {            
             'filename': 'VARCHAR',
             'temperature': 'FLOAT',
             'adsorptionUnits': 'VARCHAR',
@@ -30,8 +29,7 @@ class SingleComponentAdsorptionTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             filename VARCHAR,
             temperature FLOAT,
             adsorptionUnits VARCHAR,
@@ -52,8 +50,7 @@ class BinaryMixtureAdsorptionTable:
 
     def __init__(self):
         self.name = 'BINARY_MIXTURE_ADSORPTION'
-        self.dtypes = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        self.dtypes = {            
             'filename': 'VARCHAR',
             'temperature': 'FLOAT',
             'adsorptionUnits': 'VARCHAR',
@@ -75,8 +72,7 @@ class BinaryMixtureAdsorptionTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             filename VARCHAR,
             temperature FLOAT,
             adsorptionUnits VARCHAR,
@@ -100,8 +96,7 @@ class AdsorbatesDataTable:
 
     def __init__(self):
         self.name = 'ADSORBATES'
-        self.dtypes = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        self.dtypes = {            
             'InChIKey': 'VARCHAR',
             'name': 'VARCHAR',
             'InChICode': 'VARCHAR',
@@ -118,8 +113,7 @@ class AdsorbatesDataTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             InChIKey VARCHAR,
             name VARCHAR,
             InChICode VARCHAR,
@@ -138,8 +132,7 @@ class AdsorbentsDataTable:
 
     def __init__(self):
         self.name = 'ADSORBENTS'
-        self.dtypes = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        self.dtypes = {            
             'name': 'VARCHAR',
             'hashkey': 'VARCHAR',
             'formula': 'VARCHAR',
@@ -156,8 +149,7 @@ class AdsorbentsDataTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             name VARCHAR,
             hashkey VARCHAR,
             formula VARCHAR,
@@ -176,8 +168,7 @@ class ProcessedDataTable:
 
     def __init__(self):
         self.name = 'PROCESSED_DATA'
-        self.dtypes = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        self.dtypes = {            
             'temperature': 'FLOAT',
             'pressure': 'FLOAT',
             'adsorbed_amount': 'FLOAT',
@@ -192,8 +183,7 @@ class ProcessedDataTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             temperature FLOAT,            
             pressure FLOAT,
             adsorbed_amount FLOAT,
@@ -210,8 +200,7 @@ class PredictedAdsorptionTable:
 
     def __init__(self):
         self.name = 'PREDICTED_ADSORPTION'
-        self.dtypes = {
-            'id': 'INTEGER PRIMARY KEY AUTOINCREMENT',
+        self.dtypes = {            
             'experiment': 'VARCHAR',
             'temperature': 'FLOAT',
             'adsorbent_name': 'VARCHAR',
@@ -227,8 +216,7 @@ class PredictedAdsorptionTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             experiment VARCHAR,
             temperature FLOAT,            
             adsorbent_name VARCHAR,
@@ -277,8 +265,7 @@ class CheckpointSummaryTable:
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
         query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS {self.name} (            
             checkpoint_name VARCHAR,
             sample_size FLOAT,
             validation_size FLOAT,

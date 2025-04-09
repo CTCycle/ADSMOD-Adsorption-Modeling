@@ -41,7 +41,7 @@ class InferenceDataLoaderProcessor:
         # the user should be careful about loading a model trained on a different dataset
         dataserializer = DataSerializer(configuration)  
         _, self.guest_data, self.host_data = dataserializer.load_datasets() 
-        _, self.metadata, self.smile_vocab, self.ads_vocab = dataserializer.load_preprocessed_data() 
+        _, self.metadata, self.smile_vocab, self.ads_vocab = dataserializer.load_processed_data() 
 
         self.norm_config = self.metadata['normalization']
         self.pressure_padding = int(self.metadata['dataset']['MAX_PQ_POINTS'])
@@ -203,8 +203,7 @@ class InferenceDataLoader:
         self.batch_size = configuration['validation']["BATCH_SIZE"] 
         self.processor = InferenceDataLoaderProcessor(configuration)
         self.configuration = configuration
-        self.output = 'adsorbed_amount'        
-               
+        self.output = 'adsorbed_amount'                
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
@@ -215,11 +214,9 @@ class InferenceDataLoader:
         adsorbent = np.array(data['encoded_adsorbent'].values, dtype=np.float32)
         adsorbate = np.vstack(data['adsorbate_encoded_SMILE'].values, dtype=np.float32)
         pressure = np.vstack(data['pressure'].values, dtype=np.float32)
-        inputs_dict = {'state_input': state,
-                       'chemo_input': chemo,
-                       'adsorbent_input': adsorbent,
-                       'adsorbate_input': adsorbate,
-                       'pressure_input': pressure}      
+        inputs_dict = {
+            'state_input': state, 'chemo_input': chemo, 'adsorbent_input': adsorbent,
+            'adsorbate_input': adsorbate, 'pressure_input': pressure}      
   
         return inputs_dict
     
@@ -232,11 +229,9 @@ class InferenceDataLoader:
         adsorbent = np.array(data['encoded_adsorbent'].values, dtype=np.float32)
         adsorbate = np.vstack(data['adsorbate_encoded_SMILE'].values, dtype=np.float32)
         pressure = np.vstack(data['pressure'].values, dtype=np.float32)
-        inputs_dict = {'state_input': state,
-                       'chemo_input': chemo,
-                       'adsorbent_input': adsorbent,
-                       'adsorbate_input': adsorbate,
-                       'pressure_input': pressure}
+        inputs_dict = {
+            'state_input': state, 'chemo_input': chemo, 'adsorbent_input': adsorbent,
+            'adsorbate_input': adsorbate, 'pressure_input': pressure}
 
         # output is reshaped to match the expected shape of the model 
         # (batch size, pressure points, 1)
@@ -270,8 +265,8 @@ class InferenceDataLoader:
         return dataset      
     
     #--------------------------------------------------------------------------
-    def build_inference_dataloader(self, train_data, batch_size=None):       
-        dataset = self.compose_tensor_dataset(train_data, batch_size)             
+    def build_inference_dataloader(self, data, batch_size=None):       
+        dataset = self.compose_tensor_dataset(data, batch_size)             
 
         return dataset  
       

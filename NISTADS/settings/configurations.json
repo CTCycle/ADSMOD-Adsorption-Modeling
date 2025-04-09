@@ -25,7 +25,7 @@
                "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
-    "training" : {"EPOCHS" : 1,
+    "training" : {"EPOCHS" : 250,
                   "ADDITIONAL_EPOCHS" : 1,                  
                   "BATCH_SIZE" : 128,                             
                   "USE_TENSORBOARD" : true,  
@@ -35,7 +35,8 @@
                                     "DECAY_STEPS" : 10,
                                     "FINAL_LR" : 0.00005}},                  
                   
-    "validation" : {"BATCH_SIZE" : 20}     
+    "validation" : {"BATCH_SIZE" : 20,
+                    "DPI" : 400}     
       
 }
 

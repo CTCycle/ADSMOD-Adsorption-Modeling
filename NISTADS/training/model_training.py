@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # 1. [LOAD AND SPLIT DATA]
     #--------------------------------------------------------------------------   
     dataserializer = DataSerializer(CONFIG)
-    data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data()         
+    data, metadata, smile_vocab, ads_vocab = dataserializer.load_processed_data()         
   
     # split data into train set and validation set
     logger.info('Preparing dataset of images and captions based on splitting size')  

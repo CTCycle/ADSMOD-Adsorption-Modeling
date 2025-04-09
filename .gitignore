@@ -1,5 +1,6 @@
 NISTADS/resources/database/metadata/*
 NISTADS/resources/database/inference/*
+NISTADS/resources/database/validation/*
 NISTADS/resources/checkpoints/*
 
 setup/environment/*

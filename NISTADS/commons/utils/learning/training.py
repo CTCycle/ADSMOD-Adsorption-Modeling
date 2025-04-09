@@ -68,8 +68,7 @@ class ModelTraining:
                    'total_epochs' : epochs}
         
         # save pretrained model as serialized keras model 
-        # save metadata and training history in json files, including preprocessing metadata
-        # and indexes for both the SMILE guest encoding and adsorbents encoding      
+        # save metadata and training history in json files, including preprocessing metadata    
         self.serializer.save_pretrained_model(model, checkpoint_path)       
         self.serializer.save_session_configuration(
             checkpoint_path, history, self.configuration, self.metadata)

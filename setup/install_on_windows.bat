@@ -58,7 +58,7 @@ echo.
 echo Install python libraries and packages
 call pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
 call pip install tensorflow==2.18.1
-call pip install keras==3.8.0 scikit-learn==1.6.1 transformers==4.43.3
+call pip install keras==3.8.0 scikit-learn==1.6.1 transformers==4.50.3
 call pip install numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1 matplotlib==3.10.1 seaborn==0.13.2 
 call pip install pubchempy==1.0.4 
 

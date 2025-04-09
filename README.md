@@ -64,7 +64,7 @@ The directory structure includes the following folders:
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Graphical validation outputs will be saved separately within *database/validation*. Data used for inference with a pretrained checkpoint is located in *database/inference* (a template of the expected dataset columns is available at *resources/templates/inference_adsorption_data.csv*). 
+- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Validation outputs will be saved separately within *database/validation*. Data used for inference with a pretrained checkpoint is located in *database/inference* (a template of the expected dataset columns is available at *resources/templates/inference_adsorption_data.csv*). 
 
 - **logs:** log files are saved here
 
@@ -140,6 +140,14 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 | CONSTANT_STEPS     | Number of steps (batch) to keep the learning rate stable |
 | DECAY_STEPS        | Number of steps (batch) to decay learning rate           |
 | FINAL_LR           | Final value of learning rate (target)                    |
+
+#### Validation Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| BATCH_SIZE         | Number of samples per batch                              |
+| NUM_IMAGES         | Max number of images to compare during evaluation        |
+| DPI                | Resolution of figures from validation                    |
             
 **Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
 

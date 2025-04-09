@@ -26,5 +26,5 @@ if __name__ == '__main__':
 
     # load preprocessed data and associated metadata
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data()   
+    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_processed_data()   
     

@@ -63,7 +63,7 @@ class DataSerializer:
         return self.database.load_inference_data_table()   
     
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self): 
+    def load_processed_data(self): 
         # load preprocessed data from database and convert joint strings to list 
         processed_data = self.database.load_processed_data_table()
         processed_data = self.sanitizer.convert_string_to_series(processed_data) 
@@ -157,8 +157,7 @@ class ModelSerializer:
         os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
         config_path = os.path.join(path, 'configurations', 'configurations.json')
         metadata_path = os.path.join(path, 'configurations', 'metadata.json')       
-        history_path = os.path.join(path, 'configurations', 'session_history.json') 
-        history_path = os.path.join(path, 'configurations', 'session_history.json') 
+        history_path = os.path.join(path, 'configurations', 'session_history.json')         
 
         # Save training and model configurations
         with open(config_path, 'w') as f:
@@ -187,16 +186,13 @@ class ModelSerializer:
     def load_session_configuration(self, path):
         config_path = os.path.join(path, 'configurations', 'configurations.json')
         metadata_path = os.path.join(path, 'configurations', 'metadata.json') 
-        history_path = os.path.join(path, 'configurations', 'session_history.json') 
-
+        history_path = os.path.join(path, 'configurations', 'session_history.json')
         # Load training and model configurations
         with open(config_path, 'r') as f:
-            configurations = json.load(f) 
-         
+            configurations = json.load(f)         
         # Load metadata
         with open(metadata_path, 'r') as f:
-            metadata = json.load(f) 
-       
+            metadata = json.load(f)        
         # Load session history
         with open(history_path, 'r') as f:
             history = json.load(f)

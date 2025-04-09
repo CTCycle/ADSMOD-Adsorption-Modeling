@@ -36,7 +36,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------    
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration)
-    data, metadata, smile_vocab, ads_vocab = dataserializer.load_preprocessed_data() 
+    data, metadata, smile_vocab, ads_vocab = dataserializer.load_processed_data() 
     
     # 3. [SPLIT DATA]
     #--------------------------------------------------------------------------
