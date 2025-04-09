@@ -52,21 +52,15 @@ class AdsorptionPredictionsQuality:
         return pressures, uptakes, predictions        
 
     #--------------------------------------------------------------------------
-    def visualize_adsorption_isotherms(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
-        sampled_train = train_data.sample(
-            n=self.num_experiments, random_state=42)
-        sampled_validation = validation_data.sample(
-            n=self.num_experiments, random_state=42)
-        
-        sampled_train, train_y = self.dataloader.separate_inputs_and_output(sampled_train)
-        sampled_validation, validation_y = self.dataloader.separate_inputs_and_output(sampled_validation)
-
-        train_predictions = self.model.predict(sampled_train)
-        validation_predictions = self.model.predict(sampled_validation)
+    def visualize_adsorption_isotherms(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):        
+        # --- process TRAIN DATA ---
+        sampled_data = train_data.sample(n=self.num_experiments, random_state=42)
+        sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
+        predictions = self.model.predict(sampled_X)
       
         # process training uptake curves
         pressures, uptakes, predictions = self.process_uptake_curves(
-            sampled_train, train_y, train_predictions)
+            sampled_X, sampled_Y, predictions)
 
         # Create the subplots (flatten axes to simplify iteration later)
         fig, axes = plt.subplots(
@@ -84,9 +78,14 @@ class AdsorptionPredictionsQuality:
             os.path.join(self.validation_path, 'train_curves_comparison.jpeg'), dpi=self.DPI)
         plt.close()  
 
-        # process validation uptake curves
+        # --- process VALIDATION DATA ---
+        sampled_data = validation_data.sample(n=self.num_experiments, random_state=42)
+        sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
+        predictions = self.model.predict(sampled_X)
+      
+        # process training uptake curves
         pressures, uptakes, predictions = self.process_uptake_curves(
-            sampled_validation, validation_y, validation_predictions)
+            sampled_X, sampled_Y, predictions)
 
         # Create the subplots (flatten axes to simplify iteration later)
         fig, axes = plt.subplots(
