@@ -65,29 +65,36 @@ if __name__ == '__main__':
 
     # 4. [SPLIT BASED NORMALIZATION AND ENCODING]
     #-------------------------------------------------------------------------- 
-    splitter = TrainValidationSplit(CONFIG, processed_data)    
-    # split source data into train and validation datasets 
-    train_data, validation_data = splitter.split_train_and_validation()
+    # split data into train set and validation set
+    logger.info('Preparing dataset of images and captions based on splitting size')  
+    splitter = TrainValidationSplit(CONFIG, processed_data)     
+    train_data, validation_data = splitter.split_train_and_validation() 
 
     # normalize pressure and uptake series using max values computed from 
     # the training set, then pad sequences to a fixed length
     normalizer = FeatureNormalizer(CONFIG, train_data)
-    processed_data = normalizer.normalize_molecular_features(processed_data)    
-    processed_data = normalizer.PQ_series_normalization(processed_data) 
+    train_data = normalizer.normalize_molecular_features(train_data) 
+    train_data = normalizer.PQ_series_normalization(train_data) 
+    validation_data = normalizer.normalize_molecular_features(validation_data) 
+    validation_data = normalizer.PQ_series_normalization(validation_data)      
    
     # add padding to pressure and uptake series to match max length
-    processed_data = sequencer.PQ_series_padding(processed_data)     
+    train_data = sequencer.PQ_series_padding(train_data)     
+    validation_data = sequencer.PQ_series_padding(validation_data)     
 
-    encoding = AdsorbentEncoder(CONFIG)    
-    processed_data, adsorbent_vocab = encoding.encode_adsorbents_by_name(
-        processed_data, train_data)     
+    encoding = AdsorbentEncoder(CONFIG, train_data)    
+    train_data = encoding.encode_adsorbents_by_name(train_data)
+    validation_data = encoding.encode_adsorbents_by_name(validation_data)    
+    adsorbent_vocab = encoding.mapping 
 
     # 5. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer   
-    processed_data = sanitizer.isolate_preprocessed_features(processed_data)          
-    dataserializer.save_preprocessed_data(
-        processed_data, smile_vocab, adsorbent_vocab, normalizer.statistics)
+    train_data = sanitizer.isolate_preprocessed_features(train_data)
+    validation_data = sanitizer.isolate_preprocessed_features(validation_data)           
+    dataserializer.save_train_and_validation_data(
+        train_data, validation_data, smile_vocab, 
+        adsorbent_vocab, normalizer.statistics)
 
 
 

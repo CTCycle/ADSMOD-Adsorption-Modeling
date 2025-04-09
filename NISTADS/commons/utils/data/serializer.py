@@ -63,37 +63,43 @@ class DataSerializer:
         return self.database.load_inference_data_table()   
     
     #--------------------------------------------------------------------------
-    def load_processed_data(self): 
+    def load_train_and_validation_data(self): 
         # load preprocessed data from database and convert joint strings to list 
-        processed_data = self.database.load_processed_data_table()
-        processed_data = self.sanitizer.convert_string_to_series(processed_data) 
+        train_data, val_data = self.database.load_train_and_validation_tables()
+        train_data = self.sanitizer.convert_string_to_series(train_data) 
+        val_data = self.sanitizer.convert_string_to_series(val_data) 
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         with open(self.smile_vocabulary_path, 'r') as file:
             smile_vocabulary = json.load(file)
         with open(self.ads_vocabulary_path, 'r') as file:
-            ads_vocabulary = json.load(file)            
+            ads_vocabulary = json.load(file)  
+
+        vocabularies = {'smile_vocab' : smile_vocabulary, 
+                        'ads_vocab' : ads_vocabulary}         
         
-        return processed_data, metadata, smile_vocabulary, ads_vocabulary  
+        return train_data, val_data, metadata, vocabularies  
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, smile_vocabulary={},
-                               adsorbent_vocabulary={}, normalization_stats={}):
+    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
+                                       smile_vocabulary : dict, ads_vocabulary : dict, normalization_stats={}):      
+
         # convert list to joint string and save preprocessed data to database
-        processed_data = self.sanitizer.convert_series_to_string(processed_data)        
-        self.database.save_processed_data_table(processed_data) 
+        train_data = self.sanitizer.convert_series_to_string(train_data)   
+        validation_data = self.sanitizer.convert_series_to_string(validation_data)      
+        self.database.save_train_and_validation_tables(train_data, validation_data) 
         
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
         with open(self.ads_vocabulary_path, 'w') as file:
-            json.dump(adsorbent_vocabulary, file, indent=4)        
+            json.dump(ads_vocabulary, file, indent=4)        
          
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
-                    'adsorbent_vocabulary_size' : len(adsorbent_vocabulary), 
+                    'adsorbent_vocabulary_size' : len(ads_vocabulary), 
                     'normalization' : {
                         self.P_COL : float(normalization_stats[self.P_COL]),
                         self.Q_COL : float(normalization_stats[self.Q_COL]),
@@ -122,9 +128,6 @@ class DataSerializer:
     def save_predictions_dataset(self, data : pd.DataFrame):
         self.database.save_inference_data_table(data)  
 
-    
-
-          
 
     
 # [MODEL SERIALIZATION]

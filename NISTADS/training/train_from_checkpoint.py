@@ -9,7 +9,6 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.data.loader import TrainingDataLoader
-from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.validation.reports import log_training_report
 from NISTADS.commons.constants import CONFIG
@@ -36,27 +35,20 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------    
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration)
-    data, metadata, smile_vocab, ads_vocab = dataserializer.load_processed_data() 
-    
-    # 3. [SPLIT DATA]
-    #--------------------------------------------------------------------------
-    # split data into train set and validation set
-    logger.info('Preparing dataset based on splitting size')  
-    splitter = TrainValidationSplit(configuration, data)     
-    train_data, validation_data = splitter.split_train_and_validation()         
+    train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()           
 
-    # 4. [BUILD TRAINING DATALODER]
+    # 3. [BUILD TRAINING DATALODER]
     #--------------------------------------------------------------------------   
     builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
-        train_data, validation_data)
+        train_data, val_data)
 
     # 4. [TRAIN MODEL]  
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
     #--------------------------------------------------------------------------        
-    log_training_report(train_data, validation_data, configuration, metadata)                       
+    log_training_report(train_data, val_data, configuration, metadata)                       
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,

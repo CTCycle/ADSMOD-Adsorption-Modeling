@@ -164,10 +164,42 @@ class AdsorbentsDataTable:
     
     
 ###############################################################################
-class ProcessedDataTable:
+class TrainDataTable:
 
     def __init__(self):
-        self.name = 'PROCESSED_DATA'
+        self.name = 'TRAIN_DATA'
+        self.dtypes = {            
+            'temperature': 'FLOAT',
+            'pressure': 'FLOAT',
+            'adsorbed_amount': 'FLOAT',
+            'encoded_adsorbent': 'INTEGER',
+            'adsorbate_molecular_weight': 'FLOAT',
+            'adsorbate_encoded_SMILE': 'VARCHAR'}
+
+    #--------------------------------------------------------------------------
+    def get_dtypes(self):
+        return self.dtypes
+    
+    #--------------------------------------------------------------------------
+    def create_table(self, cursor):
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (            
+            temperature FLOAT,            
+            pressure FLOAT,
+            adsorbed_amount FLOAT,
+            encoded_adsorbent INTEGER,
+            adsorbate_molecular_weight FLOAT,
+            adsorbate_encoded_SMILE VARCHAR             
+        );
+        '''
+        cursor.execute(query)
+
+
+###############################################################################
+class ValidationDataTable:
+
+    def __init__(self):
+        self.name = 'VALIDATION_DATA'
         self.dtypes = {            
             'temperature': 'FLOAT',
             'pressure': 'FLOAT',
@@ -307,7 +339,8 @@ class AdsorptionDatabase:
         self.binary_mixture = BinaryMixtureAdsorptionTable()
         self.adsorbates = AdsorbatesDataTable()
         self.adsorbents = AdsorbentsDataTable()
-        self.processed_data = ProcessedDataTable()
+        self.train_data = TrainDataTable()
+        self.validation_data = ValidationDataTable()
         self.inference_data = PredictedAdsorptionTable()       
         self.checkpoints_summary = CheckpointSummaryTable()    
         self.initialize_database()
@@ -322,7 +355,8 @@ class AdsorptionDatabase:
         self.binary_mixture.create_table(cursor)
         self.adsorbates.create_table(cursor)  
         self.adsorbents.create_table(cursor)  
-        self.processed_data.create_table(cursor)
+        self.train_data.create_table(cursor)
+        self.validation_data.create_table(cursor)
         self.inference_data.create_table(cursor)        
         self.checkpoints_summary.create_table(cursor)   
 
@@ -348,13 +382,15 @@ class AdsorptionDatabase:
         return adsorption_data, guest_data, host_data
 
     #--------------------------------------------------------------------------
-    def load_processed_data_table(self):       
+    def load_train_and_validation_tables(self):       
         conn = sqlite3.connect(self.db_path)        
-        data = pd.read_sql_query(
-            f"SELECT * FROM {self.processed_data.name}", conn)
+        train_data = pd.read_sql_query(
+            f"SELECT * FROM {self.train_data.name}", conn)
+        validation_data = pd.read_sql_query(
+            f"SELECT * FROM {self.validation_data.name}", conn)
         conn.close()  
 
-        return data  
+        return train_data, validation_data  
 
     #--------------------------------------------------------------------------
     def load_inference_data_table(self):         
@@ -394,11 +430,14 @@ class AdsorptionDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_processed_data_table(self, processed_data : pd.DataFrame):         
+    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
-        processed_data.to_sql(
-            self.processed_data.name, conn, if_exists='replace', index=False,
-            dtype=self.processed_data.get_dtypes())    
+        train_data.to_sql(
+            self.train_data.name, conn, if_exists='replace', index=False,
+            dtype=self.train_data.get_dtypes())  
+        validation_data.to_sql(
+            self.validation_data.name, conn, if_exists='replace', index=False,
+            dtype=self.validation_data.get_dtypes())    
         conn.commit()
         conn.close()  
 

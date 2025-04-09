@@ -14,20 +14,21 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class AdsorbentEncoder:
 
-    def __init__(self, configuration):
-        self.scaler = LabelEncoder()
+    def __init__(self, configuration, train_dataset: pd.DataFrame):        
         self.unknown_class_index = -1
         self.norm_columns = 'adsorbent_name' 
         self.configuration = configuration
 
-    #--------------------------------------------------------------------------
-    def encode_adsorbents_by_name(self, dataset : pd.DataFrame, train_dataset: pd.DataFrame):        
-        self.scaler.fit(train_dataset[self.norm_columns])         
-        mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}           
-        dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
-                mapping).fillna(self.unknown_class_index).astype(int)           
+        self.scaler = LabelEncoder()
+        self.scaler.fit(train_dataset[self.norm_columns])
+        self.mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}      
 
-        return dataset, mapping
+    #--------------------------------------------------------------------------
+    def encode_adsorbents_by_name(self, dataset : pd.DataFrame):                  
+        dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
+                self.mapping).fillna(self.unknown_class_index).astype(int)           
+
+        return dataset
 
     #--------------------------------------------------------------------------
     def encode_adsorbents_from_vocabulary(self, dataset : pd.DataFrame, vocabulary: dict):              

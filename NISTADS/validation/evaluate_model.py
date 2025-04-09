@@ -7,7 +7,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.utils.data.process.splitting import TrainValidationSplit
 from NISTADS.commons.utils.data.loader import InferenceDataLoader
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.validation.reports import evaluation_report
@@ -38,25 +37,20 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------  
     # load preprocessed data and associated metadata
     dataserializer = DataSerializer(configuration)
-    processed_data, metadata, smile_vocab, ads_vocab = dataserializer.load_processed_data() 
-
-    # initialize the loaderSet class with the generator instances
-    # create the tf.datasets using the previously initialized generators
-    splitter = TrainValidationSplit(configuration, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation() 
+    train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()  
    
     loader = InferenceDataLoader(configuration)  
     train_dataset = loader.build_inference_dataloader(train_data)
-    validation_dataset = loader.build_inference_dataloader(validation_data)
+    validation_dataset = loader.build_inference_dataloader(val_data)
 
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------   
-    #evaluation_report(model, train_dataset, validation_dataset)  
+    evaluation_report(model, train_dataset, validation_dataset)  
 
     # 5. [COMPARE RECONTRUCTED ISOTHERMS]
     #--------------------------------------------------------------------------
     # logger.info('')   
     validator = AdsorptionPredictionsQuality(
         model, CONFIG, metadata, checkpoint_path)      
-    validator.visualize_adsorption_isotherms(train_data, validation_data)       
+    validator.visualize_adsorption_isotherms(train_data, val_data)       
 
