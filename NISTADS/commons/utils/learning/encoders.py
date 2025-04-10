@@ -117,7 +117,7 @@ class PressureSerierEncoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
         mask = keras.ops.not_equal(inputs, PAD_VALUE)        
-        mask = keras.ops.cast(mask, torch.float32)       
+        mask = keras.ops.cast(mask, keras.config.floatx())       
         
         return mask
     
@@ -168,7 +168,7 @@ class QDecoder(keras.layers.Layer):
     def compute_mask(self, inputs, mask=None):        
         mask = keras.ops.not_equal(inputs, PAD_VALUE) 
         mask = keras.ops.expand_dims(mask, axis=-1)  
-        mask = keras.ops.cast(mask, torch.float32)  
+        mask = keras.ops.cast(mask, keras.config.floatx())  
         
         return mask
 

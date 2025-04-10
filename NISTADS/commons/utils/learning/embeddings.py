@@ -31,7 +31,7 @@ class MolecularEmbedding(layers.Layer):
             mask_zero=False, input_dim=self.sequence_length, 
             output_dim=self.embedding_dims)
         self.embedding_scale = keras.ops.sqrt(
-            keras.ops.cast(self.embedding_dims, torch.float32))       
+            keras.ops.cast(self.embedding_dims, keras.config.floatx()))       
     
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------    
@@ -66,7 +66,7 @@ class MolecularEmbedding(layers.Layer):
         if self.mask_values:
             mask = keras.ops.not_equal(smiles, PAD_VALUE) 
             mask = keras.ops.expand_dims(mask, axis=-1)
-            mask = keras.ops.cast(mask, torch.float32) 
+            mask = keras.ops.cast(mask, keras.config.floatx()) 
             full_embedding *= mask
 
         return full_embedding
@@ -81,7 +81,7 @@ class MolecularEmbedding(layers.Layer):
     def compute_mask(self, inputs, mask=None):
         if mask is None:        
             mask = keras.ops.not_equal(inputs, PAD_VALUE) 
-            mask = keras.ops.cast(mask, torch.float32)                  
+            mask = keras.ops.cast(mask, keras.config.floatx())                  
         
         return mask    
     
