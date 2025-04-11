@@ -64,17 +64,7 @@ class DataSanitizer:
         dataset[self.P_TARGET_COL] = filtered_series[self.P_TARGET_COL]
         dataset[self.Q_TARGET_COL] = filtered_series[self.Q_TARGET_COL]        
            
-        return dataset
-    
-    #--------------------------------------------------------------------------
-    def remove_underpopulated_classes(self, dataset : pd.DataFrame):        
-        dataset['combination'] = (dataset[self.adsorbate_col].astype(str) 
-                                  + "_" + dataset[self.adsorbent_col].astype(str))
-        combo_counts = dataset['combination'].value_counts()
-        valid_combinations = combo_counts[combo_counts >= 2].index    
-        dataset = dataset[dataset['combination'].isin(valid_combinations)]              
-           
-        return dataset
+        return dataset  
     
     #--------------------------------------------------------------------------
     def isolate_processed_features(self, dataset : pd.DataFrame): 

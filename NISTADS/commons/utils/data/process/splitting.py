@@ -1,6 +1,6 @@
 import pandas as pd
 from sklearn.utils import shuffle
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
@@ -9,7 +9,7 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class TrainValidationSplit:
 
-    def __init__(self, configuration, dataframe: pd.DataFrame):
+    def __init__(self, configuration, dataset : pd.DataFrame):
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
         self.adsorbate_col = 'adsorbate_name'
@@ -19,19 +19,30 @@ class TrainValidationSplit:
         self.validation_size = configuration["dataset"]["VALIDATION_SIZE"]
         self.seed = configuration["dataset"]["SPLIT_SEED"]
         self.train_size = 1.0 - self.validation_size
-        self.dataframe = dataframe        
-        
-        total_samples = len(dataframe)
-        self.train_size = int(total_samples * self.train_size)
-        self.val_size = int(total_samples * self.validation_size)
+        self.dataset = dataset  
+
+        self.splitter = StratifiedShuffleSplit(
+            n_splits=1, test_size=self.validation_size, random_state=self.seed)
+
+    #--------------------------------------------------------------------------
+    def remove_underpopulated_classes(self, dataset : pd.DataFrame):        
+        dataset['combination'] = (dataset[self.adsorbate_col].astype(str) 
+                                  + "_" + dataset[self.adsorbent_col].astype(str))
+        combo_counts = dataset['combination'].value_counts()
+        valid_combinations = combo_counts[combo_counts >= 2].index    
+        dataset = dataset[dataset['combination'].isin(valid_combinations)]              
+           
+        return dataset
             
     #--------------------------------------------------------------------------
-    def split_train_and_validation(self):          
-        train_data, validation_data = train_test_split(
-            self.dataframe, test_size=self.validation_size, random_state=self.seed,
-            stratify=self.dataframe['combination']) 
-        train_data = train_data.drop(columns=['combination'])
-        validation_data = validation_data.drop(columns=['combination'])        
+    def split_train_and_validation(self):   
+        dataset = self.remove_underpopulated_classes(self.dataset) 
+        combination_classes = dataset['combination']      
+        # Get the train and validation indices, returns a generator with a single split      
+        train_idx, valid_idx = next(self.splitter.split(dataset, combination_classes))        
+        # Select rows based on indices and drop the helper column
+        train_data = dataset.iloc[train_idx].drop(columns=['combination'])
+        validation_data = dataset.iloc[valid_idx].drop(columns=['combination'])       
         
         return train_data, validation_data
     

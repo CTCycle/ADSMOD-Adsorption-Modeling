@@ -51,7 +51,6 @@ if __name__ == '__main__':
     # and pressure and uptake values below zero or above upper limits
     sanitizer = DataSanitizer(CONFIG)  
     processed_data = sanitizer.exclude_OOB_values(processed_data)
-    processed_data = sanitizer.remove_underpopulated_classes(processed_data)
     
     # remove repeated zero values at the beginning of pressure and uptake series  
     # then filter out experiments with not enough measurements 
