@@ -14,10 +14,13 @@ As the NIST-ARPA-E database does not provide chemical information for either ads
 
 The collected data is saved locally in 4 different .csv files. Adsorption isotherm datasets for both ingle component and binary mixture measurements, as well as guest/host properties are saved in *resources/datasets*.
 
-### 2.1 Data preprocessing
-The single component adsorption dataset is processed using a tailored pipeline. At first experiments featuring negative values for temperature, pressure, and uptake are removed, together with single measurements falling outside predefined boundaries for pressure and uptake ranges (which can be selected by the user through the configuration file). Pressure and uptakes are standardized to a uniform unit — Pascal for pressure and mol/g for uptakes. Following this refinement, the experiments data is enriched with molecular properties such as molecular weight and SMILE encoding for the adsorbate species and adsorbent materials. Pressure and uptake series are normalized, utilizing upper boundaries as the normalization ceiling, and all sequences are eventually reshaped to have the same length using post-padding with a specified padding value (defaulting to -1 to avoid conflicts with actual values) and then normalized.
+- **Data preprocessing:** The single-component adsorption dataset is processed through a custom pipeline. Initially, experiments containing negative values for temperature, pressure, or uptake are removed, along with any measurements falling outside predefined pressure and uptake boundaries (as specified in the configuration). Next, pressure and uptake values are standardized to consistent units — Pascals for pressure and mol/g for uptake. After this refinement, the dataset is enriched with molecular properties, including molecular weight and SMILES representations for both adsorbate species and adsorbent materials. The pressure and uptake series are then normalized using predefined upper bounds as ceilings. Finally, all sequences are reshaped to a uniform length via post-padding and re-normalized to ensure consistency across the dataset.
 
-## 3. Installation
+## 3. Machine learning model
+...
+
+
+## 4. Installation
 The installation process on Windows has been designed to be fully automated. To begin, simply run *start_on_windows.bat.* On its first execution, the installation procedure will execute with minimal user input required. The script will check if either Anaconda or Miniconda is installed and can be accessed from your system path. If neither is found, it will automatically download and install the latest Miniconda release from https://docs.anaconda.com/miniconda/. Following this step, the script will proceed with the installation of all necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.4) to enable GPU acceleration. Should you prefer to handle the installation process separately, you can run the standalone installer by running *setup/install_on_windows.bat*.
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
@@ -29,27 +32,27 @@ The installation process on Windows has been designed to be fully automated. To 
 
     `pip install -e . --use-pep517` 
 
-### 3.1 Additional Package for XLA Acceleration
+### 4.1 Additional Package for XLA Acceleration
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. For Windows users, a precompiled Triton wheel is bundled with the installation, ensuring seamless integration and performance improvements.
 
-## 4. How to use
+## 5. How to use
 On Windows, run *start_on_windows.bat* to launch the main navigation menu and browse through the various options. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
 
-### 4.1 Navigation menu
+### 5.1 Navigation menu
 
 **1) Data analysis:** analyze and validate the adsorption dataset using different metrics.  
 
-**2) Collect adsorption data:** extract data from the NIST DB and organise them into a readable .csv format. Data is collected through NIST/ARPA-E Database API in a concurrent fashion, allowing for fast data retrieval by selecting a maximum number of parallel HTTP requests. Once the data has been collected, Pug REST API is used to fetch adsorbates molecular properties that will be added to the main dataset. 
+**2) Collect adsorption data:** extract data from the NIST database and organize it into a structured format. Data retrieval is performed concurrently via the NIST/ARPA-E Database API, enabling fast access by maximizing parallel HTTP requests. Once the core dataset is collected, additional molecular properties of adsorbates are fetched using the Pug REST API and integrated into the main database. 
 
 **3) Data preprocessing:** prepare the adsorption dataset for machine learning by normalizing its numerical variables and encoding SMILE sequences with a regex-based tokenizer. Note that only one instance of the processed dataset may exist at any given moment, so any loaded checkpoints will reference the current version regardless of the original configurations.
 
 **4) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 
-- **train from scratch:** start training an instance of the NISTADS model from scratch using the available data and parameters. 
+**train from scratch:** start training an instance of the NISTADS model from scratch using the available data and parameters. 
 
-- **train from checkpoint:** resume training from a pretrained checkpoint for an additional amount of epochs, using pretrained model settings and data. 
+**train from checkpoint:** resume training from a pretrained checkpoint for an additional amount of epochs, using pretrained model settings and data. 
 
-- **model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics. 
+**model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics. 
 
 **5) Predict adsorption of compounds:** use the pretrained NISTADS model and predict adsorption of compounds based on pressure.  
 

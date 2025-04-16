@@ -30,30 +30,27 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # selected and load the pretrained model, then print the summary 
     modelserializer = ModelSerializer()         
-    model, configuration, metadata, _, checkpoint_path = modelserializer.select_and_load_checkpoint()
+    model, configuration, metadata, checkpoint_path = modelserializer.select_and_load_checkpoint()
     model.summary(expand_nested=True)   
 
     # 3. [LOAD DATA]
     #--------------------------------------------------------------------------  
     # load preprocessed data and associated metadata
     dataserializer = DataSerializer(configuration)
-    train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
-    logger.info(f'Train and validation data have been loaded')
-    logger.info(f'Train samples: ({train_data.shape[0]} - Validation samples: {val_data.shape[0]}')  
+    _, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
+    logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
    
-    loader = InferenceDataLoader(configuration)  
-    train_dataset = loader.build_inference_dataloader(train_data)
+    loader = InferenceDataLoader(configuration)      
     validation_dataset = loader.build_inference_dataloader(val_data)
 
-    # 4. [EVALUATE ON TRAIN AND VALIDATION]
+    # 4. [EVALUATE ON VALIDATION]
     #-------------------------------------------------------------------------- 
     logger.info('Calculating model evaluation loss and metrics')    
-    evaluation_report(model, train_dataset, validation_dataset)  
+    evaluation_report(model, validation_dataset)  
 
     # 5. [COMPARE RECONTRUCTED ISOTHERMS]
-    #--------------------------------------------------------------------------
-    # logger.info('')   
+    #--------------------------------------------------------------------------      
     validator = AdsorptionPredictionsQuality(
         model, CONFIG, metadata, checkpoint_path)      
-    validator.visualize_adsorption_isotherms(train_data, val_data)       
+    validator.visualize_adsorption_isotherms(val_data)       
 

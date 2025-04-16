@@ -52,37 +52,10 @@ class AdsorptionPredictionsQuality:
         return pressures, uptakes, predictions        
 
     #--------------------------------------------------------------------------
-    def visualize_adsorption_isotherms(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):        
-        # --- process TRAIN DATA ---
-        sampled_data = train_data.sample(n=self.num_experiments, random_state=42)
-        sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
-        predictions = self.model.predict(sampled_X)
-      
-        # process training uptake curves
-        pressures, uptakes, predictions = self.process_uptake_curves(
-            sampled_X, sampled_Y, predictions)
-
-        # Create the subplots (flatten axes to simplify iteration later)
-        fig, axes = plt.subplots(
-            self.rows, self.cols, figsize=(5 * self.cols, 4 * self.rows))
-        axes = np.array(axes).flatten()        
-
-        for i in range(self.num_experiments):
-            axes[i].plot(pressures[i], uptakes[i], label='Adsorbed amount')
-            axes[i].plot(pressures[i], predictions[i], label='Predicted adsorption')
-            axes[i].set_title(f'Plot {i + 1}')
-
-        plt.title('Comparison of adsorption isotherms - Train dataset', fontsize=16)
-        plt.tight_layout()
-        plt.savefig(
-            os.path.join(self.validation_path, 'train_curves_comparison.jpeg'), dpi=self.DPI)
-        plt.close()  
-
-        # --- process VALIDATION DATA ---
+    def visualize_adsorption_isotherms(self, validation_data : pd.DataFrame):              
         sampled_data = validation_data.sample(n=self.num_experiments, random_state=42)
         sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
-        predictions = self.model.predict(sampled_X)
-      
+        predictions = self.model.predict(sampled_X)      
         # process training uptake curves
         pressures, uptakes, predictions = self.process_uptake_curves(
             sampled_X, sampled_Y, predictions)
@@ -95,9 +68,9 @@ class AdsorptionPredictionsQuality:
         for i in range(self.num_experiments):
             axes[i].plot(pressures[i], uptakes[i], label='Adsorbed amount')
             axes[i].plot(pressures[i], predictions[i], label='Predicted adsorption')
-            axes[i].set_title(f'Plot {i + 1}')
+            axes[i].set_title(f'Plot {i + 1}')        
 
-        plt.title('Comparison of adsorption isotherms - Validation dataset', fontsize=16)
+        plt.title('Comparison of validation adsorption isotherms', fontsize=16)
         plt.tight_layout()
         plt.savefig(
             os.path.join(self.validation_path, 'validation_curves_comparison.jpeg'), dpi=self.DPI)
