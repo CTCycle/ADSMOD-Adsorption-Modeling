@@ -37,7 +37,7 @@ if __name__ == '__main__':
     
     # 3. [SET DEVICE]
     #-------------------------------------------------------------------------- 
-    logger.info('Setting device for training operations based on user configurations') 
+    logger.info('Setting device for training operations based on user configuration') 
     trainer = ModelTraining(CONFIG, metadata) 
     trainer.set_device()  
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     log_training_report(train_data, val_data, CONFIG, metadata)
 
     # initialize and compile the captioning model  
-    logger.info('Building SCADS model based on user configurations')  
+    logger.info('Building SCADS model based on user configuration')  
     wrapper = SCADSModel(metadata, CONFIG)
     model = wrapper.get_model(model_summary=True) 
 

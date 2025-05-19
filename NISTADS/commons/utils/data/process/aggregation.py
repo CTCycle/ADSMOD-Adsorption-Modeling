@@ -8,8 +8,8 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class AggregateDatasets:
 
-    def __init__(self, configurations):
-        self.configurations = configurations
+    def __init__(self, configuration):
+        self.configuration = configuration
         self.guest_properties = [
             'name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
         self.host_properties = ['name']

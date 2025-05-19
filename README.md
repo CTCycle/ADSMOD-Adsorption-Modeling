@@ -44,7 +44,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **2) Collect adsorption data:** extract data from the NIST database and organize it into a structured format. Data retrieval is performed concurrently via the NIST/ARPA-E Database API, enabling fast access by maximizing parallel HTTP requests. Once the core dataset is collected, additional molecular properties of adsorbates are fetched using the Pug REST API and integrated into the main database. 
 
-**3) Data preprocessing:** prepare the adsorption dataset for machine learning by normalizing its numerical variables and encoding SMILE sequences with a regex-based tokenizer. Note that only one instance of the processed dataset may exist at any given moment, so any loaded checkpoints will reference the current version regardless of the original configurations.
+**3) Data preprocessing:** prepare the adsorption dataset for machine learning by normalizing its numerical variables and encoding SMILE sequences with a regex-based tokenizer. Note that only one instance of the processed dataset may exist at any given moment, so any loaded checkpoints will reference the current version regardless of the original configuration.
 
 **4) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 
@@ -73,8 +73,8 @@ The directory structure includes the following folders:
 
 - **templates:** reference template files can be found here
 
-## 5. Configurations
-For customization, you can modify the main configuration parameters using *settings/configurations.json* 
+## 5. Configuration
+For customization, you can modify the main configuration parameters using *settings/configuration.json* 
 
 #### General Configuration
 The script is able to perform parallel data fetching through asynchronous HTML requests. However, too many calls may lead to server busy errors, especially when collecting adsorption isotherm data. Try to keep the number of parallel calls for the experiments data below 50 concurrent calls and you should not see any error!

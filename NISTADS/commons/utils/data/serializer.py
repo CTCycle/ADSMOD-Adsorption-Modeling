@@ -156,15 +156,15 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_session_configuration(self, path, history : dict, configurations : dict, metadata : dict):        
-        os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
-        config_path = os.path.join(path, 'configurations', 'configurations.json')
-        metadata_path = os.path.join(path, 'configurations', 'metadata.json')       
-        history_path = os.path.join(path, 'configurations', 'session_history.json')         
+    def save_training_configurationn(self, path, history : dict, configuration : dict, metadata : dict):        
+        os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
+        config_path = os.path.join(path, 'configuration', 'configuration.json')
+        metadata_path = os.path.join(path, 'configuration', 'metadata.json')       
+        history_path = os.path.join(path, 'configuration', 'session_history.json')         
 
-        # Save training and model configurations
+        # Save training and model configuration
         with open(config_path, 'w') as f:
-            json.dump(configurations, f)
+            json.dump(configuration, f)
 
         # Save metadata
         with open(metadata_path, 'w') as f:
@@ -186,13 +186,13 @@ class ModelSerializer:
         return model_folders    
 
     #--------------------------------------------------------------------------
-    def load_session_configuration(self, path):
-        config_path = os.path.join(path, 'configurations', 'configurations.json')
-        metadata_path = os.path.join(path, 'configurations', 'metadata.json') 
-        history_path = os.path.join(path, 'configurations', 'session_history.json')
-        # Load training and model configurations
+    def load_training_configurationn(self, path):
+        config_path = os.path.join(path, 'configuration', 'configuration.json')
+        metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
+        history_path = os.path.join(path, 'configuration', 'session_history.json')
+        # Load training and model configuration
         with open(config_path, 'r') as f:
-            configurations = json.load(f)         
+            configuration = json.load(f)         
         # Load metadata
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)        
@@ -200,7 +200,7 @@ class ModelSerializer:
         with open(history_path, 'r') as f:
             history = json.load(f)
 
-        return configurations, metadata, history
+        return configuration, metadata, history
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):        
@@ -244,6 +244,6 @@ class ModelSerializer:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         model = self.load_checkpoint(checkpoint_path)       
-        configuration, metadata, history = self.load_session_configuration(checkpoint_path)           
+        configuration, metadata, history = self.load_training_configurationn(checkpoint_path)           
             
         return model, configuration, metadata, checkpoint_path

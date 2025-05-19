@@ -19,7 +19,7 @@ class AdsorptionPredictionsQuality:
 
     def __init__(self, model, configuration : dict, metadata : dict, checkpoint_path : str, num_experiments=6):   
         self.model = model            
-        self.configurations = configuration 
+        self.configuration = configuration 
         self.metadata = metadata      
         self.dataloader = InferenceDataLoader(configuration)       
         self.num_experiments = num_experiments

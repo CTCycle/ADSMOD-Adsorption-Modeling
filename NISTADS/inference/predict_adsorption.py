@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     # 3. [PREDICT ADSORPTION] 
     #--------------------------------------------------------------------------
-    logger.info('Preprocessing inference input data according to model configurations')
+    logger.info('Preprocessing inference input data according to model configuration')
     predictor = AdsorptionPredictions(model, configuration, metadata, checkpoint_path)
     predictions = predictor.predict_adsorption_isotherm(inference_data)
     predictions_dataset = predictor.merge_predictions_to_dataset(inference_data, predictions)
