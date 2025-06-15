@@ -2,15 +2,20 @@
 class Configuration:
     
     def __init__(self):
-        self.configuration = {            
-            'general_seed': 42,
-            'split_seed': 76,
-            'train_seed': 42,         
-
+        self.configuration = { 
             # Dataset
+            'general_seed': 42,
             'sample_size': 1.0,
             'validation_size': 0.2,
-            'img_augmentation': False,
+            'guest_fraction': 1.0,
+            'host_fraction': 1.0,
+            'experiments_fraction': 1.0,
+            'parallel_tasks': 20,
+            'min_measurements': 1,
+            'max_measurements': 20,
+            'SMILE_sequence_size': 20,
+            'max_pressure': 1,
+            'max_uptake': 20,
             'shuffle_dataset': True,
             'shuffle_size': 1024,
 
@@ -27,7 +32,9 @@ class Configuration:
             'num_workers': 0,
 
             # Training
+            'train_seed': 42,  
             'train_sample_size': 1.0,
+            'split_seed': 76,
             'epochs': 100,
             'additional_epochs': 10,
             'batch_size': 32,

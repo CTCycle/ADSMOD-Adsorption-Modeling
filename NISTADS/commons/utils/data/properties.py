@@ -4,6 +4,8 @@ import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
 
+
+from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -48,7 +50,7 @@ class MolecularProperties:
    
     
     #--------------------------------------------------------------------------
-    def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
+    def fetch_guest_properties(self, experiments, data, **kwargs): 
         # Combine guest names from experiments and data, cleaning them to ensure consistency
         guest_names = pd.concat([
             experiments['adsorbate_name'].dropna(),
@@ -57,7 +59,9 @@ class MolecularProperties:
         
         # fetch adsorbates molecular properties using pubchem API
         all_guests = pd.DataFrame(guest_names, columns=['name'])                   
-        properties = self.guest_properties.get_properties_for_multiple_compounds(all_guests)
+        properties = self.guest_properties.get_properties_for_multiple_compounds(
+            all_guests, worker=kwargs.get('worker', None),
+            progress_callback=kwargs.get('progress_callback', None))
 
         # build the enriched dataset using the extracted molecular properties        
         dataset = self.map_fetched_properties(data, properties)
@@ -67,7 +71,7 @@ class MolecularProperties:
     # this function is not used in the current version of the code, since it is 
     # difficult to find a reliable source for the adsorbent materials properties
     #--------------------------------------------------------------------------
-    def fetch_host_properties(self, experiments : pd.DataFrame, data : pd.DataFrame): 
+    def fetch_host_properties(self, experiments, data, **kwargs): 
         # merge adsorbates names with those found in the experiments dataset
         all_hosts = pd.concat([
             experiments['adsorbent_name'].dropna(),
@@ -76,7 +80,9 @@ class MolecularProperties:
         
         # fetch adsorbents molecular properties using pubchem API
         all_hosts = pd.DataFrame(all_hosts, columns=['name'])
-        properties = self.host_properties.get_properties_for_multiple_compounds(all_hosts)
+        properties = self.host_properties.get_properties_for_multiple_compounds(
+            all_hosts, worker=kwargs.get('worker', None),
+            progress_callback=kwargs.get('progress_callback', None))
         
         # build the enriched dataset using the extracted molecular properties        
         dataset = self.map_fetched_properties(data, properties)  
@@ -106,11 +112,15 @@ class GuestProperties:
         return properties     
     
     #--------------------------------------------------------------------------    
-    def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame):         
-        for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]):  
+    def get_properties_for_multiple_compounds(self, dataset, **kwargs):         
+        for i, row in enumerate(tqdm(dataset.itertuples(index=True), total=dataset.shape[0])):  
             properties = self.get_molecular_properties(row.name, namespace='name')               
             if properties:                
-                self.distribute_extracted_data(row.name, properties)                          
+                self.distribute_extracted_data(row.name, properties)
+
+            check_thread_status(kwargs.get("worker", None))
+            update_progress_callback(
+                i, dataset.itertuples(index=True), kwargs.get("progress_callback", None))                          
 
         return self.properties
     

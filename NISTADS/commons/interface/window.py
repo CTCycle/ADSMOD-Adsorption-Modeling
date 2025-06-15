@@ -1,4 +1,4 @@
-from FEXT.commons.variables import EnvironmentVariables
+from NISTADS.commons.variables import EnvironmentVariables
 EV = EnvironmentVariables()
 
 from functools import partial
@@ -9,11 +9,11 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
                                QGraphicsPixmapItem, QGraphicsView)
 
-from FEXT.commons.configuration import Configuration
-from FEXT.commons.interface.events import GraphicsHandler, ValidationEvents, ModelEvents
-from FEXT.commons.interface.workers import Worker
-from FEXT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
-from FEXT.commons.logger import logger
+from NISTADS.commons.configuration import Configuration
+from NISTADS.commons.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
+from NISTADS.commons.interface.workers import Worker
+from NISTADS.commons.constants import CONFIG
+from NISTADS.commons.logger import logger
 
 
 ###############################################################################
@@ -41,6 +41,7 @@ class MainWindow:
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
+        self.dataset_handler = DatasetEvents(self.configuration)
         self.validation_handler = ValidationEvents(self.configuration)
         self.model_handler = ModelEvents(self.configuration)        
 
@@ -52,14 +53,26 @@ class MainWindow:
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
             (QProgressBar,'progressBar','progress_bar'),         
             # 1. dataset tab page
-            (QCheckBox,'getStatsAnalysis','get_image_stats'),
-            (QCheckBox,'getPixDist','get_pixels_dist'),
-            (QPushButton,'getImgMetrics','get_img_metrics'),
+            (QCheckBox,'getMetric','get_metrics'),            
+            (QPushButton,'evaluateDataset','evaluate_dataset'),
+
             (QSpinBox,'seed','general_seed'),
-            (QDoubleSpinBox,'sampleSize','sample_size'),            
+            (QDoubleSpinBox,'sampleSize','sample_size'), 
+            (QSpinBox,'maxPoints','max_measurements'), 
+            (QSpinBox,'minPoints','min_measurements'),
+            (QSpinBox,'smileSeqSize','SMILE_sequence_size'),
+            (QSpinBox,'maxPressure','max_pressure'),
+            (QSpinBox,'maxUptake','max_uptake'), 
+            (QPushButton,'buildMLDataset','build_ML_dataset'),                    
+
+            (QDoubleSpinBox,'guestFraction','guest_fraction'),
+            (QDoubleSpinBox,'hostFraction','host_fraction'),
+            (QDoubleSpinBox,'expFraction','experiments_fraction'),
+            (QSpinBox,'parallelTasks','parallel_tasks'),  
+            (QPushButton,'collectAdsData','collect_adsorption_data'),  
+            (QPushButton,'retrieveChemProperties','retrieve_properties'),        
                       
-            # 2. training tab page    
-            (QCheckBox,'imgAugment','img_augmentation'),
+            # 2. training tab page                
             (QCheckBox,'setShuffle','use_shuffle'),
             (QDoubleSpinBox,'trainSampleSize','train_sample_size'),            
             (QDoubleSpinBox,'validationSize','validation_size'),
@@ -106,9 +119,7 @@ class MainWindow:
             (QPushButton,'nextImg','next_image'),
             (QPushButton,'clearImg','clear_images'),
             (QRadioButton,'viewDataPlots','data_plots_view'),
-            (QRadioButton,'viewEvalPlots','model_plots_view'),
-            (QRadioButton,'viewInferenceImages','inference_images_view'),
-            (QRadioButton,'viewTrainImages','train_images_view'),            
+            (QRadioButton,'viewEvalPlots','model_plots_view')                       
             ])
         
         self._connect_signals([  
@@ -116,8 +127,11 @@ class MainWindow:
             ('refresh_checkpoints','clicked',self.load_checkpoints),
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page            
-            ('get_pixels_dist','toggled',self._update_metrics),
-            ('get_img_metrics','clicked',self.run_dataset_evaluation_pipeline),           
+            ('pixel_distribution_metric','toggled',self._update_metrics),
+            ('evaluate_dataset','clicked',self.run_dataset_evaluation_pipeline),  
+            ('collect_adsorption_data','clicked',self.collect_data_from_NIST),  
+            ('retrieve_properties','clicked',self.retrieve_properties_from_PUBCHEM),           
+            ('build_ML_dataset','clicked',self.build_ML_dataset),
             # 2. training tab page               
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
@@ -131,10 +145,7 @@ class MainWindow:
             ('encode_images','clicked',self.encode_images_with_checkpoint),            
             # 5. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
-            ('model_plots_view', 'toggled', self._update_graphics_view),
-            ('inference_images_view', 'toggled', self._update_graphics_view), 
-            ('train_images_view', 'toggled', self._update_graphics_view), 
-            ('load_source_images','clicked', self.load_images),
+            ('model_plots_view', 'toggled', self._update_graphics_view),           
             ('previous_image', 'clicked', self.show_previous_figure),
             ('next_image', 'clicked', self.show_next_figure),
             ('clear_images', 'clicked', self.clear_figures),            
@@ -179,8 +190,15 @@ class MainWindow:
             # 1. dataset tab page
             ('general_seed', 'valueChanged', 'general_seed'),
             ('sample_size', 'valueChanged', 'sample_size'),
+            ('min_measurements', 'valueChanged', 'min_measurements'),
+            ('max_measurements', 'valueChanged', 'max_measurements'),
+            ('SMILE_sequence_size', 'valueChanged', 'SMILE_sequence_size'),
+            ('guest_fraction', 'valueChanged', 'guest_fraction'),
+            ('host_fraction', 'valueChanged', 'host_fraction'),
+            ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
+
             # 2. training tab page   
-            ('img_augmentation', 'toggled', 'img_augmentation'),
+           
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
             ('num_workers', 'valueChanged', 'num_workers'),
             ('use_mixed_precision', 'toggled', 'mixed_precision'),
@@ -205,7 +223,7 @@ class MainWindow:
             ('validation_size', 'valueChanged', 'validation_size')]
 
         self.data_metrics = [
-            ('pixels_distribution', self.get_pixels_dist)]
+            ('pixels_distribution', self.pixel_distribution_metric)]
         self.model_metrics = [
             ('evaluation_report', self.get_evaluation_report),
             ('image_reconstruction', self.image_reconstruction)]                
@@ -248,25 +266,16 @@ class MainWindow:
                          'pixmap_item': pixmap_item}
         
         # Image data                
-        self.pixmaps = {
-        'train_images': [],         
-        'inference_images': [],      
-        'dataset_eval_images': [],  
-        'model_eval_images': []}
-        
-        self.img_paths = {'train_images' : IMG_PATH,
-                          'inference_images' : INFERENCE_INPUT_PATH}
+        self.pixmaps = {          
+            'dataset_eval_images': [],  
+            'model_eval_images': []}        
 
         # Canvas state        
-        self.current_fig = {'train_images' : 0, 'inference_images' : 0,
-                            'dataset_eval_images' : 0, 'model_eval_images' : 0}   
+        self.current_fig = {'dataset_eval_images' : 0, 'model_eval_images' : 0}
 
         self.pixmap_source_map = {
             self.data_plots_view: ("dataset_eval_images", "dataset_eval_images"),
-            self.model_plots_view: ("model_eval_images", "model_eval_images"),
-            self.inference_images_view: ("inference_images", "inference_images"),
-            self.train_images_view: ("train_images", "train_images")} 
-            
+            self.model_plots_view: ("model_eval_images", "model_eval_images")}           
 
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
@@ -404,24 +413,50 @@ class MainWindow:
         self.graphics['scene'].setSceneRect(0, 0, 0, 0)
         self.graphics['view'].viewport().update()
 
-    #--------------------------------------------------------------------------    
-    @Slot()
-    def load_images(self):          
-        pixmaps, idx_key = self.get_current_pixmaps_and_key()
-        if idx_key not in self.img_paths.keys():
-            return
-        
-        self.pixmaps[idx_key].clear()
-        self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.configuration)
-        
-        img_paths = self.validation_handler.load_images_path(self.img_paths[idx_key])
-        self.pixmaps[idx_key].extend(img_paths)
-        self.current_fig[idx_key] = 0 
-        self._update_graphics_view()    
-
     #--------------------------------------------------------------------------
     # [DATASET TAB]
+    #--------------------------------------------------------------------------        
+    @Slot()
+    def collect_data_from_NIST(self):        
+        if self.worker_running:            
+            return         
+        
+        self.configuration = self.config_manager.get_configuration() 
+        self.dataset_handler = DatasetEvents(self.configuration)       
+        # send message to status bar
+        self._send_message("Calculating image dataset evaluation metrics...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = Worker(
+            self.dataset_handler.run_data_collection_pipeline)   
+
+        # start worker and inject signals
+        self._start_worker(
+            self.worker, on_finished=self.on_data_success,
+            on_error=self.on_data_error,
+            on_interrupted=self.on_task_interrupted)  
+        
+    #--------------------------------------------------------------------------        
+    @Slot()
+    def retrieve_properties_from_PUBCHEM(self): 
+        if self.worker_running:            
+            return         
+        
+        self.configuration = self.config_manager.get_configuration() 
+        self.dataset_handler = DatasetEvents(self.configuration)       
+        # send message to status bar
+        self._send_message("Calculating image dataset evaluation metrics...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = Worker(
+            self.dataset_handler.run_chemical_properties_pipeline)   
+
+        # start worker and inject signals
+        self._start_worker(
+            self.worker, on_finished=self.on_data_success,
+            on_error=self.on_data_error,
+            on_interrupted=self.on_task_interrupted)  
+        
     #--------------------------------------------------------------------------        
     @Slot()
     def run_dataset_evaluation_pipeline(self):  
@@ -445,6 +480,26 @@ class MainWindow:
         self._start_worker(
             self.worker, on_finished=self.on_dataset_evaluation_finished,
             on_error=self.on_evaluation_error,
+            on_interrupted=self.on_task_interrupted)  
+
+    #--------------------------------------------------------------------------
+    @Slot()
+    def build_ML_dataset(self):          
+        if self.worker_running:            
+            return         
+        
+        self.configuration = self.config_manager.get_configuration() 
+        self.validation_handler = ValidationEvents(self.configuration)       
+        # send message to status bar
+        self._send_message("Calculating image dataset evaluation metrics...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = Worker(self.dataset_handler.build_ML_dataset)   
+
+        # start worker and inject signals
+        self._start_worker(
+            self.worker, on_finished=self.on_dataset_processing_finished,
+            on_error=self.on_data_error,
             on_interrupted=self.on_task_interrupted)       
 
     #--------------------------------------------------------------------------
@@ -565,7 +620,13 @@ class MainWindow:
 
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
-    ###########################################################################       
+    ###########################################################################     
+    def on_data_success(self, session):          
+        self.dataset_handler.handle_success(
+            self.main_win, 'Data has been collected from NIST-A database')
+        self.worker_running = False
+
+    #--------------------------------------------------------------------------      
     def on_dataset_evaluation_finished(self, plots):   
         key = 'dataset_eval_images'      
         if plots:            
@@ -607,7 +668,13 @@ class MainWindow:
 
     ###########################################################################   
     # [NEGATIVE OUTCOME HANDLERS]
-    ###########################################################################    
+    ###########################################################################     
+    @Slot() 
+    def on_data_error(self, err_tb):
+        self.dataset_handler.handle_error(self.main_win, err_tb) 
+        self.worker_running = False  
+   
+    #--------------------------------------------------------------------------
     @Slot(tuple)
     def on_evaluation_error(self, err_tb):
         self.validation_handler.handle_error(self.main_win, err_tb) 

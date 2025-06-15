@@ -2,7 +2,8 @@ import os
 import sys
 import json
 import pandas as pd
-import keras
+from keras.utils import plot_model
+from keras.models import load_model
 from datetime import datetime
 
 from NISTADS.commons.utils.data.database import AdsorptionDatabase
@@ -11,27 +12,6 @@ from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, Maske
 from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
 from NISTADS.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
-
-
-###############################################################################
-def checkpoint_selection_menu(models_list):
-    index_list = [idx + 1 for idx, item in enumerate(models_list)]     
-    print('Currently available pretrained models:')             
-    for i, directory in enumerate(models_list):
-        print(f'{i + 1} - {directory}')                         
-    while True:
-        try:
-            selection_index = int(input('\nSelect the pretrained model: '))
-            print()
-        except ValueError:
-            logger.error('Invalid choice for the pretrained model, asking again')
-            continue
-        if selection_index in index_list:
-            break
-        else:
-            logger.warning('Model does not exist, please select a valid index')
-
-    return selection_index
 
 
 # [DATA SERIALIZATION]
@@ -47,8 +27,7 @@ class DataSerializer:
             METADATA_PATH, 'adsorbents_index.json')
 
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'             
-        self.parameters = configuration["dataset"]
+        self.Q_COL = 'adsorbed_amount'        
         self.configuration = configuration 
 
         self.database = AdsorptionDatabase(configuration)
@@ -82,8 +61,8 @@ class DataSerializer:
         return train_data, val_data, metadata, vocabularies  
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
-                                       smile_vocabulary : dict, ads_vocabulary : dict, normalization_stats={}):      
+    def save_train_and_validation_data(self, train_data, validation_data,
+                                       smile_vocabulary, ads_vocabulary, normalization_stats={}):      
 
         # convert list to joint string and save preprocessed data to database
         train_data = self.sanitizer.convert_series_to_string(train_data)   
@@ -121,11 +100,11 @@ class DataSerializer:
         self.database.save_materials_table(guest_data, host_data)
 
     #--------------------------------------------------------------------------
-    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
+    def save_adsorption_datasets(self, single_component, binary_mixture):
         self.database.save_experiments_table(single_component, binary_mixture)  
 
     #--------------------------------------------------------------------------
-    def save_predictions_dataset(self, data : pd.DataFrame):
+    def save_predictions_dataset(self, data):
         self.database.save_inference_data_table(data)  
 
 
@@ -150,13 +129,13 @@ class ModelSerializer:
         return checkpoint_path    
 
     #--------------------------------------------------------------------------
-    def save_pretrained_model(self, model : keras.Model, path):
+    def save_pretrained_model(self, model, path):
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):        
+    def save_training_configuration(self, path, history, configuration, metadata):        
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')       
@@ -206,7 +185,7 @@ class ModelSerializer:
     def save_model_plot(self, model, path):        
         logger.debug('Generating model architecture graph')
         plot_path = os.path.join(path, 'model_layout.png')       
-        keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
+        plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
                     expand_nested=True, rankdir='TB', dpi=400)
             
@@ -219,31 +198,8 @@ class ModelSerializer:
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
-        model = keras.models.load_model(model_path, custom_objects=custom_objects) 
-        
-        return model
+        model = load_model(model_path, custom_objects=custom_objects)
+        configuration, session = self.load_training_configuration(checkpoint_path)        
             
-    #-------------------------------------------------------------------------- 
-    def select_and_load_checkpoint(self):         
-        model_folders = self.scan_checkpoints_folder()
-        # quit the script if no pretrained models are found 
-        if len(model_folders) == 0:
-            logger.error('No pretrained model checkpoints in resources')
-            sys.exit()
-
-        # select model if multiple checkpoints are available
-        if len(model_folders) > 1:
-            selection_index = checkpoint_selection_menu(model_folders)                    
-            checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[selection_index-1])
-
-        # load directly the pretrained model if only one is available 
-        elif len(model_folders) == 1:
-            checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[0])
-            logger.info(f'Since only checkpoint {os.path.basename(checkpoint_path)} is available, it will be loaded directly')
-                          
-        # effectively load the model using keras builtin method
-        # load configuration data from .json file in checkpoint folder
-        model = self.load_checkpoint(checkpoint_path)       
-        configuration, metadata, history = self.load_training_configuration(checkpoint_path)           
-            
-        return model, configuration, metadata, checkpoint_path
+        return model, configuration, session, checkpoint_path 
+     

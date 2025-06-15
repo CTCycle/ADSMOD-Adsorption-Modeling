@@ -3,18 +3,16 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QImage, QPixmap
 
-from FEXT.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from FEXT.commons.utils.data.loader import TrainingDataLoader, InferenceDataLoader
-from FEXT.commons.utils.data.splitting import TrainValidationSplit
-from FEXT.commons.utils.learning.training import ModelTraining
-from FEXT.commons.utils.learning.autoencoder import FeXTAutoEncoder
-from FEXT.commons.utils.inference.encoding import ImageEncoding
-from FEXT.commons.utils.validation.dataset import ImageAnalysis, ImageReconstruction
-from FEXT.commons.utils.validation.checkpoints import ModelEvaluationSummary
-from FEXT.commons.interface.workers import check_thread_status
+from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
+from NISTADS.commons.utils.data.loader import TrainingDataLoader, InferenceDataLoader
+from NISTADS.commons.utils.data.builder import BuildAdsorptionDataset
+from NISTADS.commons.utils.data.API import AdsorptionDataFetch, GuestHostDataFetch
+from NISTADS.commons.utils.data.properties import MolecularProperties
+from NISTADS.commons.interface.workers import check_thread_status
 
-from FEXT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
-from FEXT.commons.logger import logger
+from NISTADS.commons.constants import *
+from NISTADS.commons.logger import logger
+
 
 
 ###############################################################################
@@ -56,6 +54,127 @@ class GraphicsHandler:
             qimg = QImage(img.data, w, h, 4 * w, QImage.Format_RGBA8888)
 
         return QPixmap.fromImage(qimg)
+    
+
+###############################################################################
+class DatasetEvents:
+
+    def __init__(self, configuration):                   
+        self.configuration = configuration 
+
+    #--------------------------------------------------------------------------
+    def run_data_collection_pipeline(self, progress_callback=None, worker=None):      
+        # get isotherm indexes invoking API
+        logger.info('Collect adsorption isotherm indices from NIST-ARPA-E database')
+        API = AdsorptionDataFetch(self.configuration)
+        experiments_index = API.get_experiments_index() 
+
+        logger.info('Extracting adsorption isotherms data from JSON response')
+        adsorption_data = API.get_experiments_data(
+            experiments_index, worker=worker, progress_callback=progress_callback)
+        
+        # remove excluded columns from the dataframe
+        builder = BuildAdsorptionDataset()
+        logger.info('Cleaning and processing adsorption dataset')
+        adsorption_data = builder.drop_excluded_columns(adsorption_data)
+        # split current dataframe by complexity of the mixture (single component or binary mixture)
+        logger.info('Experiments will be split based on mixture complexity')
+        single_component, binary_mixture = builder.split_by_mixture_complexity(adsorption_data) 
+        # extract nested data in dataframe rows and reorganise them into columns
+        single_component = builder.extract_nested_data(single_component)
+        binary_mixture = builder.extract_nested_data(binary_mixture)
+
+        # expand the dataset to represent each measurement with a single row
+        # save the final version of the adsorption dataset  
+        serializer = DataSerializer(self.configuration)
+        single_component, binary_mixture = builder.expand_dataset(
+            single_component, binary_mixture)
+        serializer.save_adsorption_datasets(single_component, binary_mixture)     
+        logger.info('Experiments data collection is concluded')  
+
+        # get guest and host indexes invoking API
+        logger.info('Collect guest and host indices from NIST-ARPA-E database')
+        API = GuestHostDataFetch(self.configuration)
+        guest_index, host_index = API.get_materials_index()    
+        # extract adsorbents and sorbates data from relative indices        
+        logger.info('Extracting adsorbents and sorbates data from relative indices')
+        guest_data, host_data = API.get_materials_data(
+            guest_index, host_index, worker=worker, progress_callback=progress_callback)         
+        
+        # save the final version of the materials dataset 
+        serializer.save_materials_datasets(guest_data, host_data)
+        logger.info('Materials data collection is concluded')
+
+    #--------------------------------------------------------------------------
+    def run_chemical_properties_pipeline(self, progress_callback=None, worker=None):         
+        serializer = DataSerializer(self.configuration)
+        experiments, guest_data, host_data = serializer.load_source_datasets()         
+           
+        properties = MolecularProperties(self.configuration)  
+        # process guest (adsorbed species) data by adding molecular properties
+        logger.info('Retrieving molecular properties for sorbate species using PubChem API')
+        guest_data = properties.fetch_guest_properties(
+            experiments, guest_data, worker=worker, progress_callback=progress_callback) 
+        # save the final version of the materials dataset    
+        serializer.save_materials_datasets(
+            guest_data=guest_data)
+
+        # process host (adsorbent materials) data by adding molecular properties   
+        logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
+        host_data = properties.fetch_host_properties(
+            experiments, host_data, worker=worker, progress_callback=progress_callback) 
+        # save the final version of the materials dataset    
+        serializer.save_materials_datasets(host_data=host_data)        
+
+    #--------------------------------------------------------------------------
+    def get_generated_report(self, image_name):               
+        dataset = self.serializer.load_source_dataset(sample_size=1.0)
+        image_no_ext = image_name.split('.')[0]  
+        mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
+        description = dataset.loc[mask, 'text'].values
+        description = description[0] if len(description) > 0 else self.text_placeholder  
+        
+        return description   
+    
+    #--------------------------------------------------------------------------
+    def build_ML_dataset(self, progress_callback=None, worker=None):   
+        sample_size = self.configuration.get("sample_size", 1.0)            
+        dataset = self.serializer.load_source_dataset(sample_size=sample_size)
+        
+        # sanitize text corpus by removing undesired symbols and punctuation     
+        sanitizer = TextSanitizer(self.configuration)
+        processed_data = sanitizer.sanitize_text(dataset)
+        logger.info(f'Dataset includes {processed_data.shape[0]} samples')
+
+        # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
+        # into subunits and these are eventually mapped to integer indexes        
+        tokenization = TokenWizard(self.configuration) 
+        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_name} tokenizer')    
+        processed_data = tokenization.tokenize_text_corpus(processed_data)   
+        vocabulary_size = tokenization.vocabulary_size 
+        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+        
+        # split data into train set and validation set
+        logger.info('Preparing dataset of images and captions based on splitting size')  
+        splitter = TrainValidationSplit(self.configuration, processed_data)     
+        train_data, validation_data = splitter.split_train_and_validation()        
+               
+        self.serializer.save_train_and_validation_data(
+            train_data, validation_data, vocabulary_size) 
+        logger.info('Preprocessed data saved into XREPORT database') 
+
+    # define the logic to handle successfull data retrieval outside the main UI loop
+    #--------------------------------------------------------------------------
+    def handle_success(self, window, message):
+        # send message to status bar
+        window.statusBar().showMessage(message)
+    
+    # define the logic to handle error during data retrieval outside the main UI loop
+    #--------------------------------------------------------------------------
+    def handle_error(self, window, err_tb):
+        exc, tb = err_tb
+        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")             
+
 
 
 ###############################################################################
@@ -157,7 +276,7 @@ class ValidationEvents:
    
 
 ###############################################################################
-class TrainingEvents:
+class ModelEvents:
 
     def __init__(self, configuration):        
         self.serializer = DataSerializer(configuration)        
@@ -239,31 +358,6 @@ class TrainingEvents:
             model, train_dataset, validation_dataset, checkpoint_path, session,
             progress_callback=progress_callback, worker=worker)
         
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
-
-###############################################################################
-class InferenceEvents:
-
-    def __init__(self, configuration):        
-        self.serializer = DataSerializer(configuration)        
-        self.modser = ModelSerializer()         
-        self.configuration = configuration 
-
-    #--------------------------------------------------------------------------
-    def get_available_checkpoints(self):
-        return self.modser.scan_checkpoints_folder()
-            
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
                                progress_callback=None, worker=None):
@@ -290,6 +384,7 @@ class InferenceEvents:
         encoder.encode_images_features(images_paths, progress_callback, worker=worker) 
         logger.info('Encoded images have been saved as .npy')
            
+        
     # define the logic to handle successfull data retrieval outside the main UI loop
     #--------------------------------------------------------------------------
     def handle_success(self, window, message):
@@ -301,8 +396,4 @@ class InferenceEvents:
     def handle_error(self, window, err_tb):
         exc, tb = err_tb
         QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
-   
-
-
 
