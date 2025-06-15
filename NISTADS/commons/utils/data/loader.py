@@ -176,7 +176,7 @@ class TrainingDataLoader:
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def compose_tensor_dataset(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):                        
-        batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
+        batch_size = self.configuration.get('batch_size', 32) if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)        
         dataset = tf.data.Dataset.from_tensor_slices((inputs, output))  
         dataset = dataset.map(self.generator.process_data, num_parallel_calls=buffer_size)                
@@ -201,7 +201,7 @@ class TrainingDataLoader:
 class InferenceDataLoader:
 
     def __init__(self, configuration):        
-        self.batch_size = configuration['validation']["BATCH_SIZE"] 
+        self.batch_size = self.configuration.get('val_batch_size', 1)
         self.processor = InferenceDataLoaderProcessor(configuration)
         self.configuration = configuration
         self.output = 'adsorbed_amount'                
@@ -257,7 +257,7 @@ class InferenceDataLoader:
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def compose_tensor_dataset(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):                             
-        batch_size = self.configuration["validation"]["BATCH_SIZE"] if batch_size is None else batch_size
+        batch_size = self.configuration.get('val_batch_size', 1) if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)       
         dataset = tf.data.Dataset.from_tensor_slices((inputs, output))    
         dataset = dataset.batch(batch_size)

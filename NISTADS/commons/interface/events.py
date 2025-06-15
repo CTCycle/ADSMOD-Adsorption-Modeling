@@ -10,6 +10,8 @@ from NISTADS.commons.utils.data.API import AdsorptionDataFetch, GuestHostDataFet
 from NISTADS.commons.utils.data.properties import MolecularProperties
 from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
 from NISTADS.commons.utils.process.conversion import PQ_units_conversion
+from NISTADS.commons.utils.learning.training import ModelTraining
+from NISTADS.commons.utils.learning.models import SCADSModel
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.commons.utils.validation.dataset import AdsorptionPredictionsQuality
 from NISTADS.commons.utils.process.sanitizer import (DataSanitizer, AggregateDatasets, 
@@ -252,7 +254,6 @@ class ValidationEvents:
         # check thread for interruption 
         check_thread_status(worker)
 
-
         # add adsorption data analysis   
 
         images = []  
@@ -333,74 +334,64 @@ class ModelEvents:
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
-        logger.info('Preparing dataset of images based on splitting sizes')  
-        sample_size = self.configuration.get("train_sample_size", 1.0)
-        images_paths = self.serializer.get_images_path_from_directory(IMG_PATH, sample_size)
+        dataserializer = DataSerializer(self.database, self.configuration)        
+        train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data() 
 
-        splitter = TrainValidationSplit(self.configuration) 
-        train_data, validation_data = splitter.split_train_and_validation(images_paths)
-        
-        # create the tf.datasets using the previously initialized generators 
-        logger.info('Building model data loaders with prefetching and parallel processing')     
-        builder = TrainingDataLoader(self.configuration)          
+        logger.info('Building model data loaders with prefetching and parallel processing')   
+        builder = TrainingDataLoader(self.configuration)   
         train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, validation_data)
+            train_data, val_data) 
         
+        modser = ModelSerializer()
+        checkpoint_path = modser.create_checkpoint_folder()        
+         
         # set device for training operations based on user configuration        
         logger.info('Setting device for training operations based on user configuration') 
         trainer = ModelTraining(self.configuration)           
-        trainer.set_device()
+        trainer.set_device() 
+       
+        # Setting callbacks and training routine for the machine learning model           
+        logger.info('Building SCADS model based on user configuration')  
+        wrapper = SCADSModel(metadata, self.configuration)
+        model = wrapper.get_model(model_summary=True) 
 
-        # build the autoencoder model 
-        logger.info('Building FeXT AutoEncoder model based on user configuration') 
-        checkpoint_path = self.modser.create_checkpoint_folder()
-        autoencoder = FeXTAutoEncoder(self.configuration)           
-        model = autoencoder.get_model(model_summary=True) 
+        # generate graphviz plot fo the model layout       
+        modser.save_model_plot(model, checkpoint_path)              
 
-        # check worker status to allow interruption
-        check_thread_status(worker)   
-
-        # generate training log report and graphviz plot for the model layout               
-        self.modser.save_model_plot(model, checkpoint_path) 
         # perform training and save model at the end
-        logger.info('Starting FeXT AutoEncoder training') 
-        trainer.train_model(
-            model, train_dataset, validation_dataset, checkpoint_path, 
-            progress_callback=progress_callback, worker=worker)
+        trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
+                            progress_callback=progress_callback, worker=worker)
         
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, 
-                                 worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
-        model, train_config, session, checkpoint_path = self.modser.load_checkpoint(
+                                 worker=None):        
+        
+        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')   
+        modser = ModelSerializer()      
+        model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
-        
-        # set device for training operations based on user configuration
-        logger.info('Setting device for training operations based on user configuration')         
-        trainer = ModelTraining(self.configuration)           
-        trainer.set_device()
 
-        logger.info('Preparing dataset of images based on splitting sizes')  
-        sample_size = train_config.get("train_sample_size", 1.0)
-        images_paths = self.serializer.get_images_path_from_directory(IMG_PATH, sample_size)
-        splitter = TrainValidationSplit(train_config) 
-        train_data, validation_data = splitter.split_train_and_validation(images_paths)     
-
-        # create the tf.datasets using the previously initialized generators 
-        logger.info('Building model data loaders with prefetching and parallel processing') 
-        builder = TrainingDataLoader(train_config)           
+        # setting device for training    
+        trainer = ModelTraining(self.configuration, metadata)    
+        trainer.set_device()     
+          
+        logger.info('Loading preprocessed data and building dataloaders')     
+        dataserializer = DataSerializer(train_config)
+        train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
+           
+        builder = TrainingDataLoader(train_config)   
         train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, validation_data)  
-
+            train_data, val_data)
+        
         # check worker status to allow interruption
-        check_thread_status(worker)         
-                            
+        check_thread_status(worker)    
+        
+        # Setting callbacks and training routine for the machine learning model        
         # resume training from pretrained model    
-        logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
-        trainer.resume_training(
+        trainer.train_model(
             model, train_dataset, validation_dataset, checkpoint_path, session,
-            progress_callback=progress_callback, worker=worker)
+            progress_callback=progress_callback, worker=worker)    
         
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, device='CPU', 

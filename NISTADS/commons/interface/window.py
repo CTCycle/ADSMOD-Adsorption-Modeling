@@ -70,7 +70,7 @@ class MainWindow:
             (QSpinBox,'smileSeqSize','SMILE_sequence_size'),
             (QSpinBox,'maxPressure','max_pressure'),
             (QSpinBox,'maxUptake','max_uptake'), 
-            (QPushButton,'buildMLDataset','build_ML_dataset'),                    
+            (QPushButton,'buildMLDataset','build_ML_dataset'),  
 
             (QDoubleSpinBox,'guestFraction','guest_fraction'),
             (QDoubleSpinBox,'hostFraction','host_fraction'),
@@ -80,8 +80,7 @@ class MainWindow:
             (QPushButton,'retrieveChemProperties','retrieve_properties'),        
                       
             # 2. training tab page                
-            (QCheckBox,'setShuffle','use_shuffle'),
-            (QDoubleSpinBox,'trainSampleSize','train_sample_size'),            
+            (QCheckBox,'setShuffle','use_shuffle'),                     
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'shuffleSize','shuffle_size'),
             (QRadioButton,'setCPU','use_CPU'),
@@ -103,8 +102,7 @@ class MainWindow:
             (QSpinBox,'decaySteps','decay_steps'), 
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
             (QCheckBox,'compileJIT','use_JIT_compiler'),   
-            (QComboBox,'backendJIT','jit_backend'),         
-            (QSpinBox,'initialNeurons','initial_neurons'),
+            (QComboBox,'backendJIT','jit_backend'),              
             (QDoubleSpinBox,'dropoutRate','dropout_rate'),                    
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),
             (QComboBox,'checkpointsList','checkpoints_list'),            
@@ -120,8 +118,7 @@ class MainWindow:
             # 4. inference tab page  
             (QCheckBox,'runInferenceGPU','use_GPU_inference'),      
             (QPushButton,'encodeImages','encode_images'),          
-            # 5. Viewer tab
-            (QPushButton,'loadImages','load_source_images'),
+            # 5. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
             (QPushButton,'nextImg','next_image'),
             (QPushButton,'clearImg','clear_images'),
@@ -520,7 +517,7 @@ class MainWindow:
         self.model_handler = ModelEvents(self.database, self.configuration)         
   
         # send message to status bar
-        self._send_message("Training FEXT Autoencoder model from scratch...")        
+        self._send_message("Training SCADS using a new model instance...")        
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(self.model_handler.run_training_pipeline)                            
        
