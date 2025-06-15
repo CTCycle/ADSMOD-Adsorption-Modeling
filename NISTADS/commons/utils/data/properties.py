@@ -22,7 +22,7 @@ class MolecularProperties:
 
     # Define a function to handle duplicates, keeping rows with InChIKey
     #--------------------------------------------------------------------------
-    def remove_duplicates_without_identifiers(self, data : pd.DataFrame):
+    def remove_duplicates_without_identifiers(self, data):
         if self.molecular_identifier in data.columns:
             data['has_inchikey'] = data['InChIKey'].notna()  
             data = data.sort_values(by=['name', 'has_inchikey'], ascending=[True, False])
@@ -34,7 +34,7 @@ class MolecularProperties:
         return data  
 
     #--------------------------------------------------------------------------
-    def map_fetched_properties(self, data : pd.DataFrame, properties : dict):
+    def map_fetched_properties(self, data, properties : dict):
         # set all names to lowcase to avoid mismatch
         properties['name'] = [x.lower() for x in properties['name']]
         data['name'] = data['name'].str.lower() 
@@ -163,7 +163,7 @@ class HostProperties:
         return properties     
     
     #--------------------------------------------------------------------------    
-    def get_properties_for_multiple_compounds(self, dataset : pd.DataFrame):         
+    def get_properties_for_multiple_compounds(self, dataset):         
         for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]): 
             formula_as_name = self.is_chemical_formula(row.name) 
             properties = self.get_molecular_properties(row.name, namespace='name')             

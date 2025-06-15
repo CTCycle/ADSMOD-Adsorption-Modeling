@@ -8,9 +8,16 @@ from NISTADS.commons.utils.data.loader import TrainingDataLoader, InferenceDataL
 from NISTADS.commons.utils.data.builder import BuildAdsorptionDataset
 from NISTADS.commons.utils.data.API import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.commons.utils.data.properties import MolecularProperties
-from NISTADS.commons.interface.workers import check_thread_status
+from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
+from NISTADS.commons.utils.process.conversion import PQ_units_conversion
+from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from NISTADS.commons.utils.process.sanitizer import (DataSanitizer, AggregateDatasets, 
+                                                     TrainValidationSplit, FeatureNormalizer, 
+                                                     AdsorbentEncoder) 
 
-from NISTADS.commons.constants import *
+from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
+
+from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 
 
@@ -59,7 +66,8 @@ class GraphicsHandler:
 ###############################################################################
 class DatasetEvents:
 
-    def __init__(self, configuration):                   
+    def __init__(self, database, configuration): 
+        self.database = database                  
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
@@ -86,7 +94,7 @@ class DatasetEvents:
 
         # expand the dataset to represent each measurement with a single row
         # save the final version of the adsorption dataset  
-        serializer = DataSerializer(self.configuration)
+        serializer = DataSerializer(self.database, self.configuration)
         single_component, binary_mixture = builder.expand_dataset(
             single_component, binary_mixture)
         serializer.save_adsorption_datasets(single_component, binary_mixture)     
@@ -107,7 +115,7 @@ class DatasetEvents:
 
     #--------------------------------------------------------------------------
     def run_chemical_properties_pipeline(self, progress_callback=None, worker=None):         
-        serializer = DataSerializer(self.configuration)
+        serializer = DataSerializer(self.database, self.configuration)
         experiments, guest_data, host_data = serializer.load_source_datasets()         
            
         properties = MolecularProperties(self.configuration)  
@@ -124,44 +132,88 @@ class DatasetEvents:
         host_data = properties.fetch_host_properties(
             experiments, host_data, worker=worker, progress_callback=progress_callback) 
         # save the final version of the materials dataset    
-        serializer.save_materials_datasets(host_data=host_data)        
-
-    #--------------------------------------------------------------------------
-    def get_generated_report(self, image_name):               
-        dataset = self.serializer.load_source_dataset(sample_size=1.0)
-        image_no_ext = image_name.split('.')[0]  
-        mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
-        description = dataset.loc[mask, 'text'].values
-        description = description[0] if len(description) > 0 else self.text_placeholder  
-        
-        return description   
+        serializer.save_materials_datasets(host_data=host_data)      
     
     #--------------------------------------------------------------------------
-    def build_ML_dataset(self, progress_callback=None, worker=None):   
-        sample_size = self.configuration.get("sample_size", 1.0)            
-        dataset = self.serializer.load_source_dataset(sample_size=sample_size)
+    def run_dataset_builder(self, progress_callback=None, worker=None):        
+        serializer = DataSerializer(self.database, self.configuration)
+        adsorption_data, guest_data, host_data = serializer.load_source_datasets() 
+        logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
+        logger.info(f'{guest_data.shape[0]} total guests (adsorbates species) in the dataset')
+        logger.info(f'{host_data.shape[0]} total hosts (adsorbent materials) in the dataset')
         
-        # sanitize text corpus by removing undesired symbols and punctuation     
-        sanitizer = TextSanitizer(self.configuration)
-        processed_data = sanitizer.sanitize_text(dataset)
-        logger.info(f'Dataset includes {processed_data.shape[0]} samples')
+        # group single component data based on the experiment name 
+        # merge adsorption data with retrieved materials properties (guest and host)
+        aggregator = AggregateDatasets(self.configuration)
+        processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
 
-        # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
-        # into subunits and these are eventually mapped to integer indexes        
-        tokenization = TokenWizard(self.configuration) 
-        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_name} tokenizer')    
-        processed_data = tokenization.tokenize_text_corpus(processed_data)   
-        vocabulary_size = tokenization.vocabulary_size 
-        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+        # check thread for interruption 
+        check_thread_status(worker)
+        # start joining materials properties
+        processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
+        logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')         
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        # convert pressure and uptake into standard units:
+        # pressure to Pascal, uptake to mol/g
+        sequencer = PressureUptakeSeriesProcess(self.configuration)
+        logger.info('Converting pressure into Pascal and uptake into mol/g')   
+        processed_data = PQ_units_conversion(processed_data) 
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        # exlude all data outside given boundaries, such as negative temperature values 
+        # and pressure and uptake values below zero or above upper limits
+        sanitizer = DataSanitizer(self.configuration)  
+        processed_data = sanitizer.exclude_OOB_values(processed_data)
         
+        # remove repeated zero values at the beginning of pressure and uptake series  
+        # then filter out experiments with not enough measurements 
+        processed_data = sequencer.remove_leading_zeros(processed_data)   
+        processed_data = sequencer.filter_by_sequence_size(processed_data)          
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        # perform SMILE sequence tokenization  
+        tokenization = SMILETokenization(self.configuration) 
+        logger.info('Tokenizing SMILE sequences for adsorbate species')   
+        processed_data, smile_vocab = tokenization.process_SMILE_sequences(processed_data)  
+
         # split data into train set and validation set
         logger.info('Preparing dataset of images and captions based on splitting size')  
         splitter = TrainValidationSplit(self.configuration, processed_data)     
-        train_data, validation_data = splitter.split_train_and_validation()        
-               
-        self.serializer.save_train_and_validation_data(
-            train_data, validation_data, vocabulary_size) 
-        logger.info('Preprocessed data saved into XREPORT database') 
+        train_data, validation_data = splitter.split_train_and_validation() 
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        # normalize pressure and uptake series using max values computed from 
+        # the training set, then pad sequences to a fixed length
+        normalizer = FeatureNormalizer(self.configuration, train_data)
+        train_data = normalizer.normalize_molecular_features(train_data) 
+        train_data = normalizer.PQ_series_normalization(train_data) 
+        validation_data = normalizer.normalize_molecular_features(validation_data) 
+        validation_data = normalizer.PQ_series_normalization(validation_data)      
+    
+        # check thread for interruption 
+        check_thread_status(worker)
+        # add padding to pressure and uptake series to match max length
+        train_data = sequencer.PQ_series_padding(train_data)     
+        validation_data = sequencer.PQ_series_padding(validation_data)     
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        encoding = AdsorbentEncoder(self.configuration, train_data)    
+        train_data = encoding.encode_adsorbents_by_name(train_data)
+        validation_data = encoding.encode_adsorbents_by_name(validation_data)    
+        adsorbent_vocab = encoding.mapping 
+      
+        # save preprocessed data using data serializer   
+        train_data = sanitizer.isolate_processed_features(train_data)
+        validation_data = sanitizer.isolate_processed_features(validation_data)           
+        serializer.save_train_and_validation_data(
+            train_data, validation_data, smile_vocab, 
+            adsorbent_vocab, normalizer.statistics) 
 
     # define the logic to handle successfull data retrieval outside the main UI loop
     #--------------------------------------------------------------------------
@@ -180,17 +232,9 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, configuration):        
-        self.serializer = DataSerializer(configuration)            
-        self.analyzer = ImageAnalysis(configuration)     
-        self.configuration = configuration  
-
-    #--------------------------------------------------------------------------
-    def load_images_path(self, path, sample_size=1.0):        
-        images_paths = self.serializer.get_images_path_from_directory(
-            path, sample_size) 
-        
-        return images_paths 
+    def __init__(self, database, configuration):
+        self.database = database       
+        self.configuration = configuration 
         
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
@@ -214,7 +258,7 @@ class ValidationEvents:
     def get_checkpoints_summary(self, progress_callback=None, worker=None): 
         summarizer = ModelEvaluationSummary(self.configuration)    
         checkpoints_summary = summarizer.get_checkpoints_summary(progress_callback, worker) 
-        logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')   
+        logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')     
     
     #--------------------------------------------------------------------------
     def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, device='CPU', 
@@ -278,14 +322,14 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, configuration):        
-        self.serializer = DataSerializer(configuration)        
-        self.modser = ModelSerializer()         
+    def __init__(self, database, configuration): 
+        self.database = database        
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
     def get_available_checkpoints(self):
-        return self.modser.scan_checkpoints_folder()
+        serializer = ModelSerializer()
+        return serializer.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  

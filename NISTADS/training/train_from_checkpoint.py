@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     # 3. [BUILD TRAINING DATALODER]
     #--------------------------------------------------------------------------   
-    builder = TrainingDataLoader(CONFIG)   
+    builder = TrainingDataLoader(self.configuration)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
         train_data, val_data)
 

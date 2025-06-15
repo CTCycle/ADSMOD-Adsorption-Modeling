@@ -26,7 +26,7 @@ class AdsorptionPredictions:
 
     # wrapper for the inference inputs preprocessing method called by the dataloader
     #--------------------------------------------------------------------------
-    def process_inference_inputs(self, data : pd.DataFrame): 
+    def process_inference_inputs(self, data): 
         return self.dataloader.process_inference_inputs(data)
 
     #--------------------------------------------------------------------------
@@ -53,7 +53,7 @@ class AdsorptionPredictions:
         return unpadded_predictions         
 
     #--------------------------------------------------------------------------
-    def predict_adsorption_isotherm(self, data : pd.DataFrame):       
+    def predict_adsorption_isotherm(self, data):       
         processed_inputs = self.process_inference_inputs(data)
         predictions = self.model.predict(processed_inputs, verbose=1)
         predictions = self.process_inference_output(processed_inputs, predictions)
@@ -61,7 +61,7 @@ class AdsorptionPredictions:
         return predictions
     
     #--------------------------------------------------------------------------
-    def merge_predictions_to_dataset(self, data : pd.DataFrame, predictions : list):
+    def merge_predictions_to_dataset(self, data, predictions : list):
         concat_predictions = np.concatenate(predictions)
         data['predicted_adsorbed_amount'] = concat_predictions
 

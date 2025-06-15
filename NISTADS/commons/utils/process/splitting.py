@@ -9,7 +9,7 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class TrainValidationSplit:
 
-    def __init__(self, configuration, dataset : pd.DataFrame):
+    def __init__(self, configuration, dataset):
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
         self.adsorbate_col = 'adsorbate_name'
@@ -25,7 +25,7 @@ class TrainValidationSplit:
             n_splits=1, test_size=self.validation_size, random_state=self.seed)
 
     #--------------------------------------------------------------------------
-    def remove_underpopulated_classes(self, dataset : pd.DataFrame):        
+    def remove_underpopulated_classes(self, dataset):        
         dataset['combination'] = (dataset[self.adsorbate_col].astype(str) 
                                   + "_" + dataset[self.adsorbent_col].astype(str))
         combo_counts = dataset['combination'].value_counts()

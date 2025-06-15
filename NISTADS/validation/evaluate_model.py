@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     # 1. [CREATE CHECKPOINTS SUMMARY]
     #--------------------------------------------------------------------------  
-    summarizer = ModelEvaluationSummary(CONFIG)    
+    summarizer = ModelEvaluationSummary(self.configuration)    
     checkpoints_summary = summarizer.checkpoints_summary()     
     logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')  
     

@@ -22,13 +22,13 @@ if __name__ == '__main__':
 
     # 1. [LOAD AND SPLIT DATA]
     #--------------------------------------------------------------------------   
-    dataserializer = DataSerializer(CONFIG)
+    dataserializer = DataSerializer(self.configuration)
     train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()             
 
     # 2. [BUILD TRAINING DATALODER]
     #-------------------------------------------------------------------------- 
     logger.info('Building model data loaders with prefetching and parallel processing')   
-    builder = TrainingDataLoader(CONFIG)   
+    builder = TrainingDataLoader(self.configuration)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
         train_data, val_data) 
     
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # 3. [SET DEVICE]
     #-------------------------------------------------------------------------- 
     logger.info('Setting device for training operations based on user configuration') 
-    trainer = ModelTraining(CONFIG, metadata) 
+    trainer = ModelTraining(self.configuration, metadata) 
     trainer.set_device()  
 
     # 4. [TRAIN MODEL]  

@@ -1,7 +1,7 @@
 import re
 import numpy as np
 import pandas as pd
-from keras.api.preprocessing import sequence
+from keras.preprocessing.sequence import pad_sequences
       
 from NISTADS.commons.constants import CONFIG, PAD_VALUE
 from NISTADS.commons.logger import logger
@@ -37,19 +37,19 @@ class PressureUptakeSeriesProcess:
         return dataframe        
     
     #--------------------------------------------------------------------------  
-    def PQ_series_padding(self, dataset : pd.DataFrame):        
-        dataset[self.P_COL] = sequence.pad_sequences(
+    def PQ_series_padding(self, dataset):        
+        dataset[self.P_COL] = pad_sequences(
             dataset[self.P_COL], maxlen=self.max_points, value=PAD_VALUE, 
             dtype='float32', padding='post').tolist()  
 
-        dataset[self.Q_COL] = sequence.pad_sequences(
+        dataset[self.Q_COL] = pad_sequences(
             dataset[self.Q_COL], maxlen=self.max_points, value=PAD_VALUE, 
             dtype='float32', padding='post').tolist()          
 
         return dataset   
     
     #--------------------------------------------------------------------------
-    def filter_by_sequence_size(self, dataset : pd.DataFrame):        
+    def filter_by_sequence_size(self, dataset):        
         dataset = dataset[dataset[self.P_COL].apply(
             lambda x: self.min_points <= len(x) <= self.max_points)]
 
@@ -183,15 +183,15 @@ class SMILETokenization:
         return data, token_to_id
     
     #--------------------------------------------------------------------------  
-    def SMILE_series_padding(self, dataset : pd.DataFrame):       
-        dataset['adsorbate_encoded_SMILE'] = sequence.pad_sequences(
+    def SMILE_series_padding(self, dataset):       
+        dataset['adsorbate_encoded_SMILE'] = pad_sequences(
             dataset['adsorbate_encoded_SMILE'], maxlen=self.SMILE_padding, 
             value=PAD_VALUE, dtype='float32', padding='post').tolist() 
                 
         return dataset
     
     #--------------------------------------------------------------------------
-    def process_SMILE_sequences(self, data : pd.DataFrame):
+    def process_SMILE_sequences(self, data):
         data['adsorbate_tokenized_SMILE'] = data['adsorbate_SMILE'].apply(
             lambda x : self.tokenize_SMILE_string(x))         
         

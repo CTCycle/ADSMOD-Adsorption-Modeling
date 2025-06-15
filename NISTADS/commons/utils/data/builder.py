@@ -1,5 +1,3 @@
-import pandas as pd
-
 from NISTADS.commons.constants import CONFIG, DATA_PATH
 from NISTADS.commons.logger import logger
 
@@ -28,13 +26,13 @@ class BuildAdsorptionDataset:
             'compound_1_data', 'compound_2_data', 'adsorbent_ID', 'adsorbates_ID']       
 
     #--------------------------------------------------------------------------           
-    def drop_excluded_columns(self, dataframe : pd.DataFrame):
+    def drop_excluded_columns(self, dataframe):
         df_drop = dataframe.drop(columns=self.raw_drop_cols, axis=1)
 
         return df_drop
 
     #--------------------------------------------------------------------------           
-    def split_by_mixture_complexity(self, dataframe : pd.DataFrame):        
+    def split_by_mixture_complexity(self, dataframe):        
         dataframe['numGuests'] = dataframe['adsorbates'].apply(lambda x : len(x))          
         df_grouped = dataframe.groupby('numGuests')
         single_compound = df_grouped.get_group(1)
@@ -43,7 +41,7 @@ class BuildAdsorptionDataset:
         return single_compound, binary_mixture   
 
     #--------------------------------------------------------------------------
-    def extract_nested_data(self, dataframe : pd.DataFrame):         
+    def extract_nested_data(self, dataframe):         
         dataframe['adsorbent_ID'] = dataframe['adsorbent'].apply(
             lambda x : x['hashkey']).astype(str)      
         dataframe['adsorbent_name'] = dataframe['adsorbent'].apply(
@@ -94,7 +92,7 @@ class BuildAdsorptionDataset:
         return dataframe           
     
     #--------------------------------------------------------------------------
-    def expand_dataset(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):           
+    def expand_dataset(self, single_component, binary_mixture):           
         # processing and exploding data for single component dataset                
         SC_dataset = single_component.explode(self.SC_explode_cols)        
         SC_dataset.reset_index(inplace=True, drop=True)       

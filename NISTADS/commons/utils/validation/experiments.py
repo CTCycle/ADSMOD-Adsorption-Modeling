@@ -52,7 +52,7 @@ class AdsorptionPredictionsQuality:
         return pressures, uptakes, predictions        
 
     #--------------------------------------------------------------------------
-    def visualize_adsorption_isotherms(self, validation_data : pd.DataFrame):              
+    def visualize_adsorption_isotherms(self, validation_data):              
         sampled_data = validation_data.sample(n=self.num_experiments, random_state=42)
         sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
         predictions = self.model.predict(sampled_X)      

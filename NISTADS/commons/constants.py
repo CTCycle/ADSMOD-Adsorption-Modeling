@@ -19,5 +19,5 @@ PAD_VALUE = -1
 # [CONFIGURATIONS]
 ###############################################################################
 CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configuration.json')
-with open(CONFIG_PATH, 'r') as file:
+with open(self.configuration_PATH, 'r') as file:
     CONFIG = json.load(file)

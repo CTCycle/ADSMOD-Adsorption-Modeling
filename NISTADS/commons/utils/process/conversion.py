@@ -1,11 +1,8 @@
 import pandas as pd
 
-from NISTADS.commons.constants import CONFIG, DATA_PATH
-from NISTADS.commons.logger import logger
-
 
 ###############################################################################
-def PQ_units_conversion(dataframe : pd.DataFrame):
+def PQ_units_conversion(dataframe):
     P_converter = PressureConversion()
     Q_converter = UptakeConversion()
     converted_data = P_converter.convert_pressure_units(dataframe)

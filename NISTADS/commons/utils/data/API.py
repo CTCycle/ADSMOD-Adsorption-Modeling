@@ -9,7 +9,6 @@ import asyncio
 from tqdm.asyncio import tqdm_asyncio
 
 from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
-from NISTADS.commons.constants import CONFIG
 from NISTADS.commons.logger import logger
 
 
@@ -101,7 +100,7 @@ class AdsorptionDataFetch:
     
     # function to retrieve HTML data
     #--------------------------------------------------------------------------
-    def get_experiments_data(self, experiments_data : pd.DataFrame, **kwargs):           
+    def get_experiments_data(self, experiments_data, **kwargs):           
         n_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))        
         if isinstance(experiments_data, pd.DataFrame) and experiments_data.shape[0] > 0:
             loop = asyncio.get_event_loop()            

@@ -347,9 +347,7 @@ class AdsorptionDatabase:
         self.validation_data = ValidationDataTable()
         self.inference_data = PredictedAdsorptionTable()       
         self.checkpoints_summary = CheckpointSummaryTable()    
-        self.initialize_database()
-        self.update_database()
-
+        
     #--------------------------------------------------------------------------       
     def initialize_database(self): 
         conn = sqlite3.connect(self.db_path)
@@ -407,8 +405,8 @@ class AdsorptionDatabase:
         return data      
 
     #--------------------------------------------------------------------------
-    def save_experiments_table(self, single_components : pd.DataFrame,
-                               binary_mixture : pd.DataFrame):        
+    def save_experiments_table(self, single_components,
+                               binary_mixture):        
         conn = sqlite3.connect(self.db_path)         
         single_components.to_sql(
             self.single_component.name, conn, if_exists='replace', index=False,
@@ -420,7 +418,7 @@ class AdsorptionDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_materials_table(self, adsorbates : pd.DataFrame, adsorbents : pd.DataFrame):    
+    def save_materials_table(self, adsorbates, adsorbents):    
         conn = sqlite3.connect(self.db_path)
         if adsorbates is not None:         
             adsorbates.to_sql(
@@ -434,7 +432,7 @@ class AdsorptionDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+    def save_train_and_validation_tables(self, train_data, validation_data):         
         conn = sqlite3.connect(self.db_path)         
         train_data.to_sql(
             self.train_data.name, conn, if_exists='replace', index=False,
@@ -446,7 +444,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_inference_data_table(self, data : pd.DataFrame):      
+    def save_inference_data_table(self, data):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.inference_data.name, conn, if_exists='replace', index=False,
@@ -455,7 +453,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
+    def save_checkpoints_summary_table(self, data):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.checkpoints_summary.name, conn, if_exists='replace', index=False,

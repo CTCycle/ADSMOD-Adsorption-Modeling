@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
                                QGraphicsPixmapItem, QGraphicsView)
 
+from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.configuration import Configuration
 from NISTADS.commons.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
 from NISTADS.commons.interface.workers import Worker
@@ -37,13 +38,18 @@ class MainWindow:
     
         self.threadpool = QThreadPool.globalInstance()
         self.worker = None
-        self.worker_running = False                
+        self.worker_running = False  
+
+        # initialize database
+        self.database = AdsorptionDatabase(self.configuration)
+        self.database.initialize_database()  
+        self.database.update_database()                
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
-        self.dataset_handler = DatasetEvents(self.configuration)
-        self.validation_handler = ValidationEvents(self.configuration)
-        self.model_handler = ModelEvents(self.configuration)        
+        self.dataset_handler = DatasetEvents(self.database, self.configuration)
+        self.validation_handler = ValidationEvents(self.database, self.configuration)
+        self.model_handler = ModelEvents(self.database, self.configuration)        
 
         # setup UI elements
         self._set_states()
@@ -422,7 +428,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.configuration)       
+        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
@@ -443,7 +449,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.configuration)       
+        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
@@ -467,7 +473,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.configuration)       
+        self.validation_handler = ValidationEvents(self.database, self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
@@ -489,12 +495,12 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.configuration)       
+        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.dataset_handler.build_ML_dataset)   
+        self.worker = Worker(self.dataset_handler.run_dataset_builder)   
 
         # start worker and inject signals
         self._start_worker(
@@ -511,7 +517,7 @@ class MainWindow:
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.configuration)         
+        self.model_handler = ModelEvents(self.database, self.configuration)         
   
         # send message to status bar
         self._send_message("Training FEXT Autoencoder model from scratch...")        
@@ -531,7 +537,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.configuration)   
+        self.model_handler = ModelEvents(self.database, self.configuration)   
 
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
@@ -555,7 +561,7 @@ class MainWindow:
             return 
 
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.configuration)    
+        self.validation_handler = ValidationEvents(self.database, self.configuration)    
         device = 'GPU' if self.use_GPU_evaluation.isChecked() else 'CPU'   
         # send message to status bar
         self._send_message(f"Evaluating {self.select_checkpoint} performances... ")
@@ -578,7 +584,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.configuration)           
+        self.validation_handler = ValidationEvents(self.database, self.configuration)           
         # send message to status bar
         self._send_message("Generating checkpoints summary...") 
         
@@ -600,7 +606,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.configuration)  
+        self.model_handler = ModelEvents(self.database, self.configuration)  
         device = 'GPU' if self.use_GPU_inference.isChecked() else 'CPU'
         # send message to status bar
         self._send_message(f"Encoding images with {self.selected_checkpoint}") 
@@ -624,6 +630,11 @@ class MainWindow:
     def on_data_success(self, session):          
         self.dataset_handler.handle_success(
             self.main_win, 'Data has been collected from NIST-A database')
+        self.worker_running = False
+
+    #--------------------------------------------------------------------------
+    def on_dataset_processing_finished(self, session):         
+        self.dataset_handler.handle_success(self.main_win, 'Dataset has been built successfully')
         self.worker_running = False
 
     #--------------------------------------------------------------------------      

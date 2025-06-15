@@ -1,16 +1,15 @@
 import os
-import sys
 import json
+
 import pandas as pd
 from keras.utils import plot_model
 from keras.models import load_model
 from datetime import datetime
 
-from NISTADS.commons.utils.data.database import AdsorptionDatabase
-from NISTADS.commons.utils.data.process.sanitizer import DataSanitizer
+from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
-from NISTADS.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, CHECKPOINT_PATH
+from NISTADS.commons.constants import METADATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
 
 
@@ -18,7 +17,7 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):  
+    def __init__(self, database, configuration):  
         self.metadata_path = os.path.join(
             METADATA_PATH, 'preprocessing_metadata.json') 
         self.smile_vocabulary_path = os.path.join(
@@ -27,11 +26,9 @@ class DataSerializer:
             METADATA_PATH, 'adsorbents_index.json')
 
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'        
+        self.Q_COL = 'adsorbed_amount'
+        self.database = database        
         self.configuration = configuration 
-
-        self.database = AdsorptionDatabase(configuration)
-        self.sanitizer = DataSanitizer(configuration)         
         
     #--------------------------------------------------------------------------
     def load_source_datasets(self):                
@@ -43,10 +40,11 @@ class DataSerializer:
     
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self): 
-        # load preprocessed data from database and convert joint strings to list 
+        # load preprocessed data from database and convert joint strings to list
+        sanitizer = DataSanitizer(self.configuration) 
         train_data, val_data = self.database.load_train_and_validation_tables()
-        train_data = self.sanitizer.convert_string_to_series(train_data) 
-        val_data = self.sanitizer.convert_string_to_series(val_data) 
+        train_data = sanitizer.convert_string_to_series(train_data) 
+        val_data = sanitizer.convert_string_to_series(val_data) 
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
@@ -65,8 +63,9 @@ class DataSerializer:
                                        smile_vocabulary, ads_vocabulary, normalization_stats={}):      
 
         # convert list to joint string and save preprocessed data to database
-        train_data = self.sanitizer.convert_series_to_string(train_data)   
-        validation_data = self.sanitizer.convert_series_to_string(validation_data)      
+        sanitizer = DataSanitizer(self.configuration)    
+        train_data = sanitizer.convert_series_to_string(train_data)   
+        validation_data = sanitizer.convert_series_to_string(validation_data)      
         self.database.save_train_and_validation_tables(train_data, validation_data) 
         
         with open(self.smile_vocabulary_path, 'w') as file:
@@ -89,13 +88,14 @@ class DataSerializer:
             json.dump(metadata, file, indent=4) 
    
     #--------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data=None, host_data=None):                   
+    def save_materials_datasets(self, guest_data=None, host_data=None):
+        sanitizer = DataSanitizer(self.configuration)                       
         if guest_data is not None:
             guest_data = pd.DataFrame.from_dict(guest_data)
-            guest_data = self.sanitizer.convert_series_to_string(guest_data)            
+            guest_data = sanitizer.convert_series_to_string(guest_data)            
         if host_data is not None:
             host_data = pd.DataFrame.from_dict(host_data)
-            host_data = self.sanitizer.convert_series_to_string(host_data)    
+            host_data = sanitizer.convert_series_to_string(host_data)    
 
         self.database.save_materials_table(guest_data, host_data)
 
