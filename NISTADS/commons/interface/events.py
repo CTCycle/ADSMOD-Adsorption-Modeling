@@ -11,6 +11,7 @@ from NISTADS.commons.utils.data.properties import MolecularProperties
 from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
 from NISTADS.commons.utils.process.conversion import PQ_units_conversion
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from NISTADS.commons.utils.validation.dataset import AdsorptionPredictionsQuality
 from NISTADS.commons.utils.process.sanitizer import (DataSanitizer, AggregateDatasets, 
                                                      TrainValidationSplit, FeatureNormalizer, 
                                                      AdsorbentEncoder) 
@@ -239,18 +240,26 @@ class ValidationEvents:
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
         sample_size = self.configuration.get("sample_size", 1.0)
-        images_paths = self.serializer.get_images_path_from_directory(IMG_PATH, sample_size)
-        logger.info(f'The image dataset is composed of {len(images_paths)} images')            
-               
-        logger.info('Current metric: image dataset statistics')
-        image_statistics = self.analyzer.calculate_image_statistics(
-            images_paths, progress_callback, worker)                      
+        serializer = DataSerializer(self.configuration)
+        adsorption_data, guest_data, host_data = serializer.load_source_datasets() 
+        logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
+        logger.info(f'{guest_data.shape[0]} adsorbates species in the dataset')
+        logger.info(f'{host_data.shape[0]} adsorbent materials in the dataset')
+
+        # load preprocessed data and associated metadata        
+        train_data, val_data, metadata, vocabularies = serializer.load_train_and_validation_data()
+
+        # check thread for interruption 
+        check_thread_status(worker)
+
+
+        # add adsorption data analysis   
 
         images = []  
-        if 'pixels_distribution' in metrics:
-            logger.info('Current metric: pixel intensity distribution')
-            images.append(self.analyzer.calculate_pixel_intensity_distribution(
-                images_paths, progress_callback, worker))
+        if 'experiments_clustering' in metrics:
+            logger.info('Current metric: Adsorption isotherm clustering')
+            # images.append(self.analyzer.calculate_pixel_intensity_distribution(
+            #     images_paths, progress_callback, worker))
 
         return images 
 
@@ -258,50 +267,41 @@ class ValidationEvents:
     def get_checkpoints_summary(self, progress_callback=None, worker=None): 
         summarizer = ModelEvaluationSummary(self.configuration)    
         checkpoints_summary = summarizer.get_checkpoints_summary(progress_callback, worker) 
-        logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')     
+        logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')    
     
     #--------------------------------------------------------------------------
     def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, device='CPU', 
                                       progress_callback=None, worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')   
-        modser = ModelSerializer()       
+        modser = ModelSerializer()         
         model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
-        model.summary(expand_nested=True)  
+        model.summary(expand_nested=True)
 
-        # set device for training operations based on user configuration
-        logger.info('Setting device for training operations based on user configuration')                
-        trainer = ModelTraining(train_config)    
-        trainer.set_device(device_override=device)  
+        # load preprocessed data and associated metadata
+        serializer = DataSerializer(train_config)
+        _, val_data, metadata, vocabularies = serializer.load_train_and_validation_data()
+        logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
+    
+        loader = InferenceDataLoader(train_config)      
+        validation_dataset = loader.build_inference_dataloader(val_data)
 
-        # isolate the encoder from the autoencoder model   
-        encoder = ImageEncoding(model, train_config, checkpoint_path)
-        encoder_model = encoder.encoder_model 
-
-        logger.info('Preparing dataset of images based on splitting sizes')  
-        sample_size = train_config.get("train_sample_size", 1.0)
-        images_paths = self.serializer.get_images_path_from_directory(IMG_PATH, sample_size)
-        splitter = TrainValidationSplit(train_config) 
-        _, validation_images = splitter.split_train_and_validation(images_paths)     
-
-        # create the tf.datasets using the previously initialized generators 
-        logger.info('Building model data loaders with prefetching and parallel processing') 
-        # use tf.data.Dataset to build the model dataloader with a larger batch size
-        # the dataset is built on top of the training and validation data
-        loader = InferenceDataLoader(train_config)    
-        validation_dataset = loader.build_inference_dataloader(
-            validation_images, batch_size=1)              
-
+        # compare reconstructed isotherms from predictions    
+        validator = AdsorptionPredictionsQuality(
+            model, train_config, metadata, checkpoint_path)      
+        validator.visualize_adsorption_isotherms(val_data)       
+            
         images = []
         if 'evaluation_report' in metrics:
             # evaluate model performance over the training and validation dataset 
             summarizer = ModelEvaluationSummary(self.configuration)       
             summarizer.get_evaluation_report(model, validation_dataset, worker=worker) 
 
-        if 'image_reconstruction' in metrics:
-            validator = ImageReconstruction(train_config, model, checkpoint_path)      
-            images.append(validator.visualize_reconstructed_images(
-                validation_images, progress_callback, worker=worker))       
+
+        if 'adsorption_isotherms_prediction' in metrics:
+            validator = AdsorptionPredictionsQuality(
+            model, train_config, metadata, checkpoint_path)      
+            images.append(validator.visualize_adsorption_isotherms(
+                val_data, progress_callback, worker=worker))                    
 
         return images      
 

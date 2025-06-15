@@ -540,7 +540,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <string/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
@@ -910,9 +910,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_13">
               <item>
-               <widget class="QCheckBox" name="getMetric">
+               <widget class="QCheckBox" name="adsIsothermCluster">
                 <property name="text">
-                 <string>To be assigned</string>
+                 <string>Adsorption isotherm clustering</string>
                 </property>
                </widget>
               </item>
@@ -1672,9 +1672,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                  </widget>
                 </item>
                 <item>
-                 <widget class="QCheckBox" name="getBLEUScore">
+                 <widget class="QCheckBox" name="adsIsothermsComparison">
                   <property name="text">
-                   <string>BLEU score</string>
+                   <string>Adsorption isotherms prediction</string>
                   </property>
                  </widget>
                 </item>

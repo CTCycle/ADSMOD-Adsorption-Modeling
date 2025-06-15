@@ -36,6 +36,7 @@ class MainWindow:
         self.config_manager = Configuration()
         self.configuration = self.config_manager.get_configuration()
     
+        # set thread pool for the workers        
         self.threadpool = QThreadPool.globalInstance()
         self.worker = None
         self.worker_running = False  
@@ -59,7 +60,7 @@ class MainWindow:
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
             (QProgressBar,'progressBar','progress_bar'),         
             # 1. dataset tab page
-            (QCheckBox,'getMetric','get_metrics'),            
+            (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
             (QPushButton,'evaluateDataset','evaluate_dataset'),
 
             (QSpinBox,'seed','general_seed'),
@@ -114,7 +115,7 @@ class MainWindow:
             (QCheckBox,'runEvaluationGPU','use_GPU_evaluation'), 
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'imgReconstruction','image_reconstruction'),      
+            (QCheckBox,'adsIsothermsComparison','image_reconstruction'),      
             (QSpinBox,'numImages','num_evaluation_images'),           
             # 4. inference tab page  
             (QCheckBox,'runInferenceGPU','use_GPU_inference'),      
@@ -133,7 +134,7 @@ class MainWindow:
             ('refresh_checkpoints','clicked',self.load_checkpoints),
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page            
-            ('pixel_distribution_metric','toggled',self._update_metrics),
+            ('experiments_clustering','toggled',self._update_metrics),
             ('evaluate_dataset','clicked',self.run_dataset_evaluation_pipeline),  
             ('collect_adsorption_data','clicked',self.collect_data_from_NIST),  
             ('retrieve_properties','clicked',self.retrieve_properties_from_PUBCHEM),           
@@ -141,9 +142,9 @@ class MainWindow:
             # 2. training tab page               
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
-            # 3. model evaluation tab page
-            ('image_reconstruction','toggled',self._update_metrics),
+            # 3. model evaluation tab page            
             ('get_evaluation_report','toggled',self._update_metrics), 
+            ('prediction_quality','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),                  
            
@@ -203,8 +204,7 @@ class MainWindow:
             ('host_fraction', 'valueChanged', 'host_fraction'),
             ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
 
-            # 2. training tab page   
-           
+            # 2. training tab page          
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
             ('num_workers', 'valueChanged', 'num_workers'),
             ('use_mixed_precision', 'toggled', 'mixed_precision'),
@@ -229,10 +229,10 @@ class MainWindow:
             ('validation_size', 'valueChanged', 'validation_size')]
 
         self.data_metrics = [
-            ('pixels_distribution', self.pixel_distribution_metric)]
+            ('experiments_clustering', self.experiments_clustering)]
         self.model_metrics = [
             ('evaluation_report', self.get_evaluation_report),
-            ('image_reconstruction', self.image_reconstruction)]                
+            ('adsorption_isotherms_prediction', self.prediction_quality)]                
 
         for attr, signal_name, config_key in connections:
             widget = self.widgets[attr]
