@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from NISTADS.commons.utils.data.loader import InferenceDataLoader
 
-from NISTADS.commons.constants import CONFIG, INFERENCE_PATH, PAD_VALUE
+from NISTADS.commons.constants import INFERENCE_PATH, PAD_VALUE
 from NISTADS.commons.logger import logger
 
 

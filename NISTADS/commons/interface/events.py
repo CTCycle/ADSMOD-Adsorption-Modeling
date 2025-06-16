@@ -20,7 +20,7 @@ from NISTADS.commons.utils.process.sanitizer import (DataSanitizer, AggregateDat
 
 from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
 
-from NISTADS.commons.constants import CONFIG
+
 from NISTADS.commons.logger import logger
 
 

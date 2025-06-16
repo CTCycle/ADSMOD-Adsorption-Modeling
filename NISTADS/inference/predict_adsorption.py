@@ -10,7 +10,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.inference.predictor import AdsorptionPredictions
-from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.constants import DATA_PATH
 from NISTADS.commons.logger import logger
 
 

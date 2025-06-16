@@ -1,7 +1,7 @@
 import numpy as np
 import keras
 
-from NISTADS.commons.constants import CONFIG
+
 from NISTADS.commons.logger import logger
            
 # [LEARNING RATE SCHEDULER]

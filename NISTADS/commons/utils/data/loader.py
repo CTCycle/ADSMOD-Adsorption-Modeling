@@ -8,7 +8,7 @@ from keras.preprocessing.sequence import pad_sequences
 
 from NISTADS.commons.utils.data.serializer import DataSerializer
 from NISTADS.commons.utils.process.sanitizer import AggregateDatasets
-from NISTADS.commons.constants import CONFIG, PAD_VALUE
+from NISTADS.commons.constants import PAD_VALUE
 from NISTADS.commons.logger import logger   
 
 

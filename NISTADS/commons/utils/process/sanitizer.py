@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.constants import DATA_PATH
 from NISTADS.commons.logger import logger
 
 

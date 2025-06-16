@@ -6,9 +6,8 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from FEXT.commons.interface.window import MainWindow
-from FEXT.commons.constants import UI_PATH
-from FEXT.commons.logger import logger
+from NISTADS.commons.interface.window import MainWindow
+from NISTADS.commons.constants import UI_PATH
 
 
 # [RUN MAIN]

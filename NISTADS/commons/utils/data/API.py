@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import aiohttp
 import asyncio
-from tqdm.asyncio import tqdm_asyncio
+from tqdm import tqdm
 
 from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
 from NISTADS.commons.logger import logger
@@ -56,19 +56,18 @@ class AsyncDataFetcher:
 
     #--------------------------------------------------------------------------
     async def get_call_to_multiple_endpoints(self, urls, **kwargs):
-        results = []
-        async with aiohttp.ClientSession() as session:            
-            for i, url in enumerate(tqdm_asyncio(urls), total=len(urls)): 
-                try:               
-                    result = await self.get_call_to_single_endpoint(session, url)
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.get_call_to_single_endpoint(session, url)
+                     for url in urls]
+            results = []
+            total = len(tasks)
+            with tqdm(total=total, desc="Fetching", unit="req") as pbar:
+                for idx, future in enumerate(asyncio.as_completed(tasks)):
+                    result = await future
                     results.append(result)
-                except:
-                    results.append(None)        
-                   
-                check_thread_status(kwargs.get("worker", None))
-                update_progress_callback(
-                    i, urls, kwargs.get("progress_callback", None))
-                
+                    check_thread_status(kwargs.get("worker", None))
+                    update_progress_callback(idx + 1, total, kwargs.get("progress_callback", None))
+                    pbar.update(1) 
         return results
 
 
@@ -78,8 +77,9 @@ class AdsorptionDataFetch:
     
     def __init__(self, configuration): 
         self.server = GetServerStatus()
-        self.server.check_status()  
-        self.async_fetcher = AsyncDataFetcher(configuration)     
+        self.server.check_status()
+        self.configuration = configuration  
+        
         self.exp_fraction = configuration.get('experiments_fraction', 1.0)       
         self.url_isotherms = 'https://adsorption.nist.gov/isodb/api/isotherms.json'
         self.exp_identifier = 'filename'
@@ -100,23 +100,32 @@ class AdsorptionDataFetch:
     
     # function to retrieve HTML data
     #--------------------------------------------------------------------------
-    def get_experiments_data(self, experiments_data, **kwargs):           
+    def get_experiments_data(self, experiments_data, **kwargs):
+        async_fetcher = AsyncDataFetcher(self.configuration)                
         n_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))        
         if isinstance(experiments_data, pd.DataFrame) and experiments_data.shape[0] > 0:
-            loop = asyncio.get_event_loop()            
             exp_URLs = [f'https://adsorption.nist.gov/isodb/api/isotherm/{n}.json' 
                         for n in experiments_data[self.exp_identifier].to_list()[:n_samples]]
             
-            adsorption_isotherms_data = loop.run_until_complete(
-                self.async_fetcher.get_call_to_multiple_endpoints(
-                    exp_URLs, worker=kwargs.get('worker', None),
-                    progress_callback=kwargs.get('progress_callback', None)))
-            
+            # Always create a new event loop in a QThread context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                # parallel endpoint calls using run_unit_complete on the event loop
+                adsorption_isotherms_data = loop.run_until_complete(
+                    async_fetcher.get_call_to_multiple_endpoints(
+                        exp_URLs,
+                        worker=kwargs.get('worker', None),
+                        progress_callback=kwargs.get('progress_callback', None)))                
+            finally:
+                loop.close()
+                
             adsorption_isotherms_data = [d for d in adsorption_isotherms_data if d is not None]
-            adsorption_isotherms_data = pd.DataFrame(adsorption_isotherms_data)        
+            adsorption_isotherms_data = pd.DataFrame(adsorption_isotherms_data)
 
-        return adsorption_isotherms_data
-    
+            return adsorption_isotherms_data    
+        
+
 
 # [NIST DATABASE API: GUEST/HOST]
 ###############################################################################
@@ -124,8 +133,9 @@ class GuestHostDataFetch:
 
     def __init__(self, configuration):
         self.server = GetServerStatus()
-        self.server.check_status()  
-        self.async_fetcher = AsyncDataFetcher(configuration)      
+        self.server.check_status()
+        self.configuration = configuration  
+           
         self.url_GUEST = 'https://adsorption.nist.gov/isodb/api/gases.json'
         self.url_HOST = 'https://adsorption.nist.gov/matdb/api/materials.json'
         self.guest_fraction = configuration["collection"]["GUEST_FRACTION"]
@@ -156,50 +166,47 @@ class GuestHostDataFetch:
     
     #--------------------------------------------------------------------------
     def get_materials_data(self, guest_index=None, host_index=None, **kwargs):
-        # initialize the asyncronous event loop         
-        loop = asyncio.get_event_loop()
+        # Always create a new event loop in a QThread context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         guest_data, host_data = None, None
-        if isinstance(guest_index, pd.DataFrame) and guest_index.shape[0] > 0:
-            # Calculate the number of samples to retrieve for the guest data
-            # Create a list of URLs for guest data based on the guest identifiers
-            n_samples = int(np.ceil(self.guest_fraction * guest_index.shape[0]))            
-            guest_urls = [f'https://adsorption.nist.gov/isodb/api/gas/{n}.json' 
-                          for n in guest_index[self.guest_identifier].to_list()[:n_samples]]
-            
-            # Fetch guest data asynchronously from the provided URLs
-            # Filter out any None results from the fetched data before converting to a DataFrame
-            guest_data = loop.run_until_complete(
-                self.async_fetcher.get_call_to_multiple_endpoints(
-                    guest_urls, worker=kwargs.get('worker', None),
-                    progress_callback=kwargs.get('progress_callback', None)))
-            
-            guest_data = [data for data in guest_data if data is not None]
-            guest_data = pd.DataFrame(guest_data) 
-            guest_data = guest_data.assign(
-                **{col : np.nan for col in self.extra_guest_columns})
-        else:
-            logger.error('No available guest data has been found. Skipping directly to host index')
-            
-        if isinstance(host_index, pd.DataFrame) and host_index.shape[0] > 0:
-            # Calculate the number of samples to retrieve for the host data
-            # Create a list of URLs for host data based on the host identifiers
-            n_samples = int(np.ceil(self.host_fraction * host_index.shape[0]))                   
-            host_urls = [f'https://adsorption.nist.gov/isodb/api/material/{n}.json' 
-                         for n in host_index[self.host_identifier].to_list()[:n_samples]] 
+        async_fetcher = AsyncDataFetcher(self.configuration)   
 
-            # Fetch guest data asynchronously from the provided URLs
-            # Filter out any None results from the fetched data before converting to a DataFrame      
-            host_data = loop.run_until_complete(
-                self.async_fetcher.get_call_to_multiple_endpoints(
-                    host_urls, worker=kwargs.get('worker', None),
-                    progress_callback=kwargs.get('progress_callback', None)))
+        try:
+            if isinstance(guest_index, pd.DataFrame) and guest_index.shape[0] > 0:
+                n_samples = int(np.ceil(self.guest_fraction * guest_index.shape[0]))            
+                guest_urls = [f'https://adsorption.nist.gov/isodb/api/gas/{n}.json' 
+                            for n in guest_index[self.guest_identifier].to_list()[:n_samples]]
+                guest_data = loop.run_until_complete(
+                    async_fetcher.get_call_to_multiple_endpoints(
+                        guest_urls, 
+                        worker=kwargs.get('worker', None),
+                        progress_callback=kwargs.get('progress_callback', None)))
+                
+                guest_data = [data for data in guest_data if data is not None]
+                guest_data = pd.DataFrame(guest_data)
+                guest_data = guest_data.assign(
+                    **{col: np.nan for col in self.extra_guest_columns})
+            else:
+                logger.error('No available guest data has been found. Skipping directly to host index')
             
-            # Filter out any None results from the fetched data before converting to a DataFrame        
-            host_data = [data for data in host_data if data is not None] 
-            host_data = pd.DataFrame(host_data) 
-            host_data = host_data.assign(
-                **{col : np.nan for col in self.extra_host_columns})           
-        else:
-            logger.error('No available host data has been found.')        
-            
-        return guest_data, host_data 
+            if isinstance(host_index, pd.DataFrame) and host_index.shape[0] > 0:
+                n_samples = int(np.ceil(self.host_fraction * host_index.shape[0]))
+                host_urls = [f'https://adsorption.nist.gov/isodb/api/material/{n}.json' 
+                            for n in host_index[self.host_identifier].to_list()[:n_samples]]
+                host_data = loop.run_until_complete(
+                    async_fetcher.get_call_to_multiple_endpoints(
+                        host_urls, 
+                        worker=kwargs.get('worker', None),
+                        progress_callback=kwargs.get('progress_callback', None)))
+                
+                host_data = [data for data in host_data if data is not None]
+                host_data = pd.DataFrame(host_data)
+                host_data = host_data.assign(
+                    **{col: np.nan for col in self.extra_host_columns})
+            else:
+                logger.error('No available host data has been found.')
+        finally:
+            loop.close()
+        
+        return guest_data, host_data

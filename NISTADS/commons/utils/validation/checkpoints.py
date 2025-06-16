@@ -36,7 +36,7 @@ class ModelEvaluationSummary:
         # look into checkpoint folder to get pretrained model names      
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []            
-        for model_path in model_paths:            
+        for i, model_path in enumerate(model_paths):            
             model = serializer.load_checkpoint(model_path)
             configuration, metadata, history = serializer.load_training_configuration(model_path)
             model_name = os.path.basename(model_path)            
@@ -68,7 +68,8 @@ class ModelEvaluationSummary:
 
             # check for thread status and progress bar update   
             check_thread_status(kwargs.get('worker', None))         
-            update_progress_callback(i, model_paths, kwargs.get('progress_callback', None)) 
+            update_progress_callback(
+                i, len(model_paths), kwargs.get('progress_callback', None)) 
 
         dataframe = pd.DataFrame(model_parameters)
         self.database.save_checkpoints_summary_table(dataframe)      

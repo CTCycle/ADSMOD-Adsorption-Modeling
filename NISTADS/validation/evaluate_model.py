@@ -12,7 +12,7 @@ from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerialize
 from NISTADS.commons.utils.validation.reports import evaluation_report
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.commons.utils.validation.dataset import AdsorptionPredictionsQuality
-from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.constants import DATA_PATH
 from NISTADS.commons.logger import logger
 
 

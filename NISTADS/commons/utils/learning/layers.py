@@ -1,7 +1,7 @@
 import keras
 from keras import layers   
 
-from NISTADS.commons.constants import CONFIG
+
 from NISTADS.commons.logger import logger
 
 

@@ -19,9 +19,10 @@ class Configuration:
             'shuffle_dataset': True,
             'shuffle_size': 1024,
 
-            # Model 
-            'initial_neurons': 64,
-            'dropout_rate': 0.2,
+            # Model             
+            'num_attention_heads': 2,
+            'num_encoders': 2,
+            'molecular_embedding_size': 64,
             'jit_compile': False,
             'jit_backend': 'inductor',
 
@@ -41,6 +42,7 @@ class Configuration:
             'use_tensorboard': False,
             'plot_training_metrics' : True,
             'save_checkpoints': False,
+            'checkpoints_frequency' : 1,
 
             # Learning rate scheduler
             'use_scheduler' : False,

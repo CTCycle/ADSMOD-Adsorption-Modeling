@@ -13,7 +13,7 @@ from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.configuration import Configuration
 from NISTADS.commons.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
 from NISTADS.commons.interface.workers import Worker
-from NISTADS.commons.constants import CONFIG
+
 from NISTADS.commons.logger import logger
 
 
@@ -39,7 +39,7 @@ class MainWindow:
         # set thread pool for the workers        
         self.threadpool = QThreadPool.globalInstance()
         self.worker = None
-        self.worker_running = False  
+        self.worker_running = False    
 
         # initialize database
         self.database = AdsorptionDatabase(self.configuration)
@@ -56,14 +56,18 @@ class MainWindow:
         self._set_states()
         self.widgets = {}
         self._setup_configuration([ 
-            (QPushButton,'stopThread','stop_thread'),  
+            # out of tab widgets
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
-            (QProgressBar,'progressBar','progress_bar'),         
-            # 1. dataset tab page
+            (QComboBox,'checkpointsList','checkpoints_list'),
+            (QProgressBar,'progressBar','progress_bar'),      
+            (QPushButton,'stopThread','stop_thread'),  
+
+            # 1. dataset tab page            
             (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
             (QPushButton,'evaluateDataset','evaluate_dataset'),
 
             (QSpinBox,'seed','general_seed'),
+            (QSpinBox,'splitSeed','split_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'), 
             (QSpinBox,'maxPoints','max_measurements'), 
             (QSpinBox,'minPoints','min_measurements'),
@@ -83,29 +87,36 @@ class MainWindow:
             (QCheckBox,'setShuffle','use_shuffle'),                     
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'shuffleSize','shuffle_size'),
+
             (QRadioButton,'setCPU','use_CPU'),
             (QRadioButton,'setGPU','use_GPU'),
             (QSpinBox,'deviceID','device_ID'),
             (QSpinBox,'numWorkers','num_workers'),
+
             (QCheckBox,'runTensorboard','use_tensorboard'),
-            (QCheckBox,'realTimeHistory','get_real_time_history'),
+            (QCheckBox,'realTimeHistory','real_time_history_callback'),
             (QCheckBox,'saveCheckpoints','save_checkpoints'),
             (QSpinBox,'trainSeed','train_seed'),
-            (QSpinBox,'splitSeed','split_seed'),
+            
             (QSpinBox,'numEpochs','epochs'),
             (QSpinBox,'batchSize','batch_size'),            
-            (QSpinBox,'saveCPFrequency','save_cp_frequency'),
+            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),
+
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'initialLearningRate','initial_LR'),
             (QDoubleSpinBox,'targetLearningRate','target_LR'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'), 
+
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
             (QCheckBox,'compileJIT','use_JIT_compiler'),   
             (QComboBox,'backendJIT','jit_backend'),              
-            (QDoubleSpinBox,'dropoutRate','dropout_rate'),                    
+            (QSpinBox,'attentionHeads','num_attention_heads'), 
+            (QSpinBox,'numEncoders','num_encoders'), 
+            (QSpinBox,'molEmbeddingDims','molecular_embedding_size'),
+
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),
-            (QComboBox,'checkpointsList','checkpoints_list'),            
+                        
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
             # 3. model evaluation tab page
@@ -113,11 +124,11 @@ class MainWindow:
             (QCheckBox,'runEvaluationGPU','use_GPU_evaluation'), 
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'adsIsothermsComparison','image_reconstruction'),      
+            (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),      
             (QSpinBox,'numImages','num_evaluation_images'),           
             # 4. inference tab page  
             (QCheckBox,'runInferenceGPU','use_GPU_inference'),      
-            (QPushButton,'encodeImages','encode_images'),          
+            (QPushButton,'predictAdsorption','predict_adsorption'),          
             # 5. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
             (QPushButton,'nextImg','next_image'),
@@ -135,18 +146,18 @@ class MainWindow:
             ('evaluate_dataset','clicked',self.run_dataset_evaluation_pipeline),  
             ('collect_adsorption_data','clicked',self.collect_data_from_NIST),  
             ('retrieve_properties','clicked',self.retrieve_properties_from_PUBCHEM),           
-            ('build_ML_dataset','clicked',self.build_ML_dataset),
+            ('build_ML_dataset','clicked',self.run_dataset_builder),
             # 2. training tab page               
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
             # 3. model evaluation tab page            
             ('get_evaluation_report','toggled',self._update_metrics), 
-            ('prediction_quality','toggled',self._update_metrics),
+            ('get_prediction_quality','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),                  
            
             # 4. inference tab page  
-            ('encode_images','clicked',self.encode_images_with_checkpoint),            
+            ('predict_adsorption','clicked',self.encode_images_with_checkpoint),            
             # 5. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
             ('model_plots_view', 'toggled', self._update_graphics_view),           
@@ -194,12 +205,21 @@ class MainWindow:
             # 1. dataset tab page
             ('general_seed', 'valueChanged', 'general_seed'),
             ('sample_size', 'valueChanged', 'sample_size'),
-            ('min_measurements', 'valueChanged', 'min_measurements'),
-            ('max_measurements', 'valueChanged', 'max_measurements'),
-            ('SMILE_sequence_size', 'valueChanged', 'SMILE_sequence_size'),
+
             ('guest_fraction', 'valueChanged', 'guest_fraction'),
             ('host_fraction', 'valueChanged', 'host_fraction'),
             ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
+            ('parallel_tasks', 'valueChanged', 'parallel_tasks'),
+
+            
+            ('min_measurements', 'valueChanged', 'min_measurements'),
+            ('max_measurements', 'valueChanged', 'max_measurements'),
+            ('SMILE_sequence_size', 'valueChanged', 'SMILE_sequence_size'),
+            ('max_pressure', 'valueChanged', 'max_pressure'),
+            ('max_uptake', 'valueChanged', 'max_pressure'),
+
+            
+            
 
             # 2. training tab page          
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
@@ -207,21 +227,33 @@ class MainWindow:
             ('use_mixed_precision', 'toggled', 'mixed_precision'),
             ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
             ('jit_backend', 'currentTextChanged', 'jit_backend'),
+                    
+            ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
+            ('num_encoders', 'valueChanged', 'num_encoders'),            
+            ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
+            
             ('use_tensorboard', 'toggled', 'run_tensorboard'),
-            ('get_real_time_history', 'toggled', 'real_time_history'),
-            ('save_checkpoints', 'toggled', 'save_checkpoints'),
+            ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
+            ('save_checkpoints', 'toggled', 'save_checkpoints'),           
+            ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'), 
+            
+            
             ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
+            ('initial_LR', 'valueChanged', 'initial_LR'),
+            ('target_LR', 'valueChanged', 'target_LR'),
+            ('constant_steps', 'valueChanged', 'constant_steps'),          
+            ('decay_steps', 'valueChanged', 'decay_steps'),  
+
             ('split_seed', 'valueChanged', 'split_seed'),
             ('train_seed', 'valueChanged', 'train_seed'),
             ('shuffle_size', 'valueChanged', 'shuffle_size'),
-            ('epochs', 'valueChanged', 'epochs'),
-            ('additional_epochs', 'valueChanged', 'additional_epochs'),
-            ('initial_neurons', 'valueChanged', 'initial_neurons'),      
-            ('dropout_rate', 'valueChanged', 'dropout_rate'),            
+            ('epochs', 'valueChanged', 'epochs'),  
+            ('additional_epochs', 'valueChanged', 'additional_epochs'),                  
+                   
             ('batch_size', 'valueChanged', 'batch_size'),
             ('device_ID', 'valueChanged', 'device_id'),
             # 3. model evaluation tab page
-            ('num_evaluation_images', 'valueChanged', 'num_evaluation_images'),
+            
             # 4. inference tab page           
             ('validation_size', 'valueChanged', 'validation_size')]
 
@@ -229,7 +261,7 @@ class MainWindow:
             ('experiments_clustering', self.experiments_clustering)]
         self.model_metrics = [
             ('evaluation_report', self.get_evaluation_report),
-            ('adsorption_isotherms_prediction', self.prediction_quality)]                
+            ('prediction_quality', self.get_prediction_quality)]                
 
         for attr, signal_name, config_key in connections:
             widget = self.widgets[attr]
@@ -487,7 +519,7 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     @Slot()
-    def build_ML_dataset(self):          
+    def run_dataset_builder(self):          
         if self.worker_running:            
             return         
         

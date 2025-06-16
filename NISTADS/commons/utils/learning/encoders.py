@@ -3,7 +3,7 @@ from keras import layers, activations
 import torch
 
 from NISTADS.commons.utils.learning.transformers import AddNorm, FeedForward
-from NISTADS.commons.constants import CONFIG, PAD_VALUE
+from NISTADS.commons.constants import PAD_VALUE
 from NISTADS.commons.logger import logger   
 
 

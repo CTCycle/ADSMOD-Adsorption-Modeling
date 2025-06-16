@@ -16,8 +16,9 @@ LOGS_PATH = join(RSC_PATH, 'logs')
 ###############################################################################
 PAD_VALUE = -1
 
-# [CONFIGURATIONS]
+# [UI LAYOUT PATH]
 ###############################################################################
-CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configuration.json')
-with open(self.configuration_PATH, 'r') as file:
-    CONFIG = json.load(file)
+UI_PATH = join(PROJECT_DIR, 'commons', 'interface', 'layout', 'window_layout.ui')
+
+
+

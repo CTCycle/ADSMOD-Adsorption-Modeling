@@ -2,7 +2,7 @@ import torch
 import keras
 from keras import layers 
 
-from NISTADS.commons.constants import CONFIG, PAD_VALUE
+from NISTADS.commons.constants import PAD_VALUE
 from NISTADS.commons.logger import logger
       
 

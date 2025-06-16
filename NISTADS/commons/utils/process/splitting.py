@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.utils import shuffle
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from NISTADS.commons.constants import CONFIG
+
 from NISTADS.commons.logger import logger
 
 # [DATA SPLITTING]

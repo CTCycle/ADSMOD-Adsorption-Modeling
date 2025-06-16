@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 
 from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
-from NISTADS.commons.constants import CONFIG, DATA_PATH
+from NISTADS.commons.constants import DATA_PATH
 from NISTADS.commons.logger import logger
 
 

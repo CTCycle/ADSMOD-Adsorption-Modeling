@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
       
-from NISTADS.commons.constants import CONFIG, PAD_VALUE
+from NISTADS.commons.constants import PAD_VALUE
 from NISTADS.commons.logger import logger
 
 
