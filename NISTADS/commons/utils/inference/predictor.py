@@ -1,9 +1,9 @@
 import os
-import pandas as pd
 import numpy as np
-import keras
-from tqdm import tqdm
+from keras.utils import set_random_seed
 
+from NISTADS.commons.utils.learning.callbacks import InterruptTraining
+from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
 from NISTADS.commons.utils.data.loader import InferenceDataLoader
 
 from NISTADS.commons.constants import INFERENCE_PATH, PAD_VALUE
@@ -14,20 +14,14 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class AdsorptionPredictions:
     
-    def __init__(self, model : keras.Model, configuration : dict, metadata : dict, checkpoint_path : str):        
-        keras.utils.set_random_seed(configuration["SEED"])  
+    def __init__(self, model, configuration : dict, checkpoint_path : str):        
+        set_random_seed(configuration.get('train_seed', 42)) 
         # initialize the inference data loader that prepares the data 
         # for using the model in inference mode (predictions)
         self.dataloader = InferenceDataLoader(configuration)                          
         self.checkpoint_name = os.path.basename(checkpoint_path)        
-        self.configuration = configuration
-        self.metadata = metadata
+        self.configuration = configuration        
         self.model = model
-
-    # wrapper for the inference inputs preprocessing method called by the dataloader
-    #--------------------------------------------------------------------------
-    def process_inference_inputs(self, data): 
-        return self.dataloader.process_inference_inputs(data)
 
     #--------------------------------------------------------------------------
     def process_inference_output(self, inputs : dict, predictions : np.array):        
@@ -43,7 +37,8 @@ class AdsorptionPredictions:
         
         # Find the index of the first true value, or set to the full length if all values are padded  
         trailing_counts = np.where(
-            true_values_mask.any(axis=1), true_values_mask.argmax(axis=1), pressure_inputs.shape[1])
+            true_values_mask.any(axis=1), true_values_mask.argmax(axis=1), 
+            pressure_inputs.shape[1])
         
         # trim the predicted sequences based on true values number
         unpadded_length = pressure_inputs.shape[1] - trailing_counts       
@@ -53,9 +48,16 @@ class AdsorptionPredictions:
         return unpadded_predictions         
 
     #--------------------------------------------------------------------------
-    def predict_adsorption_isotherm(self, data):       
-        processed_inputs = self.process_inference_inputs(data)
-        predictions = self.model.predict(processed_inputs, verbose=1)
+    def predict_adsorption_isotherm(self, data, **kwargs):
+        # add interruption callback to stop model predictions if requested
+        callbacks_list = [InterruptTraining(kwargs.get('worker', None))]     
+        # preprocess inputs before feeding them to the pretrained model for inference
+        # add padding, normalize data, encode categoricals
+        processed_inputs = self.dataloader.process_inference_inputs(data)
+        # perform prediction of adsorption isotherm sequences
+        predictions = self.model.predict(processed_inputs, verbose=1, callbacks=callbacks_list) 
+        # postprocess obtained outputs 
+        # remove padding, rescale, decode categoricals
         predictions = self.process_inference_output(processed_inputs, predictions)
 
         return predictions

@@ -14,6 +14,7 @@ from NISTADS.commons.utils.learning.training import ModelTraining
 from NISTADS.commons.utils.learning.models import SCADSModel
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.commons.utils.validation.dataset import AdsorptionPredictionsQuality
+from NISTADS.commons.utils.inference.predictor import AdsorptionPredictions
 from NISTADS.commons.utils.process.sanitizer import (DataSanitizer, AggregateDatasets, 
                                                      TrainValidationSplit, FeatureNormalizer, 
                                                      AdsorbentEncoder) 
@@ -152,12 +153,14 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
+        update_progress_callback(1, 7, progress_callback)
         # start joining materials properties
         processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
         logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')         
 
         # check thread for interruption 
         check_thread_status(worker)
+        update_progress_callback(2, 7, progress_callback)
         # convert pressure and uptake into standard units:
         # pressure to Pascal, uptake to mol/g
         sequencer = PressureUptakeSeriesProcess(self.configuration)
@@ -166,6 +169,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
+        update_progress_callback(3, 7, progress_callback)
         # exlude all data outside given boundaries, such as negative temperature values 
         # and pressure and uptake values below zero or above upper limits
         sanitizer = DataSanitizer(self.configuration)  
@@ -178,6 +182,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
+        update_progress_callback(4, 7, progress_callback)
         # perform SMILE sequence tokenization  
         tokenization = SMILETokenization(self.configuration) 
         logger.info('Tokenizing SMILE sequences for adsorbate species')   
@@ -190,6 +195,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
+        update_progress_callback(5, 7, progress_callback)
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
         normalizer = FeatureNormalizer(self.configuration, train_data)
@@ -200,16 +206,20 @@ class DatasetEvents:
     
         # check thread for interruption 
         check_thread_status(worker)
+        update_progress_callback(6, 7, progress_callback)
         # add padding to pressure and uptake series to match max length
         train_data = sequencer.PQ_series_padding(train_data)     
         validation_data = sequencer.PQ_series_padding(validation_data)     
 
-        # check thread for interruption 
-        check_thread_status(worker)
+        
         encoding = AdsorbentEncoder(self.configuration, train_data)    
         train_data = encoding.encode_adsorbents_by_name(train_data)
         validation_data = encoding.encode_adsorbents_by_name(validation_data)    
-        adsorbent_vocab = encoding.mapping 
+        adsorbent_vocab = encoding.mapping
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(7, 7, progress_callback)
       
         # save preprocessed data using data serializer   
         train_data = sanitizer.isolate_processed_features(train_data)
@@ -294,9 +304,8 @@ class ValidationEvents:
         images = []
         if 'evaluation_report' in metrics:
             # evaluate model performance over the training and validation dataset 
-            summarizer = ModelEvaluationSummary(self.configuration)       
-            summarizer.get_evaluation_report(model, validation_dataset, worker=worker) 
-
+            summarizer = ModelEvaluationSummary(self.database, self.configuration)       
+            summarizer.get_evaluation_report(model, validation_dataset, worker=worker)
 
         if 'adsorption_isotherms_prediction' in metrics:
             validator = AdsorptionPredictionsQuality(
@@ -342,6 +351,9 @@ class ModelEvents:
         train_dataset, validation_dataset = builder.build_training_dataloader(
             train_data, val_data) 
         
+        # check thread for interruption 
+        check_thread_status(worker)
+        
         modser = ModelSerializer()
         checkpoint_path = modser.create_checkpoint_folder()        
          
@@ -356,7 +368,10 @@ class ModelEvents:
         model = wrapper.get_model(model_summary=True) 
 
         # generate graphviz plot fo the model layout       
-        modser.save_model_plot(model, checkpoint_path)              
+        modser.save_model_plot(model, checkpoint_path)   
+
+        # check thread for interruption 
+        check_thread_status(worker)           
 
         # perform training and save model at the end
         trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
@@ -374,10 +389,13 @@ class ModelEvents:
 
         # setting device for training    
         trainer = ModelTraining(self.configuration, metadata)    
-        trainer.set_device()     
+        trainer.set_device()
+
+        # check thread for interruption 
+        check_thread_status(worker)     
           
         logger.info('Loading preprocessed data and building dataloaders')     
-        dataserializer = DataSerializer(train_config)
+        dataserializer = DataSerializer(self.database, train_config)
         train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
            
         builder = TrainingDataLoader(train_config)   
@@ -396,29 +414,32 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
                                progress_callback=None, worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
-        model, train_config, session, checkpoint_path = self.modser.load_checkpoint(
+        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')
+        modser = ModelSerializer()         
+        model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
-
+        
         # setting device for training         
         trainer = ModelTraining(train_config)    
         trainer.set_device(device_override=device)
 
-        # select images from the inference folder and retrieve current paths        
-        images_paths = self.serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
-        logger.info(f'{len(images_paths)} images have been found as inference input')  
-
         # check worker status to allow interruption
-        check_thread_status(worker)   
-             
-        # extract features from images using the encoder output, the image encoder
-        # takes the list of images path from inference as input    
-        encoder = ImageEncoding(model, train_config, checkpoint_path)  
-        logger.info(f'Start encoding images using model {selected_checkpoint}')  
-        encoder.encode_images_features(images_paths, progress_callback, worker=worker) 
-        logger.info('Encoded images have been saved as .npy')
-           
+        check_thread_status(worker)  
+
+        # select images from the inference folder and retrieve current paths     
+        serializer = DataSerializer(self.database, self.configuration)     
+        inference_data = serializer.load_inference_data()  
+
+        logger.info('Preprocessing inference input data according to model configuration')
+        predictor = AdsorptionPredictions(model, train_config, checkpoint_path)
+        predictions = predictor.predict_adsorption_isotherm(
+            inference_data, progress_callback=progress_callback, worker=worker)
+        
+        predictions_dataset = predictor.merge_predictions_to_dataset(inference_data, predictions)
+        serializer.save_predictions_dataset(predictions_dataset)
+        logger.info('Predictions dataset saved successfully in database') 
+
         
     # define the logic to handle successfull data retrieval outside the main UI loop
     #--------------------------------------------------------------------------

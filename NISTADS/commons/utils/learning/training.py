@@ -11,7 +11,7 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self, configuration, metadata):        
+    def __init__(self, configuration):        
         set_random_seed(configuration.get('training_seed', 42))        
         self.selected_device = configuration.get('device', 'CPU')
         self.device_id = configuration.get('device_ID', 0)

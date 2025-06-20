@@ -152,7 +152,7 @@ The script is able to perform parallel data fetching through asynchronous HTML r
 | NUM_IMAGES         | Max number of images to compare during evaluation        |
 | DPI                | Resolution of figures from validation                    |
             
-**Environmental variables** are stored in *setup/variables/.env*. For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *setup/variables* directory.
+**Environmental variables** are stored in the *app* folder (within the project folder). For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *app* directory.
 
 | Variable              | Description                                              |
 |-----------------------|----------------------------------------------------------|

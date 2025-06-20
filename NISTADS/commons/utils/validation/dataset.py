@@ -1,10 +1,14 @@
 import os
+import re
 import numpy as np
+
+import matplotlib
+matplotlib.use("Agg")   
 import matplotlib.pyplot as plt
 
 from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
 from NISTADS.commons.utils.data.loader import InferenceDataLoader
-from NISTADS.commons.constants import VALIDATION_PATH, PAD_VALUE
+from NISTADS.commons.constants import EVALUATION_PATH, PAD_VALUE
 from NISTADS.commons.logger import logger
 
         
@@ -13,7 +17,8 @@ from NISTADS.commons.logger import logger
 ################################################################################
 class AdsorptionPredictionsQuality:
 
-    def __init__(self, model, configuration : dict, metadata : dict, checkpoint_path : str, num_experiments=6):   
+    def __init__(self, model, configuration : dict, metadata : dict, checkpoint_path : str, num_experiments=6): 
+        self.save_images = configuration.get('save_images', True)  
         self.model = model            
         self.configuration = configuration 
         self.metadata = metadata      
@@ -25,8 +30,15 @@ class AdsorptionPredictionsQuality:
         self.file_type = 'jpeg' 
 
         self.checkpoint_name = os.path.basename(checkpoint_path)        
-        self.validation_path = os.path.join(VALIDATION_PATH, self.checkpoint_name) 
-        os.makedirs(self.validation_path, exist_ok=True)     
+        self.validation_path = os.path.join(
+            EVALUATION_PATH, 'validation', self.checkpoint_name) 
+        os.makedirs(self.validation_path, exist_ok=True)
+
+    #--------------------------------------------------------------------------
+    def save_image(self, fig, name):
+        name = re.sub(r'[^0-9A-Za-z_]', '_', name)
+        out_path = os.path.join(self.validation_path, name)
+        fig.savefig(out_path, bbox_inches='tight', dpi=self.DPI)         
 
     #--------------------------------------------------------------------------
     def process_uptake_curves(self, inputs, output, predicted_output):
@@ -73,8 +85,7 @@ class AdsorptionPredictionsQuality:
 
         plt.title('Comparison of validation adsorption isotherms', fontsize=16)
         plt.tight_layout()
-        plt.savefig(
-            os.path.join(self.validation_path, 'validation_curves_comparison.jpeg'), dpi=self.DPI)
+        self.save_image(fig, 'validation_curves_comparison.jpeg')
         plt.close() 
 
         return fig 

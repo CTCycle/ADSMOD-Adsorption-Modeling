@@ -157,7 +157,7 @@ class MainWindow:
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),                  
            
             # 4. inference tab page  
-            ('predict_adsorption','clicked',self.encode_images_with_checkpoint),            
+            ('predict_adsorption','clicked',self.predict_adsorption_isotherms),            
             # 5. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
             ('model_plots_view', 'toggled', self._update_graphics_view),           
@@ -210,16 +210,12 @@ class MainWindow:
             ('host_fraction', 'valueChanged', 'host_fraction'),
             ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
             ('parallel_tasks', 'valueChanged', 'parallel_tasks'),
-
             
             ('min_measurements', 'valueChanged', 'min_measurements'),
             ('max_measurements', 'valueChanged', 'max_measurements'),
             ('SMILE_sequence_size', 'valueChanged', 'SMILE_sequence_size'),
             ('max_pressure', 'valueChanged', 'max_pressure'),
             ('max_uptake', 'valueChanged', 'max_pressure'),
-
-            
-            
 
             # 2. training tab page          
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
@@ -483,8 +479,7 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
-            self.dataset_handler.run_chemical_properties_pipeline)   
+        self.worker = Worker(self.dataset_handler.run_chemical_properties_pipeline)   
 
         # start worker and inject signals
         self._start_worker(
@@ -598,7 +593,9 @@ class MainWindow:
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(
             self.validation_handler.run_model_evaluation_pipeline,
-            self.selected_metrics['model'], self.selected_checkpoint, device)                
+            self.selected_metrics['model'], 
+            self.selected_checkpoint, 
+            device)                
         
         # start worker and inject signals
         self._start_worker(
@@ -630,7 +627,7 @@ class MainWindow:
     # [INFERENCE TAB]
     #--------------------------------------------------------------------------   
     @Slot()    
-    def encode_images_with_checkpoint(self):  
+    def predict_adsorption_isotherms(self):  
         if self.worker_running:            
             return 
         
