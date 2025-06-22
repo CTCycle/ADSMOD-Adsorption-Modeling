@@ -17,7 +17,7 @@ class Configuration:
             'max_pressure': 1,
             'max_uptake': 20,
             'shuffle_dataset': True,
-            'shuffle_size': 1024,
+            'shuffle_size': 256,
 
             # Model             
             'num_attention_heads': 2,
