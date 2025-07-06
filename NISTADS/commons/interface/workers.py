@@ -1,5 +1,9 @@
+import gc
 import traceback
 import inspect
+
+from torch.cuda import empty_cache, ipc_collect
+from keras import backend
 from PySide6.QtCore import QObject, Signal, QRunnable, Slot
 
 from NISTADS.commons.constants import ROOT_DIR, DATA_PATH
@@ -21,7 +25,7 @@ class WorkerSignals(QObject):
 
     
 ###############################################################################
-class Worker(QRunnable):
+class ThreadWorker(QRunnable):
     def __init__(self, fn, *args, **kwargs):
         super().__init__()
         self.fn = fn
@@ -77,12 +81,10 @@ class Worker(QRunnable):
         except Exception as e:
             tb = traceback.format_exc()
             self.signals.error.emit((e, tb))
-
-
+      
 #------------------------------------------------------------------------------
-def check_thread_status(worker : Worker):
-    if worker is not None and worker.is_interrupted():
-        logger.warning('Running thread interrupted by user')
+def check_thread_status(worker : ThreadWorker):
+    if worker is not None and worker.is_interrupted():        
         raise WorkerInterrupted()    
 
 #------------------------------------------------------------------------------

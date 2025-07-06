@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
 from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.configuration import Configuration
 from NISTADS.commons.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
-from NISTADS.commons.interface.workers import Worker
+from NISTADS.commons.interface.workers import ThreadWorker
 
 from NISTADS.commons.logger import logger
 
@@ -38,8 +38,7 @@ class MainWindow:
     
         # set thread pool for the workers        
         self.threadpool = QThreadPool.globalInstance()
-        self.worker = None
-        self.worker_running = False    
+        self.worker = None    
 
         # initialize database
         self.database = AdsorptionDatabase(self.configuration)
@@ -65,7 +64,6 @@ class MainWindow:
             # 1. dataset tab page            
             (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
             (QPushButton,'evaluateDataset','evaluate_dataset'),
-
             (QSpinBox,'seed','general_seed'),
             (QSpinBox,'splitSeed','split_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'), 
@@ -228,7 +226,7 @@ class MainWindow:
             ('num_encoders', 'valueChanged', 'num_encoders'),            
             ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
             
-            ('use_tensorboard', 'toggled', 'run_tensorboard'),
+            ('use_tensorboard', 'toggled', 'use_tensorboard'),
             ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
             ('save_checkpoints', 'toggled', 'save_checkpoints'),           
             ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'), 
@@ -319,7 +317,7 @@ class MainWindow:
         combo.currentTextChanged.connect(slot)
 
     #--------------------------------------------------------------------------
-    def _start_worker(self, worker : Worker, on_finished, on_error, on_interrupted,
+    def _start_worker(self, worker : ThreadWorker, on_finished, on_error, on_interrupted,
                       update_progress=True):
         if update_progress:       
             self.progress_bar.setValue(0)
@@ -328,7 +326,6 @@ class MainWindow:
         worker.signals.error.connect(on_error)        
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
-        self.worker_running = True
 
     #--------------------------------------------------------------------------
     def _send_message(self, message): 
@@ -449,7 +446,7 @@ class MainWindow:
     #--------------------------------------------------------------------------        
     @Slot()
     def collect_data_from_NIST(self):        
-        if self.worker_running:            
+        if self.worker:            
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -458,7 +455,7 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.dataset_handler.run_data_collection_pipeline)   
 
         # start worker and inject signals
@@ -470,7 +467,7 @@ class MainWindow:
     #--------------------------------------------------------------------------        
     @Slot()
     def retrieve_properties_from_PUBCHEM(self): 
-        if self.worker_running:            
+        if self.worker:            
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -479,7 +476,7 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.dataset_handler.run_chemical_properties_pipeline)   
+        self.worker = ThreadWorker(self.dataset_handler.run_chemical_properties_pipeline)   
 
         # start worker and inject signals
         self._start_worker(
@@ -493,7 +490,7 @@ class MainWindow:
         if not self.data_metrics:
             return 
         
-        if self.worker_running:            
+        if self.worker:            
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -502,7 +499,7 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.validation_handler.run_dataset_evaluation_pipeline,
             self.selected_metrics['dataset'])   
 
@@ -515,7 +512,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def run_dataset_builder(self):          
-        if self.worker_running:            
+        if self.worker:            
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -524,7 +521,7 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.dataset_handler.run_dataset_builder)   
+        self.worker = ThreadWorker(self.dataset_handler.run_dataset_builder)   
 
         # start worker and inject signals
         self._start_worker(
@@ -537,7 +534,7 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def train_from_scratch(self):
-        if self.worker_running:            
+        if self.worker:            
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
@@ -546,7 +543,7 @@ class MainWindow:
         # send message to status bar
         self._send_message("Training SCADS using a new model instance...")        
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.model_handler.run_training_pipeline)                            
+        self.worker = ThreadWorker(self.model_handler.run_training_pipeline)                            
        
         # start worker and inject signals
         self._start_worker(
@@ -557,7 +554,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def resume_training_from_checkpoint(self): 
-        if self.worker_running:            
+        if self.worker:            
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -566,7 +563,7 @@ class MainWindow:
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.model_handler.resume_training_pipeline,
             self.selected_checkpoint)   
 
@@ -581,7 +578,7 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def run_model_evaluation_pipeline(self):  
-        if self.worker_running:            
+        if self.worker:            
             return 
 
         self.configuration = self.config_manager.get_configuration() 
@@ -591,7 +588,7 @@ class MainWindow:
         self._send_message(f"Evaluating {self.select_checkpoint} performances... ")
 
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.validation_handler.run_model_evaluation_pipeline,
             self.selected_metrics['model'], 
             self.selected_checkpoint, 
@@ -606,7 +603,7 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def get_checkpoints_summary(self):       
-        if self.worker_running:            
+        if self.worker:            
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -615,7 +612,7 @@ class MainWindow:
         self._send_message("Generating checkpoints summary...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.validation_handler.get_checkpoints_summary) 
+        self.worker = ThreadWorker(self.validation_handler.get_checkpoints_summary) 
 
         # start worker and inject signals
         self._start_worker(
@@ -628,7 +625,7 @@ class MainWindow:
     #--------------------------------------------------------------------------   
     @Slot()    
     def predict_adsorption_isotherms(self):  
-        if self.worker_running:            
+        if self.worker:            
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -638,7 +635,7 @@ class MainWindow:
         self._send_message(f"Encoding images with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.model_handler.run_inference_pipeline,
             self.selected_checkpoint,
             device)
@@ -656,12 +653,12 @@ class MainWindow:
     def on_data_success(self, session):          
         self.dataset_handler.handle_success(
             self.main_win, 'Data has been collected from NIST-A database')
-        self.worker_running = False
+        self.worker = None 
 
     #--------------------------------------------------------------------------
     def on_dataset_processing_finished(self, session):         
         self.dataset_handler.handle_success(self.main_win, 'Dataset has been built successfully')
-        self.worker_running = False
+        self.worker = None 
 
     #--------------------------------------------------------------------------      
     def on_dataset_evaluation_finished(self, plots):   
@@ -674,13 +671,13 @@ class MainWindow:
         self.current_fig[key] = 0
         self._update_graphics_view()
         self.validation_handler.handle_success(self.main_win, 'Figures have been generated')
-        self.worker_running = False
+        self.worker = None 
 
     #--------------------------------------------------------------------------
     def on_train_finished(self, session):          
         self.model_handler.handle_success(
             self.main_win, 'Training session is over. Model has been saved')
-        self.worker_running = False
+        self.worker = None 
 
     #--------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):  
@@ -694,13 +691,13 @@ class MainWindow:
         self._update_graphics_view()
         self.validation_handler.handle_success(
             self.main_win, f'Model {self.selected_checkpoint} has been evaluated')
-        self.worker_running = False
+        self.worker = None 
 
     #--------------------------------------------------------------------------
     def on_inference_finished(self, session):          
         self.model_handler.handle_success(
             self.main_win, 'Inference call has been terminated')
-        self.worker_running = False
+        self.worker = None 
 
 
     ###########################################################################   
@@ -709,26 +706,26 @@ class MainWindow:
     @Slot() 
     def on_data_error(self, err_tb):
         self.dataset_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False  
+        self.worker = None  
    
     #--------------------------------------------------------------------------
     @Slot(tuple)
     def on_evaluation_error(self, err_tb):
         self.validation_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False   
+        self.worker = None    
 
     #--------------------------------------------------------------------------
     @Slot() 
     def on_model_error(self, err_tb):
         self.model_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False  
+        self.worker = None 
 
     #--------------------------------------------------------------------------
     def on_task_interrupted(self):         
         self.progress_bar.setValue(0)
         self._send_message('Current task has been interrupted by user') 
         logger.warning('Current task has been interrupted by user')
-        self.worker_running = False        
+        self.worker = None     
         
           
          
