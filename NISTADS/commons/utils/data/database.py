@@ -368,7 +368,7 @@ class AdsorptionDatabase:
     #--------------------------------------------------------------------------
     def update_database(self):               
         dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
-        self.save_inference_data_table(dataset)
+        self.save_predictions_table(dataset)
        
     #--------------------------------------------------------------------------
     def load_source_data_table(self):          
@@ -444,7 +444,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_inference_data_table(self, data):      
+    def save_predictions_table(self, data):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.inference_data.name, conn, if_exists='replace', index=False,

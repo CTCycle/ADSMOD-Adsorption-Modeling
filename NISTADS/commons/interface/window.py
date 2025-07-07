@@ -317,7 +317,7 @@ class MainWindow:
         combo.currentTextChanged.connect(slot)
 
     #--------------------------------------------------------------------------
-    def _start_worker(self, worker : ThreadWorker, on_finished, on_error, on_interrupted,
+    def _start_thread_worker(self, worker : ThreadWorker, on_finished, on_error, on_interrupted,
                       update_progress=True):
         if update_progress:       
             self.progress_bar.setValue(0)
@@ -459,7 +459,7 @@ class MainWindow:
             self.dataset_handler.run_data_collection_pipeline)   
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_data_success,
             on_error=self.on_data_error,
             on_interrupted=self.on_task_interrupted)  
@@ -479,7 +479,7 @@ class MainWindow:
         self.worker = ThreadWorker(self.dataset_handler.run_chemical_properties_pipeline)   
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_data_success,
             on_error=self.on_data_error,
             on_interrupted=self.on_task_interrupted)  
@@ -504,7 +504,7 @@ class MainWindow:
             self.selected_metrics['dataset'])   
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_dataset_evaluation_finished,
             on_error=self.on_evaluation_error,
             on_interrupted=self.on_task_interrupted)  
@@ -524,7 +524,7 @@ class MainWindow:
         self.worker = ThreadWorker(self.dataset_handler.run_dataset_builder)   
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_dataset_processing_finished,
             on_error=self.on_data_error,
             on_interrupted=self.on_task_interrupted)       
@@ -546,7 +546,7 @@ class MainWindow:
         self.worker = ThreadWorker(self.model_handler.run_training_pipeline)                            
        
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_train_finished,
             on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)  
@@ -568,7 +568,7 @@ class MainWindow:
             self.selected_checkpoint)   
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_train_finished,
             on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)
@@ -585,7 +585,7 @@ class MainWindow:
         self.validation_handler = ValidationEvents(self.database, self.configuration)    
         device = 'GPU' if self.use_GPU_evaluation.isChecked() else 'CPU'   
         # send message to status bar
-        self._send_message(f"Evaluating {self.select_checkpoint} performances... ")
+        self._send_message(f"Evaluating {self.selected_checkpoint} performances... ")
 
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(
@@ -595,7 +595,7 @@ class MainWindow:
             device)                
         
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
             on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)     
@@ -615,7 +615,7 @@ class MainWindow:
         self.worker = ThreadWorker(self.validation_handler.get_checkpoints_summary) 
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
             on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)  
@@ -641,7 +641,7 @@ class MainWindow:
             device)
 
         # start worker and inject signals
-        self._start_worker(
+        self._start_thread_worker(
             self.worker, on_finished=self.on_inference_finished,
             on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)

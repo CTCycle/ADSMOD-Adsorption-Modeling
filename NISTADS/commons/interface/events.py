@@ -238,7 +238,7 @@ class DatasetEvents:
     #--------------------------------------------------------------------------
     def handle_error(self, window, err_tb):
         exc, tb = err_tb
-        logger.error(exc, '\n', tb)
+        logger.error(f"{exc}\n{tb}")
         QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")             
 
 
@@ -326,7 +326,7 @@ class ValidationEvents:
     #--------------------------------------------------------------------------
     def handle_error(self, window, err_tb):
         exc, tb = err_tb
-        logger.error(exc, '\n', tb)
+        logger.error(f"{exc}\n{tb}")
         QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
 
    
@@ -424,7 +424,7 @@ class ModelEvents:
         
         # setting device for training         
         trainer = ModelTraining(train_config)    
-        trainer.set_device(device_override=device)
+        trainer.set_device()
 
         # check worker status to allow interruption
         check_thread_status(worker)  
@@ -453,6 +453,6 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def handle_error(self, window, err_tb):
         exc, tb = err_tb
-        logger.error(exc, '\n', tb)
+        logger.error(f"{exc}\n{tb}")
         QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
 

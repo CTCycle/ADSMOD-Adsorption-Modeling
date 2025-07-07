@@ -105,7 +105,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_predictions_dataset(self, data):
-        self.database.save_inference_data_table(data)  
+        self.database.save_predictions_table(data)  
 
 
     

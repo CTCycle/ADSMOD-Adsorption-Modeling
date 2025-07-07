@@ -2,7 +2,7 @@ import os
 import numpy as np
 from keras.utils import set_random_seed
 
-from NISTADS.commons.utils.learning.callbacks import InterruptTraining
+from NISTADS.commons.utils.learning.callbacks import LearningInterruptCallback
 from NISTADS.commons.interface.workers import check_thread_status, update_progress_callback
 from NISTADS.commons.utils.data.loader import InferenceDataLoader
 
@@ -50,7 +50,7 @@ class AdsorptionPredictions:
     #--------------------------------------------------------------------------
     def predict_adsorption_isotherm(self, data, **kwargs):
         # add interruption callback to stop model predictions if requested
-        callbacks_list = [InterruptTraining(kwargs.get('worker', None))]     
+        callbacks_list = [LearningInterruptCallback(kwargs.get('worker', None))]     
         # preprocess inputs before feeding them to the pretrained model for inference
         # add padding, normalize data, encode categoricals
         processed_inputs = self.dataloader.process_inference_inputs(data)

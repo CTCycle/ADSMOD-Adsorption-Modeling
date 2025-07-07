@@ -102,10 +102,10 @@ class AdsorptionDataFetch:
     #--------------------------------------------------------------------------
     def get_experiments_data(self, experiments_data, **kwargs):
         async_fetcher = AsyncDataFetcher(self.configuration)                
-        n_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))        
+        num_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))        
         if isinstance(experiments_data, pd.DataFrame) and experiments_data.shape[0] > 0:
             exp_URLs = [f'https://adsorption.nist.gov/isodb/api/isotherm/{n}.json' 
-                        for n in experiments_data[self.exp_identifier].to_list()[:n_samples]]
+                        for n in experiments_data[self.exp_identifier].to_list()[:num_samples]]
             
             # Always create a new event loop in a QThread context
             loop = asyncio.new_event_loop()
@@ -174,9 +174,9 @@ class GuestHostDataFetch:
 
         try:
             if isinstance(guest_index, pd.DataFrame) and guest_index.shape[0] > 0:
-                n_samples = int(np.ceil(self.guest_fraction * guest_index.shape[0]))            
+                num_samples = int(np.ceil(self.guest_fraction * guest_index.shape[0]))            
                 guest_urls = [f'https://adsorption.nist.gov/isodb/api/gas/{n}.json' 
-                            for n in guest_index[self.guest_identifier].to_list()[:n_samples]]
+                            for n in guest_index[self.guest_identifier].to_list()[:num_samples]]
                 guest_data = loop.run_until_complete(
                     async_fetcher.get_call_to_multiple_endpoints(
                         guest_urls, 
@@ -191,9 +191,9 @@ class GuestHostDataFetch:
                 logger.error('No available guest data has been found. Skipping directly to host index')
             
             if isinstance(host_index, pd.DataFrame) and host_index.shape[0] > 0:
-                n_samples = int(np.ceil(self.host_fraction * host_index.shape[0]))
+                num_samples = int(np.ceil(self.host_fraction * host_index.shape[0]))
                 host_urls = [f'https://adsorption.nist.gov/isodb/api/material/{n}.json' 
-                            for n in host_index[self.host_identifier].to_list()[:n_samples]]
+                            for n in host_index[self.host_identifier].to_list()[:num_samples]]
                 host_data = loop.run_until_complete(
                     async_fetcher.get_call_to_multiple_endpoints(
                         host_urls, 

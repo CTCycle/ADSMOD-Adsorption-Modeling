@@ -33,7 +33,7 @@ class ProgressBarCallback(keras.callbacks.Callback):
 
 # [CALLBACK FOR TRAIN INTERRUPTION]
 ###############################################################################
-class InterruptTraining(keras.callbacks.Callback):
+class LearningInterruptCallback(keras.callbacks.Callback):
     def __init__(self, worker=None):
         super().__init__()
         self.worker = worker
@@ -113,7 +113,7 @@ def initialize_callbacks_handler(configuration, checkpoint_path, session=None,
     total_epochs = configuration.get('epochs', 10)
     callbacks_list = [
         ProgressBarCallback(kwargs.get('progress_callback', None), total_epochs, from_epoch),
-        InterruptTraining(kwargs.get('worker', None))]  
+        LearningInterruptCallback(kwargs.get('worker', None))]  
     
     additional_epochs = configuration.get('additional_epochs', 10)
     if session:
