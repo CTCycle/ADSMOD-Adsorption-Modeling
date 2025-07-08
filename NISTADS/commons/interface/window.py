@@ -59,11 +59,14 @@ class MainWindow:
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
             (QComboBox,'checkpointsList','checkpoints_list'),
             (QProgressBar,'progressBar','progress_bar'),      
-            (QPushButton,'stopThread','stop_thread'),  
+            (QPushButton,'stopThread','stop_thread'),
+            (QCheckBox,'deviceGPU','use_device_GPU'), 
 
-            # 1. dataset tab page            
+            # 1. dataset tab page  
+            # dataset evaluation group          
             (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
             (QPushButton,'evaluateDataset','evaluate_dataset'),
+            # dataset processing group
             (QSpinBox,'seed','general_seed'),
             (QSpinBox,'splitSeed','split_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'), 
@@ -73,7 +76,7 @@ class MainWindow:
             (QSpinBox,'maxPressure','max_pressure'),
             (QSpinBox,'maxUptake','max_uptake'), 
             (QPushButton,'buildMLDataset','build_ML_dataset'),  
-
+            # dataset fetching group
             (QDoubleSpinBox,'guestFraction','guest_fraction'),
             (QDoubleSpinBox,'hostFraction','host_fraction'),
             (QDoubleSpinBox,'expFraction','experiments_fraction'),

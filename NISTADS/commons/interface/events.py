@@ -10,11 +10,11 @@ from NISTADS.commons.utils.data.API import AdsorptionDataFetch, GuestHostDataFet
 from NISTADS.commons.utils.data.properties import MolecularProperties
 from NISTADS.commons.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
 from NISTADS.commons.utils.process.conversion import PQ_units_conversion
-from NISTADS.commons.utils.learning.training import ModelTraining
-from NISTADS.commons.utils.learning.models import SCADSModel
+from NISTADS.commons.utils.learning.training.fitting import ModelTraining
+from NISTADS.commons.utils.learning.models.qmodel import SCADSModel
 from NISTADS.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.commons.utils.validation.dataset import AdsorptionPredictionsQuality
-from NISTADS.commons.utils.inference.predictor import AdsorptionPredictions
+from NISTADS.commons.utils.learning.inference.predictor import AdsorptionPredictions
 from NISTADS.commons.utils.process.sanitizer import (DataSanitizer, AggregateDatasets, 
                                                      TrainValidationSplit, FeatureNormalizer, 
                                                      AdsorbentEncoder) 

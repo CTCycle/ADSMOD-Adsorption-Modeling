@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-from NISTADS.commons.constants import ROOT_DIR
+from NISTADS.commons.constants import PROJECT_DIR
 from NISTADS.commons.logger import logger
 
 # [IMPORT CUSTOM MODULES]

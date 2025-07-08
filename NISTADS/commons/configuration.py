@@ -27,7 +27,7 @@ class Configuration:
             'jit_backend': 'inductor',
 
             # Device
-            'device': 'CPU',
+            'use_device_GPU': False,
             'device_id': 0,
             'use_mixed_precision': False,
             'num_workers': 0,
@@ -52,8 +52,8 @@ class Configuration:
             'final_lr': 0.0001,
 
             # Validation
-            'val_batch_size': 20,
-            'num_evaluation_images': 6            
+            'eval_batch_size': 20,
+            'num_evaluation_samples': 10           
         }
 
     #--------------------------------------------------------------------------  

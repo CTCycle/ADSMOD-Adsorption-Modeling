@@ -3,7 +3,7 @@ from keras import layers, Model, optimizers
 
 from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
 from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
-from NISTADS.commons.utils.learning.transformers import TransformerEncoder
+from NISTADS.commons.utils.learning.model.transformers import TransformerEncoder
 from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 

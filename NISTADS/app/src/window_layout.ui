@@ -512,8 +512,8 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_3">
-    <item row="0" column="0">
+   <layout class="QVBoxLayout" name="verticalLayout_12">
+    <item>
      <layout class="QHBoxLayout" name="checkpointsLayout">
       <item>
        <widget class="QLabel" name="ACLabel">
@@ -534,38 +534,20 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
       </item>
      </layout>
     </item>
-    <item row="2" column="0">
-     <layout class="QHBoxLayout" name="progressLayour" stretch="7,1">
-      <item>
-       <widget class="QProgressBar" name="progressBar">
-        <property name="value">
-         <number>0</number>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="stopThread">
-        <property name="text">
-         <string>Stop</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item row="1" column="0">
+    <item>
      <widget class="QTabWidget" name="Tabs">
       <property name="accessibleName">
        <string/>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
         <number>-6</number>
        </property>
        <attribute name="title">
-        <string>Dataset</string>
+        <string>Data</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_4">
         <item row="0" column="0">
@@ -714,7 +696,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
           <property name="title">
            <string>Dataset evaluation</string>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout">
+          <layout class="QVBoxLayout" name="verticalLayout_13">
            <item>
             <layout class="QHBoxLayout" name="seedLayout">
              <item>
@@ -767,10 +749,19 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </layout>
            </item>
            <item>
-            <widget class="QCheckBox" name="adsIsothermCluster">
-             <property name="text">
-              <string>Adsorption isotherm clustering</string>
+            <widget class="QGroupBox" name="groupBox_5">
+             <property name="title">
+              <string>Selected metrics</string>
              </property>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <item>
+               <widget class="QCheckBox" name="adsIsothermCluster">
+                <property name="text">
+                 <string>Adsorption isotherm clustering</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
            <item>
@@ -1348,27 +1339,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_14">
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_8">
-             <item>
-              <widget class="QRadioButton" name="setCPU">
-               <property name="text">
-                <string>CPU</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="setGPU">
-               <property name="text">
-                <string>GPU</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
             <layout class="QHBoxLayout" name="horizontalLayout_23">
              <item>
               <widget class="QLabel" name="label_5">
@@ -1601,108 +1571,119 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <attribute name="title">
         <string>Model evaluation</string>
        </attribute>
-       <layout class="QGridLayout" name="gridLayout_5">
-        <item row="0" column="0">
-         <layout class="QVBoxLayout" name="verticalLayout_20">
-          <item>
-           <widget class="QGroupBox" name="groupBox_9">
-            <property name="title">
-             <string>Configuration</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_19">
+       <layout class="QVBoxLayout" name="verticalLayout_15">
+        <item>
+         <widget class="QGroupBox" name="groupBox_9">
+          <property name="title">
+           <string>Configuration</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_19">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_32">
              <item>
-              <widget class="QCheckBox" name="runEvaluationGPU">
+              <widget class="QLabel" name="label_15">
                <property name="text">
-                <string>Run validation on GPU</string>
+                <string>Evaluation samples</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QGroupBox" name="groupBox_7">
-               <property name="title">
-                <string>Selected metrics</string>
+              <widget class="QSpinBox" name="evalSamples">
+               <property name="minimum">
+                <number>1</number>
                </property>
-               <layout class="QVBoxLayout" name="verticalLayout_21">
-                <item>
-                 <widget class="QCheckBox" name="evalReport">
-                  <property name="text">
-                   <string>Loss and metrics</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QCheckBox" name="adsIsothermsComparison">
-                  <property name="text">
-                   <string>Adsorption isotherms prediction</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
+               <property name="maximum">
+                <number>1000</number>
+               </property>
+               <property name="singleStep">
+                <number>0</number>
+               </property>
+               <property name="value">
+                <number>10</number>
+               </property>
               </widget>
              </item>
             </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="checkpointSummary">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Create checkpoints summary that includes all configurations for each pretrained model&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-            </property>
-            <property name="text">
-             <string>Checkpoints summary</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="evaluateModel">
-            <property name="text">
-             <string>Evaluate model</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="verticalSpacer_9">
-            <property name="orientation">
-             <enum>Qt::Orientation::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <layout class="QVBoxLayout" name="verticalLayout_12">
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_30">
-              <item>
-               <widget class="QPushButton" name="evalTabPreviousImg">
-                <property name="text">
-                 <string>Previous</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="evalTabNextImg">
-                <property name="text">
-                 <string>Next</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item>
-             <widget class="QPushButton" name="evalTabClearImg">
-              <property name="text">
-               <string>Clear</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_34">
+             <item>
+              <widget class="QLabel" name="evalBSLabel">
+               <property name="text">
+                <string>Evaluation batch size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="evalBatchSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1024</number>
+               </property>
+               <property name="value">
+                <number>32</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox_7">
+          <property name="title">
+           <string>Selected metrics</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_21">
+           <item>
+            <widget class="QCheckBox" name="evalReport">
+             <property name="text">
+              <string>Loss and metrics</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="adsIsothermsComparison">
+             <property name="text">
+              <string>Adsorption isotherms prediction</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="checkpointSummary">
+          <property name="toolTip">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Create checkpoints summary that includes all configurations for each pretrained model&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="text">
+           <string>Checkpoints summary</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="evaluateModel">
+          <property name="text">
+           <string>Evaluate model</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_9">
+          <property name="orientation">
+           <enum>Qt::Orientation::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>351</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>
@@ -1712,26 +1693,43 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_10">
         <item>
-         <widget class="QGroupBox" name="inferenceConfigGroup">
+         <widget class="QGroupBox" name="inferenceConfigGroup_2">
           <property name="title">
            <string>Configuration</string>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout_16">
+          <layout class="QVBoxLayout" name="verticalLayout_18">
            <item>
-            <widget class="QCheckBox" name="runInferenceGPU">
-             <property name="text">
-              <string>Run inference on GPU</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="predictAdsorption">
-             <property name="text">
-              <string>Predict adsorption isotherms</string>
-             </property>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout_26">
+             <item>
+              <widget class="QLabel" name="ITLabel">
+               <property name="text">
+                <string>Inference batch size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="inferenceBatchSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1000</number>
+               </property>
+               <property name="value">
+                <number>32</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="predictAdsorption">
+          <property name="text">
+           <string>Predict adsorption isotherms</string>
+          </property>
          </widget>
         </item>
         <item>
@@ -1844,6 +1842,31 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        </layout>
       </widget>
      </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,7,2">
+      <item>
+       <widget class="QCheckBox" name="deviceGPU">
+        <property name="text">
+         <string>Use GPU as available device</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="stopThread">
+        <property name="text">
+         <string>Stop</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
