@@ -75,14 +75,16 @@ class AsyncDataFetcher:
 ###############################################################################
 class AdsorptionDataFetch:  
     
-    def __init__(self, configuration): 
+    def __init__(self, configuration):
+        # get server status before running any API method, 
+        # success when returning 200
         self.server = GetServerStatus()
-        self.server.check_status()
-        self.configuration = configuration  
-        
+        self.server.check_status()        
+        # define experiments fraction and main endpoint for fetching adsorption isotherms
         self.exp_fraction = configuration.get('experiments_fraction', 1.0)       
         self.url_isotherms = 'https://adsorption.nist.gov/isodb/api/isotherms.json'
         self.exp_identifier = 'filename'
+        self.configuration = configuration  
     
     # function to retrieve HTML data
     #--------------------------------------------------------------------------

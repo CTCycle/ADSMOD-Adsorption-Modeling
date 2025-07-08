@@ -3,16 +3,17 @@ EV = EnvironmentVariables()
 
 from functools import partial
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt
+from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt, QTimer
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpinBox, 
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
-                               QGraphicsPixmapItem, QGraphicsView)
+                               QGraphicsPixmapItem, QGraphicsView, QMessageBox)
+
 
 from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.configuration import Configuration
 from NISTADS.commons.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
-from NISTADS.commons.interface.workers import ThreadWorker
+from NISTADS.commons.interface.workers import ThreadWorker, ProcessWorker
 
 from NISTADS.commons.logger import logger
 
@@ -60,8 +61,7 @@ class MainWindow:
             (QComboBox,'checkpointsList','checkpoints_list'),
             (QProgressBar,'progressBar','progress_bar'),      
             (QPushButton,'stopThread','stop_thread'),
-            (QCheckBox,'deviceGPU','use_device_GPU'), 
-
+            (QCheckBox,'deviceGPU','use_device_GPU'),
             # 1. dataset tab page  
             # dataset evaluation group          
             (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
@@ -84,24 +84,23 @@ class MainWindow:
             (QPushButton,'collectAdsData','collect_adsorption_data'),  
             (QPushButton,'retrieveChemProperties','retrieve_properties'),        
                       
-            # 2. training tab page                
+            # 2. training tab page   
+            # dataset settings group               
             (QCheckBox,'setShuffle','use_shuffle'),                     
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'shuffleSize','shuffle_size'),
-
-            (QRadioButton,'setCPU','use_CPU'),
-            (QRadioButton,'setGPU','use_GPU'),
+            # device settings group            
             (QSpinBox,'deviceID','device_ID'),
             (QSpinBox,'numWorkers','num_workers'),
-
+            # training settings group
             (QCheckBox,'runTensorboard','use_tensorboard'),
             (QCheckBox,'realTimeHistory','real_time_history_callback'),
             (QCheckBox,'saveCheckpoints','save_checkpoints'),
+            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),            
+            (QSpinBox,'numEpochs','epochs'),
+            (QSpinBox,'batchSize','batch_size'),
             (QSpinBox,'trainSeed','train_seed'),
             
-            (QSpinBox,'numEpochs','epochs'),
-            (QSpinBox,'batchSize','batch_size'),            
-            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),
 
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'initialLearningRate','initial_LR'),
@@ -121,14 +120,14 @@ class MainWindow:
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
             # 3. model evaluation tab page
-            (QPushButton,'evaluateModel','model_evaluation'),
-            (QCheckBox,'runEvaluationGPU','use_GPU_evaluation'), 
+            (QSpinBox,'evalSamples','num_evaluation_samples'), 
+            (QSpinBox,'evalBatchSize','eval_batch_size'),     
+            (QPushButton,'evaluateModel','model_evaluation'),           
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),      
-            (QSpinBox,'numImages','num_evaluation_images'),           
-            # 4. inference tab page  
-            (QCheckBox,'runInferenceGPU','use_GPU_inference'),      
+            (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),
+            # 4. inference tab page 
+            (QSpinBox,'inferenceBatchSize','inference_batch_size'), 
             (QPushButton,'predictAdsorption','predict_adsorption'),          
             # 5. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
@@ -167,9 +166,7 @@ class MainWindow:
             ('clear_images', 'clicked', self.clear_figures),            
         ]) 
         
-        self._auto_connect_settings() 
-        self.use_GPU.toggled.connect(self._update_device)
-        self.use_CPU.toggled.connect(self._update_device)
+        self._auto_connect_settings()         
         
         # Initial population of dynamic UI elements
         self.load_checkpoints()
@@ -203,56 +200,57 @@ class MainWindow:
     #--------------------------------------------------------------------------
     def _auto_connect_settings(self):
         connections = [
+            ('use_device_GPU', 'toggled', 'use_device_GPU'),
             # 1. dataset tab page
-            ('general_seed', 'valueChanged', 'general_seed'),
-            ('sample_size', 'valueChanged', 'sample_size'),
-
+            # dataset fetching group
             ('guest_fraction', 'valueChanged', 'guest_fraction'),
             ('host_fraction', 'valueChanged', 'host_fraction'),
             ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
-            ('parallel_tasks', 'valueChanged', 'parallel_tasks'),
-            
+            ('parallel_tasks', 'valueChanged', 'parallel_tasks'),    
+            # dataset evaluation group
+            ('general_seed', 'valueChanged', 'general_seed'),
+            ('sample_size', 'valueChanged', 'sample_size'),
+            #  dataset processing group
             ('min_measurements', 'valueChanged', 'min_measurements'),
             ('max_measurements', 'valueChanged', 'max_measurements'),
             ('SMILE_sequence_size', 'valueChanged', 'SMILE_sequence_size'),
             ('max_pressure', 'valueChanged', 'max_pressure'),
             ('max_uptake', 'valueChanged', 'max_pressure'),
-
-            # 2. training tab page          
+            ('split_seed', 'valueChanged', 'split_seed'),
+            # 2. training tab page  
+            # # dataset settings group        
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
+            ('shuffle_size', 'valueChanged', 'shuffle_size'), 
+            # device settings group
+            ('device_ID', 'valueChanged', 'device_id'),
             ('num_workers', 'valueChanged', 'num_workers'),
-            ('use_mixed_precision', 'toggled', 'mixed_precision'),
-            ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
-            ('jit_backend', 'currentTextChanged', 'jit_backend'),
-                    
-            ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
-            ('num_encoders', 'valueChanged', 'num_encoders'),            
-            ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
-            
+            # training settings group
             ('use_tensorboard', 'toggled', 'use_tensorboard'),
             ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
-            ('save_checkpoints', 'toggled', 'save_checkpoints'),           
-            ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'), 
-            
-            
+            ('save_checkpoints', 'toggled', 'save_checkpoints'),
+            ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'),
+            ('epochs', 'valueChanged', 'epochs'),
+            ('batch_size', 'valueChanged', 'batch_size'),
+            ('train_seed', 'valueChanged', 'train_seed'),     
+            # RL scheduler settings group
             ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
             ('initial_LR', 'valueChanged', 'initial_LR'),
             ('target_LR', 'valueChanged', 'target_LR'),
             ('constant_steps', 'valueChanged', 'constant_steps'),          
-            ('decay_steps', 'valueChanged', 'decay_steps'),  
-
-            ('split_seed', 'valueChanged', 'split_seed'),
-            ('train_seed', 'valueChanged', 'train_seed'),
-            ('shuffle_size', 'valueChanged', 'shuffle_size'),
-            ('epochs', 'valueChanged', 'epochs'),  
-            ('additional_epochs', 'valueChanged', 'additional_epochs'),                  
-                   
-            ('batch_size', 'valueChanged', 'batch_size'),
-            ('device_ID', 'valueChanged', 'device_id'),
-            # 3. model evaluation tab page
-            
+            ('decay_steps', 'valueChanged', 'decay_steps'), 
+            # model settings group
+            ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
+            ('num_encoders', 'valueChanged', 'num_encoders'),            
+            ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
+            # session settings group
+            ('additional_epochs', 'valueChanged', 'additional_epochs'),
+            # 3. model evaluation tab page                    
+            ('eval_batch_size', 'valueChanged', 'eval_batch_size'),
+            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),    
+             
             # 4. inference tab page           
-            ('validation_size', 'valueChanged', 'validation_size')]
+            ('inference_batch_size', 'valueChanged', 'inference_batch_size'),                       
+            ]  
 
         self.data_metrics = [
             ('experiments_clustering', self.experiments_clustering)]
@@ -262,12 +260,7 @@ class MainWindow:
 
         for attr, signal_name, config_key in connections:
             widget = self.widgets[attr]
-            self.connect_update_setting(widget, signal_name, config_key)
-
-    #--------------------------------------------------------------------------
-    def _update_device(self):
-        device = 'GPU' if self.use_GPU.isChecked() else 'CPU'
-        self.config_manager.update_value('device', device)  
+            self.connect_update_setting(widget, signal_name, config_key)   
 
     #--------------------------------------------------------------------------
     def _set_states(self):         
@@ -283,31 +276,23 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def _set_graphics(self):
-        self.graphics = {}        
         view = self.main_win.findChild(QGraphicsView, 'canvas')
         scene = QGraphicsScene()
         pixmap_item = QGraphicsPixmapItem()
         pixmap_item.setTransformationMode(Qt.SmoothTransformation)
         scene.addItem(pixmap_item)
         view.setScene(scene)
-        view.setRenderHint(QPainter.Antialiasing, True)
-        view.setRenderHint(QPainter.SmoothPixmapTransform, True)
-        view.setRenderHint(QPainter.TextAntialiasing, True)
-        self.graphics = {'view': view,
-                         'scene': scene,
-                         'pixmap_item': pixmap_item}
-        
-        # Image data                
-        self.pixmaps = {          
-            'dataset_eval_images': [],  
-            'model_eval_images': []}        
+        for hint in (QPainter.Antialiasing, QPainter.SmoothPixmapTransform, 
+                     QPainter.TextAntialiasing):
+            view.setRenderHint(hint, True)
 
-        # Canvas state        
-        self.current_fig = {'dataset_eval_images' : 0, 'model_eval_images' : 0}
+        self.graphics = {'view': view, 'scene': scene, 'pixmap_item': pixmap_item}
+        self.pixmaps = {k: [] for k in ('dataset_eval_images', 'model_eval_images')}        
+        self.current_fig = {k: 0 for k in self.pixmaps}
 
         self.pixmap_source_map = {
             self.data_plots_view: ("dataset_eval_images", "dataset_eval_images"),
-            self.model_plots_view: ("model_eval_images", "model_eval_images")}           
+            self.model_plots_view: ("model_eval_images", "model_eval_images")}        
 
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
@@ -329,6 +314,26 @@ class MainWindow:
         worker.signals.error.connect(on_error)        
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
+
+    #--------------------------------------------------------------------------
+    def _start_process_worker(self, worker : ProcessWorker, on_finished, on_error, 
+                              on_interrupted, update_progress=True):
+        if update_progress:
+            self.progress_bar.setValue(0)
+            worker.signals.progress.connect(self.progress_bar.setValue)
+
+        worker.signals.finished.connect(on_finished)
+        worker.signals.error.connect(on_error)
+        worker.signals.interrupted.connect(on_interrupted)
+
+        # Polling for results from the process queue
+        self.process_worker_timer = QTimer()
+        self.process_worker_timer.setInterval(100)  # Check every 100ms
+        self.process_worker_timer.timeout.connect(worker.poll)
+        worker._timer = self.process_worker_timer
+        self.process_worker_timer.start()
+
+        worker.start()
 
     #--------------------------------------------------------------------------
     def _send_message(self, message): 
@@ -464,7 +469,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_data_success,
-            on_error=self.on_data_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
         
     #--------------------------------------------------------------------------        
@@ -484,7 +489,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_data_success,
-            on_error=self.on_data_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
         
     #--------------------------------------------------------------------------        
@@ -509,7 +514,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_dataset_evaluation_finished,
-            on_error=self.on_evaluation_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -529,7 +534,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_dataset_processing_finished,
-            on_error=self.on_data_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)       
 
     #--------------------------------------------------------------------------
@@ -551,7 +556,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_train_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -573,7 +578,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_train_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
 
     #--------------------------------------------------------------------------
@@ -586,7 +591,7 @@ class MainWindow:
 
         self.configuration = self.config_manager.get_configuration() 
         self.validation_handler = ValidationEvents(self.database, self.configuration)    
-        device = 'GPU' if self.use_GPU_evaluation.isChecked() else 'CPU'   
+           
         # send message to status bar
         self._send_message(f"Evaluating {self.selected_checkpoint} performances... ")
 
@@ -600,7 +605,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)     
 
     #-------------------------------------------------------------------------- 
@@ -620,7 +625,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -632,36 +637,33 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration)  
-        device = 'GPU' if self.use_GPU_inference.isChecked() else 'CPU'
+        self.model_handler = ModelEvents(self.database, self.configuration) 
+        
         # send message to status bar
         self._send_message(f"Encoding images with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(
             self.model_handler.run_inference_pipeline,
-            self.selected_checkpoint,
-            device)
+            self.selected_checkpoint)
 
         # start worker and inject signals
         self._start_thread_worker(
             self.worker, on_finished=self.on_inference_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
-
 
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
     ###########################################################################     
     def on_data_success(self, session):          
-        self.dataset_handler.handle_success(
-            self.main_win, 'Data has been collected from NIST-A database')
-        self.worker = None 
+        self._send_message('Data has been collected from NIST-A database')
+        self.worker = self.worker.cleanup()    
 
     #--------------------------------------------------------------------------
     def on_dataset_processing_finished(self, session):         
-        self.dataset_handler.handle_success(self.main_win, 'Dataset has been built successfully')
-        self.worker = None 
+        self._send_message('Dataset has been built successfully')
+        self.worker = self.worker.cleanup()    
 
     #--------------------------------------------------------------------------      
     def on_dataset_evaluation_finished(self, plots):   
@@ -673,14 +675,13 @@ class MainWindow:
             
         self.current_fig[key] = 0
         self._update_graphics_view()
-        self.validation_handler.handle_success(self.main_win, 'Figures have been generated')
-        self.worker = None 
+        self._send_message('Figures have been generated')
+        self.worker = self.worker.cleanup()    
 
     #--------------------------------------------------------------------------
     def on_train_finished(self, session):          
-        self.model_handler.handle_success(
-            self.main_win, 'Training session is over. Model has been saved')
-        self.worker = None 
+        self._send_message('Training session is over. Model has been saved')
+        self.worker = self.worker.cleanup()    
 
     #--------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):  
@@ -692,44 +693,33 @@ class MainWindow:
             
         self.current_fig[key] = 0
         self._update_graphics_view()
-        self.validation_handler.handle_success(
-            self.main_win, f'Model {self.selected_checkpoint} has been evaluated')
-        self.worker = None 
+        self._send_message(f'Model {self.selected_checkpoint} has been evaluated')
+        self.worker = self.worker.cleanup()    
 
     #--------------------------------------------------------------------------
     def on_inference_finished(self, session):          
-        self.model_handler.handle_success(
-            self.main_win, 'Inference call has been terminated')
-        self.worker = None 
-
+        self._send_message('Inference call has been terminated')
+        self.worker = self.worker.cleanup()    
 
     ###########################################################################   
     # [NEGATIVE OUTCOME HANDLERS]
     ###########################################################################     
     @Slot() 
-    def on_data_error(self, err_tb):
-        self.dataset_handler.handle_error(self.main_win, err_tb) 
-        self.worker = None  
-   
-    #--------------------------------------------------------------------------
-    @Slot(tuple)
-    def on_evaluation_error(self, err_tb):
-        self.validation_handler.handle_error(self.main_win, err_tb) 
-        self.worker = None    
+    def on_error(self, err_tb):
+        exc, tb = err_tb
+        logger.error(f"{exc}\n{tb}")
+        QMessageBox.critical(self.main_win, 'Something went wrong!', f"{exc}\n\n{tb}")
+        self.progress_bar.setValue(0)      
+        self.worker = self.worker.cleanup()  
 
-    #--------------------------------------------------------------------------
-    @Slot() 
-    def on_model_error(self, err_tb):
-        self.model_handler.handle_error(self.main_win, err_tb) 
-        self.worker = None 
-
-    #--------------------------------------------------------------------------
+    ###########################################################################   
+    # [INTERRUPTION HANDLERS]
+    ###########################################################################
     def on_task_interrupted(self):         
         self.progress_bar.setValue(0)
         self._send_message('Current task has been interrupted by user') 
-        logger.warning('Current task has been interrupted by user')
-        self.worker = None     
-        
+        logger.warning('Current task has been interrupted by user') 
+        self.worker = self.worker.cleanup()
           
          
 

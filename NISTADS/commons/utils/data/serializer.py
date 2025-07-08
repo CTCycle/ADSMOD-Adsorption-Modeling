@@ -8,7 +8,7 @@ from datetime import datetime
 
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
-from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
+from NISTADS.commons.utils.learning.training.scheduler import LinearDecayLRScheduler
 from NISTADS.commons.constants import METADATA_PATH, CHECKPOINT_PATH
 from NISTADS.commons.logger import logger
 

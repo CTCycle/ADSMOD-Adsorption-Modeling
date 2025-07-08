@@ -51,6 +51,9 @@ class Configuration:
             'decay_steps': 1000,
             'final_lr': 0.0001,
 
+            # Inference
+            'inference_batch_size': 1.0,       
+
             # Validation
             'eval_batch_size': 20,
             'num_evaluation_samples': 10           

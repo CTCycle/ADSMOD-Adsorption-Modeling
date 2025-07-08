@@ -76,11 +76,11 @@ class DatasetEvents:
 
     #--------------------------------------------------------------------------
     def run_data_collection_pipeline(self, progress_callback=None, worker=None):      
-        # get isotherm indexes invoking API
+        # 1. get isotherm indexes invoking API from NIST-ARPA-E database        
         logger.info('Collect adsorption isotherm indices from NIST-ARPA-E database')
         API = AdsorptionDataFetch(self.configuration)
         experiments_index = API.get_experiments_index() 
-
+        # 2. collect experiments data based on the fetched index   
         logger.info('Extracting adsorption isotherms data from JSON response')
         adsorption_data = API.get_experiments_data(
             experiments_index, worker=worker, progress_callback=progress_callback)
@@ -153,14 +153,14 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(1, 7, progress_callback)
+        update_progress_callback(1, 8, progress_callback)
         # start joining materials properties
         processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
         logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')         
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(2, 7, progress_callback)
+        update_progress_callback(2, 8, progress_callback)
         # convert pressure and uptake into standard units:
         # pressure to Pascal, uptake to mol/g
         sequencer = PressureUptakeSeriesProcess(self.configuration)
@@ -169,7 +169,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(3, 7, progress_callback)
+        update_progress_callback(3, 8, progress_callback)
         # exlude all data outside given boundaries, such as negative temperature values 
         # and pressure and uptake values below zero or above upper limits
         sanitizer = DataSanitizer(self.configuration)  
@@ -182,7 +182,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(4, 7, progress_callback)
+        update_progress_callback(4, 8, progress_callback)
         # perform SMILE sequence tokenization  
         tokenization = SMILETokenization(self.configuration) 
         logger.info('Tokenizing SMILE sequences for adsorbate species')   
@@ -195,7 +195,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(5, 7, progress_callback)
+        update_progress_callback(5, 8, progress_callback)
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
         normalizer = FeatureNormalizer(self.configuration, train_data)
@@ -206,7 +206,7 @@ class DatasetEvents:
     
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(6, 7, progress_callback)
+        update_progress_callback(6, 8, progress_callback)
         # add padding to pressure and uptake series to match max length
         train_data = sequencer.PQ_series_padding(train_data)     
         validation_data = sequencer.PQ_series_padding(validation_data)     
@@ -219,7 +219,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(7, 7, progress_callback)
+        update_progress_callback(7, 8, progress_callback)
       
         # save preprocessed data using data serializer   
         train_data = sanitizer.isolate_processed_features(train_data)
@@ -227,20 +227,10 @@ class DatasetEvents:
         serializer.save_train_and_validation_data(
             train_data, validation_data, smile_vocab, 
             adsorbent_vocab, normalizer.statistics) 
-
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        logger.error(f"{exc}\n{tb}")
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")             
-
+        
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(8, 8, progress_callback)    
 
 
 ###############################################################################
@@ -314,21 +304,7 @@ class ValidationEvents:
             images.append(validator.visualize_adsorption_isotherms(
                 val_data, progress_callback, worker=worker))                    
 
-        return images      
-
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        logger.error(f"{exc}\n{tb}")
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
+        return images     
    
 
 ###############################################################################
@@ -441,18 +417,5 @@ class ModelEvents:
         predictions_dataset = predictor.merge_predictions_to_dataset(inference_data, predictions)
         serializer.save_predictions_dataset(predictions_dataset)
         logger.info('Predictions dataset saved successfully in database') 
-
         
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        logger.error(f"{exc}\n{tb}")
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
+ 

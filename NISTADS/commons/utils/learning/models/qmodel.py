@@ -1,10 +1,10 @@
 import torch
 from keras import layers, Model, optimizers
 
-from NISTADS.commons.utils.learning.scheduler import LinearDecayLRScheduler
-from NISTADS.commons.utils.learning.embeddings import MolecularEmbedding
-from NISTADS.commons.utils.learning.model.transformers import TransformerEncoder
-from NISTADS.commons.utils.learning.encoders import StateEncoder, PressureSerierEncoder, QDecoder
+from NISTADS.commons.utils.learning.training.scheduler import LinearDecayLRScheduler
+from NISTADS.commons.utils.learning.models.embeddings import MolecularEmbedding
+from NISTADS.commons.utils.learning.models.transformers import TransformerEncoder
+from NISTADS.commons.utils.learning.models.encoders import StateEncoder, PressureSerierEncoder, QDecoder
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 
 
