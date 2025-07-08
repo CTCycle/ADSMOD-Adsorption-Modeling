@@ -1,6 +1,5 @@
 import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QImage, QPixmap
 
 from NISTADS.commons.utils.data.serializer import DataSerializer, ModelSerializer
@@ -120,7 +119,7 @@ class DatasetEvents:
     #--------------------------------------------------------------------------
     def run_chemical_properties_pipeline(self, progress_callback=None, worker=None):         
         serializer = DataSerializer(self.database, self.configuration)
-        experiments, guest_data, host_data = serializer.load_source_datasets()         
+        experiments, guest_data, host_data = serializer.load_adsorption_datasets()         
            
         properties = MolecularProperties(self.configuration)  
         # process guest (adsorbed species) data by adding molecular properties
@@ -128,20 +127,24 @@ class DatasetEvents:
         guest_data = properties.fetch_guest_properties(
             experiments, guest_data, worker=worker, progress_callback=progress_callback) 
         # save the final version of the materials dataset    
-        serializer.save_materials_datasets(
-            guest_data=guest_data)
+        serializer.save_materials_datasets(guest_data=guest_data)
+        logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
 
         # process host (adsorbent materials) data by adding molecular properties   
         logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
         host_data = properties.fetch_host_properties(
             experiments, host_data, worker=worker, progress_callback=progress_callback) 
         # save the final version of the materials dataset    
-        serializer.save_materials_datasets(host_data=host_data)      
+        serializer.save_materials_datasets(host_data=host_data)  
+        logger.info(f'Host properties updated in the database ({host_data.shape[0]} records)')    
     
     #--------------------------------------------------------------------------
-    def run_dataset_builder(self, progress_callback=None, worker=None):        
+    def run_dataset_builder(self, progress_callback=None, worker=None):
+        sample_size = self.configuration.get('sample_size')
         serializer = DataSerializer(self.database, self.configuration)
-        adsorption_data, guest_data, host_data = serializer.load_source_datasets() 
+        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets(
+            sample_size=sample_size)
+
         logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
         logger.info(f'{guest_data.shape[0]} total guests (adsorbates species) in the dataset')
         logger.info(f'{host_data.shape[0]} total hosts (adsorbent materials) in the dataset')
@@ -153,14 +156,16 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(1, 8, progress_callback)
+        update_progress_callback(0, 7, progress_callback)
+
         # start joining materials properties
         processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
         logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')         
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(2, 8, progress_callback)
+        update_progress_callback(1, 7, progress_callback)
+
         # convert pressure and uptake into standard units:
         # pressure to Pascal, uptake to mol/g
         sequencer = PressureUptakeSeriesProcess(self.configuration)
@@ -169,33 +174,38 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(3, 8, progress_callback)
+        update_progress_callback(2, 7, progress_callback)
+
         # exlude all data outside given boundaries, such as negative temperature values 
         # and pressure and uptake values below zero or above upper limits
-        sanitizer = DataSanitizer(self.configuration)  
-        processed_data = sanitizer.exclude_OOB_values(processed_data)
-        
+        sanitizer = DataSanitizer(self.configuration)
+        logger.info('Filtering Out-of-Boundary values')
+        processed_data = sanitizer.exclude_OOB_values(processed_data)  
+              
         # remove repeated zero values at the beginning of pressure and uptake series  
         # then filter out experiments with not enough measurements 
+        logger.info('Performing sequence sanitization and filter by size')
         processed_data = sequencer.remove_leading_zeros(processed_data)   
         processed_data = sequencer.filter_by_sequence_size(processed_data)          
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(4, 8, progress_callback)
+        update_progress_callback(3, 7, progress_callback)
+
         # perform SMILE sequence tokenization  
         tokenization = SMILETokenization(self.configuration) 
         logger.info('Tokenizing SMILE sequences for adsorbate species')   
         processed_data, smile_vocab = tokenization.process_SMILE_sequences(processed_data)  
 
         # split data into train set and validation set
-        logger.info('Preparing dataset of images and captions based on splitting size')  
-        splitter = TrainValidationSplit(self.configuration, processed_data)     
-        train_data, validation_data = splitter.split_train_and_validation() 
+        logger.info('Generate train and validation datasets through stratified splitting')  
+        splitter = TrainValidationSplit(self.configuration)     
+        train_data, validation_data = splitter.split_train_and_validation(processed_data) 
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(5, 8, progress_callback)
+        update_progress_callback(4, 7, progress_callback)
+
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
         normalizer = FeatureNormalizer(self.configuration, train_data)
@@ -206,11 +216,10 @@ class DatasetEvents:
     
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(6, 8, progress_callback)
+        update_progress_callback(5, 7, progress_callback)
         # add padding to pressure and uptake series to match max length
         train_data = sequencer.PQ_series_padding(train_data)     
-        validation_data = sequencer.PQ_series_padding(validation_data)     
-
+        validation_data = sequencer.PQ_series_padding(validation_data)
         
         encoding = AdsorbentEncoder(self.configuration, train_data)    
         train_data = encoding.encode_adsorbents_by_name(train_data)
@@ -219,7 +228,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(7, 8, progress_callback)
+        update_progress_callback(6, 7, progress_callback)
       
         # save preprocessed data using data serializer   
         train_data = sanitizer.isolate_processed_features(train_data)
@@ -230,7 +239,7 @@ class DatasetEvents:
         
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(8, 8, progress_callback)    
+        update_progress_callback(7, 7, progress_callback)    
 
 
 ###############################################################################
@@ -241,10 +250,9 @@ class ValidationEvents:
         self.configuration = configuration 
         
     #--------------------------------------------------------------------------
-    def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
-        sample_size = self.configuration.get("sample_size", 1.0)
-        serializer = DataSerializer(self.configuration)
-        adsorption_data, guest_data, host_data = serializer.load_source_datasets() 
+    def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):        
+        serializer = DataSerializer(self.database, self.configuration)
+        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets() 
         logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
         logger.info(f'{guest_data.shape[0]} adsorbates species in the dataset')
         logger.info(f'{host_data.shape[0]} adsorbent materials in the dataset')
@@ -294,11 +302,13 @@ class ValidationEvents:
             
         images = []
         if 'evaluation_report' in metrics:
+            logger.info('Current metric: model loss and metrics evaluation')
             # evaluate model performance over the training and validation dataset 
             summarizer = ModelEvaluationSummary(self.database, self.configuration)       
             summarizer.get_evaluation_report(model, validation_dataset, worker=worker)
 
         if 'adsorption_isotherms_prediction' in metrics:
+            logger.info('Current metric: adsorption isotherms prediction quality')
             validator = AdsorptionPredictionsQuality(
             model, train_config, metadata, checkpoint_path)      
             images.append(validator.visualize_adsorption_isotherms(

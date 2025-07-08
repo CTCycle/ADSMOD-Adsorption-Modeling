@@ -15,26 +15,26 @@ from NISTADS.commons.logger import logger
 class MolecularProperties:
 
     def __init__(self, configuration): 
-        self.molecular_identifier = 'InChIKey'       
-        self.guest_properties = GuestProperties(configuration)
-        self.host_properties = HostProperties(configuration)                
+        self.molecular_identifier = 'InChIKey'                 
         self.configuration = configuration   
 
     # Define a function to handle duplicates, keeping rows with InChIKey
     #--------------------------------------------------------------------------
-    def remove_duplicates_without_identifiers(self, data):
+    def remove_duplicates_without_identifiers(self, data : pd.DataFrame):
         if self.molecular_identifier in data.columns:
-            data['has_inchikey'] = data['InChIKey'].notna()  
-            data = data.sort_values(by=['name', 'has_inchikey'], ascending=[True, False])
-            data = data.drop_duplicates(subset=['name'], keep='first')  
-            data = data.drop(columns=['has_inchikey'])
+            data = (data.assign(_has_id=data['InChIKey'].notna())
+                    .sort_values(['name', '_has_id'], ascending=[True, False])
+                    .drop_duplicates('name')
+                    .drop('_has_id', axis=1))
         else:
-            data = data.drop_duplicates(subset=['name'], keep='first')  
-
+            data = data.drop_duplicates('name')
         return data  
 
     #--------------------------------------------------------------------------
-    def map_fetched_properties(self, data, properties : dict):
+    def map_fetched_properties(self, data : pd.DataFrame, properties : dict):
+        if not properties:
+            return 
+        
         # set all names to lowcase to avoid mismatch
         properties['name'] = [x.lower() for x in properties['name']]
         data['name'] = data['name'].str.lower() 
@@ -45,12 +45,11 @@ class MolecularProperties:
         indexed_data.update(indexed_properties) 
         dataset = indexed_data.reset_index()
 
-        return dataset
-    
-   
+        return dataset    
     
     #--------------------------------------------------------------------------
-    def fetch_guest_properties(self, experiments, data, **kwargs): 
+    def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame, **kwargs):
+        guest_properties = GuestProperties(self.configuration) 
         # Combine guest names from experiments and data, cleaning them to ensure consistency
         guest_names = pd.concat([
             experiments['adsorbate_name'].dropna(),
@@ -59,7 +58,7 @@ class MolecularProperties:
         
         # fetch adsorbates molecular properties using pubchem API
         all_guests = pd.DataFrame(guest_names, columns=['name'])                   
-        properties = self.guest_properties.get_properties_for_multiple_compounds(
+        properties = guest_properties.get_properties_for_multiple_compounds(
             all_guests, worker=kwargs.get('worker', None),
             progress_callback=kwargs.get('progress_callback', None))
 
@@ -72,6 +71,7 @@ class MolecularProperties:
     # difficult to find a reliable source for the adsorbent materials properties
     #--------------------------------------------------------------------------
     def fetch_host_properties(self, experiments, data, **kwargs): 
+        host_properties = HostProperties(self.configuration) 
         # merge adsorbates names with those found in the experiments dataset
         all_hosts = pd.concat([
             experiments['adsorbent_name'].dropna(),
@@ -80,7 +80,7 @@ class MolecularProperties:
         
         # fetch adsorbents molecular properties using pubchem API
         all_hosts = pd.DataFrame(all_hosts, columns=['name'])
-        properties = self.host_properties.get_properties_for_multiple_compounds(
+        properties = host_properties.get_properties_for_multiple_compounds(
             all_hosts, worker=kwargs.get('worker', None),
             progress_callback=kwargs.get('progress_callback', None))
         
@@ -120,7 +120,7 @@ class GuestProperties:
 
             check_thread_status(kwargs.get("worker", None))
             update_progress_callback(
-                i, dataset.itertuples(index=True), kwargs.get("progress_callback", None))                          
+                i, dataset.shape[0], kwargs.get("progress_callback", None))                          
 
         return self.properties
     
@@ -163,12 +163,16 @@ class HostProperties:
         return properties     
     
     #--------------------------------------------------------------------------    
-    def get_properties_for_multiple_compounds(self, dataset):         
-        for row in tqdm(dataset.itertuples(index=True), total=dataset.shape[0]): 
+    def get_properties_for_multiple_compounds(self, dataset, **kwargs):         
+        for i, row in enumerate(tqdm(dataset.itertuples(index=True), total=dataset.shape[0])): 
             formula_as_name = self.is_chemical_formula(row.name) 
             properties = self.get_molecular_properties(row.name, namespace='name')             
             if properties:                
-                self.distribute_extracted_data(row.name, properties)                                    
+                self.distribute_extracted_data(row.name, properties) 
+
+            check_thread_status(kwargs.get("worker", None))
+            update_progress_callback(
+                i, dataset.shape[0], kwargs.get("progress_callback", None))                                 
 
         return self.properties
     

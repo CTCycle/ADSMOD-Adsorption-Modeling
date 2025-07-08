@@ -360,8 +360,7 @@ class AdsorptionDatabase:
         self.train_data.create_table(cursor)
         self.validation_data.create_table(cursor)
         self.inference_data.create_table(cursor)        
-        self.checkpoints_summary.create_table(cursor)   
-
+        self.checkpoints_summary.create_table(cursor)
         conn.commit()
         conn.close()
 
@@ -371,7 +370,7 @@ class AdsorptionDatabase:
         self.save_predictions_table(dataset)
        
     #--------------------------------------------------------------------------
-    def load_source_data_table(self):          
+    def load_dataset_tables(self):          
         conn = sqlite3.connect(self.db_path)        
         adsorption_data = pd.read_sql_query(
             f"SELECT * FROM {self.single_component.name}", conn)

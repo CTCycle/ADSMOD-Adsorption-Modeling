@@ -134,20 +134,24 @@ class AdsorptionDataFetch:
 class GuestHostDataFetch: 
 
     def __init__(self, configuration):
+        # get server status before running any API method, 
+        # success when returning 200
         self.server = GetServerStatus()
-        self.server.check_status()
-        self.configuration = configuration  
-           
-        self.url_GUEST = 'https://adsorption.nist.gov/isodb/api/gases.json'
-        self.url_HOST = 'https://adsorption.nist.gov/matdb/api/materials.json'
-        self.guest_fraction = configuration["collection"]["GUEST_FRACTION"]
-        self.host_fraction = configuration["collection"]["HOST_FRACTION"]       
+        self.server.check_status()        
+        # define guest/host identifiers and endpoints for fetching materials
         self.guest_identifier = 'InChIKey'
         self.host_identifier = 'hashkey'
+        self.url_GUEST = 'https://adsorption.nist.gov/isodb/api/gases.json'
+        self.url_HOST = 'https://adsorption.nist.gov/matdb/api/materials.json'            
+        
         self.extra_guest_columns = [
             'adsorbate_molecular_weight', 'adsorbate_molecular_formula', 'adsorbate_SMILE']
-        self.extra_host_columns = [
+        self.extra_host_columns = [            
             'adsorbent_molecular_weight', 'adsorbent_molecular_formula', 'adsorbent_SMILE']
+        
+        self.guest_fraction = configuration.get('guest_fraction', 1.0)
+        self.host_fraction = configuration.get('host_fraction', 1.0) 
+        self.configuration = configuration          
 
     #--------------------------------------------------------------------------
     def get_materials_index(self):       

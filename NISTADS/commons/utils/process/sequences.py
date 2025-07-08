@@ -14,10 +14,10 @@ class PressureUptakeSeriesProcess:
     def __init__(self, configuration):
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'        
-        self.max_points = configuration['dataset']['MAX_PQ_POINTS']  
-        self.min_points = configuration['dataset']['MIN_PQ_POINTS'] 
-        self.max_pressure = configuration['dataset']['MAX_PRESSURE']
-        self.max_uptake = configuration['dataset']['MAX_UPTAKE']          
+        self.max_points = configuration.get('max_measurements', 30)  
+        self.min_points = configuration.get('min_measurements', 1) 
+        self.max_pressure = configuration.get('max_pressure', 10000) * 1000
+        self.max_uptake = configuration.get('max_uptake', 10)           
 
     #--------------------------------------------------------------------------
     def trim_series(self, series):        
@@ -49,7 +49,7 @@ class PressureUptakeSeriesProcess:
         return dataset   
     
     #--------------------------------------------------------------------------
-    def filter_by_sequence_size(self, dataset):        
+    def filter_by_sequence_size(self, dataset : pd.DataFrame):        
         dataset = dataset[dataset[self.P_COL].apply(
             lambda x: self.min_points <= len(x) <= self.max_points)]
 
@@ -73,7 +73,7 @@ class SMILETokenization:
             'Lv', 'Ts', 'Og']
         
         self.organic_subset = ['B', 'C', 'N', 'O', 'P', 'S', 'F', 'Cl', 'Br', 'I']
-        self.SMILE_padding = configuration['dataset']['SMILE_PADDING']      
+        self.SMILE_padding = configuration.get('SMILE_sequence_size', 20)      
         
     #--------------------------------------------------------------------------
     def tokenize_SMILE_string(self, SMILE):
@@ -170,20 +170,19 @@ class SMILETokenization:
     
     #--------------------------------------------------------------------------
     def encode_SMILE_tokens(self, data: pd.DataFrame): 
-        SMILE_tokens = set(
-            token for tokens in data['adsorbate_tokenized_SMILE'] 
-            for token in tokens)           
+        SMILE_tokens = set(token for tokens in data['adsorbate_tokenized_SMILE'] 
+                           for token in tokens)           
 
-        # Map each token to a unique integer
+        # Map each token to a unique integer creating an inverted dictionary
         token_to_id = {token: idx for idx, token in enumerate(sorted(SMILE_tokens))}
-        # Apply the encoding to each tokenized SMILE
+        # Encode each tokenized SMILE sequence
         data['adsorbate_encoded_SMILE'] = data['adsorbate_tokenized_SMILE'].apply(
             lambda tokens: [int(token_to_id[token]) for token in tokens])        
         
         return data, token_to_id
     
     #--------------------------------------------------------------------------  
-    def SMILE_series_padding(self, dataset):       
+    def SMILE_series_padding(self, dataset : pd.DataFrame):       
         dataset['adsorbate_encoded_SMILE'] = pad_sequences(
             dataset['adsorbate_encoded_SMILE'], maxlen=self.SMILE_padding, 
             value=PAD_VALUE, dtype='float32', padding='post').tolist() 
@@ -191,14 +190,14 @@ class SMILETokenization:
         return dataset
     
     #--------------------------------------------------------------------------
-    def process_SMILE_sequences(self, data):
-        data['adsorbate_tokenized_SMILE'] = data['adsorbate_SMILE'].apply(
+    def process_SMILE_sequences(self, dataset : pd.DataFrame):
+        dataset['adsorbate_tokenized_SMILE'] = dataset['adsorbate_SMILE'].apply(
             lambda x : self.tokenize_SMILE_string(x))         
         
-        data, smile_vocabulary = self.encode_SMILE_tokens(data)        
-        data = self.SMILE_series_padding(data)       
+        dataset, smile_vocabulary = self.encode_SMILE_tokens(dataset)        
+        dataset = self.SMILE_series_padding(dataset)       
        
-        return data, smile_vocabulary
+        return dataset, smile_vocabulary
     
     
 

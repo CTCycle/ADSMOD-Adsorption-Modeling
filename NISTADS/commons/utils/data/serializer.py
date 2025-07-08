@@ -6,6 +6,7 @@ from keras.utils import plot_model
 from keras.models import load_model
 from datetime import datetime
 
+from NISTADS.commons.utils.data.database import AdsorptionDatabase
 from NISTADS.commons.utils.process.sanitizer import DataSanitizer
 from NISTADS.commons.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.commons.utils.learning.training.scheduler import LinearDecayLRScheduler
@@ -17,22 +18,27 @@ from NISTADS.commons.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, database, configuration):  
+    def __init__(self, database : AdsorptionDatabase, configuration : dict):
+        self.seed = configuration.get('general_seed', 42)
+        self.P_COL = 'pressure' 
+        self.Q_COL = 'adsorbed_amount'
+        self.database = database        
+        self.configuration = configuration
+
         self.metadata_path = os.path.join(
             METADATA_PATH, 'preprocessing_metadata.json') 
         self.smile_vocabulary_path = os.path.join(
             METADATA_PATH, 'SMILE_tokenization_index.json')
         self.ads_vocabulary_path = os.path.join(
             METADATA_PATH, 'adsorbents_index.json')
-
-        self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'
-        self.database = database        
-        self.configuration = configuration 
         
     #--------------------------------------------------------------------------
-    def load_source_datasets(self):                
-        return self.database.load_source_data_table()
+    def load_adsorption_datasets(self, sample_size=1.0):          
+        adsorption_data, guest_data, host_data = self.database.load_dataset_tables()
+        adsorption_data = adsorption_data.sample(
+            frac=sample_size, random_state=self.seed).reset_index(drop=True)
+
+        return adsorption_data, guest_data, host_data
     
     #--------------------------------------------------------------------------
     def load_inference_data(self):              

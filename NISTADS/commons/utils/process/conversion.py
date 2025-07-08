@@ -1,16 +1,6 @@
 import pandas as pd
 
 
-###############################################################################
-def PQ_units_conversion(dataframe):
-    P_converter = PressureConversion()
-    Q_converter = UptakeConversion()
-    converted_data = P_converter.convert_pressure_units(dataframe)
-    converted_data = Q_converter.convert_uptake_data(converted_data)
-
-    return converted_data
-      
-
 # [CONVERSION OF PRESSURE]
 ###############################################################################
 class PressureConversion:
@@ -94,7 +84,36 @@ class UptakeConversion:
         return dataframe
 
         
+###############################################################################
+def PQ_units_conversion(dataframe):
     
+    """
+    Converts the pressure and uptake units in the provided adsorption dataframe to standard units.
+
+    This function applies two conversions in sequence:
+    1. Pressure units are converted to Pascals (Pa).
+    2. Uptake (adsorbed amount) units are converted to mmol/g.
+
+    The function modifies the following columns (if present):
+    - 'pressure' (and removes 'pressureUnits')
+    - 'adsorbed_amount' (and removes 'adsorptionUnits')
+    
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        The input dataframe containing adsorption data with pressure and uptake units.
+
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe with standardized pressure and uptake units.
+    """
+    P_converter = PressureConversion()
+    Q_converter = UptakeConversion()
+    converted_data = P_converter.convert_pressure_units(dataframe)
+    converted_data = Q_converter.convert_uptake_data(converted_data)
+
+    return converted_data
     
 
    

@@ -41,7 +41,7 @@ class InferenceDataLoaderProcessor:
         # only a single instance of the processed dataset may exist, therefor
         # the user should be careful about loading a model trained on a different dataset
         serializer = DataSerializer(configuration)  
-        _, self.guest_data, self.host_data = serializer.load_source_datasets() 
+        _, self.guest_data, self.host_data = serializer.load_adsorption_datasets() 
         _, self.metadata, self.smile_vocab, self.ads_vocab = serializer.load_processed_data() 
 
         self.norm_config = self.metadata['normalization']

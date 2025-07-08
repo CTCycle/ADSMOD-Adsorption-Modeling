@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 
 from NISTADS.commons.constants import DATA_PATH
 from NISTADS.commons.logger import logger
@@ -19,14 +19,18 @@ class AggregateDatasets:
 
     #--------------------------------------------------------------------------
     def join_materials_properties(self, adsorption, guests, hosts): 
-        all_dataset_merge = (adsorption
-            .merge(guests[self.guest_properties], left_on='adsorbate_name', right_on='name', how='left')
-            .drop(columns=['name'])
-            .merge(hosts[self.host_properties], left_on='adsorbent_name', right_on='name', how='left')
-            .drop(columns=['name'])
-            .dropna())
+        # Merge guests with inner join (must have matching guest)
+        merged_data = adsorption.merge(
+            guests[self.guest_properties], 
+            left_on='adsorbate_name', right_on='name', how='inner', 
+            suffixes=('', '_guest')).drop(columns=['name'])
         
-        return all_dataset_merge        
+        # Merge hosts with left join (keep all, even if no host match)
+        merged_data = merged_data.merge(
+            hosts[self.host_properties], left_on='adsorbent_name', right_on='name',
+            how='left', suffixes=('', '_host')).drop(columns=['name'])
+        
+        return merged_data       
         
     # aggregate plain dataset of adsorption measurements (source data) that has
     # been composed from the NIST database API requests
@@ -58,8 +62,8 @@ class DataSanitizer:
         self.T_TARGET_COL = 'temperature'
         self.adsorbate_col = 'adsorbate_name'
         self.adsorbent_col = 'adsorbent_name' 
-        self.max_pressure = configuration.get('max_pressure', 1000000)
-        self.max_uptake = configuration.get('max_uptake', 1000000)
+        self.max_pressure = configuration.get('max_pressure', 10000) * 1000
+        self.max_uptake = configuration.get('max_uptake', 20)
         self.configuration = configuration
         self.included_cols = [
             'temperature', 'pressure', 'adsorbed_amount', 
@@ -84,7 +88,6 @@ class DataSanitizer:
         filtered_q = []
         final_p = []
         final_q = []
-
         for p, q in zip(p_list, q_list):
             if 0.0 <= p <= self.max_pressure:
                 filtered_p.append(p)
@@ -99,7 +102,7 @@ class DataSanitizer:
                           self.Q_TARGET_COL: final_q})
     
     #--------------------------------------------------------------------------
-    def exclude_OOB_values(self, dataset):        
+    def exclude_OOB_values(self, dataset : pd.DataFrame):        
         dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
         filtered_series = dataset.apply(
             self.filter_elements_outside_boundaries, axis=1)
@@ -109,17 +112,17 @@ class DataSanitizer:
         return dataset  
     
     #--------------------------------------------------------------------------
-    def isolate_processed_features(self, dataset): 
+    def isolate_processed_features(self, dataset : pd.DataFrame):    
         return dataset[self.included_cols]
      
     #--------------------------------------------------------------------------
-    def convert_series_to_string(self, dataset):        
-        return dataset.applymap(
+    def convert_series_to_string(self, dataset : pd.DataFrame):        
+        return dataset.apply(
             lambda x: self.separator.join(map(str, x)) if isinstance(x, list) else x)
         
     #--------------------------------------------------------------------------
-    def convert_string_to_series(self, dataset):  
-        dataset = dataset.applymap(
+    def convert_string_to_series(self, dataset : pd.DataFrame):     
+        dataset = dataset.apply(
             lambda x : (
             [float(f) for f in x.split(self.separator) if self.is_convertible_to_float(f)]
             if isinstance(x, str) and self.separator in x else x) if pd.notna(x) else x)
@@ -141,14 +144,14 @@ class AdsorbentEncoder:
         self.mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}      
 
     #--------------------------------------------------------------------------
-    def encode_adsorbents_by_name(self, dataset):                  
+    def encode_adsorbents_by_name(self, dataset : pd.DataFrame):                     
         dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
                 self.mapping).fillna(self.unknown_class_index).astype(int)           
 
         return dataset
 
     #--------------------------------------------------------------------------
-    def encode_adsorbents_from_vocabulary(self, dataset, vocabulary: dict):              
+    def encode_adsorbents_from_vocabulary(self, dataset : pd.DataFrame, vocabulary: dict):              
         mapping = {label: idx for idx, label in vocabulary.items()}           
         dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
             vocabulary).fillna(self.unknown_class_index).astype(int)           
@@ -207,7 +210,7 @@ class FeatureNormalizer:
 ###############################################################################
 class TrainValidationSplit:
 
-    def __init__(self, configuration, dataset):
+    def __init__(self, configuration):
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
         self.adsorbate_col = 'adsorbate_name'
@@ -216,11 +219,7 @@ class TrainValidationSplit:
         # Set the sizes for the train and validation datasets        
         self.validation_size = configuration.get('validation_size', 0.2)
         self.seed = configuration.get('split_seed', 42)
-        self.train_size = 1.0 - self.validation_size
-        self.dataset = dataset  
-
-        self.splitter = StratifiedShuffleSplit(
-            n_splits=1, test_size=self.validation_size, random_state=self.seed)
+        self.train_size = 1.0 - self.validation_size        
 
     #--------------------------------------------------------------------------
     def remove_underpopulated_classes(self, dataset):        
@@ -233,13 +232,22 @@ class TrainValidationSplit:
         return dataset
             
     #--------------------------------------------------------------------------
-    def split_train_and_validation(self):   
-        dataset = self.remove_underpopulated_classes(self.dataset) 
-        combination_classes = dataset['combination']      
-        # Get the train and validation indices, returns a generator with a single split      
-        train_idx, valid_idx = next(self.splitter.split(dataset, combination_classes))        
-        # Select rows based on indices and drop the helper column
+    def split_train_and_validation(self, dataset : pd.DataFrame, stratified=True):   
+        dataset = self.remove_underpopulated_classes(dataset)
+        combination_classes = dataset['combination']
+        n_samples = len(dataset)
+
+        try:  
+            splitter = StratifiedShuffleSplit(
+                n_splits=1, test_size=self.validation_size, random_state=self.seed)
+            train_idx, valid_idx = next(splitter.split(dataset, combination_classes))            
+        except Exception as e:
+            logger.warning('Validation set too small for the number of classes. Falling back to default split')
+            # Fallback to simple random split, no stratification
+            train_idx, valid_idx = train_test_split(range(n_samples), test_size=self.validation_size,
+                random_state=self.seed, shuffle=True)
+
         train_data = dataset.iloc[train_idx].drop(columns=['combination'])
-        validation_data = dataset.iloc[valid_idx].drop(columns=['combination'])       
-        
+        validation_data = dataset.iloc[valid_idx].drop(columns=['combination'])
+
         return train_data, validation_data

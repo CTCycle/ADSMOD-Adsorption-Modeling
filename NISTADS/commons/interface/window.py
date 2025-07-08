@@ -63,10 +63,14 @@ class MainWindow:
             (QPushButton,'stopThread','stop_thread'),
             (QCheckBox,'deviceGPU','use_device_GPU'),
             # 1. dataset tab page  
-            # dataset evaluation group          
-            (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
-            (QPushButton,'evaluateDataset','evaluate_dataset'),
-            # dataset processing group
+            # dataset fetching group
+            (QDoubleSpinBox,'guestFraction','guest_fraction'),
+            (QDoubleSpinBox,'hostFraction','host_fraction'),
+            (QDoubleSpinBox,'expFraction','experiments_fraction'),
+            (QSpinBox,'parallelTasks','parallel_tasks'),  
+            (QPushButton,'collectAdsData','collect_adsorption_data'),  
+            (QPushButton,'retrieveChemProperties','retrieve_properties'),       
+            # dataset evaluation and processing group 
             (QSpinBox,'seed','general_seed'),
             (QSpinBox,'splitSeed','split_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'), 
@@ -76,14 +80,8 @@ class MainWindow:
             (QSpinBox,'maxPressure','max_pressure'),
             (QSpinBox,'maxUptake','max_uptake'), 
             (QPushButton,'buildMLDataset','build_ML_dataset'),  
-            # dataset fetching group
-            (QDoubleSpinBox,'guestFraction','guest_fraction'),
-            (QDoubleSpinBox,'hostFraction','host_fraction'),
-            (QDoubleSpinBox,'expFraction','experiments_fraction'),
-            (QSpinBox,'parallelTasks','parallel_tasks'),  
-            (QPushButton,'collectAdsData','collect_adsorption_data'),  
-            (QPushButton,'retrieveChemProperties','retrieve_properties'),        
-                      
+            (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
+            (QPushButton,'evaluateDataset','evaluate_dataset'),                         
             # 2. training tab page   
             # dataset settings group               
             (QCheckBox,'setShuffle','use_shuffle'),                     
@@ -100,23 +98,21 @@ class MainWindow:
             (QSpinBox,'numEpochs','epochs'),
             (QSpinBox,'batchSize','batch_size'),
             (QSpinBox,'trainSeed','train_seed'),
-            
-
+            # RL scheduler settings group
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'initialLearningRate','initial_LR'),
             (QDoubleSpinBox,'targetLearningRate','target_LR'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'), 
-
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
             (QCheckBox,'compileJIT','use_JIT_compiler'),   
-            (QComboBox,'backendJIT','jit_backend'),              
+            (QComboBox,'backendJIT','jit_backend'),    
+            # model settings group          
             (QSpinBox,'attentionHeads','num_attention_heads'), 
             (QSpinBox,'numEncoders','num_encoders'), 
             (QSpinBox,'molEmbeddingDims','molecular_embedding_size'),
-
-            (QSpinBox,'numAdditionalEpochs','additional_epochs'),
-                        
+            # session settings group  
+            (QSpinBox,'numAdditionalEpochs','additional_epochs'),                        
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
             # 3. model evaluation tab page
@@ -207,10 +203,9 @@ class MainWindow:
             ('host_fraction', 'valueChanged', 'host_fraction'),
             ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
             ('parallel_tasks', 'valueChanged', 'parallel_tasks'),    
-            # dataset evaluation group
+            # dataset evaluation and processing group
             ('general_seed', 'valueChanged', 'general_seed'),
-            ('sample_size', 'valueChanged', 'sample_size'),
-            #  dataset processing group
+            ('sample_size', 'valueChanged', 'sample_size'),           
             ('min_measurements', 'valueChanged', 'min_measurements'),
             ('max_measurements', 'valueChanged', 'max_measurements'),
             ('SMILE_sequence_size', 'valueChanged', 'SMILE_sequence_size'),
@@ -460,7 +455,7 @@ class MainWindow:
         self.configuration = self.config_manager.get_configuration() 
         self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
-        self._send_message("Calculating image dataset evaluation metrics...") 
+        self._send_message("Collecting adsorption isotherms and materials data from NIST-A database...") 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(
@@ -481,10 +476,11 @@ class MainWindow:
         self.configuration = self.config_manager.get_configuration() 
         self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
-        self._send_message("Calculating image dataset evaluation metrics...") 
+        self._send_message("Retrieving molecular properties from Pubchem API...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(self.dataset_handler.run_chemical_properties_pipeline)   
+        self.worker = ThreadWorker(
+            self.dataset_handler.run_chemical_properties_pipeline)   
 
         # start worker and inject signals
         self._start_thread_worker(
@@ -495,16 +491,13 @@ class MainWindow:
     #--------------------------------------------------------------------------        
     @Slot()
     def run_dataset_evaluation_pipeline(self):  
-        if not self.data_metrics:
+        if not self.data_metrics or self.worker:
             return 
-        
-        if self.worker:            
-            return         
         
         self.configuration = self.config_manager.get_configuration() 
         self.validation_handler = ValidationEvents(self.database, self.configuration)       
         # send message to status bar
-        self._send_message("Calculating image dataset evaluation metrics...") 
+        self._send_message("Evaluate adsorption isotherms and materials dataset...") 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(
@@ -526,7 +519,7 @@ class MainWindow:
         self.configuration = self.config_manager.get_configuration() 
         self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
-        self._send_message("Calculating image dataset evaluation metrics...") 
+        self._send_message('Building preprocessed machine learning dataset...') 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(self.dataset_handler.run_dataset_builder)   
@@ -599,8 +592,7 @@ class MainWindow:
         self.worker = ThreadWorker(
             self.validation_handler.run_model_evaluation_pipeline,
             self.selected_metrics['model'], 
-            self.selected_checkpoint, 
-            device)                
+            self.selected_checkpoint)                
         
         # start worker and inject signals
         self._start_thread_worker(

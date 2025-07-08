@@ -549,7 +549,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <attribute name="title">
         <string>Data</string>
        </attribute>
-       <layout class="QGridLayout" name="gridLayout_4">
+       <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
          <widget class="QGroupBox" name="datasetProcessGroup_2">
           <property name="title">
@@ -567,8 +567,11 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="guestFraction">
+               <property name="decimals">
+                <number>3</number>
+               </property>
                <property name="minimum">
-                <double>0.010000000000000</double>
+                <double>0.000000000000000</double>
                </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
@@ -594,8 +597,11 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="hostFraction">
+               <property name="decimals">
+                <number>3</number>
+               </property>
                <property name="minimum">
-                <double>0.010000000000000</double>
+                <double>0.000000000000000</double>
                </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
@@ -621,8 +627,11 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="expFraction">
+               <property name="decimals">
+                <number>3</number>
+               </property>
                <property name="minimum">
-                <double>0.010000000000000</double>
+                <double>0.000000000000000</double>
                </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
@@ -691,12 +700,12 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
           </layout>
          </widget>
         </item>
-        <item row="0" column="3">
-         <widget class="QGroupBox" name="datasetEvalGroup">
+        <item row="0" column="1">
+         <widget class="QGroupBox" name="datasetProcessGroup">
           <property name="title">
-           <string>Dataset evaluation</string>
+           <string>Dataset processing</string>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout_13">
+          <layout class="QVBoxLayout" name="verticalLayout_8">
            <item>
             <layout class="QHBoxLayout" name="seedLayout">
              <item>
@@ -749,50 +758,50 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </layout>
            </item>
            <item>
-            <widget class="QGroupBox" name="groupBox_5">
-             <property name="title">
-              <string>Selected metrics</string>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout">
-              <item>
-               <widget class="QCheckBox" name="adsIsothermCluster">
-                <property name="text">
-                 <string>Adsorption isotherm clustering</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <item>
+              <widget class="QLabel" name="label_2">
+               <property name="text">
+                <string>Validation size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="validationSize">
+               <property name="maximum">
+                <double>1.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.050000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.200000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item>
-            <widget class="QPushButton" name="evaluateDataset">
-             <property name="text">
-              <string>Evaluate dataset</string>
-             </property>
-            </widget>
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
+             <item>
+              <widget class="QLabel" name="label_4">
+               <property name="text">
+                <string>Split seed</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="splitSeed">
+               <property name="maximum">
+                <number>1000000000</number>
+               </property>
+               <property name="value">
+                <number>42</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
-           <item>
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Orientation::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>218</width>
-               <height>645</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="0" column="4">
-         <widget class="QGroupBox" name="datasetProcessGroup">
-          <property name="title">
-           <string>Dataset processing</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_8">
            <item>
             <layout class="QHBoxLayout" name="MPLayout">
              <item>
@@ -808,10 +817,10 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <number>1</number>
                </property>
                <property name="maximum">
-                <number>999</number>
+                <number>500</number>
                </property>
                <property name="value">
-                <number>20</number>
+                <number>30</number>
                </property>
               </widget>
              </item>
@@ -856,7 +865,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <number>1</number>
                </property>
                <property name="maximum">
-                <number>200</number>
+                <number>500</number>
                </property>
                <property name="value">
                 <number>20</number>
@@ -883,7 +892,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <number>100</number>
                </property>
                <property name="value">
-                <number>10</number>
+                <number>20</number>
                </property>
               </widget>
              </item>
@@ -894,23 +903,26 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              <item>
               <widget class="QLabel" name="MPreLabel">
                <property name="text">
-                <string>Max pressure (Pa)</string>
+                <string>Max pressure (kPa)</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QSpinBox" name="maxPressure">
+               <property name="showGroupSeparator" stdset="0">
+                <bool>true</bool>
+               </property>
                <property name="minimum">
                 <number>1</number>
                </property>
                <property name="maximum">
-                <number>100000000</number>
+                <number>1000000</number>
                </property>
                <property name="singleStep">
-                <number>1000</number>
+                <number>100</number>
                </property>
                <property name="value">
-                <number>1000000</number>
+                <number>10000</number>
                </property>
                <property name="displayIntegerBase">
                 <number>10</number>
@@ -920,30 +932,32 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </layout>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
-             <item>
-              <widget class="QLabel" name="label_4">
-               <property name="text">
-                <string>Split seed</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QSpinBox" name="splitSeed">
-               <property name="maximum">
-                <number>1000000000</number>
-               </property>
-               <property name="value">
-                <number>42</number>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
             <widget class="QPushButton" name="buildMLDataset">
              <property name="text">
               <string>Build training dataset</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="groupBox_5">
+             <property name="title">
+              <string>Selected metrics</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <item>
+               <widget class="QCheckBox" name="adsIsothermCluster">
+                <property name="text">
+                 <string>Adsorption isotherm clustering</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="evaluateDataset">
+             <property name="text">
+              <string>Evaluate dataset</string>
              </property>
             </widget>
            </item>
@@ -985,30 +999,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               <bool>true</bool>
              </property>
             </widget>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
-             <item>
-              <widget class="QLabel" name="label_2">
-               <property name="text">
-                <string>Validation size</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QDoubleSpinBox" name="validationSize">
-               <property name="maximum">
-                <double>1.000000000000000</double>
-               </property>
-               <property name="singleStep">
-                <double>0.050000000000000</double>
-               </property>
-               <property name="value">
-                <double>0.200000000000000</double>
-               </property>
-              </widget>
-             </item>
-            </layout>
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_19">
