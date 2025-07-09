@@ -6,8 +6,8 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from NISTADS.commons.interface.window import MainWindow
-from NISTADS.commons.constants import UI_PATH
+from NISTADS.app.src.commons.interface.window import MainWindow
+from NISTADS.app.src.commons.constants import UI_PATH
 
 
 # [RUN MAIN]
