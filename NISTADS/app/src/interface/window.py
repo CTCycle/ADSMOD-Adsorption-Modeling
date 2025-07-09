@@ -55,9 +55,7 @@ class MainWindow:
         self._set_states()
         self.widgets = {}
         self._setup_configuration([ 
-            # out of tab widgets
-            (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
-            (QComboBox,'checkpointsList','checkpoints_list'),
+            # out of tab widgets            
             (QProgressBar,'progressBar','progress_bar'),      
             (QPushButton,'stopThread','stop_thread'),
             (QCheckBox,'deviceGPU','use_device_GPU'),
@@ -114,17 +112,17 @@ class MainWindow:
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                        
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
-            # 3. model evaluation tab page
-            (QSpinBox,'evalSamples','num_evaluation_samples'), 
-            (QSpinBox,'evalBatchSize','eval_batch_size'),     
+            # 3. model inference and evaluation tab page
+            (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
+            (QComboBox,'checkpointsList','checkpoints_list'),
+            (QSpinBox,'evalSamples','num_evaluation_samples'),              
             (QPushButton,'evaluateModel','model_evaluation'),           
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),
-            # 4. inference tab page 
+            (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),            
             (QSpinBox,'inferenceBatchSize','inference_batch_size'), 
             (QPushButton,'predictAdsorption','predict_adsorption'),          
-            # 5. Viewer tab            
+            # 4. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
             (QPushButton,'nextImg','next_image'),
             (QPushButton,'clearImg','clear_images'),
@@ -132,9 +130,7 @@ class MainWindow:
             (QRadioButton,'viewEvalPlots','model_plots_view')                       
             ])
         
-        self._connect_signals([  
-            ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
-            ('refresh_checkpoints','clicked',self.load_checkpoints),
+        self._connect_signals([
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page            
             ('experiments_clustering','toggled',self._update_metrics),
@@ -145,15 +141,15 @@ class MainWindow:
             # 2. training tab page               
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
-            # 3. model evaluation tab page            
+            # 3. model inference and evaluation tab page  
+            ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
+            ('refresh_checkpoints','clicked',self.load_checkpoints),          
             ('get_evaluation_report','toggled',self._update_metrics), 
             ('get_prediction_quality','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
-            ('checkpoints_summary','clicked',self.get_checkpoints_summary),                  
-           
-            # 4. inference tab page  
+            ('checkpoints_summary','clicked',self.get_checkpoints_summary),              
             ('predict_adsorption','clicked',self.predict_adsorption_isotherms),            
-            # 5. viewer tab page 
+            # 4. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
             ('model_plots_view', 'toggled', self._update_graphics_view),           
             ('previous_image', 'clicked', self.show_previous_figure),
@@ -238,12 +234,9 @@ class MainWindow:
             ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
             # session settings group
             ('additional_epochs', 'valueChanged', 'additional_epochs'),
-            # 3. model evaluation tab page                    
-            ('eval_batch_size', 'valueChanged', 'eval_batch_size'),
-            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),    
-             
-            # 4. inference tab page           
-            ('inference_batch_size', 'valueChanged', 'inference_batch_size'),                       
+            # 3. model inference and evaluation tab page                    
+            ('inference_batch_size', 'valueChanged', 'inference_batch_size'),
+            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),                                 
             ]  
 
         self.data_metrics = [
