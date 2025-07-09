@@ -660,9 +660,16 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="retrieveChemProperties">
+            <widget class="QPushButton" name="retrieveGuestProperties">
              <property name="text">
-              <string>Retrieve chemical properties</string>
+              <string>Retrieve sorbates chemical properties</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="retrieveHostProperties">
+             <property name="text">
+              <string>Retrieve adsorbents chemical propertis</string>
              </property>
             </widget>
            </item>
@@ -834,7 +841,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                <item>
                 <widget class="QSpinBox" name="maxPoints">
                  <property name="minimum">
-                  <number>1</number>
+                  <number>2</number>
                  </property>
                  <property name="maximum">
                   <number>500</number>
@@ -904,15 +911,21 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="maxUptake">
+                <widget class="QDoubleSpinBox" name="maxUptake">
+                 <property name="decimals">
+                  <number>3</number>
+                 </property>
                  <property name="minimum">
-                  <number>0</number>
+                  <double>0.001000000000000</double>
                  </property>
                  <property name="maximum">
-                  <number>100</number>
+                  <double>100.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.100000000000000</double>
                  </property>
                  <property name="value">
-                  <number>20</number>
+                  <double>20.000000000000000</double>
                  </property>
                 </widget>
                </item>
@@ -1001,13 +1014,13 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <number>1</number>
                </property>
                <property name="maximum">
-                <number>99999</number>
+                <number>10000</number>
                </property>
                <property name="singleStep">
                 <number>10</number>
                </property>
                <property name="value">
-                <number>1024</number>
+                <number>256</number>
                </property>
               </widget>
              </item>
@@ -1053,13 +1066,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </widget>
            </item>
            <item>
-            <widget class="QCheckBox" name="saveCheckpoints">
-             <property name="text">
-              <string>Save checkpoints</string>
-             </property>
-            </widget>
-           </item>
-           <item>
             <layout class="QHBoxLayout" name="horizontalLayout_22">
              <item>
               <widget class="QLabel" name="label_18">
@@ -1091,6 +1097,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QSpinBox" name="numEpochs">
+               <property name="minimum">
+                <number>1</number>
+               </property>
                <property name="maximum">
                 <number>1000000</number>
                </property>
@@ -1126,9 +1135,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </layout>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_12">
+            <layout class="QHBoxLayout" name="horizontalLayout_20">
              <item>
-              <widget class="QLabel" name="label_9">
+              <widget class="QCheckBox" name="saveCheckpoints">
                <property name="text">
                 <string>Save checkpoint every N epochs</string>
                </property>
@@ -1140,7 +1149,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <number>1</number>
                </property>
                <property name="maximum">
-                <number>999</number>
+                <number>1000</number>
                </property>
               </widget>
              </item>

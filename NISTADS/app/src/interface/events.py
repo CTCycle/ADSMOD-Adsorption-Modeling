@@ -9,6 +9,7 @@ from NISTADS.app.src.utils.data.API import AdsorptionDataFetch, GuestHostDataFet
 from NISTADS.app.src.utils.data.properties import MolecularProperties
 from NISTADS.app.src.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
 from NISTADS.app.src.utils.process.conversion import PQ_units_conversion
+from NISTADS.app.src.utils.learning.device import DeviceConfig
 from NISTADS.app.src.utils.learning.training.fitting import ModelTraining
 from NISTADS.app.src.utils.learning.models.qmodel import SCADSModel
 from NISTADS.app.src.utils.validation.checkpoints import ModelEvaluationSummary
@@ -19,8 +20,6 @@ from NISTADS.app.src.utils.process.sanitizer import (DataSanitizer, AggregateDat
                                                      AdsorbentEncoder) 
 
 from NISTADS.app.src.interface.workers import check_thread_status, update_progress_callback
-
-
 from NISTADS.app.src.logger import logger
 
 
@@ -117,26 +116,28 @@ class DatasetEvents:
         logger.info('Materials data collection is concluded')
 
     #--------------------------------------------------------------------------
-    def run_chemical_properties_pipeline(self, progress_callback=None, worker=None):         
+    def run_chemical_properties_pipeline(self, guest_as_target=True, progress_callback=None, worker=None):         
         serializer = DataSerializer(self.database, self.configuration)
-        experiments, guest_data, host_data = serializer.load_adsorption_datasets()         
-           
+        experiments, guest_data, host_data = serializer.load_adsorption_datasets()           
         properties = MolecularProperties(self.configuration)  
-        # process guest (adsorbed species) data by adding molecular properties
-        logger.info('Retrieving molecular properties for sorbate species using PubChem API')
-        guest_data = properties.fetch_guest_properties(
-            experiments, guest_data, worker=worker, progress_callback=progress_callback) 
-        # save the final version of the materials dataset    
-        serializer.save_materials_datasets(guest_data=guest_data)
-        logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
 
-        # process host (adsorbent materials) data by adding molecular properties   
-        logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
-        host_data = properties.fetch_host_properties(
-            experiments, host_data, worker=worker, progress_callback=progress_callback) 
-        # save the final version of the materials dataset    
-        serializer.save_materials_datasets(host_data=host_data)  
-        logger.info(f'Host properties updated in the database ({host_data.shape[0]} records)')    
+        if guest_as_target:
+            # process guest (adsorbed species) data by adding molecular properties
+            logger.info('Retrieving molecular properties for sorbate species using PubChem API')
+            guest_data = properties.fetch_guest_properties(
+                experiments, guest_data, worker=worker, progress_callback=progress_callback) 
+            # save the final version of the materials dataset    
+            serializer.save_materials_datasets(guest_data=guest_data)
+            logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
+
+        else:
+            # process host (adsorbent materials) data by adding molecular properties   
+            logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
+            host_data = properties.fetch_host_properties(
+                experiments, host_data, worker=worker, progress_callback=progress_callback) 
+            # save the final version of the materials dataset    
+            serializer.save_materials_datasets(host_data=host_data)  
+            logger.info(f'Host properties updated in the database ({host_data.shape[0]} records)')    
     
     #--------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):
@@ -239,7 +240,10 @@ class DatasetEvents:
         
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(7, 7, progress_callback)    
+        update_progress_callback(7, 7, progress_callback) 
+
+        logger.info(f'Train dataset with {train_data.shape[0]} records has been saved')  
+        logger.info(f'Validation dataset with {validation_data.shape[0]} records has been saved')    
 
 
 ###############################################################################
@@ -332,7 +336,7 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
         dataserializer = DataSerializer(self.database, self.configuration)        
-        train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data() 
+        train_data, val_data, metadata, _ = dataserializer.load_train_and_validation_data() 
 
         logger.info('Building model data loaders with prefetching and parallel processing')   
         builder = TrainingDataLoader(self.configuration)   
@@ -345,13 +349,13 @@ class ModelEvents:
         modser = ModelSerializer()
         checkpoint_path = modser.create_checkpoint_folder()        
          
-        # set device for training operations based on user configuration        
-        logger.info('Setting device for training operations based on user configuration') 
-        trainer = ModelTraining(self.configuration)           
-        trainer.set_device() 
+        # set device for training operations
+        logger.info('Setting device for training operations')                
+        device = DeviceConfig(self.configuration)   
+        device.set_device() 
        
         # Setting callbacks and training routine for the machine learning model           
-        logger.info('Building SCADS model based on user configuration')  
+        logger.info('Building SCADS model')  
         wrapper = SCADSModel(metadata, self.configuration)
         model = wrapper.get_model(model_summary=True) 
 
@@ -362,8 +366,11 @@ class ModelEvents:
         check_thread_status(worker)           
 
         # perform training and save model at the end
-        trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
-                            progress_callback=progress_callback, worker=worker)
+        logger.info('Starting SCADS model training') 
+        trainer = ModelTraining(self.configuration) 
+        trainer.train_model(
+            model, train_dataset, validation_dataset, checkpoint_path,
+            progress_callback=progress_callback, worker=worker)
         
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, 

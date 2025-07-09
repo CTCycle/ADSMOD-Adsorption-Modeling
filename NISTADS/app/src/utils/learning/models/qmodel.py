@@ -1,4 +1,4 @@
-import torch
+from torch import compile as torch_compile
 from keras import layers, Model, optimizers
 
 from NISTADS.app.src.utils.learning.training.scheduler import LinearDecayLRScheduler
@@ -15,22 +15,16 @@ class SCADSModel:
     def __init__(self, metadata, configuration):
         self.smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
         self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
-        self.seed = configuration["SEED"]
-        self.smile_length = metadata["dataset"]["SMILE_PADDING"]
-        self.series_length = metadata["dataset"]["MAX_PQ_POINTS"]       
-        self.embedding_dims = configuration["model"]["MOLECULAR_EMBEDDING"]
-        self.num_heads = configuration["model"]["ATTENTION_HEADS"]   
-        self.num_encoders = configuration["model"]["NUM_ENCODERS"]            
-        self.jit_compile = configuration["model"]["JIT_COMPILE"]
-        self.jit_backend = configuration["model"]["JIT_BACKEND"]
-
-        self.scheduler_config = configuration["training"]["LR_SCHEDULER"] 
-        self.initial_lr = self.scheduler_config["INITIAL_LR"]
-        self.constant_lr_steps = self.scheduler_config["CONSTANT_STEPS"]       
-        self.decay_steps = self.scheduler_config["DECAY_STEPS"]   
-        self.final_lr = self.scheduler_config["FINAL_LR"]         
-        self.configuration = configuration 
-        
+        self.smile_length = metadata.get('SMILE_sequence_size', 20)
+        self.series_length = metadata.get('max_measurements', 30)
+        self.seed = configuration.get('train_seed', 42)
+        self.embedding_dims = configuration.get('molecular_embedding_size', 64)
+        self.num_heads = configuration.get('num_attention_heads', 2)
+        self.num_encoders = configuration.get('num_encoders', 2)
+        self.jit_compile = configuration.get('jit_compile', False)
+        self.jit_backend = configuration.get('jit_backend', 'inductor')        
+        self.configuration = configuration       
+   
         self.state_encoder = StateEncoder(0.2, seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
             self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, 
@@ -46,7 +40,30 @@ class SCADSModel:
         self.chemo_input = layers.Input(shape=(), name='chemo_input')
         self.adsorbents_input = layers.Input(shape=(), name='adsorbent_input')
         self.adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
-        self.pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')    
+        self.pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')
+
+    #--------------------------------------------------------------------------
+    def compile_model(self, model : Model, model_summary=True):
+        initial_LR = self.configuration.get('initial_RL', 0.001)
+        LR_schedule = initial_LR        
+        if self.configuration.get('use_scheduler', False):          
+            constant_lr_steps = self.configuration.get('constant_steps', 1000)   
+            decay_steps = self.configuration.get('decay_steps', 500)  
+            final_LR = self.configuration.get('final_LR', 0.0001)          
+            LR_schedule = LinearDecayLRScheduler(
+                initial_LR, constant_lr_steps, decay_steps, final_LR)  
+        
+        opt = optimizers.AdamW(learning_rate=LR_schedule)  
+        loss = MaskedMeanSquaredError()  
+        metric = [MaskedRSquared()]                
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)            
+        # print model summary on console and run torch.compile 
+        # with triton compiler and selected backend
+        model.summary(expand_nested=True) if model_summary else None
+        if self.jit_compile:
+            model = torch_compile(model, backend=self.jit_backend, mode='default')
+
+        return model     
 
     # build model given the architecture
     #--------------------------------------------------------------------------
@@ -76,27 +93,11 @@ class SCADSModel:
         output = self.Qdecoder(encoded_pressure, self.pressure_input, encoded_states)        
 
         # wrap the model and compile it with Adam optimizer
-        model = Model(inputs=[self.state_input, self.chemo_input, self.adsorbents_input, self.adsorbates_input, 
-                      self.pressure_input], outputs=output, name='SCADS_model')       
-        
-        lr_schedule = LinearDecayLRScheduler(
-            self.initial_lr, self.constant_lr_steps, self.decay_steps, self.final_lr)
-        opt = optimizers.AdamW(learning_rate=lr_schedule)  
-        loss = MaskedMeanSquaredError()  
-        metric = [MaskedRSquared()]                
-        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
-
-        if model_summary:
-            model.summary(expand_nested=True)
-    
-        if self.jit_compile:
-            model = torch.compile(model, backend=self.jit_backend, mode='default')
-
+        model = Model(inputs=[self.state_input, self.chemo_input, 
+                              self.adsorbents_input, self.adsorbates_input, 
+                              self.pressure_input], outputs=output, name='SCADS_model')
+        model = self.compile_model(model, model_summary=model_summary)  
+             
         return model 
     
         
-
-        
-    
-
-                 

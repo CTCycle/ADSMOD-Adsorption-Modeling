@@ -66,7 +66,8 @@ class MainWindow:
             (QDoubleSpinBox,'expFraction','experiments_fraction'),
             (QSpinBox,'parallelTasks','parallel_tasks'),  
             (QPushButton,'collectAdsData','collect_adsorption_data'),  
-            (QPushButton,'retrieveChemProperties','retrieve_properties'),       
+            (QPushButton,'retrieveGuestProperties','retrieve_guest_properties'),  
+            (QPushButton,'retrieveHostProperties','retrieve_host_properties'),         
             # dataset evaluation and processing group 
             (QSpinBox,'seed','general_seed'),
             (QSpinBox,'splitSeed','split_seed'),
@@ -75,7 +76,7 @@ class MainWindow:
             (QSpinBox,'minPoints','min_measurements'),
             (QSpinBox,'smileSeqSize','SMILE_sequence_size'),
             (QSpinBox,'maxPressure','max_pressure'),
-            (QSpinBox,'maxUptake','max_uptake'), 
+            (QDoubleSpinBox,'maxUptake','max_uptake'), 
             (QPushButton,'buildMLDataset','build_ML_dataset'),  
             (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
             (QPushButton,'evaluateDataset','evaluate_dataset'),                         
@@ -100,11 +101,11 @@ class MainWindow:
             (QDoubleSpinBox,'initialLearningRate','initial_LR'),
             (QDoubleSpinBox,'targetLearningRate','target_LR'),            
             (QSpinBox,'constantSteps','constant_steps'),
-            (QSpinBox,'decaySteps','decay_steps'), 
+            (QSpinBox,'decaySteps','decay_steps'),              
+            # model settings group     
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
             (QCheckBox,'compileJIT','use_JIT_compiler'),   
-            (QComboBox,'backendJIT','jit_backend'),    
-            # model settings group          
+            (QComboBox,'backendJIT','jit_backend'),        
             (QSpinBox,'attentionHeads','num_attention_heads'), 
             (QSpinBox,'numEncoders','num_encoders'), 
             (QSpinBox,'molEmbeddingDims','molecular_embedding_size'),
@@ -136,7 +137,8 @@ class MainWindow:
             ('experiments_clustering','toggled',self._update_metrics),
             ('evaluate_dataset','clicked',self.run_dataset_evaluation_pipeline),  
             ('collect_adsorption_data','clicked',self.collect_data_from_NIST),  
-            ('retrieve_properties','clicked',self.retrieve_properties_from_PUBCHEM),           
+            ('retrieve_guest_properties','clicked',self.retrieve_guest_properties_from_PUBCHEM), 
+            ('retrieve_host_properties','clicked',self.retrieve_host_properties_from_PUBCHEM),          
             ('build_ML_dataset','clicked',self.run_dataset_builder),
             # 2. training tab page               
             ('start_training','clicked',self.train_from_scratch),
@@ -229,6 +231,9 @@ class MainWindow:
             ('constant_steps', 'valueChanged', 'constant_steps'),          
             ('decay_steps', 'valueChanged', 'decay_steps'), 
             # model settings group
+            ('use_mixed_precision', 'toggled', 'mixed_precision'),
+            ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
+            ('jit_backend', 'currentTextChanged', 'jit_backend'),
             ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
             ('num_encoders', 'valueChanged', 'num_encoders'),            
             ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
@@ -461,7 +466,7 @@ class MainWindow:
         
     #--------------------------------------------------------------------------        
     @Slot()
-    def retrieve_properties_from_PUBCHEM(self): 
+    def retrieve_guest_properties_from_PUBCHEM(self): 
         if self.worker:            
             return         
         
@@ -478,7 +483,29 @@ class MainWindow:
         self._start_thread_worker(
             self.worker, on_finished=self.on_data_success,
             on_error=self.on_error,
-            on_interrupted=self.on_task_interrupted)  
+            on_interrupted=self.on_task_interrupted) 
+
+    #--------------------------------------------------------------------------        
+    @Slot()
+    def retrieve_host_properties_from_PUBCHEM(self): 
+        if self.worker:            
+            return         
+        
+        self.configuration = self.config_manager.get_configuration() 
+        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
+        # send message to status bar
+        self._send_message("Retrieving molecular properties from Pubchem API...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = ThreadWorker(
+            self.dataset_handler.run_chemical_properties_pipeline,
+            guest_as_target=False)   
+
+        # start worker and inject signals
+        self._start_thread_worker(
+            self.worker, on_finished=self.on_data_success,
+            on_error=self.on_error,
+            on_interrupted=self.on_task_interrupted) 
         
     #--------------------------------------------------------------------------        
     @Slot()
@@ -536,10 +563,10 @@ class MainWindow:
         # send message to status bar
         self._send_message("Training SCADS using a new model instance...")        
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(self.model_handler.run_training_pipeline)                            
+        self.worker = ProcessWorker(self.model_handler.run_training_pipeline)                            
        
         # start worker and inject signals
-        self._start_thread_worker(
+        self._start_process_worker(
             self.worker, on_finished=self.on_train_finished,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
@@ -556,12 +583,12 @@ class MainWindow:
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(
+        self.worker = ProcessWorker(
             self.model_handler.resume_training_pipeline,
             self.selected_checkpoint)   
 
         # start worker and inject signals
-        self._start_thread_worker(
+        self._start_process_worker(
             self.worker, on_finished=self.on_train_finished,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)

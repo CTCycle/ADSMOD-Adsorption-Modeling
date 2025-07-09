@@ -4,7 +4,6 @@ import pandas as pd
 import pubchempy as pcp
 from tqdm import tqdm
 
-
 from NISTADS.app.src.interface.workers import check_thread_status, update_progress_callback
 from NISTADS.app.src.constants import DATA_PATH
 from NISTADS.app.src.logger import logger
@@ -132,7 +131,7 @@ class GuestProperties:
         self.properties['adsorbate_molecular_formula'].append(
             features.get('molecular_formula', np.nan))
         self.properties['adsorbate_SMILE'].append(
-            features.get('canonical_smiles', np.nan))
+            features.get('canonical_smile', np.nan))
     
 
 # [DATASET OPERATIONS]

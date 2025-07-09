@@ -12,10 +12,10 @@ class Configuration:
             'experiments_fraction': 1.0,
             'parallel_tasks': 20,
             'min_measurements': 1,
-            'max_measurements': 20,
+            'max_measurements': 30,
             'SMILE_sequence_size': 20,
-            'max_pressure': 1,
-            'max_uptake': 20,
+            'max_pressure': 10000,
+            'max_uptake': 20.0,
             'shuffle_dataset': True,
             'shuffle_size': 256,
 

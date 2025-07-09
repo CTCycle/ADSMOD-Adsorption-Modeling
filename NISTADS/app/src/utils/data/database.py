@@ -10,7 +10,7 @@ from NISTADS.app.src.logger import logger
 class SingleComponentAdsorptionTable:
 
     def __init__(self):
-        self.name = 'SINGLE_COMPONENT_ADSORPTION'
+        self.name = 'SINGLE_COMPONENT_ADSORPTION'       
         self.dtypes = {            
             'filename': 'VARCHAR',
             'temperature': 'FLOAT',
@@ -21,6 +21,8 @@ class SingleComponentAdsorptionTable:
             'pressure': 'FLOAT',
             'adsorbed_amount': 'FLOAT',
             'composition': 'FLOAT'}
+        self.unique_cols = ['filename', 'temperature', 
+                            'adsorbent_name', 'adsorbate_name']
 
     #--------------------------------------------------------------------------
     def get_dtypes(self):
@@ -38,10 +40,10 @@ class SingleComponentAdsorptionTable:
             adsorbate_name VARCHAR,
             pressure FLOAT,
             adsorbed_amount FLOAT,
-            composition FLOAT            
+            composition FLOAT,
+            UNIQUE(filename, temperature, adsorbent_name, adsorbate_name)
         );
-        '''          
-      
+        '''
         cursor.execute(query)
 
 
@@ -56,7 +58,7 @@ class BinaryMixtureAdsorptionTable:
             'adsorptionUnits': 'VARCHAR',
             'pressureUnits': 'VARCHAR',
             'adsorbent_name': 'VARCHAR',
-            'compount_1': 'VARCHAR',
+            'compound_1': 'VARCHAR',
             'compound_2': 'VARCHAR',
             'compound_1_composition': 'FLOAT',
             'compound_2_composition': 'FLOAT',
@@ -64,6 +66,9 @@ class BinaryMixtureAdsorptionTable:
             'compound_2_pressure': 'FLOAT',
             'compound_1_adsorption': 'FLOAT',
             'compound_2_adsorption': 'FLOAT'}
+        
+        self.unique_cols = ['filename', 'temperature', 'adsorbent_name', 
+                            'compound_1', 'compound_2']
 
     #--------------------------------------------------------------------------
     def get_dtypes(self):
@@ -78,19 +83,20 @@ class BinaryMixtureAdsorptionTable:
             adsorptionUnits VARCHAR,
             pressureUnits VARCHAR,
             adsorbent_name VARCHAR,
-            compount_1 VARCHAR,
+            compound_1 VARCHAR,
             compound_2 VARCHAR,
             compound_1_composition FLOAT,
             compound_2_composition FLOAT,
             compound_1_pressure FLOAT,
             compound_2_pressure FLOAT,
             compound_1_adsorption FLOAT,
-            compound_2_adsorption FLOAT            
+            compound_2_adsorption FLOAT,
+            UNIQUE(filename, temperature, adsorbent_name, compound_1, compound_2)
         );
         '''
         cursor.execute(query)
-    
-    
+        
+        
 ###############################################################################
 class AdsorbatesDataTable:
 
@@ -105,6 +111,8 @@ class AdsorbatesDataTable:
             'adsorbate_molecular_weight': 'FLOAT',
             'adsorbate_molecular_formula': 'VARCHAR',
             'adsorbate_SMILE': 'VARCHAR'}
+        
+        self.unique_cols = ['InChIKey', 'name', 'InChICode']
 
     #--------------------------------------------------------------------------
     def get_dtypes(self):
@@ -121,10 +129,11 @@ class AdsorbatesDataTable:
             synonyms VARCHAR,
             adsorbate_molecular_weight FLOAT,
             adsorbate_molecular_formula VARCHAR,
-            adsorbate_SMILE VARCHAR            
+            adsorbate_SMILE VARCHAR,
+            UNIQUE(InChIKey, name, InChICode)
         );
         '''
-        cursor.execute(query) 
+        cursor.execute(query)
 
     
 ###############################################################################
@@ -141,6 +150,8 @@ class AdsorbentsDataTable:
             'adsorbent_molecular_weight': 'FLOAT',
             'adsorbent_molecular_formula': 'VARCHAR',
             'adsorbent_SMILE': 'VARCHAR'}
+        
+        self.unique_cols = ['name', 'hashkey']
 
     #--------------------------------------------------------------------------
     def get_dtypes(self):
@@ -154,10 +165,11 @@ class AdsorbentsDataTable:
             hashkey VARCHAR,
             formula VARCHAR,
             synonyms VARCHAR,
-            External_Resources VARCHAR
+            External_Resources VARCHAR,
             adsorbent_molecular_weight FLOAT,
             adsorbent_molecular_formula VARCHAR,
-            adsorbent_SMILE VARCHAR     
+            adsorbent_SMILE VARCHAR,
+            UNIQUE(name, hashkey)
         );
         '''
         cursor.execute(query)
@@ -292,7 +304,9 @@ class CheckpointSummaryTable:
             'use_tensorboard': 'VARCHAR',
             'lr_scheduler_initial_lr': 'FLOAT',
             'lr_scheduler_constant_steps': 'FLOAT',
-            'lr_scheduler_decay_steps': 'FLOAT'}    
+            'lr_scheduler_decay_steps': 'FLOAT'} 
+
+        self.unique_cols = ['checkpoint_name']   
 
     #--------------------------------------------------------------------------
     def get_dtypes(self):
@@ -323,7 +337,8 @@ class CheckpointSummaryTable:
             use_tensorboard VARCHAR,
             lr_scheduler_initial_lr FLOAT,
             lr_scheduler_constant_steps FLOAT,
-            lr_scheduler_decay_steps FLOAT
+            lr_scheduler_decay_steps FLOAT,
+            UNIQUE(checkpoint_name)
             );
             ''' 
          
@@ -334,11 +349,7 @@ class CheckpointSummaryTable:
 ###############################################################################
 class AdsorptionDatabase:
 
-    def __init__(self, configuration):             
-        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')   
-        self.inference_path = os.path.join(
-            INFERENCE_PATH, 'inference_adsorption_data.csv')     
-        self.configuration = configuration 
+    def __init__(self, configuration): 
         self.single_component = SingleComponentAdsorptionTable()
         self.binary_mixture = BinaryMixtureAdsorptionTable()
         self.adsorbates = AdsorbatesDataTable()
@@ -346,7 +357,10 @@ class AdsorptionDatabase:
         self.train_data = TrainDataTable()
         self.validation_data = ValidationDataTable()
         self.inference_data = PredictedAdsorptionTable()       
-        self.checkpoints_summary = CheckpointSummaryTable()    
+        self.checkpoints_summary = CheckpointSummaryTable()
+
+        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db') 
+        self.configuration = configuration  
         
     #--------------------------------------------------------------------------       
     def initialize_database(self): 
@@ -365,8 +379,9 @@ class AdsorptionDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def update_database(self):               
-        dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
+    def update_database(self): 
+        inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')                   
+        dataset = pd.read_csv(inference_path, sep=';', encoding='utf-8')        
         self.save_predictions_table(dataset)
        
     #--------------------------------------------------------------------------
@@ -401,11 +416,10 @@ class AdsorptionDatabase:
         conn.commit()
         conn.close() 
 
-        return data      
+        return data     
 
     #--------------------------------------------------------------------------
-    def save_experiments_table(self, single_components,
-                               binary_mixture):        
+    def save_experiments_table(self, single_components : pd.DataFrame, binary_mixture: pd.DataFrame):        
         conn = sqlite3.connect(self.db_path)         
         single_components.to_sql(
             self.single_component.name, conn, if_exists='replace', index=False,
@@ -417,7 +431,7 @@ class AdsorptionDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_materials_table(self, adsorbates, adsorbents):    
+    def save_materials_table(self, adsorbates : pd.DataFrame, adsorbents : pd.DataFrame,):    
         conn = sqlite3.connect(self.db_path)
         if adsorbates is not None:         
             adsorbates.to_sql(
@@ -431,7 +445,7 @@ class AdsorptionDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_tables(self, train_data, validation_data):         
+    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         train_data.to_sql(
             self.train_data.name, conn, if_exists='replace', index=False,
@@ -443,7 +457,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_predictions_table(self, data):      
+    def save_predictions_table(self, data : pd.DataFrame):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.inference_data.name, conn, if_exists='replace', index=False,
@@ -452,7 +466,7 @@ class AdsorptionDatabase:
         conn.close()  
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary_table(self, data):         
+    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.checkpoints_summary.name, conn, if_exists='replace', index=False,
