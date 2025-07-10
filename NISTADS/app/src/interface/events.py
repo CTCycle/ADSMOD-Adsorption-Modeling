@@ -368,7 +368,7 @@ class ModelEvents:
         logger.info('Starting SCADS model training') 
         trainer = ModelTraining(self.configuration) 
         trainer.train_model(
-            model, train_dataset, validation_dataset, checkpoint_path,
+            model, train_dataset, validation_dataset, metadata, checkpoint_path,
             progress_callback=progress_callback, worker=worker)
         
     #--------------------------------------------------------------------------

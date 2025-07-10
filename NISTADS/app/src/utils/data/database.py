@@ -1,348 +1,150 @@
 import os
-import sqlite3
 import pandas as pd
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
+from sqlalchemy.dialects.sqlite import insert
+
 
 from NISTADS.app.src.constants import DATA_PATH, INFERENCE_PATH
 from NISTADS.app.src.logger import logger
 
+Base = declarative_base()
 
 ###############################################################################
-class SingleComponentAdsorptionTable:
-
-    def __init__(self):
-        self.name = 'SINGLE_COMPONENT_ADSORPTION'       
-        self.dtypes = {            
-            'filename': 'VARCHAR',
-            'temperature': 'FLOAT',
-            'adsorptionUnits': 'VARCHAR',
-            'pressureUnits': 'VARCHAR',
-            'adsorbent_name': 'VARCHAR',
-            'adsorbate_name': 'VARCHAR',
-            'pressure': 'FLOAT',
-            'adsorbed_amount': 'FLOAT',
-            'composition': 'FLOAT'}
-        self.unique_cols = ['filename', 'temperature', 
-                            'adsorbent_name', 'adsorbate_name']
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
-    
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            filename VARCHAR,
-            temperature FLOAT,
-            adsorptionUnits VARCHAR,
-            pressureUnits VARCHAR,
-            adsorbent_name VARCHAR,
-            adsorbate_name VARCHAR,
-            pressure FLOAT,
-            adsorbed_amount FLOAT,
-            composition FLOAT,
-            UNIQUE(filename, temperature, adsorbent_name, adsorbate_name)
-        );
-        '''
-        cursor.execute(query)
+class SingleComponentAdsorption(Base):
+    __tablename__ = 'SINGLE_COMPONENT_ADSORPTION'
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float, primary_key=True)
+    adsorptionUnits = Column(String)
+    pressureUnits = Column(String)
+    adsorbent_name = Column(String, primary_key=True)
+    adsorbate_name = Column(String, primary_key=True)
+    pressure = Column(Float)
+    adsorbed_amount = Column(Float)
+    composition = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 'adsorbate_name'),
+    )
 
 
 ###############################################################################
-class BinaryMixtureAdsorptionTable:
-
-    def __init__(self):
-        self.name = 'BINARY_MIXTURE_ADSORPTION'
-        self.dtypes = {            
-            'filename': 'VARCHAR',
-            'temperature': 'FLOAT',
-            'adsorptionUnits': 'VARCHAR',
-            'pressureUnits': 'VARCHAR',
-            'adsorbent_name': 'VARCHAR',
-            'compound_1': 'VARCHAR',
-            'compound_2': 'VARCHAR',
-            'compound_1_composition': 'FLOAT',
-            'compound_2_composition': 'FLOAT',
-            'compound_1_pressure': 'FLOAT',
-            'compound_2_pressure': 'FLOAT',
-            'compound_1_adsorption': 'FLOAT',
-            'compound_2_adsorption': 'FLOAT'}
-        
-        self.unique_cols = ['filename', 'temperature', 'adsorbent_name', 
-                            'compound_1', 'compound_2']
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
+class BinaryMixtureAdsorption(Base):
+    __tablename__ = 'BINARY_MIXTURE_ADSORPTION'
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float, primary_key=True)
+    adsorptionUnits = Column(String)
+    pressureUnits = Column(String)
+    adsorbent_name = Column(String, primary_key=True)
+    compound_1 = Column(String, primary_key=True)
+    compound_2 = Column(String, primary_key=True)
+    compound_1_composition = Column(Float)
+    compound_2_composition = Column(Float)
+    compound_1_pressure = Column(Float)
+    compound_2_pressure = Column(Float)
+    compound_1_adsorption = Column(Float)
+    compound_2_adsorption = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
+                         'compound_1', 'compound_2'),
+    )
     
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            filename VARCHAR,
-            temperature FLOAT,
-            adsorptionUnits VARCHAR,
-            pressureUnits VARCHAR,
-            adsorbent_name VARCHAR,
-            compound_1 VARCHAR,
-            compound_2 VARCHAR,
-            compound_1_composition FLOAT,
-            compound_2_composition FLOAT,
-            compound_1_pressure FLOAT,
-            compound_2_pressure FLOAT,
-            compound_1_adsorption FLOAT,
-            compound_2_adsorption FLOAT,
-            UNIQUE(filename, temperature, adsorbent_name, compound_1, compound_2)
-        );
-        '''
-        cursor.execute(query)
-        
         
 ###############################################################################
-class AdsorbatesDataTable:
-
-    def __init__(self):
-        self.name = 'ADSORBATES'
-        self.dtypes = {            
-            'InChIKey': 'VARCHAR',
-            'name': 'VARCHAR',
-            'InChICode': 'VARCHAR',
-            'formula': 'VARCHAR',
-            'synonyms': 'VARCHAR',
-            'adsorbate_molecular_weight': 'FLOAT',
-            'adsorbate_molecular_formula': 'VARCHAR',
-            'adsorbate_SMILE': 'VARCHAR'}
-        
-        self.unique_cols = ['InChIKey', 'name', 'InChICode']
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
-    
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            InChIKey VARCHAR,
-            name VARCHAR,
-            InChICode VARCHAR,
-            formula VARCHAR,
-            synonyms VARCHAR,
-            adsorbate_molecular_weight FLOAT,
-            adsorbate_molecular_formula VARCHAR,
-            adsorbate_SMILE VARCHAR,
-            UNIQUE(InChIKey, name, InChICode)
-        );
-        '''
-        cursor.execute(query)
+class Adsorbate(Base):
+    __tablename__ = 'ADSORBATES'
+    InChIKey = Column(String, primary_key=True)
+    name = Column(String, primary_key=True)
+    InChICode = Column(String, primary_key=True)
+    formula = Column(String)
+    synonyms = Column(String)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_molecular_formula = Column(String)
+    adsorbate_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('InChIKey', 'name', 'InChICode'),
+    )
 
     
 ###############################################################################
-class AdsorbentsDataTable:
-
-    def __init__(self):
-        self.name = 'ADSORBENTS'
-        self.dtypes = {            
-            'name': 'VARCHAR',
-            'hashkey': 'VARCHAR',
-            'formula': 'VARCHAR',
-            'synonyms': 'VARCHAR',
-            'External_Resources': 'VARCHAR',
-            'adsorbent_molecular_weight': 'FLOAT',
-            'adsorbent_molecular_formula': 'VARCHAR',
-            'adsorbent_SMILE': 'VARCHAR'}
-        
-        self.unique_cols = ['name', 'hashkey']
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
-    
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            name VARCHAR,
-            hashkey VARCHAR,
-            formula VARCHAR,
-            synonyms VARCHAR,
-            External_Resources VARCHAR,
-            adsorbent_molecular_weight FLOAT,
-            adsorbent_molecular_formula VARCHAR,
-            adsorbent_SMILE VARCHAR,
-            UNIQUE(name, hashkey)
-        );
-        '''
-        cursor.execute(query)
-    
-    
-###############################################################################
-class TrainDataTable:
-
-    def __init__(self):
-        self.name = 'TRAIN_DATA'
-        self.dtypes = {            
-            'temperature': 'FLOAT',
-            'pressure': 'FLOAT',
-            'adsorbed_amount': 'FLOAT',
-            'encoded_adsorbent': 'INTEGER',
-            'adsorbate_molecular_weight': 'FLOAT',
-            'adsorbate_name': 'VARCHAR',
-            'adsorbate_encoded_SMILE': 'VARCHAR'}
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
-    
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            temperature FLOAT,            
-            pressure FLOAT,
-            adsorbed_amount FLOAT,
-            encoded_adsorbent INTEGER,
-            adsorbate_molecular_weight FLOAT,
-            adsorbate_name VARCHAR,  
-            adsorbate_encoded_SMILE VARCHAR             
-        );
-        '''
-        cursor.execute(query)
-
-
-###############################################################################
-class ValidationDataTable:
-
-    def __init__(self):
-        self.name = 'VALIDATION_DATA'
-        self.dtypes = {            
-            'temperature': 'FLOAT',
-            'pressure': 'FLOAT',
-            'adsorbed_amount': 'FLOAT',
-            'encoded_adsorbent': 'INTEGER',
-            'adsorbate_molecular_weight': 'FLOAT',
-            'adsorbate_name': 'VARCHAR',
-            'adsorbate_encoded_SMILE': 'VARCHAR'}
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
-    
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            temperature FLOAT,            
-            pressure FLOAT,
-            adsorbed_amount FLOAT,
-            encoded_adsorbent INTEGER,
-            adsorbate_molecular_weight FLOAT,
-            adsorbate_name VARCHAR,  
-            adsorbate_encoded_SMILE VARCHAR             
-        );
-        '''
-        cursor.execute(query)
+class Adsorbent(Base):
+    __tablename__ = 'ADSORBENTS'
+    name = Column(String, primary_key=True)
+    hashkey = Column(String, primary_key=True)
+    formula = Column(String)
+    synonyms = Column(String)
+    External_Resources = Column(String)
+    adsorbent_molecular_weight = Column(Float)
+    adsorbent_molecular_formula = Column(String)
+    adsorbent_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('name', 'hashkey'),
+    )
 
     
 ###############################################################################
-class PredictedAdsorptionTable:
+class TrainData(Base):
+    __tablename__ = 'TRAIN_DATA'
+    temperature = Column(Float, primary_key=True)
+    pressure = Column(Float, primary_key=True)
+    adsorbed_amount = Column(Float)
+    encoded_adsorbent = Column(Float, primary_key=True)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_name = Column(String, primary_key=True)
+    adsorbate_encoded_SMILE = Column(String)
 
-    def __init__(self):
-        self.name = 'PREDICTED_ADSORPTION'
-        self.dtypes = {            
-            'experiment': 'VARCHAR',
-            'temperature': 'FLOAT',
-            'adsorbent_name': 'VARCHAR',
-            'adsorbate_name': 'VARCHAR',
-            'pressure': 'FLOAT',
-            'adsorbed_amount': 'FLOAT',
-            'predicted_adsorbed_amount': 'FLOAT'}
 
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
+###############################################################################
+class ValidationData(Base):
+    __tablename__ = 'VALIDATION_DATA'
+    temperature = Column(Float, primary_key=True)
+    pressure = Column(Float, primary_key=True)
+    adsorbed_amount = Column(Float)
+    encoded_adsorbent = Column(Float, primary_key=True)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_name = Column(String, primary_key=True)
+    adsorbate_encoded_SMILE = Column(String)
+
     
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            experiment VARCHAR,
-            temperature FLOAT,            
-            adsorbent_name VARCHAR,
-            adsorbate_name VARCHAR,
-            pressure FLOAT,
-            adsorbed_amount FLOAT,
-            predicted_adsorbed_amount FLOAT               
-        );
-        '''
-        cursor.execute(query)   
+###############################################################################
+class PredictedAdsorption(Base):
+    __tablename__ = 'PREDICTED_ADSORPTION'
+    experiment = Column(String, primary_key=True)
+    temperature = Column(Float, primary_key=True)
+    adsorbent_name = Column(String, primary_key=True)
+    adsorbate_name = Column(String, primary_key=True)
+    pressure = Column(Float)
+    adsorbed_amount = Column(Float)
+    predicted_adsorbed_amount = Column(Float)
     
 
 ###############################################################################
-class CheckpointSummaryTable:
-
-    def __init__(self):
-        self.name = 'CHECKPOINTS_SUMMARY'
-        self.dtypes = {
-            'checkpoint_name': 'VARCHAR',
-            'sample_size': 'FLOAT',
-            'validation_size': 'FLOAT',
-            'seed': 'INTEGER',
-            'precision_bits': 'INTEGER',
-            'epochs': 'INTEGER',
-            'additional_epochs': 'INTEGER',
-            'batch_size': 'INTEGER',
-            'split_seed': 'INTEGER',
-            'image_augmentation': 'VARCHAR',
-            'image_height': 'INTEGER',
-            'image_width': 'INTEGER',
-            'image_channels': 'INTEGER',
-            'jit_compile': 'VARCHAR',
-            'jit_backend': 'VARCHAR',
-            'device': 'VARCHAR',
-            'device_id': 'VARCHAR',
-            'number_of_processors': 'INTEGER',
-            'use_tensorboard': 'VARCHAR',
-            'lr_scheduler_initial_lr': 'FLOAT',
-            'lr_scheduler_constant_steps': 'FLOAT',
-            'lr_scheduler_decay_steps': 'FLOAT'} 
-
-        self.unique_cols = ['checkpoint_name']   
-
-    #--------------------------------------------------------------------------
-    def get_dtypes(self):
-        return self.dtypes
-    
-    #--------------------------------------------------------------------------
-    def create_table(self, cursor):
-        query = f'''
-        CREATE TABLE IF NOT EXISTS {self.name} (            
-            checkpoint_name VARCHAR,
-            sample_size FLOAT,
-            validation_size FLOAT,
-            seed INTEGER,
-            precision_bits INTEGER,
-            epochs INTEGER,
-            additional_epochs INTEGER,
-            batch_size INTEGER,
-            split_seed INTEGER,
-            image_augmentation VARCHAR,
-            image_height INTEGER,
-            image_width INTEGER,
-            image_channels INTEGER,
-            jit_compile VARCHAR,
-            jit_backend VARCHAR,
-            device VARCHAR,
-            device_id VARCHAR,
-            number_of_processors INTEGER,
-            use_tensorboard VARCHAR,
-            lr_scheduler_initial_lr FLOAT,
-            lr_scheduler_constant_steps FLOAT,
-            lr_scheduler_decay_steps FLOAT,
-            UNIQUE(checkpoint_name)
-            );
-            ''' 
-         
-        cursor.execute(query)     
+class CheckpointSummary(Base):
+    __tablename__ = 'CHECKPOINTS_SUMMARY'
+    checkpoint_name = Column(String, primary_key=True)
+    sample_size = Column(Float)
+    validation_size = Column(Float)
+    seed = Column(Integer)
+    precision_bits = Column(Integer)
+    epochs = Column(Integer)
+    additional_epochs = Column(Integer)
+    batch_size = Column(Integer)
+    split_seed = Column(Integer)
+    image_augmentation = Column(String)
+    image_height = Column(Integer)
+    image_width = Column(Integer)
+    image_channels = Column(Integer)
+    jit_compile = Column(String)
+    jit_backend = Column(String)
+    device = Column(String)
+    device_id = Column(String)
+    number_of_processors = Column(Integer)
+    use_tensorboard = Column(String)
+    lr_scheduler_initial_lr = Column(Float)
+    lr_scheduler_constant_steps = Column(Float)
+    lr_scheduler_decay_steps = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('checkpoint_name'),
+    )
     
 
 # [DATABASE]
@@ -350,33 +152,15 @@ class CheckpointSummaryTable:
 class AdsorptionDatabase:
 
     def __init__(self, configuration): 
-        self.single_component = SingleComponentAdsorptionTable()
-        self.binary_mixture = BinaryMixtureAdsorptionTable()
-        self.adsorbates = AdsorbatesDataTable()
-        self.adsorbents = AdsorbentsDataTable()
-        self.train_data = TrainDataTable()
-        self.validation_data = ValidationDataTable()
-        self.inference_data = PredictedAdsorptionTable()       
-        self.checkpoints_summary = CheckpointSummaryTable()
-
-        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db') 
-        self.configuration = configuration  
+        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
+        self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
+        self.Session = sessionmaker(bind=self.engine, future=True)
+        self.insert_batch_size = 10000
+        self.configuration = configuration
         
     #--------------------------------------------------------------------------       
-    def initialize_database(self): 
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        self.single_component.create_table(cursor)  
-        self.binary_mixture.create_table(cursor)
-        self.adsorbates.create_table(cursor)  
-        self.adsorbents.create_table(cursor)  
-        self.train_data.create_table(cursor)
-        self.validation_data.create_table(cursor)
-        self.inference_data.create_table(cursor)        
-        self.checkpoints_summary.create_table(cursor)
-        conn.commit()
-        conn.close()
+    def initialize_database(self):
+        Base.metadata.create_all(self.engine)
 
     #--------------------------------------------------------------------------
     def update_database(self): 
@@ -385,94 +169,88 @@ class AdsorptionDatabase:
         self.save_predictions_table(dataset)
        
     #--------------------------------------------------------------------------
-    def load_dataset_tables(self):          
-        conn = sqlite3.connect(self.db_path)        
-        adsorption_data = pd.read_sql_query(
-            f"SELECT * FROM {self.single_component.name}", conn)
-        guest_data = pd.read_sql_query(
-            f"SELECT * FROM {self.adsorbates.name}", conn)
-        host_data = pd.read_sql_query(
-            f"SELECT * FROM {self.adsorbents.name}", conn)
-        conn.close()  
+    def load_dataset_tables(self):
+        with self.engine.connect() as conn:
+            adsorption_data = pd.read_sql_table("SINGLE_COMPONENT_ADSORPTION", conn)
+            guest_data = pd.read_sql_table("ADSORBATES", conn)
+            host_data = pd.read_sql_table("ADSORBENTS", conn)
 
         return adsorption_data, guest_data, host_data
 
     #--------------------------------------------------------------------------
     def load_train_and_validation_tables(self):       
-        conn = sqlite3.connect(self.db_path)        
-        train_data = pd.read_sql_query(
-            f"SELECT * FROM {self.train_data.name}", conn)
-        validation_data = pd.read_sql_query(
-            f"SELECT * FROM {self.validation_data.name}", conn)
-        conn.close()  
+        with self.engine.connect() as conn:
+            train_data = pd.read_sql_table("TRAIN_DATA", conn)
+            validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
 
-        return train_data, validation_data  
+        return train_data, validation_data
 
     #--------------------------------------------------------------------------
     def load_inference_data_table(self):         
-        conn = sqlite3.connect(self.db_path)         
-        data = pd.read_sql_query(
-            f"SELECT * FROM {self.inference_data.name}", conn)
-        conn.commit()
-        conn.close() 
-
-        return data     
+        with self.engine.connect() as conn:
+            data = pd.read_sql_table("PREDICTED_ADSORPTION", conn)
+        return data
 
     #--------------------------------------------------------------------------
-    def save_experiments_table(self, single_components : pd.DataFrame, binary_mixture: pd.DataFrame):        
-        conn = sqlite3.connect(self.db_path)         
-        single_components.to_sql(
-            self.single_component.name, conn, if_exists='replace', index=False,
-            dtype=self.single_component.get_dtypes())
-        binary_mixture.to_sql(
-            self.binary_mixture.name, conn, if_exists='replace', index=False,
-            dtype=self.binary_mixture.get_dtypes())           
-        conn.commit()
-        conn.close() 
+    def upsert_dataframe(self, df: pd.DataFrame, table_cls):
+        table = table_cls.__table__
+        session = self.Session()
+        try:
+            unique_cols = []
+            for uc in table.constraints:
+                if isinstance(uc, UniqueConstraint):
+                    unique_cols = uc.columns.keys()
+                    break
+            if not unique_cols:
+                raise ValueError(f"No unique constraint found for {table_cls.__name__}")
+
+            # Batch insertions for speed
+            records = df.to_dict(orient='records')
+            for i in range(0, len(records), self.insert_batch_size):
+                batch = records[i:i + self.insert_batch_size]
+                stmt = insert(table).values(batch)
+                # Columns to update on conflict
+                update_cols = {c: getattr(stmt.excluded, c) for c in batch[0] if c not in unique_cols}
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=unique_cols,
+                    set_=update_cols
+                )
+                session.execute(stmt)
+            session.commit()
+        finally:
+            session.close()
+
+    #--------------------------------------------------------------------------
+    def save_experiments_table(self, single_components: pd.DataFrame, binary_mixture: pd.DataFrame):
+        self.upsert_dataframe(single_components, SingleComponentAdsorption)
+        self.upsert_dataframe(binary_mixture, BinaryMixtureAdsorption)
 
     #--------------------------------------------------------------------------
     def save_materials_table(self, adsorbates : pd.DataFrame, adsorbents : pd.DataFrame,):    
-        conn = sqlite3.connect(self.db_path)
-        if adsorbates is not None:         
-            adsorbates.to_sql(
-                self.adsorbates.name, conn, if_exists='replace', index=False,
-                dtype=self.adsorbates.get_dtypes())
+        if adsorbates is not None:
+            self.upsert_dataframe(adsorbates, Adsorbate)
         if adsorbents is not None:
-            adsorbents.to_sql(
-                self.adsorbents.name, conn, if_exists='replace', index=False,
-                dtype=self.adsorbents.get_dtypes())
-        conn.commit()
-        conn.close() 
+            self.upsert_dataframe(adsorbents, Adsorbent)
 
     #--------------------------------------------------------------------------
     def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
-        conn = sqlite3.connect(self.db_path)         
-        train_data.to_sql(
-            self.train_data.name, conn, if_exists='replace', index=False,
-            dtype=self.train_data.get_dtypes())  
-        validation_data.to_sql(
-            self.validation_data.name, conn, if_exists='replace', index=False,
-            dtype=self.validation_data.get_dtypes())    
-        conn.commit()
-        conn.close()  
+        with self.engine.begin() as conn:
+            train_data.to_sql(
+                "TRAIN_DATA", conn, if_exists='replace', index=False)
+            validation_data.to_sql(
+                "VALIDATION_DATA", conn, if_exists='replace', index=False)
 
     #--------------------------------------------------------------------------
     def save_predictions_table(self, data : pd.DataFrame):      
-        conn = sqlite3.connect(self.db_path)         
-        data.to_sql(
-            self.inference_data.name, conn, if_exists='replace', index=False,
-            dtype=self.inference_data.get_dtypes())
-        conn.commit()
-        conn.close()  
+        with self.engine.begin() as conn:
+            data.to_sql(
+                "PREDICTED_ADSORPTION", conn, if_exists='replace', index=False)
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary_table(self, data : pd.DataFrame):         
-        conn = sqlite3.connect(self.db_path)         
-        data.to_sql(
-            self.checkpoints_summary.name, conn, if_exists='replace', index=False,
-            dtype=self.checkpoints_summary.get_dtypes())
-        conn.commit()
-        conn.close()   
+        with self.engine.begin() as conn:
+            data.to_sql(
+                "CHECKPOINTS_SUMMARY", conn, if_exists='replace', index=False)
     
     
 
