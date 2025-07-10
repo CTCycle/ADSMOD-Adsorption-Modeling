@@ -4,7 +4,6 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
 
-
 from NISTADS.app.src.constants import DATA_PATH, INFERENCE_PATH
 from NISTADS.app.src.logger import logger
 
@@ -167,29 +166,6 @@ class AdsorptionDatabase:
         inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')                   
         dataset = pd.read_csv(inference_path, sep=';', encoding='utf-8')        
         self.save_predictions_table(dataset)
-       
-    #--------------------------------------------------------------------------
-    def load_dataset_tables(self):
-        with self.engine.connect() as conn:
-            adsorption_data = pd.read_sql_table("SINGLE_COMPONENT_ADSORPTION", conn)
-            guest_data = pd.read_sql_table("ADSORBATES", conn)
-            host_data = pd.read_sql_table("ADSORBENTS", conn)
-
-        return adsorption_data, guest_data, host_data
-
-    #--------------------------------------------------------------------------
-    def load_train_and_validation_tables(self):       
-        with self.engine.connect() as conn:
-            train_data = pd.read_sql_table("TRAIN_DATA", conn)
-            validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
-
-        return train_data, validation_data
-
-    #--------------------------------------------------------------------------
-    def load_inference_data_table(self):         
-        with self.engine.connect() as conn:
-            data = pd.read_sql_table("PREDICTED_ADSORPTION", conn)
-        return data
 
     #--------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls):
@@ -219,6 +195,29 @@ class AdsorptionDatabase:
             session.commit()
         finally:
             session.close()
+       
+    #--------------------------------------------------------------------------
+    def load_dataset_tables(self):
+        with self.engine.connect() as conn:
+            adsorption_data = pd.read_sql_table("SINGLE_COMPONENT_ADSORPTION", conn)
+            guest_data = pd.read_sql_table("ADSORBATES", conn)
+            host_data = pd.read_sql_table("ADSORBENTS", conn)
+
+        return adsorption_data, guest_data, host_data
+
+    #--------------------------------------------------------------------------
+    def load_train_and_validation_tables(self):       
+        with self.engine.connect() as conn:
+            train_data = pd.read_sql_table("TRAIN_DATA", conn)
+            validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
+
+        return train_data, validation_data
+
+    #--------------------------------------------------------------------------
+    def load_inference_data_table(self):         
+        with self.engine.connect() as conn:
+            data = pd.read_sql_table("PREDICTED_ADSORPTION", conn)
+        return data
 
     #--------------------------------------------------------------------------
     def save_experiments_table(self, single_components: pd.DataFrame, binary_mixture: pd.DataFrame):
@@ -248,9 +247,7 @@ class AdsorptionDatabase:
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary_table(self, data : pd.DataFrame):         
-        with self.engine.begin() as conn:
-            data.to_sql(
-                "CHECKPOINTS_SUMMARY", conn, if_exists='replace', index=False)
+        self.upsert_dataframe(data, CheckpointSummary)
     
     
 
