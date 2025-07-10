@@ -129,7 +129,6 @@ class DatasetEvents:
             # save the final version of the materials dataset    
             serializer.save_materials_datasets(guest_data=guest_data)
             logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
-
         else:
             # process host (adsorbent materials) data by adding molecular properties   
             logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
