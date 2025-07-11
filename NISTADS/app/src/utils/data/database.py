@@ -9,6 +9,7 @@ from NISTADS.app.src.logger import logger
 
 Base = declarative_base()
 
+
 ###############################################################################
 class SingleComponentAdsorption(Base):
     __tablename__ = 'SINGLE_COMPONENT_ADSORPTION'

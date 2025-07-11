@@ -4,8 +4,8 @@ NISTADS/resources/database/validation/*
 NISTADS/resources/checkpoints/*
 
 !NISTADS/commons/assets/*
-NISTADS/app/python/*
-NISTADS/app/git/*
+NISTADS/setup/python/*
+NISTADS/setup/git/*
 
 __pycache__
 *.jpeg
