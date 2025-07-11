@@ -151,22 +151,19 @@ class CheckpointSummary(Base):
 ###############################################################################
 class AdsorptionDatabase:
 
-    def __init__(self, configuration): 
+    def __init__(self): 
         self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 10000
-        self.configuration = configuration
-        
+              
     #--------------------------------------------------------------------------       
     def initialize_database(self):
-        Base.metadata.create_all(self.engine)
-
-    #--------------------------------------------------------------------------
-    def update_database(self): 
-        inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')                   
+        Base.metadata.create_all(self.engine)          
+        inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')
+        logger.debug(f'Updating database from {inference_path}')                    
         dataset = pd.read_csv(inference_path, sep=';', encoding='utf-8')        
-        self.save_predictions_table(dataset)
+        self.save_predictions_table(dataset)   
 
     #--------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls):

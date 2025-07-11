@@ -18,12 +18,12 @@ from NISTADS.app.src.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, database : AdsorptionDatabase, configuration : dict):
+    def __init__(self, configuration : dict):
         self.seed = configuration.get('general_seed', 42)
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'
-        self.database = database        
+        self.Q_COL = 'adsorbed_amount'                
         self.configuration = configuration
+        self.database = AdsorptionDatabase()
 
         self.metadata_path = os.path.join(
             METADATA_PATH, 'preprocessing_metadata.json') 

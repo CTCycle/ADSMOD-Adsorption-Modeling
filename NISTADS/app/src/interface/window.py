@@ -41,15 +41,15 @@ class MainWindow:
         self.worker = None    
 
         # initialize database
-        self.database = AdsorptionDatabase(self.configuration)
+        self.database = AdsorptionDatabase()
         self.database.initialize_database()  
-        self.database.update_database()                
+                        
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)
-        self.validation_handler = ValidationEvents(self.database, self.configuration)
-        self.model_handler = ModelEvents(self.database, self.configuration)        
+        self.dataset_handler = DatasetEvents(self.configuration)
+        self.validation_handler = ValidationEvents(self.configuration)
+        self.model_handler = ModelEvents(self.configuration)        
 
         # setup UI elements
         self._set_states()
@@ -450,7 +450,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
+        self.dataset_handler = DatasetEvents(self.configuration)       
         # send message to status bar
         self._send_message("Collecting adsorption isotherms and materials data from NIST-A database...") 
         
@@ -471,7 +471,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
+        self.dataset_handler = DatasetEvents(self.configuration)       
         # send message to status bar
         self._send_message("Retrieving molecular properties from Pubchem API...") 
         
@@ -492,7 +492,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
+        self.dataset_handler = DatasetEvents(self.configuration)       
         # send message to status bar
         self._send_message("Retrieving molecular properties from Pubchem API...") 
         
@@ -514,7 +514,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)       
+        self.validation_handler = ValidationEvents(self.configuration)       
         # send message to status bar
         self._send_message("Evaluate adsorption isotherms and materials dataset...") 
         
@@ -536,7 +536,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
+        self.dataset_handler = DatasetEvents(self.configuration)       
         # send message to status bar
         self._send_message('Building preprocessed machine learning dataset...') 
         
@@ -558,7 +558,7 @@ class MainWindow:
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration)         
+        self.model_handler = ModelEvents({}, self.configuration)         
   
         # send message to status bar
         self._send_message("Training SCADS using a new model instance...")        
@@ -578,7 +578,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration)   
+        self.model_handler = ModelEvents({}, self.configuration)   
 
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
@@ -602,7 +602,7 @@ class MainWindow:
             return 
 
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)    
+        self.validation_handler = ValidationEvents(self.configuration)    
            
         # send message to status bar
         self._send_message(f"Evaluating {self.selected_checkpoint} performances... ")
@@ -626,7 +626,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)           
+        self.validation_handler = ValidationEvents(self.configuration)           
         # send message to status bar
         self._send_message("Generating checkpoints summary...") 
         
@@ -648,7 +648,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration) 
+        self.model_handler = ModelEvents(self.configuration) 
         
         # send message to status bar
         self._send_message(f"Encoding images with {self.selected_checkpoint}") 

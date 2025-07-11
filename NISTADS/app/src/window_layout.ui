@@ -633,12 +633,15 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              <item>
               <widget class="QLabel" name="PTLabel">
                <property name="text">
-                <string>Parallel tasks</string>
+                <string>Parallel data requests</string>
                </property>
               </widget>
              </item>
              <item>
               <widget class="QSpinBox" name="parallelTasks">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Number of asynchronous parallel rquests to NIST-A database. Using a large number (&amp;gt; 60) may cause errors during data collection&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="minimum">
                 <number>1</number>
                </property>
@@ -654,6 +657,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
            </item>
            <item>
             <widget class="QPushButton" name="collectAdsData">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Collect experiments and materials data from NIST-A database. User can select the fraction of adsorption isotherms (experiments), guest data (adsorbate species) and host data (adsorbents) to fetch and the number of parallel requests&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>Collect adsorption data</string>
              </property>

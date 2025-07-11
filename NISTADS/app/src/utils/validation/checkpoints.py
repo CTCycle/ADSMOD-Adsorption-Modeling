@@ -12,9 +12,9 @@ from NISTADS.app.src.logger import logger
 ################################################################################
 class ModelEvaluationSummary:
 
-    def __init__(self, database, configuration, remove_invalid=False):
+    def __init__(self, configuration, remove_invalid=False):
         self.remove_invalid = remove_invalid             
-        self.database = database       
+               
         self.configuration = configuration
 
     #---------------------------------------------------------------------------

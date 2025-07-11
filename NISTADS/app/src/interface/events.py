@@ -68,8 +68,7 @@ class GraphicsHandler:
 ###############################################################################
 class DatasetEvents:
 
-    def __init__(self, database, configuration): 
-        self.database = database                  
+    def __init__(self, configuration): 
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
@@ -96,7 +95,7 @@ class DatasetEvents:
 
         # expand the dataset to represent each measurement with a single row
         # save the final version of the adsorption dataset  
-        serializer = DataSerializer(self.database, self.configuration)
+        serializer = DataSerializer(self.configuration)
         single_component, binary_mixture = builder.expand_dataset(
             single_component, binary_mixture)
         serializer.save_adsorption_datasets(single_component, binary_mixture)     
@@ -117,7 +116,7 @@ class DatasetEvents:
 
     #--------------------------------------------------------------------------
     def run_chemical_properties_pipeline(self, guest_as_target=True, progress_callback=None, worker=None):         
-        serializer = DataSerializer(self.database, self.configuration)
+        serializer = DataSerializer(self.configuration)
         experiments, guest_data, host_data = serializer.load_adsorption_datasets()           
         properties = MolecularProperties(self.configuration)  
 
@@ -141,7 +140,7 @@ class DatasetEvents:
     #--------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):
         sample_size = self.configuration.get('sample_size')
-        serializer = DataSerializer(self.database, self.configuration)
+        serializer = DataSerializer(self.configuration)
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets(
             sample_size=sample_size)
 
@@ -248,13 +247,12 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, database, configuration):
-        self.database = database       
+    def __init__(self, configuration):
         self.configuration = configuration 
         
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):        
-        serializer = DataSerializer(self.database, self.configuration)
+        serializer = DataSerializer(self.configuration)
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets() 
         logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
         logger.info(f'{guest_data.shape[0]} adsorbates species in the dataset')
@@ -307,7 +305,7 @@ class ValidationEvents:
         if 'evaluation_report' in metrics:
             logger.info('Current metric: model loss and metrics evaluation')
             # evaluate model performance over the training and validation dataset 
-            summarizer = ModelEvaluationSummary(self.database, self.configuration)       
+            summarizer = ModelEvaluationSummary(self.configuration)       
             summarizer.get_evaluation_report(model, validation_dataset, worker=worker)
 
         if 'adsorption_isotherms_prediction' in metrics:
@@ -323,8 +321,7 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, database, configuration): 
-        self.database = database        
+    def __init__(self, configuration):
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
@@ -334,7 +331,7 @@ class ModelEvents:
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
-        dataserializer = DataSerializer(self.database, self.configuration)        
+        dataserializer = DataSerializer(self.configuration)        
         train_data, val_data, metadata, _ = dataserializer.load_train_and_validation_data() 
 
         logger.info('Building model data loaders with prefetching and parallel processing')   
@@ -389,7 +386,7 @@ class ModelEvents:
         check_thread_status(worker)     
           
         logger.info('Loading preprocessed data and building dataloaders')     
-        dataserializer = DataSerializer(self.database, train_config)
+        dataserializer = DataSerializer(train_config)
         train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
            
         builder = TrainingDataLoader(train_config)   
@@ -422,7 +419,7 @@ class ModelEvents:
         check_thread_status(worker)  
 
         # select images from the inference folder and retrieve current paths     
-        serializer = DataSerializer(self.database, self.configuration)     
+        serializer = DataSerializer(self.configuration)     
         inference_data = serializer.load_inference_data()  
 
         logger.info('Preprocessing inference input data according to model configuration')

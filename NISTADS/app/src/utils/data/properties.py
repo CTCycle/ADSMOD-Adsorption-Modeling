@@ -105,7 +105,7 @@ class CompoundProperties:
     def get_properties_for_multiple_compounds(self, names : list, **kwargs):         
         for i, name in enumerate(tqdm(names, total=len(names))):  
             # Optionally check for chemical formula
-            is_formula = self.is_chemical_formula(name) 
+            #is_formula = self.is_chemical_formula(name) 
             compound = self.get_molecular_properties(name, namespace='name')               
             if compound:                
                 self.extract_properties(name, compound)
@@ -133,9 +133,10 @@ class CompoundProperties:
             prop_name = urns.get('name', 'NA')
             value = next(iter(p.get('value', {}).values()), np.nan)
             formatted_properties[f'{label}_{prop_name}'] = value
+        
+        SMILE = formatted_properties.get('SMILES_Absolute', np.nan)
 
         self.properties['name'].append(name)
         self.properties[f'{self.compound_type}_molecular_weight'].append(molecular_weight)
-        self.properties[f'{self.compound_type}_molecular_formula'].append(molecular_formula)
-        SMILE = formatted_properties.get('SMILES_Absolute', np.nan)
+        self.properties[f'{self.compound_type}_molecular_formula'].append(molecular_formula)        
         self.properties[f'{self.compound_type}_SMILE'].append(SMILE)
