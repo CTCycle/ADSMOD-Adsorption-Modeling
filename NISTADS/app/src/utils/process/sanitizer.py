@@ -43,7 +43,7 @@ class AggregateDatasets:
                           'adsorptionUnits' : 'first',                            
                           'pressure' : lambda x: [float(v) for v in x],
                           'adsorbed_amount' : lambda x: [float(v) for v in x]}   
-
+        
         grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()
         grouped_data.drop(columns=['filename'], inplace=True)        
 

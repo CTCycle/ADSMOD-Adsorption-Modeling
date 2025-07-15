@@ -120,21 +120,23 @@ class CompoundProperties:
     def extract_properties(self, name, compound):       
         molecular_weight = float(getattr(compound, 'molecular_weight', np.nan))
         molecular_formula = getattr(compound, 'molecular_formula', np.nan)
-        records = getattr(compound, 'record', None)
-        # SMILES are now fetched from record/props within the compound object
-        # props is a list of dictionary with structure:
-        # {urns : {properties : val}, value : {ival : val}}
-        internal_properties = records.get('props', []) if records else []
+        SMILE = getattr(compound, 'canonical_SMILE', np.nan)
 
-        formatted_properties = {} 
-        for p in internal_properties:
-            urns = p.get('urn', {})
-            label = urns.get('label', 'NA')
-            prop_name = urns.get('name', 'NA')
-            value = next(iter(p.get('value', {}).values()), np.nan)
-            formatted_properties[f'{label}_{prop_name}'] = value
-        
-        SMILE = formatted_properties.get('SMILES_Absolute', np.nan)
+        if not SMILE:
+            records = getattr(compound, 'record', None)
+            # SMILES are now fetched from record/props within the compound object
+            # props is a list of dictionary with structure:
+            # {urns : {properties : val}, value : {ival : val}}
+            internal_properties = records.get('props', []) if records else []
+            formatted_properties = {} 
+            for p in internal_properties:
+                urns = p.get('urn', {})
+                label = urns.get('label', 'NA')
+                prop_name = urns.get('name', 'NA')
+                value = next(iter(p.get('value', {}).values()), np.nan)
+                formatted_properties[f'{label}_{prop_name}'] = value
+            
+            SMILE = formatted_properties.get('SMILES_Absolute', np.nan)
 
         self.properties['name'].append(name)
         self.properties[f'{self.compound_type}_molecular_weight'].append(molecular_weight)

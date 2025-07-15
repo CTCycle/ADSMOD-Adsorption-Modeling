@@ -558,7 +558,7 @@ class MainWindow:
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents({}, self.configuration)         
+        self.model_handler = ModelEvents(self.configuration)         
   
         # send message to status bar
         self._send_message("Training SCADS using a new model instance...")        
@@ -578,7 +578,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents({}, self.configuration)   
+        self.model_handler = ModelEvents(self.configuration)   
 
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         

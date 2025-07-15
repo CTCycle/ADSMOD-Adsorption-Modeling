@@ -19,11 +19,12 @@ class SingleComponentAdsorption(Base):
     pressureUnits = Column(String)
     adsorbent_name = Column(String, primary_key=True)
     adsorbate_name = Column(String, primary_key=True)
-    pressure = Column(Float)
-    adsorbed_amount = Column(Float)
+    pressure = Column(Float, primary_key=True)
+    adsorbed_amount = Column(Float, primary_key=True)
     composition = Column(Float)
     __table_args__ = (
-        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 'adsorbate_name'),
+        UniqueConstraint('filename', 'temperature', 'pressure', 'adsorbed_amount',
+                         'adsorbent_name', 'adsorbate_name'),
     )
 
 
@@ -39,13 +40,15 @@ class BinaryMixtureAdsorption(Base):
     compound_2 = Column(String, primary_key=True)
     compound_1_composition = Column(Float)
     compound_2_composition = Column(Float)
-    compound_1_pressure = Column(Float)
-    compound_2_pressure = Column(Float)
-    compound_1_adsorption = Column(Float)
-    compound_2_adsorption = Column(Float)
+    compound_1_pressure = Column(Float, primary_key=True)
+    compound_2_pressure = Column(Float, primary_key=True)
+    compound_1_adsorption = Column(Float, primary_key=True)
+    compound_2_adsorption = Column(Float, primary_key=True)
     __table_args__ = (
         UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
-                         'compound_1', 'compound_2'),
+                         'compound_1', 'compound_2', 'compound_1_pressure',
+                         'compound_2_pressure', 'compound_1_adsorption',
+                         'compound_2_adsorption'),
     )
     
         

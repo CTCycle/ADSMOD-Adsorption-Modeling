@@ -138,9 +138,9 @@ class DatasetEvents:
             logger.info(f'Host properties updated in the database ({host_data.shape[0]} records)')    
     
     #--------------------------------------------------------------------------
-    def run_dataset_builder(self, progress_callback=None, worker=None):
-        sample_size = self.configuration.get('sample_size')
+    def run_dataset_builder(self, progress_callback=None, worker=None):        
         serializer = DataSerializer(self.configuration)
+        sample_size = self.configuration.get('sample_size', 1.0)
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets(
             sample_size=sample_size)
 
@@ -152,14 +152,15 @@ class DatasetEvents:
         # merge adsorption data with retrieved materials properties (guest and host)
         aggregator = AggregateDatasets(self.configuration)
         processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
-
+        logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments') 
+        
         # check thread for interruption 
         check_thread_status(worker)
         update_progress_callback(0, 7, progress_callback)
 
         # start joining materials properties
         processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
-        logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments')         
+                
 
         # check thread for interruption 
         check_thread_status(worker)
@@ -379,8 +380,8 @@ class ModelEvents:
         model.summary(expand_nested=True)  
 
         # setting device for training    
-        trainer = ModelTraining(self.configuration, metadata)    
-        trainer.set_device()
+        device = DeviceConfig(self.configuration)   
+        device.set_device()
 
         # check thread for interruption 
         check_thread_status(worker)     
