@@ -79,8 +79,9 @@ class DataSerializer:
         with open(self.ads_vocabulary_path, 'w') as file:
             json.dump(ads_vocabulary, file, indent=4)        
          
-        metadata = {'seed' : self.configuration.get('general_seed', 42), 
+        metadata = {'seed' : self.seed, 
                     'date' : datetime.now().strftime("%Y-%m-%d"),
+                    'max_measurements' : self.configuration.get('max_measurements', 1000),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
                     'adsorbent_vocabulary_size' : len(ads_vocabulary), 
                     'normalization' : {

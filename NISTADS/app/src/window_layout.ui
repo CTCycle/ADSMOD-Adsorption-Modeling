@@ -522,7 +522,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <string/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
@@ -935,13 +935,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               </layout>
              </item>
              <item>
-              <widget class="QPushButton" name="buildMLDataset">
-               <property name="text">
-                <string>Build training dataset</string>
-               </property>
-              </widget>
-             </item>
-             <item>
               <spacer name="verticalSpacer_11">
                <property name="orientation">
                 <enum>Qt::Orientation::Vertical</enum>
@@ -953,6 +946,13 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 </size>
                </property>
               </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="buildMLDataset">
+               <property name="text">
+                <string>Build training dataset</string>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="QGroupBox" name="groupBox_5">
@@ -994,23 +994,16 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
           <property name="title">
            <string>Dataset</string>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout_11">
+          <layout class="QVBoxLayout" name="verticalLayout_10">
            <item>
-            <widget class="QCheckBox" name="setShuffle">
-             <property name="text">
-              <string>Shuffle dataset</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_19">
+            <layout class="QHBoxLayout" name="horizontalLayout_16">
              <item>
-              <widget class="QLabel" name="label_17">
+              <widget class="QCheckBox" name="setShuffle">
                <property name="text">
-                <string>Shuffle buffer</string>
+                <string>Shuffle dataset with buffer size</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
                </property>
               </widget>
              </item>

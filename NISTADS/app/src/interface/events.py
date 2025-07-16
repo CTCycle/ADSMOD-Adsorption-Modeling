@@ -265,8 +265,7 @@ class ValidationEvents:
         # check thread for interruption 
         check_thread_status(worker)
 
-        # add adsorption data analysis   
-
+        # add adsorption data analysis  
         images = []  
         if 'experiments_clustering' in metrics:
             logger.info('Current metric: Adsorption isotherm clustering')
