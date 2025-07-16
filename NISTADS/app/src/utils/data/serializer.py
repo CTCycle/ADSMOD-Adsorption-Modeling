@@ -60,7 +60,7 @@ class DataSerializer:
             ads_vocabulary = json.load(file)  
 
         vocabularies = {'smile_vocab' : smile_vocabulary, 
-                        'ads_vocab' : ads_vocabulary}         
+                        'adsorbents_vocab' : ads_vocabulary}         
         
         return train_data, val_data, metadata, vocabularies  
 
@@ -82,6 +82,7 @@ class DataSerializer:
         metadata = {'seed' : self.seed, 
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'max_measurements' : self.configuration.get('max_measurements', 1000),
+                    'SMILE_sequence_length' : self.configuration.get('SMILE_sequence_size', 30),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
                     'adsorbent_vocabulary_size' : len(ads_vocabulary), 
                     'normalization' : {

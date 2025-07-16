@@ -159,8 +159,7 @@ class DatasetEvents:
         update_progress_callback(0, 7, progress_callback)
 
         # start joining materials properties
-        processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)
-                
+        processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)                
 
         # check thread for interruption 
         check_thread_status(worker)
@@ -397,7 +396,9 @@ class ModelEvents:
         check_thread_status(worker)    
         
         # Setting callbacks and training routine for the machine learning model        
-        # resume training from pretrained model    
+        # resume training from pretrained model 
+        logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
+        trainer = ModelTraining(self.configuration)  
         trainer.train_model(
             model, train_dataset, validation_dataset, checkpoint_path, session,
             progress_callback=progress_callback, worker=worker)    
@@ -411,9 +412,9 @@ class ModelEvents:
             selected_checkpoint)    
         model.summary(expand_nested=True)  
         
-        # setting device for training         
-        trainer = ModelTraining(train_config)    
-        trainer.set_device()
+        # setting device for training    
+        device = DeviceConfig(self.configuration)   
+        device.set_device()
 
         # check worker status to allow interruption
         check_thread_status(worker)  
