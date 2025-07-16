@@ -20,10 +20,10 @@ class SingleComponentAdsorption(Base):
     adsorbent_name = Column(String, primary_key=True)
     adsorbate_name = Column(String, primary_key=True)
     pressure = Column(Float, primary_key=True)
-    adsorbed_amount = Column(Float, primary_key=True)
+    adsorbed_amount = Column(Float)
     composition = Column(Float)
     __table_args__ = (
-        UniqueConstraint('filename', 'temperature', 'pressure', 'adsorbed_amount',
+        UniqueConstraint('filename', 'temperature', 'pressure', 
                          'adsorbent_name', 'adsorbate_name'),
     )
 
@@ -42,13 +42,12 @@ class BinaryMixtureAdsorption(Base):
     compound_2_composition = Column(Float)
     compound_1_pressure = Column(Float, primary_key=True)
     compound_2_pressure = Column(Float, primary_key=True)
-    compound_1_adsorption = Column(Float, primary_key=True)
-    compound_2_adsorption = Column(Float, primary_key=True)
+    compound_1_adsorption = Column(Float)
+    compound_2_adsorption = Column(Float)
     __table_args__ = (
         UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
                          'compound_1', 'compound_2', 'compound_1_pressure',
-                         'compound_2_pressure', 'compound_1_adsorption',
-                         'compound_2_adsorption'),
+                         'compound_2_pressure'),
     )
     
         
@@ -56,22 +55,22 @@ class BinaryMixtureAdsorption(Base):
 class Adsorbate(Base):
     __tablename__ = 'ADSORBATES'
     InChIKey = Column(String, primary_key=True)
-    name = Column(String, primary_key=True)
-    InChICode = Column(String, primary_key=True)
+    name = Column(String)
+    InChICode = Column(String)
     formula = Column(String)
     synonyms = Column(String)
     adsorbate_molecular_weight = Column(Float)
     adsorbate_molecular_formula = Column(String)
     adsorbate_SMILE = Column(String)
     __table_args__ = (
-        UniqueConstraint('InChIKey', 'name', 'InChICode'),
+        UniqueConstraint('InChIKey'),
     )
 
     
 ###############################################################################
 class Adsorbent(Base):
     __tablename__ = 'ADSORBENTS'
-    name = Column(String, primary_key=True)
+    name = Column(String)
     hashkey = Column(String, primary_key=True)
     formula = Column(String)
     synonyms = Column(String)
@@ -80,7 +79,7 @@ class Adsorbent(Base):
     adsorbent_molecular_formula = Column(String)
     adsorbent_SMILE = Column(String)
     __table_args__ = (
-        UniqueConstraint('name', 'hashkey'),
+        UniqueConstraint('hashkey'),
     )
 
     
@@ -94,6 +93,10 @@ class TrainData(Base):
     adsorbate_molecular_weight = Column(Float)
     adsorbate_name = Column(String, primary_key=True)
     adsorbate_encoded_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('temperature', 'pressure', 
+                         'encoded_adsorbent', 'adsorbate_name'),
+    )
 
 
 ###############################################################################
@@ -106,6 +109,10 @@ class ValidationData(Base):
     adsorbate_molecular_weight = Column(Float)
     adsorbate_name = Column(String, primary_key=True)
     adsorbate_encoded_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('temperature', 'pressure', 
+                         'encoded_adsorbent', 'adsorbate_name'),
+    )
 
     
 ###############################################################################
@@ -118,6 +125,10 @@ class PredictedAdsorption(Base):
     pressure = Column(Float)
     adsorbed_amount = Column(Float)
     predicted_adsorbed_amount = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('experiment', 'temperature', 
+                         'adsorbent_name', 'adsorbate_name'),
+    )
     
 
 ###############################################################################

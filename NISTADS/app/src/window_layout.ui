@@ -668,7 +668,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
            <item>
             <widget class="QPushButton" name="retrieveGuestProperties">
              <property name="text">
-              <string>Retrieve sorbates chemical properties</string>
+              <string>Retrieve adsorbates chemical properties</string>
              </property>
             </widget>
            </item>
@@ -747,19 +747,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </widget>
             </item>
            </layout>
-          </item>
-          <item>
-           <spacer name="verticalSpacer_11">
-            <property name="orientation">
-             <enum>Qt::Orientation::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>218</width>
-              <height>494</height>
-             </size>
-            </property>
-           </spacer>
           </item>
           <item>
            <widget class="QGroupBox" name="datasetProcessGroup">
@@ -953,6 +940,19 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <string>Build training dataset</string>
                </property>
               </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer_11">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>218</width>
+                 <height>494</height>
+                </size>
+               </property>
+              </spacer>
              </item>
              <item>
               <widget class="QGroupBox" name="groupBox_5">

@@ -195,7 +195,7 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
             
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name):                     
+    def load_checkpoint(self, checkpoint_name : str):                     
         custom_objects = {
             'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
             'MaskedAccuracy': MaskedRSquared,

@@ -30,7 +30,7 @@ class MolecularProperties:
         return data  
 
     #--------------------------------------------------------------------------
-    def map_fetched_properties(self, data : pd.DataFrame, properties : dict):
+    def extract_fetched_properties(self, data : pd.DataFrame, properties : dict):
         if not properties:
             return 
         
@@ -55,7 +55,7 @@ class MolecularProperties:
             guest_names, worker=kwargs.get('worker', None),
             progress_callback=kwargs.get('progress_callback', None))
 
-        dataset = self.map_fetched_properties(data, properties)
+        dataset = self.extract_fetched_properties(data, properties)
         return dataset
 
     #--------------------------------------------------------------------------
@@ -70,7 +70,7 @@ class MolecularProperties:
             host_names, worker=kwargs.get('worker', None),
             progress_callback=kwargs.get('progress_callback', None))
         
-        dataset = self.map_fetched_properties(data, properties)  
+        dataset = self.extract_fetched_properties(data, properties)  
         return dataset
     
 
@@ -120,9 +120,9 @@ class CompoundProperties:
     def extract_properties(self, name, compound):       
         molecular_weight = float(getattr(compound, 'molecular_weight', np.nan))
         molecular_formula = getattr(compound, 'molecular_formula', np.nan)
-        SMILE = getattr(compound, 'canonical_SMILE', np.nan)
+        SMILE = np.nan
 
-        if not SMILE:
+        if not getattr(compound, 'isomeric_smiles', None):
             records = getattr(compound, 'record', None)
             # SMILES are now fetched from record/props within the compound object
             # props is a list of dictionary with structure:
