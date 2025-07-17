@@ -23,6 +23,9 @@ pandas==2.2.3
 seaborn==0.13.2 
 pubchempy==1.0.4
 
+# Database & ORM
+SQLAlchemy==2.0.41
+
 # Graphviz interfaces (pip)
 pydot==1.4.2
 pydotplus==2.0.2
