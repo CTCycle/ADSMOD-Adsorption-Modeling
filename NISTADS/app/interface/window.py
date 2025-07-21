@@ -447,6 +447,8 @@ class MainWindow:
     @Slot()
     def collect_data_from_NIST(self):        
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -468,6 +470,8 @@ class MainWindow:
     @Slot()
     def retrieve_guest_properties_from_PUBCHEM(self): 
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -489,6 +493,8 @@ class MainWindow:
     @Slot()
     def retrieve_host_properties_from_PUBCHEM(self): 
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -533,6 +539,8 @@ class MainWindow:
     @Slot()
     def run_dataset_builder(self):          
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -555,6 +563,8 @@ class MainWindow:
     @Slot()
     def train_from_scratch(self):
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
@@ -575,6 +585,8 @@ class MainWindow:
     @Slot()
     def resume_training_from_checkpoint(self): 
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -599,6 +611,8 @@ class MainWindow:
     @Slot()
     def run_model_evaluation_pipeline(self):  
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
 
         self.configuration = self.config_manager.get_configuration() 
@@ -623,6 +637,8 @@ class MainWindow:
     @Slot()
     def get_checkpoints_summary(self):       
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -645,6 +661,8 @@ class MainWindow:
     @Slot()    
     def predict_adsorption_isotherms(self):  
         if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
         
         self.configuration = self.config_manager.get_configuration() 

@@ -81,7 +81,7 @@ class AdsorptionPredictionsQuality:
 
             check_thread_status(kwargs.get('worker', None))
             update_progress_callback(
-                i, len(self.num_experiments), kwargs.get('progress_callback', None))       
+                i+1, len(self.num_experiments), kwargs.get('progress_callback', None))       
 
         plt.title('Comparison of validation adsorption isotherms', fontsize=16)
         plt.tight_layout()

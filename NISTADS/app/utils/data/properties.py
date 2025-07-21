@@ -112,7 +112,7 @@ class CompoundProperties:
 
             check_thread_status(kwargs.get("worker", None))
             update_progress_callback(
-                i, len(names), kwargs.get("progress_callback", None))                          
+                i+1, len(names), kwargs.get("progress_callback", None))                          
 
         return self.properties
 

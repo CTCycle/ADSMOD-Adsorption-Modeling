@@ -156,14 +156,14 @@ class DatasetEvents:
         
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(0, 7, progress_callback)
+        update_progress_callback(1, 8, progress_callback)
 
         # start joining materials properties
         processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)                
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(1, 7, progress_callback)
+        update_progress_callback(2, 8, progress_callback)
 
         # convert pressure and uptake into standard units:
         # pressure to Pascal, uptake to mol/g
@@ -173,7 +173,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(2, 7, progress_callback)
+        update_progress_callback(3, 8, progress_callback)
 
         # exlude all data outside given boundaries, such as negative temperature values 
         # and pressure and uptake values below zero or above upper limits
@@ -189,7 +189,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(3, 7, progress_callback)
+        update_progress_callback(4, 8, progress_callback)
 
         # perform SMILE sequence tokenization  
         tokenization = SMILETokenization(self.configuration) 
@@ -203,7 +203,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(4, 7, progress_callback)
+        update_progress_callback(5, 8, progress_callback)
 
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
@@ -215,7 +215,7 @@ class DatasetEvents:
     
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(5, 7, progress_callback)
+        update_progress_callback(6, 8, progress_callback)
         # add padding to pressure and uptake series to match max length
         train_data = sequencer.PQ_series_padding(train_data)     
         validation_data = sequencer.PQ_series_padding(validation_data)
@@ -227,7 +227,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(6, 7, progress_callback)
+        update_progress_callback(7, 8, progress_callback)
       
         # save preprocessed data using data serializer   
         train_data = sanitizer.isolate_processed_features(train_data)
@@ -238,7 +238,7 @@ class DatasetEvents:
         
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(7, 7, progress_callback) 
+        update_progress_callback(8, 8, progress_callback) 
 
         logger.info(f'Train dataset with {train_data.shape[0]} records has been saved')  
         logger.info(f'Validation dataset with {validation_data.shape[0]} records has been saved')    

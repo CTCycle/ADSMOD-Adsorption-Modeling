@@ -13,8 +13,7 @@ from NISTADS.app.logger import logger
 class ModelEvaluationSummary:
 
     def __init__(self, configuration, remove_invalid=False):
-        self.remove_invalid = remove_invalid             
-               
+        self.remove_invalid = remove_invalid 
         self.configuration = configuration
 
     #---------------------------------------------------------------------------
@@ -73,7 +72,7 @@ class ModelEvaluationSummary:
             # check for thread status and progress bar update   
             check_thread_status(kwargs.get('worker', None))         
             update_progress_callback(
-                i, len(model_paths), kwargs.get('progress_callback', None)) 
+                i+1, len(model_paths), kwargs.get('progress_callback', None)) 
 
         dataframe = pd.DataFrame(model_parameters)
         self.database.save_checkpoints_summary_table(dataframe)      

@@ -129,8 +129,7 @@ class ModelSerializer:
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
-        os.makedirs(checkpoint_path, exist_ok=True)        
-        os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
+        os.makedirs(checkpoint_path, exist_ok=True) 
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
         return checkpoint_path    
