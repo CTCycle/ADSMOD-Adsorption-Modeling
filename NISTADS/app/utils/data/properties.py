@@ -131,8 +131,8 @@ class CompoundProperties:
             formatted_properties = {} 
             for p in internal_properties:
                 urns = p.get('urn', {})
-                label = urns.get('label', 'NA')
-                prop_name = urns.get('name', 'NA')
+                label = urns.get('label', np.nan)
+                prop_name = urns.get('name', np.nan)
                 value = next(iter(p.get('value', {}).values()), np.nan)
                 formatted_properties[f'{label}_{prop_name}'] = value
             

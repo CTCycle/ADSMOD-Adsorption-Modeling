@@ -6,8 +6,9 @@ import matplotlib
 matplotlib.use("Agg")   
 import matplotlib.pyplot as plt
 
+from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
-from NISTADS.app.utils.data.loader import InferenceDataLoader
+
 from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE
 from NISTADS.app.logger import logger
 
@@ -26,7 +27,7 @@ class AdsorptionPredictionsQuality:
         self.num_experiments = num_experiments
         self.cols = int(np.ceil(np.sqrt(self.num_experiments)))      
         self.rows = int(np.ceil(self.num_experiments/self.cols)) 
-        self.DPI = 400
+        self.DPI = configuration.get('image_resolution', 400)
         self.file_type = 'jpeg' 
 
         self.checkpoint_name = os.path.basename(checkpoint_path)        

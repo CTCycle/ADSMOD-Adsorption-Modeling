@@ -79,78 +79,7 @@ For customization, you can modify the main configuration parameters using *setti
 #### General Configuration
 The script is able to perform parallel data fetching through asynchronous HTML requests. However, too many calls may lead to server busy errors, especially when collecting adsorption isotherm data. Try to keep the number of parallel calls for the experiments data below 50 concurrent calls and you should not see any error!
 
-#### General Configuration
 
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| SEED               | Global seed for all numerical operations                 |
-
-#### Data Collection Configuration
-
-| Setting               | Description                                           |
-|-----------------------|-------------------------------------------------------|
-| GUEST_FRACTION        | fraction of adsorbate species data to fetch           |
-| HOST_FRACTION         | fraction of adsorbent materials data to fetch         |
-| EXP_FRACTION          | fraction of adsorption isotherm data to fetch         |
-| PARALLEL_TASKS        | parallel calls to get guest/host data                 |
-                                 
-#### Dataset Configuration
-
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| SAMPLE_SIZE        | Number of samples to use from the dataset                |
-| VALIDATION_SIZE    | Proportion of the dataset to use for validation          |
-| MAX_PQ_POINTS      | Max number of pressure/uptake points for each experiment |
-| MIN_PQ_POINTS      | Min number of pressure/uptake points for each experiment |
-| SMILE_PADDING      | Max length of the SMILE sequence                         |
-| MAX_PRESSURE       | Max allowed pressure in Pascal                           |
-| MAX_UPTAKE         | Max allowed uptake in mol/g                              |
-| SPLIT_SEED         | Seed for random splitting of the dataset                 |
-
-#### Model Configuration
-
-| Parameter            | Description                                              |
-|----------------------|----------------------------------------------------------|
-| MOLECULAR_EMBEDDING  | Embedding dimensions for the molecular properties        |  
-| JIT_COMPILE          | Apply Just-In_time (JIT) compiler for model optimization |
-| JIT_BACKEND          | Just-In_time (JIT) backend                               |
-
-#### Device Configuration
-
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| DEVICE             | Device to use for training (e.g., GPU)                   |
-| DEVICE ID          | ID of the device (only used if GPU is selected)          |
-| MIXED_PRECISION    | Whether to use mixed precision training                  |
-| NUM_PROCESSORS     | Number of processors to use for data loading             |
-
-#### Training Configuration
-
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| EPOCHS             | Number of epochs to train the model                      |
-| ADDITIONAL EPOCHS  | Number of epochs to train the model from checkpoint      |
-| LEARNING_RATE      | Learning rate for the optimizer                          |
-| BATCH_SIZE         | Number of samples per batch                              |
-| USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
-| SAVE_CHECKPOINTS   | Save checkpoints during training (at each epoch)         |
-
-#### LR Scheduler Configuration
-
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| INITIAL_LR         | Initial value of learning rate                           |
-| CONSTANT_STEPS     | Number of steps (batch) to keep the learning rate stable |
-| DECAY_STEPS        | Number of steps (batch) to decay learning rate           |
-| FINAL_LR           | Final value of learning rate (target)                    |
-
-#### Validation Configuration
-
-| Parameter          | Description                                              |
-|--------------------|----------------------------------------------------------|
-| BATCH_SIZE         | Number of samples per batch                              |
-| NUM_IMAGES         | Max number of images to compare during evaluation        |
-| DPI                | Resolution of figures from validation                    |
             
 **Environmental variables** are stored in the *app* folder (within the project folder). For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *app* directory.
 

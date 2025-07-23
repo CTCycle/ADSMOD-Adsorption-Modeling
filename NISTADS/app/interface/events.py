@@ -3,7 +3,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PySide6.QtGui import QImage, QPixmap
 
 from NISTADS.app.utils.data.serializer import DataSerializer, ModelSerializer
-from NISTADS.app.utils.data.loader import TrainingDataLoader, InferenceDataLoader
+from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.utils.data.builder import BuildAdsorptionDataset
 from NISTADS.app.utils.data.API import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.app.utils.data.properties import MolecularProperties
@@ -371,7 +371,7 @@ class ModelEvents:
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, 
                                  worker=None):        
         
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')   
+        logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()      
         model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
@@ -406,7 +406,7 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
                                progress_callback=None, worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')
+        logger.info(f'Loading {selected_checkpoint} checkpoint')
         modser = ModelSerializer()         
         model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    

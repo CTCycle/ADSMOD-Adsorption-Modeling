@@ -1,4 +1,5 @@
 import os
+
 import pandas as pd
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
@@ -153,7 +154,7 @@ class CheckpointSummary(Base):
     device_id = Column(String)
     number_of_processors = Column(Integer)
     use_tensorboard = Column(String)
-    lr_scheduler_initial_lr = Column(Float)
+    lr_scheduler_initial_LR = Column(Float)
     lr_scheduler_constant_steps = Column(Float)
     lr_scheduler_decay_steps = Column(Float)
     __table_args__ = (
@@ -209,7 +210,7 @@ class AdsorptionDatabase:
             session.close()
        
     #--------------------------------------------------------------------------
-    def load_dataset_tables(self):
+    def load_source_dataset(self):
         with self.engine.connect() as conn:
             adsorption_data = pd.read_sql_table("SINGLE_COMPONENT_ADSORPTION", conn)
             guest_data = pd.read_sql_table("ADSORBATES", conn)
@@ -218,7 +219,7 @@ class AdsorptionDatabase:
         return adsorption_data, guest_data, host_data
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation_tables(self):       
+    def load_train_and_validation(self):       
         with self.engine.connect() as conn:
             train_data = pd.read_sql_table("TRAIN_DATA", conn)
             validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
@@ -244,7 +245,7 @@ class AdsorptionDatabase:
             self.upsert_dataframe(adsorbents, Adsorbent)
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
         with self.engine.begin() as conn:
             train_data.to_sql(
                 "TRAIN_DATA", conn, if_exists='replace', index=False)
@@ -258,7 +259,7 @@ class AdsorptionDatabase:
                 "PREDICTED_ADSORPTION", conn, if_exists='replace', index=False)
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
+    def save_checkpoints_summary(self, data : pd.DataFrame):         
         self.upsert_dataframe(data, CheckpointSummary)
     
     

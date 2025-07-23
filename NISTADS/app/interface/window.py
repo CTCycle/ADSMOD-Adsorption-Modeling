@@ -42,8 +42,7 @@ class MainWindow:
 
         # initialize database
         self.database = AdsorptionDatabase()
-        self.database.initialize_database()  
-                        
+        self.database.initialize_database()                         
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
@@ -80,7 +79,7 @@ class MainWindow:
             (QPushButton,'buildMLDataset','build_ML_dataset'),  
             (QCheckBox,'adsIsothermCluster','experiments_clustering'),            
             (QPushButton,'evaluateDataset','evaluate_dataset'),                         
-            # 2. training tab page   
+            # 2. model tab page   
             # dataset settings group               
             (QCheckBox,'setShuffle','use_shuffle'),                     
             (QDoubleSpinBox,'validationSize','validation_size'),
@@ -113,7 +112,7 @@ class MainWindow:
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                        
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
-            # 3. model inference and evaluation tab page
+            # 3. model inference and evaluation 
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
             (QComboBox,'checkpointsList','checkpoints_list'),
             (QSpinBox,'evalSamples','num_evaluation_samples'),              
@@ -140,10 +139,10 @@ class MainWindow:
             ('retrieve_guest_properties','clicked',self.retrieve_guest_properties_from_PUBCHEM), 
             ('retrieve_host_properties','clicked',self.retrieve_host_properties_from_PUBCHEM),          
             ('build_ML_dataset','clicked',self.run_dataset_builder),
-            # 2. training tab page               
+            # 2. model tab page               
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
-            # 3. model inference and evaluation tab page  
+            # model inference and evaluation 
             ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
             ('refresh_checkpoints','clicked',self.load_checkpoints),          
             ('get_evaluation_report','toggled',self._update_metrics), 
@@ -151,7 +150,7 @@ class MainWindow:
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),              
             ('predict_adsorption','clicked',self.predict_adsorption_isotherms),            
-            # 4. viewer tab page 
+            # 3. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
             ('model_plots_view', 'toggled', self._update_graphics_view),           
             ('previous_image', 'clicked', self.show_previous_figure),
@@ -209,7 +208,7 @@ class MainWindow:
             ('max_pressure', 'valueChanged', 'max_pressure'),
             ('max_uptake', 'valueChanged', 'max_pressure'),
             ('split_seed', 'valueChanged', 'split_seed'),
-            # 2. training tab page  
+            # 2. model tab page  
             # # dataset settings group        
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
             ('shuffle_size', 'valueChanged', 'shuffle_size'), 
@@ -225,7 +224,7 @@ class MainWindow:
             ('batch_size', 'valueChanged', 'batch_size'),
             ('train_seed', 'valueChanged', 'train_seed'),     
             # RL scheduler settings group
-            ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
+            ('LR_scheduler', 'toggled', 'use_LR_scheduler'),
             ('initial_LR', 'valueChanged', 'initial_LR'),
             ('target_LR', 'valueChanged', 'target_LR'),
             ('constant_steps', 'valueChanged', 'constant_steps'),          
@@ -239,7 +238,7 @@ class MainWindow:
             ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),
             # session settings group
             ('additional_epochs', 'valueChanged', 'additional_epochs'),
-            # 3. model inference and evaluation tab page                    
+            # model inference and evaluation                   
             ('inference_batch_size', 'valueChanged', 'inference_batch_size'),
             ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),                                 
             ]  
@@ -457,8 +456,7 @@ class MainWindow:
         self._send_message("Collecting adsorption isotherms and materials data from NIST-A database...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(
-            self.dataset_handler.run_data_collection_pipeline)   
+        self.worker = ThreadWorker(self.dataset_handler.run_data_collection_pipeline)   
 
         # start worker and inject signals
         self._start_thread_worker(

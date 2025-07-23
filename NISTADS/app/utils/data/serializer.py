@@ -34,7 +34,7 @@ class DataSerializer:
         
     #--------------------------------------------------------------------------
     def load_adsorption_datasets(self, sample_size=1.0):          
-        adsorption_data, guest_data, host_data = self.database.load_dataset_tables()
+        adsorption_data, guest_data, host_data = self.database.load_source_dataset()
         adsorption_data = adsorption_data.sample(
             frac=sample_size, random_state=self.seed).reset_index(drop=True)
 
@@ -48,7 +48,7 @@ class DataSerializer:
     def load_train_and_validation_data(self): 
         # load preprocessed data from database and convert joint strings to list
         sanitizer = DataSanitizer(self.configuration) 
-        train_data, val_data = self.database.load_train_and_validation_tables()
+        train_data, val_data = self.database.load_train_and_validation()
         train_data = sanitizer.convert_string_to_series(train_data) 
         val_data = sanitizer.convert_string_to_series(val_data) 
 
@@ -72,7 +72,7 @@ class DataSerializer:
         sanitizer = DataSanitizer(self.configuration)    
         train_data = sanitizer.convert_series_to_string(train_data)   
         validation_data = sanitizer.convert_series_to_string(validation_data)      
-        self.database.save_train_and_validation_tables(train_data, validation_data) 
+        self.database.save_train_and_validation(train_data, validation_data) 
         
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
