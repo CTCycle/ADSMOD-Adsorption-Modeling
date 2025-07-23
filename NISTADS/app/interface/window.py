@@ -112,7 +112,7 @@ class MainWindow:
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                        
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
-            # 3. model inference and evaluation 
+            # model inference and evaluation 
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
             (QComboBox,'checkpointsList','checkpoints_list'),
             (QSpinBox,'evalSamples','num_evaluation_samples'),              
@@ -122,7 +122,7 @@ class MainWindow:
             (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),            
             (QSpinBox,'inferenceBatchSize','inference_batch_size'), 
             (QPushButton,'predictAdsorption','predict_adsorption'),          
-            # 4. Viewer tab            
+            # 3. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
             (QPushButton,'nextImg','next_image'),
             (QPushButton,'clearImg','clear_images'),
@@ -731,13 +731,13 @@ class MainWindow:
     ###########################################################################   
     # [NEGATIVE OUTCOME HANDLERS]
     ###########################################################################     
-    @Slot() 
     def on_error(self, err_tb):
         exc, tb = err_tb
         logger.error(f"{exc}\n{tb}")
-        QMessageBox.critical(self.main_win, 'Something went wrong!', f"{exc}\n\n{tb}")
+        message = "An error occurred during the operation. Check the logs for details."
+        QMessageBox.critical(self.main_win, 'Something went wrong!', message)
         self.progress_bar.setValue(0)      
-        self.worker = self.worker.cleanup()  
+        self.worker = self.worker.cleanup()
 
     ###########################################################################   
     # [INTERRUPTION HANDLERS]

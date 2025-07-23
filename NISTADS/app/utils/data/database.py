@@ -1,6 +1,6 @@
 import os
-
 import pandas as pd
+import sqlalchemy
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
@@ -75,7 +75,6 @@ class Adsorbent(Base):
     hashkey = Column(String, primary_key=True)
     formula = Column(String)
     synonyms = Column(String)
-    External_Resources = Column(String)
     adsorbent_molecular_weight = Column(Float)
     adsorbent_molecular_formula = Column(String)
     adsorbent_SMILE = Column(String)
@@ -168,17 +167,19 @@ class AdsorptionDatabase:
 
     def __init__(self): 
         self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
+        self.inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 50000
               
     #--------------------------------------------------------------------------       
     def initialize_database(self):
-        Base.metadata.create_all(self.engine)          
-        inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')
-        logger.debug(f'Updating database from {inference_path}')                    
-        dataset = pd.read_csv(inference_path, sep=';', encoding='utf-8')        
-        self.save_predictions_table(dataset)   
+        Base.metadata.create_all(self.engine)   
+
+    #--------------------------------------------------------------------------       
+    def update_database_from_source(self): 
+        dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
+        self.save_predictions(dataset)
 
     #--------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls):
@@ -205,6 +206,7 @@ class AdsorptionDatabase:
                     set_=update_cols
                 )
                 session.execute(stmt)
+                session.commit()
             session.commit()
         finally:
             session.close()
@@ -233,12 +235,12 @@ class AdsorptionDatabase:
         return data
 
     #--------------------------------------------------------------------------
-    def save_experiments_table(self, single_components: pd.DataFrame, binary_mixture: pd.DataFrame):
+    def save_adsorption_dataset(self, single_components: pd.DataFrame, binary_mixture: pd.DataFrame):
         self.upsert_dataframe(single_components, SingleComponentAdsorption)
         self.upsert_dataframe(binary_mixture, BinaryMixtureAdsorption)
 
     #--------------------------------------------------------------------------
-    def save_materials_table(self, adsorbates : pd.DataFrame, adsorbents : pd.DataFrame,):    
+    def save_materials_datasets(self, adsorbates : pd.DataFrame, adsorbents : pd.DataFrame,):    
         if adsorbates is not None:
             self.upsert_dataframe(adsorbates, Adsorbate)
         if adsorbents is not None:
@@ -247,16 +249,16 @@ class AdsorptionDatabase:
     #--------------------------------------------------------------------------
     def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
         with self.engine.begin() as conn:
-            train_data.to_sql(
-                "TRAIN_DATA", conn, if_exists='replace', index=False)
-            validation_data.to_sql(
-                "VALIDATION_DATA", conn, if_exists='replace', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM TRAIN_DATA"))    
+            conn.execute(sqlalchemy.text(f"DELETE FROM VALIDATION_DATA"))      
+        train_data.to_sql("TRAIN_DATA", self.engine, if_exists='append', index=False)
+        validation_data.to_sql("VALIDATION_DATA", self.engine, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
-    def save_predictions_table(self, data : pd.DataFrame):      
+    def save_predictions_dataset(self, data : pd.DataFrame): 
         with self.engine.begin() as conn:
-            data.to_sql(
-                "PREDICTED_ADSORPTION", conn, if_exists='replace', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM PREDICTED_ADSORPTION"))        
+        data.to_sql("PREDICTED_ADSORPTION", self.engine, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):         

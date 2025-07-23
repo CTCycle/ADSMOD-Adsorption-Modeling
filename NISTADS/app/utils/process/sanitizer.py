@@ -113,21 +113,8 @@ class DataSanitizer:
     
     #--------------------------------------------------------------------------
     def isolate_processed_features(self, dataset : pd.DataFrame):    
-        return dataset[self.included_cols]
-     
-    #--------------------------------------------------------------------------
-    def convert_series_to_string(self, dataset : pd.DataFrame):        
-        return dataset.applymap(
-            lambda x: self.separator.join(map(str, x)) if isinstance(x, list) else x)
-        
-    #--------------------------------------------------------------------------
-    def convert_string_to_series(self, dataset : pd.DataFrame):     
-        dataset = dataset.applymap(
-            lambda x : (
-            [float(f) for f in x.split(self.separator) if self.is_convertible_to_float(f)]
-            if isinstance(x, str) and self.separator in x else x) if pd.notna(x) else x)
-        
-        return dataset
+        return dataset[self.included_cols]     
+    
                     
       
     

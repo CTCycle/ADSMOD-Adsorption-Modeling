@@ -21,7 +21,7 @@ class DataSerializer:
     def __init__(self, configuration : dict):
         self.seed = configuration.get('general_seed', 42)
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'                
+        self.Q_COL = 'adsorbed_amount'
         self.configuration = configuration
         self.database = AdsorptionDatabase()
 
@@ -31,6 +31,16 @@ class DataSerializer:
             METADATA_PATH, 'SMILE_tokenization_index.json')
         self.ads_vocabulary_path = os.path.join(
             METADATA_PATH, 'adsorbents_index.json')
+        
+    #--------------------------------------------------------------------------
+    def process_series_of_elements(self, data : pd.DataFrame, columns):
+        for col in columns:
+            data[col] = data[col].apply(
+                lambda x: ' '.join(map(str, x)) if isinstance(x, list)
+                else [int(f) for f in x.split() if f.strip()] if isinstance(x, str)
+                else x)
+            
+        return data
         
     #--------------------------------------------------------------------------
     def load_adsorption_datasets(self, sample_size=1.0):          
@@ -47,10 +57,9 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self): 
         # load preprocessed data from database and convert joint strings to list
-        sanitizer = DataSanitizer(self.configuration) 
         train_data, val_data = self.database.load_train_and_validation()
-        train_data = sanitizer.convert_string_to_series(train_data) 
-        val_data = sanitizer.convert_string_to_series(val_data) 
+        train_data = self.process_series_of_elements(train_data, [self.P_COL, self.Q_COL]) 
+        val_data = self.process_series_of_elements(val_data, [self.P_COL, self.Q_COL]) 
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
@@ -65,14 +74,13 @@ class DataSerializer:
         return train_data, val_data, metadata, vocabularies  
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_data(self, train_data, validation_data,
-                                       smile_vocabulary, ads_vocabulary, normalization_stats={}):      
+    def save_train_and_validation_data(self, train_data, val_data, smile_vocabulary, 
+                                       ads_vocabulary, normalization_stats={}):      
 
         # convert list to joint string and save preprocessed data to database
-        sanitizer = DataSanitizer(self.configuration)    
-        train_data = sanitizer.convert_series_to_string(train_data)   
-        validation_data = sanitizer.convert_series_to_string(validation_data)      
-        self.database.save_train_and_validation(train_data, validation_data) 
+        train_data = self.process_series_of_elements(train_data, [self.P_COL, self.Q_COL]) 
+        val_data = self.process_series_of_elements(val_data, [self.P_COL, self.Q_COL])    
+        self.database.save_train_and_validation(train_data, val_data) 
         
         with open(self.smile_vocabulary_path, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
@@ -96,23 +104,20 @@ class DataSerializer:
    
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data=None, host_data=None):
-        sanitizer = DataSanitizer(self.configuration)                       
         if guest_data is not None:
-            guest_data = pd.DataFrame.from_dict(guest_data)
-            guest_data = sanitizer.convert_series_to_string(guest_data)            
+            guest_data = self.process_series_of_elements(guest_data, ['synonyms'])            
         if host_data is not None:
-            host_data = pd.DataFrame.from_dict(host_data)
-            host_data = sanitizer.convert_series_to_string(host_data)    
+            host_data = self.process_series_of_elements(host_data, ['synonyms']) 
 
-        self.database.save_materials_table(guest_data, host_data)
+        self.database.save_materials_datasets(guest_data, host_data)
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component, binary_mixture):
-        self.database.save_experiments_table(single_component, binary_mixture)  
+        self.database.save_adsorption_dataset(single_component, binary_mixture)  
 
     #--------------------------------------------------------------------------
     def save_predictions_dataset(self, data):
-        self.database.save_predictions_table(data)  
+        self.database.save_predictions_dataset(data)  
 
 
     

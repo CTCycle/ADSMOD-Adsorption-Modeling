@@ -119,17 +119,16 @@ class DatasetEvents:
         serializer = DataSerializer(self.configuration)
         experiments, guest_data, host_data = serializer.load_adsorption_datasets()           
         properties = MolecularProperties(self.configuration)  
-
-        if guest_as_target:
-            # process guest (adsorbed species) data by adding molecular properties
+        # process guest (adsorbed species) data by adding molecular properties
+        if guest_as_target:            
             logger.info('Retrieving molecular properties for sorbate species using PubChem API')
             guest_data = properties.fetch_guest_properties(
                 experiments, guest_data, worker=worker, progress_callback=progress_callback) 
             # save the final version of the materials dataset    
             serializer.save_materials_datasets(guest_data=guest_data)
             logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
-        else:
-            # process host (adsorbent materials) data by adding molecular properties   
+        # process host (adsorbent materials) data by adding molecular properties
+        else:               
             logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
             host_data = properties.fetch_host_properties(
                 experiments, host_data, worker=worker, progress_callback=progress_callback) 
