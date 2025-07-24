@@ -33,11 +33,11 @@ class DataSerializer:
             METADATA_PATH, 'adsorbents_index.json')
         
     #--------------------------------------------------------------------------
-    def process_series_of_elements(self, data : pd.DataFrame, columns):
+    def serialize_series(self, data : pd.DataFrame, columns):
         for col in columns:
             data[col] = data[col].apply(
                 lambda x: ' '.join(map(str, x)) if isinstance(x, list)
-                else [int(f) for f in x.split() if f.strip()] if isinstance(x, str)
+                else [f for f in x.split() if f.strip()] if isinstance(x, str)
                 else x)
             
         return data
@@ -45,6 +45,8 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_adsorption_datasets(self, sample_size=1.0):          
         adsorption_data, guest_data, host_data = self.database.load_source_dataset()
+        guest_data = self.serialize_series(guest_data, ['synonyms'])
+        host_data = self.serialize_series(host_data, ['synonyms'])
         adsorption_data = adsorption_data.sample(
             frac=sample_size, random_state=self.seed).reset_index(drop=True)
 
@@ -58,8 +60,8 @@ class DataSerializer:
     def load_train_and_validation_data(self): 
         # load preprocessed data from database and convert joint strings to list
         train_data, val_data = self.database.load_train_and_validation()
-        train_data = self.process_series_of_elements(train_data, [self.P_COL, self.Q_COL]) 
-        val_data = self.process_series_of_elements(val_data, [self.P_COL, self.Q_COL]) 
+        train_data = self.serialize_series(train_data, [self.P_COL, self.Q_COL]) 
+        val_data = self.serialize_series(val_data, [self.P_COL, self.Q_COL]) 
 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
@@ -78,8 +80,8 @@ class DataSerializer:
                                        ads_vocabulary, normalization_stats={}):      
 
         # convert list to joint string and save preprocessed data to database
-        train_data = self.process_series_of_elements(train_data, [self.P_COL, self.Q_COL]) 
-        val_data = self.process_series_of_elements(val_data, [self.P_COL, self.Q_COL])    
+        train_data = self.serialize_series(train_data, [self.P_COL, self.Q_COL]) 
+        val_data = self.serialize_series(val_data, [self.P_COL, self.Q_COL])    
         self.database.save_train_and_validation(train_data, val_data) 
         
         with open(self.smile_vocabulary_path, 'w') as file:
@@ -105,9 +107,9 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data=None, host_data=None):
         if guest_data is not None:
-            guest_data = self.process_series_of_elements(guest_data, ['synonyms'])            
+            guest_data = self.serialize_series(guest_data, ['synonyms'])            
         if host_data is not None:
-            host_data = self.process_series_of_elements(host_data, ['synonyms']) 
+            host_data = self.serialize_series(host_data, ['synonyms']) 
 
         self.database.save_materials_datasets(guest_data, host_data)
 

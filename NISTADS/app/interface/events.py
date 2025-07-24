@@ -115,12 +115,12 @@ class DatasetEvents:
         logger.info('Materials data collection is concluded')
 
     #--------------------------------------------------------------------------
-    def run_chemical_properties_pipeline(self, guest_as_target=True, progress_callback=None, worker=None):         
+    def run_chemical_properties_pipeline(self, target='guest', progress_callback=None, worker=None):         
         serializer = DataSerializer(self.configuration)
         experiments, guest_data, host_data = serializer.load_adsorption_datasets()           
         properties = MolecularProperties(self.configuration)  
         # process guest (adsorbed species) data by adding molecular properties
-        if guest_as_target:            
+        if target == 'guest':            
             logger.info('Retrieving molecular properties for sorbate species using PubChem API')
             guest_data = properties.fetch_guest_properties(
                 experiments, guest_data, worker=worker, progress_callback=progress_callback) 
@@ -128,7 +128,7 @@ class DatasetEvents:
             serializer.save_materials_datasets(guest_data=guest_data)
             logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
         # process host (adsorbent materials) data by adding molecular properties
-        else:               
+        elif target == 'host':               
             logger.info('Retrieving molecular properties for adsorbent materials using PubChem API') 
             host_data = properties.fetch_host_properties(
                 experiments, host_data, worker=worker, progress_callback=progress_callback) 

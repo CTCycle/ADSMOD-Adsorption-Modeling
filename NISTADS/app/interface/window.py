@@ -479,7 +479,8 @@ class MainWindow:
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(
-            self.dataset_handler.run_chemical_properties_pipeline)   
+            self.dataset_handler.run_chemical_properties_pipeline,
+            target='guest')   
 
         # start worker and inject signals
         self._start_thread_worker(
@@ -503,7 +504,7 @@ class MainWindow:
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ThreadWorker(
             self.dataset_handler.run_chemical_properties_pipeline,
-            guest_as_target=False)   
+            target='host')    
 
         # start worker and inject signals
         self._start_thread_worker(

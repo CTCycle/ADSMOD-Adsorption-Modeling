@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1159</width>
-    <height>850</height>
+    <width>1185</width>
+    <height>903</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -27,7 +27,7 @@
        <string/>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
@@ -1276,7 +1276,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1159</width>
+     <width>1185</width>
      <height>27</height>
     </rect>
    </property>

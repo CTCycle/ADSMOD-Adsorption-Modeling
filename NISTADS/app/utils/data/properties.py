@@ -56,6 +56,7 @@ class MolecularProperties:
             progress_callback=kwargs.get('progress_callback', None))
 
         dataset = self.extract_fetched_properties(data, properties)
+        
         return dataset
 
     #--------------------------------------------------------------------------
