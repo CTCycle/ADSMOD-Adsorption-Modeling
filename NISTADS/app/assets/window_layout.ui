@@ -58,7 +58,7 @@
                 <number>3</number>
                </property>
                <property name="minimum">
-                <double>0.000000000000000</double>
+                <double>0.001000000000000</double>
                </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
@@ -88,7 +88,7 @@
                 <number>3</number>
                </property>
                <property name="minimum">
-                <double>0.000000000000000</double>
+                <double>0.001000000000000</double>
                </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
@@ -118,7 +118,7 @@
                 <number>3</number>
                </property>
                <property name="minimum">
-                <double>0.000000000000000</double>
+                <double>0.001000000000000</double>
                </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
@@ -161,6 +161,19 @@
             </layout>
            </item>
            <item>
+            <spacer name="verticalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
             <widget class="QPushButton" name="collectAdsData">
              <property name="toolTip">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Collect experiments and materials data from NIST-A database. User can select the fraction of adsorption isotherms (experiments), guest data (adsorbate species) and host data (adsorbents) to fetch and the number of parallel requests&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -172,6 +185,9 @@
            </item>
            <item>
             <widget class="QPushButton" name="retrieveGuestProperties">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Retrieve adsorbates (guest) molecular properties using pubchem API. These properties will be used to build the processed training dataset&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>Retrieve adsorbates chemical properties</string>
              </property>
@@ -179,45 +195,12 @@
            </item>
            <item>
             <widget class="QPushButton" name="retrieveHostProperties">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Retrieve adsorbents (host) molecular properties using pubchem API. These properties will be used to build the processed training dataset&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>Retrieve adsorbents chemical propertis</string>
              </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QGroupBox" name="groupBox_5">
-             <property name="title">
-              <string>Dataset evaluation</string>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout">
-              <item>
-               <widget class="QCheckBox" name="adsIsothermCluster">
-                <property name="text">
-                 <string>Adsorption isotherm clustering</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <spacer name="verticalSpacer_12">
-                <property name="orientation">
-                 <enum>Qt::Orientation::Vertical</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>218</width>
-                  <height>494</height>
-                 </size>
-                </property>
-               </spacer>
-              </item>
-              <item>
-               <widget class="QPushButton" name="evaluateDataset">
-                <property name="text">
-                 <string>Evaluate dataset</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
             </widget>
            </item>
           </layout>
@@ -226,55 +209,106 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_8">
           <item>
-           <layout class="QHBoxLayout" name="SSLayout">
-            <item>
-             <widget class="QLabel" name="SSLabel">
-              <property name="text">
-               <string>Sample size</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QDoubleSpinBox" name="sampleSize">
-              <property name="minimum">
-               <double>0.010000000000000</double>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.050000000000000</double>
-              </property>
-              <property name="value">
-               <double>1.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QGroupBox" name="groupBox_2">
+            <property name="title">
+             <string>Source</string>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_16">
+             <item>
+              <layout class="QHBoxLayout" name="SSLayout">
+               <item>
+                <widget class="QLabel" name="SSLabel">
+                 <property name="text">
+                  <string>Sample size</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QDoubleSpinBox" name="sampleSize">
+                 <property name="decimals">
+                  <number>3</number>
+                 </property>
+                 <property name="minimum">
+                  <double>0.010000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>1.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.050000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>1.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="seedLayout">
+               <item>
+                <widget class="QLabel" name="seedLabel">
+                 <property name="text">
+                  <string>Seed</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="seed">
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>1000000000</number>
+                 </property>
+                 <property name="value">
+                  <number>42</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="seedLayout">
-            <item>
-             <widget class="QLabel" name="seedLabel">
-              <property name="text">
-               <string>Seed</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="seed">
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>999999</number>
-              </property>
-              <property name="value">
-               <number>42</number>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QGroupBox" name="groupBox_5">
+            <property name="title">
+             <string>Dataset evaluation</string>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout">
+             <item>
+              <widget class="QCheckBox" name="adsIsothermCluster">
+               <property name="text">
+                <string>Adsorption isotherm clustering</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer_4">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="evaluateDataset">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Start the dataset evaluation pipeline for the selected sample size and metrics&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>Evaluate dataset</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
           </item>
           <item>
            <widget class="QGroupBox" name="datasetProcessGroup">
@@ -463,19 +497,6 @@
               </layout>
              </item>
              <item>
-              <spacer name="verticalSpacer_11">
-               <property name="orientation">
-                <enum>Qt::Orientation::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>218</width>
-                 <height>494</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
               <widget class="QPushButton" name="buildMLDataset">
                <property name="text">
                 <string>Build training dataset</string>
@@ -493,8 +514,8 @@
        <attribute name="title">
         <string>Model</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_21">
-        <item>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
          <layout class="QVBoxLayout" name="verticalLayout_11">
           <item>
            <widget class="QGroupBox" name="groupBox_3">
@@ -694,7 +715,7 @@
           </item>
          </layout>
         </item>
-        <item>
+        <item row="0" column="1">
          <layout class="QVBoxLayout" name="verticalLayout_14">
           <item>
            <widget class="QGroupBox" name="modelGroup">
@@ -999,7 +1020,7 @@
           </item>
          </layout>
         </item>
-        <item>
+        <item row="0" column="2">
          <layout class="QVBoxLayout" name="verticalLayout_17">
           <item>
            <widget class="QGroupBox" name="groupBox_10">

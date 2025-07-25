@@ -1,6 +1,5 @@
-from torch import cuda, device
+from keras import Model
 from keras.utils import set_random_seed
-from keras.mixed_precision import set_global_policy
 
 from NISTADS.app.utils.learning.callbacks import initialize_callbacks_handler
 from NISTADS.app.utils.data.serializer import ModelSerializer
@@ -11,16 +10,18 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self, configuration):        
-        set_random_seed(configuration.get('training_seed', 42))    
-        self.configuration = configuration 
+    def __init__(self, configuration : dict, metadata=None):          
+        set_random_seed(configuration.get('training_seed', 42))         
+        self.configuration = configuration        
+        self.metadata = metadata
     
     #--------------------------------------------------------------------------
-    def train_model(self, model, train_data, validation_data, metadata, checkpoint_path, **kwargs):
-        total_epochs = self.configuration.get('epochs', 100) 
+    def train_model(self, model : Model, train_data, validation_data, metadata,
+                    checkpoint_path, **kwargs):                 
+        total_epochs = self.configuration.get('epochs', 10)      
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
-            self.configuration, checkpoint_path, 
+            self.configuration, checkpoint_path, total_epochs=total_epochs, 
             progress_callback=kwargs.get('progress_callback', None), 
             worker=kwargs.get('worker', None))       
         
@@ -30,7 +31,7 @@ class ModelTraining:
             callbacks=callbacks_list)
         
         history = {'history' : session.history,
-                   'epochs': session.epoch[-1] + 1}
+                   'epochs': session.epoch[-1] + 1} 
 
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       

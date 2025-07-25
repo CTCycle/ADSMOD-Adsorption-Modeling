@@ -131,7 +131,6 @@ class SCADSDataLoader:
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def separate_inputs_and_output(self, data : pd.DataFrame):
-        data = data.dropna(how='any')            
         state = np.array(data['temperature'].values, dtype=np.float32)
         chemo = np.array(data['adsorbate_molecular_weight'].values, dtype=np.float32)
         adsorbent = np.array(data['encoded_adsorbent'].values, dtype=np.float32)

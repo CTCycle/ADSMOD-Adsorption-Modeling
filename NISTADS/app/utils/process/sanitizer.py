@@ -35,7 +35,7 @@ class AggregateDatasets:
     # aggregate plain dataset of adsorption measurements (source data) that has
     # been composed from the NIST database API requests
     #--------------------------------------------------------------------------
-    def aggregate_adsorption_measurements(self, dataset):
+    def aggregate_adsorption_measurements(self, dataset : pd.DataFrame):
         aggregate_dict = {'temperature' : 'first',                  
                           'adsorbent_name' : 'first',
                           'adsorbate_name' : 'first',
@@ -44,8 +44,7 @@ class AggregateDatasets:
                           'pressure' : lambda x: [float(v) for v in x],
                           'adsorbed_amount' : lambda x: [float(v) for v in x]}   
         
-        grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()
-        grouped_data.drop(columns=['filename'], inplace=True)        
+        grouped_data = dataset.groupby(by='filename').agg(aggregate_dict).reset_index()             
 
         return grouped_data
 
@@ -66,10 +65,8 @@ class DataSanitizer:
         self.max_uptake = configuration.get('max_uptake', 20)
         self.configuration = configuration
         self.included_cols = [
-            'temperature', 'pressure', 'adsorbed_amount', 
-            'encoded_adsorbent', 'adsorbent_name',
-            'adsorbate_molecular_weight', 'adsorbate_name', 
-            'adsorbate_encoded_SMILE']
+            'filename', 'temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent', 
+            'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
 
     #--------------------------------------------------------------------------
     def is_convertible_to_float(self, value):

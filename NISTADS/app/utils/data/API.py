@@ -191,6 +191,7 @@ class GuestHostDataFetch:
                 
                 guest_data = [data for data in guest_data if data is not None]
                 guest_data = pd.DataFrame(guest_data)
+                guest_data = guest_data.drop(columns=['synonyms'], axis=1)
                 guest_data = guest_data.assign(
                     **{col: np.nan for col in self.extra_guest_columns})
             else:
@@ -208,7 +209,7 @@ class GuestHostDataFetch:
                 
                 host_data = [data for data in host_data if data is not None]
                 host_data = pd.DataFrame(host_data)
-                host_data = host_data.drop(columns=['External_Resources'], axis=1)
+                host_data = host_data.drop(columns=['External_Resources', 'synonyms'], axis=1)
                 host_data = host_data.assign(
                     **{col: np.nan for col in self.extra_host_columns})
                 

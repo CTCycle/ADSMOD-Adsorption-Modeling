@@ -68,7 +68,8 @@ class GraphicsHandler:
 ###############################################################################
 class DatasetEvents:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
+        self.seed = configuration.get('general_seed', 42)
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
@@ -138,25 +139,30 @@ class DatasetEvents:
     
     #--------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):        
-        serializer = DataSerializer(self.configuration)
-        sample_size = self.configuration.get('sample_size', 1.0)
-        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets(
-            sample_size=sample_size)
+        serializer = DataSerializer(self.configuration)        
+        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets() 
+        if adsorption_data.empty:    
+            logger.warning('No adsorption data found in the database, please fetch data first')  
+            return 
+            
+        logger.info(f'{len(adsorption_data)} measurements in the dataset')
+        logger.info(f'{len(guest_data)} total guests (adsorbates species) in the dataset')
+        logger.info(f'{len(host_data)} total hosts (adsorbent materials) in the dataset')
 
-        logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
-        logger.info(f'{guest_data.shape[0]} total guests (adsorbates species) in the dataset')
-        logger.info(f'{host_data.shape[0]} total hosts (adsorbent materials) in the dataset')
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(1, 8, progress_callback)
         
         # group single component data based on the experiment name 
         # merge adsorption data with retrieved materials properties (guest and host)
         aggregator = AggregateDatasets(self.configuration)
         processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
-        logger.info(f'Dataset has been aggregated for a total of {processed_data.shape[0]} experiments') 
-        
-        # check thread for interruption 
-        check_thread_status(worker)
-        update_progress_callback(1, 8, progress_callback)
-
+        # select only a fraction of adsorption isotherm experiments
+        sample_size = self.configuration.get('sample_size', 1.0)
+        if sample_size < 1.0:
+            processed_data = processed_data.sample(
+                frac=sample_size, random_state=self.seed).reset_index(drop=True)
+        logger.info(f'Aggregated dataset has {len(processed_data)} experiments') 
         # start joining materials properties
         processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)                
 
@@ -232,15 +238,92 @@ class DatasetEvents:
         train_data = sanitizer.isolate_processed_features(train_data)
         validation_data = sanitizer.isolate_processed_features(validation_data)           
         serializer.save_train_and_validation_data(
+            train_data, validation_data, smile_vocab, adsorbent_vocab, normalizer.statistics) 
+        
+        # check thread for interruption        
+        update_progress_callback(8, 8, progress_callback) 
+
+        logger.info(f'Saved train dataset with {train_data.shape[0]} records saved')  
+        logger.info(f'Saved validation dataset with {validation_data.shape[0]} records')    
+
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def rebuild_dataset_from_metadata(metadata : dict):      
+        serializer = DataSerializer(self.configuration)        
+        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()           
+        logger.info(f'{len(adsorption_data)} measurements in the dataset')
+        logger.info(f'{len(guest_data)} total guests (adsorbates species) in the dataset')
+        logger.info(f'{len(host_data)} total hosts (adsorbent materials) in the dataset')
+        
+        # group single component data based on the experiment name 
+        # merge adsorption data with retrieved materials properties (guest and host)
+        aggregator = AggregateDatasets(self.configuration)
+        processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
+        # select only a fraction of adsorption isotherm experiments
+        sample_size = self.configuration.get('sample_size', 1.0)
+        processed_data = adsorption_data.sample(
+            frac=sample_size, random_state=self.seed).reset_index(drop=True)
+        logger.info(f'Aggregated dataset has {len(processed_data)} experiments')        
+
+        # start joining materials properties
+        processed_data = aggregator.join_materials_properties(processed_data, guest_data, host_data)                
+
+        # convert pressure and uptake into standard units:
+        # pressure to Pascal, uptake to mol/g
+        sequencer = PressureUptakeSeriesProcess(self.configuration)
+        logger.info('Converting pressure into Pascal and uptake into mol/g')   
+        processed_data = PQ_units_conversion(processed_data)    
+
+        # exlude all data outside given boundaries, such as negative temperature values 
+        # and pressure and uptake values below zero or above upper limits
+        sanitizer = DataSanitizer(self.configuration)
+        logger.info('Filtering Out-of-Boundary values')
+        processed_data = sanitizer.exclude_OOB_values(processed_data)  
+              
+        # remove repeated zero values at the beginning of pressure and uptake series  
+        # then filter out experiments with not enough measurements 
+        logger.info('Performing sequence sanitization and filter by size')
+        processed_data = sequencer.remove_leading_zeros(processed_data)   
+        processed_data = sequencer.filter_by_sequence_size(processed_data)          
+
+
+        # perform SMILE sequence tokenization  
+        tokenization = SMILETokenization(self.configuration) 
+        logger.info('Tokenizing SMILE sequences for adsorbate species')   
+        processed_data, smile_vocab = tokenization.process_SMILE_sequences(processed_data)  
+
+        # split data into train set and validation set
+        logger.info('Generate train and validation datasets through stratified splitting')  
+        splitter = TrainValidationSplit(self.configuration)     
+        train_data, validation_data = splitter.split_train_and_validation(processed_data) 
+        # normalize pressure and uptake series using max values computed from 
+        # the training set, then pad sequences to a fixed length
+        normalizer = FeatureNormalizer(self.configuration, train_data)
+        train_data = normalizer.normalize_molecular_features(train_data) 
+        train_data = normalizer.PQ_series_normalization(train_data) 
+        validation_data = normalizer.normalize_molecular_features(validation_data) 
+        validation_data = normalizer.PQ_series_normalization(validation_data)      
+    
+       
+        # add padding to pressure and uptake series to match max length
+        train_data = sequencer.PQ_series_padding(train_data)     
+        validation_data = sequencer.PQ_series_padding(validation_data)
+        
+        encoding = AdsorbentEncoder(self.configuration, train_data)    
+        train_data = encoding.encode_adsorbents_by_name(train_data)
+        validation_data = encoding.encode_adsorbents_by_name(validation_data)    
+        adsorbent_vocab = encoding.mapping
+
+        # save preprocessed data using data serializer   
+        train_data = sanitizer.isolate_processed_features(train_data)
+        validation_data = sanitizer.isolate_processed_features(validation_data)           
+        serializer.save_train_and_validation_data(
             train_data, validation_data, smile_vocab, 
             adsorbent_vocab, normalizer.statistics) 
         
-        # check thread for interruption 
-        check_thread_status(worker)
-        update_progress_callback(8, 8, progress_callback) 
-
         logger.info(f'Train dataset with {train_data.shape[0]} records has been saved')  
-        logger.info(f'Validation dataset with {validation_data.shape[0]} records has been saved')    
+        logger.info(f'Validation dataset with {validation_data.shape[0]} records has been saved') 
 
 
 ###############################################################################
@@ -256,10 +339,7 @@ class ValidationEvents:
         logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
         logger.info(f'{guest_data.shape[0]} adsorbates species in the dataset')
         logger.info(f'{host_data.shape[0]} adsorbent materials in the dataset')
-
-        # load preprocessed data and associated metadata        
-        train_data, val_data, metadata, vocabularies = serializer.load_train_and_validation_data()
-
+        
         # check thread for interruption 
         check_thread_status(worker)
 
@@ -267,8 +347,7 @@ class ValidationEvents:
         images = []  
         if 'experiments_clustering' in metrics:
             logger.info('Current metric: Adsorption isotherm clustering')
-            # images.append(self.analyzer.calculate_pixel_intensity_distribution(
-            #     images_paths, progress_callback, worker))
+            pass
 
         return images 
 
@@ -279,8 +358,7 @@ class ValidationEvents:
         logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')    
     
     #--------------------------------------------------------------------------
-    def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, device='CPU', 
-                                      progress_callback=None, worker=None):
+    def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, progress_callback=None, worker=None):
         modser = ModelSerializer()         
         model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
@@ -330,35 +408,28 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
         dataserializer = DataSerializer(self.configuration)        
-        train_data, val_data, metadata, _ = dataserializer.load_train_and_validation_data() 
-
+        train_data, validation_data, metadata, _ = dataserializer.load_train_and_validation_data()
         logger.info('Building model data loaders with prefetching and parallel processing')   
-        builder = TrainingDataLoader(self.configuration)   
-        train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, val_data) 
-        
+        builder = SCADSDataLoader(self.configuration)   
+        train_dataset = builder.build_training_dataloader(train_data)
+        validation_dataset = builder.build_training_dataloader(validation_data) 
+
         # check thread for interruption 
         check_thread_status(worker)
-        
-        modser = ModelSerializer()
-        checkpoint_path = modser.create_checkpoint_folder()        
-         
+
         # set device for training operations
         logger.info('Setting device for training operations')                
         device = DeviceConfig(self.configuration)   
         device.set_device() 
-       
+        # create checkpoint folder   
+        modser = ModelSerializer()
+        checkpoint_path = modser.create_checkpoint_folder()         
         # Setting callbacks and training routine for the machine learning model           
         logger.info('Building SCADS model')  
         wrapper = SCADSModel(metadata, self.configuration)
         model = wrapper.get_model(model_summary=True) 
-
         # generate graphviz plot fo the model layout       
         modser.save_model_plot(model, checkpoint_path)   
-
-        # check thread for interruption 
-        check_thread_status(worker)           
-
         # perform training and save model at the end
         logger.info('Starting SCADS model training') 
         trainer = ModelTraining(self.configuration) 
@@ -385,11 +456,11 @@ class ModelEvents:
           
         logger.info('Loading preprocessed data and building dataloaders')     
         dataserializer = DataSerializer(train_config)
-        train_data, val_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
+        train_data, validation_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
            
-        builder = TrainingDataLoader(train_config)   
-        train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, val_data)
+        builder = SCADSDataLoader(train_config)   
+        train_dataset = builder.build_training_dataloader(train_data)
+        validation_dataset = builder.build_training_dataloader(validation_data)
         
         # check worker status to allow interruption
         check_thread_status(worker)    

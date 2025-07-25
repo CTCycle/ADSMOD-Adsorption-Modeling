@@ -21,7 +21,8 @@ class DataSerializer:
     def __init__(self, configuration : dict):
         self.seed = configuration.get('general_seed', 42)
         self.P_COL = 'pressure' 
-        self.Q_COL = 'adsorbed_amount'
+        self.Q_COL = 'adsorbed_amount'        
+        self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
         self.configuration = configuration
         self.database = AdsorptionDatabase()
 
@@ -37,18 +38,14 @@ class DataSerializer:
         for col in columns:
             data[col] = data[col].apply(
                 lambda x: ' '.join(map(str, x)) if isinstance(x, list)
-                else [f for f in x.split() if f.strip()] if isinstance(x, str)
+                else [float(i) for i in x.split()] if isinstance(x, str)
                 else x)
             
         return data
-        
+            
     #--------------------------------------------------------------------------
-    def load_adsorption_datasets(self, sample_size=1.0):          
+    def load_adsorption_datasets(self):          
         adsorption_data, guest_data, host_data = self.database.load_source_dataset()
-        guest_data = self.serialize_series(guest_data, ['synonyms'])
-        host_data = self.serialize_series(host_data, ['synonyms'])
-        adsorption_data = adsorption_data.sample(
-            frac=sample_size, random_state=self.seed).reset_index(drop=True)
 
         return adsorption_data, guest_data, host_data
     
@@ -57,12 +54,7 @@ class DataSerializer:
         return self.database.load_inference_data_table()   
     
     #--------------------------------------------------------------------------
-    def load_train_and_validation_data(self): 
-        # load preprocessed data from database and convert joint strings to list
-        train_data, val_data = self.database.load_train_and_validation()
-        train_data = self.serialize_series(train_data, [self.P_COL, self.Q_COL]) 
-        val_data = self.serialize_series(val_data, [self.P_COL, self.Q_COL]) 
-
+    def load_train_and_validation_data(self, only_metadata=False): 
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         with open(self.smile_vocabulary_path, 'r') as file:
@@ -71,17 +63,25 @@ class DataSerializer:
             ads_vocabulary = json.load(file)  
 
         vocabularies = {'smile_vocab' : smile_vocabulary, 
-                        'adsorbents_vocab' : ads_vocabulary}         
+                        'adsorbents_vocab' : ads_vocabulary}       
+
+        if not only_metadata:
+            # load preprocessed data from database and convert joint strings to list
+            train_data, val_data = self.database.load_train_and_validation()
+            train_data = self.serialize_series(train_data, self.series_cols) 
+            val_data = self.serialize_series(val_data, self.series_cols) 
+
+            return train_data, val_data, metadata, vocabularies   
         
-        return train_data, val_data, metadata, vocabularies  
+        return metadata, vocabularies  
 
     #--------------------------------------------------------------------------
     def save_train_and_validation_data(self, train_data, val_data, smile_vocabulary, 
                                        ads_vocabulary, normalization_stats={}):      
 
         # convert list to joint string and save preprocessed data to database
-        train_data = self.serialize_series(train_data, [self.P_COL, self.Q_COL]) 
-        val_data = self.serialize_series(val_data, [self.P_COL, self.Q_COL])    
+        train_data = self.serialize_series(train_data, self.series_cols) 
+        val_data = self.serialize_series(val_data, self.series_cols)    
         self.database.save_train_and_validation(train_data, val_data) 
         
         with open(self.smile_vocabulary_path, 'w') as file:
@@ -91,6 +91,9 @@ class DataSerializer:
          
         metadata = {'seed' : self.seed, 
                     'date' : datetime.now().strftime("%Y-%m-%d"),
+                    'sample_size' : self.configuration.get('sample_size', 1.0),
+                    'validation_size' : self.configuration.get('validation_size', 0.2),
+                    'split_seed' : self.configuration.get('split_seed', 42),
                     'max_measurements' : self.configuration.get('max_measurements', 1000),
                     'SMILE_sequence_length' : self.configuration.get('SMILE_sequence_size', 30),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
@@ -106,11 +109,6 @@ class DataSerializer:
    
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data=None, host_data=None):
-        if guest_data is not None:
-            guest_data = self.serialize_series(guest_data, ['synonyms'])            
-        if host_data is not None:
-            host_data = self.serialize_series(host_data, ['synonyms']) 
-
         self.database.save_materials_datasets(guest_data, host_data)
 
     #--------------------------------------------------------------------------

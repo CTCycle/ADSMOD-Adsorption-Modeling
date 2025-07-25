@@ -59,7 +59,6 @@ class Adsorbate(Base):
     name = Column(String)
     InChICode = Column(String)
     formula = Column(String)
-    synonyms = Column(String)
     adsorbate_molecular_weight = Column(Float)
     adsorbate_molecular_formula = Column(String)
     adsorbate_SMILE = Column(String)
@@ -74,7 +73,6 @@ class Adsorbent(Base):
     name = Column(String)
     hashkey = Column(String, primary_key=True)
     formula = Column(String)
-    synonyms = Column(String)
     adsorbent_molecular_weight = Column(Float)
     adsorbent_molecular_formula = Column(String)
     adsorbent_SMILE = Column(String)
@@ -86,33 +84,32 @@ class Adsorbent(Base):
 ###############################################################################
 class TrainData(Base):
     __tablename__ = 'TRAIN_DATA'
-    temperature = Column(Float, primary_key=True)
-    pressure = Column(Float, primary_key=True)
-    adsorbed_amount = Column(Float)
-    encoded_adsorbent = Column(Float, primary_key=True)
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float)
+    pressure = Column(String)
+    adsorbed_amount = Column(String)
+    encoded_adsorbent = Column(Float)
     adsorbate_molecular_weight = Column(Float)
-    adsorbate_name = Column(String, primary_key=True)
     adsorbate_encoded_SMILE = Column(String)
     __table_args__ = (
-        UniqueConstraint('temperature', 'pressure', 
-                         'encoded_adsorbent', 'adsorbate_name'),
+        UniqueConstraint('filename'),
     )
 
 
 ###############################################################################
 class ValidationData(Base):
     __tablename__ = 'VALIDATION_DATA'
-    temperature = Column(Float, primary_key=True)
-    pressure = Column(Float, primary_key=True)
-    adsorbed_amount = Column(Float)
-    encoded_adsorbent = Column(Float, primary_key=True)
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float)
+    pressure = Column(String)
+    adsorbed_amount = Column(String)
+    encoded_adsorbent = Column(Float)
     adsorbate_molecular_weight = Column(Float)
-    adsorbate_name = Column(String, primary_key=True)
     adsorbate_encoded_SMILE = Column(String)
     __table_args__ = (
-        UniqueConstraint('temperature', 'pressure', 
-                         'encoded_adsorbent', 'adsorbate_name'),
+        UniqueConstraint('filename'),
     )
+
 
     
 ###############################################################################
@@ -170,7 +167,7 @@ class AdsorptionDatabase:
         self.inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
-        self.insert_batch_size = 50000
+        self.insert_batch_size = 5000
               
     #--------------------------------------------------------------------------       
     def initialize_database(self):
