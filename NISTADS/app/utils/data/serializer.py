@@ -19,7 +19,7 @@ from NISTADS.app.logger import logger
 class DataSerializer:
 
     def __init__(self, configuration : dict):
-        self.seed = configuration.get('general_seed', 42)
+        self.seed = configuration.get('seed', 42)
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'        
         self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
@@ -32,6 +32,16 @@ class DataSerializer:
             METADATA_PATH, 'SMILE_tokenization_index.json')
         self.ads_vocabulary_path = os.path.join(
             METADATA_PATH, 'adsorbents_index.json')
+        
+    #--------------------------------------------------------------------------
+    def validate_metadata(self, metadata : dict, target_metadata : dict):        
+        keys_to_compare = [k for k in metadata if k != "date"]
+        meta_current = {k: metadata.get(k) for k in keys_to_compare}
+        meta_target = {k: target_metadata.get(k) for k in keys_to_compare}        
+        differences = {k: (meta_current[k], meta_target[k]) 
+                       for k in keys_to_compare if meta_current[k] != meta_target[k]} 
+        
+        return False if differences else True
         
     #--------------------------------------------------------------------------
     def serialize_series(self, data : pd.DataFrame, columns):
@@ -146,20 +156,17 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configuration(self, path, history, configuration, metadata):        
+    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):       
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')       
-        history_path = os.path.join(path, 'configuration', 'session_history.json')         
-
+        history_path = os.path.join(path, 'configuration', 'session_history.json') 
         # Save training and model configuration
         with open(config_path, 'w') as f:
             json.dump(configuration, f)
-
         # Save metadata
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f)     
-
+            json.dump(metadata, f) 
         # Save session history
         with open(history_path, 'w') as f:
             json.dump(history, f)
@@ -201,7 +208,11 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
             
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name : str):                     
+    def load_checkpoint(self, checkpoint_name : str):
+        if checkpoint_name is None:
+            logger.warning("No checkpoint has been selected")
+            return
+                             
         custom_objects = {
             'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
             'MaskedAccuracy': MaskedRSquared,
@@ -210,7 +221,7 @@ class ModelSerializer:
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
         model = load_model(model_path, custom_objects=custom_objects)
-        configuration, session = self.load_training_configuration(checkpoint_path)        
+        configuration, metadata, session = self.load_training_configuration(checkpoint_path)        
             
-        return model, configuration, session, checkpoint_path 
+        return model, configuration, metadata, session, checkpoint_path
      

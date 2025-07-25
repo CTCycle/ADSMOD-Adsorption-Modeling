@@ -68,7 +68,7 @@ class MainWindow:
             (QPushButton,'retrieveGuestProperties','retrieve_guest_properties'),  
             (QPushButton,'retrieveHostProperties','retrieve_host_properties'),         
             # dataset evaluation and processing group 
-            (QSpinBox,'seed','general_seed'),
+            (QSpinBox,'seed','seed'),
             (QSpinBox,'splitSeed','split_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'), 
             (QSpinBox,'maxPoints','max_measurements'), 
@@ -200,7 +200,7 @@ class MainWindow:
             ('experiments_fraction', 'valueChanged', 'experiments_fraction'),
             ('parallel_tasks', 'valueChanged', 'parallel_tasks'),    
             # dataset evaluation and processing group
-            ('general_seed', 'valueChanged', 'general_seed'),
+            ('seed', 'valueChanged', 'seed'),
             ('sample_size', 'valueChanged', 'sample_size'),           
             ('min_measurements', 'valueChanged', 'min_measurements'),
             ('max_measurements', 'valueChanged', 'max_measurements'),

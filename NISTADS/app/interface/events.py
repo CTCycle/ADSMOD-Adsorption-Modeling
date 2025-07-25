@@ -69,7 +69,7 @@ class GraphicsHandler:
 class DatasetEvents:
 
     def __init__(self, configuration : dict): 
-        self.seed = configuration.get('general_seed', 42)
+        self.seed = configuration.get('seed', 42)
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
@@ -250,7 +250,7 @@ class DatasetEvents:
     #--------------------------------------------------------------------------
     @staticmethod
     def rebuild_dataset_from_metadata(metadata : dict):      
-        serializer = DataSerializer(self.configuration)        
+        serializer = DataSerializer(metadata)        
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()           
         logger.info(f'{len(adsorption_data)} measurements in the dataset')
         logger.info(f'{len(guest_data)} total guests (adsorbates species) in the dataset')
@@ -258,12 +258,13 @@ class DatasetEvents:
         
         # group single component data based on the experiment name 
         # merge adsorption data with retrieved materials properties (guest and host)
-        aggregator = AggregateDatasets(self.configuration)
+        aggregator = AggregateDatasets(metadata)
         processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
         # select only a fraction of adsorption isotherm experiments
-        sample_size = self.configuration.get('sample_size', 1.0)
+        sample_size = metadata.get('sample_size', 1.0)
+        seed = metadata.get('seed', 42)
         processed_data = adsorption_data.sample(
-            frac=sample_size, random_state=self.seed).reset_index(drop=True)
+            frac=sample_size, random_state=seed).reset_index(drop=True)
         logger.info(f'Aggregated dataset has {len(processed_data)} experiments')        
 
         # start joining materials properties
@@ -271,13 +272,13 @@ class DatasetEvents:
 
         # convert pressure and uptake into standard units:
         # pressure to Pascal, uptake to mol/g
-        sequencer = PressureUptakeSeriesProcess(self.configuration)
+        sequencer = PressureUptakeSeriesProcess(metadata)
         logger.info('Converting pressure into Pascal and uptake into mol/g')   
         processed_data = PQ_units_conversion(processed_data)    
 
         # exlude all data outside given boundaries, such as negative temperature values 
         # and pressure and uptake values below zero or above upper limits
-        sanitizer = DataSanitizer(self.configuration)
+        sanitizer = DataSanitizer(metadata)
         logger.info('Filtering Out-of-Boundary values')
         processed_data = sanitizer.exclude_OOB_values(processed_data)  
               
@@ -289,41 +290,39 @@ class DatasetEvents:
 
 
         # perform SMILE sequence tokenization  
-        tokenization = SMILETokenization(self.configuration) 
+        tokenization = SMILETokenization(metadata) 
         logger.info('Tokenizing SMILE sequences for adsorbate species')   
         processed_data, smile_vocab = tokenization.process_SMILE_sequences(processed_data)  
 
         # split data into train set and validation set
         logger.info('Generate train and validation datasets through stratified splitting')  
-        splitter = TrainValidationSplit(self.configuration)     
+        splitter = TrainValidationSplit(metadata)     
         train_data, validation_data = splitter.split_train_and_validation(processed_data) 
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
-        normalizer = FeatureNormalizer(self.configuration, train_data)
+        normalizer = FeatureNormalizer(metadata, train_data)
         train_data = normalizer.normalize_molecular_features(train_data) 
         train_data = normalizer.PQ_series_normalization(train_data) 
         validation_data = normalizer.normalize_molecular_features(validation_data) 
-        validation_data = normalizer.PQ_series_normalization(validation_data)      
-    
+        validation_data = normalizer.PQ_series_normalization(validation_data)
        
         # add padding to pressure and uptake series to match max length
         train_data = sequencer.PQ_series_padding(train_data)     
         validation_data = sequencer.PQ_series_padding(validation_data)
         
-        encoding = AdsorbentEncoder(self.configuration, train_data)    
+        encoding = AdsorbentEncoder(metadata, train_data)    
         train_data = encoding.encode_adsorbents_by_name(train_data)
         validation_data = encoding.encode_adsorbents_by_name(validation_data)    
         adsorbent_vocab = encoding.mapping
 
         # save preprocessed data using data serializer   
         train_data = sanitizer.isolate_processed_features(train_data)
-        validation_data = sanitizer.isolate_processed_features(validation_data)           
-        serializer.save_train_and_validation_data(
-            train_data, validation_data, smile_vocab, 
-            adsorbent_vocab, normalizer.statistics) 
+        validation_data = sanitizer.isolate_processed_features(validation_data) 
         
-        logger.info(f'Train dataset with {train_data.shape[0]} records has been saved')  
-        logger.info(f'Validation dataset with {validation_data.shape[0]} records has been saved') 
+        logger.info(f'Train dataset with {len(train_data)} records has been saved')  
+        logger.info(f'Validation dataset with {len(validation_data)} records has been saved') 
+
+        return train_data, validation_data
 
 
 ###############################################################################
@@ -369,7 +368,7 @@ class ValidationEvents:
         _, val_data, metadata, vocabularies = serializer.load_train_and_validation_data()
         logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
     
-        loader = InferenceDataLoader(train_config)      
+        loader = SCADSDataLoader(train_config)      
         validation_dataset = loader.build_inference_dataloader(val_data)
 
         # compare reconstructed isotherms from predictions    
@@ -409,6 +408,10 @@ class ModelEvents:
     def run_training_pipeline(self, progress_callback=None, worker=None):  
         dataserializer = DataSerializer(self.configuration)        
         train_data, validation_data, metadata, _ = dataserializer.load_train_and_validation_data()
+        if train_data.empty or validation_data.empty:
+            logger.warning("No data found in the database for training")
+            return
+        
         logger.info('Building model data loaders with prefetching and parallel processing')   
         builder = SCADSDataLoader(self.configuration)   
         train_dataset = builder.build_training_dataloader(train_data)
@@ -438,26 +441,35 @@ class ModelEvents:
             progress_callback=progress_callback, worker=worker)
         
     #--------------------------------------------------------------------------
-    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, 
-                                 worker=None):        
-        
+    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()      
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+        model, train_config, train_metadata, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
-        model.summary(expand_nested=True)  
-
-        # setting device for training    
+        model.summary(expand_nested=True)
+        # set device for training operations
+        logger.info('Setting device for training operations')         
         device = DeviceConfig(self.configuration)   
-        device.set_device()
+        device.set_device() 
 
         # check thread for interruption 
         check_thread_status(worker)     
-          
-        logger.info('Loading preprocessed data and building dataloaders')     
-        dataserializer = DataSerializer(train_config)
-        train_data, validation_data, metadata, vocabularies = dataserializer.load_train_and_validation_data()
-           
+
+        # load metadata and check whether this is compatible with the current checkpoint
+        # rebuild dataset if metadata is not compatible and the user has requested this feature
+        serializer = DataSerializer(train_config)
+        current_metadata, _ = serializer.load_train_and_validation_data(only_metadata=True)
+        validated_metadata = serializer.validate_metadata(current_metadata, train_metadata)
+        # just load the data if metadata is compatible
+        if validated_metadata:
+            logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
+            train_data, validation_data, train_metadata, _ = serializer.load_train_and_validation_data()
+        else:     
+            logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
+            train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
+
+        # create the tf.datasets using the previously initialized generators 
+        logger.info('Loading preprocessed data and building dataloaders')   
         builder = SCADSDataLoader(train_config)   
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data)
@@ -469,13 +481,12 @@ class ModelEvents:
         # resume training from pretrained model 
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         trainer = ModelTraining(self.configuration)  
-        trainer.train_model(
-            model, train_dataset, validation_dataset, checkpoint_path, session,
-            progress_callback=progress_callback, worker=worker)    
+        trainer.resume_training(
+            model, train_dataset, validation_dataset, train_metadata, checkpoint_path, session,
+            progress_callback=progress_callback, worker=worker)     
         
     #--------------------------------------------------------------------------
-    def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
-                               progress_callback=None, worker=None):
+    def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint')
         modser = ModelSerializer()         
         model, train_config, session, checkpoint_path = modser.load_checkpoint(

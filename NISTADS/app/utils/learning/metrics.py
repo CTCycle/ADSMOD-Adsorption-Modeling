@@ -4,7 +4,9 @@ from NISTADS.app.constants import PAD_VALUE
 from NISTADS.app.logger import logger
 
 # [LOSS FUNCTION]
+# masked mean squared error that ignores padding values in the loss calculation
 ###############################################################################
+@keras.saving.register_keras_serializable(package='CustomLoss', name='MaskedMeanSquaredError')
 class MaskedMeanSquaredError(keras.losses.Loss):
     
     def __init__(self, name='MaskedMeanSquaredError', **kwargs):
@@ -34,6 +36,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
    
 # [METRICS]
 ###############################################################################
+@keras.saving.register_keras_serializable(package='CustomMetrics', name='MaskedRSquared')
 class MaskedRSquared(keras.metrics.Metric):
 
     def __init__(self, name='MaskedR2', **kwargs):
