@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from keras import Model
 from keras.utils import set_random_seed
 
 from NISTADS.app.utils.data.loader import SCADSDataLoader
@@ -15,20 +16,18 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class AdsorptionPredictions:
     
-    def __init__(self, model, configuration : dict, checkpoint_path : str):        
-        set_random_seed(configuration.get('train_seed', 42)) 
-        # initialize the inference data loader that prepares the data 
-        # for using the model in inference mode (predictions)
-        self.dataloader = InferenceDataLoader(configuration)                          
+    def __init__(self, model : Model, configuration : dict, metadata : dict, checkpoint_path : str):        
+        set_random_seed(metadata.get('seed', 42)) 
         self.checkpoint_name = os.path.basename(checkpoint_path)        
-        self.configuration = configuration        
+        self.configuration = configuration 
+        self.metadata = metadata       
         self.model = model
 
     #--------------------------------------------------------------------------
     def process_inference_output(self, inputs : dict, predictions : np.array):        
         # reshape predictions from (samples, measurements, 1) to (samples, measurements)        
         predictions = np.squeeze(predictions, axis=-1)      
-        pressure_inputs = inputs['pressure_input']
+        pressure_inputs = inputs['pressure_input'] 
         unpadded_predictions = []    
         
         # Reverse each row to get pad values as leading values
@@ -50,16 +49,17 @@ class AdsorptionPredictions:
 
     #--------------------------------------------------------------------------
     def predict_adsorption_isotherm(self, data, **kwargs):
-        # add interruption callback to stop model predictions if requested
-        callbacks_list = [LearningInterruptCallback(kwargs.get('worker', None))]     
         # preprocess inputs before feeding them to the pretrained model for inference
         # add padding, normalize data, encode categoricals
-        processed_inputs = self.dataloader.process_inference_inputs(data)
+        dataloader = SCADSDataLoader(self.configuration, self.metadata, shuffle=False)     
+        processed_inputs = dataloader.process_inference_inputs(data)
+        # add interruption callback to stop model predictions if requested
+        callbacks_list = [LearningInterruptCallback(kwargs.get('worker', None))] 
         # perform prediction of adsorption isotherm sequences
         predictions = self.model.predict(processed_inputs, verbose=1, callbacks=callbacks_list) 
         # postprocess obtained outputs 
         # remove padding, rescale, decode categoricals
-        predictions = self.process_inference_output(processed_inputs, predictions)
+        predictions = self.process_inference_output(data, predictions)
 
         return predictions
     

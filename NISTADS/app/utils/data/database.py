@@ -115,16 +115,16 @@ class ValidationData(Base):
 ###############################################################################
 class PredictedAdsorption(Base):
     __tablename__ = 'PREDICTED_ADSORPTION'
-    experiment = Column(String, primary_key=True)
+    filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorbent_name = Column(String, primary_key=True)
     adsorbate_name = Column(String, primary_key=True)
-    pressure = Column(Float)
+    pressure = Column(Float, primary_key=True)
     adsorbed_amount = Column(Float)
     predicted_adsorbed_amount = Column(Float)
     __table_args__ = (
-        UniqueConstraint('experiment', 'temperature', 
-                         'adsorbent_name', 'adsorbate_name'),
+        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
+                         'adsorbate_name', 'pressure'),
     )
     
 
@@ -176,7 +176,9 @@ class AdsorptionDatabase:
     #--------------------------------------------------------------------------       
     def update_database_from_source(self): 
         dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
-        self.save_predictions(dataset)
+        self.save_predictions_dataset(dataset)
+
+        return dataset
 
     #--------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls):
@@ -226,11 +228,12 @@ class AdsorptionDatabase:
         return train_data, validation_data
 
     #--------------------------------------------------------------------------
-    def load_inference_data_table(self):         
+    def load_inference_data(self):         
         with self.engine.connect() as conn:
             data = pd.read_sql_table("PREDICTED_ADSORPTION", conn)
+            
         return data
-
+   
     #--------------------------------------------------------------------------
     def save_adsorption_dataset(self, single_components: pd.DataFrame, binary_mixture: pd.DataFrame):
         self.upsert_dataframe(single_components, SingleComponentAdsorption)
@@ -253,9 +256,7 @@ class AdsorptionDatabase:
 
     #--------------------------------------------------------------------------
     def save_predictions_dataset(self, data : pd.DataFrame): 
-        with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM PREDICTED_ADSORPTION"))        
-        data.to_sql("PREDICTED_ADSORPTION", self.engine, if_exists='append', index=False)
+        self.upsert_dataframe(data, PredictedAdsorption)
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):         

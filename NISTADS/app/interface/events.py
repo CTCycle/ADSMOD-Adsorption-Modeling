@@ -316,10 +316,7 @@ class DatasetEvents:
 
         # save preprocessed data using data serializer   
         train_data = sanitizer.isolate_processed_features(train_data)
-        validation_data = sanitizer.isolate_processed_features(validation_data) 
-        
-        logger.info(f'Train dataset with {len(train_data)} records has been saved')  
-        logger.info(f'Validation dataset with {len(validation_data)} records has been saved') 
+        validation_data = sanitizer.isolate_processed_features(validation_data)
 
         return train_data, validation_data
 
@@ -357,6 +354,10 @@ class ValidationEvents:
     
     #--------------------------------------------------------------------------
     def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, progress_callback=None, worker=None):
+        if selected_checkpoint is None:
+            logger.warning('No checkpoint selected for resuming training')
+            return
+        
         modser = ModelSerializer()         
         model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
@@ -364,7 +365,7 @@ class ValidationEvents:
 
         # load preprocessed data and associated metadata
         serializer = DataSerializer(train_config)
-        _, val_data, metadata, vocabularies = serializer.load_train_and_validation_data()
+        _, val_data, metadata = serializer.load_train_and_validation_data()
         logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
     
         loader = SCADSDataLoader(train_config)      
@@ -406,7 +407,7 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
         dataserializer = DataSerializer(self.configuration)        
-        train_data, validation_data, metadata, _ = dataserializer.load_train_and_validation_data()
+        train_data, validation_data, metadata = dataserializer.load_train_and_validation_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
             return
@@ -461,12 +462,12 @@ class ModelEvents:
         # load metadata and check whether this is compatible with the current checkpoint
         # rebuild dataset if metadata is not compatible and the user has requested this feature
         serializer = DataSerializer(train_config)
-        current_metadata, _ = serializer.load_train_and_validation_data(only_metadata=True)
+        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
         validated_metadata = serializer.validate_metadata(current_metadata, train_metadata)
         # just load the data if metadata is compatible
         if validated_metadata:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, train_metadata, _ = serializer.load_train_and_validation_data()
+            train_data, validation_data, train_metadata, vocabs = serializer.load_train_and_validation_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
@@ -491,10 +492,14 @@ class ModelEvents:
         
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
+        if selected_checkpoint is None:
+            logger.warning('No checkpoint selected for resuming training')
+            return
+        
         logger.info(f'Loading {selected_checkpoint} checkpoint')
         modser = ModelSerializer()         
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
-            selected_checkpoint)    
+        model, train_config, metadata, _, checkpoint_path = modser.load_checkpoint(
+            selected_checkpoint)   
         model.summary(expand_nested=True)  
         
         # setting device for training    
@@ -506,10 +511,13 @@ class ModelEvents:
 
         # select images from the inference folder and retrieve current paths     
         serializer = DataSerializer(self.configuration)     
-        inference_data = serializer.load_inference_data()  
+        inference_data = serializer.load_inference_data() 
 
+        # initialize the adsorption prediction framework. This takes raw input and process
+        # them based on loaded checkpoint metadata (including vocaularies)
+        # output is processed as well and merged with raw input data table
         logger.info('Preprocessing inference input data according to model configuration')
-        predictor = AdsorptionPredictions(model, train_config, checkpoint_path)
+        predictor = AdsorptionPredictions(model, train_config, metadata, checkpoint_path)
         predictions = predictor.predict_adsorption_isotherm(
             inference_data, progress_callback=progress_callback, worker=worker)
         

@@ -13,21 +13,17 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class DataLoaderProcessor():
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict, metadata : dict): 
         self.batch_size = configuration.get('batch_size', 32)
         self.inference_batch_size = configuration.get('inference_batch_size', 32) 
-        self.configuration = configuration   
-
         # load source datasets to obtain the guest and host data references
         # then load the metadata from the processed dataset. At any time, 
         # only a single instance of the processed dataset may exist, therefor
         # the user should be careful about loading a model trained on a different dataset
-        self.serializer = DataSerializer(configuration)  
-        _, _, metadata, self.vocabularies  = self.serializer.load_train_and_validation_data()        
-
         self.normalization_config = metadata.get('normalization', {})
         self.series_length = metadata.get('max_measurements', 30)
-        self.smile_length = metadata.get('SMILE_sequence_size', 30)       
+        self.smile_length = metadata.get('SMILE_sequence_size', 30)     
+        self.configuration = configuration    
   
     # this method is tailored on the inference input dataset, which is provided
     # with pressure already converted to Pascal and fewer columns compared to source data
@@ -46,7 +42,8 @@ class DataLoaderProcessor():
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def add_properties_to_inference_inputs(self, data : pd.DataFrame):
-        _, guest_data, host_data = self.serializer.load_adsorption_datasets() 
+        serializer = DataSerializer(self.configuration)
+        _, guest_data, host_data = serializer.load_adsorption_datasets() 
         aggregator = AggregateDatasets(self.configuration) 
         processed_data = aggregator.join_materials_properties(data, guest_data, host_data) 
         
@@ -74,6 +71,8 @@ class DataLoaderProcessor():
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
     def encode_SMILE_from_vocabulary(self, smile : str):
+        serializer = DataSerializer(self.configuration)
+        _, guest_data, host_data = serializer.load_adsorption_datasets()
         encoded_tokens = []
         i = 0
         smile_vocabulary = self.vocabularies.get('smile_vocab', {})
@@ -118,12 +117,13 @@ class DataLoaderProcessor():
 ###############################################################################
 class SCADSDataLoader:
 
-    def __init__(self, configuration : dict, shuffle=True): 
-        self.processor = DataLoaderProcessor(configuration) 
+    def __init__(self, configuration : dict, metadata : dict, shuffle=True): 
+        self.processor = DataLoaderProcessor(configuration, metadata) 
         self.batch_size = configuration.get('batch_size', 32)
         self.inference_batch_size = configuration.get('inference_batch_size', 32)
         self.shuffle_samples = configuration.get('shuffle_size', 1024)
         self.buffer_size = tf.data.AUTOTUNE   
+        self.metadata = metadata
         self.configuration = configuration
         self.shuffle = shuffle  
         self.output = 'adsorbed_amount'
@@ -154,6 +154,7 @@ class SCADSDataLoader:
         processed_data = self.processor.remove_invalid_measurements(data)
         processed_data = self.processor.aggregate_inference_data(processed_data)
         processed_data = self.processor.add_properties_to_inference_inputs(processed_data)
+        # TO DO FIX THIS TO EXTRACT VOCABULARIES
         processed_data = self.processor.encode_from_references(processed_data)
         processed_data = self.processor.normalize_from_references(processed_data)
         # add padding to pressure and uptake series to match max length

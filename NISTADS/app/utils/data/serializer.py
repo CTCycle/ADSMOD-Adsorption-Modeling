@@ -10,8 +10,7 @@ from NISTADS.app.utils.data.database import AdsorptionDatabase
 from NISTADS.app.utils.process.sanitizer import DataSanitizer
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
-from NISTADS.app.constants import (PROCESS_METADATA_FILE, SMILE_VOCABULARY_FILE, 
-                                   ADS_VOCABULARY_FILE, CHECKPOINT_PATH)
+from NISTADS.app.constants import PROCESS_METADATA_FILE, CHECKPOINT_PATH
 
 from NISTADS.app.logger import logger
 
@@ -56,19 +55,12 @@ class DataSerializer:
     
     #--------------------------------------------------------------------------
     def load_inference_data(self):              
-        return self.database.load_inference_data_table()   
+        return self.database.load_inference_data()   
     
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self, only_metadata=False): 
         with open(PROCESS_METADATA_FILE, 'r') as file:
-            metadata = json.load(file)        
-        with open(SMILE_VOCABULARY_FILE, 'r') as file:
-            smile_vocabulary = json.load(file)
-        with open(ADS_VOCABULARY_FILE, 'r') as file:
-            ads_vocabulary = json.load(file)  
-
-        vocabularies = {'smile_vocab' : smile_vocabulary, 
-                        'adsorbents_vocab' : ads_vocabulary}       
+            metadata = json.load(file)  
 
         if not only_metadata:
             # load preprocessed data from database and convert joint strings to list
@@ -76,9 +68,9 @@ class DataSerializer:
             train_data = self.serialize_series(train_data, self.series_cols) 
             val_data = self.serialize_series(val_data, self.series_cols) 
 
-            return train_data, val_data, metadata, vocabularies   
+            return train_data, val_data, metadata   
         
-        return metadata, vocabularies  
+        return metadata
 
     #--------------------------------------------------------------------------
     def save_train_and_validation_data(self, train_data, val_data, smile_vocabulary, 
@@ -87,12 +79,7 @@ class DataSerializer:
         # convert list to joint string and save preprocessed data to database
         train_data = self.serialize_series(train_data, self.series_cols) 
         val_data = self.serialize_series(val_data, self.series_cols)    
-        self.database.save_train_and_validation(train_data, val_data) 
-        
-        with open(SMILE_VOCABULARY_FILE, 'w') as file:
-            json.dump(smile_vocabulary, file, indent=4)    
-        with open(ADS_VOCABULARY_FILE, 'w') as file:
-            json.dump(ads_vocabulary, file, indent=4)        
+        self.database.save_train_and_validation(train_data, val_data)             
          
         metadata = {'seed' : self.seed, 
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -107,7 +94,9 @@ class DataSerializer:
                         self.P_COL : float(normalization_stats[self.P_COL]),
                         self.Q_COL : float(normalization_stats[self.Q_COL]),
                         'temperature' : float(normalization_stats['temperature']),
-                        'adsorbate_molecular_weight' : float(normalization_stats['adsorbate_molecular_weight'])}}  
+                        'adsorbate_molecular_weight' : float(normalization_stats['adsorbate_molecular_weight'])},
+                    'SMILE_vocabulary' : smile_vocabulary,
+                    'adsorbent_vocabulary' : ads_vocabulary}  
                
         with open(PROCESS_METADATA_FILE, 'w') as file:
             json.dump(metadata, file, indent=4) 
@@ -151,10 +140,11 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):       
+    def save_training_configuration(self, path, history : dict, configuration : dict, 
+                                    metadata : dict):       
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
-        metadata_path = os.path.join(path, 'configuration', 'metadata.json')       
+        metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')         
         
         # Save training and model configuration
@@ -162,12 +152,12 @@ class ModelSerializer:
             json.dump(configuration, f)
         # Save metadata
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f) 
+            json.dump(metadata, f)
         # Save session history
         with open(history_path, 'w') as f:
             json.dump(history, f)
 
-        logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')  
+        logger.debug(f'Model configuration, session history and metadata saved for {os.path.basename(path)}')  
 
     #-------------------------------------------------------------------------- 
     def scan_checkpoints_folder(self):
@@ -181,14 +171,14 @@ class ModelSerializer:
     #--------------------------------------------------------------------------
     def load_training_configuration(self, path):
         config_path = os.path.join(path, 'configuration', 'configuration.json')
-        metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
+        metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')
         # Load training and model configuration
         with open(config_path, 'r') as f:
             configuration = json.load(f)         
         # Load metadata
         with open(metadata_path, 'r') as f:
-            metadata = json.load(f)        
+            metadata = json.load(f) 
         # Load session history
         with open(history_path, 'r') as f:
             history = json.load(f)

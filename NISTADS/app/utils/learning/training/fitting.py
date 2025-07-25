@@ -16,8 +16,9 @@ class ModelTraining:
         self.metadata = metadata
     
     #--------------------------------------------------------------------------
-    def train_model(self, model : Model, train_data, validation_data, metadata,
-                    checkpoint_path, **kwargs):                 
+    def train_model(self, model : Model, train_data, validation_data, metadata : dict, 
+                    checkpoint_path, **kwargs):
+                         
         total_epochs = self.configuration.get('epochs', 10)      
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
@@ -39,7 +40,7 @@ class ModelTraining:
             checkpoint_path, history, self.configuration, metadata)
         
     #--------------------------------------------------------------------------
-    def resume_training(self, model : Model, train_data, validation_data, metadata,
+    def resume_training(self, model : Model, train_data, validation_data, metadata : dict, 
                         checkpoint_path, session=None, additional_epochs=10, **kwargs):
         from_epoch = 0 if not session else session['epochs']     
         total_epochs = from_epoch + additional_epochs           

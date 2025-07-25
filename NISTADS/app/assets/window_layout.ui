@@ -1096,6 +1096,13 @@
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_15">
              <item>
+              <widget class="QPushButton" name="loadInferenceData">
+               <property name="text">
+                <string>Load data</string>
+               </property>
+              </widget>
+             </item>
+             <item>
               <widget class="QPushButton" name="predictAdsorption">
                <property name="text">
                 <string>Predict adsorption isotherms</string>

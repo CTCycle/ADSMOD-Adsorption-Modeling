@@ -8,6 +8,7 @@ NISTADS/setup/python/*
 NISTADS/setup/git/*
 
 __pycache__
+*.vscode
 *.jpeg
 *.jpg
 *.png

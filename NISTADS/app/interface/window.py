@@ -121,6 +121,7 @@ class MainWindow:
             (QCheckBox,'evalReport','get_evaluation_report'), 
             (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),            
             (QSpinBox,'inferenceBatchSize','inference_batch_size'), 
+            (QPushButton,'loadInferenceData','load_inference_dataset'),
             (QPushButton,'predictAdsorption','predict_adsorption'),          
             # 3. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
@@ -148,7 +149,8 @@ class MainWindow:
             ('get_evaluation_report','toggled',self._update_metrics), 
             ('get_prediction_quality','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
-            ('checkpoints_summary','clicked',self.get_checkpoints_summary),              
+            ('checkpoints_summary','clicked',self.get_checkpoints_summary),   
+            ('load_inference_dataset','clicked',self.update_database_from_source),           
             ('predict_adsorption','clicked',self.predict_adsorption_isotherms),            
             # 3. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
@@ -656,7 +658,27 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     # [INFERENCE TAB]
-    #--------------------------------------------------------------------------   
+    #--------------------------------------------------------------------------  
+    @Slot()
+    def update_database_from_source(self):
+        if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
+            return         
+                
+        # send message to status bar
+        self._send_message("Updating database with source data...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = ThreadWorker(self.database.update_database_from_source)   
+
+        # start worker and inject signals
+        self._start_thread_worker(
+            self.worker, on_finished=self.on_database_uploading_finished,
+            on_error=self.on_error,
+            on_interrupted=self.on_task_interrupted) 
+         
+    #--------------------------------------------------------------------------
     @Slot()    
     def predict_adsorption_isotherms(self):  
         if self.worker:            
@@ -683,7 +705,14 @@ class MainWindow:
 
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
-    ###########################################################################     
+    ###########################################################################
+    def on_database_uploading_finished(self, source_data):   
+        message = f'Database updated with current source data ({len(source_data)}) records'
+        self._send_message(message)
+        QMessageBox.information(self.main_win, "Database successfully updated", message)     
+        self.worker = self.worker.cleanup()
+
+    #--------------------------------------------------------------------------
     def on_data_success(self, session):          
         self._send_message('Data has been collected from NIST-A database')
         self.worker = self.worker.cleanup()    
