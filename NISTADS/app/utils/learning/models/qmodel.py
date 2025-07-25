@@ -12,7 +12,7 @@ from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSq
 ###############################################################################
 class SCADSModel: 
 
-    def __init__(self, metadata, configuration):
+    def __init__(self, metadata : dict, configuration : dict):
         self.smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
         self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
         self.smile_length = metadata.get('SMILE_sequence_size', 20)

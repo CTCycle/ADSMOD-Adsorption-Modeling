@@ -31,7 +31,7 @@ class ModelTraining:
             callbacks=callbacks_list)
         
         history = {'history' : session.history,
-                   'epochs': session.epoch[-1] + 1} 
+                   'epochs': session.epoch[-1] + 1}
 
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       
@@ -39,24 +39,31 @@ class ModelTraining:
             checkpoint_path, history, self.configuration, metadata)
         
     #--------------------------------------------------------------------------
-    def resume_training(self, model, train_data, validation_data, 
-                        checkpoint_path, session=None, **kwargs):
+    def resume_training(self, model : Model, train_data, validation_data, metadata,
+                        checkpoint_path, session=None, additional_epochs=10, **kwargs):
         from_epoch = 0 if not session else session['epochs']     
-        total_epochs = from_epoch + self.configuration.get('additional_epochs', 100)            
+        total_epochs = from_epoch + additional_epochs           
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
-            self.configuration, checkpoint_path, session, 
-            kwargs.get('progress_callback', None), kwargs.get('worker', None))       
+            self.configuration, checkpoint_path, session, total_epochs,
+            progress_callback=kwargs.get('progress_callback', None), 
+            worker=kwargs.get('worker', None))
         
         # run model fit using keras API method.             
-        session = model.fit(
+        new_session = model.fit(
             train_data, epochs=total_epochs, validation_data=validation_data, 
-            callbacks=callbacks_list, initial_epoch=from_epoch)
-
+            callbacks=callbacks_list, initial_epoch=from_epoch)        
+        
+        # update history with new scores and final epoch value
+        session_keys = session['history'].keys() 
+        new_history = {k: session['history'][k] + new_session.history[k] for k in session_keys}
+        history = {'history' : new_history,
+                   'epochs': new_session.epoch[-1] + 1}
+        
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       
         serializer.save_training_configuration(
-            checkpoint_path, session, self.configuration)
+            checkpoint_path, history, self.configuration, metadata)
 
         
 

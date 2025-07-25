@@ -10,7 +10,9 @@ from NISTADS.app.utils.data.database import AdsorptionDatabase
 from NISTADS.app.utils.process.sanitizer import DataSanitizer
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
-from NISTADS.app.constants import METADATA_PATH, CHECKPOINT_PATH
+from NISTADS.app.constants import (PROCESS_METADATA_FILE, SMILE_VOCABULARY_FILE, 
+                                   ADS_VOCABULARY_FILE, CHECKPOINT_PATH)
+
 from NISTADS.app.logger import logger
 
 
@@ -25,13 +27,6 @@ class DataSerializer:
         self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
         self.configuration = configuration
         self.database = AdsorptionDatabase()
-
-        self.metadata_path = os.path.join(
-            METADATA_PATH, 'preprocessing_metadata.json') 
-        self.smile_vocabulary_path = os.path.join(
-            METADATA_PATH, 'SMILE_tokenization_index.json')
-        self.ads_vocabulary_path = os.path.join(
-            METADATA_PATH, 'adsorbents_index.json')
         
     #--------------------------------------------------------------------------
     def validate_metadata(self, metadata : dict, target_metadata : dict):        
@@ -65,11 +60,11 @@ class DataSerializer:
     
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self, only_metadata=False): 
-        with open(self.metadata_path, 'r') as file:
+        with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)        
-        with open(self.smile_vocabulary_path, 'r') as file:
+        with open(SMILE_VOCABULARY_FILE, 'r') as file:
             smile_vocabulary = json.load(file)
-        with open(self.ads_vocabulary_path, 'r') as file:
+        with open(ADS_VOCABULARY_FILE, 'r') as file:
             ads_vocabulary = json.load(file)  
 
         vocabularies = {'smile_vocab' : smile_vocabulary, 
@@ -94,9 +89,9 @@ class DataSerializer:
         val_data = self.serialize_series(val_data, self.series_cols)    
         self.database.save_train_and_validation(train_data, val_data) 
         
-        with open(self.smile_vocabulary_path, 'w') as file:
+        with open(SMILE_VOCABULARY_FILE, 'w') as file:
             json.dump(smile_vocabulary, file, indent=4)    
-        with open(self.ads_vocabulary_path, 'w') as file:
+        with open(ADS_VOCABULARY_FILE, 'w') as file:
             json.dump(ads_vocabulary, file, indent=4)        
          
         metadata = {'seed' : self.seed, 
@@ -105,7 +100,7 @@ class DataSerializer:
                     'validation_size' : self.configuration.get('validation_size', 0.2),
                     'split_seed' : self.configuration.get('split_seed', 42),
                     'max_measurements' : self.configuration.get('max_measurements', 1000),
-                    'SMILE_sequence_length' : self.configuration.get('SMILE_sequence_size', 30),
+                    'SMILE_sequence_size' : self.configuration.get('SMILE_sequence_size', 30),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
                     'adsorbent_vocabulary_size' : len(ads_vocabulary), 
                     'normalization' : {
@@ -114,7 +109,7 @@ class DataSerializer:
                         'temperature' : float(normalization_stats['temperature']),
                         'adsorbate_molecular_weight' : float(normalization_stats['adsorbate_molecular_weight'])}}  
                
-        with open(self.metadata_path, 'w') as file:
+        with open(PROCESS_METADATA_FILE, 'w') as file:
             json.dump(metadata, file, indent=4) 
    
     #--------------------------------------------------------------------------
@@ -160,7 +155,8 @@ class ModelSerializer:
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')       
-        history_path = os.path.join(path, 'configuration', 'session_history.json') 
+        history_path = os.path.join(path, 'configuration', 'session_history.json')         
+        
         # Save training and model configuration
         with open(config_path, 'w') as f:
             json.dump(configuration, f)
@@ -208,11 +204,7 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
             
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name : str):
-        if checkpoint_name is None:
-            logger.warning("No checkpoint has been selected")
-            return
-                             
+    def load_checkpoint(self, checkpoint_name : str):                             
         custom_objects = {
             'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
             'MaskedAccuracy': MaskedRSquared,

@@ -263,7 +263,7 @@ class DatasetEvents:
         # select only a fraction of adsorption isotherm experiments
         sample_size = metadata.get('sample_size', 1.0)
         seed = metadata.get('seed', 42)
-        processed_data = adsorption_data.sample(
+        processed_data = processed_data.sample(
             frac=sample_size, random_state=seed).reset_index(drop=True)
         logger.info(f'Aggregated dataset has {len(processed_data)} experiments')        
 
@@ -287,7 +287,6 @@ class DatasetEvents:
         logger.info('Performing sequence sanitization and filter by size')
         processed_data = sequencer.remove_leading_zeros(processed_data)   
         processed_data = sequencer.filter_by_sequence_size(processed_data)          
-
 
         # perform SMILE sequence tokenization  
         tokenization = SMILETokenization(metadata) 
@@ -442,6 +441,10 @@ class ModelEvents:
         
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
+        if selected_checkpoint is None:
+            logger.warning('No checkpoint selected for resuming training')
+            return
+        
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()      
         model, train_config, train_metadata, session, checkpoint_path = modser.load_checkpoint(
@@ -480,10 +483,11 @@ class ModelEvents:
         # Setting callbacks and training routine for the machine learning model        
         # resume training from pretrained model 
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
-        trainer = ModelTraining(self.configuration)  
+        additional_epochs = self.configuration.get('additional_epochs', 100)
+        trainer = ModelTraining(train_config, train_metadata) 
         trainer.resume_training(
             model, train_dataset, validation_dataset, train_metadata, checkpoint_path, session,
-            progress_callback=progress_callback, worker=worker)     
+            additional_epochs, progress_callback=progress_callback, worker=worker)
         
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):

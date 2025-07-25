@@ -11,14 +11,14 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class AggregateDatasets:
 
-    def __init__(self, configuration):
-        self.configuration = configuration
+    def __init__(self, configuration : dict):        
         self.guest_properties = [
             'name', 'adsorbate_molecular_weight', 'adsorbate_SMILE']
         self.host_properties = ['name']
+        self.configuration = configuration
 
     #--------------------------------------------------------------------------
-    def join_materials_properties(self, adsorption, guests, hosts): 
+    def join_materials_properties(self, adsorption : pd.DataFrame, guests : pd.DataFrame, hosts : pd.DataFrame): 
         # Merge guests with inner join (must have matching guest)
         merged_data = adsorption.merge(
             guests[self.guest_properties], 

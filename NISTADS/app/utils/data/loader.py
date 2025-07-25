@@ -27,7 +27,7 @@ class DataLoaderProcessor():
 
         self.normalization_config = metadata.get('normalization', {})
         self.series_length = metadata.get('max_measurements', 30)
-        self.smile_length = metadata.get('SMILE_sequence_length', 30)       
+        self.smile_length = metadata.get('SMILE_sequence_size', 30)       
   
     # this method is tailored on the inference input dataset, which is provided
     # with pressure already converted to Pascal and fewer columns compared to source data
