@@ -52,7 +52,7 @@ class Configuration:
             # Learning rate scheduler
             'use_scheduler' : False,
             'initial_LR': 0.001,
-            'constant_steps': 40000,
+            'constant_steps': 0,
             'decay_steps': 1000,
             'target_LR': 0.0001,
 
@@ -74,3 +74,9 @@ class Configuration:
         full_path = os.path.join(CONFIG_PATH, f'{name}.json')      
         with open(full_path, 'w') as f:
             json.dump(self.configuration, f, indent=4)
+
+    #--------------------------------------------------------------------------
+    def load_configuration_from_json(self, name : str):      
+        full_path = os.path.join(CONFIG_PATH, name)
+        with open(full_path, 'r') as f:
+            self.configuration = json.load(f)
