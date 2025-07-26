@@ -15,5 +15,6 @@ __pycache__
 *.db
 *.log
 *.npy
+*.json
 *.egg-info
 !.gitkeep
