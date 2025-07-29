@@ -41,7 +41,6 @@ class AddNorm(keras.layers.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
      
 
 # [FEED FORWARD]

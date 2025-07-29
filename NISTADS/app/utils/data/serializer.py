@@ -113,6 +113,11 @@ class DataSerializer:
     def save_predictions_dataset(self, data):
         self.database.save_predictions_dataset(data)  
 
+    #--------------------------------------------------------------------------
+    def save_checkpoints_summary(self, data : pd.DataFrame):            
+        self.database.save_checkpoints_summary(data)
+    
+
 
     
 # [MODEL SERIALIZATION]

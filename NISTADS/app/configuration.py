@@ -24,7 +24,8 @@ class Configuration:
             'shuffle_dataset': True,
             'shuffle_size': 256,
 
-            # Model             
+            # Model     
+            "dropout_rate" : 0.2,        
             'num_attention_heads': 2,
             'num_encoders': 2,
             'molecular_embedding_size': 64,

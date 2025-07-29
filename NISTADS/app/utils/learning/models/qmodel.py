@@ -12,12 +12,14 @@ from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSq
 ###############################################################################
 class SCADSModel: 
 
-    def __init__(self, metadata : dict, configuration : dict):
+    def __init__(self, configuration : dict, metadata : dict):
         self.smile_vocab_size = metadata.get('SMILE_vocabulary_size', 0)
         self.ads_vocab_size = metadata.get('adsorbent_vocabulary_size', 0)        
         self.smile_length = metadata.get('SMILE_sequence_size', 20)
         self.series_length = metadata.get('max_measurements', 30)
+        
         self.seed = configuration.get('train_seed', 42)
+        self.dropout_rate = configuration.get('dropout_rate', 0.2)
         self.embedding_dims = configuration.get('molecular_embedding_size', 64)
         self.num_heads = configuration.get('num_attention_heads', 2)
         self.num_encoders = configuration.get('num_encoders', 2)
@@ -25,7 +27,7 @@ class SCADSModel:
         self.jit_backend = configuration.get('jit_backend', 'inductor')        
         self.configuration = configuration       
    
-        self.state_encoder = StateEncoder(0.2, seed=self.seed)        
+        self.state_encoder = StateEncoder(self.dropout_rate, seed=self.seed)        
         self.molecular_embeddings = MolecularEmbedding(
             self.smile_vocab_size, self.ads_vocab_size, self.embedding_dims, 
             self.smile_length, mask_values=True) 
@@ -33,8 +35,8 @@ class SCADSModel:
             self.embedding_dims, self.num_heads, self.seed)
             for _ in range(self.num_encoders)]               
         self.pressure_encoder = PressureSerierEncoder(
-            self.embedding_dims, 0.2, self.num_heads, self.seed) 
-        self.Qdecoder = QDecoder(self.embedding_dims, 0.2, self.seed)
+            self.embedding_dims, self.dropout_rate, self.num_heads, self.seed) 
+        self.Qdecoder = QDecoder(self.embedding_dims, self.dropout_rate, self.seed)
 
         self.state_input = layers.Input(shape=(), name='state_input')
         self.chemo_input = layers.Input(shape=(), name='chemo_input')
@@ -48,7 +50,7 @@ class SCADSModel:
         LR_schedule = initial_LR        
         if self.configuration.get('use_scheduler', False):          
             constant_LR_steps = self.configuration.get('constant_steps', 1000)   
-            decay_steps = self.configuration.get('decay_steps', 500)  
+            decay_steps = self.configuration.get('decay_steps', 1000)  
             target_LR = self.configuration.get('target_LR', 0.0001)          
             LR_schedule = LinearDecayLRScheduler(
                 initial_LR, constant_LR_steps, decay_steps, target_LR)  
@@ -79,8 +81,7 @@ class SCADSModel:
         # apply SMILE mask to ignore padding values                   
         encoder_output = molecular_embeddings    
         for encoder in self.encoders:
-            encoder_output = encoder(
-                encoder_output, mask=smile_mask, training=False)
+            encoder_output = encoder(encoder_output, mask=smile_mask, training=False)
 
         # encode temperature and molecular weight of the adsorbate as a single vector
         # and tile it to match the SMILE sequence length

@@ -109,8 +109,10 @@ class DataSanitizer:
         return dataset  
     
     #--------------------------------------------------------------------------
-    def isolate_processed_features(self, dataset : pd.DataFrame):    
-        return dataset[self.included_cols]     
+    def isolate_processed_features(self, dataset : pd.DataFrame): 
+        dataset = dataset[self.included_cols]
+        dataset = dataset.dropna().reset_index(drop=True)
+        return dataset
     
                     
       

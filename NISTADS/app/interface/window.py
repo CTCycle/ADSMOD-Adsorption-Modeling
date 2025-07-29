@@ -75,6 +75,7 @@ class MainWindow:
             (QSpinBox,'seed','seed'),
             (QSpinBox,'splitSeed','split_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'), 
+            (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'maxPoints','max_measurements'), 
             (QSpinBox,'minPoints','min_measurements'),
             (QSpinBox,'smileSeqSize','SMILE_sequence_size'),
@@ -85,13 +86,15 @@ class MainWindow:
             (QPushButton,'evaluateDataset','evaluate_dataset'),                         
             # 2. model tab page   
             # dataset settings group               
-            (QCheckBox,'setShuffle','use_shuffle'),                     
-            (QDoubleSpinBox,'validationSize','validation_size'),
+            (QCheckBox,'setShuffle','use_shuffle'), 
             (QSpinBox,'shuffleSize','shuffle_size'),
             # device settings group            
             (QSpinBox,'deviceID','device_ID'),
             (QSpinBox,'numWorkers','num_workers'),
             # training settings group
+            (QCheckBox,'mixedPrecision','use_mixed_precision'),
+            (QCheckBox,'compileJIT','use_JIT_compiler'),   
+            (QComboBox,'backendJIT','jit_backend'),        
             (QCheckBox,'runTensorboard','use_tensorboard'),
             (QCheckBox,'realTimeHistory','real_time_history_callback'),
             (QCheckBox,'saveCheckpoints','save_checkpoints'),
@@ -105,10 +108,8 @@ class MainWindow:
             (QDoubleSpinBox,'targetLearningRate','target_LR'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'),              
-            # model settings group     
-            (QCheckBox,'mixedPrecision','use_mixed_precision'),
-            (QCheckBox,'compileJIT','use_JIT_compiler'),   
-            (QComboBox,'backendJIT','jit_backend'),        
+            # model settings group  
+            (QDoubleSpinBox,'dropoutRate','dropout_rate'), 
             (QSpinBox,'attentionHeads','num_attention_heads'), 
             (QSpinBox,'numEncoders','num_encoders'), 
             (QSpinBox,'molEmbeddingDims','molecular_embedding_size'),
@@ -226,6 +227,9 @@ class MainWindow:
             ('device_ID', 'valueChanged', 'device_id'),
             ('num_workers', 'valueChanged', 'num_workers'),
             # training settings group
+            ('use_mixed_precision', 'toggled', 'mixed_precision'),
+            ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
+            ('jit_backend', 'currentTextChanged', 'jit_backend'),
             ('use_tensorboard', 'toggled', 'use_tensorboard'),
             ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
             ('save_checkpoints', 'toggled', 'save_checkpoints'),
@@ -240,9 +244,7 @@ class MainWindow:
             ('constant_steps', 'valueChanged', 'constant_steps'),          
             ('decay_steps', 'valueChanged', 'decay_steps'), 
             # model settings group
-            ('use_mixed_precision', 'toggled', 'mixed_precision'),
-            ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
-            ('jit_backend', 'currentTextChanged', 'jit_backend'),
+            ('dropout_rate', 'valueChanged', 'dropout_rate'),
             ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
             ('num_encoders', 'valueChanged', 'num_encoders'),            
             ('molecular_embedding_size', 'valueChanged', 'molecular_embedding_size'),

@@ -349,8 +349,10 @@ class ValidationEvents:
     #--------------------------------------------------------------------------
     def get_checkpoints_summary(self, progress_callback=None, worker=None): 
         summarizer = ModelEvaluationSummary(self.configuration)    
-        checkpoints_summary = summarizer.get_checkpoints_summary(progress_callback, worker) 
-        logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')    
+        checkpoints_summary = summarizer.get_checkpoints_summary(
+            progress_callback=progress_callback, worker=worker)  
+ 
+        logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')   
     
     #--------------------------------------------------------------------------
     def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, progress_callback=None, worker=None):
@@ -358,37 +360,45 @@ class ValidationEvents:
             logger.warning('No checkpoint selected for resuming training')
             return
         
-        modser = ModelSerializer()         
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+        logger.info(f'Loading {selected_checkpoint} checkpoint')   
+        modser = ModelSerializer()       
+        model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
-        model.summary(expand_nested=True)
-
-        # load preprocessed data and associated metadata
-        serializer = DataSerializer(train_config)
-        _, val_data, metadata = serializer.load_train_and_validation_data()
-        logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
-    
-        loader = SCADSDataLoader(train_config)      
-        validation_dataset = loader.build_inference_dataloader(val_data)
-
-        # compare reconstructed isotherms from predictions    
-        validator = AdsorptionPredictionsQuality(
-            model, train_config, metadata, checkpoint_path)      
-        validator.visualize_adsorption_isotherms(val_data)       
+        model.summary(expand_nested=True) 
+        # set device for training operations
+        logger.info('Setting device for training operations')                
+        device = DeviceConfig(self.configuration)   
+        device.set_device()
+        # load validation data and current preprocessing metadata. This must
+        # be compatible with the currently loaded checkpoint configurations
+        serializer = DataSerializer(train_config) 
+        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
+        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
+        # just load the data if metadata is compatible
+        if validated_metadata:
+            logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
+            _, validation_data, model_metadata = serializer.load_train_and_validation_data()
+        else:     
+            logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
+            _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)   
+        
+        num_samples = self.configuration.get('num_evaluation_samples', 10)
+        loader = SCADSDataLoader(train_config, model_metadata)      
+        validation_dataset = loader.build_training_dataloader(validation_data)            
             
         images = []
         if 'evaluation_report' in metrics:
+            # evaluate model performance over the validation dataset 
             logger.info('Current metric: model loss and metrics evaluation')
-            # evaluate model performance over the training and validation dataset 
             summarizer = ModelEvaluationSummary(self.configuration)       
             summarizer.get_evaluation_report(model, validation_dataset, worker=worker)
 
-        if 'adsorption_isotherms_prediction' in metrics:
+        if 'prediction_quality' in metrics:
             logger.info('Current metric: adsorption isotherms prediction quality')
             validator = AdsorptionPredictionsQuality(
-            model, train_config, metadata, checkpoint_path)      
+            model, train_config, model_metadata, checkpoint_path)      
             images.append(validator.visualize_adsorption_isotherms(
-                val_data, progress_callback, worker=worker))                    
+                validation_data, progress_callback=progress_callback, worker=worker))                    
 
         return images     
    
@@ -413,7 +423,7 @@ class ModelEvents:
             return
         
         logger.info('Building model data loaders with prefetching and parallel processing')   
-        builder = SCADSDataLoader(self.configuration)   
+        builder = SCADSDataLoader(self.configuration, metadata)   
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data) 
 
@@ -429,7 +439,7 @@ class ModelEvents:
         checkpoint_path = modser.create_checkpoint_folder()         
         # Setting callbacks and training routine for the machine learning model           
         logger.info('Building SCADS model')  
-        wrapper = SCADSModel(metadata, self.configuration)
+        wrapper = SCADSModel(self.configuration, metadata)
         model = wrapper.get_model(model_summary=True) 
         # generate graphviz plot fo the model layout       
         modser.save_model_plot(model, checkpoint_path)   
@@ -448,7 +458,7 @@ class ModelEvents:
         
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()      
-        model, train_config, train_metadata, session, checkpoint_path = modser.load_checkpoint(
+        model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)
         # set device for training operations
@@ -463,18 +473,18 @@ class ModelEvents:
         # rebuild dataset if metadata is not compatible and the user has requested this feature
         serializer = DataSerializer(train_config)
         current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, train_metadata)
+        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if validated_metadata:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, train_metadata, vocabs = serializer.load_train_and_validation_data()
+            train_data, validation_data, model_metadata = serializer.load_train_and_validation_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
+            train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
 
         # create the tf.datasets using the previously initialized generators 
         logger.info('Loading preprocessed data and building dataloaders')   
-        builder = SCADSDataLoader(train_config)   
+        builder = SCADSDataLoader(train_config, model_metadata)   
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data)
         
@@ -484,10 +494,10 @@ class ModelEvents:
         # Setting callbacks and training routine for the machine learning model        
         # resume training from pretrained model 
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
-        additional_epochs = self.configuration.get('additional_epochs', 100)
-        trainer = ModelTraining(train_config, train_metadata) 
+        additional_epochs = self.configuration.get('additional_epochs', 10)
+        trainer = ModelTraining(train_config, model_metadata) 
         trainer.resume_training(
-            model, train_dataset, validation_dataset, train_metadata, checkpoint_path, session,
+            model, train_dataset, validation_dataset, model_metadata, checkpoint_path, session,
             additional_epochs, progress_callback=progress_callback, worker=worker)
         
     #--------------------------------------------------------------------------

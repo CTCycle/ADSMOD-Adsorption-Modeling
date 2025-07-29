@@ -1,6 +1,7 @@
 import os
 import re
 import numpy as np
+import pandas as pd
 
 import matplotlib
 matplotlib.use("Agg")   
@@ -23,7 +24,7 @@ class AdsorptionPredictionsQuality:
         self.model = model            
         self.configuration = configuration 
         self.metadata = metadata      
-        self.dataloader = InferenceDataLoader(configuration)       
+        self.dataloader = SCADSDataLoader(configuration, metadata)       
         self.num_experiments = num_experiments
         self.cols = int(np.ceil(np.sqrt(self.num_experiments)))      
         self.rows = int(np.ceil(self.num_experiments/self.cols)) 
@@ -61,7 +62,7 @@ class AdsorptionPredictionsQuality:
         return pressures, uptakes, predictions        
 
     #--------------------------------------------------------------------------
-    def visualize_adsorption_isotherms(self, validation_data, **kwargs):              
+    def visualize_adsorption_isotherms(self, validation_data : pd.DataFrame, **kwargs):              
         sampled_data = validation_data.sample(n=self.num_experiments, random_state=42)
         sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
         predictions = self.model.predict(sampled_X)      
@@ -82,7 +83,7 @@ class AdsorptionPredictionsQuality:
 
             check_thread_status(kwargs.get('worker', None))
             update_progress_callback(
-                i+1, len(self.num_experiments), kwargs.get('progress_callback', None))       
+                i+1, self.num_experiments, kwargs.get('progress_callback', None))       
 
         plt.title('Comparison of validation adsorption isotherms', fontsize=16)
         plt.tight_layout()

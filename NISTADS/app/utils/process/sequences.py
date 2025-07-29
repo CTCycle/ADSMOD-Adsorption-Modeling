@@ -49,11 +49,17 @@ class PressureUptakeSeriesProcess:
         return dataset   
     
     #--------------------------------------------------------------------------
-    def filter_by_sequence_size(self, dataset : pd.DataFrame):        
-        dataset = dataset[dataset[self.P_COL].apply(
-            lambda x: self.min_points <= len(x) <= self.max_points)]
-
-        return dataset       
+    def filter_by_sequence_size(self, dataset : pd.DataFrame):  
+        # Remove rows where sequence length < min_points
+        filtered_data = dataset[dataset[self.P_COL].apply(
+            lambda x: len(x) >= self.min_points)].copy()      
+        # Truncate both columns
+        for col in [self.P_COL, self.Q_COL]:
+            filtered_data[col] = filtered_data[col].apply(
+                lambda x: x[:self.max_points] if len(x) > self.max_points else x)
+            
+        return filtered_data
+    
   
 
 # [TOKENIZERS]
