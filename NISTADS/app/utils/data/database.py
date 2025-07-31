@@ -1,0 +1,271 @@
+import os
+import pandas as pd
+import sqlalchemy
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
+from sqlalchemy.dialects.sqlite import insert
+
+from NISTADS.app.constants import DATA_PATH, INFERENCE_PATH
+from NISTADS.app.logger import logger
+
+Base = declarative_base()
+
+
+###############################################################################
+class SingleComponentAdsorption(Base):
+    __tablename__ = 'SINGLE_COMPONENT_ADSORPTION'
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float, primary_key=True)
+    adsorptionUnits = Column(String)
+    pressureUnits = Column(String)
+    adsorbent_name = Column(String, primary_key=True)
+    adsorbate_name = Column(String, primary_key=True)
+    pressure = Column(Float, primary_key=True)
+    adsorbed_amount = Column(Float)
+    composition = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('filename', 'temperature', 'pressure', 
+                         'adsorbent_name', 'adsorbate_name'),
+    )
+
+
+###############################################################################
+class BinaryMixtureAdsorption(Base):
+    __tablename__ = 'BINARY_MIXTURE_ADSORPTION'
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float, primary_key=True)
+    adsorptionUnits = Column(String)
+    pressureUnits = Column(String)
+    adsorbent_name = Column(String, primary_key=True)
+    compound_1 = Column(String, primary_key=True)
+    compound_2 = Column(String, primary_key=True)
+    compound_1_composition = Column(Float)
+    compound_2_composition = Column(Float)
+    compound_1_pressure = Column(Float, primary_key=True)
+    compound_2_pressure = Column(Float, primary_key=True)
+    compound_1_adsorption = Column(Float)
+    compound_2_adsorption = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
+                         'compound_1', 'compound_2', 'compound_1_pressure',
+                         'compound_2_pressure'),
+    )
+    
+        
+###############################################################################
+class Adsorbate(Base):
+    __tablename__ = 'ADSORBATES'
+    InChIKey = Column(String, primary_key=True)
+    name = Column(String)
+    InChICode = Column(String)
+    formula = Column(String)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_molecular_formula = Column(String)
+    adsorbate_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('InChIKey'),
+    )
+
+    
+###############################################################################
+class Adsorbent(Base):
+    __tablename__ = 'ADSORBENTS'
+    name = Column(String)
+    hashkey = Column(String, primary_key=True)
+    formula = Column(String)
+    adsorbent_molecular_weight = Column(Float)
+    adsorbent_molecular_formula = Column(String)
+    adsorbent_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('hashkey'),
+    )
+
+    
+###############################################################################
+class TrainData(Base):
+    __tablename__ = 'TRAIN_DATA'
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float)
+    pressure = Column(String)
+    adsorbed_amount = Column(String)
+    encoded_adsorbent = Column(Float)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_encoded_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('filename'),
+    )
+
+
+###############################################################################
+class ValidationData(Base):
+    __tablename__ = 'VALIDATION_DATA'
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float)
+    pressure = Column(String)
+    adsorbed_amount = Column(String)
+    encoded_adsorbent = Column(Float)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_encoded_SMILE = Column(String)
+    __table_args__ = (
+        UniqueConstraint('filename'),
+    )
+
+
+    
+###############################################################################
+class PredictedAdsorption(Base):
+    __tablename__ = 'PREDICTED_ADSORPTION'
+    checkpoint = Column(String, primary_key=True)
+    filename = Column(String, primary_key=True)
+    temperature = Column(Float, primary_key=True)
+    adsorbent_name = Column(String, primary_key=True)
+    adsorbate_name = Column(String, primary_key=True)
+    pressure = Column(Float, primary_key=True)
+    adsorbed_amount = Column(Float)
+    predicted_adsorbed_amount = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('checkpoint', 'filename', 'temperature', 
+                         'adsorbent_name', 'adsorbate_name', 'pressure'),
+    )
+    
+
+###############################################################################
+class CheckpointSummary(Base):
+    __tablename__ = 'CHECKPOINTS_SUMMARY'    
+    checkpoint = Column(String, primary_key=True)
+    sample_size = Column(Float)
+    validation_size = Column(Float)
+    seed = Column(Integer)
+    precision = Column(Integer)
+    epochs = Column(Integer)
+    batch_size = Column(Integer)
+    split_seed = Column(Integer)
+    jit_compile = Column(String)  
+    has_tensorboard_logs = Column(String)  
+    initial_LR = Column(Float)
+    constant_steps_LR = Column(Float)
+    decay_steps_LR = Column(Float)
+    target_LR = Column(Float)
+    max_measurements = Column(Integer)    
+    SMILE_size = Column(Integer)
+    attention_heads = Column(Integer)
+    n_encoders = Column(Integer)
+    embedding_dimensions = Column(Integer)
+    train_loss = Column(Float)
+    val_loss = Column(Float)
+    train_R_square = Column(Float)
+    val_R_square = Column(Float)
+    __table_args__ = (
+        UniqueConstraint('checkpoint'),
+    )
+    
+
+# [DATABASE]
+###############################################################################
+class AdsorptionDatabase:
+
+    def __init__(self): 
+        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
+        self.inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')
+        self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
+        self.Session = sessionmaker(bind=self.engine, future=True)
+        self.insert_batch_size = 5000
+              
+    #--------------------------------------------------------------------------       
+    def initialize_database(self):
+        Base.metadata.create_all(self.engine)   
+
+    #--------------------------------------------------------------------------       
+    def update_database_from_source(self): 
+        dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
+        self.save_predictions_dataset(dataset)
+
+        return dataset
+
+    #--------------------------------------------------------------------------
+    def upsert_dataframe(self, df: pd.DataFrame, table_cls):
+        table = table_cls.__table__
+        session = self.Session()
+        try:
+            unique_cols = []
+            for uc in table.constraints:
+                if isinstance(uc, UniqueConstraint):
+                    unique_cols = uc.columns.keys()
+                    break
+            if not unique_cols:
+                raise ValueError(f"No unique constraint found for {table_cls.__name__}")
+
+            # Batch insertions for speed
+            records = df.to_dict(orient='records')
+            for i in range(0, len(records), self.insert_batch_size):
+                batch = records[i:i + self.insert_batch_size]
+                stmt = insert(table).values(batch)
+                # Columns to update on conflict
+                update_cols = {c: getattr(stmt.excluded, c) for c in batch[0] if c not in unique_cols}
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=unique_cols,
+                    set_=update_cols
+                )
+                session.execute(stmt)
+                session.commit()
+            session.commit()
+        finally:
+            session.close()
+       
+    #--------------------------------------------------------------------------
+    def load_source_dataset(self):
+        with self.engine.connect() as conn:
+            adsorption_data = pd.read_sql_table("SINGLE_COMPONENT_ADSORPTION", conn)
+            guest_data = pd.read_sql_table("ADSORBATES", conn)
+            host_data = pd.read_sql_table("ADSORBENTS", conn)
+
+        return adsorption_data, guest_data, host_data
+
+    #--------------------------------------------------------------------------
+    def load_train_and_validation(self):       
+        with self.engine.connect() as conn:
+            train_data = pd.read_sql_table("TRAIN_DATA", conn)
+            validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
+
+        return train_data, validation_data
+
+    #--------------------------------------------------------------------------
+    def load_inference_data(self):         
+        with self.engine.connect() as conn:
+            data = pd.read_sql_table("PREDICTED_ADSORPTION", conn)
+            
+        return data
+   
+    #--------------------------------------------------------------------------
+    def save_adsorption_dataset(self, single_components: pd.DataFrame, binary_mixture: pd.DataFrame):
+        self.upsert_dataframe(single_components, SingleComponentAdsorption)
+        self.upsert_dataframe(binary_mixture, BinaryMixtureAdsorption)
+
+    #--------------------------------------------------------------------------
+    def save_materials_datasets(self, adsorbates : pd.DataFrame, adsorbents : pd.DataFrame,):    
+        if adsorbates is not None:
+            self.upsert_dataframe(adsorbates, Adsorbate)
+        if adsorbents is not None:
+            self.upsert_dataframe(adsorbents, Adsorbent)
+
+    #--------------------------------------------------------------------------
+    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+        with self.engine.begin() as conn:
+            conn.execute(sqlalchemy.text(f"DELETE FROM TRAIN_DATA"))    
+            conn.execute(sqlalchemy.text(f"DELETE FROM VALIDATION_DATA"))      
+        train_data.to_sql("TRAIN_DATA", self.engine, if_exists='append', index=False)
+        validation_data.to_sql("VALIDATION_DATA", self.engine, if_exists='append', index=False)
+
+    #--------------------------------------------------------------------------
+    def save_predictions_dataset(self, data : pd.DataFrame): 
+        with self.engine.begin() as conn:
+            conn.execute(sqlalchemy.text(f"DELETE FROM PREDICTED_ADSORPTION"))           
+        data.to_sql("PREDICTED_ADSORPTION", self.engine, if_exists='append', index=False)
+
+    #--------------------------------------------------------------------------
+    def save_checkpoints_summary(self, data : pd.DataFrame):         
+        self.upsert_dataframe(data, CheckpointSummary)
+    
+    
+
+    

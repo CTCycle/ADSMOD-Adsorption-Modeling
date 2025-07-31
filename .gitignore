@@ -3,12 +3,15 @@ NISTADS/resources/database/inference/*
 NISTADS/resources/database/validation/*
 NISTADS/resources/checkpoints/*
 
-setup/environment/*
-setup/miniconda/*
-setup/variables/.env
+NISTADS/setup/python/*
+NISTADS/setup/git/*
+NISTADS/setup/.env
 
 __pycache__
-*.log
+*.vscode
 *.db
+*.log
+*.npy
+*.json
 *.egg-info
 !.gitkeep
