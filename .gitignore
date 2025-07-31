@@ -3,15 +3,12 @@ NISTADS/resources/database/inference/*
 NISTADS/resources/database/validation/*
 NISTADS/resources/checkpoints/*
 
-!NISTADS/commons/assets/*
 NISTADS/setup/python/*
 NISTADS/setup/git/*
+NISTADS/setup/.env
 
 __pycache__
 *.vscode
-*.jpeg
-*.jpg
-*.png
 *.db
 *.log
 *.npy
