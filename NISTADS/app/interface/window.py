@@ -92,16 +92,16 @@ class MainWindow:
             (QSpinBox,'deviceID','device_ID'),
             (QSpinBox,'numWorkers','num_workers'),
             # training settings group
+            (QSpinBox,'numEpochs','epochs'),
+            (QSpinBox,'batchSize','batch_size'),
+            (QSpinBox,'trainSeed','train_seed'),
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
             (QCheckBox,'compileJIT','use_JIT_compiler'),   
             (QComboBox,'backendJIT','jit_backend'),        
             (QCheckBox,'runTensorboard','use_tensorboard'),
             (QCheckBox,'realTimeHistory','real_time_history_callback'),
             (QCheckBox,'saveCheckpoints','save_checkpoints'),
-            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),            
-            (QSpinBox,'numEpochs','epochs'),
-            (QSpinBox,'batchSize','batch_size'),
-            (QSpinBox,'trainSeed','train_seed'),
+            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),   
             # RL scheduler settings group
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'initialLearningRate','initial_LR'),
@@ -198,8 +198,7 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def _auto_connect_settings(self):
-        connections = [
-            ('use_device_GPU', 'toggled', 'use_device_GPU'),
+        connections = [            
             # 1. dataset tab page
             # dataset fetching group
             ('guest_fraction', 'valueChanged', 'guest_fraction'),
@@ -220,6 +219,7 @@ class MainWindow:
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
             ('shuffle_size', 'valueChanged', 'shuffle_size'), 
             # device settings group
+            ('use_device_GPU', 'toggled', 'use_device_GPU'),
             ('device_ID', 'valueChanged', 'device_id'),
             ('num_workers', 'valueChanged', 'num_workers'),
             # training settings group
@@ -264,14 +264,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     def _set_states(self):         
         self.progress_bar = self.main_win.findChild(QProgressBar, "progressBar")        
-        self.progress_bar.setValue(0)
-
-    #--------------------------------------------------------------------------
-    def get_current_pixmaps_and_key(self):
-        for radio, (pixmap_key, idx_key) in self.pixmap_sources.items():
-            if radio.isChecked():
-                return self.pixmaps[pixmap_key], idx_key
-        return [], None 
+        self.progress_bar.setValue(0)      
 
     #--------------------------------------------------------------------------
     def _set_graphics(self):      
