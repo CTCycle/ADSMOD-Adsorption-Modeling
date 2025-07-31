@@ -63,6 +63,8 @@ Eventually, it is possible to build the training dataset that will be used to tr
 - **Average mean squared error loss and R square** 
 - **Comparison of predicted vs true adsorption isotherms** 
 
+![model_tab](NISTADS/app/assets/figures/model_tab.png)
+
 **Viewer:** real time data visualization, coming soon!
 
 ![viewer_tab](NISTADS/app/assets/figures/viewer_tab.png)
