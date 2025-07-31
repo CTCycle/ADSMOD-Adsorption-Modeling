@@ -132,8 +132,6 @@ class MainWindow:
             (QPushButton,'previousImg','previous_image'),
             (QPushButton,'nextImg','next_image'),
             (QPushButton,'clearImg','clear_images'),
-            (QRadioButton,'viewDataPlots','data_plots_view'),
-            (QRadioButton,'viewEvalPlots','model_plots_view')                       
             ])
         
         self._connect_signals([
@@ -161,9 +159,7 @@ class MainWindow:
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),   
             ('load_inference_dataset','clicked',self.update_database_from_source),           
             ('predict_adsorption','clicked',self.predict_adsorption_isotherms),            
-            # 3. viewer tab page 
-            ('data_plots_view', 'toggled', self._update_graphics_view),
-            ('model_plots_view', 'toggled', self._update_graphics_view),           
+            # 3. viewer tab page
             ('previous_image', 'clicked', self.show_previous_figure),
             ('next_image', 'clicked', self.show_next_figure),
             ('clear_images', 'clicked', self.clear_figures),            
@@ -272,13 +268,13 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def get_current_pixmaps_and_key(self):
-        for radio, (pixmap_key, idx_key) in self.pixmap_source_map.items():
+        for radio, (pixmap_key, idx_key) in self.pixmap_sources.items():
             if radio.isChecked():
                 return self.pixmaps[pixmap_key], idx_key
         return [], None 
 
     #--------------------------------------------------------------------------
-    def _set_graphics(self):
+    def _set_graphics(self):      
         view = self.main_win.findChild(QGraphicsView, 'canvas')
         scene = QGraphicsScene()
         pixmap_item = QGraphicsPixmapItem()
@@ -290,12 +286,8 @@ class MainWindow:
             view.setRenderHint(hint, True)
 
         self.graphics = {'view': view, 'scene': scene, 'pixmap_item': pixmap_item}
-        self.pixmaps = {k: [] for k in ('dataset_eval_images', 'model_eval_images')}        
-        self.current_fig = {k: 0 for k in self.pixmaps}
-
-        self.pixmap_source_map = {
-            self.data_plots_view: ("dataset_eval_images", "dataset_eval_images"),
-            self.model_plots_view: ("model_eval_images", "model_eval_images")}        
+        self.pixmaps = [] 
+        self.current_fig = 0 
 
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
@@ -440,16 +432,14 @@ class MainWindow:
     # [GRAPHICS]
     #--------------------------------------------------------------------------
     @Slot(str)
-    def _update_graphics_view(self):  
-        pixmaps, idx_key = self.get_current_pixmaps_and_key()
-        if not pixmaps or idx_key is None:
+    def _update_graphics_view(self): 
+        if not self.pixmaps:
             self.graphics['pixmap_item'].setPixmap(QPixmap())
             self.graphics['scene'].setSceneRect(0, 0, 0, 0)
             return
-
-        idx = self.current_fig.get(idx_key, 0)
-        idx = min(idx, len(pixmaps) - 1)
-        raw = pixmaps[idx]
+        
+        idx = min(self.current_fig, len(self.pixmaps) - 1)
+        raw = self.pixmaps[idx]
         
         qpixmap = QPixmap(raw) if isinstance(raw, str) else raw
         view = self.graphics['view']
@@ -463,32 +453,29 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     @Slot(str)
-    def show_previous_figure(self):             
-        pixmaps, idx_key = self.get_current_pixmaps_and_key()
-        if not pixmaps or idx_key is None:
+    def show_previous_figure(self):  
+        if not self.pixmaps:
             return
-        if self.current_fig[idx_key] > 0:
-            self.current_fig[idx_key] -= 1
+        if self.current_fig > 0:
+            self.current_fig -= 1
             self._update_graphics_view()
 
     #--------------------------------------------------------------------------
     @Slot(str)
     def show_next_figure(self):
-        pixmaps, idx_key = self.get_current_pixmaps_and_key()
-        if not pixmaps or idx_key is None:
+        if not self.pixmaps:
             return
-        if self.current_fig[idx_key] < len(pixmaps) - 1:
-            self.current_fig[idx_key] += 1
+        if self.current_fig < len(self.pixmaps) - 1:
+            self.current_fig += 1
             self._update_graphics_view()
 
     #--------------------------------------------------------------------------
     @Slot(str)
     def clear_figures(self):
-        pixmaps, idx_key = self.get_current_pixmaps_and_key()
-        if not pixmaps or idx_key is None:
+        if not self.pixmaps:
             return
-        self.pixmaps[idx_key].clear()
-        self.current_fig[idx_key] = 0
+        self.pixmaps.clear()
+        self.current_fig = 0
         self._update_graphics_view()
         self.graphics['pixmap_item'].setPixmap(QPixmap())
         self.graphics['scene'].setSceneRect(0, 0, 0, 0)
@@ -675,13 +662,13 @@ class MainWindow:
         self._send_message(f"Evaluating {self.selected_checkpoint} performances... ")
 
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(
+        self.worker = ProcessWorker(
             self.validation_handler.run_model_evaluation_pipeline,
             self.selected_metrics['model'], 
             self.selected_checkpoint)                
         
         # start worker and inject signals
-        self._start_thread_worker(
+        self._start_process_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)     
@@ -745,12 +732,12 @@ class MainWindow:
         self._send_message(f"Encoding images with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(
+        self.worker = ProcessWorker(
             self.model_handler.run_inference_pipeline,
             self.selected_checkpoint)
 
         # start worker and inject signals
-        self._start_thread_worker(
+        self._start_process_worker(
             self.worker, on_finished=self.on_inference_finished,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
@@ -775,15 +762,7 @@ class MainWindow:
         self.worker = self.worker.cleanup()    
 
     #--------------------------------------------------------------------------      
-    def on_dataset_evaluation_finished(self, plots):   
-        key = 'dataset_eval_images'      
-        if plots:            
-            self.pixmaps[key].extend(
-                [self.graphic_handler.convert_fig_to_qpixmap(p) 
-                 for p in plots])
-            
-        self.current_fig[key] = 0
-        self._update_graphics_view()
+    def on_dataset_evaluation_finished(self, plots):
         self._send_message('Figures have been generated')
         self.worker = self.worker.cleanup()    
 
@@ -794,14 +773,6 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):  
-        key = 'model_eval_images'         
-        if plots is not None:            
-            self.pixmaps[key].extend(
-                [self.graphic_handler.convert_fig_to_qpixmap(p)
-                for p in plots])
-            
-        self.current_fig[key] = 0
-        self._update_graphics_view()
         self._send_message(f'Model {self.selected_checkpoint} has been evaluated')
         self.worker = self.worker.cleanup()    
 

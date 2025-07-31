@@ -13,17 +13,18 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class DataLoaderProcessor():
 
-    def __init__(self, configuration : dict, metadata : dict): 
-        self.batch_size = configuration.get('batch_size', 32)
-        self.inference_batch_size = configuration.get('inference_batch_size', 32) 
+    def __init__(self, configuration : dict, metadata : dict):
         # load source datasets to obtain the guest and host data references
         # then load the metadata from the processed dataset. At any time, 
         # only a single instance of the processed dataset may exist, therefor
         # the user should be careful about loading a model trained on a different dataset
         self.normalization_config = metadata.get('normalization', {})
         self.series_length = metadata.get('max_measurements', 30)
-        self.smile_length = metadata.get('SMILE_sequence_size', 30)     
-        self.configuration = configuration    
+        self.smile_length = metadata.get('SMILE_sequence_size', 30) 
+        self.SMILE_vocab = metadata.get('SMILE_vocabulary', {}) 
+        self.adsorbent_vocab = metadata.get('adsorbent_vocabulary', {})    
+        self.configuration = configuration   
+         
   
     # this method is tailored on the inference input dataset, which is provided
     # with pressure already converted to Pascal and fewer columns compared to source data
@@ -75,14 +76,13 @@ class DataLoaderProcessor():
         _, guest_data, host_data = serializer.load_adsorption_datasets()
         encoded_tokens = []
         i = 0
-        smile_vocabulary = self.vocabularies.get('smile_vocab', {})
         # Sort tokens by descending length to prioritize multi-character tokens
-        sorted_tokens = sorted(smile_vocabulary.keys(), key=len, reverse=True)
+        sorted_tokens = sorted(self.SMILE_vocab.keys(), key=len, reverse=True)
         while i < len(smile):
             matched = False
             for token in sorted_tokens:
                 if smile[i:i+len(token)] == token:
-                    encoded_tokens.append(smile_vocabulary[token])
+                    encoded_tokens.append(self.SMILE_vocab[token])
                     i += len(token)
                     matched = True
                     break
@@ -93,10 +93,9 @@ class DataLoaderProcessor():
     
     #--------------------------------------------------------------------------
     def encode_from_references(self, data : pd.DataFrame):
-        ads_vocabulary = self.vocabularies.get('adsorbents_vocab', {})
         data['adsorbate_encoded_SMILE'] = data['adsorbate_SMILE'].apply(
             lambda x : self.encode_SMILE_from_vocabulary(x))
-        data['encoded_adsorbent'] = data['adsorbent_name'].str.lower().map(ads_vocabulary)
+        data['encoded_adsorbent'] = data['adsorbent_name'].str.lower().map(self.adsorbent_vocab)
 
         return data
     
@@ -154,7 +153,6 @@ class SCADSDataLoader:
         processed_data = self.processor.remove_invalid_measurements(data)
         processed_data = self.processor.aggregate_inference_data(processed_data)
         processed_data = self.processor.add_properties_to_inference_inputs(processed_data)
-        # TO DO FIX THIS TO EXTRACT VOCABULARIES
         processed_data = self.processor.encode_from_references(processed_data)
         processed_data = self.processor.normalize_from_references(processed_data)
         # add padding to pressure and uptake series to match max length

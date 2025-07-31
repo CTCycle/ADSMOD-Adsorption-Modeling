@@ -1215,35 +1215,6 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_4">
           <item>
-           <widget class="QGroupBox" name="groupBox">
-            <property name="title">
-             <string>Select view</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_2">
-             <item>
-              <widget class="QRadioButton" name="viewDataPlots">
-               <property name="text">
-                <string>Dataset evaluation plots</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QRadioButton" name="viewEvalPlots">
-               <property name="text">
-                <string>Model evalution plots</string>
-               </property>
-               <property name="checked">
-                <bool>false</bool>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
            <spacer name="verticalSpacer_10">
             <property name="orientation">
              <enum>Qt::Orientation::Vertical</enum>
@@ -1290,7 +1261,7 @@
         <item>
          <widget class="QGroupBox" name="canvasGroup">
           <property name="title">
-           <string>Images</string>
+           <string>Dashboard</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_7" stretch="5">
            <item>

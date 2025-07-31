@@ -115,6 +115,7 @@ class ValidationData(Base):
 ###############################################################################
 class PredictedAdsorption(Base):
     __tablename__ = 'PREDICTED_ADSORPTION'
+    checkpoint = Column(String, primary_key=True)
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorbent_name = Column(String, primary_key=True)
@@ -123,15 +124,15 @@ class PredictedAdsorption(Base):
     adsorbed_amount = Column(Float)
     predicted_adsorbed_amount = Column(Float)
     __table_args__ = (
-        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
-                         'adsorbate_name', 'pressure'),
+        UniqueConstraint('checkpoint', 'filename', 'temperature', 
+                         'adsorbent_name', 'adsorbate_name', 'pressure'),
     )
     
 
 ###############################################################################
 class CheckpointSummary(Base):
     __tablename__ = 'CHECKPOINTS_SUMMARY'    
-    checkpoint_name = Column(String, primary_key=True)
+    checkpoint = Column(String, primary_key=True)
     sample_size = Column(Float)
     validation_size = Column(Float)
     seed = Column(Integer)
@@ -155,7 +156,7 @@ class CheckpointSummary(Base):
     train_R_square = Column(Float)
     val_R_square = Column(Float)
     __table_args__ = (
-        UniqueConstraint('checkpoint_name'),
+        UniqueConstraint('checkpoint'),
     )
     
 
@@ -257,7 +258,9 @@ class AdsorptionDatabase:
 
     #--------------------------------------------------------------------------
     def save_predictions_dataset(self, data : pd.DataFrame): 
-        self.upsert_dataframe(data, PredictedAdsorption)
+        with self.engine.begin() as conn:
+            conn.execute(sqlalchemy.text(f"DELETE FROM PREDICTED_ADSORPTION"))           
+        data.to_sql("PREDICTED_ADSORPTION", self.engine, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):         

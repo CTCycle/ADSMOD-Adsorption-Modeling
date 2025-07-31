@@ -31,9 +31,9 @@ class AdsorptionPredictionsQuality:
         self.DPI = configuration.get('image_resolution', 400)
         self.file_type = 'jpeg' 
 
-        self.checkpoint_name = os.path.basename(checkpoint_path)        
+        self.checkpoint = os.path.basename(checkpoint_path)        
         self.validation_path = os.path.join(
-            EVALUATION_PATH, 'validation', self.checkpoint_name) 
+            EVALUATION_PATH, 'validation', self.checkpoint) 
         os.makedirs(self.validation_path, exist_ok=True)
 
     #--------------------------------------------------------------------------

@@ -531,7 +531,7 @@ class ModelEvents:
         predictions = predictor.predict_adsorption_isotherm(
             inference_data, progress_callback=progress_callback, worker=worker)
         
-        predictions_dataset = predictor.merge_predictions_to_dataset(inference_data, predictions)
+        predictions_dataset = predictor.build_predictions_dataset(inference_data, predictions)
         serializer.save_predictions_dataset(predictions_dataset)
         logger.info('Predictions dataset saved successfully in database') 
         
