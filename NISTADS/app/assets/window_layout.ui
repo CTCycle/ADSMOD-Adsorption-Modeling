@@ -1253,16 +1253,7 @@
          </layout>
         </item>
         <item>
-         <widget class="QGroupBox" name="canvasGroup">
-          <property name="title">
-           <string>Dashboard</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_7" stretch="5">
-           <item>
-            <widget class="QGraphicsView" name="canvas"/>
-           </item>
-          </layout>
-         </widget>
+         <widget class="QGraphicsView" name="canvas"/>
         </item>
        </layout>
       </widget>
