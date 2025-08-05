@@ -22,6 +22,6 @@ PAD_VALUE = -1
 # [UI LAYOUT PATH]
 ###############################################################################
 UI_PATH = join(PROJECT_DIR, 'app', 'assets', 'window_layout.ui')
-QSS_PATH = join(PROJECT_DIR, 'app', 'assets', 'stylesheet.qss')
+
 
 
