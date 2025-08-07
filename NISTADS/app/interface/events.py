@@ -324,7 +324,7 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.configuration = configuration 
         
     #--------------------------------------------------------------------------
@@ -406,7 +406,7 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------

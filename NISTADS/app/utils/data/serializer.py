@@ -2,6 +2,7 @@ import os
 import json
 
 import pandas as pd
+from keras import Model
 from keras.utils import plot_model
 from keras.models import load_model
 from datetime import datetime
@@ -139,7 +140,7 @@ class ModelSerializer:
         return checkpoint_path    
 
     #--------------------------------------------------------------------------
-    def save_pretrained_model(self, model, path):
+    def save_pretrained_model(self, model : Model, path):
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
@@ -169,8 +170,13 @@ class ModelSerializer:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
-                model_folders.append(entry.name)
-        
+                # Check if the folder contains at least one .keras file
+                has_keras = any(
+                    f.name.endswith('.keras') and f.is_file()
+                    for f in os.scandir(entry.path))
+                if has_keras:
+                    model_folders.append(entry.name)
+                    
         return model_folders    
 
     #--------------------------------------------------------------------------

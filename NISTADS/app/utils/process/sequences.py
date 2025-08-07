@@ -11,7 +11,7 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class PressureUptakeSeriesProcess:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'        
         self.max_points = configuration.get('max_measurements', 30)  
@@ -66,7 +66,7 @@ class PressureUptakeSeriesProcess:
 ###############################################################################
 class SMILETokenization:
 
-    def __init__(self, configuration):         
+    def __init__(self, configuration : dict):         
         self.element_symbols = [
             'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P',
             'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',

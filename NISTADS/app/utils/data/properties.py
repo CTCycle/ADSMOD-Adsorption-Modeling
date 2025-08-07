@@ -14,7 +14,7 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class MolecularProperties:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
         self.molecular_identifier = 'InChIKey'                 
         self.configuration = configuration   
 

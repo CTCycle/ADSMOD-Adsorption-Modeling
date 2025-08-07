@@ -54,7 +54,7 @@ class AggregateDatasets:
 ###############################################################################
 class DataSanitizer:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.separator = ' '
         self.P_TARGET_COL = 'pressure'
         self.Q_TARGET_COL = 'adsorbed_amount'
@@ -196,7 +196,7 @@ class FeatureNormalizer:
 ###############################################################################
 class TrainValidationSplit:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'
         self.adsorbate_col = 'adsorbate_name'
