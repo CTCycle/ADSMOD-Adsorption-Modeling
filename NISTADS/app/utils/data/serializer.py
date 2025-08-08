@@ -135,6 +135,7 @@ class ModelSerializer:
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True) 
+        os.makedirs(os.path.join(checkpoint_path, 'configuration'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
         return checkpoint_path    
@@ -147,8 +148,7 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def save_training_configuration(self, path, history : dict, configuration : dict, 
-                                    metadata : dict):       
-        os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
+                                    metadata : dict):   
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')         
