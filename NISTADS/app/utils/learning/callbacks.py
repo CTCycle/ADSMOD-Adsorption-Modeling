@@ -1,13 +1,10 @@
 import os
-import keras
 import webbrowser
 import subprocess
 import time
 
-import matplotlib
-matplotlib.use('Agg')
+import keras
 import matplotlib.pyplot as plt
-
 
 from NISTADS.app.interface.workers import WorkerInterrupted
 from NISTADS.app.logger import logger
