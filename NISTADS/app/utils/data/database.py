@@ -162,7 +162,7 @@ class CheckpointSummary(Base):
 
 # [DATABASE]
 ###############################################################################
-class AdsorptionDatabase:
+class NISTADSDatabase:
 
     def __init__(self): 
         self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
@@ -176,7 +176,7 @@ class AdsorptionDatabase:
         Base.metadata.create_all(self.engine)   
 
     #--------------------------------------------------------------------------       
-    def update_database_from_source(self): 
+    def update_database_from_sources(self): 
         dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')        
         self.save_predictions_dataset(dataset)
 

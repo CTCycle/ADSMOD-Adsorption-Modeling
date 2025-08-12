@@ -7,7 +7,7 @@ from keras.utils import plot_model
 from keras.models import load_model
 from datetime import datetime
 
-from NISTADS.app.utils.data.database import AdsorptionDatabase
+from NISTADS.app.utils.data.database import NISTADSDatabase
 from NISTADS.app.utils.process.sanitizer import DataSanitizer
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
@@ -26,7 +26,7 @@ class DataSerializer:
         self.Q_COL = 'adsorbed_amount'        
         self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
         self.configuration = configuration
-        self.database = AdsorptionDatabase()
+        self.database = NISTADSDatabase()
         
     #--------------------------------------------------------------------------
     def validate_metadata(self, metadata : dict, target_metadata : dict):        
