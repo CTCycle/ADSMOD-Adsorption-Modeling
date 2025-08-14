@@ -627,7 +627,7 @@ class MainWindow:
             QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
         
-        if self.selected_checkpoint is None:
+        if not self.selected_checkpoint:
             logger.warning('No checkpoint selected for resuming training')
             return
         
