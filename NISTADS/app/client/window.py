@@ -2,12 +2,14 @@ from NISTADS.app.variables import EnvironmentVariables
 EV = EnvironmentVariables()
 
 from functools import partial
+from qt_material import apply_stylesheet
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt, QTimer
 from PySide6.QtGui import QPainter, QPixmap, QAction
 from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpinBox, 
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
-                               QGraphicsPixmapItem, QGraphicsView, QMessageBox, QDialog)
+                               QGraphicsPixmapItem, QGraphicsView, QMessageBox, 
+                               QDialog, QApplication)
 
 
 from NISTADS.app.utils.data.database import NISTADSDatabase
@@ -16,6 +18,23 @@ from NISTADS.app.client.dialogs import SaveConfigDialog, LoadConfigDialog
 from NISTADS.app.client.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
 from NISTADS.app.client.workers import ThreadWorker, ProcessWorker
 from NISTADS.app.logger import logger
+
+###############################################################################
+def apply_style(app : QApplication):
+    theme = 'dark_yellow'
+    extra = {'density_scale': '-1'}
+    apply_stylesheet(app, theme=f'{theme}.xml', extra=extra)
+
+    # Make % text visible/centered for ALL progress bars
+    app.setStyleSheet(app.styleSheet() + """
+    QProgressBar {
+        text-align: center;  /* align percentage to the center */
+        color: black;        /* black text for yellow bar */
+        font-weight: bold;   /* bold percentage */        
+    }
+    """)
+
+    return app
 
 
 ###############################################################################
@@ -58,6 +77,8 @@ class MainWindow:
             # actions
             (QAction, 'actionLoadConfig', 'load_configuration_action'),
             (QAction, 'actionSaveConfig', 'save_configuration_action'),
+            (QAction, 'actionDeleteData', 'delete_data_action'),
+            (QAction, 'actionExportData', 'export_data_action'),
             # out of tab widgets            
             (QProgressBar,'progressBar','progress_bar'),      
             (QPushButton,'stopThread','stop_thread'),
@@ -137,7 +158,9 @@ class MainWindow:
         self._connect_signals([
             # actions
             ('save_configuration_action', 'triggered', self.save_configuration),   
-            ('load_configuration_action', 'triggered', self.load_configuration),            
+            ('load_configuration_action', 'triggered', self.load_configuration),
+            ('delete_data_action', 'triggered', self.delete_all_data),   
+            ('export_data_action', 'triggered', self.export_all_data),        
             # out of tab widgets
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page            
@@ -420,6 +443,22 @@ class MainWindow:
             self.config_manager.load_configuration_from_json(name)                
             self._set_widgets_from_configuration()
             self._send_message(f"Loaded configuration [{name}]")
+
+    #--------------------------------------------------------------------------
+    @Slot()
+    def export_all_data(self):
+        self.database.export_all_tables_as_csv()
+        message = 'All data from database has been exported'
+        logger.info(message)
+        self._send_message(message)
+
+    #--------------------------------------------------------------------------
+    @Slot()
+    def delete_all_data(self):      
+        self.database.delete_all_data()        
+        message = 'All data from database has been deleted'
+        logger.info(message)
+        self._send_message(message)
 
     #--------------------------------------------------------------------------
     # [GRAPHICS]
