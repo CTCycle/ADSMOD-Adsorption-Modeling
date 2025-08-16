@@ -6,7 +6,7 @@ import time
 import keras
 import matplotlib.pyplot as plt
 
-from NISTADS.app.interface.workers import WorkerInterrupted
+from NISTADS.app.client.workers import WorkerInterrupted
 from NISTADS.app.logger import logger
 
     

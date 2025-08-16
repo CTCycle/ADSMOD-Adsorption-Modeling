@@ -12,9 +12,9 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
 
 from NISTADS.app.utils.data.database import NISTADSDatabase
 from NISTADS.app.configuration import Configuration
-from NISTADS.app.interface.dialogs import SaveConfigDialog, LoadConfigDialog
-from NISTADS.app.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
-from NISTADS.app.interface.workers import ThreadWorker, ProcessWorker
+from NISTADS.app.client.dialogs import SaveConfigDialog, LoadConfigDialog
+from NISTADS.app.client.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
+from NISTADS.app.client.workers import ThreadWorker, ProcessWorker
 from NISTADS.app.logger import logger
 
 

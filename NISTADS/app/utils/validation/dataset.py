@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from keras import Model
 
 from NISTADS.app.utils.data.loader import SCADSDataLoader
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE
 from NISTADS.app.logger import logger
 

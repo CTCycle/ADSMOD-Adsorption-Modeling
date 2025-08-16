@@ -5,7 +5,7 @@ from keras.utils import set_random_seed
 
 from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 
 
 from NISTADS.app.constants import INFERENCE_PATH, PAD_VALUE

@@ -19,7 +19,7 @@ from NISTADS.app.utils.process.sanitizer import (DataSanitizer, AggregateDataset
                                                      TrainValidationSplit, FeatureNormalizer, 
                                                      AdsorbentEncoder) 
 
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.logger import logger
 
 
