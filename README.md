@@ -22,7 +22,7 @@ Once embedded, these features are processed through a series of transformer enco
 A unique aspect of SCADS is its pressure series encoder, which applies cross-attention between the input pressure series and the context-rich molecular representation produced by the previous layers. This design enables the model to dynamically adapt its predictions to changing pressure conditions, which is essential for accurately modeling adsorption isotherms across a broad range of experimental scenarios. The final decoder head, known as the Q Decoder, combines the encoded pressure and state information and transforms them through a series of dense layers. Temperature and other state variables are incorporated via scaling mechanisms to ensure that predictions remain physically plausible (higher temperature would correspond to lower uptake)
 
 ## 4. Installation
-he installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, and a portable version of Git, minimizing user interaction and ensuring all components are ready for local use.  
+The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
 
@@ -37,7 +37,7 @@ he installation process for Windows is fully automated. Simply run the script *s
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. For Windows users, a precompiled Triton wheel is bundled with the installation, ensuring seamless integration and performance improvements.
 
 ## 5. How to use
-On Windows, run *start_on_windows.bat* to launch the application. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
+On Windows, run *start_on_windows.bat* to launch the application. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception in your antivirus settings.
 
 The main interface streamlines navigation across the application's core services, including dataset evaluation, model training and evaluation, and inference. Users can easily visualize generated plots and browse both training and inference images. Models training supports customizable configurations and also allows resuming previous sessions using pretrained models.
 
@@ -69,8 +69,6 @@ Eventually, it is possible to build the training dataset that will be used to tr
 
 ![viewer_tab](NISTADS/app/assets/figures/viewer_tab.png)
 
-
-
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
 - **Run installation:** run the application installer for Windows
@@ -92,11 +90,12 @@ This folder organizes data and results across various stages of the project, suc
 
 **Environmental variables** are stored in the *app* folder (within the project folder). For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *app* directory.
 
-| Variable              | Description                                              |
-|-----------------------|----------------------------------------------------------|
-| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch           |
-| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                             |           
- 
+| Variable              | Description                                      |
+|-----------------------|--------------------------------------------------|
+| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch   |
+| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                     |
+| MPLBACKEND            | Matplotlib backend, keep default as Agg          |
+
 ## 6. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
 

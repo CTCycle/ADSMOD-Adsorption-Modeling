@@ -19,7 +19,7 @@ from NISTADS.app.utils.process.sanitizer import (DataSanitizer, AggregateDataset
                                                      TrainValidationSplit, FeatureNormalizer, 
                                                      AdsorbentEncoder) 
 
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.logger import logger
 
 
@@ -324,7 +324,7 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.configuration = configuration 
         
     #--------------------------------------------------------------------------
@@ -406,7 +406,7 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
@@ -452,10 +452,6 @@ class ModelEvents:
         
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        if selected_checkpoint is None:
-            logger.warning('No checkpoint selected for resuming training')
-            return
-        
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()      
         model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(

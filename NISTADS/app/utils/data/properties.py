@@ -5,7 +5,7 @@ import pubchempy as pcp
 
 from tqdm import tqdm
 
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.constants import DATA_PATH
 from NISTADS.app.logger import logger
 
@@ -14,7 +14,7 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class MolecularProperties:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
         self.molecular_identifier = 'InChIKey'                 
         self.configuration = configuration   
 

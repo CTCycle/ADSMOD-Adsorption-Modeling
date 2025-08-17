@@ -2,11 +2,12 @@ import os
 import json
 
 import pandas as pd
+from keras import Model
 from keras.utils import plot_model
 from keras.models import load_model
 from datetime import datetime
 
-from NISTADS.app.utils.data.database import AdsorptionDatabase
+from NISTADS.app.utils.data.database import NISTADSDatabase
 from NISTADS.app.utils.process.sanitizer import DataSanitizer
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
@@ -25,7 +26,7 @@ class DataSerializer:
         self.Q_COL = 'adsorbed_amount'        
         self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
         self.configuration = configuration
-        self.database = AdsorptionDatabase()
+        self.database = NISTADSDatabase()
         
     #--------------------------------------------------------------------------
     def validate_metadata(self, metadata : dict, target_metadata : dict):        
@@ -134,20 +135,20 @@ class ModelSerializer:
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True) 
+        os.makedirs(os.path.join(checkpoint_path, 'configuration'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
         return checkpoint_path    
 
     #--------------------------------------------------------------------------
-    def save_pretrained_model(self, model, path):
+    def save_pretrained_model(self, model : Model, path):
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
     def save_training_configuration(self, path, history : dict, configuration : dict, 
-                                    metadata : dict):       
-        os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
+                                    metadata : dict):   
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')         
@@ -169,8 +170,13 @@ class ModelSerializer:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
-                model_folders.append(entry.name)
-        
+                # Check if the folder contains at least one .keras file
+                has_keras = any(
+                    f.name.endswith('.keras') and f.is_file()
+                    for f in os.scandir(entry.path))
+                if has_keras:
+                    model_folders.append(entry.name)
+                    
         return model_folders    
 
     #--------------------------------------------------------------------------

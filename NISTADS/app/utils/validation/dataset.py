@@ -1,15 +1,13 @@
 import os
 import re
+
 import numpy as np
 import pandas as pd
-
-import matplotlib
-matplotlib.use("Agg")   
 import matplotlib.pyplot as plt
+from keras import Model
 
 from NISTADS.app.utils.data.loader import SCADSDataLoader
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
-
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE
 from NISTADS.app.logger import logger
 
@@ -19,7 +17,7 @@ from NISTADS.app.logger import logger
 ################################################################################
 class AdsorptionPredictionsQuality:
 
-    def __init__(self, model, configuration : dict, metadata : dict, checkpoint_path : str, num_experiments=6): 
+    def __init__(self, model : Model, configuration : dict, metadata : dict, checkpoint_path : str, num_experiments=6): 
         self.save_images = configuration.get('save_images', True)  
         self.model = model            
         self.configuration = configuration 

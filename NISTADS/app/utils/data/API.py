@@ -8,7 +8,7 @@ import aiohttp
 import asyncio
 from tqdm import tqdm
 
-from NISTADS.app.interface.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.logger import logger
 
 
@@ -75,7 +75,7 @@ class AsyncDataFetcher:
 ###############################################################################
 class AdsorptionDataFetch:  
     
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         # get server status before running any API method, 
         # success when returning 200
         self.server = GetServerStatus()
@@ -133,7 +133,7 @@ class AdsorptionDataFetch:
 ###############################################################################
 class GuestHostDataFetch: 
 
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         # get server status before running any API method, 
         # success when returning 200
         self.server = GetServerStatus()

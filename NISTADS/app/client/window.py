@@ -2,20 +2,39 @@ from NISTADS.app.variables import EnvironmentVariables
 EV = EnvironmentVariables()
 
 from functools import partial
+from qt_material import apply_stylesheet
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt, QTimer
 from PySide6.QtGui import QPainter, QPixmap, QAction
 from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpinBox, 
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
-                               QGraphicsPixmapItem, QGraphicsView, QMessageBox, QDialog)
+                               QGraphicsPixmapItem, QGraphicsView, QMessageBox, 
+                               QDialog, QApplication)
 
 
-from NISTADS.app.utils.data.database import AdsorptionDatabase
+from NISTADS.app.utils.data.database import NISTADSDatabase
 from NISTADS.app.configuration import Configuration
-from NISTADS.app.interface.dialogs import SaveConfigDialog, LoadConfigDialog
-from NISTADS.app.interface.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
-from NISTADS.app.interface.workers import ThreadWorker, ProcessWorker
+from NISTADS.app.client.dialogs import SaveConfigDialog, LoadConfigDialog
+from NISTADS.app.client.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
+from NISTADS.app.client.workers import ThreadWorker, ProcessWorker
 from NISTADS.app.logger import logger
+
+###############################################################################
+def apply_style(app : QApplication):
+    theme = 'dark_yellow'
+    extra = {'density_scale': '-1'}
+    apply_stylesheet(app, theme=f'{theme}.xml', extra=extra)
+
+    # Make % text visible/centered for ALL progress bars
+    app.setStyleSheet(app.styleSheet() + """
+    QProgressBar {
+        text-align: center;  /* align percentage to the center */
+        color: black;        /* black text for yellow bar */
+        font-weight: bold;   /* bold percentage */        
+    }
+    """)
+
+    return app
 
 
 ###############################################################################
@@ -42,7 +61,7 @@ class MainWindow:
         self.worker = None    
 
         # initialize database
-        self.database = AdsorptionDatabase()
+        self.database = NISTADSDatabase()
         self.database.initialize_database()                         
 
         # --- Create persistent handlers ---
@@ -58,6 +77,8 @@ class MainWindow:
             # actions
             (QAction, 'actionLoadConfig', 'load_configuration_action'),
             (QAction, 'actionSaveConfig', 'save_configuration_action'),
+            (QAction, 'actionDeleteData', 'delete_data_action'),
+            (QAction, 'actionExportData', 'export_data_action'),
             # out of tab widgets            
             (QProgressBar,'progressBar','progress_bar'),      
             (QPushButton,'stopThread','stop_thread'),
@@ -126,7 +147,7 @@ class MainWindow:
             (QCheckBox,'evalReport','get_evaluation_report'), 
             (QCheckBox,'adsIsothermsComparison','get_prediction_quality'),            
             (QSpinBox,'inferenceBatchSize','inference_batch_size'), 
-            (QPushButton,'loadInferenceData','load_inference_dataset'),
+            (QPushButton,'loadDataSources','load_data_sources'),
             (QPushButton,'predictAdsorption','predict_adsorption'),          
             # 3. Viewer tab            
             (QPushButton,'previousImg','previous_image'),
@@ -137,7 +158,9 @@ class MainWindow:
         self._connect_signals([
             # actions
             ('save_configuration_action', 'triggered', self.save_configuration),   
-            ('load_configuration_action', 'triggered', self.load_configuration),            
+            ('load_configuration_action', 'triggered', self.load_configuration),
+            ('delete_data_action', 'triggered', self.delete_all_data),   
+            ('export_data_action', 'triggered', self.export_all_data),        
             # out of tab widgets
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page            
@@ -157,7 +180,7 @@ class MainWindow:
             ('get_prediction_quality','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),   
-            ('load_inference_dataset','clicked',self.update_database_from_source),           
+            ('load_data_sources','clicked',self.update_database_from_sources),           
             ('predict_adsorption','clicked',self.predict_adsorption_isotherms),            
             # 3. viewer tab page
             ('previous_image', 'clicked', self.show_previous_figure),
@@ -422,6 +445,22 @@ class MainWindow:
             self._send_message(f"Loaded configuration [{name}]")
 
     #--------------------------------------------------------------------------
+    @Slot()
+    def export_all_data(self):
+        self.database.export_all_tables_as_csv()
+        message = 'All data from database has been exported'
+        logger.info(message)
+        self._send_message(message)
+
+    #--------------------------------------------------------------------------
+    @Slot()
+    def delete_all_data(self):      
+        self.database.delete_all_data()        
+        message = 'All data from database has been deleted'
+        logger.info(message)
+        self._send_message(message)
+
+    #--------------------------------------------------------------------------
     # [GRAPHICS]
     #--------------------------------------------------------------------------
     @Slot(str)
@@ -549,8 +588,13 @@ class MainWindow:
     #--------------------------------------------------------------------------        
     @Slot()
     def run_dataset_evaluation_pipeline(self):  
-        if not self.data_metrics or self.worker:
+        if not self.selected_metrics['dataset']:
             return 
+        
+        if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
+            return  
         
         self.configuration = self.config_manager.get_configuration() 
         self.validation_handler = ValidationEvents(self.configuration)       
@@ -622,6 +666,10 @@ class MainWindow:
             QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
         
+        if not self.selected_checkpoint:
+            logger.warning('No checkpoint selected for resuming training')
+            return
+        
         self.configuration = self.config_manager.get_configuration() 
         self.model_handler = ModelEvents(self.configuration)   
 
@@ -643,10 +691,13 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def run_model_evaluation_pipeline(self):  
+        if not self.selected_metrics['model']:
+            return 
+        
         if self.worker:            
             message = "A task is currently running, wait for it to finish and then try again"
             QMessageBox.warning(self.main_win, "Application is still busy", message)
-            return 
+            return   
 
         self.configuration = self.config_manager.get_configuration() 
         self.validation_handler = ValidationEvents(self.configuration)    
@@ -692,7 +743,7 @@ class MainWindow:
     # [INFERENCE TAB]
     #--------------------------------------------------------------------------  
     @Slot()
-    def update_database_from_source(self):
+    def update_database_from_sources(self):
         if self.worker:            
             message = "A task is currently running, wait for it to finish and then try again"
             QMessageBox.warning(self.main_win, "Application is still busy", message)
@@ -702,7 +753,7 @@ class MainWindow:
         self._send_message("Updating database with source data...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(self.database.update_database_from_source)   
+        self.worker = ThreadWorker(self.database.update_database_from_sources)   
 
         # start worker and inject signals
         self._start_thread_worker(

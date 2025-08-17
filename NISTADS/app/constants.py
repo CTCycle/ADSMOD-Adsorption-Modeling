@@ -13,6 +13,8 @@ CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
 CONFIG_PATH = join(RSC_PATH, 'configurations')
 LOGS_PATH = join(RSC_PATH, 'logs')
 
+# files
+###############################################################################
 PROCESS_METADATA_FILE = join(METADATA_PATH, 'preprocessing_metadata.json')
        
 
