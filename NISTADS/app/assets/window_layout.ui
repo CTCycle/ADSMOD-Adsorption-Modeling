@@ -54,6 +54,9 @@
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="guestFraction">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Fraction of total guest (adsorbate species) data to be fetched&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="decimals">
                 <number>3</number>
                </property>
@@ -84,6 +87,9 @@
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="hostFraction">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Fraction of total host (adsorbent materials) data to be fetched&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="decimals">
                 <number>3</number>
                </property>
@@ -114,6 +120,9 @@
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="expFraction">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Fraction of total experiment data (adsorption isotherms) to be fetched&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="decimals">
                 <number>3</number>
                </property>
@@ -175,6 +184,9 @@
            </item>
            <item>
             <widget class="QPushButton" name="loadDataSources">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load data from .csv file in resources/database. Currently, it loads prediction data from the &lt;span style=&quot; font-style:italic;&quot;&gt;inference&lt;/span&gt; folder&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>Load data from files</string>
              </property>
@@ -232,6 +244,9 @@
                </item>
                <item>
                 <widget class="QDoubleSpinBox" name="sampleSize">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Fraction of data to consider when running the dataset evaluation pipeline. It applies to dataset processing as well&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="decimals">
                   <number>3</number>
                  </property>
@@ -286,6 +301,9 @@
             <layout class="QVBoxLayout" name="verticalLayout">
              <item>
               <widget class="QCheckBox" name="adsIsothermCluster">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Perform adsorption isotherm clustering using Dynamic Time Warping (DTW)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
                <property name="text">
                 <string>Adsorption isotherm clustering</string>
                </property>
@@ -581,7 +599,32 @@
               <property name="title">
                <string>Model</string>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_3">
+              <layout class="QVBoxLayout" name="verticalLayout_2">
+               <item>
+                <layout class="QHBoxLayout" name="MTHLayout">
+                 <item>
+                  <widget class="QLabel" name="MTLabel">
+                   <property name="text">
+                    <string>Select model</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QComboBox" name="modelType">
+                   <item>
+                    <property name="text">
+                     <string>SCADS Adsorption Isotherm</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>SCADS Single Measurement</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
                <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_8">
                  <item>
@@ -650,7 +693,7 @@
                  <item>
                   <widget class="QLabel" name="EMLabel">
                    <property name="text">
-                    <string>Molecular embedding size</string>
+                    <string>Embedding size</string>
                    </property>
                   </widget>
                  </item>

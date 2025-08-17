@@ -218,22 +218,25 @@ class TrainValidationSplit:
         return dataset
             
     #--------------------------------------------------------------------------
-    def split_train_and_validation(self, dataset : pd.DataFrame, stratified=True):   
+    def split_train_and_validation(self, dataset: pd.DataFrame, stratified=True):
         dataset = self.remove_underpopulated_classes(dataset)
         combination_classes = dataset['combination']
         n_samples = len(dataset)
 
-        try:  
+        try:
             splitter = StratifiedShuffleSplit(
                 n_splits=1, test_size=self.validation_size, random_state=self.seed)
-            train_idx, valid_idx = next(splitter.split(dataset, combination_classes))            
+            train_idx, val_idx = next(splitter.split(dataset, combination_classes))
         except Exception as e:
-            logger.warning('Validation set too small for the number of classes. Falling back to default split')
+            logger.warning(
+                'Validation set too small for the number of classes. Falling back to default split')
             # Fallback to simple random split, no stratification
-            train_idx, valid_idx = train_test_split(range(n_samples), test_size=self.validation_size,
+            train_idx, val_idx = train_test_split(
+                range(n_samples), test_size=self.validation_size, 
                 random_state=self.seed, shuffle=True)
+        
+        dataset = dataset.drop(columns=['combination']).copy()
+        dataset.loc[train_idx, 'split'] = 'train'
+        dataset.loc[val_idx, 'split'] = 'validation'
 
-        train_data = dataset.iloc[train_idx].drop(columns=['combination'])
-        validation_data = dataset.iloc[valid_idx].drop(columns=['combination'])
-
-        return train_data, validation_data
+        return dataset

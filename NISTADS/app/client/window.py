@@ -129,7 +129,8 @@ class MainWindow:
             (QDoubleSpinBox,'targetLearningRate','target_LR'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'),              
-            # model settings group  
+            # model settings group 
+            (QComboBox,'modelType','selected_model'),  
             (QDoubleSpinBox,'dropoutRate','dropout_rate'), 
             (QSpinBox,'attentionHeads','num_attention_heads'), 
             (QSpinBox,'numEncoders','num_encoders'), 
@@ -263,6 +264,7 @@ class MainWindow:
             ('constant_steps', 'valueChanged', 'constant_steps'),          
             ('decay_steps', 'valueChanged', 'decay_steps'), 
             # model settings group
+            ('selected_model', 'currentTextChanged', 'selected_model'),
             ('dropout_rate', 'valueChanged', 'dropout_rate'),
             ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
             ('num_encoders', 'valueChanged', 'num_encoders'),            

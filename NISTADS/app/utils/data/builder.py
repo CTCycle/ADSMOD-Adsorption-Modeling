@@ -30,7 +30,6 @@ class BuildAdsorptionDataset:
     #--------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
         df_drop = dataframe.drop(columns=self.raw_drop_cols, axis=1)
-
         return df_drop
 
     #--------------------------------------------------------------------------           
