@@ -8,6 +8,7 @@ tensorflow-cpu==2.19.0
 # Deep Learning & Computer Vision
 keras==3.10.0
 scikit-learn==1.6.1
+triton-windows==3.4.0.post20
 
 # GUI, Plotting & Data
 PySide6==6.9.1

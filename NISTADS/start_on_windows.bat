@@ -12,7 +12,6 @@ set "pip_exe=%python_dir%\Scripts\pip.exe"
 set "env_marker=%python_dir%\.is_installed"
 set "app_script=%project_folder%app\app.py"
 set "requirements_path=%project_folder%setup\requirements.txt"
-set "triton_path=%project_folder%setup\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
 
 REM ============================================================================
 REM == 0. Fast path: skip full setup if environment already present
@@ -62,20 +61,13 @@ if not exist "%requirements_path%" (
 )
 
 echo [INFO] Upgrading pip package
-"%python_exe%" -m pip install --upgrade pip setuptools wheel || goto :error
+"%pip_exe%" install --upgrade pip setuptools wheel || goto :error
 
-echo [INFO] Pre-install PubChemPy without build isolation (workaround for pip 25)
-"%python_exe%" -m pip install --no-build-isolation "pubchempy==1.0.4" || goto :error
+echo [INFO] Install PubChemPy without build isolation 
+"%pip_exe%" install --no-warn-script-location --no-build-isolation "pubchempy==1.0.4" || goto :error
 
-echo [INFO] Installing requirements from your requirements.txt
-"%python_exe%" -m pip install -r "%requirements_path%" || goto :error
-
-if exist "%triton_path%" (
-    echo [INFO] Installing triton wheel
-    "%pip_exe%" install "%triton_path%" || goto :error
-) else (
-    echo [WARN] Triton wheel not found at "%triton_path%". Skipping.
-)
+echo [INFO] Installing requirements
+"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
 
 pushd "%root_folder%"
 echo [INFO] Installing project in editable mode
