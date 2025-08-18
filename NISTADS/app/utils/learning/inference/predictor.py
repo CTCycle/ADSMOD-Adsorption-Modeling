@@ -8,7 +8,7 @@ from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 
 
-from NISTADS.app.constants import INFERENCE_PATH, PAD_VALUE
+from NISTADS.app.constants import DATA_SOURCE_PATH, PAD_VALUE
 from NISTADS.app.logger import logger
 
 
