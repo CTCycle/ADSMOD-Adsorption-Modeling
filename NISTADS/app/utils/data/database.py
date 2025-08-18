@@ -25,7 +25,8 @@ class SingleComponentAdsorption(Base):
     composition = Column(Float)
     __table_args__ = (
         UniqueConstraint('filename', 'temperature', 'pressure', 
-                         'adsorbent_name', 'adsorbate_name'))
+                         'adsorbent_name', 'adsorbate_name'),
+                         )
 
 ###############################################################################
 class BinaryMixtureAdsorption(Base):
@@ -46,7 +47,8 @@ class BinaryMixtureAdsorption(Base):
     __table_args__ = (
         UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
                          'compound_1', 'compound_2', 'compound_1_pressure',
-                         'compound_2_pressure'))    
+                         'compound_2_pressure'),
+                         )    
         
 ###############################################################################
 class Adsorbate(Base):
@@ -59,7 +61,8 @@ class Adsorbate(Base):
     adsorbate_molecular_formula = Column(String)
     adsorbate_SMILE = Column(String)
     __table_args__ = (
-        UniqueConstraint('InChIKey'))
+        UniqueConstraint('InChIKey'),
+        )
     
 ###############################################################################
 class Adsorbent(Base):
@@ -71,7 +74,8 @@ class Adsorbent(Base):
     adsorbent_molecular_formula = Column(String)
     adsorbent_SMILE = Column(String)
     __table_args__ = (
-        UniqueConstraint('hashkey'))
+        UniqueConstraint('hashkey'),
+        )
     
 ###############################################################################
 class TrainingData(Base):
@@ -85,7 +89,8 @@ class TrainingData(Base):
     adsorbate_encoded_SMILE = Column(String)
     split = Column(String)
     __table_args__ = (
-        UniqueConstraint('filename'))
+        UniqueConstraint('filename'),
+        )
     
 ###############################################################################
 class PredictedAdsorption(Base):
@@ -100,7 +105,8 @@ class PredictedAdsorption(Base):
     predicted_adsorbed_amount = Column(Float)
     __table_args__ = (
         UniqueConstraint('checkpoint', 'filename', 'temperature', 
-                         'adsorbent_name', 'adsorbate_name', 'pressure'))    
+                         'adsorbent_name', 'adsorbate_name', 'pressure'),
+                         )    
 
 ###############################################################################
 class CheckpointSummary(Base):
@@ -129,7 +135,8 @@ class CheckpointSummary(Base):
     train_R_square = Column(Float)
     val_R_square = Column(Float)
     __table_args__ = (
-        UniqueConstraint('checkpoint'))
+        UniqueConstraint('checkpoint'),
+        )
     
 
 # [DATABASE]

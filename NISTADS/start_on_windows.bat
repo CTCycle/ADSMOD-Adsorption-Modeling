@@ -62,13 +62,13 @@ if not exist "%requirements_path%" (
 )
 
 echo [INFO] Upgrading pip package
-"%pip_exe%" install --upgrade pip >nul 2>&1 || goto :error
+"%python_exe%" -m pip install --upgrade pip setuptools wheel || goto :error
 
-echo [INFO] Installing requirements
-"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
+echo [INFO] Pre-install PubChemPy without build isolation (workaround for pip 25)
+"%python_exe%" -m pip install --no-build-isolation "pubchempy==1.0.4" || goto :error
 
-echo [INFO] Installing setuptools and wheel
-"%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
+echo [INFO] Installing requirements from your requirements.txt
+"%python_exe%" -m pip install -r "%requirements_path%" || goto :error
 
 if exist "%triton_path%" (
     echo [INFO] Installing triton wheel
