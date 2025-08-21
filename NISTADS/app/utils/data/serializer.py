@@ -7,7 +7,7 @@ from keras.utils import plot_model
 from keras.models import load_model
 from datetime import datetime
 
-from NISTADS.app.utils.data.database import NISTADSDatabase
+from NISTADS.app.utils.data.database import database
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
 from NISTADS.app.constants import PROCESS_METADATA_FILE, CHECKPOINT_PATH
@@ -24,8 +24,7 @@ class DataSerializer:
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'        
         self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
-        self.configuration = configuration
-        self.database = NISTADSDatabase()
+        self.configuration = configuration        
         
     #--------------------------------------------------------------------------
     def validate_metadata(self, metadata : dict, target_metadata : dict):        
@@ -49,12 +48,12 @@ class DataSerializer:
             
     #--------------------------------------------------------------------------
     def load_adsorption_datasets(self):          
-        adsorption_data, guest_data, host_data = self.database.load_source_dataset()
+        adsorption_data, guest_data, host_data = database.load_source_dataset()
         return adsorption_data, guest_data, host_data
     
     #--------------------------------------------------------------------------
     def load_inference_data(self):              
-        return self.database.load_inference_data()   
+        return database.load_inference_data()   
     
     #--------------------------------------------------------------------------
     def load_training_data(self, only_metadata=False): 
@@ -63,7 +62,7 @@ class DataSerializer:
 
         if not only_metadata:
             # load preprocessed data from database and convert joint strings to list
-            training_data = self.database.load_training_data()
+            training_data = database.load_training_data()
             training_data = self.serialize_series(training_data, self.series_cols) 
             train_data = training_data[training_data['split'] == 'train']
             val_data = training_data[training_data['split'] == 'validation']
@@ -78,7 +77,7 @@ class DataSerializer:
 
         # convert list to joint string and save preprocessed data to database
         validated_data = self.serialize_series(data, self.series_cols)         
-        self.database.save_training_data(validated_data)
+        database.save_training_data(validated_data)
         metadata = {'seed' : self.seed, 
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'sample_size' : self.configuration.get('sample_size', 1.0),
@@ -101,19 +100,19 @@ class DataSerializer:
    
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data=None, host_data=None):
-        self.database.save_materials_datasets(guest_data, host_data)
+        database.save_materials_datasets(guest_data, host_data)
 
     #--------------------------------------------------------------------------
     def save_adsorption_datasets(self, single_component, binary_mixture):
-        self.database.save_adsorption_dataset(single_component, binary_mixture)  
+        database.save_adsorption_dataset(single_component, binary_mixture)  
 
     #--------------------------------------------------------------------------
     def save_predictions_dataset(self, data):
-        self.database.save_predictions_dataset(data)  
+        database.save_predictions_dataset(data)  
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):            
-        self.database.save_checkpoints_summary(data)
+        database.save_checkpoints_summary(data)
 
     
 # [MODEL SERIALIZATION]
@@ -192,12 +191,16 @@ class ModelSerializer:
         return configuration, metadata, history
 
     #--------------------------------------------------------------------------
-    def save_model_plot(self, model, path):        
-        logger.debug('Generating model architecture graph')
-        plot_path = os.path.join(path, 'model_layout.png')       
-        plot_model(model, to_file=plot_path, show_shapes=True, 
-                    show_layer_names=True, show_layer_activations=True, 
-                    expand_nested=True, rankdir='TB', dpi=400)
+    def save_model_plot(self, model, path):  
+        try: 
+            plot_path = os.path.join(path, "model_layout.png")       
+            plot_model(model, to_file=plot_path, show_shapes=True,
+                show_layer_names=True, show_layer_activations=True,
+                expand_nested=True, rankdir="TB", dpi=400)
+            logger.debug(f"Model architecture plot generated as {plot_path}") 
+        except (OSError, FileNotFoundError, ImportError) as e:
+            logger.warning(
+                "Could not generate model architecture plot (graphviz/pydot not correctly installed)")
             
     #--------------------------------------------------------------------------
     def load_checkpoint(self, checkpoint : str):                             

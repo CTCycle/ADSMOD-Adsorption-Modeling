@@ -5,6 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
 
+from NISTADS.app.utils.singleton import singleton
 from NISTADS.app.constants import DATA_PATH, DATA_SOURCE_PATH
 from NISTADS.app.logger import logger
 
@@ -141,6 +142,7 @@ class CheckpointSummary(Base):
 
 # [DATABASE]
 ###############################################################################
+@singleton
 class NISTADSDatabase:
 
     def __init__(self): 
@@ -278,6 +280,6 @@ class NISTADSDatabase:
             for table in reversed(Base.metadata.sorted_tables): 
                 conn.execute(table.delete())
     
-    
-
-    
+        
+#------------------------------------------------------------------------------
+database = NISTADSDatabase()   
