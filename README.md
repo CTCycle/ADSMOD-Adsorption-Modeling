@@ -34,7 +34,7 @@ The installation process for Windows is fully automated. Simply run the script *
     `pip install -e . --use-pep517` 
 
 ### 4.1 Just-In-Time (JIT) Compiler
-This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. For Windows users, a precompiled Triton wheel is bundled with the installation, ensuring seamless integration and performance improvements.
+This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. 
 
 ## 5. How to use
 On Windows, run *start_on_windows.bat* to launch the application. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception in your antivirus settings.
@@ -82,7 +82,7 @@ This folder organizes data and results across various stages of the project, suc
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Validation outputs will be saved separately within *database/validation*. Data used for inference with a pretrained checkpoint is located in *database/inference* (a template of the expected dataset columns is available at *templates/inference_adsorption_data.csv*). 
+- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Validation outputs will be saved separately within *database/validation*. Source data, such as datasets for inference or additional adsorption isotherm data for the training dataset is located in *database/dataset* (a template of the expected datasets is available in *templates*. 
 
 - **logs:** log files are saved here
 

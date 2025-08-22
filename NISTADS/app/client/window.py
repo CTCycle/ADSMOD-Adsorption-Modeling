@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QDialog, QApplication)
 
 
-from NISTADS.app.utils.data.database import NISTADSDatabase
+from NISTADS.app.utils.data.database import database
 from NISTADS.app.configuration import Configuration
 from NISTADS.app.client.dialogs import SaveConfigDialog, LoadConfigDialog
 from NISTADS.app.client.events import GraphicsHandler, DatasetEvents, ValidationEvents, ModelEvents
@@ -60,9 +60,8 @@ class MainWindow:
         self.threadpool = QThreadPool.globalInstance()
         self.worker = None    
 
-        # initialize database
-        self.database = NISTADSDatabase()
-        self.database.initialize_database()                         
+        # initialize database        
+        database.initialize_database()                         
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
@@ -129,7 +128,8 @@ class MainWindow:
             (QDoubleSpinBox,'targetLearningRate','target_LR'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'),              
-            # model settings group  
+            # model settings group 
+            (QComboBox,'modelType','selected_model'),  
             (QDoubleSpinBox,'dropoutRate','dropout_rate'), 
             (QSpinBox,'attentionHeads','num_attention_heads'), 
             (QSpinBox,'numEncoders','num_encoders'), 
@@ -263,6 +263,7 @@ class MainWindow:
             ('constant_steps', 'valueChanged', 'constant_steps'),          
             ('decay_steps', 'valueChanged', 'decay_steps'), 
             # model settings group
+            ('selected_model', 'currentTextChanged', 'selected_model'),
             ('dropout_rate', 'valueChanged', 'dropout_rate'),
             ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
             ('num_encoders', 'valueChanged', 'num_encoders'),            
@@ -447,7 +448,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def export_all_data(self):
-        self.database.export_all_tables_as_csv()
+        database.export_all_tables_as_csv()
         message = 'All data from database has been exported'
         logger.info(message)
         self._send_message(message)
@@ -455,7 +456,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def delete_all_data(self):      
-        self.database.delete_all_data()        
+        database.delete_all_data()        
         message = 'All data from database has been deleted'
         logger.info(message)
         self._send_message(message)
@@ -753,7 +754,7 @@ class MainWindow:
         self._send_message("Updating database with source data...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(self.database.update_database_from_sources)   
+        self.worker = ThreadWorker(database.update_database_from_sources)   
 
         # start worker and inject signals
         self._start_thread_worker(

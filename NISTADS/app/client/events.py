@@ -5,19 +5,19 @@ from PySide6.QtGui import QImage, QPixmap
 from NISTADS.app.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.utils.data.builder import BuildAdsorptionDataset
-from NISTADS.app.utils.data.API import AdsorptionDataFetch, GuestHostDataFetch
+from NISTADS.app.utils.api.server import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.app.utils.data.properties import MolecularProperties
-from NISTADS.app.utils.process.sequences import PressureUptakeSeriesProcess, SMILETokenization
-from NISTADS.app.utils.process.conversion import PQ_units_conversion
+from NISTADS.app.utils.processing.sequences import PressureUptakeSeriesProcess, SMILETokenization
+from NISTADS.app.utils.processing.conversion import PQ_units_conversion
 from NISTADS.app.utils.learning.device import DeviceConfig
 from NISTADS.app.utils.learning.training.fitting import ModelTraining
 from NISTADS.app.utils.learning.models.qmodel import SCADSModel
 from NISTADS.app.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.app.utils.validation.dataset import AdsorptionPredictionsQuality
 from NISTADS.app.utils.learning.inference.predictor import AdsorptionPredictions
-from NISTADS.app.utils.process.sanitizer import (DataSanitizer, AggregateDatasets, 
-                                                     TrainValidationSplit, FeatureNormalizer, 
-                                                     AdsorbentEncoder) 
+from NISTADS.app.utils.processing.sanitizer import (DataSanitizer, AggregateDatasets, 
+                                                    TrainValidationSplit, FeatureNormalizer, 
+                                                    AdsorbentEncoder) 
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.logger import logger
@@ -204,7 +204,9 @@ class DatasetEvents:
         # split data into train set and validation set
         logger.info('Generate train and validation datasets through stratified splitting')  
         splitter = TrainValidationSplit(self.configuration)     
-        train_data, validation_data = splitter.split_train_and_validation(processed_data) 
+        training_data = splitter.split_train_and_validation(processed_data)
+        train_samples = training_data[training_data['split'] == 'train'] 
+        validation_samples = training_data[training_data['split'] == 'validation']
 
         # check thread for interruption 
         check_thread_status(worker)
@@ -212,22 +214,18 @@ class DatasetEvents:
 
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
-        normalizer = FeatureNormalizer(self.configuration, train_data)
-        train_data = normalizer.normalize_molecular_features(train_data) 
-        train_data = normalizer.PQ_series_normalization(train_data) 
-        validation_data = normalizer.normalize_molecular_features(validation_data) 
-        validation_data = normalizer.PQ_series_normalization(validation_data)      
-    
+        normalizer = FeatureNormalizer(self.configuration, train_samples)
+        training_data = normalizer.normalize_molecular_features(training_data) 
+        training_data = normalizer.PQ_series_normalization(training_data) 
+           
         # check thread for interruption 
         check_thread_status(worker)
         update_progress_callback(6, 8, progress_callback)
         # add padding to pressure and uptake series to match max length
-        train_data = sequencer.PQ_series_padding(train_data)     
-        validation_data = sequencer.PQ_series_padding(validation_data)
+        training_data = sequencer.PQ_series_padding(training_data)           
         
-        encoding = AdsorbentEncoder(self.configuration, train_data)    
-        train_data = encoding.encode_adsorbents_by_name(train_data)
-        validation_data = encoding.encode_adsorbents_by_name(validation_data)    
+        encoding = AdsorbentEncoder(self.configuration, train_samples)    
+        training_data = encoding.encode_adsorbents_by_name(training_data)         
         adsorbent_vocab = encoding.mapping
 
         # check thread for interruption 
@@ -235,16 +233,15 @@ class DatasetEvents:
         update_progress_callback(7, 8, progress_callback)
       
         # save preprocessed data using data serializer   
-        train_data = sanitizer.isolate_processed_features(train_data)
-        validation_data = sanitizer.isolate_processed_features(validation_data)           
-        serializer.save_train_and_validation_data(
-            train_data, validation_data, smile_vocab, adsorbent_vocab, normalizer.statistics) 
+        training_data = sanitizer.isolate_processed_features(training_data)           
+        serializer.save_training_data(
+            training_data, smile_vocab, adsorbent_vocab, normalizer.statistics) 
         
         # check thread for interruption        
         update_progress_callback(8, 8, progress_callback) 
-
-        logger.info(f'Saved train dataset with {train_data.shape[0]} records saved')  
-        logger.info(f'Saved validation dataset with {validation_data.shape[0]} records')    
+        
+        logger.info(f'Saved train dataset with {len(train_samples)} records saved')  
+        logger.info(f'Saved validation dataset with {len(validation_samples)} records')    
 
 
     #--------------------------------------------------------------------------
@@ -296,29 +293,25 @@ class DatasetEvents:
         # split data into train set and validation set
         logger.info('Generate train and validation datasets through stratified splitting')  
         splitter = TrainValidationSplit(metadata)     
-        train_data, validation_data = splitter.split_train_and_validation(processed_data) 
+        training_data = splitter.split_train_and_validation(processed_data)
+        train_samples = training_data[training_data['split'] == 'train'] 
+        validation_samples = training_data[training_data['split'] == 'validation']    
+
         # normalize pressure and uptake series using max values computed from 
         # the training set, then pad sequences to a fixed length
-        normalizer = FeatureNormalizer(metadata, train_data)
-        train_data = normalizer.normalize_molecular_features(train_data) 
-        train_data = normalizer.PQ_series_normalization(train_data) 
-        validation_data = normalizer.normalize_molecular_features(validation_data) 
-        validation_data = normalizer.PQ_series_normalization(validation_data)
-       
+        normalizer = FeatureNormalizer(metadata, train_samples)
+        training_data = normalizer.normalize_molecular_features(training_data) 
+        training_data = normalizer.PQ_series_normalization(training_data) 
         # add padding to pressure and uptake series to match max length
-        train_data = sequencer.PQ_series_padding(train_data)     
-        validation_data = sequencer.PQ_series_padding(validation_data)
+        training_data = sequencer.PQ_series_padding(training_data)           
         
-        encoding = AdsorbentEncoder(metadata, train_data)    
-        train_data = encoding.encode_adsorbents_by_name(train_data)
-        validation_data = encoding.encode_adsorbents_by_name(validation_data)    
-        adsorbent_vocab = encoding.mapping
-
+        encoding = AdsorbentEncoder(metadata, train_samples)    
+        training_data = encoding.encode_adsorbents_by_name(training_data)         
+        
         # save preprocessed data using data serializer   
-        train_data = sanitizer.isolate_processed_features(train_data)
-        validation_data = sanitizer.isolate_processed_features(validation_data)
+        training_data = sanitizer.isolate_processed_features(training_data)        
 
-        return train_data, validation_data
+        return train_samples, validation_samples
 
 
 ###############################################################################
@@ -372,17 +365,16 @@ class ValidationEvents:
         # load validation data and current preprocessing metadata. This must
         # be compatible with the currently loaded checkpoint configurations
         serializer = DataSerializer(train_config) 
-        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
+        current_metadata = serializer.load_training_data(only_metadata=True)
+        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
-        if validated_metadata:
+        if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            _, validation_data, model_metadata = serializer.load_train_and_validation_data()
+            _, validation_data, model_metadata = serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)   
+            _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata) 
         
-        num_samples = self.configuration.get('num_evaluation_samples', 10)
         loader = SCADSDataLoader(train_config, model_metadata)      
         validation_dataset = loader.build_training_dataloader(validation_data)            
             
@@ -417,7 +409,7 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
         dataserializer = DataSerializer(self.configuration)        
-        train_data, validation_data, metadata = dataserializer.load_train_and_validation_data()
+        train_data, validation_data, metadata = dataserializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
             return
@@ -468,12 +460,12 @@ class ModelEvents:
         # load metadata and check whether this is compatible with the current checkpoint
         # rebuild dataset if metadata is not compatible and the user has requested this feature
         serializer = DataSerializer(train_config)
-        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
+        current_metadata = serializer.load_training_data(only_metadata=True)
+        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
-        if validated_metadata:
+        if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, model_metadata = serializer.load_train_and_validation_data()
+            train_data, validation_data, model_metadata = serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)

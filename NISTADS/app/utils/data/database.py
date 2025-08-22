@@ -5,7 +5,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
 
-from NISTADS.app.constants import DATA_PATH, INFERENCE_PATH
+from NISTADS.app.utils.singleton import singleton
+from NISTADS.app.constants import DATA_PATH, DATA_SOURCE_PATH
 from NISTADS.app.logger import logger
 
 Base = declarative_base()
@@ -26,8 +27,7 @@ class SingleComponentAdsorption(Base):
     __table_args__ = (
         UniqueConstraint('filename', 'temperature', 'pressure', 
                          'adsorbent_name', 'adsorbate_name'),
-    )
-
+                         )
 
 ###############################################################################
 class BinaryMixtureAdsorption(Base):
@@ -49,8 +49,7 @@ class BinaryMixtureAdsorption(Base):
         UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
                          'compound_1', 'compound_2', 'compound_1_pressure',
                          'compound_2_pressure'),
-    )
-    
+                         )    
         
 ###############################################################################
 class Adsorbate(Base):
@@ -64,8 +63,7 @@ class Adsorbate(Base):
     adsorbate_SMILE = Column(String)
     __table_args__ = (
         UniqueConstraint('InChIKey'),
-    )
-
+        )
     
 ###############################################################################
 class Adsorbent(Base):
@@ -78,12 +76,11 @@ class Adsorbent(Base):
     adsorbent_SMILE = Column(String)
     __table_args__ = (
         UniqueConstraint('hashkey'),
-    )
-
+        )
     
 ###############################################################################
-class TrainData(Base):
-    __tablename__ = 'TRAIN_DATA'
+class TrainingData(Base):
+    __tablename__ = 'TRAINING_DATASET'
     filename = Column(String, primary_key=True)
     temperature = Column(Float)
     pressure = Column(String)
@@ -91,26 +88,10 @@ class TrainData(Base):
     encoded_adsorbent = Column(Float)
     adsorbate_molecular_weight = Column(Float)
     adsorbate_encoded_SMILE = Column(String)
+    split = Column(String)
     __table_args__ = (
         UniqueConstraint('filename'),
-    )
-
-
-###############################################################################
-class ValidationData(Base):
-    __tablename__ = 'VALIDATION_DATA'
-    filename = Column(String, primary_key=True)
-    temperature = Column(Float)
-    pressure = Column(String)
-    adsorbed_amount = Column(String)
-    encoded_adsorbent = Column(Float)
-    adsorbate_molecular_weight = Column(Float)
-    adsorbate_encoded_SMILE = Column(String)
-    __table_args__ = (
-        UniqueConstraint('filename'),
-    )
-
-
+        )
     
 ###############################################################################
 class PredictedAdsorption(Base):
@@ -126,8 +107,7 @@ class PredictedAdsorption(Base):
     __table_args__ = (
         UniqueConstraint('checkpoint', 'filename', 'temperature', 
                          'adsorbent_name', 'adsorbate_name', 'pressure'),
-    )
-    
+                         )    
 
 ###############################################################################
 class CheckpointSummary(Base):
@@ -157,16 +137,17 @@ class CheckpointSummary(Base):
     val_R_square = Column(Float)
     __table_args__ = (
         UniqueConstraint('checkpoint'),
-    )
+        )
     
 
 # [DATABASE]
 ###############################################################################
+@singleton
 class NISTADSDatabase:
 
     def __init__(self): 
         self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
-        self.inference_path = os.path.join(INFERENCE_PATH, 'inference_adsorption_data.csv')
+        self.inference_path = os.path.join(DATA_SOURCE_PATH, 'inference_adsorption_data.csv')
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 5000
@@ -203,9 +184,7 @@ class NISTADSDatabase:
                 # Columns to update on conflict
                 update_cols = {c: getattr(stmt.excluded, c) for c in batch[0] if c not in unique_cols}
                 stmt = stmt.on_conflict_do_update(
-                    index_elements=unique_cols,
-                    set_=update_cols
-                )
+                    index_elements=unique_cols, set_=update_cols)
                 session.execute(stmt)
                 session.commit()
             session.commit()
@@ -222,12 +201,11 @@ class NISTADSDatabase:
         return adsorption_data, guest_data, host_data
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation(self):       
+    def load_training_data(self):       
         with self.engine.connect() as conn:
-            train_data = pd.read_sql_table("TRAIN_DATA", conn)
-            validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
-
-        return train_data, validation_data
+            training_data = pd.read_sql_table("TRAINING_DATA", conn)
+            
+        return training_data
 
     #--------------------------------------------------------------------------
     def load_inference_data(self):         
@@ -249,12 +227,10 @@ class NISTADSDatabase:
             self.upsert_dataframe(adsorbents, Adsorbent)
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+    def save_training_data(self, data : pd.DataFrame):         
         with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM TRAIN_DATA"))    
-            conn.execute(sqlalchemy.text(f"DELETE FROM VALIDATION_DATA"))      
-        train_data.to_sql("TRAIN_DATA", self.engine, if_exists='append', index=False)
-        validation_data.to_sql("VALIDATION_DATA", self.engine, if_exists='append', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM TRAINING_DATA"))              
+        data.to_sql("TRAINING_DATA", self.engine, if_exists='append', index=False)       
 
     #--------------------------------------------------------------------------
     def save_predictions_dataset(self, data : pd.DataFrame): 
@@ -274,20 +250,13 @@ class NISTADSDatabase:
             for table in Base.metadata.sorted_tables:
                 table_name = table.name
                 csv_path = os.path.join(export_path, f"{table_name}.csv")
-
                 # Build a safe SELECT for arbitrary table names (quote with "")
                 query = sqlalchemy.text(f'SELECT * FROM "{table_name}"')
-
                 if chunksize:
                     first = True
                     for chunk in pd.read_sql(query, conn, chunksize=chunksize):
-                        chunk.to_csv(
-                            csv_path,
-                            index=False,
-                            header=first,
-                            mode="w" if first else "a",
-                            encoding='utf-8', 
-                            sep=',')
+                        chunk.to_csv(csv_path, index=False, header=first, 
+                                     mode="w" if first else "a", encoding='utf-8', sep=',')
                         first = False
                     # If table is empty, still write header row
                     if first:
@@ -311,6 +280,6 @@ class NISTADSDatabase:
             for table in reversed(Base.metadata.sorted_tables): 
                 conn.execute(table.delete())
     
-    
-
-    
+        
+#------------------------------------------------------------------------------
+database = NISTADSDatabase()   

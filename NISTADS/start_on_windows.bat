@@ -12,7 +12,6 @@ set "pip_exe=%python_dir%\Scripts\pip.exe"
 set "env_marker=%python_dir%\.is_installed"
 set "app_script=%project_folder%app\app.py"
 set "requirements_path=%project_folder%setup\requirements.txt"
-set "triton_path=%project_folder%setup\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
 
 REM ============================================================================
 REM == 0. Fast path: skip full setup if environment already present
@@ -62,27 +61,20 @@ if not exist "%requirements_path%" (
 )
 
 echo [INFO] Upgrading pip package
-"%pip_exe%" install --upgrade pip >nul 2>&1 || goto :error
+"%pip_exe%" install --upgrade pip setuptools wheel || goto :error
+
+echo [INFO] Install PubChemPy without build isolation 
+"%pip_exe%" install --no-warn-script-location --no-build-isolation "pubchempy==1.0.4" || goto :error
 
 echo [INFO] Installing requirements
 "%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
-
-echo [INFO] Installing setuptools and wheel
-"%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
-
-if exist "%triton_path%" (
-    echo [INFO] Installing triton wheel
-    "%pip_exe%" install "%triton_path%" || goto :error
-) else (
-    echo [WARN] Triton wheel not found at "%triton_path%". Skipping.
-)
 
 pushd "%root_folder%"
 echo [INFO] Installing project in editable mode
 "%pip_exe%" install -e . --use-pep517 || (popd & goto :error)
 popd
 
-"%pip_exe%" cache purge || goto :error
+"%pip_exe%" cache purge || echo [WARN] pip cache purge failed, continuing...
 
 REM Mark environment as installed for future fast start
 > "%env_marker%" echo setup_completed
