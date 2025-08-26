@@ -56,6 +56,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_training_data(self, only_metadata=False
         ) -> Union[Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]], Dict[str, Any]]:
+        # load metadata from file
         with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)  
 
@@ -80,7 +81,7 @@ class DataSerializer:
         ads_vocabulary: Dict[str, Any], normalization_stats: Dict[str, Any] = {}):
         # convert list to joint string and save preprocessed data to database
         validated_data = self.serialize_series(data, self.series_cols)         
-        database.save_training_data(validated_data)
+        database.save_into_database(validated_data, 'TRAINING_DATASET')  
         metadata = {'seed' : configuration.get('seed', 42),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'sample_size' : configuration.get('sample_size', 1.0),
@@ -167,7 +168,7 @@ class ModelSerializer:
         logger.debug(f'Model configuration, session history and metadata saved for {os.path.basename(path)}')  
 
     #-------------------------------------------------------------------------- 
-    def scan_checkpoints_folder(self)-> List[str]:
+    def scan_checkpoints_folder(self) -> List[str]:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -181,7 +182,7 @@ class ModelSerializer:
         return model_folders    
 
     #--------------------------------------------------------------------------
-    def load_training_configuration(self, path : str) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+    def load_training_configuration(self, path : str) -> Tuple[Dict, Dict, Dict]:
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')

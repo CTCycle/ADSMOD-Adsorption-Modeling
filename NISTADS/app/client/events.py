@@ -234,7 +234,8 @@ class DatasetEvents:
         # save preprocessed data using data serializer   
         training_data = sanitizer.isolate_processed_features(training_data)           
         self.serializer.save_training_data(
-            training_data, smile_vocab, adsorbent_vocab, normalizer.statistics) 
+            training_data, self.configuration, smile_vocab, 
+            adsorbent_vocab, normalizer.statistics) 
         
         # check thread for interruption        
         update_progress_callback(8, 8, progress_callback) 
