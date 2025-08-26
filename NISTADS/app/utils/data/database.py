@@ -207,7 +207,7 @@ class NISTADSDatabase:
     def save_into_database(self, df: pd.DataFrame, table_name: str):        
         with self.engine.begin() as conn:            
             conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
-            df.to_sql(table_name, self.engine, if_exists='append', index=False)
+            df.to_sql(table_name, conn, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str):
