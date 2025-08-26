@@ -26,7 +26,7 @@ class AdsorptionPredictionsQuality:
         self.num_experiments = num_experiments
         self.cols = int(np.ceil(np.sqrt(self.num_experiments)))      
         self.rows = int(np.ceil(self.num_experiments/self.cols)) 
-        self.DPI = configuration.get('image_resolution', 400)
+        self.img_resolution = configuration.get('image_resolution', 400)
         self.file_type = 'jpeg' 
 
         self.checkpoint = os.path.basename(checkpoint_path)        
@@ -38,7 +38,7 @@ class AdsorptionPredictionsQuality:
     def save_image(self, fig, name):
         name = re.sub(r'[^0-9A-Za-z_]', '_', name)
         out_path = os.path.join(self.validation_path, name)
-        fig.savefig(out_path, bbox_inches='tight', dpi=self.DPI)         
+        fig.savefig(out_path, bbox_inches='tight', dpi=self.img_resolution)         
 
     #--------------------------------------------------------------------------
     def process_uptake_curves(self, inputs, output, predicted_output):

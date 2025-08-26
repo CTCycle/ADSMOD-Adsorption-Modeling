@@ -69,6 +69,8 @@ class GraphicsHandler:
 class DatasetEvents:
 
     def __init__(self, configuration : dict): 
+        self.serializer = DataSerializer() 
+        self.modser = ModelSerializer()    
         self.seed = configuration.get('seed', 42)
         self.configuration = configuration 
 
@@ -95,11 +97,10 @@ class DatasetEvents:
         binary_mixture = builder.extract_nested_data(binary_mixture)
 
         # expand the dataset to represent each measurement with a single row
-        # save the final version of the adsorption dataset  
-        serializer = DataSerializer(self.configuration)
+        # save the final version of the adsorption dataset          
         single_component, binary_mixture = builder.expand_dataset(
             single_component, binary_mixture)
-        serializer.save_adsorption_datasets(single_component, binary_mixture)     
+        self.serializer.save_adsorption_datasets(single_component, binary_mixture)     
         logger.info('Experiments data collection is concluded')  
 
         # get guest and host indexes invoking API
@@ -112,13 +113,12 @@ class DatasetEvents:
             guest_index, host_index, worker=worker, progress_callback=progress_callback)         
         
         # save the final version of the materials dataset 
-        serializer.save_materials_datasets(guest_data, host_data)
+        self.serializer.save_materials_datasets(guest_data, host_data)
         logger.info('Materials data collection is concluded')
 
     #--------------------------------------------------------------------------
-    def run_chemical_properties_pipeline(self, target='guest', progress_callback=None, worker=None):         
-        serializer = DataSerializer(self.configuration)
-        experiments, guest_data, host_data = serializer.load_adsorption_datasets()           
+    def run_chemical_properties_pipeline(self, target='guest', progress_callback=None, worker=None):
+        experiments, guest_data, host_data = self.serializer.load_adsorption_datasets()           
         properties = MolecularProperties(self.configuration)  
         # process guest (adsorbed species) data by adding molecular properties
         if target == 'guest':            
@@ -126,7 +126,7 @@ class DatasetEvents:
             guest_data = properties.fetch_guest_properties(
                 experiments, guest_data, worker=worker, progress_callback=progress_callback) 
             # save the final version of the materials dataset    
-            serializer.save_materials_datasets(guest_data=guest_data)
+            self.serializer.save_materials_datasets(guest_data=guest_data)
             logger.info(f'Guest properties updated in the database ({guest_data.shape[0]} records)')
         # process host (adsorbent materials) data by adding molecular properties
         elif target == 'host':               
@@ -134,13 +134,12 @@ class DatasetEvents:
             host_data = properties.fetch_host_properties(
                 experiments, host_data, worker=worker, progress_callback=progress_callback) 
             # save the final version of the materials dataset    
-            serializer.save_materials_datasets(host_data=host_data)  
+            self.serializer.save_materials_datasets(host_data=host_data)  
             logger.info(f'Host properties updated in the database ({host_data.shape[0]} records)')    
     
     #--------------------------------------------------------------------------
-    def run_dataset_builder(self, progress_callback=None, worker=None):        
-        serializer = DataSerializer(self.configuration)        
-        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets() 
+    def run_dataset_builder(self, progress_callback=None, worker=None):
+        adsorption_data, guest_data, host_data = self.serializer.load_adsorption_datasets() 
         if adsorption_data.empty:    
             logger.warning('No adsorption data found in the database, please fetch data first')  
             return 
@@ -234,7 +233,7 @@ class DatasetEvents:
       
         # save preprocessed data using data serializer   
         training_data = sanitizer.isolate_processed_features(training_data)           
-        serializer.save_training_data(
+        self.serializer.save_training_data(
             training_data, smile_vocab, adsorbent_vocab, normalizer.statistics) 
         
         # check thread for interruption        
@@ -318,12 +317,13 @@ class DatasetEvents:
 class ValidationEvents:
 
     def __init__(self, configuration : dict):
+        self.serializer = DataSerializer() 
+        self.modser = ModelSerializer()    
         self.configuration = configuration 
         
     #--------------------------------------------------------------------------
-    def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):        
-        serializer = DataSerializer(self.configuration)
-        adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets() 
+    def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
+        adsorption_data, guest_data, host_data = self.serializer.load_adsorption_datasets() 
         logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
         logger.info(f'{guest_data.shape[0]} adsorbates species in the dataset')
         logger.info(f'{host_data.shape[0]} adsorbent materials in the dataset')
@@ -354,8 +354,7 @@ class ValidationEvents:
             return
         
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
-        modser = ModelSerializer()       
-        model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
+        model, train_config, model_metadata, _, checkpoint_path = self.modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True) 
         # set device for training operations
@@ -364,13 +363,12 @@ class ValidationEvents:
         device.set_device()
         # load validation data and current preprocessing metadata. This must
         # be compatible with the currently loaded checkpoint configurations
-        serializer = DataSerializer(train_config) 
-        current_metadata = serializer.load_training_data(only_metadata=True)
-        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
+        current_metadata = self.serializer.load_training_data(only_metadata=True)
+        is_validated = self.serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            _, validation_data, model_metadata = serializer.load_training_data()
+            _, validation_data, model_metadata = self.serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata) 
@@ -399,16 +397,17 @@ class ValidationEvents:
 class ModelEvents:
 
     def __init__(self, configuration : dict):
+        self.serializer = DataSerializer() 
+        self.modser = ModelSerializer()    
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
     def get_available_checkpoints(self):
-        serializer = ModelSerializer()
-        return serializer.scan_checkpoints_folder()
+        return self.modser.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
-        dataserializer = DataSerializer(self.configuration)        
+        dataserializer = DataSerializer()        
         train_data, validation_data, metadata = dataserializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
@@ -426,27 +425,30 @@ class ModelEvents:
         logger.info('Setting device for training operations')                
         device = DeviceConfig(self.configuration)   
         device.set_device() 
-        # create checkpoint folder   
-        modser = ModelSerializer()
-        checkpoint_path = modser.create_checkpoint_folder()         
+        # create checkpoint folder         
+        checkpoint_path = self.modser.create_checkpoint_folder()         
         # Setting callbacks and training routine for the machine learning model           
         logger.info('Building SCADS model')  
         wrapper = SCADSModel(self.configuration, metadata)
         model = wrapper.get_model(model_summary=True) 
         # generate graphviz plot fo the model layout       
-        modser.save_model_plot(model, checkpoint_path)   
+        self.modser.save_model_plot(model, checkpoint_path)   
         # perform training and save model at the end
         logger.info('Starting SCADS model training') 
-        trainer = ModelTraining(self.configuration) 
-        trainer.train_model(
-            model, train_dataset, validation_dataset, metadata, checkpoint_path,
+        trainer = ModelTraining(self.configuration, metadata) 
+        model, history = trainer.train_model(
+            model, train_dataset, validation_dataset, checkpoint_path,
             progress_callback=progress_callback, worker=worker)
+
+        self.modser.save_pretrained_model(model, checkpoint_path)       
+        self.modser.save_training_configuration(
+            checkpoint_path, history, self.configuration, metadata)           
+        
         
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint')   
-        modser = ModelSerializer()      
-        model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
+        logger.info(f'Loading {selected_checkpoint} checkpoint')  
+        model, train_config, model_metadata, session, checkpoint_path = self.modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)
         # set device for training operations
@@ -458,14 +460,13 @@ class ModelEvents:
         check_thread_status(worker)     
 
         # load metadata and check whether this is compatible with the current checkpoint
-        # rebuild dataset if metadata is not compatible and the user has requested this feature
-        serializer = DataSerializer(train_config)
-        current_metadata = serializer.load_training_data(only_metadata=True)
-        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
+        # rebuild dataset if metadata is not compatible and the user has requested this feature       
+        current_metadata = self.serializer.load_training_data(only_metadata=True)
+        is_validated = self.serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, model_metadata = serializer.load_training_data()
+            train_data, validation_data, model_metadata = self.serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
@@ -484,9 +485,13 @@ class ModelEvents:
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         additional_epochs = self.configuration.get('additional_epochs', 10)
         trainer = ModelTraining(train_config, model_metadata) 
-        trainer.resume_training(
-            model, train_dataset, validation_dataset, model_metadata, checkpoint_path, session,
+        model, history = trainer.resume_training(
+            model, train_dataset, validation_dataset, checkpoint_path, session,
             additional_epochs, progress_callback=progress_callback, worker=worker)
+        
+        self.modser.save_pretrained_model(model, checkpoint_path)       
+        self.modser.save_training_configuration(
+            checkpoint_path, history, self.configuration, model_metadata)      
         
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
@@ -494,9 +499,8 @@ class ModelEvents:
             logger.warning('No checkpoint selected for resuming training')
             return
         
-        logger.info(f'Loading {selected_checkpoint} checkpoint')
-        modser = ModelSerializer()         
-        model, train_config, metadata, _, checkpoint_path = modser.load_checkpoint(
+        logger.info(f'Loading {selected_checkpoint} checkpoint')                
+        model, train_config, metadata, _, checkpoint_path = self.modser.load_checkpoint(
             selected_checkpoint)   
         model.summary(expand_nested=True)  
         
@@ -507,9 +511,8 @@ class ModelEvents:
         # check worker status to allow interruption
         check_thread_status(worker)  
 
-        # select images from the inference folder and retrieve current paths     
-        serializer = DataSerializer(self.configuration)     
-        inference_data = serializer.load_inference_data() 
+        # select images from the inference folder and retrieve current paths
+        inference_data = self.serializer.load_inference_dataset() 
 
         # initialize the adsorption prediction framework. This takes raw input and process
         # them based on loaded checkpoint metadata (including vocaularies)
@@ -520,7 +523,7 @@ class ModelEvents:
             inference_data, progress_callback=progress_callback, worker=worker)
         
         predictions_dataset = predictor.build_predictions_dataset(inference_data, predictions)
-        serializer.save_predictions_dataset(predictions_dataset)
+        self.serializer.save_predictions_dataset(predictions_dataset)
         logger.info('Predictions dataset saved successfully in database') 
         
  

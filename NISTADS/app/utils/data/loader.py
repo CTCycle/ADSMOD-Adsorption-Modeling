@@ -22,7 +22,8 @@ class DataLoaderProcessor():
         self.series_length = metadata.get('max_measurements', 30)
         self.smile_length = metadata.get('SMILE_sequence_size', 30) 
         self.SMILE_vocab = metadata.get('SMILE_vocabulary', {}) 
-        self.adsorbent_vocab = metadata.get('adsorbent_vocabulary', {})    
+        self.adsorbent_vocab = metadata.get('adsorbent_vocabulary', {}) 
+        self.serializer = DataSerializer()   
         self.configuration = configuration   
          
   
@@ -42,9 +43,8 @@ class DataLoaderProcessor():
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def add_properties_to_inference_inputs(self, data : pd.DataFrame):
-        serializer = DataSerializer(self.configuration)
-        _, guest_data, host_data = serializer.load_adsorption_datasets() 
+    def add_properties_to_inference_inputs(self, data : pd.DataFrame) -> pd.DataFrame:        
+        _, guest_data, host_data = self.serializer.load_adsorption_datasets() 
         aggregator = AggregateDatasets(self.configuration) 
         processed_data = aggregator.join_materials_properties(data, guest_data, host_data) 
         
@@ -52,7 +52,7 @@ class DataLoaderProcessor():
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def remove_invalid_measurements(self, data : pd.DataFrame):
+    def remove_invalid_measurements(self, data : pd.DataFrame) -> pd.DataFrame: 
         data = data[data['temperature'] >= 0] 
         data = data[(data['pressure'] >= 0) & 
                     (data['pressure'] <= self.normalization_config['pressure'])]  
@@ -61,7 +61,7 @@ class DataLoaderProcessor():
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def normalize_from_references(self, data : pd.DataFrame):
+    def normalize_from_references(self, data : pd.DataFrame) -> pd.DataFrame: 
         data['temperature'] = data['temperature']/self.normalization_config['temperature']
         data['adsorbate_molecular_weight'] = data['adsorbate_molecular_weight']/self.normalization_config['adsorbate_molecular_weight']
         data['pressure'] = data['pressure'].apply(
@@ -71,9 +71,7 @@ class DataLoaderProcessor():
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def encode_SMILE_from_vocabulary(self, smile : str):
-        serializer = DataSerializer(self.configuration)
-        _, guest_data, host_data = serializer.load_adsorption_datasets()
+    def encode_SMILE_from_vocabulary(self, smile : str):               
         encoded_tokens = []
         i = 0
         # Sort tokens by descending length to prioritize multi-character tokens
@@ -92,7 +90,7 @@ class DataLoaderProcessor():
         return encoded_tokens    
     
     #--------------------------------------------------------------------------
-    def encode_from_references(self, data : pd.DataFrame):
+    def encode_from_references(self, data : pd.DataFrame) -> pd.DataFrame: 
         data['adsorbate_encoded_SMILE'] = data['adsorbate_SMILE'].apply(
             lambda x : self.encode_SMILE_from_vocabulary(x))
         data['encoded_adsorbent'] = data['adsorbent_name'].str.lower().map(self.adsorbent_vocab)
@@ -100,7 +98,7 @@ class DataLoaderProcessor():
         return data
     
     #--------------------------------------------------------------------------
-    def apply_padding(self, data):
+    def apply_padding(self, data : pd.DataFrame) -> pd.DataFrame: 
         data['pressure'] = pad_sequences(
             data['pressure'], maxlen=self.series_length, value=PAD_VALUE, 
             dtype='float32', padding='post').tolist() 
