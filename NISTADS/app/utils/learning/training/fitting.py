@@ -16,9 +16,7 @@ class ModelTraining:
         self.metadata = metadata
     
     #--------------------------------------------------------------------------
-    def train_model(self, model : Model, train_data, validation_data, metadata : dict, 
-                    checkpoint_path, **kwargs):
-                         
+    def train_model(self, model : Model, train_data, validation_data, checkpoint_path, **kwargs):
         total_epochs = self.configuration.get('epochs', 10)      
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
@@ -33,15 +31,12 @@ class ModelTraining:
         
         history = {'history' : session.history,
                    'epochs': session.epoch[-1] + 1}
-
-        serializer = ModelSerializer()  
-        serializer.save_pretrained_model(model, checkpoint_path)       
-        serializer.save_training_configuration(
-            checkpoint_path, history, self.configuration, metadata)
+        
+        return model, history       
         
     #--------------------------------------------------------------------------
-    def resume_training(self, model : Model, train_data, validation_data, metadata : dict, 
-                        checkpoint_path, session=None, additional_epochs=10, **kwargs):
+    def resume_training(self, model : Model, train_data, validation_data,  
+        checkpoint_path, session=None, additional_epochs=10, **kwargs):
         from_epoch = 0 if not session else session['epochs']     
         total_epochs = from_epoch + additional_epochs           
         # add all callbacks to the callback list
@@ -61,10 +56,9 @@ class ModelTraining:
         history = {'history' : new_history,
                    'epochs': new_session.epoch[-1] + 1}
         
-        serializer = ModelSerializer()  
-        serializer.save_pretrained_model(model, checkpoint_path)       
-        serializer.save_training_configuration(
-            checkpoint_path, history, self.configuration, metadata)
+        return model, history  
+        
+        
 
         
 

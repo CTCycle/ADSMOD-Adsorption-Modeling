@@ -1,5 +1,6 @@
 import os
 import json
+from typing import Tuple, List, Union, Dict, Any
 
 import pandas as pd
 from keras import Model
@@ -19,12 +20,10 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration : dict):
-        self.seed = configuration.get('seed', 42)
+    def __init__(self):        
         self.P_COL = 'pressure' 
         self.Q_COL = 'adsorbed_amount'        
         self.series_cols = [self.P_COL, self.Q_COL, 'adsorbate_encoded_SMILE']
-        self.configuration = configuration        
         
     #--------------------------------------------------------------------------
     def validate_metadata(self, metadata : dict, target_metadata : dict):        
@@ -44,47 +43,51 @@ class DataSerializer:
                 else [float(i) for i in x.split()] if isinstance(x, str)
                 else x)
             
-        return data
+        return data 
             
     #--------------------------------------------------------------------------
-    def load_adsorption_datasets(self):          
-        adsorption_data, guest_data, host_data = database.load_source_dataset()
+    def load_adsorption_datasets(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:           
+        adsorption_data = database.load_from_database('SINGLE_COMPONENT_ADSORPTION')
+        guest_data = database.load_from_database('ADSORBATES')
+        host_data = database.load_from_database('ADSORBENTS')
+
         return adsorption_data, guest_data, host_data
     
     #--------------------------------------------------------------------------
-    def load_inference_data(self):              
-        return database.load_inference_data()   
-    
-    #--------------------------------------------------------------------------
-    def load_training_data(self, only_metadata=False): 
+    def load_training_data(self, only_metadata=False
+        ) -> Union[Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]], Dict[str, Any]]:
         with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)  
 
         if not only_metadata:
             # load preprocessed data from database and convert joint strings to list
-            training_data = database.load_training_data()
+            training_data = database.load_from_database('TRAINING_DATASET')
             training_data = self.serialize_series(training_data, self.series_cols) 
             train_data = training_data[training_data['split'] == 'train']
             val_data = training_data[training_data['split'] == 'validation']
 
             return train_data, val_data, metadata   
         
-        return metadata
-
+        return metadata  
+    
     #--------------------------------------------------------------------------
-    def save_training_data(self, data : pd.DataFrame, smile_vocabulary, 
-                           ads_vocabulary, normalization_stats={}):      
-
+    def load_inference_dataset(self) -> pd.DataFrame:        
+        dataset = database.load_from_database('PREDICTED_ADSORPTION')
+        return dataset    
+   
+    #--------------------------------------------------------------------------
+    def save_training_data(self, data: pd.DataFrame, configuration : Dict, smile_vocabulary: Dict[str, Any],
+        ads_vocabulary: Dict[str, Any], normalization_stats: Dict[str, Any] = {}):
         # convert list to joint string and save preprocessed data to database
         validated_data = self.serialize_series(data, self.series_cols)         
         database.save_training_data(validated_data)
-        metadata = {'seed' : self.seed, 
+        metadata = {'seed' : configuration.get('seed', 42),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
-                    'sample_size' : self.configuration.get('sample_size', 1.0),
-                    'validation_size' : self.configuration.get('validation_size', 0.2),
-                    'split_seed' : self.configuration.get('split_seed', 42),
-                    'max_measurements' : self.configuration.get('max_measurements', 1000),
-                    'SMILE_sequence_size' : self.configuration.get('SMILE_sequence_size', 30),
+                    'sample_size' : configuration.get('sample_size', 1.0),
+                    'validation_size' : configuration.get('validation_size', 0.2),
+                    'split_seed' : configuration.get('split_seed', 42),
+                    'max_measurements' : configuration.get('max_measurements', 1000),
+                    'SMILE_sequence_size' : configuration.get('SMILE_sequence_size', 30),
                     'SMILE_vocabulary_size' : len(smile_vocabulary),
                     'adsorbent_vocabulary_size' : len(ads_vocabulary), 
                     'normalization' : {
@@ -100,19 +103,24 @@ class DataSerializer:
    
     #--------------------------------------------------------------------------
     def save_materials_datasets(self, guest_data=None, host_data=None):
-        database.save_materials_datasets(guest_data, host_data)
+        if guest_data:
+            database.upsert_into_database(guest_data, 'ADSORBATES')
+        if host_data:
+            database.upsert_into_database(host_data, 'ADSORBENTS')
 
     #--------------------------------------------------------------------------
-    def save_adsorption_datasets(self, single_component, binary_mixture):
-        database.save_adsorption_dataset(single_component, binary_mixture)  
+    def save_adsorption_datasets(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):
+        database.upsert_into_database(single_component, 'SINGLE_COMPONENT_ADSORPTION')  
+        database.upsert_into_database(binary_mixture, 'BINARY_MIXTURE_ADSORPTION')
 
     #--------------------------------------------------------------------------
-    def save_predictions_dataset(self, data):
-        database.save_predictions_dataset(data)  
+    def save_predictions_dataset(self, data : pd.DataFrame):   
+        database.save_into_database(data, 'PREDICTED_ADSORPTION')  
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):            
-        database.save_checkpoints_summary(data)
+        database.upsert_into_database(data, 'CHECKPOINTS_SUMMARY')   
+
 
     
 # [MODEL SERIALIZATION]
@@ -141,8 +149,7 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configuration(self, path, history : dict, configuration : dict, 
-                                    metadata : dict):   
+    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):   
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')         
@@ -160,7 +167,7 @@ class ModelSerializer:
         logger.debug(f'Model configuration, session history and metadata saved for {os.path.basename(path)}')  
 
     #-------------------------------------------------------------------------- 
-    def scan_checkpoints_folder(self):
+    def scan_checkpoints_folder(self)-> List[str]:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -174,7 +181,7 @@ class ModelSerializer:
         return model_folders    
 
     #--------------------------------------------------------------------------
-    def load_training_configuration(self, path):
+    def load_training_configuration(self, path : str) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json')
         history_path = os.path.join(path, 'configuration', 'session_history.json')
@@ -191,7 +198,7 @@ class ModelSerializer:
         return configuration, metadata, history
 
     #--------------------------------------------------------------------------
-    def save_model_plot(self, model, path):  
+    def save_model_plot(self, model : Model, path : str): 
         try: 
             plot_path = os.path.join(path, "model_layout.png")       
             plot_model(model, to_file=plot_path, show_shapes=True,
@@ -203,7 +210,7 @@ class ModelSerializer:
                 "Could not generate model architecture plot (graphviz/pydot not correctly installed)")
             
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint : str):                             
+    def load_checkpoint(self, checkpoint : str) -> Tuple[Model, Dict, Dict, Dict, str]:                            
         custom_objects = {
             'MaskedSparseCategoricalCrossentropy': MaskedMeanSquaredError,
             'MaskedAccuracy': MaskedRSquared,

@@ -14,7 +14,8 @@ from NISTADS.app.logger import logger
 class ModelEvaluationSummary:
 
     def __init__(self, configuration : dict):
-         
+        self.modser = ModelSerializer() 
+        self.serializer = DataSerializer()
         self.configuration = configuration
 
     #---------------------------------------------------------------------------
@@ -24,21 +25,18 @@ class ModelEvaluationSummary:
             if entry.is_dir():                
                 pretrained_model_path = os.path.join(entry.path, 'saved_model.keras')                
                 if os.path.isfile(pretrained_model_path):
-                    model_paths.append(entry.path)
-                
+                    model_paths.append(entry.path)                
 
         return model_paths  
 
     #---------------------------------------------------------------------------
-    def get_checkpoints_summary(self, **kwargs):       
-        modser = ModelSerializer() 
-        serializer = DataSerializer(self.configuration)   
+    def get_checkpoints_summary(self, **kwargs) -> pd.DataFrame:
         # look into checkpoint folder to get pretrained model names      
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []            
         for i, model_path in enumerate(model_paths):            
-            model = modser.load_checkpoint(model_path)
-            configuration, metadata, history = modser.load_training_configuration(model_path)
+            model = self.modser.load_checkpoint(model_path)
+            configuration, metadata, history = self.modser.load_training_configuration(model_path)
             model_name = os.path.basename(model_path)                   
             precision = 16 if configuration.get("use_mixed_precision", np.nan) else 32 
             has_scheduler = configuration.get('use_scheduler', False)
@@ -77,7 +75,7 @@ class ModelEvaluationSummary:
                 i+1, len(model_paths), kwargs.get('progress_callback', None)) 
 
         dataframe = pd.DataFrame(model_parameters)
-        serializer.save_checkpoints_summary(dataframe)     
+        self.serializer.save_checkpoints_summary(dataframe)     
             
         return dataframe
     
