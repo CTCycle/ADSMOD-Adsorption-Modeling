@@ -29,7 +29,7 @@ class DataLoaderProcessor():
   
     # this method is tailored on the inference input dataset, which is provided
     # with pressure already converted to Pascal and fewer columns compared to source data
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def aggregate_inference_data(self, dataset : pd.DataFrame):
         aggregate_dict = {'temperature' : 'first',                  
                           'adsorbent_name' : 'first',
@@ -42,7 +42,7 @@ class DataLoaderProcessor():
         return grouped_data
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def add_properties_to_inference_inputs(self, data : pd.DataFrame) -> pd.DataFrame:        
         _, guest_data, host_data = self.serializer.load_adsorption_datasets() 
         aggregator = AggregateDatasets(self.configuration) 
@@ -51,7 +51,7 @@ class DataLoaderProcessor():
         return processed_data
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def remove_invalid_measurements(self, data : pd.DataFrame) -> pd.DataFrame: 
         data = data[data['temperature'] >= 0] 
         data = data[(data['pressure'] >= 0) & 
@@ -60,7 +60,7 @@ class DataLoaderProcessor():
         return data
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def normalize_from_references(self, data : pd.DataFrame) -> pd.DataFrame: 
         data['temperature'] = data['temperature']/self.normalization_config['temperature']
         data['adsorbate_molecular_weight'] = data['adsorbate_molecular_weight']/self.normalization_config['adsorbate_molecular_weight']
@@ -70,7 +70,7 @@ class DataLoaderProcessor():
         return data
     
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def encode_SMILE_from_vocabulary(self, smile : str):               
         encoded_tokens = []
         i = 0
@@ -89,7 +89,7 @@ class DataLoaderProcessor():
 
         return encoded_tokens    
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def encode_from_references(self, data : pd.DataFrame) -> pd.DataFrame: 
         data['adsorbate_encoded_SMILE'] = data['adsorbate_SMILE'].apply(
             lambda x : self.encode_SMILE_from_vocabulary(x))
@@ -97,7 +97,7 @@ class DataLoaderProcessor():
 
         return data
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def apply_padding(self, data : pd.DataFrame) -> pd.DataFrame: 
         data['pressure'] = pad_sequences(
             data['pressure'], maxlen=self.series_length, value=PAD_VALUE, 
@@ -126,7 +126,7 @@ class SCADSDataLoader:
         self.output = 'adsorbed_amount'
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def separate_inputs_and_output(self, data : pd.DataFrame):
         state = np.array(data['temperature'].values, dtype=np.float32)
         chemo = np.array(data['adsorbate_molecular_weight'].values, dtype=np.float32)
@@ -146,7 +146,7 @@ class SCADSDataLoader:
     
         return inputs_dict, output  
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def process_inference_inputs(self, data):
         processed_data = self.processor.remove_invalid_measurements(data)
         processed_data = self.processor.aggregate_inference_data(processed_data)
@@ -160,7 +160,7 @@ class SCADSDataLoader:
         return inference_inputs       
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build_training_dataloader(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):           
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)        
@@ -172,7 +172,7 @@ class SCADSDataLoader:
         return dataset
         
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build_inference_dataloader(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):           
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         processed_data = self.process_inference_inputs(data)

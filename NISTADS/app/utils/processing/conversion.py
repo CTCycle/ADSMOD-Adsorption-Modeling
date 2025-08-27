@@ -10,11 +10,11 @@ class PressureConversion:
         self.P_UNIT_COL = 'pressureUnits'     
         self.conversions = {'bar' : self.bar_to_Pascal}                                        
        
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def bar_to_Pascal(self, p_vals):                    
         return [int(p_val * 100000) for p_val in p_vals]    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame):        
         dataframe[self.P_COL] = dataframe.apply(
             lambda row: self.conversions.get(row[self.P_UNIT_COL], lambda x: x)(row[self.P_COL]), axis=1)           
@@ -44,35 +44,35 @@ class UptakeConversion:
                             'ml(STP)/g': self.convert_ml_stp_g_or_cm3_stp_g,
                             'cm3(STP)/g': self.convert_ml_stp_g_or_cm3_stp_g}
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_mmol_g_or_mol_kg(self, q_vals):
         return [q_val for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_mmol_kg(self, q_vals):
         return [q_val / 1000 for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_mg_g(self, q_vals, mol_weight):
         return [q_val / float(mol_weight) for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_g_g(self, q_vals, mol_weight):
         return [q_val / float(mol_weight) * 1000 for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_wt_percent(self, q_vals, mol_weight):
         return [(q_val / 100) / float(mol_weight) * 1000 for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_g_adsorbate_per_100g_adsorbent(self, q_vals, mol_weight):
         return [(q_val / 100) / float(mol_weight) * 1000 for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_ml_stp_g_or_cm3_stp_g(self, q_vals):
         return [q_val / 22.414 * 1000 for q_val in q_vals]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame):        
         dataframe[self.Q_COL] = dataframe.apply(
             lambda row: (self.conversions.get(row[self.Q_UNIT_COL], lambda x, *args: x)(

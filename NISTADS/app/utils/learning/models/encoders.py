@@ -21,11 +21,11 @@ class StateEncoder(keras.layers.Layer):
         self.seed = seed
 
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(StateEncoder, self).build(input_shape)
       
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def call(self, x, training=None):
         layer = keras.ops.expand_dims(x, axis=-1)        
         for dense, bn in zip(self.dense_layers, self.bn_layers):
@@ -38,7 +38,7 @@ class StateEncoder(keras.layers.Layer):
         return output
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(StateEncoder, self).get_config()
         config.update({'dropout_rate' : self.dropout_rate,
@@ -46,7 +46,7 @@ class StateEncoder(keras.layers.Layer):
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -77,12 +77,12 @@ class PressureSerierEncoder(keras.layers.Layer):
         self.attention_scores = {}  
 
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(PressureSerierEncoder, self).build(input_shape)    
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def call(self, pressure, context, key_mask=None, training=None):
         # compute query mask as the masked pressure series
         query_mask = self.compute_mask(pressure)
@@ -107,12 +107,12 @@ class PressureSerierEncoder(keras.layers.Layer):
         
         return output
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_attention_scores(self):        
         return self.attention_scores 
     
     # compute the mask for padded sequences  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
         mask = keras.ops.not_equal(inputs, PAD_VALUE)        
         mask = keras.ops.cast(mask, keras.config.floatx())       
@@ -120,7 +120,7 @@ class PressureSerierEncoder(keras.layers.Layer):
         return mask
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(PressureSerierEncoder, self).get_config()
         config.update({'embedding_dims' : self.embedding_dims,
@@ -130,7 +130,7 @@ class PressureSerierEncoder(keras.layers.Layer):
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)     
@@ -157,12 +157,12 @@ class QDecoder(keras.layers.Layer):
         self.supports_masking = True
 
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(QDecoder, self).build(input_shape)
 
     # compute the mask for padded sequences  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
         mask = keras.ops.not_equal(inputs, PAD_VALUE) 
         mask = keras.ops.expand_dims(mask, axis=-1)  
@@ -171,7 +171,7 @@ class QDecoder(keras.layers.Layer):
         return mask
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def call(self, P_logits, pressure, state, mask=None, training=None):        
         mask = self.compute_mask(pressure) if mask is None else mask
         layer = P_logits * mask if mask is not None else P_logits 
@@ -194,7 +194,7 @@ class QDecoder(keras.layers.Layer):
         return output
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(QDecoder, self).get_config()
         config.update({'dropout_rate' : self.dropout_rate,
@@ -203,7 +203,7 @@ class QDecoder(keras.layers.Layer):
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)    

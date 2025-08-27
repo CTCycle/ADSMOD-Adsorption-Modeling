@@ -15,12 +15,12 @@ class AddNorm(keras.layers.Layer):
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)    
 
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(AddNorm, self).build(input_shape)
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------        
     def call(self, inputs):        
         x_add = self.add([x for x in inputs])
         x_norm = self.layernorm(x_add)
@@ -28,14 +28,14 @@ class AddNorm(keras.layers.Layer):
         return x_norm
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(AddNorm, self).get_config()
         config.update({'epsilon' : self.epsilon})
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)

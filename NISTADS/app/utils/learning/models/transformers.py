@@ -15,12 +15,12 @@ class AddNorm(keras.layers.Layer):
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)    
 
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(AddNorm, self).build(input_shape)
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------        
     def call(self, inputs):
         x1, x2 = inputs
         x_add = self.add([x1, x2])
@@ -29,14 +29,14 @@ class AddNorm(keras.layers.Layer):
         return x_norm
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(AddNorm, self).get_config()
         config.update({'epsilon' : self.epsilon})
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -59,12 +59,12 @@ class FeedForward(keras.layers.Layer):
         self.supports_masking = True  
 
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(FeedForward, self).build(input_shape)
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def call(self, x, training=None):
         x = self.dense1(x)
         x = activations.relu(x)
@@ -74,7 +74,7 @@ class FeedForward(keras.layers.Layer):
         return output
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(FeedForward, self).get_config()
         config.update({'dense_units' : self.dense_units,
@@ -83,7 +83,7 @@ class FeedForward(keras.layers.Layer):
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config) 
@@ -112,12 +112,12 @@ class TransformerEncoder(keras.layers.Layer):
         self.attention_scores = {}  
         
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(TransformerEncoder, self).build(input_shape)    
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def call(self, inputs, mask=None, training=None):   
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
@@ -136,12 +136,12 @@ class TransformerEncoder(keras.layers.Layer):
 
         return output  
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_attention_scores(self):        
         return self.attention_scores 
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(TransformerEncoder, self).get_config()
         config.update({'embedding_dims': self.embedding_dims,
@@ -150,7 +150,7 @@ class TransformerEncoder(keras.layers.Layer):
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)

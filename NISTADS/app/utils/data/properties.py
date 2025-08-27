@@ -17,7 +17,7 @@ class MolecularProperties:
         self.molecular_identifier = 'InChIKey'                 
         self.configuration = configuration   
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def remove_duplicates_without_identifiers(self, data : pd.DataFrame):
         if self.molecular_identifier in data.columns:
             data = (data.assign(_has_id=data['InChIKey'].notna())
@@ -28,7 +28,7 @@ class MolecularProperties:
             data = data.drop_duplicates('name')
         return data  
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def extract_fetched_properties(self, data : pd.DataFrame, properties : dict):
         if not properties:
             return 
@@ -42,7 +42,7 @@ class MolecularProperties:
 
         return dataset    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def fetch_guest_properties(self, experiments : pd.DataFrame, data : pd.DataFrame, **kwargs):
         compound_properties = CompoundProperties(self.configuration, compound_type="adsorbate") 
         guest_names = pd.concat([
@@ -58,7 +58,7 @@ class MolecularProperties:
         
         return dataset
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def fetch_host_properties(self, experiments, data, **kwargs): 
         compound_properties = CompoundProperties(self.configuration, compound_type="adsorbent") 
         host_names = pd.concat([
@@ -86,12 +86,12 @@ class CompoundProperties:
             f'{prefix}_molecular_formula': [],
             f'{prefix}_SMILE': []}
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def is_chemical_formula(self, string):    
         formula_pattern = r"^[A-Za-z0-9\[\](){}·.,+\-_/]+$"
         return bool(re.match(formula_pattern, string))   
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_molecular_properties(self, identifier, namespace): 
         try:           
             compounds = pcp.get_compounds(identifier, namespace=namespace, list_return='flat')
@@ -101,7 +101,7 @@ class CompoundProperties:
             compound = None
         return compound    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_properties_for_multiple_compounds(self, names : list, **kwargs):         
         for i, name in enumerate(tqdm(names, total=len(names))):  
             # Optionally check for chemical formula
@@ -116,7 +116,7 @@ class CompoundProperties:
 
         return self.properties
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def extract_properties(self, name, compound):       
         molecular_weight = float(getattr(compound, 'molecular_weight', np.nan))
         molecular_formula = getattr(compound, 'molecular_formula', np.nan)

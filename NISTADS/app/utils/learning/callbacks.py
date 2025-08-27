@@ -19,7 +19,7 @@ class ProgressBarCallback(keras.callbacks.Callback):
         self.total_epochs = total_epochs
         self.from_epoch = from_epoch
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs : dict | None = None):
         processed_epochs = epoch - self.from_epoch + 1        
         additional_epochs = max(1, self.total_epochs - self.from_epoch) 
@@ -35,7 +35,7 @@ class LearningInterruptCallback(keras.callbacks.Callback):
         super().__init__()
         self.worker = worker
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_batch_end(self, batch, logs : dict | None = None):
         if self.worker is not None and self.worker.is_interrupted():            
             self.model.stop_training = True
@@ -61,7 +61,7 @@ class RealTimeHistory(keras.callbacks.Callback):
                 self.history['history'][metric] = list(values)
             self.history['epochs'] = past_logs.get('epochs', len(values))                
                     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs : dict | None = None):
         logs = logs or {}
         for key, value in logs.items():
@@ -71,7 +71,7 @@ class RealTimeHistory(keras.callbacks.Callback):
         self.history['epochs'] = epoch + 1
         self.plot_training_history()
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def plot_training_history(self):
         fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
         plt.figure(figsize=(16, 14)) 

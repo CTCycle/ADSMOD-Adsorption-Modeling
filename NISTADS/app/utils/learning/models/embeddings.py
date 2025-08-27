@@ -32,7 +32,7 @@ class MolecularEmbedding(layers.Layer):
             keras.ops.cast(self.embedding_dims, keras.config.floatx()))       
     
     # implement positional embedding through call method  
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def call(self, smiles, adsorbent, chemometrics, training=False):
         # compute the positional embeddings for the SMILE sequences
         # and add it to the SMILE embeddings upon casting to same dtype
@@ -70,12 +70,12 @@ class MolecularEmbedding(layers.Layer):
         return full_embedding
     
     # build method for the custom layer 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):        
         super(MolecularEmbedding, self).build(input_shape)
     
     # compute the mask for padded sequences  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):
         if mask is None:        
             mask = keras.ops.not_equal(inputs, PAD_VALUE) 
@@ -84,7 +84,7 @@ class MolecularEmbedding(layers.Layer):
         return mask    
     
     # serialize layer for saving  
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(MolecularEmbedding, self).get_config()
         config.update({'smile_vocab_size': self.smile_vocab_size,
@@ -95,7 +95,7 @@ class MolecularEmbedding(layers.Layer):
         return config
 
     # deserialization method 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
