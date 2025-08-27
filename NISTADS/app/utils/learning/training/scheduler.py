@@ -2,7 +2,6 @@ import numpy as np
 import keras
 
 
-from NISTADS.app.logger import logger
            
 # [LEARNING RATE SCHEDULER]
 ###############################################################################

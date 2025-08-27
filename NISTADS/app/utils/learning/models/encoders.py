@@ -3,7 +3,6 @@ from keras import layers, activations
 
 from NISTADS.app.utils.learning.models.transformers import AddNorm, FeedForward
 from NISTADS.app.constants import PAD_VALUE
-from NISTADS.app.logger import logger   
 
 
 # [STATE ENCODER]

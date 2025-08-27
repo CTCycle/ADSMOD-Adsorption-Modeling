@@ -3,7 +3,6 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 
-from NISTADS.app.constants import DATA_PATH
 from NISTADS.app.logger import logger
 
 
@@ -227,7 +226,7 @@ class TrainValidationSplit:
             splitter = StratifiedShuffleSplit(
                 n_splits=1, test_size=self.validation_size, random_state=self.seed)
             train_idx, val_idx = next(splitter.split(dataset, combination_classes))
-        except Exception as e:
+        except Exception:
             logger.warning(
                 'Validation set too small for the number of classes. Falling back to default split')
             # Fallback to simple random split, no stratification
