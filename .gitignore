@@ -4,7 +4,7 @@ NISTADS/resources/database/validation/*
 NISTADS/resources/checkpoints/*
 
 NISTADS/setup/python/*
-NISTADS/setup/git/*
+NISTADS/setup/uv/*
 NISTADS/setup/.env
 
 __pycache__
@@ -13,5 +13,7 @@ __pycache__
 *.log
 *.npy
 *.json
+*.lock
+*.venv
 *.egg-info
 !.gitkeep
