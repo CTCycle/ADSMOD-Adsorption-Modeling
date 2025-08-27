@@ -1,20 +1,21 @@
 import os
+
 import pandas as pd
 import sqlalchemy
-from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-from NISTADS.app.utils.singleton import singleton
 from NISTADS.app.constants import DATA_PATH, DATA_SOURCE_PATH
 from NISTADS.app.logger import logger
+from NISTADS.app.utils.singleton import singleton
 
 Base = declarative_base()
 
 
 ###############################################################################
 class SingleComponentAdsorption(Base):
-    __tablename__ = 'SINGLE_COMPONENT_ADSORPTION'
+    __tablename__ = "SINGLE_COMPONENT_ADSORPTION"
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorptionUnits = Column(String)
@@ -25,13 +26,15 @@ class SingleComponentAdsorption(Base):
     adsorbed_amount = Column(Float)
     composition = Column(Float)
     __table_args__ = (
-        UniqueConstraint('filename', 'temperature', 'pressure', 
-                         'adsorbent_name', 'adsorbate_name'),
-                         )
+        UniqueConstraint(
+            "filename", "temperature", "pressure", "adsorbent_name", "adsorbate_name"
+        ),
+    )
+
 
 ###############################################################################
 class BinaryMixtureAdsorption(Base):
-    __tablename__ = 'BINARY_MIXTURE_ADSORPTION'
+    __tablename__ = "BINARY_MIXTURE_ADSORPTION"
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorptionUnits = Column(String)
@@ -46,14 +49,21 @@ class BinaryMixtureAdsorption(Base):
     compound_1_adsorption = Column(Float)
     compound_2_adsorption = Column(Float)
     __table_args__ = (
-        UniqueConstraint('filename', 'temperature', 'adsorbent_name', 
-                         'compound_1', 'compound_2', 'compound_1_pressure',
-                         'compound_2_pressure'),
-                         )    
-        
+        UniqueConstraint(
+            "filename",
+            "temperature",
+            "adsorbent_name",
+            "compound_1",
+            "compound_2",
+            "compound_1_pressure",
+            "compound_2_pressure",
+        ),
+    )
+
+
 ###############################################################################
 class Adsorbate(Base):
-    __tablename__ = 'ADSORBATES'
+    __tablename__ = "ADSORBATES"
     InChIKey = Column(String, primary_key=True)
     name = Column(String)
     InChICode = Column(String)
@@ -61,26 +71,24 @@ class Adsorbate(Base):
     adsorbate_molecular_weight = Column(Float)
     adsorbate_molecular_formula = Column(String)
     adsorbate_SMILE = Column(String)
-    __table_args__ = (
-        UniqueConstraint('InChIKey'),
-        )
-    
+    __table_args__ = (UniqueConstraint("InChIKey"),)
+
+
 ###############################################################################
 class Adsorbent(Base):
-    __tablename__ = 'ADSORBENTS'
+    __tablename__ = "ADSORBENTS"
     name = Column(String)
     hashkey = Column(String, primary_key=True)
     formula = Column(String)
     adsorbent_molecular_weight = Column(Float)
     adsorbent_molecular_formula = Column(String)
     adsorbent_SMILE = Column(String)
-    __table_args__ = (
-        UniqueConstraint('hashkey'),
-        )
-    
+    __table_args__ = (UniqueConstraint("hashkey"),)
+
+
 ###############################################################################
 class TrainingData(Base):
-    __tablename__ = 'TRAINING_DATASET'
+    __tablename__ = "TRAINING_DATASET"
     filename = Column(String, primary_key=True)
     temperature = Column(Float)
     pressure = Column(String)
@@ -89,13 +97,12 @@ class TrainingData(Base):
     adsorbate_molecular_weight = Column(Float)
     adsorbate_encoded_SMILE = Column(String)
     split = Column(String)
-    __table_args__ = (
-        UniqueConstraint('filename'),
-        )
-    
+    __table_args__ = (UniqueConstraint("filename"),)
+
+
 ###############################################################################
 class PredictedAdsorption(Base):
-    __tablename__ = 'PREDICTED_ADSORPTION'
+    __tablename__ = "PREDICTED_ADSORPTION"
     checkpoint = Column(String, primary_key=True)
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
@@ -105,13 +112,20 @@ class PredictedAdsorption(Base):
     adsorbed_amount = Column(Float)
     predicted_adsorbed_amount = Column(Float)
     __table_args__ = (
-        UniqueConstraint('checkpoint', 'filename', 'temperature', 
-                         'adsorbent_name', 'adsorbate_name', 'pressure'),
-                         )    
+        UniqueConstraint(
+            "checkpoint",
+            "filename",
+            "temperature",
+            "adsorbent_name",
+            "adsorbate_name",
+            "pressure",
+        ),
+    )
+
 
 ###############################################################################
 class CheckpointSummary(Base):
-    __tablename__ = 'CHECKPOINTS_SUMMARY'    
+    __tablename__ = "CHECKPOINTS_SUMMARY"
     checkpoint = Column(String, primary_key=True)
     sample_size = Column(Float)
     validation_size = Column(Float)
@@ -120,13 +134,13 @@ class CheckpointSummary(Base):
     epochs = Column(Integer)
     batch_size = Column(Integer)
     split_seed = Column(Integer)
-    jit_compile = Column(String)  
-    has_tensorboard_logs = Column(String)  
+    jit_compile = Column(String)
+    has_tensorboard_logs = Column(String)
     initial_LR = Column(Float)
     constant_steps_LR = Column(Float)
     decay_steps_LR = Column(Float)
     target_LR = Column(Float)
-    max_measurements = Column(Integer)    
+    max_measurements = Column(Integer)
     SMILE_size = Column(Integer)
     attention_heads = Column(Integer)
     n_encoders = Column(Integer)
@@ -135,40 +149,41 @@ class CheckpointSummary(Base):
     val_loss = Column(Float)
     train_R_square = Column(Float)
     val_R_square = Column(Float)
-    __table_args__ = (
-        UniqueConstraint('checkpoint'),
-        )
-    
+    __table_args__ = (UniqueConstraint("checkpoint"),)
+
 
 # [DATABASE]
 ###############################################################################
 @singleton
 class NISTADSDatabase:
-
-    def __init__(self): 
-        self.db_path = os.path.join(DATA_PATH, 'NISTADS_database.db')
-        self.inference_path = os.path.join(DATA_SOURCE_PATH, 'inference_adsorption_data.csv')
-        self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
+    def __init__(self):
+        self.db_path = os.path.join(DATA_PATH, "NISTADS_database.db")
+        self.inference_path = os.path.join(
+            DATA_SOURCE_PATH, "inference_adsorption_data.csv"
+        )
+        self.engine = create_engine(
+            f"sqlite:///{self.db_path}", echo=False, future=True
+        )
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 5000
-              
-    #-------------------------------------------------------------------------       
+
+    # -------------------------------------------------------------------------
     def initialize_database(self):
-        Base.metadata.create_all(self.engine) 
+        Base.metadata.create_all(self.engine)
 
-    #------------------------------------------------------------------------- 
-    def get_table_class(self, table_name: str):    
+    # -------------------------------------------------------------------------
+    def get_table_class(self, table_name: str):
         for cls in Base.__subclasses__():
-            if hasattr(cls, '__tablename__') and cls.__tablename__ == table_name:
+            if hasattr(cls, "__tablename__") and cls.__tablename__ == table_name:
                 return cls
-        raise ValueError(f"No table class found for name {table_name}")   
+        raise ValueError(f"No table class found for name {table_name}")
 
-    #-------------------------------------------------------------------------       
-    def update_database_from_sources(self): 
-        dataset = pd.read_csv(self.inference_path, sep=';', encoding='utf-8')                  
-        self.save_into_database(dataset, 'PREDICTED_ADSORPTION')
+    # -------------------------------------------------------------------------
+    def update_database_from_sources(self):
+        dataset = pd.read_csv(self.inference_path, sep=";", encoding="utf-8")
+        self.save_into_database(dataset, "PREDICTED_ADSORPTION")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _upsert_dataframe(self, df: pd.DataFrame, table_cls):
         table = table_cls.__table__
         session = self.Session()
@@ -182,41 +197,46 @@ class NISTADSDatabase:
                 raise ValueError(f"No unique constraint found for {table_cls.__name__}")
 
             # Batch insertions for speed
-            records = df.to_dict(orient='records')
+            records = df.to_dict(orient="records")
             for i in range(0, len(records), self.insert_batch_size):
-                batch = records[i:i + self.insert_batch_size]
+                batch = records[i : i + self.insert_batch_size]
                 stmt = insert(table).values(batch)
                 # Columns to update on conflict
-                update_cols = {c: getattr(stmt.excluded, c) for c in batch[0] if c not in unique_cols}
+                update_cols = {
+                    c: getattr(stmt.excluded, c)
+                    for c in batch[0]
+                    if c not in unique_cols
+                }
                 stmt = stmt.on_conflict_do_update(
-                    index_elements=unique_cols, set_=update_cols)
+                    index_elements=unique_cols, set_=update_cols
+                )
                 session.execute(stmt)
                 session.commit()
             session.commit()
         finally:
             session.close()
 
-    #-------------------------------------------------------------------------
-    def load_from_database(self, table_name: str) -> pd.DataFrame:        
+    # -------------------------------------------------------------------------
+    def load_from_database(self, table_name: str) -> pd.DataFrame:
         with self.engine.connect() as conn:
             data = pd.read_sql_table(table_name, conn)
 
         return data
 
-    #-------------------------------------------------------------------------
-    def save_into_database(self, df: pd.DataFrame, table_name: str):        
-        with self.engine.begin() as conn:            
+    # -------------------------------------------------------------------------
+    def save_into_database(self, df: pd.DataFrame, table_name: str):
+        with self.engine.begin() as conn:
             conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
-            df.to_sql(table_name, conn, if_exists='append', index=False)
+            df.to_sql(table_name, conn, if_exists="append", index=False)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str):
         table_cls = self.get_table_class(table_name)
         self._upsert_dataframe(df, table_cls)
-           
-    #-------------------------------------------------------------------------
-    def export_all_tables_as_csv(self, chunksize: int | None = None):        
-        export_path = os.path.join(DATA_PATH, 'export')
+
+    # -------------------------------------------------------------------------
+    def export_all_tables_as_csv(self, chunksize: int | None = None):
+        export_path = os.path.join(DATA_PATH, "export")
         os.makedirs(export_path, exist_ok=True)
         with self.engine.connect() as conn:
             for table in Base.metadata.sorted_tables:
@@ -227,31 +247,37 @@ class NISTADSDatabase:
                 if chunksize:
                     first = True
                     for chunk in pd.read_sql(query, conn, chunksize=chunksize):
-                        chunk.to_csv(csv_path, index=False, header=first, 
-                                     mode="w" if first else "a", encoding='utf-8', sep=',')
+                        chunk.to_csv(
+                            csv_path,
+                            index=False,
+                            header=first,
+                            mode="w" if first else "a",
+                            encoding="utf-8",
+                            sep=",",
+                        )
                         first = False
                     # If table is empty, still write header row
                     if first:
-                        pd.DataFrame(
-                            columns=[c.name for c in table.columns]).to_csv(
-                                csv_path, index=False, encoding='utf-8', sep=',')
+                        pd.DataFrame(columns=[c.name for c in table.columns]).to_csv(
+                            csv_path, index=False, encoding="utf-8", sep=","
+                        )
                 else:
                     df = pd.read_sql(query, conn)
                     if df.empty:
-                        pd.DataFrame(
-                            columns=[c.name for c in table.columns]).to_csv(
-                                csv_path, index=False, encoding='utf-8', sep=',')
+                        pd.DataFrame(columns=[c.name for c in table.columns]).to_csv(
+                            csv_path, index=False, encoding="utf-8", sep=","
+                        )
                     else:
-                        df.to_csv(csv_path, index=False, encoding='utf-8', sep=',')
+                        df.to_csv(csv_path, index=False, encoding="utf-8", sep=",")
 
-        logger.info(f'All tables exported to CSV at {os.path.abspath(export_path)}')
+        logger.info(f"All tables exported to CSV at {os.path.abspath(export_path)}")
 
-    #-------------------------------------------------------------------------
-    def delete_all_data(self):    
+    # -------------------------------------------------------------------------
+    def delete_all_data(self):
         with self.engine.begin() as conn:
-            for table in reversed(Base.metadata.sorted_tables): 
+            for table in reversed(Base.metadata.sorted_tables):
                 conn.execute(table.delete())
-    
-        
-#-----------------------------------------------------------------------------
-database = NISTADSDatabase()   
+
+
+# -----------------------------------------------------------------------------
+database = NISTADSDatabase()
