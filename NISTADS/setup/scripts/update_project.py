@@ -1,10 +1,13 @@
-import requests
-import zipfile
 import io
 import os
 import shutil
+import zipfile
 
-GITHUB_ZIP_URL = "https://github.com/CTCycle/NISTADS-Adsorption-Modeling/archive/refs/heads/main.zip"
+import requests
+
+GITHUB_ZIP_URL = (
+    "https://github.com/CTCycle/NISTADS-Adsorption-Modeling/archive/refs/heads/main.zip"
+)
 ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 print("[INFO] Downloading latest version...")
