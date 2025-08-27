@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from keras import Model
 
 from NISTADS.app.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
@@ -13,9 +14,10 @@ from NISTADS.app.logger import logger
 ################################################################################
 class ModelEvaluationSummary:
 
-    def __init__(self, configuration : dict):
+    def __init__(self, model : Model, configuration : dict):
         self.modser = ModelSerializer() 
         self.serializer = DataSerializer()
+        self.model = model
         self.configuration = configuration
 
     #---------------------------------------------------------------------------
