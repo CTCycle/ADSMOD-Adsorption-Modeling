@@ -332,13 +332,22 @@ class ValidationEvents:
         # check thread for interruption 
         check_thread_status(worker)
 
-        # add adsorption data analysis  
-        images = []  
-        if 'experiments_clustering' in metrics:
-            logger.info('Current metric: Adsorption isotherm clustering')
-            pass
+        metric_map = {
+            "experiments_clustering": lambda *args, **kwargs: None,
+            "experiments_clustering_2": lambda *args, **kwargs: None,
+        }
 
-        return images 
+        images = []
+        for metric in metrics:
+            if metric in metric_map:
+                # check worker status to allow interruption
+                check_thread_status(worker)
+                metric_name = metric.replace("_", " ").title()
+                logger.info(f"Current metric: {metric_name}")
+                result = metric_map[metric](
+                    adsorption_data, progress_callback=progress_callback, worker=worker
+                )
+                images.append(result)
 
     #--------------------------------------------------------------------------
     def get_checkpoints_summary(self, progress_callback=None, worker=None): 
@@ -375,25 +384,33 @@ class ValidationEvents:
             _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata) 
         
         loader = SCADSDataLoader(train_config, model_metadata)      
-        validation_dataset = loader.build_training_dataloader(validation_data)            
-            
-        images = []
-        if 'evaluation_report' in metrics:
-            # evaluate model performance over the validation dataset 
-            logger.info('Current metric: model loss and metrics evaluation')
-            summarizer = ModelEvaluationSummary(self.configuration)       
-            summarizer.get_evaluation_report(model, validation_dataset, worker=worker)
+        validation_dataset = loader.build_training_dataloader(validation_data)  
 
-        if 'prediction_quality' in metrics:
-            logger.info('Current metric: adsorption isotherms prediction quality')
-            validator = AdsorptionPredictionsQuality(
-            model, train_config, model_metadata, checkpoint_path)      
-            images.append(validator.visualize_adsorption_isotherms(
-                validation_data, progress_callback=progress_callback, worker=worker))                    
+        summarizer = ModelEvaluationSummary(model, self.configuration) 
+        validator = AdsorptionPredictionsQuality(
+            model, train_config, model_metadata, checkpoint_path)       
+
+        # Mapping metric name to method and arguments
+        metric_map = {
+            "evaluation_report": summarizer.get_evaluation_report,
+            "prediction_quality": validator.visualize_adsorption_isotherms,           
+        }
+
+        images = []
+        for metric in metrics:
+            if metric in metric_map:
+                # check worker status to allow interruption
+                check_thread_status(worker)
+                metric_name = metric.replace("_", " ").title()
+                logger.info(f"Current metric: {metric_name}")
+                result = metric_map[metric](
+                    validation_dataset, progress_callback=progress_callback, worker=worker
+                )
+                images.append(result)
 
         return images     
-   
-
+            
+       
 ###############################################################################
 class ModelEvents:
 
@@ -403,7 +420,7 @@ class ModelEvents:
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
-    def get_available_checkpoints(self):
+    def get_available_checkpoints(self)  -> list[str]:
         return self.modser.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
