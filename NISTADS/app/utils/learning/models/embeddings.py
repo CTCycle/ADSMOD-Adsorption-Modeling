@@ -1,9 +1,7 @@
-import torch
 import keras
 from keras import layers 
 
 from NISTADS.app.constants import PAD_VALUE
-from NISTADS.app.logger import logger
       
 
 # [POSITIONAL EMBEDDING]

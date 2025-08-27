@@ -1,7 +1,6 @@
 import keras
 
 from NISTADS.app.constants import PAD_VALUE
-from NISTADS.app.logger import logger
 
 # [LOSS FUNCTION]
 # masked mean squared error that ignores padding values in the loss calculation

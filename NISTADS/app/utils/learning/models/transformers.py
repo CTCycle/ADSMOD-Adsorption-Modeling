@@ -2,7 +2,6 @@ import keras
 from keras import layers, activations    
 
 
-from NISTADS.app.logger import logger
 
 
 # [ADD NORM LAYER]

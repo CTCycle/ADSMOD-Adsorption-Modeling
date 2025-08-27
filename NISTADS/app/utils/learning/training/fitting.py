@@ -2,8 +2,6 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from NISTADS.app.utils.learning.callbacks import initialize_callbacks_handler
-from NISTADS.app.utils.data.serializer import ModelSerializer
-from NISTADS.app.logger import logger
 
 
 # [TOOLS FOR TRAINING MACHINE LEARNING MODELS]
