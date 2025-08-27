@@ -33,13 +33,13 @@ class AdsorptionPredictionsQuality:
             EVALUATION_PATH, 'validation', self.checkpoint) 
         os.makedirs(self.validation_path, exist_ok=True)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def save_image(self, fig, name):
         name = re.sub(r'[^0-9A-Za-z_]', '_', name)
         out_path = os.path.join(self.validation_path, name)
         fig.savefig(out_path, bbox_inches='tight', dpi=self.img_resolution)         
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def process_uptake_curves(self, inputs, output, predicted_output):
         pressures, uptakes, predictions = [], [], []
         for exp in range(self.num_experiments):
@@ -58,7 +58,7 @@ class AdsorptionPredictionsQuality:
 
         return pressures, uptakes, predictions        
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def visualize_adsorption_isotherms(self, validation_data : pd.DataFrame, **kwargs):              
         sampled_data = validation_data.sample(n=self.num_experiments, random_state=42)
         sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)

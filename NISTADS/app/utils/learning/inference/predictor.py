@@ -21,7 +21,7 @@ class AdsorptionPredictions:
         self.metadata = metadata       
         self.model = model
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def process_inference_output(self, inputs : dict, predictions : np.array):        
         # reshape predictions from (samples, measurements, 1) to (samples, measurements)        
         predictions = np.squeeze(predictions, axis=-1)   
@@ -45,7 +45,7 @@ class AdsorptionPredictions:
         
         return unpadded_predictions         
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def predict_adsorption_isotherm(self, data, **kwargs):
         # preprocess inputs before feeding them to the pretrained model for inference
         # add padding, normalize data, encode categoricals
@@ -61,7 +61,7 @@ class AdsorptionPredictions:
 
         return predictions
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build_predictions_dataset(self, data, predictions : list):
         concat_predictions = np.concatenate(predictions)
         # TO DO ADD COLUMN FOR CHECKPOINT, FIND WAY TO AVOID FETCHING REDUNDANT DATA

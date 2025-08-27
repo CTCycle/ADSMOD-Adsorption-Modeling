@@ -20,7 +20,7 @@ class GetServerStatus:
     def __init__(self):
         self.server_url = 'https://adsorption.nist.gov'
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def check_status(self):       
         response = r.get(self.server_url)
         # Checking if the request was successful
@@ -41,7 +41,7 @@ class AsyncDataFetcher:
         self.num_calls = num_calls_by_config if num_calls is None else num_calls
         self.semaphore = asyncio.Semaphore(self.num_calls)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     async def get_call_to_single_endpoint(self, session, url):
         async with self.semaphore:
             async with session.get(url) as response:
@@ -54,7 +54,7 @@ class AsyncDataFetcher:
                     logger.error(f'Error decoding JSON from {url}: {e}')
                     return None                
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     async def get_call_to_multiple_endpoints(self, urls, **kwargs):
         async with aiohttp.ClientSession() as session:
             tasks = [self.get_call_to_single_endpoint(session, url)
@@ -87,7 +87,7 @@ class AdsorptionDataFetch:
         self.configuration = configuration  
     
     # function to retrieve HTML data
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_experiments_index(self):      
         response = r.get(self.url_isotherms)
         if response.status_code == 200:             
@@ -101,7 +101,7 @@ class AdsorptionDataFetch:
         return experiments_data    
     
     # function to retrieve HTML data
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_experiments_data(self, experiments_data, **kwargs):
         async_fetcher = AsyncDataFetcher(self.configuration)                
         num_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))        
@@ -153,7 +153,7 @@ class GuestHostDataFetch:
         self.host_fraction = configuration.get('host_fraction', 1.0) 
         self.configuration = configuration          
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_materials_index(self):       
         guest_json, guest_data = r.get(self.url_GUEST), None
         host_json, host_data = r.get(self.url_HOST), None
@@ -170,7 +170,7 @@ class GuestHostDataFetch:
   
         return guest_data, host_data   
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_materials_data(self, guest_index=None, host_index=None, **kwargs):
         # Always create a new event loop in a QThread context
         loop = asyncio.new_event_loop()

@@ -19,7 +19,7 @@ class PressureUptakeSeriesProcess:
         self.max_pressure = configuration.get('max_pressure', 10000) * 1000
         self.max_uptake = configuration.get('max_uptake', 10)           
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def trim_series(self, series):        
         arr = np.asarray(series)    
         nonzero_indices = np.flatnonzero(arr)       
@@ -27,7 +27,7 @@ class PressureUptakeSeriesProcess:
 
         return series[start_idx:]
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def remove_leading_zeros(self, dataframe: pd.DataFrame):
         # remove contiguous leading zeros from pressure and uptake series 
         # leaves a single zero value at the series start if present        
@@ -36,7 +36,7 @@ class PressureUptakeSeriesProcess:
         
         return dataframe        
     
-    #--------------------------------------------------------------------------  
+    #-------------------------------------------------------------------------  
     def PQ_series_padding(self, dataset):        
         dataset[self.P_COL] = pad_sequences(
             dataset[self.P_COL], maxlen=self.max_points, value=PAD_VALUE, 
@@ -48,7 +48,7 @@ class PressureUptakeSeriesProcess:
 
         return dataset   
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def filter_by_sequence_size(self, dataset : pd.DataFrame):  
         # Remove rows where sequence length < min_points
         filtered_data = dataset[dataset[self.P_COL].apply(
@@ -81,7 +81,7 @@ class SMILETokenization:
         self.organic_subset = ['B', 'C', 'N', 'O', 'P', 'S', 'F', 'Cl', 'Br', 'I']
         self.SMILE_padding = configuration.get('SMILE_sequence_size', 20)      
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def tokenize_SMILE_string(self, SMILE):
         tokens = []
         if isinstance(SMILE, str):  
@@ -174,7 +174,7 @@ class SMILETokenization:
 
         return tokens
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def encode_SMILE_tokens(self, data: pd.DataFrame): 
         SMILE_tokens = set(token for tokens in data['adsorbate_tokenized_SMILE'] 
                            for token in tokens)           
@@ -187,7 +187,7 @@ class SMILETokenization:
         
         return data, token_to_id
     
-    #--------------------------------------------------------------------------  
+    #-------------------------------------------------------------------------  
     def SMILE_series_padding(self, dataset : pd.DataFrame):       
         dataset['adsorbate_encoded_SMILE'] = pad_sequences(
             dataset['adsorbate_encoded_SMILE'], maxlen=self.SMILE_padding, 
@@ -195,7 +195,7 @@ class SMILETokenization:
                 
         return dataset
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def process_SMILE_sequences(self, dataset : pd.DataFrame):
         dataset['adsorbate_tokenized_SMILE'] = dataset['adsorbate_SMILE'].apply(
             lambda x : self.tokenize_SMILE_string(x))         

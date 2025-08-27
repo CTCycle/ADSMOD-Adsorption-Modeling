@@ -63,7 +63,7 @@ class MainWindow:
         # initialize database        
         database.initialize_database()                         
 
-        # --- Create persistent handlers ---
+        #--- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
         self.dataset_handler = DatasetEvents(self.configuration)
         self.validation_handler = ValidationEvents(self.configuration)
@@ -214,12 +214,12 @@ class MainWindow:
         signal = getattr(widget, signal_name)
         signal.connect(partial(self._update_single_setting, config_key, getter))
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _update_single_setting(self, config_key, getter, *args):
         value = getter()
         self.config_manager.update_value(config_key, value)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _auto_connect_settings(self):
         connections = [            
             # 1. dataset tab page
@@ -285,12 +285,12 @@ class MainWindow:
             widget = self.widgets[attr]
             self.connect_update_setting(widget, signal_name, config_key)   
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _set_states(self):         
         self.progress_bar = self.main_win.findChild(QProgressBar, "progressBar")        
         self.progress_bar.setValue(0)      
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _set_graphics(self):      
         view = self.main_win.findChild(QGraphicsView, 'canvas')
         scene = QGraphicsScene()
@@ -306,17 +306,17 @@ class MainWindow:
         self.pixmaps = [] 
         self.current_fig = 0 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
         button = self.main_win.findChild(QPushButton, button_name)
         button.clicked.connect(slot) 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _connect_combo_box(self, combo_name: str, slot):        
         combo = self.main_win.findChild(QComboBox, combo_name)
         combo.currentTextChanged.connect(slot)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _start_thread_worker(self, worker : ThreadWorker, on_finished, on_error, on_interrupted,
                       update_progress=True):
         if update_progress:       
@@ -327,7 +327,7 @@ class MainWindow:
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _start_process_worker(self, worker : ProcessWorker, on_finished, on_error, 
                               on_interrupted, update_progress=True):
         if update_progress:
@@ -347,7 +347,7 @@ class MainWindow:
 
         worker.start()
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _send_message(self, message): 
         self.main_win.statusBar().showMessage(message)    
 
@@ -359,13 +359,13 @@ class MainWindow:
             setattr(self, attr, w)
             self.widgets[attr] = w
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _connect_signals(self, connections):
         for attr, signal, slot in connections:
             widget = self.widgets[attr]
             getattr(widget, signal).connect(slot) 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _set_widgets_from_configuration(self):
         cfg = self.config_manager.get_configuration()
         for attr, widget in self.widgets.items():
@@ -396,14 +396,14 @@ class MainWindow:
     # It's good practice to define methods that act as slots within the class
     # that manages the UI elements. These slots can then call methods on the
     # handler objects. Using @Slot decorator is optional but good practice
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     Slot()
     def stop_running_worker(self):
         if self.worker is not None:
             self.worker.stop()       
         self._send_message("Interrupt requested. Waiting for threads to stop...")
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def load_checkpoints(self):       
         checkpoints = self.model_handler.get_available_checkpoints()
@@ -416,12 +416,12 @@ class MainWindow:
             self.selected_checkpoint = None
             logger.warning("No checkpoints available")
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot(str)
     def select_checkpoint(self, name: str):
         self.selected_checkpoint = name if name else None 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def _update_metrics(self):             
         self.selected_metrics['dataset'] = [
@@ -429,9 +429,9 @@ class MainWindow:
         self.selected_metrics['model'] = [
             name for name, box in self.model_metrics if box.isChecked()]
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # [ACTIONS]
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def save_configuration(self):
         dialog = SaveConfigDialog(self.main_win)
@@ -441,7 +441,7 @@ class MainWindow:
             self.config_manager.save_configuration_to_json(name)
             self._send_message(f"Configuration [{name}] has been saved")
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def load_configuration(self):
         dialog = LoadConfigDialog(self.main_win)
@@ -451,7 +451,7 @@ class MainWindow:
             self._set_widgets_from_configuration()
             self._send_message(f"Loaded configuration [{name}]")
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def export_all_data(self):
         database.export_all_tables_as_csv()
@@ -459,7 +459,7 @@ class MainWindow:
         logger.info(message)
         self._send_message(message)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def delete_all_data(self):      
         database.delete_all_data()        
@@ -467,9 +467,9 @@ class MainWindow:
         logger.info(message)
         self._send_message(message)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # [GRAPHICS]
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot(str)
     def _update_graphics_view(self): 
         if not self.pixmaps:
@@ -490,7 +490,7 @@ class MainWindow:
         pixmap_item.setPixmap(scaled)
         scene.setSceneRect(scaled.rect())     
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot(str)
     def show_previous_figure(self):  
         if not self.pixmaps:
@@ -499,7 +499,7 @@ class MainWindow:
             self.current_fig -= 1
             self._update_graphics_view()
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot(str)
     def show_next_figure(self):
         if not self.pixmaps:
@@ -508,7 +508,7 @@ class MainWindow:
             self.current_fig += 1
             self._update_graphics_view()
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot(str)
     def clear_figures(self):
         if not self.pixmaps:
@@ -520,9 +520,9 @@ class MainWindow:
         self.graphics['scene'].setSceneRect(0, 0, 0, 0)
         self.graphics['view'].viewport().update()
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # [DATASET TAB]
-    #--------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------        
     @Slot()
     def collect_data_from_NIST(self):        
         if self.worker:            
@@ -544,7 +544,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
         
-    #--------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------        
     @Slot()
     def retrieve_guest_properties_from_PUBCHEM(self): 
         if self.worker:            
@@ -568,7 +568,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted) 
 
-    #--------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------        
     @Slot()
     def retrieve_host_properties_from_PUBCHEM(self): 
         if self.worker:            
@@ -592,7 +592,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted) 
         
-    #--------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------        
     @Slot()
     def run_dataset_evaluation_pipeline(self):  
         if not self.selected_metrics['dataset']:
@@ -619,7 +619,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def run_dataset_builder(self):          
         if self.worker:            
@@ -641,9 +641,9 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)       
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # [TRAINING TAB]
-    #-------------------------------------------------------------------------- 
+    #------------------------------------------------------------------------- 
     @Slot()
     def train_from_scratch(self):
         if self.worker:            
@@ -665,7 +665,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def resume_training_from_checkpoint(self): 
         if self.worker:            
@@ -693,9 +693,9 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # [MODEL EVALUATION TAB]
-    #-------------------------------------------------------------------------- 
+    #------------------------------------------------------------------------- 
     @Slot()
     def run_model_evaluation_pipeline(self):  
         if not self.selected_metrics['model']:
@@ -724,7 +724,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)     
 
-    #-------------------------------------------------------------------------- 
+    #------------------------------------------------------------------------- 
     @Slot()
     def get_checkpoints_summary(self):       
         if self.worker:            
@@ -746,9 +746,9 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # [INFERENCE TAB]
-    #--------------------------------------------------------------------------  
+    #-------------------------------------------------------------------------  
     @Slot()
     def update_database_from_sources(self):
         if self.worker:            
@@ -768,7 +768,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted) 
          
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()    
     def predict_adsorption_isotherms(self):  
         if self.worker:            
@@ -802,32 +802,32 @@ class MainWindow:
         QMessageBox.information(self.main_win, "Database successfully updated", message)     
         self.worker = self.worker.cleanup()
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_data_success(self, session):          
         self._send_message('Data has been collected from NIST-A database')
         self.worker = self.worker.cleanup()    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_dataset_processing_finished(self, session):         
         self._send_message('Dataset has been built successfully')
         self.worker = self.worker.cleanup()    
 
-    #--------------------------------------------------------------------------      
+    #-------------------------------------------------------------------------      
     def on_dataset_evaluation_finished(self, plots):
         self._send_message('Figures have been generated')
         self.worker = self.worker.cleanup()    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_train_finished(self, session):          
         self._send_message('Training session is over. Model has been saved')
         self.worker = self.worker.cleanup()    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):  
         self._send_message(f'Model {self.selected_checkpoint} has been evaluated')
         self.worker = self.worker.cleanup()    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def on_inference_finished(self, session):          
         self._send_message('Inference call has been terminated')
         self.worker = self.worker.cleanup()    

@@ -33,7 +33,7 @@ class GraphicsHandler:
         self.BGRA_encoding = cv2.COLOR_BGRA2RGBA
         self.BGR_encoding = cv2.COLOR_BGR2RGB
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def convert_fig_to_qpixmap(self, fig):    
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
@@ -45,7 +45,7 @@ class GraphicsHandler:
 
         return QPixmap.fromImage(qimg)
     
-    #--------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------    
     def load_image_as_pixmap(self, path):    
         img = cv2.imread(path, self.image_encoding)
         # Handle grayscale, RGB, or RGBA
@@ -74,7 +74,7 @@ class DatasetEvents:
         self.seed = configuration.get('seed', 42)
         self.configuration = configuration 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_data_collection_pipeline(self, progress_callback=None, worker=None):      
         # 1. get isotherm indexes invoking API from NIST-ARPA-E database        
         logger.info('Collect adsorption isotherm indices from NIST-ARPA-E database')
@@ -116,7 +116,7 @@ class DatasetEvents:
         self.serializer.save_materials_datasets(guest_data, host_data)
         logger.info('Materials data collection is concluded')
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_chemical_properties_pipeline(self, target='guest', progress_callback=None, worker=None):
         experiments, guest_data, host_data = self.serializer.load_adsorption_datasets()           
         properties = MolecularProperties(self.configuration)  
@@ -137,7 +137,7 @@ class DatasetEvents:
             self.serializer.save_materials_datasets(host_data=host_data)  
             logger.info(f'Host properties updated in the database ({host_data.shape[0]} records)')    
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):
         adsorption_data, guest_data, host_data = self.serializer.load_adsorption_datasets() 
         if adsorption_data.empty:    
@@ -244,7 +244,7 @@ class DatasetEvents:
         logger.info(f'Saved validation dataset with {len(validation_samples)} records')    
 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @staticmethod
     def rebuild_dataset_from_metadata(metadata : dict):      
         serializer = DataSerializer(metadata)        
@@ -322,7 +322,7 @@ class ValidationEvents:
         self.modser = ModelSerializer()    
         self.configuration = configuration 
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
         adsorption_data, guest_data, host_data = self.serializer.load_adsorption_datasets() 
         logger.info(f'{adsorption_data.shape[0]} measurements in the dataset')
@@ -349,7 +349,7 @@ class ValidationEvents:
                 )
                 images.append(result)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_checkpoints_summary(self, progress_callback=None, worker=None): 
         summarizer = ModelEvaluationSummary(self.configuration)    
         checkpoints_summary = summarizer.get_checkpoints_summary(
@@ -357,7 +357,7 @@ class ValidationEvents:
  
         logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')   
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, progress_callback=None, worker=None):
         if selected_checkpoint is None:
             logger.warning('No checkpoint selected for resuming training')
@@ -419,11 +419,11 @@ class ModelEvents:
         self.modser = ModelSerializer()    
         self.configuration = configuration 
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_available_checkpoints(self)  -> list[str]:
         return self.modser.scan_checkpoints_folder()
             
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):  
         dataserializer = DataSerializer()        
         train_data, validation_data, metadata = dataserializer.load_training_data()
@@ -463,7 +463,7 @@ class ModelEvents:
             checkpoint_path, history, self.configuration, metadata)           
         
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint')  
         model, train_config, model_metadata, session, checkpoint_path = self.modser.load_checkpoint(
@@ -511,7 +511,7 @@ class ModelEvents:
         self.modser.save_training_configuration(
             checkpoint_path, history, self.configuration, model_metadata)      
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         if selected_checkpoint is None:
             logger.warning('No checkpoint selected for resuming training')

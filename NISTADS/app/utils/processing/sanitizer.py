@@ -16,7 +16,7 @@ class AggregateDatasets:
         self.host_properties = ['name']
         self.configuration = configuration
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def join_materials_properties(self, adsorption : pd.DataFrame, guests : pd.DataFrame, hosts : pd.DataFrame): 
         # Merge guests with inner join (must have matching guest)
         merged_data = adsorption.merge(
@@ -33,7 +33,7 @@ class AggregateDatasets:
         
     # aggregate plain dataset of adsorption measurements (source data) that has
     # been composed from the NIST database API requests
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def aggregate_adsorption_measurements(self, dataset : pd.DataFrame):
         aggregate_dict = {'temperature' : 'first',                  
                           'adsorbent_name' : 'first',
@@ -67,7 +67,7 @@ class DataSanitizer:
             'filename', 'temperature', 'pressure', 'adsorbed_amount', 'encoded_adsorbent', 
             'adsorbate_molecular_weight', 'adsorbate_encoded_SMILE']
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def is_convertible_to_float(self, value):
         try:
             float(value)
@@ -75,7 +75,7 @@ class DataSanitizer:
         except ValueError:
             return False
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def filter_elements_outside_boundaries(self, row):        
         p_list = row[self.P_TARGET_COL]
         q_list = row[self.Q_TARGET_COL]      
@@ -97,7 +97,7 @@ class DataSanitizer:
         return pd.Series({self.P_TARGET_COL: final_p,
                           self.Q_TARGET_COL: final_q})
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def exclude_OOB_values(self, dataset : pd.DataFrame):        
         dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
         filtered_series = dataset.apply(
@@ -107,7 +107,7 @@ class DataSanitizer:
            
         return dataset  
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def isolate_processed_features(self, dataset : pd.DataFrame): 
         dataset = dataset[self.included_cols]
         dataset = dataset.dropna().reset_index(drop=True)
@@ -128,14 +128,14 @@ class AdsorbentEncoder:
         self.scaler.fit(train_dataset[self.norm_columns])
         self.mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}      
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def encode_adsorbents_by_name(self, dataset : pd.DataFrame):                     
         dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
                 self.mapping).fillna(self.unknown_class_index).astype(int)           
 
         return dataset
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def encode_adsorbents_from_vocabulary(self, dataset : pd.DataFrame, vocabulary: dict):              
         mapping = {label: idx for idx, label in vocabulary.items()}           
         dataset['encoded_adsorbent'] = dataset[self.norm_columns].map(
@@ -155,7 +155,7 @@ class FeatureNormalizer:
         self.statistics = self.get_normalization_parameters(
             train_dataset) if statistics is None and train_dataset is not None else statistics    
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_normalization_parameters(self, train_data):
         statistics = {}
         for col in self.norm_columns:
@@ -170,7 +170,7 @@ class FeatureNormalizer:
         
         return statistics
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def normalize_molecular_features(self, dataset):        
         norm_cols_stats = {
             k : v for k, v in self.statistics.items() if k in self.norm_columns}
@@ -179,7 +179,7 @@ class FeatureNormalizer:
 
         return dataset
     
-    #--------------------------------------------------------------------------  
+    #-------------------------------------------------------------------------  
     def PQ_series_normalization(self, dataset):
         P_max = self.statistics[self.P_COL]
         Q_max = self.statistics[self.Q_COL]        
@@ -206,7 +206,7 @@ class TrainValidationSplit:
         self.seed = configuration.get('split_seed', 42)
         self.train_size = 1.0 - self.validation_size        
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def remove_underpopulated_classes(self, dataset):        
         dataset['combination'] = (dataset[self.adsorbate_col].astype(str) 
                                   + "_" + dataset[self.adsorbent_col].astype(str))
@@ -216,7 +216,7 @@ class TrainValidationSplit:
            
         return dataset
             
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def split_train_and_validation(self, dataset: pd.DataFrame, stratified=True):
         dataset = self.remove_underpopulated_classes(dataset)
         combination_classes = dataset['combination']

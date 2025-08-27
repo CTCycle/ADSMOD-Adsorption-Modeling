@@ -21,7 +21,7 @@ class TrainValidationSplit:
         self.splitter = StratifiedShuffleSplit(
             n_splits=1, test_size=self.validation_size, random_state=self.seed)
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def remove_underpopulated_classes(self, dataset):        
         dataset['combination'] = (dataset[self.adsorbate_col].astype(str) 
                                   + "_" + dataset[self.adsorbent_col].astype(str))
@@ -31,7 +31,7 @@ class TrainValidationSplit:
            
         return dataset
             
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def split_train_and_validation(self):   
         dataset = self.remove_underpopulated_classes(self.dataset) 
         combination_classes = dataset['combination']      

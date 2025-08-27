@@ -13,7 +13,7 @@ class ModelTraining:
         self.configuration = configuration        
         self.metadata = metadata
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def train_model(self, model : Model, train_data, validation_data, checkpoint_path, **kwargs):
         total_epochs = self.configuration.get('epochs', 10)      
         # add all callbacks to the callback list
@@ -32,7 +32,7 @@ class ModelTraining:
         
         return model, history       
         
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def resume_training(self, model : Model, train_data, validation_data,  
         checkpoint_path, session=None, additional_epochs=10, **kwargs):
         from_epoch = 0 if not session else session['epochs']     

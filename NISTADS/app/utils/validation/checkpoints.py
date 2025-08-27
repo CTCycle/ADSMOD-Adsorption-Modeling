@@ -13,15 +13,14 @@ from NISTADS.app.logger import logger
 # [LOAD MODEL]
 ################################################################################
 class ModelEvaluationSummary:
-
-    def __init__(self, model : Model, configuration : dict):
-        self.modser = ModelSerializer() 
+    def __init__(self, configuration: dict, model : Model | None = None):
         self.serializer = DataSerializer()
+        self.modser = ModelSerializer()
         self.model = model
         self.configuration = configuration
 
-    #---------------------------------------------------------------------------
-    def scan_checkpoint_folder(self):
+    #--------------------------------------------------------------------------
+    def scan_checkpoint_folder(self) -> List[str]:
         model_paths = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():                
@@ -31,7 +30,7 @@ class ModelEvaluationSummary:
 
         return model_paths  
 
-    #---------------------------------------------------------------------------
+    #--------------------------------------------------------------------------
     def get_checkpoints_summary(self, **kwargs) -> pd.DataFrame:
         # look into checkpoint folder to get pretrained model names      
         model_paths = self.scan_checkpoint_folder()
@@ -81,7 +80,7 @@ class ModelEvaluationSummary:
             
         return dataframe
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_evaluation_report(self, model, validation_dataset, **kwargs):
         callbacks_list = [LearningInterruptCallback(kwargs.get('worker', None))]
         validation = model.evaluate(validation_dataset, verbose=1, callbacks=callbacks_list)     

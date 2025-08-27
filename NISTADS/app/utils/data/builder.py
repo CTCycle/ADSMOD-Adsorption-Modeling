@@ -25,12 +25,12 @@ class BuildAdsorptionDataset:
             'adsorbate_name', 'total_pressure', 'all_species_data', 
             'compound_1_data', 'compound_2_data', 'adsorbent_ID', 'adsorbates_ID']       
 
-    #--------------------------------------------------------------------------           
+    #-------------------------------------------------------------------------           
     def drop_excluded_columns(self, dataframe : pd.DataFrame):
         df_drop = dataframe.drop(columns=self.raw_drop_cols, axis=1)
         return df_drop
 
-    #--------------------------------------------------------------------------           
+    #-------------------------------------------------------------------------           
     def split_by_mixture_complexity(self, dataframe : pd.DataFrame):        
         dataframe['numGuests'] = dataframe['adsorbates'].apply(lambda x : len(x))          
         df_grouped = dataframe.groupby('numGuests')
@@ -39,7 +39,7 @@ class BuildAdsorptionDataset:
         
         return single_compound, binary_mixture   
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def extract_nested_data(self, dataframe : pd.DataFrame):         
         dataframe['adsorbent_ID'] = dataframe['adsorbent'].apply(
             lambda x : x['hashkey']).astype(str)      
@@ -90,7 +90,7 @@ class BuildAdsorptionDataset:
 
         return dataframe           
     
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def expand_dataset(self, single_component : pd.DataFrame, binary_mixture : pd.DataFrame):           
         # processing and exploding data for single component dataset                
         SC_dataset = single_component.explode(self.SC_explode_cols)        

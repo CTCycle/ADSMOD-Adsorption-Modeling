@@ -44,7 +44,7 @@ class SCADSModel:
         self.adsorbates_input = layers.Input(shape=(self.smile_length,), name='adsorbate_input')
         self.pressure_input = layers.Input(shape=(self.series_length,), name='pressure_input')
 
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def compile_model(self, model : Model, model_summary=True):
         initial_LR = self.configuration.get('initial_RL', 0.001)
         LR_schedule = initial_LR        
@@ -68,7 +68,7 @@ class SCADSModel:
         return model     
 
     # build model given the architecture
-    #--------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_model(self, model_summary=True): 
         # create combined embeddings of both the adsorbates and adsorbents 
         # molecular representations, where the adsorbate is embedded as a SMILE sequence
