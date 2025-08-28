@@ -40,7 +40,7 @@ class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         return learning_rate
 
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         return {
             "initial_LR": self.initial_LR,
             "constant_steps": self.constant_steps,

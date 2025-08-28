@@ -11,7 +11,7 @@ from NISTADS.app.logger import logger
 # [MERGE DATASETS]
 ###############################################################################
 class PressureUptakeSeriesProcess:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.max_points = configuration.get("max_measurements", 30)
@@ -74,7 +74,7 @@ class PressureUptakeSeriesProcess:
 # [TOKENIZERS]
 ###############################################################################
 class SMILETokenization:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.element_symbols = [
             "H",
             "He",

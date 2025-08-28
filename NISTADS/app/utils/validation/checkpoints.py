@@ -14,7 +14,7 @@ from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 # [LOAD MODEL]
 ################################################################################
 class ModelEvaluationSummary:
-    def __init__(self, configuration: dict, model: Model | None = None):
+    def __init__(self, configuration: Dict[str, Any], model: Model | None = None):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.model = model

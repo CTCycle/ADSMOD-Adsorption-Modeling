@@ -27,7 +27,7 @@ class AddNorm(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(AddNorm, self).get_config()
         config.update({"epsilon": self.epsilon})
         return config

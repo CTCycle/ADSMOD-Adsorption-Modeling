@@ -15,7 +15,7 @@ from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
 # [XREP CAPTIONING MODEL]
 ###############################################################################
 class SCADSModel:
-    def __init__(self, configuration: dict, metadata: dict):
+    def __init__(self, configuration: Dict[str, Any], metadata: Dict):
         self.smile_vocab_size = metadata.get("SMILE_vocabulary_size", 0)
         self.ads_vocab_size = metadata.get("adsorbent_vocabulary_size", 0)
         self.smile_length = metadata.get("SMILE_sequence_size", 20)

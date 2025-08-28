@@ -64,8 +64,8 @@ class MainWindow:
         super().__init__()
         loader = QUiLoader()
         ui_file = QFile(ui_file_path)
-        ui_file.open(QIODevice.ReadOnly)
-        self.main_win = loader.load(ui_file)
+        ui_file.open(QIODevice.OpenModeFlag.ReadOnly)
+        self.main_win = cast(QMainWindow, loader.load(ui_file))
         ui_file.close()
 
         # Checkpoint & metrics state
@@ -319,20 +319,20 @@ class MainWindow:
     # -------------------------------------------------------------------------
     def _set_states(self):
         self.progress_bar = self.main_win.findChild(QProgressBar, "progressBar")
-        self.progress_bar.setValue(0)
+        self.progress_bar.setValue(0) if self.progress_bar else None
 
     # -------------------------------------------------------------------------
     def _set_graphics(self):
         view = self.main_win.findChild(QGraphicsView, "canvas")
         scene = QGraphicsScene()
         pixmap_item = QGraphicsPixmapItem()
-        pixmap_item.setTransformationMode(Qt.SmoothTransformation)
+        pixmap_item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
         scene.addItem(pixmap_item)
-        view.setScene(scene)
+        view.setScene(scene) if view else None
         for hint in (
-            QPainter.Antialiasing,
-            QPainter.SmoothPixmapTransform,
-            QPainter.TextAntialiasing,
+            QPainter.RenderHint.Antialiasing,
+            QPainter.RenderHint.SmoothPixmapTransform,
+            QPainter.RenderHint.TextAntialiasing,
         ):
             view.setRenderHint(hint, True)
 
@@ -343,24 +343,24 @@ class MainWindow:
     # -------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):
         button = self.main_win.findChild(QPushButton, button_name)
-        button.clicked.connect(slot)
+        button.clicked.connect(slot) if button else None
 
     # -------------------------------------------------------------------------
     def _connect_combo_box(self, combo_name: str, slot):
         combo = self.main_win.findChild(QComboBox, combo_name)
-        combo.currentTextChanged.connect(slot)
+        combo.currentTextChanged.connect(slot) if combo else None
 
     # -------------------------------------------------------------------------
     def _start_thread_worker(
         self,
         worker: ThreadWorker,
-        on_finished,
-        on_error,
-        on_interrupted,
-        update_progress=True,
+        on_finished : Callable,
+        on_error : Callable,
+        on_interrupted : Callable,
+        update_progress : bool = True,
     ):
-        if update_progress:
-            self.progress_bar.setValue(0)
+        if update_progress and self.progress_bar:
+            self.progress_bar.setValue(0) if self.progress_bar else None
             worker.signals.progress.connect(self.progress_bar.setValue)
         worker.signals.finished.connect(on_finished)
         worker.signals.error.connect(on_error)
@@ -371,13 +371,13 @@ class MainWindow:
     def _start_process_worker(
         self,
         worker: ProcessWorker,
-        on_finished,
-        on_error,
-        on_interrupted,
-        update_progress=True,
+        on_finished : Callable,
+        on_error : Callable,
+        on_interrupted : Callable,
+        update_progress : bool = True,
     ):
-        if update_progress:
-            self.progress_bar.setValue(0)
+        if update_progress and self.progress_bar:
+            self.progress_bar.setValue(0) if self.progress_bar else None
             worker.signals.progress.connect(self.progress_bar.setValue)
 
         worker.signals.finished.connect(on_finished)
@@ -443,7 +443,7 @@ class MainWindow:
     # that manages the UI elements. These slots can then call methods on the
     # handler objects. Using @Slot decorator is optional but good practice
     # -------------------------------------------------------------------------
-    Slot()
+   @Slot()
 
     def stop_running_worker(self):
         if self.worker is not None:
@@ -464,7 +464,7 @@ class MainWindow:
             logger.warning("No checkpoints available")
 
     # -------------------------------------------------------------------------
-    @Slot(str)
+    @Slot()
     def select_checkpoint(self, name: str):
         self.selected_checkpoint = name if name else None
 
@@ -472,10 +472,10 @@ class MainWindow:
     @Slot()
     def _update_metrics(self):
         self.selected_metrics["dataset"] = [
-            name for name, box in self.data_metrics if box.isChecked()
+            name for name, box in self.data_metrics if box and box.isChecked()
         ]
         self.selected_metrics["model"] = [
-            name for name, box in self.model_metrics if box.isChecked()
+            name for name, box in self.model_metrics if box and box.isChecked()
         ]
 
     # -------------------------------------------------------------------------
@@ -484,7 +484,7 @@ class MainWindow:
     @Slot()
     def save_configuration(self):
         dialog = SaveConfigDialog(self.main_win)
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             name = dialog.get_name()
             name = "default_config" if not name else name
             self.config_manager.save_configuration_to_json(name)
@@ -494,7 +494,7 @@ class MainWindow:
     @Slot()
     def load_configuration(self):
         dialog = LoadConfigDialog(self.main_win)
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             name = dialog.get_selected_config()
             self.config_manager.load_configuration_from_json(name)
             self._set_widgets_from_configuration()
@@ -519,7 +519,7 @@ class MainWindow:
     # -------------------------------------------------------------------------
     # [GRAPHICS]
     # -------------------------------------------------------------------------
-    @Slot(str)
+    @Slot()
     def _update_graphics_view(self):
         if not self.pixmaps:
             self.graphics["pixmap_item"].setPixmap(QPixmap())
@@ -534,12 +534,12 @@ class MainWindow:
         pixmap_item = self.graphics["pixmap_item"]
         scene = self.graphics["scene"]
         view_size = view.viewport().size()
-        scaled = qpixmap.scaled(view_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled = qpixmap.scaled(view_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
         pixmap_item.setPixmap(scaled)
         scene.setSceneRect(scaled.rect())
 
     # -------------------------------------------------------------------------
-    @Slot(str)
+    @Slot()
     def show_previous_figure(self):
         if not self.pixmaps:
             return
@@ -548,7 +548,7 @@ class MainWindow:
             self._update_graphics_view()
 
     # -------------------------------------------------------------------------
-    @Slot(str)
+    @Slot()
     def show_next_figure(self):
         if not self.pixmaps:
             return
@@ -557,7 +557,7 @@ class MainWindow:
             self._update_graphics_view()
 
     # -------------------------------------------------------------------------
-    @Slot(str)
+    @Slot()
     def clear_figures(self):
         if not self.pixmaps:
             return
@@ -681,7 +681,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker,
-            on_finished=self.on_dataset_evaluation_finished,
+            on_finished=self.on_dataset_evaluation_finished : Callable,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted,
         )
@@ -799,13 +799,13 @@ class MainWindow:
         self.worker = ProcessWorker(
             self.validation_handler.run_model_evaluation_pipeline,
             self.selected_metrics["model"],
-            self.selected_checkpoint,
+            self.selected_checkpoint : str,
         )
 
         # start worker and inject signals
         self._start_process_worker(
             self.worker,
-            on_finished=self.on_model_evaluation_finished,
+            on_finished=self.on_model_evaluation_finished : Callable,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted,
         )
@@ -831,7 +831,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_thread_worker(
             self.worker,
-            on_finished=self.on_model_evaluation_finished,
+            on_finished=self.on_model_evaluation_finished : Callable,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted,
         )
@@ -900,37 +900,37 @@ class MainWindow:
         )
         self._send_message(message)
         QMessageBox.information(self.main_win, "Database successfully updated", message)
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
     def on_data_success(self, session):
         self._send_message("Data has been collected from NIST-A database")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
     def on_dataset_processing_finished(self, session):
         self._send_message("Dataset has been built successfully")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
     def on_dataset_evaluation_finished(self, plots):
         self._send_message("Figures have been generated")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
     def on_train_finished(self, session):
         self._send_message("Training session is over. Model has been saved")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):
         self._send_message(f"Model {self.selected_checkpoint} has been evaluated")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
     def on_inference_finished(self, session):
         self._send_message("Inference call has been terminated")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None
 
     ###########################################################################
     # [NEGATIVE OUTCOME HANDLERS]
@@ -940,14 +940,14 @@ class MainWindow:
         logger.error(f"{exc}\n{tb}")
         message = "An error occurred during the operation. Check the logs for details."
         QMessageBox.critical(self.main_win, "Something went wrong!", message)
-        self.progress_bar.setValue(0)
-        self.worker = self.worker.cleanup()
+        self.progress_bar.setValue(0) if self.progress_bar else None
+        self.worker = self.worker.cleanup() if self.worker else None
 
     ###########################################################################
     # [INTERRUPTION HANDLERS]
     ###########################################################################
     def on_task_interrupted(self):
-        self.progress_bar.setValue(0)
+        self.progress_bar.setValue(0) if self.progress_bar else None
         self._send_message("Current task has been interrupted by user")
         logger.warning("Current task has been interrupted by user")
-        self.worker = self.worker.cleanup()
+        self.worker = self.worker.cleanup() if self.worker else None

@@ -45,7 +45,7 @@ class GraphicsHandler:
         width, height = canvas.get_width_height()
         buf = canvas.buffer_rgba()
         # construct a QImage pointing at that memory (no PNG decoding)
-        qimg = QImage(buf, width, height, QImage.Format_RGBA8888)
+        qimg = QImage(buf, width, height, QImage.Format.Format_RGBA8888)
 
         return QPixmap.fromImage(qimg)
 
@@ -62,16 +62,16 @@ class GraphicsHandler:
 
         h, w = img.shape[:2]
         if img.shape[2] == 3:
-            qimg = QImage(img.data, w, h, 3 * w, QImage.Format_RGB888)
+            qimg = QImage(img.data, w, h, 3 * w, QImage.Format.Format_RGB888)
         else:
-            qimg = QImage(img.data, w, h, 4 * w, QImage.Format_RGBA8888)
+            qimg = QImage(img.data, w, h, 4 * w, QImage.Format.Format_RGBA8888)
 
         return QPixmap.fromImage(qimg)
 
 
 ###############################################################################
 class DatasetEvents:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.seed = configuration.get("seed", 42)
@@ -290,7 +290,7 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def rebuild_dataset_from_metadata(metadata: dict):
+    def rebuild_dataset_from_metadata(metadata: Dict):
         serializer = DataSerializer(metadata)
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()
         logger.info(f"{len(adsorption_data)} measurements in the dataset")
@@ -371,7 +371,7 @@ class DatasetEvents:
 
 ###############################################################################
 class ValidationEvents:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.configuration = configuration
@@ -420,7 +420,7 @@ class ValidationEvents:
 
     # -------------------------------------------------------------------------
     def run_model_evaluation_pipeline(
-        self, metrics, selected_checkpoint, progress_callback=None, worker=None
+        self, metrics, selected_checkpoint : str, progress_callback=None, worker=None
     ):
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
@@ -486,13 +486,13 @@ class ValidationEvents:
 
 ###############################################################################
 class ModelEvents:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def get_available_checkpoints(self) -> list[str]:
+    def get_available_checkpoints(self) -> List[str]:
         return self.modser.scan_checkpoints_folder()
 
     # -------------------------------------------------------------------------
@@ -544,7 +544,7 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def resume_training_pipeline(
-        self, selected_checkpoint, progress_callback=None, worker=None
+        self, selected_checkpoint : str, progress_callback=None, worker=None
     ):
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, session, checkpoint_path = (
@@ -611,7 +611,7 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def run_inference_pipeline(
-        self, selected_checkpoint, progress_callback=None, worker=None
+        self, selected_checkpoint : str, progress_callback=None, worker=None
     ):
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")

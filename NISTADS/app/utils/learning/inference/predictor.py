@@ -13,7 +13,7 @@ from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 ###############################################################################
 class AdsorptionPredictions:
     def __init__(
-        self, model: Model, configuration: dict, metadata: dict, checkpoint_path: str
+        self, model: Model, configuration: Dict[str, Any], metadata: Dict, checkpoint_path: str
     ):
         set_random_seed(metadata.get("seed", 42))
         self.checkpoint = os.path.basename(checkpoint_path)
@@ -22,7 +22,7 @@ class AdsorptionPredictions:
         self.model = model
 
     # -------------------------------------------------------------------------
-    def process_inference_output(self, inputs: dict, predictions: np.array):
+    def process_inference_output(self, inputs: Dict, predictions: np.array):
         # reshape predictions from (samples, measurements, 1) to (samples, measurements)
         predictions = np.squeeze(predictions, axis=-1)
         pressure = inputs["pressure_input"]

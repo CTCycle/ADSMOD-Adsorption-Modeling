@@ -28,7 +28,7 @@ class AddNorm(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(AddNorm, self).get_config()
         config.update({"epsilon": self.epsilon})
         return config
@@ -61,7 +61,7 @@ class FeedForward(keras.layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training=None):
+    def call(self, x, training : bool | None = None):
         x = self.dense1(x)
         x = activations.relu(x)
         x = self.dense2(x)
@@ -71,7 +71,7 @@ class FeedForward(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(FeedForward, self).get_config()
         config.update(
             {
@@ -117,7 +117,7 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, mask=None, training=None):
+    def call(self, inputs, mask=None, training : bool | None = None):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
@@ -148,7 +148,7 @@ class TransformerEncoder(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(TransformerEncoder, self).get_config()
         config.update(
             {

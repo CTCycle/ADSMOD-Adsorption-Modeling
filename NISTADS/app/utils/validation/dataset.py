@@ -17,8 +17,8 @@ class AdsorptionPredictionsQuality:
     def __init__(
         self,
         model: Model,
-        configuration: dict,
-        metadata: dict,
+        configuration: Dict[str, Any],
+        metadata: Dict,
         checkpoint_path: str,
         num_experiments=6,
     ):

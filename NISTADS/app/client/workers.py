@@ -21,8 +21,8 @@ class WorkerSignals(QObject):
 
 
 ###############################################################################
-class ThreadWorker(QRunnable):
-    def __init__(self, fn, *args, **kwargs):
+class ThreadWorker(Generic[R], QRunnable):
+    def __init__(self, fn: Callable[..., R], *args: Any, **kwargs: Any):
         super().__init__()
         self.fn = fn
         self.args = args
@@ -144,7 +144,7 @@ def process_target(fn, args, kwargs, result_queue, progress_queue, interrupted_e
 
 ###############################################################################
 class ProcessWorker(QObject):
-    def __init__(self, fn, *args, **kwargs):
+    def __init__(self, fn: Callable[..., R], *args: Any, **kwargs: Any):
         super().__init__()
         self.fn = fn
         self.args = args

@@ -17,18 +17,18 @@ class SaveConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Save Configuration As")
-        self.layout = QVBoxLayout(self)
+        self.dialog_layout = QVBoxLayout(self)
 
         self.label = QLabel("Enter a name for your configuration:", self)
-        self.layout.addWidget(self.label)
+        self.dialog_layout.addWidget(self.label)
 
         self.name_edit = QLineEdit(self)
-        self.layout.addWidget(self.name_edit)
+        self.dialog_layout.addWidget(self.name_edit)
 
         self.buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
-        self.layout.addWidget(self.buttons)
+        self.dialog_layout.addWidget(self.buttons)
 
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
@@ -42,22 +42,22 @@ class LoadConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Load Configuration")
-        self.layout = QVBoxLayout(self)
+        self.dialog_layout = QVBoxLayout(self)
 
         self.label = QLabel("Select a configuration:", self)
-        self.layout.addWidget(self.label)
+        self.dialog_layout.addWidget(self.label)
 
         self.config_list = QListWidget(self)
-        self.layout.addWidget(self.config_list)
+        self.dialog_layout.addWidget(self.config_list)
 
         # Populate the list with available .json files
         configs = [f for f in os.listdir(CONFIG_PATH) if f.endswith(".json")]
         self.config_list.addItems(configs)
 
         self.buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self
         )
-        self.layout.addWidget(self.buttons)
+        self.dialog_layout.addWidget(self.buttons)
 
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)

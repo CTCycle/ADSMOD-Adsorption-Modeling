@@ -7,7 +7,7 @@ from NISTADS.app.utils.learning.callbacks import initialize_callbacks_handler
 # [TOOLS FOR TRAINING MACHINE LEARNING MODELS]
 ###############################################################################
 class ModelTraining:
-    def __init__(self, configuration: dict, metadata=None):
+    def __init__(self, configuration: Dict[str, Any], metadata=None):
         set_random_seed(configuration.get("training_seed", 42))
         self.configuration = configuration
         self.metadata = metadata
