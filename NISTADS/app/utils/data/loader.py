@@ -12,7 +12,7 @@ from NISTADS.app.utils.processing.sanitizer import AggregateDatasets
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 ###############################################################################
 class DataLoaderProcessor:
-    def __init__(self, configuration: dict, metadata: dict):
+    def __init__(self, configuration: Dict[str, Any], metadata: Dict):
         # load source datasets to obtain the guest and host data references
         # then load the metadata from the processed dataset. At any time,
         # only a single instance of the processed dataset may exist, therefor
@@ -136,7 +136,7 @@ class DataLoaderProcessor:
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
 class SCADSDataLoader:
-    def __init__(self, configuration: dict, metadata: dict, shuffle=True):
+    def __init__(self, configuration: Dict[str, Any], metadata: Dict, shuffle : bool = True):
         self.processor = DataLoaderProcessor(configuration, metadata)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)

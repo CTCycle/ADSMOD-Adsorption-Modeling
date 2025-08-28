@@ -30,7 +30,7 @@ class GetServerStatus:
             logger.error(
                 f"Failed to reach the server. Status code: {response.status_code}"
             )
-            time.sleep(5)
+            time.sleep(4)
             sys.exit()
 
 
@@ -78,7 +78,7 @@ class AsyncDataFetcher:
 # [NIST DATABASE API]
 ###############################################################################
 class AdsorptionDataFetch:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         # get server status before running any API method,
         # success when returning 200
         self.server = GetServerStatus()
@@ -144,7 +144,7 @@ class AdsorptionDataFetch:
 # [NIST DATABASE API: GUEST/HOST]
 ###############################################################################
 class GuestHostDataFetch:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         # get server status before running any API method,
         # success when returning 200
         self.server = GetServerStatus()

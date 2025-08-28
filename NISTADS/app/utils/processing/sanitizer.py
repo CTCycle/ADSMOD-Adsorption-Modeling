@@ -9,7 +9,7 @@ from NISTADS.app.logger import logger
 # [MERGE DATASETS]
 ###############################################################################
 class AggregateDatasets:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.guest_properties = [
             "name",
             "adsorbate_molecular_weight",
@@ -65,7 +65,7 @@ class AggregateDatasets:
 # such as experiments with negative temperature, pressure and uptake values
 ###############################################################################
 class DataSanitizer:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.separator = " "
         self.P_TARGET_COL = "pressure"
         self.Q_TARGET_COL = "adsorbed_amount"
@@ -154,7 +154,7 @@ class AdsorbentEncoder:
 
     # -------------------------------------------------------------------------
     def encode_adsorbents_from_vocabulary(
-        self, dataset: pd.DataFrame, vocabulary: dict
+        self, dataset: pd.DataFrame, vocabulary: Dict
     ):
         mapping = {label: idx for idx, label in vocabulary.items()}
         dataset["encoded_adsorbent"] = (
@@ -222,7 +222,7 @@ class FeatureNormalizer:
 # [DATA SPLITTING]
 ###############################################################################
 class TrainValidationSplit:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.adsorbate_col = "adsorbate_name"

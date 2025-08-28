@@ -26,7 +26,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         return loss
 
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         base_config = super(MaskedMeanSquaredError, self).get_config()
         return {**base_config, "name": self.name}
 
@@ -92,7 +92,7 @@ class MaskedRSquared(keras.metrics.Metric):
         self.count.assign(0)
 
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         base_config = super(MaskedRSquared, self).get_config()
         return {**base_config, "name": self.name}
 

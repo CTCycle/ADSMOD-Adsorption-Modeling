@@ -24,7 +24,7 @@ class DataSerializer:
         self.series_cols = [self.P_COL, self.Q_COL, "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
-    def validate_metadata(self, metadata: dict, target_metadata: dict):
+    def validate_metadata(self, metadata: Dict, target_metadata: Dict):
         keys_to_compare = [k for k in metadata if k != "date"]
         meta_current = {k: metadata.get(k) for k in keys_to_compare}
         meta_target = {k: target_metadata.get(k) for k in keys_to_compare}
@@ -37,7 +37,7 @@ class DataSerializer:
         return False if differences else True
 
     # -------------------------------------------------------------------------
-    def serialize_series(self, data: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    def serialize_series(self, data: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
         for col in columns:
             data[col] = data[col].apply(
                 lambda x: " ".join(map(str, x))
@@ -87,10 +87,10 @@ class DataSerializer:
     def save_training_data(
         self,
         data: pd.DataFrame,
-        configuration: dict,
-        smile_vocabulary: dict[str, Any],
-        ads_vocabulary: dict[str, Any],
-        normalization_stats: dict[str, Any] = {},
+        configuration: Dict[str, Any],
+        smile_vocabulary: Dict[str, Any],
+        ads_vocabulary: Dict[str, Any],
+        normalization_stats: Dict[str, Any] = {},
     ):
         # convert list to joint string and save preprocessed data to database
         validated_data = self.serialize_series(data, self.series_cols)
@@ -172,7 +172,7 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
-        self, path, history: dict, configuration: dict, metadata: dict
+        self, path, history: Dict, configuration: Dict[str, Any], metadata: Dict
     ):
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
@@ -193,7 +193,7 @@ class ModelSerializer:
         )
 
     # -------------------------------------------------------------------------
-    def scan_checkpoints_folder(self) -> list[str]:
+    def scan_checkpoints_folder(self) -> List[str]:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():

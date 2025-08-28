@@ -12,7 +12,7 @@ from NISTADS.app.logger import logger
 # [DATASET OPERATIONS]
 ###############################################################################
 class MolecularProperties:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: Dict[str, Any]):
         self.molecular_identifier = "InChIKey"
         self.configuration = configuration
 
@@ -30,7 +30,7 @@ class MolecularProperties:
         return data
 
     # -------------------------------------------------------------------------
-    def extract_fetched_properties(self, data: pd.DataFrame, properties: dict):
+    def extract_fetched_properties(self, data: pd.DataFrame, properties: Dict):
         if not properties:
             return
 

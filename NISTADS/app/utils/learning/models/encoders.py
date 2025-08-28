@@ -27,7 +27,7 @@ class StateEncoder(keras.layers.Layer):
         super(StateEncoder, self).build(input_shape)
 
     # -------------------------------------------------------------------------
-    def call(self, x, training=None):
+    def call(self, x, training : bool | None = None):
         layer = keras.ops.expand_dims(x, axis=-1)
         for dense, bn in zip(self.dense_layers, self.bn_layers):
             layer = dense(layer)
@@ -40,7 +40,7 @@ class StateEncoder(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(StateEncoder, self).get_config()
         config.update({"dropout_rate": self.dropout_rate, "seed": self.seed})
         return config
@@ -87,7 +87,7 @@ class PressureSerierEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, pressure, context, key_mask=None, training=None):
+    def call(self, pressure, context, key_mask=None, training : bool | None = None):
         # compute query mask as the masked pressure series
         query_mask = self.compute_mask(pressure)
         # project the pressure series into the embedding space using
@@ -123,7 +123,7 @@ class PressureSerierEncoder(keras.layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None):
+    def compute_mask(self, inputs, previous_mask = None):
         mask = keras.ops.not_equal(inputs, PAD_VALUE)
         mask = keras.ops.cast(mask, keras.config.floatx())
 
@@ -131,7 +131,7 @@ class PressureSerierEncoder(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(PressureSerierEncoder, self).get_config()
         config.update(
             {
@@ -179,7 +179,7 @@ class QDecoder(keras.layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None):
+    def compute_mask(self, inputs, previous_mask = None):
         mask = keras.ops.not_equal(inputs, PAD_VALUE)
         mask = keras.ops.expand_dims(mask, axis=-1)
         mask = keras.ops.cast(mask, keras.config.floatx())
@@ -188,7 +188,7 @@ class QDecoder(keras.layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, P_logits, pressure, state, mask=None, training=None):
+    def call(self, P_logits, pressure, state, mask=None, training : bool | None = None):
         mask = self.compute_mask(pressure) if mask is None else mask
         layer = P_logits * mask if mask is not None else P_logits
 
@@ -211,7 +211,7 @@ class QDecoder(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> Dict[str, Any]:
         config = super(QDecoder, self).get_config()
         config.update(
             {

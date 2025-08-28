@@ -12,7 +12,7 @@ log_filename = os.path.join(LOGS_PATH, f"NSCL_{current_timestamp}.log")
 
 # Define logger configuration
 ###############################################################################
-LOG_CONFIG = {
+LOG_CONFIG : Dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
