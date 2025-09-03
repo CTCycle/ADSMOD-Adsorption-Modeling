@@ -64,7 +64,7 @@ class Configuration:
         return self.configuration
 
     # -------------------------------------------------------------------------
-    def update_value(self, key: str, value: bool) -> None:
+    def update_value(self, key: str, value: Any) -> None:
         self.configuration[key] = value
 
     # -------------------------------------------------------------------------
