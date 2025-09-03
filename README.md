@@ -46,18 +46,12 @@ Eventually, it is possible to build the training dataset that will be used to tr
 - **Filtering experiments with too few points, out of boundaries values, trailing zeros**
 - **Train and validation dataset splitting**
 
-![data_tab](NISTADS/app/assets/figures/data_tab.png)
-
 **Model:** through this tab one can train the SCADS model from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained checkpoint to predict uptake from given experimental condition and pressure. The SCADS model can be evaluated using different metrics, such as:
 
 - **Average mean squared error loss and R square** 
 - **Comparison of predicted vs true adsorption isotherms** 
 
-![model_tab](NISTADS/app/assets/figures/model_tab.gif)
-
 **Viewer:** real time data visualization, coming soon!
-
-![viewer_tab](NISTADS/app/assets/figures/viewer_tab.png)
 
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
