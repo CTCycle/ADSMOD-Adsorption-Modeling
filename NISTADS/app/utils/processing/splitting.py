@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import Any
+
+import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit
 
 
 # [DATA SPLITTING]
 ###############################################################################
 class TrainValidationSplit:
-    def __init__(self, configuration, dataset):
+    def __init__(self, configuration: dict[str, Any], dataset: pd.DataFrame) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.adsorbate_col = "adsorbate_name"
@@ -21,7 +26,7 @@ class TrainValidationSplit:
         )
 
     # -------------------------------------------------------------------------
-    def remove_underpopulated_classes(self, dataset):
+    def remove_underpopulated_classes(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset["combination"] = (
             dataset[self.adsorbate_col].astype(str)
             + "_"
@@ -34,7 +39,7 @@ class TrainValidationSplit:
         return dataset
 
     # -------------------------------------------------------------------------
-    def split_train_and_validation(self):
+    def split_train_and_validation(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         dataset = self.remove_underpopulated_classes(self.dataset)
         combination_classes = dataset["combination"]
         # Get the train and validation indices, returns a generator with a single split

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -12,7 +16,7 @@ from NISTADS.app.utils.processing.sanitizer import AggregateDatasets
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 ###############################################################################
 class DataLoaderProcessor:
-    def __init__(self, configuration: Dict[str, Any], metadata: Dict):
+    def __init__(self, configuration: dict[str, Any], metadata: dict) -> None:
         # load source datasets to obtain the guest and host data references
         # then load the metadata from the processed dataset. At any time,
         # only a single instance of the processed dataset may exist, therefor
@@ -28,7 +32,7 @@ class DataLoaderProcessor:
     # this method is tailored on the inference input dataset, which is provided
     # with pressure already converted to Pascal and fewer columns compared to source data
     # -------------------------------------------------------------------------
-    def aggregate_inference_data(self, dataset: pd.DataFrame):
+    def aggregate_inference_data(self, dataset: pd.DataFrame) -> pd.DataFrame:
         aggregate_dict = {
             "temperature": "first",
             "adsorbent_name": "first",
@@ -81,7 +85,7 @@ class DataLoaderProcessor:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     # -------------------------------------------------------------------------
-    def encode_SMILE_from_vocabulary(self, smile: str):
+    def encode_SMILE_from_vocabulary(self, smile: str) -> list[Any]:
         encoded_tokens = []
         i = 0
         # Sort tokens by descending length to prioritize multi-character tokens
@@ -136,7 +140,12 @@ class DataLoaderProcessor:
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
 class SCADSDataLoader:
-    def __init__(self, configuration: Dict[str, Any], metadata: Dict, shuffle : bool = True):
+    def __init__(
+        self,
+        configuration: dict[str, Any],
+        metadata: dict[str, Any],
+        shuffle: bool = True,
+    ) -> None:
         self.processor = DataLoaderProcessor(configuration, metadata)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
@@ -149,12 +158,22 @@ class SCADSDataLoader:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     # -------------------------------------------------------------------------
-    def separate_inputs_and_output(self, data: pd.DataFrame):
-        state = np.array(data["temperature"].values, dtype=np.float32)
-        chemo = np.array(data["adsorbate_molecular_weight"].values, dtype=np.float32)
-        adsorbent = np.array(data["encoded_adsorbent"].values, dtype=np.float32)
-        adsorbate = np.vstack(data["adsorbate_encoded_SMILE"].values, dtype=np.float32)
-        pressure = np.vstack(data["pressure"].values, dtype=np.float32)
+    def separate_inputs_and_output(
+        self, data: pd.DataFrame
+    ) -> tuple[dict, np.ndarray | None]:
+        state = data["temperature"].to_numpy(dtype=np.float32)
+        chemo = data["adsorbate_molecular_weight"].to_numpy(dtype=np.float32)
+        adsorbent = data["encoded_adsorbent"].to_numpy(dtype=np.float32)
+        # Columns that contain sequences per-row -> vstack a *list* of arrays
+        adsorbate = np.vstack(
+            [
+                np.asarray(x, dtype=np.float32)
+                for x in data["adsorbate_encoded_SMILE"].to_list()
+            ]
+        )
+        pressure = np.vstack(
+            [np.asarray(x, dtype=np.float32) for x in data["pressure"].to_list()]
+        )
         inputs_dict = {
             "state_input": state,
             "chemo_input": chemo,
@@ -168,12 +187,12 @@ class SCADSDataLoader:
         output = None
         if self.output in data.columns:
             output = data[self.output]
-            output = np.vstack(output.values, dtype=np.float32)
+            output = np.vstack([np.asarray(x, dtype=np.float32) for x in output.values])
 
         return inputs_dict, output
 
     # -------------------------------------------------------------------------
-    def process_inference_inputs(self, data):
+    def process_inference_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
         processed_data = self.processor.remove_invalid_measurements(data)
         processed_data = self.processor.aggregate_inference_data(processed_data)
         processed_data = self.processor.add_properties_to_inference_inputs(
@@ -183,15 +202,14 @@ class SCADSDataLoader:
         processed_data = self.processor.normalize_from_references(processed_data)
         # add padding to pressure and uptake series to match max length
         processed_data = self.processor.apply_padding(processed_data)
-        inference_inputs, _ = self.separate_inputs_and_output(processed_data)
 
-        return inference_inputs
+        return processed_data
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     # -------------------------------------------------------------------------
     def build_training_dataloader(
-        self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE
-    ):
+        self, data, batch_size=None, buffer_size: int = tf.data.AUTOTUNE
+    ) -> Any:
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)
         dataset = tf.data.Dataset.from_tensor_slices((inputs, output))
@@ -208,8 +226,11 @@ class SCADSDataLoader:
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     # -------------------------------------------------------------------------
     def build_inference_dataloader(
-        self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE
-    ):
+        self,
+        data: pd.DataFrame,
+        batch_size: int | None = None,
+        buffer_size: int = tf.data.AUTOTUNE,
+    ) -> Any:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         processed_data = self.process_inference_inputs(data)
         inputs, output = self.separate_inputs_and_output(processed_data)

@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import os
 import re
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from keras import Model
+from matplotlib.figure import Figure
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE
+from NISTADS.app.logger import logger
 from NISTADS.app.utils.data.loader import SCADSDataLoader
 
 
@@ -17,11 +22,11 @@ class AdsorptionPredictionsQuality:
     def __init__(
         self,
         model: Model,
-        configuration: Dict[str, Any],
-        metadata: Dict,
+        configuration: dict[str, Any],
+        metadata: dict,
         checkpoint_path: str,
-        num_experiments=6,
-    ):
+        num_experiments: int = 6,
+    ) -> None:
         self.save_images = configuration.get("save_images", True)
         self.model = model
         self.configuration = configuration
@@ -40,13 +45,18 @@ class AdsorptionPredictionsQuality:
         os.makedirs(self.validation_path, exist_ok=True)
 
     # -------------------------------------------------------------------------
-    def save_image(self, fig, name):
+    def save_image(self, fig: Figure, name: str) -> None:
         name = re.sub(r"[^0-9A-Za-z_]", "_", name)
         out_path = os.path.join(self.validation_path, name)
         fig.savefig(out_path, bbox_inches="tight", dpi=self.img_resolution)
 
     # -------------------------------------------------------------------------
-    def process_uptake_curves(self, inputs, output, predicted_output):
+    def process_uptake_curves(
+        self,
+        inputs: pd.DataFrame | dict,
+        output: pd.DataFrame | np.ndarray,
+        predicted_output: np.ndarray,
+    ) -> tuple[list[Any], list[Any], list[Any]]:
         pressures, uptakes, predictions = [], [], []
         for exp in range(self.num_experiments):
             pressure = inputs["pressure_input"][exp, :]
@@ -67,9 +77,17 @@ class AdsorptionPredictionsQuality:
         return pressures, uptakes, predictions
 
     # -------------------------------------------------------------------------
-    def visualize_adsorption_isotherms(self, validation_data: pd.DataFrame, **kwargs):
+    def visualize_adsorption_isotherms(
+        self, validation_data: pd.DataFrame, **kwargs
+    ) -> Figure | None:
         sampled_data = validation_data.sample(n=self.num_experiments, random_state=42)
         sampled_X, sampled_Y = self.dataloader.separate_inputs_and_output(sampled_data)
+        if sampled_Y is None:
+            logger.warning(
+                "Reference uptake values have not been found, data evaluation is skipped"
+            )
+            return
+
         predictions = self.model.predict(sampled_X)
         # process training uptake curves
         check_thread_status(kwargs.get("worker", None))

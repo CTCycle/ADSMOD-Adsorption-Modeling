@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import pandas as pd
 
 
 # [DATASET OPERATIONS]
 ###############################################################################
 class BuildAdsorptionDataset:
-    def __init__(self):
+    def __init__(self) -> None:
         self.raw_explode_cols = ["pressure", "adsorbed_amount"]
         self.raw_drop_cols = [
             "DOI",
@@ -52,12 +54,14 @@ class BuildAdsorptionDataset:
         ]
 
     # -------------------------------------------------------------------------
-    def drop_excluded_columns(self, dataframe: pd.DataFrame):
+    def drop_excluded_columns(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         df_drop = dataframe.drop(columns=self.raw_drop_cols, axis=1)
         return df_drop
 
     # -------------------------------------------------------------------------
-    def split_by_mixture_complexity(self, dataframe: pd.DataFrame):
+    def split_by_mixture_complexity(
+        self, dataframe: pd.DataFrame
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         dataframe["numGuests"] = dataframe["adsorbates"].apply(lambda x: len(x))
         df_grouped = dataframe.groupby("numGuests")
         single_compound = df_grouped.get_group(1)
@@ -66,7 +70,7 @@ class BuildAdsorptionDataset:
         return single_compound, binary_mixture
 
     # -------------------------------------------------------------------------
-    def extract_nested_data(self, dataframe: pd.DataFrame):
+    def extract_nested_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         dataframe["adsorbent_ID"] = (
             dataframe["adsorbent"].apply(lambda x: x["hashkey"]).astype(str)
         )
@@ -150,7 +154,7 @@ class BuildAdsorptionDataset:
     # -------------------------------------------------------------------------
     def expand_dataset(
         self, single_component: pd.DataFrame, binary_mixture: pd.DataFrame
-    ):
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         # processing and exploding data for single component dataset
         SC_dataset = single_component.explode(self.SC_explode_cols)
         SC_dataset.reset_index(inplace=True, drop=True)

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import keras
 from keras import layers
 
@@ -12,13 +16,13 @@ from NISTADS.app.constants import PAD_VALUE
 class MolecularEmbedding(layers.Layer):
     def __init__(
         self,
-        smile_vocab_size,
-        ads_vocab_size,
-        embedding_dims,
-        sequence_length,
-        mask_values=True,
+        smile_vocab_size: int,
+        ads_vocab_size: int,
+        embedding_dims: int,
+        sequence_length: int,
+        mask_values: bool = True,
         **kwargs,
-    ):
+    ) -> None:
         super(MolecularEmbedding, self).__init__(**kwargs)
         self.smile_vocab_size = smile_vocab_size
         self.ads_vocab_size = ads_vocab_size
@@ -48,7 +52,9 @@ class MolecularEmbedding(layers.Layer):
 
     # implement positional embedding through call method
     # -------------------------------------------------------------------------
-    def call(self, smiles, adsorbent, chemometrics, training=False):
+    def call(
+        self, smiles, adsorbent, chemometrics, training: bool | None = False
+    ) -> Any:
         # compute the positional embeddings for the SMILE sequences
         # and add it to the SMILE embeddings upon casting to same dtype
         # SMILE embeddings are scaled by the square root of the embedding dimensions
@@ -88,12 +94,12 @@ class MolecularEmbedding(layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape) -> None:
         super(MolecularEmbedding, self).build(input_shape)
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, previous_mask = None):
+    def compute_mask(self, inputs, mask=None) -> Any:
         if mask is None:
             mask = keras.ops.not_equal(inputs, PAD_VALUE)
             mask = keras.ops.cast(mask, keras.config.floatx())
@@ -102,7 +108,7 @@ class MolecularEmbedding(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         config = super(MolecularEmbedding, self).get_config()
         config.update(
             {
@@ -118,5 +124,5 @@ class MolecularEmbedding(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "MolecularEmbedding":
         return cls(**config)

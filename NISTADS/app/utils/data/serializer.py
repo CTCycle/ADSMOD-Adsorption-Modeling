@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 from datetime import datetime
@@ -18,13 +20,15 @@ from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
 # [DATA SERIALIZATION]
 ###############################################################################
 class DataSerializer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.series_cols = [self.P_COL, self.Q_COL, "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
-    def validate_metadata(self, metadata: Dict, target_metadata: Dict):
+    def validate_metadata(
+        self, metadata: dict[str, Any] | Any, target_metadata: dict[str, Any]
+    ) -> bool:
         keys_to_compare = [k for k in metadata if k != "date"]
         meta_current = {k: metadata.get(k) for k in keys_to_compare}
         meta_target = {k: target_metadata.get(k) for k in keys_to_compare}
@@ -37,7 +41,7 @@ class DataSerializer:
         return False if differences else True
 
     # -------------------------------------------------------------------------
-    def serialize_series(self, data: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
+    def serialize_series(self, data: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
         for col in columns:
             data[col] = data[col].apply(
                 lambda x: " ".join(map(str, x))
@@ -61,8 +65,8 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_training_data(
-        self, only_metadata=False
-    ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]] | dict[str, Any]:
+        self, only_metadata: bool = False
+    ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
         # load metadata from file
         with open(PROCESS_METADATA_FILE) as file:
             metadata = json.load(file)
@@ -87,11 +91,11 @@ class DataSerializer:
     def save_training_data(
         self,
         data: pd.DataFrame,
-        configuration: Dict[str, Any],
-        smile_vocabulary: Dict[str, Any],
-        ads_vocabulary: Dict[str, Any],
-        normalization_stats: Dict[str, Any] = {},
-    ):
+        configuration: dict[str, Any],
+        smile_vocabulary: dict[str, Any],
+        ads_vocabulary: dict[str, Any],
+        normalization_stats: dict[str, Any] | Any = {},
+    ) -> None:
         # convert list to joint string and save preprocessed data to database
         validated_data = self.serialize_series(data, self.series_cols)
         database.save_into_database(validated_data, "TRAINING_DATASET")
@@ -121,7 +125,7 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)
 
     # -------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data=None, host_data=None):
+    def save_materials_datasets(self, guest_data=None, host_data=None) -> None:
         if guest_data:
             database.upsert_into_database(guest_data, "ADSORBATES")
         if host_data:
@@ -135,23 +139,23 @@ class DataSerializer:
         database.upsert_into_database(binary_mixture, "BINARY_MIXTURE_ADSORPTION")
 
     # -------------------------------------------------------------------------
-    def save_predictions_dataset(self, data: pd.DataFrame):
+    def save_predictions_dataset(self, data: pd.DataFrame) -> None:
         database.save_into_database(data, "PREDICTED_ADSORPTION")
 
     # -------------------------------------------------------------------------
-    def save_checkpoints_summary(self, data: pd.DataFrame):
+    def save_checkpoints_summary(self, data: pd.DataFrame) -> None:
         database.upsert_into_database(data, "CHECKPOINTS_SUMMARY")
 
 
 # [MODEL SERIALIZATION]
 ###############################################################################
 class ModelSerializer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.model_name = "SCADS"
 
     # function to create a folder where to save model checkpoints
     # -------------------------------------------------------------------------
-    def create_checkpoint_folder(self):
+    def create_checkpoint_folder(self) -> str:
         today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f"{self.model_name}_{today_datetime}"
@@ -163,7 +167,7 @@ class ModelSerializer:
         return checkpoint_path
 
     # -------------------------------------------------------------------------
-    def save_pretrained_model(self, model: Model, path):
+    def save_pretrained_model(self, model: Model, path) -> None:
         model_files_path = os.path.join(path, "saved_model.keras")
         model.save(model_files_path)
         logger.info(
@@ -172,8 +176,8 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
-        self, path, history: Dict, configuration: Dict[str, Any], metadata: Dict
-    ):
+        self, path, history: dict, configuration: dict[str, Any], metadata: dict
+    ) -> None:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
         history_path = os.path.join(path, "configuration", "session_history.json")
@@ -193,7 +197,7 @@ class ModelSerializer:
         )
 
     # -------------------------------------------------------------------------
-    def scan_checkpoints_folder(self) -> List[str]:
+    def scan_checkpoints_folder(self) -> list[str]:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -225,7 +229,7 @@ class ModelSerializer:
         return configuration, metadata, history
 
     # -------------------------------------------------------------------------
-    def save_model_plot(self, model: Model, path: str):
+    def save_model_plot(self, model: Model, path: str) -> None:
         try:
             plot_path = os.path.join(path, "model_layout.png")
             plot_model(
@@ -245,7 +249,9 @@ class ModelSerializer:
             )
 
     # -------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint: str) -> tuple[Model, dict, dict, dict, str]:
+    def load_checkpoint(
+        self, checkpoint: str
+    ) -> tuple[Model | Any, dict, dict, dict, str]:
         custom_objects = {
             "MaskedSparseCategoricalCrossentropy": MaskedMeanSquaredError,
             "MaskedAccuracy": MaskedRSquared,

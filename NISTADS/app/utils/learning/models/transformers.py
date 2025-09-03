@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import keras
 from keras import activations, layers
 
@@ -6,7 +10,7 @@ from keras import activations, layers
 ###############################################################################
 @keras.saving.register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(keras.layers.Layer):
-    def __init__(self, epsilon=10e-5, **kwargs):
+    def __init__(self, epsilon: float = 10e-10, **kwargs) -> None:
         super(AddNorm, self).__init__(**kwargs)
         self.epsilon = epsilon
         self.add = layers.Add()
@@ -14,12 +18,12 @@ class AddNorm(keras.layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape) -> None:
         super(AddNorm, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs):
+    def call(self, inputs) -> Any:
         x1, x2 = inputs
         x_add = self.add([x1, x2])
         x_norm = self.layernorm(x_add)
@@ -28,7 +32,7 @@ class AddNorm(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         config = super(AddNorm, self).get_config()
         config.update({"epsilon": self.epsilon})
         return config
@@ -36,7 +40,7 @@ class AddNorm(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "AddNorm":
         return cls(**config)
 
 
@@ -44,7 +48,9 @@ class AddNorm(keras.layers.Layer):
 ###############################################################################
 @keras.saving.register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(keras.layers.Layer):
-    def __init__(self, dense_units, dropout, seed, **kwargs):
+    def __init__(
+        self, dense_units: int, dropout: float, seed: int = 42, **kwargs
+    ) -> None:
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout_rate = dropout
@@ -56,12 +62,12 @@ class FeedForward(keras.layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape) -> None:
         super(FeedForward, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training : bool | None = None):
+    def call(self, x, training: bool | None = None) -> Any:
         x = self.dense1(x)
         x = activations.relu(x)
         x = self.dense2(x)
@@ -71,7 +77,7 @@ class FeedForward(keras.layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         config = super(FeedForward, self).get_config()
         config.update(
             {
@@ -85,7 +91,7 @@ class FeedForward(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "FeedForward":
         return cls(**config)
 
 
@@ -93,7 +99,9 @@ class FeedForward(keras.layers.Layer):
 ###############################################################################
 @keras.saving.register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(keras.layers.Layer):
-    def __init__(self, embedding_dims, num_heads, seed, **kwargs):
+    def __init__(
+        self, embedding_dims: int, num_heads: int, seed: int, **kwargs
+    ) -> None:
         super(TransformerEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads
@@ -112,12 +120,12 @@ class TransformerEncoder(keras.layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape) -> None:
         super(TransformerEncoder, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, mask=None, training : bool | None = None):
+    def call(self, inputs, mask=None, training: bool | None = None) -> Any:
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
@@ -143,12 +151,12 @@ class TransformerEncoder(keras.layers.Layer):
         return output
 
     # -------------------------------------------------------------------------
-    def get_attention_scores(self):
+    def get_attention_scores(self) -> dict:
         return self.attention_scores
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         config = super(TransformerEncoder, self).get_config()
         config.update(
             {
@@ -162,5 +170,5 @@ class TransformerEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "TransformerEncoder":
         return cls(**config)

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from keras import Model, layers, optimizers
 from torch import compile as torch_compile
 
@@ -15,7 +19,7 @@ from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler
 # [XREP CAPTIONING MODEL]
 ###############################################################################
 class SCADSModel:
-    def __init__(self, configuration: Dict[str, Any], metadata: Dict):
+    def __init__(self, configuration: dict[str, Any], metadata: dict[str, Any]) -> None:
         self.smile_vocab_size = metadata.get("SMILE_vocabulary_size", 0)
         self.ads_vocab_size = metadata.get("adsorbent_vocabulary_size", 0)
         self.smile_length = metadata.get("SMILE_sequence_size", 20)
@@ -58,7 +62,7 @@ class SCADSModel:
         )
 
     # -------------------------------------------------------------------------
-    def compile_model(self, model: Model, model_summary=True):
+    def compile_model(self, model: Model, model_summary: bool = True) -> Model:
         initial_LR = self.configuration.get("initial_RL", 0.001)
         LR_schedule = initial_LR
         if self.configuration.get("use_scheduler", False):
@@ -69,21 +73,21 @@ class SCADSModel:
                 initial_LR, constant_LR_steps, decay_steps, target_LR
             )
 
-        opt = optimizers.AdamW(learning_rate=LR_schedule)
+        opt = optimizers.AdamW(learning_rate=LR_schedule)  # type: ignore
         loss = MaskedMeanSquaredError()
         metric = [MaskedRSquared()]
-        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)  # type: ignore
         # print model summary on console and run torch.compile
         # with triton compiler and selected backend
         model.summary(expand_nested=True) if model_summary else None
         if self.jit_compile:
-            model = torch_compile(model, backend=self.jit_backend, mode="default")
+            model = torch_compile(model, backend=self.jit_backend, mode="default")  # type: ignore
 
         return model
 
     # build model given the architecture
     # -------------------------------------------------------------------------
-    def get_model(self, model_summary=True):
+    def get_model(self, model_summary: bool = True) -> Model:
         # create combined embeddings of both the adsorbates and adsorbents
         # molecular representations, where the adsorbate is embedded as a SMILE sequence
         # to which we add the adsorbent and positional contribution together with the chemometrics

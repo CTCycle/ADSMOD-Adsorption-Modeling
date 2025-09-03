@@ -1,5 +1,10 @@
+from __future__ import annotations
+
+from typing import Any
+
 import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from pandas.core.frame import DataFrame
 from PySide6.QtGui import QImage, QPixmap
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
@@ -31,14 +36,14 @@ from NISTADS.app.utils.validation.dataset import AdsorptionPredictionsQuality
 
 ###############################################################################
 class GraphicsHandler:
-    def __init__(self):
+    def __init__(self) -> None:
         self.image_encoding = cv2.IMREAD_UNCHANGED
         self.gray_scale_encoding = cv2.IMREAD_GRAYSCALE
         self.BGRA_encoding = cv2.COLOR_BGRA2RGBA
         self.BGR_encoding = cv2.COLOR_BGR2RGB
 
     # -------------------------------------------------------------------------
-    def convert_fig_to_qpixmap(self, fig):
+    def convert_fig_to_qpixmap(self, fig) -> QPixmap:
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
         # get the size in pixels and initialize raw RGBA buffer
@@ -50,7 +55,7 @@ class GraphicsHandler:
         return QPixmap.fromImage(qimg)
 
     # -------------------------------------------------------------------------
-    def load_image_as_pixmap(self, path):
+    def load_image_as_pixmap(self, path: str) -> None | QPixmap:
         img = cv2.imread(path, self.image_encoding)
         # Handle grayscale, RGB, or RGBA
         if len(img.shape) == 2:  # Grayscale
@@ -71,14 +76,16 @@ class GraphicsHandler:
 
 ###############################################################################
 class DatasetEvents:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.seed = configuration.get("seed", 42)
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def run_data_collection_pipeline(self, progress_callback=None, worker=None):
+    def run_data_collection_pipeline(
+        self, progress_callback: Any | None = None, worker=None
+    ) -> None:
         # 1. get isotherm indexes invoking API from NIST-ARPA-E database
         logger.info("Collect adsorption isotherm indices from NIST-ARPA-E database")
         API = AdsorptionDataFetch(self.configuration)
@@ -88,6 +95,10 @@ class DatasetEvents:
         adsorption_data = API.get_experiments_data(
             experiments_index, worker=worker, progress_callback=progress_callback
         )
+
+        if adsorption_data is None:
+            logger.warning("Adsorption data was not collected, dataset is empty")
+            return
 
         # remove excluded columns from the dataframe
         builder = BuildAdsorptionDataset()
@@ -126,8 +137,8 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     def run_chemical_properties_pipeline(
-        self, target="guest", progress_callback=None, worker=None
-    ):
+        self, target: str = "guest", progress_callback: Any | None = None, worker=None
+    ) -> None:
         experiments, guest_data, host_data = self.serializer.load_adsorption_datasets()
         properties = MolecularProperties(self.configuration)
         # process guest (adsorbed species) data by adding molecular properties
@@ -143,9 +154,8 @@ class DatasetEvents:
             )
             # save the final version of the materials dataset
             self.serializer.save_materials_datasets(guest_data=guest_data)
-            logger.info(
-                f"Guest properties updated in the database ({guest_data.shape[0]} records)"
-            )
+            records = guest_data.shape[0] if guest_data is not None else 0
+            logger.info(f"Guest properties updated in the database ({records} records)")
         # process host (adsorbent materials) data by adding molecular properties
         elif target == "host":
             logger.info(
@@ -159,12 +169,13 @@ class DatasetEvents:
             )
             # save the final version of the materials dataset
             self.serializer.save_materials_datasets(host_data=host_data)
-            logger.info(
-                f"Host properties updated in the database ({host_data.shape[0]} records)"
-            )
+            records = host_data.shape[0] if host_data is not None else 0
+            logger.info(f"Host properties updated in the database ({records} records)")
 
     # -------------------------------------------------------------------------
-    def run_dataset_builder(self, progress_callback=None, worker=None):
+    def run_dataset_builder(
+        self, progress_callback: Any | None = None, worker=None
+    ) -> None:
         adsorption_data, guest_data, host_data = (
             self.serializer.load_adsorption_datasets()
         )
@@ -290,8 +301,8 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def rebuild_dataset_from_metadata(metadata: Dict):
-        serializer = DataSerializer(metadata)
+    def rebuild_dataset_from_metadata(metadata: dict) -> tuple[DataFrame, DataFrame]:
+        serializer = DataSerializer()
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()
         logger.info(f"{len(adsorption_data)} measurements in the dataset")
         logger.info(
@@ -371,14 +382,14 @@ class DatasetEvents:
 
 ###############################################################################
 class ValidationEvents:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(
-        self, metrics, progress_callback=None, worker=None
+        self, metrics, progress_callback: Any | None = None, worker=None
     ):
         adsorption_data, guest_data, host_data = (
             self.serializer.load_adsorption_datasets()
@@ -408,7 +419,9 @@ class ValidationEvents:
                 images.append(result)
 
     # -------------------------------------------------------------------------
-    def get_checkpoints_summary(self, progress_callback=None, worker=None):
+    def get_checkpoints_summary(
+        self, progress_callback: Any | None = None, worker=None
+    ):
         summarizer = ModelEvaluationSummary(self.configuration)
         checkpoints_summary = summarizer.get_checkpoints_summary(
             progress_callback=progress_callback, worker=worker
@@ -420,7 +433,11 @@ class ValidationEvents:
 
     # -------------------------------------------------------------------------
     def run_model_evaluation_pipeline(
-        self, metrics, selected_checkpoint : str, progress_callback=None, worker=None
+        self,
+        metrics,
+        selected_checkpoint: str,
+        progress_callback: Any | None = None,
+        worker=None,
     ):
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
@@ -456,7 +473,7 @@ class ValidationEvents:
         loader = SCADSDataLoader(train_config, model_metadata)
         validation_dataset = loader.build_training_dataloader(validation_data)
 
-        summarizer = ModelEvaluationSummary(model, self.configuration)
+        summarizer = ModelEvaluationSummary(self.configuration, model)
         validator = AdsorptionPredictionsQuality(
             model, train_config, model_metadata, checkpoint_path
         )
@@ -486,19 +503,20 @@ class ValidationEvents:
 
 ###############################################################################
 class ModelEvents:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def get_available_checkpoints(self) -> List[str]:
+    def get_available_checkpoints(self) -> list[str]:
         return self.modser.scan_checkpoints_folder()
 
     # -------------------------------------------------------------------------
-    def run_training_pipeline(self, progress_callback=None, worker=None):
-        dataserializer = DataSerializer()
-        train_data, validation_data, metadata = dataserializer.load_training_data()
+    def run_training_pipeline(
+        self, progress_callback: Any | None = None, worker=None
+    ) -> None:
+        train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
             return
@@ -544,8 +562,11 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def resume_training_pipeline(
-        self, selected_checkpoint : str, progress_callback=None, worker=None
-    ):
+        self,
+        selected_checkpoint: str,
+        progress_callback: Any | None = None,
+        worker=None,
+    ) -> None:
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, session, checkpoint_path = (
             self.modser.load_checkpoint(selected_checkpoint)
@@ -611,8 +632,11 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def run_inference_pipeline(
-        self, selected_checkpoint : str, progress_callback=None, worker=None
-    ):
+        self,
+        selected_checkpoint: str,
+        progress_callback: Any | None = None,
+        worker=None,
+    ) -> None:
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
             return

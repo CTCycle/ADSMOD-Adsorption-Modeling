@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
@@ -9,7 +13,7 @@ from NISTADS.app.logger import logger
 # [MERGE DATASETS]
 ###############################################################################
 class AggregateDatasets:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.guest_properties = [
             "name",
             "adsorbate_molecular_weight",
@@ -21,7 +25,7 @@ class AggregateDatasets:
     # -------------------------------------------------------------------------
     def join_materials_properties(
         self, adsorption: pd.DataFrame, guests: pd.DataFrame, hosts: pd.DataFrame
-    ):
+    ) -> pd.DataFrame:
         # Merge guests with inner join (must have matching guest)
         merged_data = adsorption.merge(
             guests[self.guest_properties],
@@ -45,7 +49,7 @@ class AggregateDatasets:
     # aggregate plain dataset of adsorption measurements (source data) that has
     # been composed from the NIST database API requests
     # -------------------------------------------------------------------------
-    def aggregate_adsorption_measurements(self, dataset: pd.DataFrame):
+    def aggregate_adsorption_measurements(self, dataset: pd.DataFrame) -> pd.DataFrame:
         aggregate_dict = {
             "temperature": "first",
             "adsorbent_name": "first",
@@ -65,7 +69,7 @@ class AggregateDatasets:
 # such as experiments with negative temperature, pressure and uptake values
 ###############################################################################
 class DataSanitizer:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.separator = " "
         self.P_TARGET_COL = "pressure"
         self.Q_TARGET_COL = "adsorbed_amount"
@@ -86,7 +90,7 @@ class DataSanitizer:
         ]
 
     # -------------------------------------------------------------------------
-    def is_convertible_to_float(self, value):
+    def is_convertible_to_float(self, value: Any) -> bool:
         try:
             float(value)
             return True
@@ -94,10 +98,11 @@ class DataSanitizer:
             return False
 
     # -------------------------------------------------------------------------
-    def filter_elements_outside_boundaries(self, row):
+    def filter_elements_outside_boundaries(
+        self, row: pd.Series[list[Any]]
+    ) -> pd.Series[list[Any]]:
         p_list = row[self.P_TARGET_COL]
         q_list = row[self.Q_TARGET_COL]
-
         filtered_p = []
         filtered_q = []
         final_p = []
@@ -115,7 +120,7 @@ class DataSanitizer:
         return pd.Series({self.P_TARGET_COL: final_p, self.Q_TARGET_COL: final_q})
 
     # -------------------------------------------------------------------------
-    def exclude_OOB_values(self, dataset: pd.DataFrame):
+    def exclude_OOB_values(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
         filtered_series = dataset.apply(self.filter_elements_outside_boundaries, axis=1)
         dataset[self.P_TARGET_COL] = filtered_series[self.P_TARGET_COL]
@@ -124,7 +129,7 @@ class DataSanitizer:
         return dataset
 
     # -------------------------------------------------------------------------
-    def isolate_processed_features(self, dataset: pd.DataFrame):
+    def isolate_processed_features(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset = dataset[self.included_cols]
         dataset = dataset.dropna().reset_index(drop=True)
         return dataset
@@ -132,7 +137,9 @@ class DataSanitizer:
 
 ###############################################################################
 class AdsorbentEncoder:
-    def __init__(self, configuration, train_dataset):
+    def __init__(
+        self, configuration: dict[str, Any], train_dataset: pd.DataFrame
+    ) -> None:
         self.unknown_class_index = -1
         self.norm_columns = "adsorbent_name"
         self.configuration = configuration
@@ -142,7 +149,7 @@ class AdsorbentEncoder:
         self.mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}
 
     # -------------------------------------------------------------------------
-    def encode_adsorbents_by_name(self, dataset: pd.DataFrame):
+    def encode_adsorbents_by_name(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset["encoded_adsorbent"] = (
             dataset[self.norm_columns]
             .map(self.mapping)
@@ -154,8 +161,8 @@ class AdsorbentEncoder:
 
     # -------------------------------------------------------------------------
     def encode_adsorbents_from_vocabulary(
-        self, dataset: pd.DataFrame, vocabulary: Dict
-    ):
+        self, dataset: pd.DataFrame, vocabulary: dict[str, Any]
+    ) -> tuple[pd.DataFrame, dict[Any, str]]:
         mapping = {label: idx for idx, label in vocabulary.items()}
         dataset["encoded_adsorbent"] = (
             dataset[self.norm_columns]
@@ -169,7 +176,12 @@ class AdsorbentEncoder:
 
 ###############################################################################
 class FeatureNormalizer:
-    def __init__(self, configuration, train_dataset, statistics=None):
+    def __init__(
+        self,
+        configuration: dict[str, Any],
+        train_dataset: pd.DataFrame,
+        statistics: dict | None = None,
+    ) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.norm_columns = ["temperature", "adsorbate_molecular_weight"]
@@ -181,7 +193,7 @@ class FeatureNormalizer:
         )
 
     # -------------------------------------------------------------------------
-    def get_normalization_parameters(self, train_data):
+    def get_normalization_parameters(self, train_data: pd.DataFrame) -> dict[str, Any]:
         statistics = {}
         for col in self.norm_columns:
             statistics[col] = train_data[col].astype(float).max()
@@ -196,25 +208,27 @@ class FeatureNormalizer:
         return statistics
 
     # -------------------------------------------------------------------------
-    def normalize_molecular_features(self, dataset):
-        norm_cols_stats = {
-            k: v for k, v in self.statistics.items() if k in self.norm_columns
-        }
-        for k, v in norm_cols_stats.items():
-            dataset[k] = dataset[k].astype(float) / v
+    def normalize_molecular_features(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        if self.statistics is not None:
+            norm_cols_stats = {
+                k: v for k, v in self.statistics.items() if k in self.norm_columns
+            }
+            for k, v in norm_cols_stats.items():
+                dataset[k] = dataset[k].astype(float) / v
 
         return dataset
 
     # -------------------------------------------------------------------------
-    def PQ_series_normalization(self, dataset):
-        P_max = self.statistics[self.P_COL]
-        Q_max = self.statistics[self.Q_COL]
-        dataset[self.P_COL] = dataset[self.P_COL].apply(
-            lambda x: [(v / P_max) for v in x]
-        )
-        dataset[self.Q_COL] = dataset[self.Q_COL].apply(
-            lambda x: [(v / Q_max) for v in x]
-        )
+    def PQ_series_normalization(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        if self.statistics is not None:
+            P_max = self.statistics[self.P_COL]
+            Q_max = self.statistics[self.Q_COL]
+            dataset[self.P_COL] = dataset[self.P_COL].apply(
+                lambda x: [(v / P_max) for v in x]
+            )
+            dataset[self.Q_COL] = dataset[self.Q_COL].apply(
+                lambda x: [(v / Q_max) for v in x]
+            )
 
         return dataset
 
@@ -222,7 +236,7 @@ class FeatureNormalizer:
 # [DATA SPLITTING]
 ###############################################################################
 class TrainValidationSplit:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.adsorbate_col = "adsorbate_name"
@@ -234,7 +248,7 @@ class TrainValidationSplit:
         self.train_size = 1.0 - self.validation_size
 
     # -------------------------------------------------------------------------
-    def remove_underpopulated_classes(self, dataset):
+    def remove_underpopulated_classes(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset["combination"] = (
             dataset[self.adsorbate_col].astype(str)
             + "_"
@@ -247,7 +261,7 @@ class TrainValidationSplit:
         return dataset
 
     # -------------------------------------------------------------------------
-    def split_train_and_validation(self, dataset: pd.DataFrame, stratified=True):
+    def split_train_and_validation(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset = self.remove_underpopulated_classes(dataset)
         combination_classes = dataset["combination"]
         n_samples = len(dataset)
