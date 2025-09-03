@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import keras
 import numpy as np
 
@@ -6,7 +10,14 @@ import numpy as np
 ###############################################################################
 @keras.saving.register_keras_serializable(package="LinearDecayLRScheduler")
 class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, initial_LR, constant_steps, decay_steps, target_LR, **kwargs):
+    def __init__(
+        self,
+        initial_LR: float,
+        constant_steps: int,
+        decay_steps: int,
+        target_LR: float,
+        **kwargs,
+    ) -> None:
         super(LinearDecayLRScheduler, self).__init__(**kwargs)
         self.initial_LR = initial_LR
         self.constant_steps = constant_steps
@@ -14,7 +25,7 @@ class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         self.target_LR = target_LR
 
     # -------------------------------------------------------------------------
-    def __call__(self, step):
+    def __call__(self, step) -> Any:
         global_step = keras.ops.cast(step, np.float32)
         constant_steps = keras.ops.cast(self.constant_steps, np.float32)
         decay_steps = keras.ops.cast(self.decay_steps, np.float32)
@@ -40,7 +51,7 @@ class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         return learning_rate
 
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         return {
             "initial_LR": self.initial_LR,
             "constant_steps": self.constant_steps,
@@ -49,5 +60,5 @@ class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         }
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "LinearDecayLRScheduler":
         return cls(**config)

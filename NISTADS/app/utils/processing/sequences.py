@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -11,7 +14,7 @@ from NISTADS.app.logger import logger
 # [MERGE DATASETS]
 ###############################################################################
 class PressureUptakeSeriesProcess:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
         self.max_points = configuration.get("max_measurements", 30)
@@ -20,7 +23,7 @@ class PressureUptakeSeriesProcess:
         self.max_uptake = configuration.get("max_uptake", 10)
 
     # -------------------------------------------------------------------------
-    def trim_series(self, series):
+    def trim_series(self, series: list | np.ndarray) -> list | np.ndarray:
         arr = np.asarray(series)
         nonzero_indices = np.flatnonzero(arr)
         start_idx = max(nonzero_indices[0] - 1, 0) if nonzero_indices.size > 0 else 0
@@ -28,7 +31,7 @@ class PressureUptakeSeriesProcess:
         return series[start_idx:]
 
     # -------------------------------------------------------------------------
-    def remove_leading_zeros(self, dataframe: pd.DataFrame):
+    def remove_leading_zeros(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         # remove contiguous leading zeros from pressure and uptake series
         # leaves a single zero value at the series start if present
         dataframe[self.P_COL] = [self.trim_series(p) for p in dataframe[self.P_COL]]
@@ -37,7 +40,7 @@ class PressureUptakeSeriesProcess:
         return dataframe
 
     # -------------------------------------------------------------------------
-    def PQ_series_padding(self, dataset):
+    def PQ_series_padding(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset[self.P_COL] = pad_sequences(
             dataset[self.P_COL],
             maxlen=self.max_points,
@@ -57,7 +60,7 @@ class PressureUptakeSeriesProcess:
         return dataset
 
     # -------------------------------------------------------------------------
-    def filter_by_sequence_size(self, dataset: pd.DataFrame):
+    def filter_by_sequence_size(self, dataset: pd.DataFrame) -> pd.DataFrame:
         # Remove rows where sequence length < min_points
         filtered_data = dataset[
             dataset[self.P_COL].apply(lambda x: len(x) >= self.min_points)
@@ -74,7 +77,7 @@ class PressureUptakeSeriesProcess:
 # [TOKENIZERS]
 ###############################################################################
 class SMILETokenization:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.element_symbols = [
             "H",
             "He",
@@ -198,7 +201,7 @@ class SMILETokenization:
         self.SMILE_padding = configuration.get("SMILE_sequence_size", 20)
 
     # -------------------------------------------------------------------------
-    def tokenize_SMILE_string(self, SMILE):
+    def tokenize_SMILE_string(self, SMILE: str | Any) -> list[Any]:
         tokens = []
         if isinstance(SMILE, str):
             tokens = []
@@ -295,7 +298,9 @@ class SMILETokenization:
         return tokens
 
     # -------------------------------------------------------------------------
-    def encode_SMILE_tokens(self, data: pd.DataFrame):
+    def encode_SMILE_tokens(
+        self, data: pd.DataFrame
+    ) -> tuple[pd.DataFrame, dict[Any, int]]:
         SMILE_tokens = set(
             token for tokens in data["adsorbate_tokenized_SMILE"] for token in tokens
         )
@@ -310,7 +315,7 @@ class SMILETokenization:
         return data, token_to_id
 
     # -------------------------------------------------------------------------
-    def SMILE_series_padding(self, dataset: pd.DataFrame):
+    def SMILE_series_padding(self, dataset: pd.DataFrame) -> pd.DataFrame:
         dataset["adsorbate_encoded_SMILE"] = pad_sequences(
             dataset["adsorbate_encoded_SMILE"],
             maxlen=self.SMILE_padding,
@@ -322,7 +327,9 @@ class SMILETokenization:
         return dataset
 
     # -------------------------------------------------------------------------
-    def process_SMILE_sequences(self, dataset: pd.DataFrame):
+    def process_SMILE_sequences(
+        self, dataset: pd.DataFrame
+    ) -> tuple[pd.DataFrame, dict[Any, int]]:
         dataset["adsorbate_tokenized_SMILE"] = dataset["adsorbate_SMILE"].apply(
             lambda x: self.tokenize_SMILE_string(x)
         )

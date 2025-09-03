@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import sys
 import time
+from typing import Any
 
-import aiohttp
 import numpy as np
 import pandas as pd
 import requests as r
+from aiohttp import ClientSession
+from aiohttp.client_exceptions import ContentTypeError
 from tqdm import tqdm
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
@@ -15,11 +19,11 @@ from NISTADS.app.logger import logger
 # function to retrieve HTML data
 ###############################################################################
 class GetServerStatus:
-    def __init__(self):
+    def __init__(self) -> None:
         self.server_url = "https://adsorption.nist.gov"
 
     # -------------------------------------------------------------------------
-    def check_status(self):
+    def check_status(self) -> None:
         response = r.get(self.server_url)
         # Checking if the request was successful
         if response.status_code == 200:
@@ -37,13 +41,15 @@ class GetServerStatus:
 # function to retrieve HTML data
 ###############################################################################
 class AsyncDataFetcher:
-    def __init__(self, configuration, num_calls=None):
+    def __init__(self, configuration: dict, num_calls: int | None = None) -> None:
         num_calls_by_config = configuration.get("parallel_tasks", 20)
         self.num_calls = num_calls_by_config if num_calls is None else num_calls
         self.semaphore = asyncio.Semaphore(self.num_calls)
 
     # -------------------------------------------------------------------------
-    async def get_call_to_single_endpoint(self, session, url):
+    async def get_call_to_single_endpoint(
+        self, session: ClientSession, url: str
+    ) -> None | Any:
         async with self.semaphore:
             async with session.get(url) as response:
                 if response.status != 200:
@@ -53,13 +59,15 @@ class AsyncDataFetcher:
                     return None
                 try:
                     return await response.json()
-                except aiohttp.client_exceptions.ContentTypeError as e:
+                except ContentTypeError as e:
                     logger.error(f"Error decoding JSON from {url}: {e}")
                     return None
 
     # -------------------------------------------------------------------------
-    async def get_call_to_multiple_endpoints(self, urls, **kwargs):
-        async with aiohttp.ClientSession() as session:
+    async def get_call_to_multiple_endpoints(
+        self, urls: list[str], **kwargs
+    ) -> list[Any]:
+        async with ClientSession() as session:
             tasks = [self.get_call_to_single_endpoint(session, url) for url in urls]
             results = []
             total = len(tasks)
@@ -78,7 +86,7 @@ class AsyncDataFetcher:
 # [NIST DATABASE API]
 ###############################################################################
 class AdsorptionDataFetch:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         # get server status before running any API method,
         # success when returning 200
         self.server = GetServerStatus()
@@ -91,7 +99,7 @@ class AdsorptionDataFetch:
 
     # function to retrieve HTML data
     # -------------------------------------------------------------------------
-    def get_experiments_index(self):
+    def get_experiments_index(self) -> pd.DataFrame | None:
         response = r.get(self.url_isotherms)
         if response.status_code == 200:
             isotherm_index = response.json()
@@ -109,7 +117,7 @@ class AdsorptionDataFetch:
 
     # function to retrieve HTML data
     # -------------------------------------------------------------------------
-    def get_experiments_data(self, experiments_data, **kwargs):
+    def get_experiments_data(self, experiments_data, **kwargs) -> pd.DataFrame | None:
         async_fetcher = AsyncDataFetcher(self.configuration)
         num_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))
         if isinstance(experiments_data, pd.DataFrame) and experiments_data.shape[0] > 0:
@@ -144,7 +152,7 @@ class AdsorptionDataFetch:
 # [NIST DATABASE API: GUEST/HOST]
 ###############################################################################
 class GuestHostDataFetch:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         # get server status before running any API method,
         # success when returning 200
         self.server = GetServerStatus()
@@ -171,7 +179,7 @@ class GuestHostDataFetch:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def get_materials_index(self):
+    def get_materials_index(self) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
         guest_json, guest_data = r.get(self.url_GUEST), None
         host_json, host_data = r.get(self.url_HOST), None
         if guest_json.status_code == 200:
@@ -192,7 +200,9 @@ class GuestHostDataFetch:
         return guest_data, host_data
 
     # -------------------------------------------------------------------------
-    def get_materials_data(self, guest_index=None, host_index=None, **kwargs):
+    def get_materials_data(
+        self, guest_index=None, host_index=None, **kwargs
+    ) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
         # Always create a new event loop in a QThread context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

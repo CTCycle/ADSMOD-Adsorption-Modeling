@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import os
+from typing import Any
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from keras import Model
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
@@ -14,14 +18,16 @@ from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 # [LOAD MODEL]
 ################################################################################
 class ModelEvaluationSummary:
-    def __init__(self, configuration: Dict[str, Any], model: Model | None = None):
+    def __init__(
+        self, configuration: dict[str, Any], model: Model | None = None
+    ) -> None:
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.model = model
         self.configuration = configuration
 
     # --------------------------------------------------------------------------
-    def scan_checkpoint_folder(self) -> List[str]:
+    def scan_checkpoint_folder(self) -> list[str]:
         model_paths = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -37,7 +43,7 @@ class ModelEvaluationSummary:
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []
         for i, model_path in enumerate(model_paths):
-            model = self.modser.load_checkpoint(model_path)
+            _ = self.modser.load_checkpoint(model_path)
             configuration, metadata, history = self.modser.load_training_configuration(
                 model_path
             )
@@ -93,10 +99,14 @@ class ModelEvaluationSummary:
         return dataframe
 
     # -------------------------------------------------------------------------
-    def get_evaluation_report(self, model, validation_dataset, **kwargs):
+    def get_evaluation_report(
+        self, model: Model, validation_dataset: tf.data.Dataset | np.ndarray, **kwargs
+    ) -> None:
         callbacks_list = [LearningInterruptCallback(kwargs.get("worker", None))]
         validation = model.evaluate(
-            validation_dataset, verbose=1, callbacks=callbacks_list
+            validation_dataset,
+            verbose=1,
+            callbacks=callbacks_list,  # type: ignore
         )
         logger.info(
             f"Mean Square Error Loss {validation[0]:.3f} - R square metrics {validation[1]:.3f}"

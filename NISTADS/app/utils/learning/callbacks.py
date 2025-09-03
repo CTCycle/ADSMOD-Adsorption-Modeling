@@ -1,26 +1,33 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import time
 import webbrowser
+from typing import Any
 
 import keras
 import matplotlib.pyplot as plt
+from keras import Model
+from keras.callbacks import Callback
 
-from NISTADS.app.client.workers import WorkerInterrupted
+from NISTADS.app.client.workers import ProcessWorker, ThreadWorker, WorkerInterrupted
 from NISTADS.app.logger import logger
 
 
 # [CALLBACK FOR UI PROGRESS BAR]
 ###############################################################################
 class ProgressBarCallback(Callback):
-    def __init__(self, progress_callback, total_epochs, from_epoch=0):
+    def __init__(
+        self, progress_callback, total_epochs: int, from_epoch: int = 0
+    ) -> None:
         super().__init__()
         self.progress_callback = progress_callback
         self.total_epochs = total_epochs
         self.from_epoch = from_epoch
 
     # -------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs: Dict | None = None):
+    def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
         processed_epochs = epoch - self.from_epoch + 1
         additional_epochs = max(1, self.total_epochs - self.from_epoch)
         percent = int(100 * processed_epochs / additional_epochs)
@@ -31,21 +38,27 @@ class ProgressBarCallback(Callback):
 # [CALLBACK FOR TRAIN INTERRUPTION]
 ###############################################################################
 class LearningInterruptCallback(Callback):
-    def __init__(self, worker=None):
+    def __init__(self, worker: ThreadWorker | ProcessWorker | None = None) -> None:
         super().__init__()
         self.worker = worker
+        self.model: Model
 
     # -------------------------------------------------------------------------
-    def on_batch_end(self, batch, logs: Dict | None = None):
+    def on_batch_end(self, batch, logs: dict | None = None) -> None:
         if self.worker is not None and self.worker.is_interrupted():
             self.model.stop_training = True
+            raise WorkerInterrupted()
+
+    # -------------------------------------------------------------------------
+    def on_validation_batch_end(self, batch, logs: dict | None = None) -> None:
+        if self.worker is not None and self.worker.is_interrupted():
             raise WorkerInterrupted()
 
 
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 ###############################################################################
 class RealTimeHistory(Callback):
-    def __init__(self, plot_path, past_logs: Dict | None = None, **kwargs):
+    def __init__(self, plot_path, past_logs: dict | None = None, **kwargs) -> None:
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path
         os.makedirs(self.plot_path, exist_ok=True)
@@ -57,10 +70,12 @@ class RealTimeHistory(Callback):
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
                 self.history["history"][metric] = list(values)
-            self.history["epochs"] = past_logs.get("epochs", len(values))
+            self.history["epochs"] = past_logs.get(
+                "epochs", len(next(iter(past_logs["history"].values())))
+            )
 
     # -------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs: Dict | None = None):
+    def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
         logs = logs or {}
         for key, value in logs.items():
             if key not in self.history["history"]:
@@ -70,7 +85,7 @@ class RealTimeHistory(Callback):
         self.plot_training_history()
 
     # -------------------------------------------------------------------------
-    def plot_training_history(self):
+    def plot_training_history(self) -> None:
         fig_path = os.path.join(self.plot_path, "training_history.jpeg")
         plt.figure(figsize=(16, 14))
         metrics = self.history["history"]
@@ -102,8 +117,12 @@ class RealTimeHistory(Callback):
 # [CALLBACKS HANDLER]
 ###############################################################################
 def initialize_callbacks_handler(
-    configuration, checkpoint_path, session=None, total_epochs=100, **kwargs
-):
+    configuration: dict[str, Any],
+    checkpoint_path: str,
+    session: dict = {},
+    total_epochs: int = 100,
+    **kwargs,
+) -> list[Any]:
     from_epoch = 0
     additional_epochs = configuration.get("additional_epochs", 10)
     if session:
@@ -150,7 +169,7 @@ def initialize_callbacks_handler(
 
 
 ###############################################################################
-def start_tensorboard_subprocess(log_dir):
+def start_tensorboard_subprocess(log_dir: str) -> None:
     tensorboard_command = ["tensorboard", "--logdir", log_dir, "--port", "6006"]
     subprocess.Popen(
         tensorboard_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

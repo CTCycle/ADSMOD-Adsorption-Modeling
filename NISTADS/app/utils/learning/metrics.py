@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import keras
 
 from NISTADS.app.constants import PAD_VALUE
@@ -10,11 +14,11 @@ from NISTADS.app.constants import PAD_VALUE
     package="CustomLoss", name="MaskedMeanSquaredError"
 )
 class MaskedMeanSquaredError(keras.losses.Loss):
-    def __init__(self, name="MaskedMeanSquaredError", **kwargs):
+    def __init__(self, name: str = "MaskedMeanSquaredError", **kwargs) -> None:
         super(MaskedMeanSquaredError, self).__init__(name=name, **kwargs)
 
     # -------------------------------------------------------------------------
-    def call(self, y_true, y_pred):
+    def call(self, y_true, y_pred) -> Any:
         mask = keras.ops.not_equal(y_true, PAD_VALUE)
         mask = keras.ops.cast(mask, dtype=y_true.dtype)
         # squeeze output dimensions: (batch size, points, 1) --> (batch size, points)
@@ -26,12 +30,12 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         return loss
 
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         base_config = super(MaskedMeanSquaredError, self).get_config()
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "MaskedMeanSquaredError":
         return cls(**config)
 
 
@@ -41,14 +45,14 @@ class MaskedMeanSquaredError(keras.losses.Loss):
     package="CustomMetrics", name="MaskedRSquared"
 )
 class MaskedRSquared(keras.metrics.Metric):
-    def __init__(self, name="MaskedR2", **kwargs):
+    def __init__(self, name: str = "MaskedR2", **kwargs) -> None:
         super(MaskedRSquared, self).__init__(name=name, **kwargs)
         self.ssr = self.add_weight(name="ssr", initializer="zeros")
         self.sst = self.add_weight(name="sst", initializer="zeros")
         self.count = self.add_weight(name="count", initializer="zeros")
 
     # -------------------------------------------------------------------------
-    def update_state(self, y_true, y_pred, sample_weight=None):
+    def update_state(self, y_true, y_pred, sample_weight=None) -> None:
         # squeeze output dimensions: (batch size, points, 1) --> (batch size, points)
         y_pred = keras.ops.squeeze(y_pred, axis=-1)
 
@@ -82,20 +86,20 @@ class MaskedRSquared(keras.metrics.Metric):
         self.count.assign_add(keras.ops.sum(mask))
 
     # -------------------------------------------------------------------------
-    def result(self):
+    def result(self) -> Any:
         return 1 - (self.ssr / (self.sst + keras.backend.epsilon()))
 
     # -------------------------------------------------------------------------
-    def reset_states(self):
+    def reset_states(self) -> None:
         self.ssr.assign(0)
         self.sst.assign(0)
         self.count.assign(0)
 
     # -------------------------------------------------------------------------
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         base_config = super(MaskedRSquared, self).get_config()
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config) -> "MaskedRSquared":
         return cls(**config)

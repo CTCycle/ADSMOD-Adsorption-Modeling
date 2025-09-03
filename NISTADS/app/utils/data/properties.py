@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -12,12 +15,12 @@ from NISTADS.app.logger import logger
 # [DATASET OPERATIONS]
 ###############################################################################
 class MolecularProperties:
-    def __init__(self, configuration: Dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.molecular_identifier = "InChIKey"
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def remove_duplicates_without_identifiers(self, data: pd.DataFrame):
+    def remove_duplicates_without_identifiers(self, data: pd.DataFrame) -> pd.DataFrame:
         if self.molecular_identifier in data.columns:
             data = (
                 data.assign(_has_id=data["InChIKey"].notna())
@@ -30,7 +33,9 @@ class MolecularProperties:
         return data
 
     # -------------------------------------------------------------------------
-    def extract_fetched_properties(self, data: pd.DataFrame, properties: Dict):
+    def extract_fetched_properties(
+        self, data: pd.DataFrame, properties: dict
+    ) -> None | pd.DataFrame:
         if not properties:
             return
 
@@ -46,7 +51,7 @@ class MolecularProperties:
     # -------------------------------------------------------------------------
     def fetch_guest_properties(
         self, experiments: pd.DataFrame, data: pd.DataFrame, **kwargs
-    ):
+    ) -> None | pd.DataFrame:
         compound_properties = CompoundProperties(
             self.configuration, compound_type="adsorbate"
         )
@@ -69,7 +74,7 @@ class MolecularProperties:
         return dataset
 
     # -------------------------------------------------------------------------
-    def fetch_host_properties(self, experiments, data, **kwargs):
+    def fetch_host_properties(self, experiments, data, **kwargs) -> None | pd.DataFrame:
         compound_properties = CompoundProperties(
             self.configuration, compound_type="adsorbent"
         )
@@ -93,7 +98,7 @@ class MolecularProperties:
 
 ###############################################################################
 class CompoundProperties:
-    def __init__(self, configuration, compound_type="adsorbate"):
+    def __init__(self, configuration: dict, compound_type: str = "adsorbate") -> None:
         self.configuration = configuration
         self.compound_type = compound_type.lower()
         prefix = self.compound_type
@@ -105,31 +110,34 @@ class CompoundProperties:
         }
 
     # -------------------------------------------------------------------------
-    def is_chemical_formula(self, string):
+    def is_chemical_formula(self, string: str) -> bool:
         formula_pattern = r"^[A-Za-z0-9\[\](){}·.,+\-_/]+$"
         return bool(re.match(formula_pattern, string))
 
     # -------------------------------------------------------------------------
-    def get_molecular_properties(self, identifier, namespace):
+    def get_molecular_properties(
+        self, identifier: str | np.ndarray, namespace: str
+    ) -> pd.Series | pcp.Compound | None:
         try:
             compounds = pcp.get_compounds(
                 identifier, namespace=namespace, list_return="flat"
             )
-            compound = compounds[0] if compounds else None
-        except:
+            return compounds[0]
+        except Exception:
             logger.error(
                 f"Cannot fetch molecules properties for identifier {identifier}: [{namespace}]"
             )
-            compound = None
-        return compound
+            return
 
     # -------------------------------------------------------------------------
-    def get_properties_for_multiple_compounds(self, names: list, **kwargs):
+    def get_properties_for_multiple_compounds(
+        self, names: list[str] | np.ndarray, **kwargs
+    ) -> dict[str, list]:
         for i, name in enumerate(tqdm(names, total=len(names))):
             # Optionally check for chemical formula
             # is_formula = self.is_chemical_formula(name)
             compound = self.get_molecular_properties(name, namespace="name")
-            if compound:
+            if compound is not None:
                 self.extract_properties(name, compound)
 
             check_thread_status(kwargs.get("worker", None))
@@ -140,7 +148,9 @@ class CompoundProperties:
         return self.properties
 
     # -------------------------------------------------------------------------
-    def extract_properties(self, name, compound):
+    def extract_properties(
+        self, name: str | np.ndarray, compound: pd.Series | pcp.Compound | None
+    ) -> None:
         molecular_weight = float(getattr(compound, "molecular_weight", np.nan))
         molecular_formula = getattr(compound, "molecular_formula", np.nan)
         SMILE = np.nan
