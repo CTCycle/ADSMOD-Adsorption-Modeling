@@ -125,10 +125,10 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)
 
     # -------------------------------------------------------------------------
-    def save_materials_datasets(self, guest_data=None, host_data=None) -> None:
-        if guest_data:
+    def save_materials_datasets(self, guest_data : pd.DataFrame | None =None, host_data : pd.DataFrame | None =None) -> None:
+        if isinstance(guest_data, pd.DataFrame):
             database.upsert_into_database(guest_data, "ADSORBATES")
-        if host_data:
+        if isinstance(host_data, pd.DataFrame):
             database.upsert_into_database(host_data, "ADSORBENTS")
 
     # -------------------------------------------------------------------------
