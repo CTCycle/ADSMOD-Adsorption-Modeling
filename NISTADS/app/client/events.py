@@ -93,13 +93,17 @@ class DatasetEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
-        # 1. get isotherm indexes invoking API from NIST-ARPA-E database
+        # 1. get isotherm indexes invoking api_client from NIST-ARPA-E database
         logger.info("Collect adsorption isotherm indices from NIST-ARPA-E database")
-        API = AdsorptionDataFetch(self.configuration)
-        experiments_index = API.get_experiments_index()
+        api_client = AdsorptionDataFetch(self.configuration)
+        experiments_index = api_client.get_experiments_index()
         # 2. collect experiments data based on the fetched index
+        if experiments_index is None:
+            logger.warning("Experiments index was not correctly fetched")
+            return
+
         logger.info("Extracting adsorption isotherms data from JSON response")
-        adsorption_data = API.get_experiments_data(
+        adsorption_data = api_client.get_experiments_data(
             experiments_index, worker=worker, progress_callback=progress_callback
         )
 
@@ -128,13 +132,13 @@ class DatasetEvents:
         self.serializer.save_adsorption_datasets(single_component, binary_mixture)
         logger.info("Experiments data collection is concluded")
 
-        # get guest and host indexes invoking API
+        # get guest and host indexes invoking api_client
         logger.info("Collect guest and host indices from NIST-ARPA-E database")
-        API = GuestHostDataFetch(self.configuration)
-        guest_index, host_index = API.get_materials_index()
+        api_client = GuestHostDataFetch(self.configuration)
+        guest_index, host_index = api_client.get_materials_index()
         # extract adsorbents and sorbates data from relative indices
         logger.info("Extracting adsorbents and sorbates data from relative indices")
-        guest_data, host_data = API.get_materials_data(
+        guest_data, host_data = api_client.get_materials_data(
             guest_index, host_index, worker=worker, progress_callback=progress_callback
         )
 
@@ -154,7 +158,7 @@ class DatasetEvents:
         # process guest (adsorbed species) data by adding molecular properties
         if target == "guest":
             logger.info(
-                "Retrieving molecular properties for sorbate species using PubChem API"
+                "Retrieving molecular properties for sorbate species using PubChem api_client"
             )
             guest_data = properties.fetch_guest_properties(
                 experiments,
@@ -169,7 +173,7 @@ class DatasetEvents:
         # process host (adsorbent materials) data by adding molecular properties
         elif target == "host":
             logger.info(
-                "Retrieving molecular properties for adsorbent materials using PubChem API"
+                "Retrieving molecular properties for adsorbent materials using PubChem api_client"
             )
             host_data = properties.fetch_host_properties(
                 experiments,

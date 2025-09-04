@@ -4,6 +4,7 @@ import asyncio
 import sys
 import time
 from typing import Any
+import contextlib
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,12 @@ from aiohttp import ClientSession
 from aiohttp.client_exceptions import ContentTypeError
 from tqdm import tqdm
 
-from NISTADS.app.client.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import (
+    WorkerInterrupted,
+    check_thread_status,
+    update_progress_callback,
+    cancel_asyncio_tasks_if_interrupted,
+)
 from NISTADS.app.logger import logger
 
 
@@ -41,7 +47,9 @@ class GetServerStatus:
 # function to retrieve HTML data
 ###############################################################################
 class AsyncDataFetcher:
-    def __init__(self, configuration: dict, num_calls: int | None = None) -> None:
+    def __init__(
+        self, configuration: dict[str, Any], num_calls: int | None = None
+    ) -> None:
         num_calls_by_config = configuration.get("parallel_tasks", 20)
         self.num_calls = num_calls_by_config if num_calls is None else num_calls
         self.semaphore = asyncio.Semaphore(self.num_calls)
@@ -104,23 +112,24 @@ class AdsorptionDataFetch:
         if response.status_code == 200:
             isotherm_index = response.json()
             experiments_data = pd.DataFrame(isotherm_index)
-            logger.info(
-                f"Successfully retrieved adsorption isotherm index from {self.url_isotherms}"
-            )
+            message = f"Successfully retrieved adsorption isotherm index from {self.url_isotherms}"
+            logger.info(message)
+            return experiments_data
         else:
-            logger.error(
+            message = (
                 f"Error: Failed to retrieve data. Status code: {response.status_code}"
             )
-            experiments_data = None
-
-        return experiments_data
+            logger.error(message)
+            return
 
     # function to retrieve HTML data
     # -------------------------------------------------------------------------
-    def get_experiments_data(self, experiments_data, **kwargs) -> pd.DataFrame | None:
+    def get_experiments_data(
+        self, experiments_data: pd.DataFrame, **kwargs
+    ) -> pd.DataFrame | None:
         async_fetcher = AsyncDataFetcher(self.configuration)
-        num_samples = int(np.ceil(self.exp_fraction * experiments_data.shape[0]))
-        if isinstance(experiments_data, pd.DataFrame) and experiments_data.shape[0] > 0:
+        num_samples = int(np.ceil(self.exp_fraction * len(experiments_data)))
+        if isinstance(experiments_data, pd.DataFrame) and len(experiments_data) > 0:
             exp_URLs = [
                 f"https://adsorption.nist.gov/isodb/api/isotherm/{n}.json"
                 for n in experiments_data[self.exp_identifier].to_list()[:num_samples]
@@ -130,7 +139,6 @@ class AdsorptionDataFetch:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                # parallel endpoint calls using run_unit_complete on the event loop
                 adsorption_isotherms_data = loop.run_until_complete(
                     async_fetcher.get_call_to_multiple_endpoints(
                         exp_URLs,
@@ -138,8 +146,10 @@ class AdsorptionDataFetch:
                         progress_callback=kwargs.get("progress_callback", None),
                     )
                 )
-            finally:
-                loop.close()
+            except (asyncio.CancelledError, WorkerInterrupted):
+                cancel_asyncio_tasks_if_interrupted(kwargs.get("worker", None), loop)
+                adsorption_isotherms_data = []
+                return
 
             adsorption_isotherms_data = [
                 d for d in adsorption_isotherms_data if d is not None
@@ -201,13 +211,19 @@ class GuestHostDataFetch:
 
     # -------------------------------------------------------------------------
     def get_materials_data(
-        self, guest_index=None, host_index=None, **kwargs
+        self,
+        guest_index: pd.DataFrame | None = None,
+        host_index: pd.DataFrame | None = None,
+        **kwargs,
     ) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
         # Always create a new event loop in a QThread context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
         guest_data, host_data = None, None
         async_fetcher = AsyncDataFetcher(self.configuration)
+        worker = kwargs.get("worker", None)
+        progress_callback = kwargs.get("progress_callback", None)
 
         try:
             if isinstance(guest_index, pd.DataFrame) and guest_index.shape[0] > 0:
@@ -216,23 +232,36 @@ class GuestHostDataFetch:
                     f"https://adsorption.nist.gov/isodb/api/gas/{n}.json"
                     for n in guest_index[self.guest_identifier].to_list()[:num_samples]
                 ]
-                guest_data = loop.run_until_complete(
-                    async_fetcher.get_call_to_multiple_endpoints(
-                        guest_urls,
-                        worker=kwargs.get("worker", None),
-                        progress_callback=kwargs.get("progress_callback", None),
-                    )
-                )
 
-                guest_data = [data for data in guest_data if data is not None]
-                guest_data = pd.DataFrame(guest_data)
-                guest_data = guest_data.drop(columns=["synonyms"], axis=1)
-                guest_data = guest_data.assign(
-                    **{col: np.nan for col in self.extra_guest_columns}
-                )
+                try:
+                    guest_data = loop.run_until_complete(
+                        async_fetcher.get_call_to_multiple_endpoints(
+                            guest_urls,
+                            worker=worker,
+                            progress_callback=progress_callback,
+                        )
+                    )
+                except (asyncio.CancelledError, WorkerInterrupted):
+                    cancel_asyncio_tasks_if_interrupted(worker, loop)
+                    guest_data = []
+
+                guest_data = [d for d in (guest_data or []) if d is not None]
+                if len(guest_data) > 0:
+                    guest_data = pd.DataFrame(guest_data)
+                    # drop if present; ignore if missing
+                    guest_data = guest_data.drop(
+                        columns=["synonyms"], axis=1, errors="ignore"
+                    )
+                    guest_data = guest_data.assign(
+                        **{col: np.nan for col in self.extra_guest_columns}
+                    )
+                else:
+                    guest_data = pd.DataFrame(
+                        columns=[self.guest_identifier, *self.extra_guest_columns]
+                    )
             else:
                 logger.error(
-                    "No available guest data has been found. Skipping directly to host index"
+                    "No available guest data index has been found. Skipping guest fetch."
                 )
 
             if isinstance(host_index, pd.DataFrame) and host_index.shape[0] > 0:
@@ -241,25 +270,39 @@ class GuestHostDataFetch:
                     f"https://adsorption.nist.gov/isodb/api/material/{n}.json"
                     for n in host_index[self.host_identifier].to_list()[:num_samples]
                 ]
-                host_data = loop.run_until_complete(
-                    async_fetcher.get_call_to_multiple_endpoints(
-                        host_urls,
-                        worker=kwargs.get("worker", None),
-                        progress_callback=kwargs.get("progress_callback", None),
+
+                try:
+                    host_data = loop.run_until_complete(
+                        async_fetcher.get_call_to_multiple_endpoints(
+                            host_urls,
+                            worker=worker,
+                            progress_callback=progress_callback,
+                        )
                     )
-                )
+                except (asyncio.CancelledError, WorkerInterrupted):
+                    cancel_asyncio_tasks_if_interrupted(worker, loop)
+                    host_data = []
 
-                host_data = [data for data in host_data if data is not None]
-                host_data = pd.DataFrame(host_data)
-                host_data = host_data.drop(
-                    columns=["External_Resources", "synonyms"], axis=1
-                )
-                host_data = host_data.assign(
-                    **{col: np.nan for col in self.extra_host_columns}
-                )
-
+                host_data = [d for d in (host_data or []) if d is not None]
+                if len(host_data) > 0:
+                    host_data = pd.DataFrame(host_data)
+                    host_data = host_data.drop(
+                        columns=["External_Resources", "synonyms"],
+                        axis=1,
+                        errors="ignore",
+                    )
+                    host_data = host_data.assign(
+                        **{col: np.nan for col in self.extra_host_columns}
+                    )
+                else:
+                    host_data = pd.DataFrame(
+                        columns=[self.host_identifier, *self.extra_host_columns]
+                    )
             else:
-                logger.error("No available host data has been found.")
+                logger.error(
+                    "No available host data index has been found. Skipping host fetch."
+                )
+
         finally:
             loop.close()
 

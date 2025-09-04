@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import traceback
 from collections.abc import Callable
@@ -273,6 +274,25 @@ class ProcessWorker(QObject):
 def check_thread_status(worker: ThreadWorker | ProcessWorker | None) -> None:
     if worker is not None and worker.is_interrupted():
         raise WorkerInterrupted()
+
+
+# -----------------------------------------------------------------------------
+def cancel_asyncio_tasks_if_interrupted(
+    worker: ThreadWorker | ProcessWorker | None,
+    loop: asyncio.AbstractEventLoop | None = None,
+) -> None:
+    """
+    Cancels all running asyncio tasks in the provided loop if the worker has been interrupted.
+    Use inside or after an async event loop to prevent pending tasks from being destroyed after interruption.
+    """
+    if worker is not None and worker.is_interrupted():
+        loop = loop or asyncio.get_event_loop()
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        # Optionally, run until all cancelled
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
 
 # -----------------------------------------------------------------------------
