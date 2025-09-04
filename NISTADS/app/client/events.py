@@ -7,7 +7,12 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from pandas.core.frame import DataFrame
 from PySide6.QtGui import QImage, QPixmap
 
-from NISTADS.app.client.workers import check_thread_status, update_progress_callback
+from NISTADS.app.client.workers import (
+    ProcessWorker,
+    ThreadWorker,
+    check_thread_status,
+    update_progress_callback,
+)
 from NISTADS.app.logger import logger
 from NISTADS.app.utils.api.server import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.app.utils.data.builder import BuildAdsorptionDataset
@@ -84,7 +89,9 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     def run_data_collection_pipeline(
-        self, progress_callback: Any | None = None, worker=None
+        self,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         # 1. get isotherm indexes invoking API from NIST-ARPA-E database
         logger.info("Collect adsorption isotherm indices from NIST-ARPA-E database")
@@ -137,7 +144,10 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     def run_chemical_properties_pipeline(
-        self, target: str = "guest", progress_callback: Any | None = None, worker=None
+        self,
+        target: str = "guest",
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         experiments, guest_data, host_data = self.serializer.load_adsorption_datasets()
         properties = MolecularProperties(self.configuration)
@@ -174,7 +184,9 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     def run_dataset_builder(
-        self, progress_callback: Any | None = None, worker=None
+        self,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         adsorption_data, guest_data, host_data = (
             self.serializer.load_adsorption_datasets()
@@ -301,7 +313,9 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def rebuild_dataset_from_metadata(metadata: dict) -> tuple[DataFrame, DataFrame]:
+    def rebuild_dataset_from_metadata(
+        metadata: dict[str, Any],
+    ) -> tuple[DataFrame, DataFrame]:
         serializer = DataSerializer()
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()
         logger.info(f"{len(adsorption_data)} measurements in the dataset")
@@ -382,15 +396,18 @@ class DatasetEvents:
 
 ###############################################################################
 class ValidationEvents:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(
-        self, metrics, progress_callback: Any | None = None, worker=None
-    ):
+        self,
+        metrics: list[str],
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
+    ) -> None:
         adsorption_data, guest_data, host_data = (
             self.serializer.load_adsorption_datasets()
         )
@@ -420,8 +437,10 @@ class ValidationEvents:
 
     # -------------------------------------------------------------------------
     def get_checkpoints_summary(
-        self, progress_callback: Any | None = None, worker=None
-    ):
+        self,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
+    ) -> None:
         summarizer = ModelEvaluationSummary(self.configuration)
         checkpoints_summary = summarizer.get_checkpoints_summary(
             progress_callback=progress_callback, worker=worker
@@ -437,8 +456,8 @@ class ValidationEvents:
         metrics,
         selected_checkpoint: str,
         progress_callback: Any | None = None,
-        worker=None,
-    ):
+        worker: ThreadWorker | ProcessWorker | None = None,
+    ) -> list[Any]:
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
             return

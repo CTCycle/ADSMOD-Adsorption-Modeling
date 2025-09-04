@@ -182,12 +182,14 @@ class NISTADSDatabase:
         raise ValueError(f"No table class found for name {table_name}")
 
     # -------------------------------------------------------------------------
-    def update_database_from_sources(self) -> None:
+    def update_database_from_sources(self) -> pd.DataFrame | None:
         dataset = pd.read_csv(self.inference_path, sep=";", encoding="utf-8")
         self.save_into_database(dataset, "PREDICTED_ADSORPTION")
 
+        return dataset
+
     # -------------------------------------------------------------------------
-    def _upsert_dataframe(self, data: pd.DataFrame, table_cls) -> None:
+    def _upsert_dataframe(self, data: pd.DataFrame, table_cls: Any) -> None:
         table = table_cls.__table__
         session = self.Session()
         try:

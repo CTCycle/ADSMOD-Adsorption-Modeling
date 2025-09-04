@@ -134,7 +134,7 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def save_adsorption_datasets(
         self, single_component: pd.DataFrame, binary_mixture: pd.DataFrame
-    ):
+    ) -> None:
         database.upsert_into_database(single_component, "SINGLE_COMPONENT_ADSORPTION")
         database.upsert_into_database(binary_mixture, "BINARY_MIXTURE_ADSORPTION")
 
