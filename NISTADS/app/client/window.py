@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import cast
 
+import pandas as pd
+
 from NISTADS.app.variables import EnvironmentVariables
 
 EV = EnvironmentVariables()
@@ -414,19 +416,19 @@ class MainWindow:
         worker.start()
 
     # -------------------------------------------------------------------------
-    def _send_message(self, message : str) -> None:
+    def _send_message(self, message: str) -> None:
         self.main_win.statusBar().showMessage(message)
 
     # [SETUP]
     ###########################################################################
-    def _setup_configuration(self, widget_defs : Any) -> None:
+    def _setup_configuration(self, widget_defs: Any) -> None:
         for cls, name, attr in widget_defs:
             w = self.main_win.findChild(cls, name)
             setattr(self, attr, w)
             self.widgets[attr] = w
 
     # -------------------------------------------------------------------------
-    def _connect_signals(self, connections : Any) -> None:
+    def _connect_signals(self, connections: Any) -> None:
         for attr, signal, slot in connections:
             widget = self.widgets[attr]
             getattr(widget, signal).connect(slot)
@@ -918,7 +920,11 @@ class MainWindow:
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
     ###########################################################################
-    def on_database_uploading_finished(self, source_data) -> None:
+    def on_database_uploading_finished(self, source_data: pd.DataFrame | None) -> None:
+        if source_data is None:
+            message = "No source data found in resources"
+            return
+
         message = (
             f"Database updated with current source data ({len(source_data)}) records"
         )
@@ -937,7 +943,7 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_dataset_evaluation_finished(self, plots) -> None:
+    def on_dataset_evaluation_finished(self, plots: list[Any]) -> None:
         self._send_message("Figures have been generated")
         self.worker = self.worker.cleanup() if self.worker else None
 
