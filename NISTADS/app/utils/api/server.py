@@ -39,9 +39,8 @@ class GetServerStatus:
         else:
             logger.error(
                 f"Failed to reach the server. Status code: {response.status_code}"
-            )
-            time.sleep(4)
-            sys.exit()
+            )        
+            
 
 
 # function to retrieve HTML data

@@ -23,7 +23,7 @@ class BuildAdsorptionDataset:
             "date",
             "adsorbent",
             "adsorbates",
-            "numGuests",
+            "num_guests",
             "isotherm_data",
             "adsorbent_ID",
             "adsorbates_ID",
@@ -40,7 +40,7 @@ class BuildAdsorptionDataset:
             "date",
             "adsorbent",
             "adsorbates",
-            "numGuests",
+            "num_guests",
             "isotherm_data",
             "adsorbent_ID",
             "adsorbates_ID",
@@ -62,10 +62,9 @@ class BuildAdsorptionDataset:
     def split_by_mixture_complexity(
         self, dataframe: pd.DataFrame
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        dataframe["numGuests"] = dataframe["adsorbates"].apply(lambda x: len(x))
-        df_grouped = dataframe.groupby("numGuests")
-        single_compound = df_grouped.get_group(1)
-        binary_mixture = df_grouped.get_group(2)
+        dataframe["num_guests"] = dataframe["adsorbates"].str.len()
+        single_compound = dataframe[dataframe["num_guests"] == 1]
+        binary_mixture = dataframe[dataframe["num_guests"] == 2]
 
         return single_compound, binary_mixture
 
@@ -89,7 +88,7 @@ class BuildAdsorptionDataset:
         )
 
         # check if the number of guest species is one (single component dataset)
-        if (dataframe["numGuests"] == 1).all():
+        if (dataframe["num_guests"] == 1).all():
             dataframe["pressure"] = dataframe["isotherm_data"].apply(
                 lambda x: [f["pressure"] for f in x]
             )
@@ -102,7 +101,7 @@ class BuildAdsorptionDataset:
             dataframe["composition"] = 1.0
 
         # check if the number of guest species is two (binary mixture dataset)
-        elif (dataframe["numGuests"] == 2).all():
+        elif (dataframe["num_guests"] == 2).all():
             data_placeholder = {"composition": 1.0, "adsorption": 1.0}
             dataframe["total_pressure"] = dataframe["isotherm_data"].apply(
                 lambda x: [f["pressure"] for f in x]

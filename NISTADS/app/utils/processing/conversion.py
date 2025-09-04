@@ -79,9 +79,7 @@ class UptakeConversion:
         return [(q_val / 100) / float(mol_weight) * 1000 for q_val in q_vals]
 
     # -------------------------------------------------------------------------
-    def convert_ml_stp_g_or_cm3_stp_g(
-        self, q_vals: list[int | float], mol_weight: float
-    ) -> list[float]:
+    def convert_ml_stp_g_or_cm3_stp_g(self, q_vals: list[int | float]) -> list[float]:
         return [q_val / 22.414 * 1000 for q_val in q_vals]
 
     # -------------------------------------------------------------------------

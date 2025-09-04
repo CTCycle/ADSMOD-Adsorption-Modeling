@@ -262,7 +262,7 @@ class TrainValidationSplit:
 
     # -------------------------------------------------------------------------
     def split_train_and_validation(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        dataset = self.remove_underpopulated_classes(dataset)
+        dataset = self.remove_underpopulated_classes(dataset).reset_index(drop=True)
         combination_classes = dataset["combination"]
         n_samples = len(dataset)
 
@@ -275,7 +275,6 @@ class TrainValidationSplit:
             logger.warning(
                 "Validation set too small for the number of classes. Falling back to default split"
             )
-            # Fallback to simple random split, no stratification
             train_idx, val_idx = train_test_split(
                 range(n_samples),
                 test_size=self.validation_size,
@@ -286,5 +285,4 @@ class TrainValidationSplit:
         dataset = dataset.drop(columns=["combination"]).copy()
         dataset.loc[train_idx, "split"] = "train"
         dataset.loc[val_idx, "split"] = "validation"
-
         return dataset
