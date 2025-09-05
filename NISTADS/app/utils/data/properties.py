@@ -121,12 +121,10 @@ class CompoundProperties:
         try:
             compounds = pcp.get_compounds(
                 identifier, namespace=namespace, list_return="flat"
-            )            
+            )
             return compounds[0]
         except Exception:
-            logger.error(
-                f"Cannot fetch molecules properties for {identifier}]"
-            )
+            logger.error(f"Cannot fetch molecules properties for {identifier}]")
             return
 
     # -------------------------------------------------------------------------

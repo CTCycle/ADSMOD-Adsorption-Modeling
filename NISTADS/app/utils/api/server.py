@@ -39,8 +39,7 @@ class GetServerStatus:
         else:
             logger.error(
                 f"Failed to reach the server. Status code: {response.status_code}"
-            )        
-            
+            )
 
 
 # function to retrieve HTML data
