@@ -87,6 +87,7 @@ class DataSanitizer:
             "encoded_adsorbent",
             "adsorbate_molecular_weight",
             "adsorbate_encoded_SMILE",
+            "split"
         ]
 
     # -------------------------------------------------------------------------
@@ -282,7 +283,8 @@ class TrainValidationSplit:
                 shuffle=True,
             )
 
-        dataset = dataset.drop(columns=["combination"]).copy()
+        dataset = dataset.drop(columns=["combination"])
         dataset.loc[train_idx, "split"] = "train"
         dataset.loc[val_idx, "split"] = "validation"
+
         return dataset
