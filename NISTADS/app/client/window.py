@@ -933,12 +933,12 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_data_success(self, session) -> None:
+    def on_data_success(self, session: dict[str, Any]) -> None:
         self._send_message("Data has been collected from NIST-A database")
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_dataset_processing_finished(self, session) -> None:
+    def on_dataset_processing_finished(self, session: dict[str, Any]) -> None:
         self._send_message("Dataset has been built successfully")
         self.worker = self.worker.cleanup() if self.worker else None
 
@@ -948,7 +948,7 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_train_finished(self, session) -> None:
+    def on_train_finished(self, session: dict[str, Any]) -> None:
         self._send_message("Training session is over. Model has been saved")
         self.worker = self.worker.cleanup() if self.worker else None
 
@@ -958,7 +958,7 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_inference_finished(self, session) -> None:
+    def on_inference_finished(self, session: dict[str, Any]) -> None:
         self._send_message("Inference call has been terminated")
         self.worker = self.worker.cleanup() if self.worker else None
 
