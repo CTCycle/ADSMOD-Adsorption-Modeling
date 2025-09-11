@@ -35,7 +35,9 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls: Any, config: Any) -> "MaskedMeanSquaredError":
+    def from_config(
+        cls: type[MaskedMeanSquaredError], config: dict[str, Any]
+    ) -> MaskedMeanSquaredError:
         return cls(**config)
 
 
@@ -101,5 +103,7 @@ class MaskedRSquared(keras.metrics.Metric):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls: Any, config: Any) -> "MaskedRSquared":
+    def from_config(
+        cls: type[MaskedRSquared], config: dict[str, Any]
+    ) -> MaskedRSquared:
         return cls(**config)

@@ -40,7 +40,7 @@ class AddNorm(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "AddNorm":
+    def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
 
@@ -91,7 +91,9 @@ class FeedForward(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "FeedForward":
+    def from_config(
+        cls: type[FeedForward], config: dict[str, Any]
+    ) -> FeedForward:
         return cls(**config)
 
 
@@ -170,5 +172,7 @@ class TransformerEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "TransformerEncoder":
+    def from_config(
+        cls: type[TransformerEncoder], config: dict[str, Any]
+    ) -> TransformerEncoder:
         return cls(**config)

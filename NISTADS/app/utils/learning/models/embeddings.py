@@ -124,5 +124,7 @@ class MolecularEmbedding(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "MolecularEmbedding":
+    def from_config(
+        cls: type[MolecularEmbedding], config: dict[str, Any]
+    ) -> MolecularEmbedding:
         return cls(**config)

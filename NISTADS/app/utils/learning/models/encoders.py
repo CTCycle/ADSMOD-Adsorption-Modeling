@@ -52,7 +52,9 @@ class StateEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "StateEncoder":
+    def from_config(
+        cls: type[StateEncoder], config: dict[str, Any]
+    ) -> StateEncoder:
         return cls(**config)
 
 
@@ -159,7 +161,9 @@ class PressureSerierEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "PressureSerierEncoder":
+    def from_config(
+        cls: type[PressureSerierEncoder], config: dict[str, Any]
+    ) -> PressureSerierEncoder:
         return cls(**config)
 
 
@@ -247,5 +251,5 @@ class QDecoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "QDecoder":
+    def from_config(cls: type[QDecoder], config: dict[str, Any]) -> QDecoder:
         return cls(**config)
