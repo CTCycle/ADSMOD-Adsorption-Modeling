@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import cast
 
+from matplotlib.figure import Figure
 import pandas as pd
 
 from NISTADS.app.variables import EnvironmentVariables
@@ -953,7 +954,7 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_model_evaluation_finished(self, plots) -> None:
+    def on_model_evaluation_finished(self, plots : list[Figure]) -> None:
         self._send_message(f"Model {self.selected_checkpoint} has been evaluated")
         self.worker = self.worker.cleanup() if self.worker else None
 

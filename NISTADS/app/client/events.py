@@ -458,10 +458,10 @@ class ValidationEvents:
     def run_model_evaluation_pipeline(
         self,
         metrics,
-        selected_checkpoint: str,
+        selected_checkpoint: str | None,
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
-    ) -> list[Any]:
+    ) -> list[Any] | None:
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
             return
