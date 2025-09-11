@@ -60,5 +60,5 @@ class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         }
 
     @classmethod
-    def from_config(cls, config) -> "LinearDecayLRScheduler":
+    def from_config(cls: Any, config: Any) -> "LinearDecayLRScheduler":
         return cls(**config)

@@ -99,7 +99,7 @@ class MolecularEmbedding(layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None) -> Any:
+    def compute_mask(self, inputs: Any, mask=None) -> Any:
         if mask is None:
             mask = keras.ops.not_equal(inputs, PAD_VALUE)
             mask = keras.ops.cast(mask, keras.config.floatx())
@@ -124,5 +124,5 @@ class MolecularEmbedding(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "MolecularEmbedding":
+    def from_config(cls: Any, config: Any) -> "MolecularEmbedding":
         return cls(**config)
