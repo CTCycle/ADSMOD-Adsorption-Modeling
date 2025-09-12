@@ -368,9 +368,7 @@ class DatasetEvents:
         # perform SMILE sequence tokenization
         tokenization = SMILETokenization(metadata)
         logger.info("Tokenizing SMILE sequences for adsorbate species")
-        processed_data, smile_vocab = tokenization.process_SMILE_sequences(
-            processed_data
-        )
+        processed_data, _ = tokenization.process_SMILE_sequences(processed_data)
 
         # split data into train set and validation set
         logger.info(
@@ -537,7 +535,9 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def run_training_pipeline(
-        self, progress_callback: Any | None = None, worker=None
+        self, 
+        progress_callback: Any | None = None, 
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
@@ -588,7 +588,7 @@ class ModelEvents:
         self,
         selected_checkpoint: str,
         progress_callback: Any | None = None,
-        worker=None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, session, checkpoint_path = (
@@ -658,7 +658,7 @@ class ModelEvents:
         self,
         selected_checkpoint: str,
         progress_callback: Any | None = None,
-        worker=None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
