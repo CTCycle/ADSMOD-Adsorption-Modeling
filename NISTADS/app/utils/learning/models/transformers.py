@@ -23,7 +23,7 @@ class AddNorm(keras.layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs) -> Any:
+    def call(self, inputs: Any) -> Any:
         x1, x2 = inputs
         x_add = self.add([x1, x2])
         x_norm = self.layernorm(x_add)
@@ -40,7 +40,7 @@ class AddNorm(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "AddNorm":
+    def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
 
@@ -91,7 +91,9 @@ class FeedForward(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "FeedForward":
+    def from_config(
+        cls: type[FeedForward], config: dict[str, Any]
+    ) -> FeedForward:
         return cls(**config)
 
 
@@ -125,7 +127,7 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, mask=None, training: bool | None = None) -> Any:
+    def call(self, inputs: Any, mask=None, training: bool | None = None) -> Any:
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
@@ -170,5 +172,7 @@ class TransformerEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "TransformerEncoder":
+    def from_config(
+        cls: type[TransformerEncoder], config: dict[str, Any]
+    ) -> TransformerEncoder:
         return cls(**config)

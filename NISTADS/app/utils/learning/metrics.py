@@ -18,7 +18,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         super(MaskedMeanSquaredError, self).__init__(name=name, **kwargs)
 
     # -------------------------------------------------------------------------
-    def call(self, y_true, y_pred) -> Any:
+    def call(self, y_true: Any, y_pred: Any) -> Any:
         mask = keras.ops.not_equal(y_true, PAD_VALUE)
         mask = keras.ops.cast(mask, dtype=y_true.dtype)
         # squeeze output dimensions: (batch size, points, 1) --> (batch size, points)
@@ -35,7 +35,9 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls, config) -> "MaskedMeanSquaredError":
+    def from_config(
+        cls: type[MaskedMeanSquaredError], config: dict[str, Any]
+    ) -> MaskedMeanSquaredError:
         return cls(**config)
 
 
@@ -101,5 +103,7 @@ class MaskedRSquared(keras.metrics.Metric):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls, config) -> "MaskedRSquared":
+    def from_config(
+        cls: type[MaskedRSquared], config: dict[str, Any]
+    ) -> MaskedRSquared:
         return cls(**config)

@@ -53,7 +53,8 @@ Eventually, it is possible to build the training dataset that will be used to tr
 
 **Viewer:** real time data visualization, coming soon!
 
-**Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
+## 5.1 Setup and Maintenance
+You can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
 - **Update project:** check for updates from Github
 - **Remove logs:** remove all logs file from *resources/logs*

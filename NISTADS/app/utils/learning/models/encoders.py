@@ -52,7 +52,9 @@ class StateEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "StateEncoder":
+    def from_config(
+        cls: type[StateEncoder], config: dict[str, Any]
+    ) -> StateEncoder:
         return cls(**config)
 
 
@@ -136,7 +138,7 @@ class PressureSerierEncoder(keras.layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, previous_mask=None) -> Any:
+    def compute_mask(self, inputs: Any, previous_mask=None) -> Any:
         mask = keras.ops.not_equal(inputs, PAD_VALUE)
         mask = keras.ops.cast(mask, keras.config.floatx())
 
@@ -159,7 +161,9 @@ class PressureSerierEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "PressureSerierEncoder":
+    def from_config(
+        cls: type[PressureSerierEncoder], config: dict[str, Any]
+    ) -> PressureSerierEncoder:
         return cls(**config)
 
 
@@ -198,7 +202,7 @@ class QDecoder(keras.layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None) -> Any:
+    def compute_mask(self, inputs: Any, mask=None) -> Any:
         if mask is None:
             mask = keras.ops.not_equal(inputs, PAD_VALUE)
             mask = keras.ops.expand_dims(mask, axis=-1)
@@ -247,5 +251,5 @@ class QDecoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config) -> "QDecoder":
+    def from_config(cls: type[QDecoder], config: dict[str, Any]) -> QDecoder:
         return cls(**config)
