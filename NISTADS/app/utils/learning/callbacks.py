@@ -5,6 +5,8 @@ import subprocess
 import time
 import webbrowser
 from typing import Any
+from io import BytesIO
+from collections.abc import Callable
 
 import keras
 import matplotlib.pyplot as plt
@@ -19,7 +21,10 @@ from NISTADS.app.logger import logger
 ###############################################################################
 class ProgressBarCallback(Callback):
     def __init__(
-        self, progress_callback, total_epochs: int, from_epoch: int = 0
+        self,
+        progress_callback: Callable[[int], Any] | None,
+        total_epochs: int,
+        from_epoch: int = 0,
     ) -> None:
         super().__init__()
         self.progress_callback = progress_callback
@@ -33,6 +38,7 @@ class ProgressBarCallback(Callback):
         percent = int(100 * processed_epochs / additional_epochs)
         if self.progress_callback is not None:
             self.progress_callback(percent)
+
 
 
 # [CALLBACK FOR TRAIN INTERRUPTION]
@@ -58,15 +64,20 @@ class LearningInterruptCallback(Callback):
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 ###############################################################################
 class RealTimeHistory(Callback):
-    def __init__(self, plot_path, past_logs: dict | None = None, **kwargs) -> None:
-        super(RealTimeHistory, self).__init__(**kwargs)
+    def __init__(
+        self,
+        plot_path: str,
+        past_logs: dict | None = None,
+        progress_callback: Callable[[dict[str, Any]], Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
         self.plot_path = plot_path
         os.makedirs(self.plot_path, exist_ok=True)
-        # Separate dicts for training vs. validation metrics
         self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
         self.history = {"history": {}, "epochs": self.total_epochs}
+        self.progress_callback = progress_callback
 
-        # If past_logs provided, split into history and val_history
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
                 self.history["history"][metric] = list(values)
@@ -86,34 +97,48 @@ class RealTimeHistory(Callback):
 
     # -------------------------------------------------------------------------
     def plot_training_history(self) -> None:
-        fig_path = os.path.join(self.plot_path, "training_history.jpeg")
-        plt.figure(figsize=(16, 14))
         metrics = self.history["history"]
-        # Find unique base metric names
-        base_metrics = sorted(
-            set(m[4:] if m.startswith("val_") else m for m in metrics.keys())
-        )
+        if not metrics:
+            return
 
-        plt.figure(figsize=(16, 5 * len(base_metrics)))
-        for i, base in enumerate(base_metrics):
-            plt.subplot(len(base_metrics), 1, i + 1)
-            # Plot training metric
+        base_metrics = sorted(
+            set(metric[4:] if metric.startswith("val_") else metric for metric in metrics)
+        )
+        if not base_metrics:
+            return
+
+        fig_path = os.path.join(self.plot_path, "training_history.jpeg")
+        rows = len(base_metrics)
+        fig, axes = plt.subplots(rows, 1, figsize=(16, 5 * rows))
+        if rows == 1:
+            axes = [axes]
+
+        for ax, base in zip(axes, base_metrics):
             if base in metrics:
-                plt.plot(metrics[base], label="train")
-            # Plot validation metric if exists
+                ax.plot(metrics[base], label="train")
             val_key = f"val_{base}"
             if val_key in metrics:
-                plt.plot(metrics[val_key], label="val")
-            plt.title(base)
-            plt.ylabel("")
-            plt.xlabel("Epoch")
-            plt.legend(loc="best", fontsize=10)
+                ax.plot(metrics[val_key], label="val")
+            ax.set_title(base)
+            ax.set_ylabel("")
+            ax.set_xlabel("Epoch")
+            ax.legend(loc="best", fontsize=10)
 
-        plt.tight_layout()
-        plt.savefig(fig_path, bbox_inches="tight", format="jpeg", dpi=300)
-        plt.close()
+        fig.tight_layout()
+        buffer = BytesIO()
+        fig.savefig(buffer, bbox_inches="tight", format="jpeg", dpi=300)
+        data = buffer.getvalue()
+        with open(fig_path, "wb") as target:
+            target.write(data)
+        if self.progress_callback:
+            self.progress_callback(
+                {"kind": "render", "source": "train_metrics", "stream": "history", "data": data}
+            )
+        plt.close(fig)
 
 
+# [CALLBACKS HANDLER]
+###############################################################################
 # [CALLBACKS HANDLER]
 ###############################################################################
 def initialize_callbacks_handler(
@@ -137,7 +162,13 @@ def initialize_callbacks_handler(
     ]
 
     if configuration.get("plot_training_metrics", False):
-        callbacks_list.append(RealTimeHistory(checkpoint_path, past_logs=session))
+        callbacks_list.append(
+            RealTimeHistory(
+                checkpoint_path,
+                past_logs=session,
+                progress_callback=kwargs.get("progress_callback", None),
+            )
+        )
 
     if configuration.get("use_tensorboard", False):
         logger.debug("Using tensorboard during training")
@@ -166,7 +197,6 @@ def initialize_callbacks_handler(
         )
 
     return callbacks_list
-
 
 ###############################################################################
 def start_tensorboard_subprocess(log_dir: str) -> None:

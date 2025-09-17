@@ -182,6 +182,7 @@ class MainWindow:
                 (QPushButton, "loadDataSources", "load_data_sources"),
                 (QPushButton, "predictAdsorption", "predict_adsorption"),
                 # 3. Viewer tab
+                (QRadioButton, "viewTrainMetrics", "train_metrics_view"),
                 (QPushButton, "previousImg", "previous_image"),
                 (QPushButton, "nextImg", "next_image"),
                 (QPushButton, "clearImg", "clear_images"),
@@ -225,6 +226,7 @@ class MainWindow:
                 ("load_data_sources", "clicked", self.update_database_from_sources),
                 ("predict_adsorption", "clicked", self.predict_adsorption_isotherms),
                 # 3. viewer tab page
+                ("train_metrics_view", "toggled", self._update_graphics_view),
                 ("previous_image", "clicked", self.show_previous_figure),
                 ("next_image", "clicked", self.show_next_figure),
                 ("clear_images", "clicked", self.clear_figures),
@@ -248,7 +250,7 @@ class MainWindow:
 
     # [SHOW WINDOW]
     ###########################################################################
-    def show(self):
+    def show(self) -> None:
         self.main_win.show()
 
     # [HELPERS]
@@ -268,12 +270,12 @@ class MainWindow:
         signal.connect(partial(self._update_single_setting, config_key, getter))
 
     # -------------------------------------------------------------------------
-    def _update_single_setting(self, config_key: str, getter: Any, *args):
+    def _update_single_setting(self, config_key: str, getter: Any, *args) -> None:
         value = getter()
         self.config_manager.update_value(config_key, value)
 
     # -------------------------------------------------------------------------
-    def _auto_connect_settings(self):
+    def _auto_connect_settings(self) -> None:
         connections = [
             # 1. dataset tab page
             # dataset fetching group
@@ -344,6 +346,16 @@ class MainWindow:
         self.progress_bar.setValue(0) if self.progress_bar else None
 
     # -------------------------------------------------------------------------
+    def get_current_pixmaps_key(self) -> tuple[list[Any], str | None]:
+        for radio, idx_key in self.pixmap_sources.items():
+            if radio and radio.isChecked():
+                pixmaps = self.pixmaps.setdefault(idx_key, [])
+                self.pixmap_stream_index.setdefault(idx_key, {})
+                self.current_fig.setdefault(idx_key, 0)
+                return pixmaps, idx_key
+        return [], None
+
+    # -------------------------------------------------------------------------
     def _set_graphics(self) -> None:
         view = self.main_win.findChild(QGraphicsView, "canvas")
         scene = QGraphicsScene()
@@ -360,8 +372,83 @@ class MainWindow:
                 view.setRenderHint(hint, True)
 
         self.graphics = {"view": view, "scene": scene, "pixmap_item": pixmap_item}
-        self.pixmaps = []
-        self.current_fig = 0
+        view_keys = ("train_metrics")
+        self.pixmaps = {k: [] for k in view_keys}
+        self.current_fig = {k: 0 for k in view_keys}
+        self.pixmap_stream_index = {k: {} for k in view_keys}  
+        self.pixmap_sources = {      
+            self.train_metrics_view: "train_metrics",
+        }
+
+    # -------------------------------------------------------------------------
+    @Slot(object)
+    def _on_worker_progress(self, payload: Any) -> None:
+        try:
+            if isinstance(payload, (int, float)):
+                if self.progress_bar:
+                    self.progress_bar.setValue(int(payload))
+                return
+
+            if not isinstance(payload, dict) or payload.get("kind") != "render":
+                return
+
+            data = payload.get("data")
+            if not data:
+                return
+
+            source = payload.get("source", "train_metrics")
+            pixmap: QPixmap | None = None
+
+            if isinstance(data, (bytes, bytearray)):
+                pixmap = QPixmap()
+                if not pixmap.loadFromData(bytes(data)):
+                    return
+            elif isinstance(data, QPixmap):
+                pixmap = data
+            elif isinstance(data, str):
+                try:
+                    pixmap = self.graphic_handler.load_image_as_pixmap(data)
+                except Exception:
+                    return
+            else:
+                return
+
+            pixmap_list = self.pixmaps.setdefault(source, [])
+            index_map = self.pixmap_stream_index.setdefault(source, {})
+            self.current_fig.setdefault(source, 0)
+
+            stream = payload.get("stream")
+            if stream:
+                idx = index_map.get(stream)
+                if idx is not None and idx < len(pixmap_list):
+                    pixmap_list[idx] = pixmap
+                else:
+                    idx = len(pixmap_list)
+                    pixmap_list.append(pixmap)
+                    index_map[stream] = idx
+                    if len(pixmap_list) == 1:
+                        self.current_fig[source] = idx
+                if self.current_fig.get(source, 0) == idx:
+                    self._update_graphics_view()
+                return
+
+            pixmap_list.append(pixmap)
+            self.current_fig[source] = len(pixmap_list) - 1
+            self._update_graphics_view()
+        except Exception:
+            logger.debug("Unable to handle progress payload", exc_info=True)
+
+    # -------------------------------------------------------------------------
+    def _reset_train_metrics_stream(self) -> None:
+        for key in ("train_metrics"): 
+            if key not in self.pixmaps:
+                continue
+            self.pixmaps[key].clear()
+            self.current_fig[key] = 0
+            self.pixmap_stream_index[key] = {}
+            current_radio = getattr(self, f"{key}_view", None)
+            if current_radio and current_radio.isChecked():
+                self._update_graphics_view()    
 
     # -------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot: Any) -> None:
@@ -384,7 +471,7 @@ class MainWindow:
     ) -> None:
         if update_progress and self.progress_bar:
             self.progress_bar.setValue(0) if self.progress_bar else None
-            worker.signals.progress.connect(self.progress_bar.setValue)
+        worker.signals.progress.connect(self._on_worker_progress)
         worker.signals.finished.connect(on_finished)
         worker.signals.error.connect(on_error)
         worker.signals.interrupted.connect(on_interrupted)
@@ -401,15 +488,13 @@ class MainWindow:
     ) -> None:
         if update_progress and self.progress_bar:
             self.progress_bar.setValue(0) if self.progress_bar else None
-            worker.signals.progress.connect(self.progress_bar.setValue)
-
+        worker.signals.progress.connect(self._on_worker_progress)
         worker.signals.finished.connect(on_finished)
         worker.signals.error.connect(on_error)
         worker.signals.interrupted.connect(on_interrupted)
-
         # Polling for results from the process queue
         self.process_worker_timer = QTimer()
-        self.process_worker_timer.setInterval(100)  # Check every 100ms
+        self.process_worker_timer.setInterval(100)
         self.process_worker_timer.timeout.connect(worker.poll)
         worker._timer = self.process_worker_timer
         self.process_worker_timer.start()
@@ -544,13 +629,15 @@ class MainWindow:
     # -------------------------------------------------------------------------
     @Slot()
     def _update_graphics_view(self) -> None:
-        if not self.pixmaps:
+        pixmaps, idx_key = self.get_current_pixmaps_key()
+        if not pixmaps or idx_key is None:
             self.graphics["pixmap_item"].setPixmap(QPixmap())
             self.graphics["scene"].setSceneRect(0, 0, 0, 0)
             return
 
-        idx = min(self.current_fig, len(self.pixmaps) - 1)
-        raw = self.pixmaps[idx]
+        idx = self.current_fig.get(idx_key, 0)
+        idx = min(idx, len(pixmaps) - 1)
+        raw = pixmaps[idx]
 
         qpixmap = QPixmap(raw) if isinstance(raw, str) else raw
         view = self.graphics["view"]
@@ -568,28 +655,33 @@ class MainWindow:
     # -------------------------------------------------------------------------
     @Slot()
     def show_previous_figure(self) -> None:
-        if not self.pixmaps:
+        pixmaps, idx_key = self.get_current_pixmaps_key()
+        if not pixmaps or idx_key is None:
             return
-        if self.current_fig > 0:
-            self.current_fig -= 1
+        if self.current_fig[idx_key] > 0:
+            self.current_fig[idx_key] -= 1
             self._update_graphics_view()
 
     # -------------------------------------------------------------------------
     @Slot()
     def show_next_figure(self) -> None:
-        if not self.pixmaps:
+        pixmaps, idx_key = self.get_current_pixmaps_key()
+        if not pixmaps or idx_key is None:
             return
-        if self.current_fig < len(self.pixmaps) - 1:
-            self.current_fig += 1
+        if self.current_fig[idx_key] < len(pixmaps) - 1:
+            self.current_fig[idx_key] += 1
             self._update_graphics_view()
 
     # -------------------------------------------------------------------------
     @Slot()
     def clear_figures(self) -> None:
-        if not self.pixmaps:
+        pixmaps, idx_key = self.get_current_pixmaps_key()
+        if not pixmaps or idx_key is None:
             return
-        self.pixmaps.clear()
-        self.current_fig = 0
+        self.pixmaps[idx_key].clear() if idx_key else None
+        self.current_fig[idx_key] = 0
+        if idx_key in self.pixmap_stream_index:
+            self.pixmap_stream_index[idx_key] = {}
         self._update_graphics_view()
         self.graphics["pixmap_item"].setPixmap(QPixmap())
         self.graphics["scene"].setSceneRect(0, 0, 0, 0)
@@ -753,6 +845,7 @@ class MainWindow:
 
         self.configuration = self.config_manager.get_configuration()
         self.model_handler = ModelEvents(self.configuration)
+        self._reset_train_metrics_stream()
 
         # send message to status bar
         self._send_message("Training SCADS using a new model instance...")
@@ -783,6 +876,7 @@ class MainWindow:
 
         self.configuration = self.config_manager.get_configuration()
         self.model_handler = ModelEvents(self.configuration)
+        self._reset_train_metrics_stream()
 
         # send message to status bar
         self._send_message(

@@ -1263,7 +1263,26 @@
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_7">
         <item>
-         <layout class="QVBoxLayout" name="verticalLayout_4">
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QGroupBox" name="groupBox">
+            <property name="title">
+             <string>Select view</string>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_4">
+             <item>
+              <widget class="QRadioButton" name="viewTrainMetrics">
+               <property name="text">
+                <string>Training metrics</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
           <item>
            <spacer name="verticalSpacer_10">
             <property name="orientation">
