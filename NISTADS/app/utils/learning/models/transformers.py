@@ -91,9 +91,7 @@ class FeedForward(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(
-        cls: type[FeedForward], config: dict[str, Any]
-    ) -> FeedForward:
+    def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
 

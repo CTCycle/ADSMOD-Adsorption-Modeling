@@ -87,7 +87,7 @@ class DataSanitizer:
             "encoded_adsorbent",
             "adsorbate_molecular_weight",
             "adsorbate_encoded_SMILE",
-            "split"
+            "split",
         ]
 
     # -------------------------------------------------------------------------

@@ -52,9 +52,7 @@ class StateEncoder(keras.layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(
-        cls: type[StateEncoder], config: dict[str, Any]
-    ) -> StateEncoder:
+    def from_config(cls: type[StateEncoder], config: dict[str, Any]) -> StateEncoder:
         return cls(**config)
 
 

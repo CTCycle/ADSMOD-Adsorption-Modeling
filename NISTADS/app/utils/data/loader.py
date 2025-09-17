@@ -164,7 +164,7 @@ class SCADSDataLoader:
         state = data["temperature"].to_numpy(dtype=np.float32)
         chemo = data["adsorbate_molecular_weight"].to_numpy(dtype=np.float32)
         adsorbent = data["encoded_adsorbent"].to_numpy(dtype=np.float32)
-        # Columns that contain sequences per-row -> vstack a *list* of arrays
+        # vstack arrays for columns that contain sequences
         adsorbate = np.vstack(
             [
                 np.asarray(x, dtype=np.float32)
@@ -241,7 +241,7 @@ class SCADSDataLoader:
         return dataset
 
 
-
+################################################################################
 class SCADSAtomicDataLoader:
     def __init__(
         self,
@@ -260,7 +260,8 @@ class SCADSAtomicDataLoader:
         self.output = "adsorbed_amount"
         self.smile_length = metadata.get("SMILE_sequence_size", 20)
 
-    def expand_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
+    # -------------------------------------------------------------------------
+    def expand_to_single_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
         if data.empty:
             columns = list(data.columns)
             return pd.DataFrame(columns=columns)
@@ -296,7 +297,11 @@ class SCADSAtomicDataLoader:
                     continue
                 entry = base.copy()
                 entry["pressure"] = float(pressure_value)
-                if has_output and uptake_value is not None and uptake_value != PAD_VALUE:
+                if (
+                    has_output
+                    and uptake_value is not None
+                    and uptake_value != PAD_VALUE
+                ):
                     entry[self.output] = float(uptake_value)
                 expanded_rows.append(entry)
 
@@ -321,11 +326,12 @@ class SCADSAtomicDataLoader:
 
         return expanded_df
 
+    # -------------------------------------------------------------------------
     def separate_inputs_and_output(
         self, data: pd.DataFrame
     ) -> tuple[dict[str, np.ndarray], np.ndarray | None]:
-        prepared = self.expand_measurements(data)
-        if prepared.empty:
+        expanded = self.expand_to_single_measurements(data)
+        if expanded.empty:
             smile_shape = (0, self.smile_length)
             inputs = {
                 "adsorbate_input": np.empty(smile_shape, dtype=np.float32),
@@ -336,33 +342,30 @@ class SCADSAtomicDataLoader:
         adsorbate = np.vstack(
             [
                 np.asarray(x, dtype=np.float32)
-                for x in prepared["adsorbate_encoded_SMILE"].to_list()
+                for x in expanded["adsorbate_encoded_SMILE"].to_list()
             ]
         )
-        temperature = prepared["temperature"].to_numpy(dtype=np.float32)
-        molecular_weight = prepared["adsorbate_molecular_weight"].to_numpy(
+        temperature = expanded["temperature"].to_numpy(dtype=np.float32)
+        molecular_weight = expanded["adsorbate_molecular_weight"].to_numpy(
             dtype=np.float32
         )
-        adsorbent = prepared["encoded_adsorbent"].to_numpy(dtype=np.float32)
-        pressure = prepared["pressure"].to_numpy(dtype=np.float32)
+        adsorbent = expanded["encoded_adsorbent"].to_numpy(dtype=np.float32)
+        pressure = expanded["pressure"].to_numpy(dtype=np.float32)
         features = np.column_stack((temperature, molecular_weight, adsorbent, pressure))
-        inputs_dict = {
-            "adsorbate_input": adsorbate,
-            "features_input": features,
-        }
+        inputs_dict = {"adsorbate_input": adsorbate, "features_input": features}
 
         output = None
-        if self.output in prepared.columns:
-            output = (
-                prepared[self.output]
-                .to_numpy(dtype=np.float32)
-                .reshape(-1, 1)
-            )
+        if self.output in expanded.columns:
+            output = expanded[self.output].to_numpy(dtype=np.float32).reshape(-1, 1)
 
         return inputs_dict, output
 
+    # -------------------------------------------------------------------------
     def build_training_dataloader(
-        self, data: pd.DataFrame, batch_size=None, buffer_size: int = tf.data.AUTOTUNE
+        self,
+        data: pd.DataFrame,
+        batch_size: int | None = None,
+        buffer_size: int = tf.data.AUTOTUNE,
     ) -> Any:
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)
@@ -377,6 +380,7 @@ class SCADSAtomicDataLoader:
 
         return dataset
 
+    # -------------------------------------------------------------------------
     def process_inference_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
         processed_data = self.processor.remove_invalid_measurements(data)
         processed_data = self.processor.aggregate_inference_data(processed_data)
@@ -386,10 +390,11 @@ class SCADSAtomicDataLoader:
         processed_data = self.processor.encode_from_references(processed_data)
         processed_data = self.processor.normalize_from_references(processed_data)
         processed_data = self.processor.apply_padding(processed_data)
-        processed_data = self.expand_measurements(processed_data)
+        processed_data = self.expand_to_single_measurements(processed_data)
 
         return processed_data
 
+    # -------------------------------------------------------------------------
     def build_inference_dataloader(
         self,
         data: pd.DataFrame,
@@ -404,4 +409,3 @@ class SCADSAtomicDataLoader:
         dataset = dataset.prefetch(buffer_size=buffer_size)
 
         return dataset
-

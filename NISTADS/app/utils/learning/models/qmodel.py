@@ -131,7 +131,6 @@ class SCADSModel:
         return model
 
 
-
 class SCADSAtomicModel:
     def __init__(self, configuration: dict[str, Any], metadata: dict[str, Any]) -> None:
         self.smile_vocab_size = metadata.get("SMILE_vocabulary_size", 0)
@@ -255,4 +254,3 @@ class SCADSAtomicModel:
         model = self.compile_model(model, model_summary=model_summary)
 
         return model
-

@@ -505,10 +505,8 @@ class ValidationEvents:
             _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(
                 model_metadata
             )
-
-        selected_model = train_config.get(
-            "selected_model", SCADS_SERIES_MODEL
-        )
+        # select data loader based on the model architecture
+        selected_model = train_config.get("selected_model", SCADS_SERIES_MODEL)
         _, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )
@@ -556,8 +554,8 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def run_training_pipeline(
-        self, 
-        progress_callback: Any | None = None, 
+        self,
+        progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
         train_data, validation_data, metadata = self.serializer.load_training_data()
@@ -565,12 +563,11 @@ class ModelEvents:
             logger.warning("No data found in the database for training")
             return
 
+        # select data loader based on the model architecture
         logger.info(
             "Building model data loaders with prefetching and parallel processing"
         )
-        selected_model = self.configuration.get(
-            "selected_model", SCADS_SERIES_MODEL
-        )
+        selected_model = self.configuration.get("selected_model", SCADS_SERIES_MODEL)
         model_builder, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )
@@ -652,9 +649,7 @@ class ModelEvents:
 
         # create the tf.datasets using the previously initialized generators
         logger.info("Loading preprocessed data and building dataloaders")
-        selected_model = train_config.get(
-            "selected_model", SCADS_SERIES_MODEL
-        )
+        selected_model = train_config.get("selected_model", SCADS_SERIES_MODEL)
         _, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )
@@ -718,15 +713,11 @@ class ModelEvents:
         # initialize the adsorption prediction framework. This takes raw input and process
         # them based on loaded checkpoint metadata (including vocaularies)
         # output is processed as well and merged with raw input data table
-        selected_model = train_config.get(
-            "selected_model", SCADS_SERIES_MODEL
-        )
+        selected_model = train_config.get("selected_model", SCADS_SERIES_MODEL)
         _, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )
-        logger.info(
-            f"Preprocessing inference input data for {selected_model}"
-        )
+        logger.info(f"Preprocessing inference input data for {selected_model}")
         predictor = AdsorptionPredictions(
             model,
             train_config,
