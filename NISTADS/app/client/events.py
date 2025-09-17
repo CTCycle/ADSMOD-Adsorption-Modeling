@@ -16,12 +16,18 @@ from NISTADS.app.client.workers import (
 from NISTADS.app.logger import logger
 from NISTADS.app.utils.api.server import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.app.utils.data.builder import BuildAdsorptionDataset
-from NISTADS.app.utils.data.loader import SCADSDataLoader
+from NISTADS.app.utils.data.loader import (
+    SCADSDataLoader,
+    SCADSAtomicDataLoader,
+)
 from NISTADS.app.utils.data.properties import MolecularProperties
 from NISTADS.app.utils.data.serializer import DataSerializer, ModelSerializer
 from NISTADS.app.utils.learning.device import DeviceConfig
 from NISTADS.app.utils.learning.inference.predictor import AdsorptionPredictions
-from NISTADS.app.utils.learning.models.qmodel import SCADSModel
+from NISTADS.app.utils.learning.models.qmodel import (
+    SCADSModel,
+    SCADSAtomicModel,
+)
 from NISTADS.app.utils.learning.training.fitting import ModelTraining
 from NISTADS.app.utils.processing.conversion import PQ_units_conversion
 from NISTADS.app.utils.processing.sanitizer import (
@@ -37,6 +43,15 @@ from NISTADS.app.utils.processing.sequences import (
 )
 from NISTADS.app.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.app.utils.validation.dataset import AdsorptionPredictionsQuality
+from NISTADS.app.constants import (
+    SCADS_SERIES_MODEL,
+    SCADS_ATOMIC_MODEL,
+)
+
+MODEL_COMPONENTS = {
+    SCADS_SERIES_MODEL: (SCADSModel, SCADSDataLoader),
+    SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
+}
 
 
 ###############################################################################
@@ -491,7 +506,13 @@ class ValidationEvents:
                 model_metadata
             )
 
-        loader = SCADSDataLoader(train_config, model_metadata)
+        selected_model = train_config.get(
+            "selected_model", SCADS_SERIES_MODEL
+        )
+        _, dataloader_builder = MODEL_COMPONENTS.get(
+            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
+        )
+        loader = dataloader_builder(train_config, model_metadata)
         validation_dataset = loader.build_training_dataloader(validation_data)
 
         summarizer = ModelEvaluationSummary(self.configuration, model)
@@ -547,7 +568,13 @@ class ModelEvents:
         logger.info(
             "Building model data loaders with prefetching and parallel processing"
         )
-        builder = SCADSDataLoader(self.configuration, metadata)
+        selected_model = self.configuration.get(
+            "selected_model", SCADS_SERIES_MODEL
+        )
+        model_builder, dataloader_builder = MODEL_COMPONENTS.get(
+            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
+        )
+        builder = dataloader_builder(self.configuration, metadata)
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data)
 
@@ -561,13 +588,13 @@ class ModelEvents:
         # create checkpoint folder
         checkpoint_path = self.modser.create_checkpoint_folder()
         # Setting callbacks and training routine for the machine learning model
-        logger.info("Building SCADS model")
-        wrapper = SCADSModel(self.configuration, metadata)
+        logger.info(f"Building {selected_model} model")
+        wrapper = model_builder(self.configuration, metadata)
         model = wrapper.get_model(model_summary=True)
         # generate graphviz plot fo the model layout
         self.modser.save_model_plot(model, checkpoint_path)
         # perform training and save model at the end
-        logger.info("Starting SCADS model training")
+        logger.info(f"Starting {selected_model} training")
         trainer = ModelTraining(self.configuration, metadata)
         model, history = trainer.train_model(
             model,
@@ -625,7 +652,13 @@ class ModelEvents:
 
         # create the tf.datasets using the previously initialized generators
         logger.info("Loading preprocessed data and building dataloaders")
-        builder = SCADSDataLoader(train_config, model_metadata)
+        selected_model = train_config.get(
+            "selected_model", SCADS_SERIES_MODEL
+        )
+        _, dataloader_builder = MODEL_COMPONENTS.get(
+            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
+        )
+        builder = dataloader_builder(train_config, model_metadata)
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data)
 
@@ -634,7 +667,9 @@ class ModelEvents:
 
         # Setting callbacks and training routine for the machine learning model
         # resume training from pretrained model
-        logger.info(f"Resuming training from checkpoint {selected_checkpoint}")
+        logger.info(
+            f"Resuming {selected_model} training from checkpoint {selected_checkpoint}"
+        )
         additional_epochs = self.configuration.get("additional_epochs", 10)
         trainer = ModelTraining(train_config, model_metadata)
         model, history = trainer.resume_training(
@@ -683,11 +718,22 @@ class ModelEvents:
         # initialize the adsorption prediction framework. This takes raw input and process
         # them based on loaded checkpoint metadata (including vocaularies)
         # output is processed as well and merged with raw input data table
+        selected_model = train_config.get(
+            "selected_model", SCADS_SERIES_MODEL
+        )
+        _, dataloader_builder = MODEL_COMPONENTS.get(
+            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
+        )
         logger.info(
-            "Preprocessing inference input data according to model configuration"
+            f"Preprocessing inference input data for {selected_model}"
         )
         predictor = AdsorptionPredictions(
-            model, train_config, metadata, checkpoint_path
+            model,
+            train_config,
+            metadata,
+            checkpoint_path,
+            dataloader_builder,
+            selected_model,
         )
         predictions = predictor.predict_adsorption_isotherm(
             inference_data, progress_callback=progress_callback, worker=worker

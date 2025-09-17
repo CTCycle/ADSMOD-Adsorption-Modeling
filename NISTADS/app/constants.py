@@ -18,6 +18,8 @@ LOGS_PATH = join(RSC_PATH, "logs")
 PROCESS_METADATA_FILE = join(METADATA_PATH, "preprocessing_metadata.json")
 
 
+SCADS_SERIES_MODEL = "SCADS Adsorption Isotherm"
+SCADS_ATOMIC_MODEL = "SCADS Single Measurement"
 ###############################################################################
 PAD_VALUE = -1
 

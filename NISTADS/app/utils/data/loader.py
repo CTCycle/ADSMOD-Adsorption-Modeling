@@ -239,3 +239,169 @@ class SCADSDataLoader:
         dataset = dataset.prefetch(buffer_size=buffer_size)
 
         return dataset
+
+
+
+class SCADSAtomicDataLoader:
+    def __init__(
+        self,
+        configuration: dict[str, Any],
+        metadata: dict[str, Any],
+        shuffle: bool = True,
+    ) -> None:
+        self.processor = DataLoaderProcessor(configuration, metadata)
+        self.batch_size = configuration.get("batch_size", 32)
+        self.inference_batch_size = configuration.get("inference_batch_size", 32)
+        self.shuffle_samples = configuration.get("shuffle_size", 1024)
+        self.buffer_size = tf.data.AUTOTUNE
+        self.metadata = metadata
+        self.configuration = configuration
+        self.shuffle = shuffle
+        self.output = "adsorbed_amount"
+        self.smile_length = metadata.get("SMILE_sequence_size", 20)
+
+    def expand_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
+        if data.empty:
+            columns = list(data.columns)
+            return pd.DataFrame(columns=columns)
+
+        non_sequence_cols = [
+            col for col in data.columns if col not in {"pressure", self.output}
+        ]
+        has_output = self.output in data.columns
+        expanded_rows: list[dict[str, Any]] = []
+
+        for _, row in data.iterrows():
+            base = {col: row[col] for col in non_sequence_cols}
+            pressure_values = row.get("pressure", [])
+            if isinstance(pressure_values, np.ndarray):
+                pressure_values = pressure_values.tolist()
+            elif not isinstance(pressure_values, (list, tuple)):
+                pressure_values = [pressure_values]
+
+            uptake_values: list[Any]
+            if has_output:
+                uptake_values = row.get(self.output, [])
+                if isinstance(uptake_values, np.ndarray):
+                    uptake_values = uptake_values.tolist()
+                elif not isinstance(uptake_values, (list, tuple)):
+                    uptake_values = [uptake_values] * len(pressure_values)
+            else:
+                uptake_values = [None] * len(pressure_values)
+
+            for pressure_value, uptake_value in zip(pressure_values, uptake_values):
+                if pd.isna(pressure_value) or pressure_value == PAD_VALUE:
+                    continue
+                if has_output and uptake_value is not None and pd.isna(uptake_value):
+                    continue
+                entry = base.copy()
+                entry["pressure"] = float(pressure_value)
+                if has_output and uptake_value is not None and uptake_value != PAD_VALUE:
+                    entry[self.output] = float(uptake_value)
+                expanded_rows.append(entry)
+
+        expanded_df = pd.DataFrame(expanded_rows)
+        if expanded_df.empty:
+            columns = non_sequence_cols + ["pressure"]
+            if has_output:
+                columns.append(self.output)
+            expanded_df = pd.DataFrame(columns=columns)
+            return expanded_df
+
+        required_cols = [
+            "temperature",
+            "adsorbate_molecular_weight",
+            "encoded_adsorbent",
+            "pressure",
+        ]
+        if has_output:
+            required_cols.append(self.output)
+        available_cols = [col for col in required_cols if col in expanded_df.columns]
+        expanded_df = expanded_df.dropna(subset=available_cols).reset_index(drop=True)
+
+        return expanded_df
+
+    def separate_inputs_and_output(
+        self, data: pd.DataFrame
+    ) -> tuple[dict[str, np.ndarray], np.ndarray | None]:
+        prepared = self.expand_measurements(data)
+        if prepared.empty:
+            smile_shape = (0, self.smile_length)
+            inputs = {
+                "adsorbate_input": np.empty(smile_shape, dtype=np.float32),
+                "features_input": np.empty((0, 4), dtype=np.float32),
+            }
+            return inputs, np.empty((0, 1), dtype=np.float32)
+
+        adsorbate = np.vstack(
+            [
+                np.asarray(x, dtype=np.float32)
+                for x in prepared["adsorbate_encoded_SMILE"].to_list()
+            ]
+        )
+        temperature = prepared["temperature"].to_numpy(dtype=np.float32)
+        molecular_weight = prepared["adsorbate_molecular_weight"].to_numpy(
+            dtype=np.float32
+        )
+        adsorbent = prepared["encoded_adsorbent"].to_numpy(dtype=np.float32)
+        pressure = prepared["pressure"].to_numpy(dtype=np.float32)
+        features = np.column_stack((temperature, molecular_weight, adsorbent, pressure))
+        inputs_dict = {
+            "adsorbate_input": adsorbate,
+            "features_input": features,
+        }
+
+        output = None
+        if self.output in prepared.columns:
+            output = (
+                prepared[self.output]
+                .to_numpy(dtype=np.float32)
+                .reshape(-1, 1)
+            )
+
+        return inputs_dict, output
+
+    def build_training_dataloader(
+        self, data: pd.DataFrame, batch_size=None, buffer_size: int = tf.data.AUTOTUNE
+    ) -> Any:
+        batch_size = self.batch_size if batch_size is None else batch_size
+        inputs, output = self.separate_inputs_and_output(data)
+        dataset = tf.data.Dataset.from_tensor_slices((inputs, output))
+        dataset = dataset.batch(batch_size)
+        dataset = dataset.prefetch(buffer_size=buffer_size)
+        dataset = (
+            dataset.shuffle(buffer_size=self.shuffle_samples)
+            if self.shuffle
+            else dataset
+        )
+
+        return dataset
+
+    def process_inference_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
+        processed_data = self.processor.remove_invalid_measurements(data)
+        processed_data = self.processor.aggregate_inference_data(processed_data)
+        processed_data = self.processor.add_properties_to_inference_inputs(
+            processed_data
+        )
+        processed_data = self.processor.encode_from_references(processed_data)
+        processed_data = self.processor.normalize_from_references(processed_data)
+        processed_data = self.processor.apply_padding(processed_data)
+        processed_data = self.expand_measurements(processed_data)
+
+        return processed_data
+
+    def build_inference_dataloader(
+        self,
+        data: pd.DataFrame,
+        batch_size: int | None = None,
+        buffer_size: int = tf.data.AUTOTUNE,
+    ) -> Any:
+        batch_size = self.inference_batch_size if batch_size is None else batch_size
+        processed_data = self.process_inference_inputs(data)
+        inputs, output = self.separate_inputs_and_output(processed_data)
+        dataset = tf.data.Dataset.from_tensor_slices((inputs, output))
+        dataset = dataset.batch(batch_size)
+        dataset = dataset.prefetch(buffer_size=buffer_size)
+
+        return dataset
+

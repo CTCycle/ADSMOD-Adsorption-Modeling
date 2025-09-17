@@ -8,9 +8,12 @@ import pandas as pd
 from keras import Model
 from keras.utils import set_random_seed
 
-from NISTADS.app.constants import PAD_VALUE
+from NISTADS.app.constants import PAD_VALUE, SCADS_ATOMIC_MODEL
 from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
+
+
+SCADS_ATOMIC_MODEL = "SCADS Single Measurement"
 
 
 # [INFERENCE]
@@ -22,35 +25,36 @@ class AdsorptionPredictions:
         configuration: dict[str, Any],
         metadata: dict,
         checkpoint_path: str,
+        dataloader_factory: Any,
+        model_name: str,
     ) -> None:
         set_random_seed(metadata.get("seed", 42))
         self.checkpoint = os.path.basename(checkpoint_path)
         self.configuration = configuration
         self.metadata = metadata
         self.model = model
+        self.model_name = model_name
+        self.dataloader_factory = dataloader_factory or SCADSDataLoader
 
     # -------------------------------------------------------------------------
     def process_inference_output(
         self, inputs: dict, predictions: np.ndarray
     ) -> list[Any]:
-        # reshape predictions from (samples, measurements, 1) to (samples, measurements)
+        if self.model_name == SCADS_ATOMIC_MODEL:
+            single_values = np.asarray(predictions, dtype=np.float32).reshape(-1, 1)
+            return [row for row in single_values]
+
         predictions = np.squeeze(predictions, axis=-1)
         pressure = inputs["pressure_input"]
-        unpadded_predictions = []
-
-        # Reverse each row to get pad values as leading values
-        # Create a boolean mask to set pad values to False
         flipped = np.flip(pressure, axis=1)
         true_values_mask = flipped != PAD_VALUE
 
-        # Find the index of the first true value, or set to the full length if all values are padded
         trailing_counts = np.where(
             true_values_mask.any(axis=1),
             true_values_mask.argmax(axis=1),
             pressure.shape[1],
         )
 
-        # trim the predicted sequences based on true values number
         unpadded_length = pressure.shape[1] - trailing_counts
         unpadded_predictions = [
             pred_row[:length] for pred_row, length in zip(predictions, unpadded_length)
@@ -62,7 +66,9 @@ class AdsorptionPredictions:
     def predict_adsorption_isotherm(self, data: pd.DataFrame, **kwargs) -> list[Any]:
         # preprocess inputs before feeding them to the pretrained model for inference
         # add padding, normalize data, encode categoricals
-        dataloader = SCADSDataLoader(self.configuration, self.metadata, shuffle=False)
+        dataloader = self.dataloader_factory(
+            self.configuration, self.metadata, shuffle=False
+        )
         processed_inputs = dataloader.process_inference_inputs(data)
         processed_inputs, _ = dataloader.separate_inputs_and_output(processed_inputs)
         # add interruption callback to stop model predictions if requested
