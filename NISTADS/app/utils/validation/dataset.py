@@ -13,7 +13,7 @@ from matplotlib.figure import Figure
 from sklearn.cluster import AgglomerativeClustering
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
-from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE, RSC_PATH
+from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE
 from NISTADS.app.logger import logger
 from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.utils.data.serializer import DataSerializer
@@ -25,8 +25,8 @@ class AdsorptionExperimentsClustering:
         self.configuration = configuration
         self.serializer = DataSerializer()
         self.seed = configuration.get("seed", 42)
-        self.sample_size = configuration.get("sample_size", 1.0)
-        self.n_clusters = 4        
+        self.sample_size = float(configuration.get("sample_size", 1.0))
+        self.n_clusters = 4
         self.grid_size = 50
         self.pressure_col = self.serializer.P_COL
         self.uptake_col = self.serializer.Q_COL
@@ -37,7 +37,7 @@ class AdsorptionExperimentsClustering:
             "adsorbate_name",
         ]
         self.grid = np.linspace(0.0, 1.0, self.grid_size)
-        self.output_dir = os.path.join(RSC_PATH, "validation")
+        self.output_dir = EVALUATION_PATH
         os.makedirs(self.output_dir, exist_ok=True)
 
     # -------------------------------------------------------------------------
@@ -51,7 +51,6 @@ class AdsorptionExperimentsClustering:
             logger.warning("No valid adsorption experiments available for clustering")
             return None
 
-        experiments = self._limit_experiments(experiments)
         if len(experiments) < 2:
             logger.warning("At least two experiments are required for clustering")
             return None
@@ -94,74 +93,72 @@ class AdsorptionExperimentsClustering:
             return []
 
         cleaned = adsorption_data.dropna(subset=list(required_cols))
-        grouped = cleaned.groupby(self.group_keys, sort=False)
-        selected_keys = self._select_experiment_keys(grouped)
-        if not selected_keys:
+        total_experiments = cleaned["filename"].nunique(dropna=True)
+        selected_filenames = self._select_filenames(cleaned)
+        if not selected_filenames:
+            logger.warning(
+                "No experiments selected for DTW clustering (total=%s, fraction=%s)",
+                total_experiments,
+                self.sample_size,
+            )
             return []
 
+        filtered = cleaned[cleaned["filename"].isin(selected_filenames)]
+
         experiments: list[dict[str, Any]] = []
-        for keys in selected_keys:
-            group = grouped.get_group(keys).sort_values(self.pressure_col)
-            pressure = group[self.pressure_col].to_numpy(dtype=float)
-            uptake = group[self.uptake_col].to_numpy(dtype=float)
+        for filename, group in filtered.groupby("filename", sort=False):
+            ordered = group.sort_values(self.pressure_col)
+            pressure = ordered[self.pressure_col].to_numpy(dtype=float)
+            uptake = ordered[self.uptake_col].to_numpy(dtype=float)
             mask = np.isfinite(pressure) & np.isfinite(uptake)
             pressure = pressure[mask]
             uptake = uptake[mask]
             if pressure.size < 3 or np.allclose(pressure, pressure[0]):
                 continue
 
+            temperature = float(ordered["temperature"].iloc[0])
+            adsorbent = str(ordered["adsorbent_name"].iloc[0])
+            adsorbate = str(ordered["adsorbate_name"].iloc[0])
+
             normalized = self._normalize_curve(pressure, uptake)
             experiments.append(
                 {
-                    "id": self._format_identifier(keys),
+                    "id": self._format_identifier((filename, temperature, adsorbent, adsorbate)),
                     "pressure": pressure,
                     "uptake": uptake,
                     "normalized": normalized,
                 }
             )
 
+        logger.info(
+            "Prepared %s experiments for DTW clustering (requested fraction=%s, total available=%s)",
+            len(experiments),
+            self.sample_size,
+            total_experiments,
+        )
+
         return experiments
 
     # -------------------------------------------------------------------------
-    def _select_experiment_keys(
-        self,
-        grouped: Any,
-    ) -> list[tuple[Any, ...]]:
-        keys = list(grouped.groups.keys())
-        total = len(keys)
+    def _select_filenames(self, data: pd.DataFrame) -> list[str]:
+        filenames = data["filename"].dropna().unique().tolist()
+        total = len(filenames)
         if total == 0:
             return []
 
-        sample_size = self.sample_size
-        if sample_size <= 0:
+        fraction = self.sample_size
+        if fraction <= 0:
             return []
 
-        if sample_size <= 1:
-            if math.isclose(sample_size, 1.0):
-                target = total
-            else:
-                target = max(int(math.floor(total * sample_size)), 1)
-        else:
-            target = min(int(round(sample_size)), total)
+        target = max(int(math.floor(total * fraction)), 1)
 
         if target >= total:
-            return keys
+            return filenames
 
         rng = np.random.default_rng(self.seed)
         indices = np.sort(rng.choice(total, size=target, replace=False))
 
-        return [keys[idx] for idx in indices]
-
-    # -------------------------------------------------------------------------
-    def _limit_experiments(
-        self,
-        experiments: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        if len(experiments) <= self.max_experiments:
-            return experiments
-
-        step = max(len(experiments) // self.max_experiments, 1)
-        return experiments[::step][: self.max_experiments]
+        return [filenames[idx] for idx in indices]
 
     # -------------------------------------------------------------------------
     def _normalize_curve(
