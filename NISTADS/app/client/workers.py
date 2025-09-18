@@ -16,6 +16,7 @@ R = TypeVar("R")
 ###############################################################################
 class WorkerInterrupted(Exception):
     """Exception to indicate worker was intentionally interrupted."""
+
     pass
 
 

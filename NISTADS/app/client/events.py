@@ -42,7 +42,10 @@ from NISTADS.app.utils.processing.sequences import (
     SMILETokenization,
 )
 from NISTADS.app.utils.validation.checkpoints import ModelEvaluationSummary
-from NISTADS.app.utils.validation.dataset import AdsorptionPredictionsQuality
+from NISTADS.app.utils.validation.dataset import (
+    AdsorptionExperimentsClustering,
+    AdsorptionPredictionsQuality,
+)
 from NISTADS.app.constants import (
     SCADS_SERIES_MODEL,
     SCADS_ATOMIC_MODEL,
@@ -435,9 +438,9 @@ class ValidationEvents:
         # check thread for interruption
         check_thread_status(worker)
 
+        clustering_metric = AdsorptionExperimentsClustering(self.configuration)
         metric_map = {
-            "experiments_clustering": lambda *args, **kwargs: None,
-            "experiments_clustering_2": lambda *args, **kwargs: None,
+            "experiments_clustering": clustering_metric.evaluate,
         }
 
         images = []

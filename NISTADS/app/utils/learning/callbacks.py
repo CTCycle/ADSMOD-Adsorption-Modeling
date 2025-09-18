@@ -40,7 +40,6 @@ class ProgressBarCallback(Callback):
             self.progress_callback(percent)
 
 
-
 # [CALLBACK FOR TRAIN INTERRUPTION]
 ###############################################################################
 class LearningInterruptCallback(Callback):
@@ -102,7 +101,10 @@ class RealTimeHistory(Callback):
             return
 
         base_metrics = sorted(
-            set(metric[4:] if metric.startswith("val_") else metric for metric in metrics)
+            set(
+                metric[4:] if metric.startswith("val_") else metric
+                for metric in metrics
+            )
         )
         if not base_metrics:
             return
@@ -132,7 +134,12 @@ class RealTimeHistory(Callback):
             target.write(data)
         if self.progress_callback:
             self.progress_callback(
-                {"kind": "render", "source": "train_metrics", "stream": "history", "data": data}
+                {
+                    "kind": "render",
+                    "source": "train_metrics",
+                    "stream": "history",
+                    "data": data,
+                }
             )
         plt.close(fig)
 
@@ -197,6 +204,7 @@ def initialize_callbacks_handler(
         )
 
     return callbacks_list
+
 
 ###############################################################################
 def start_tensorboard_subprocess(log_dir: str) -> None:

@@ -294,7 +294,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBox_5">
+           <widget class="QGroupBox" name="dataEvalGroup">
             <property name="title">
              <string>Dataset evaluation</string>
             </property>

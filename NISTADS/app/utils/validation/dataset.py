@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import re
 from typing import Any
@@ -9,15 +10,323 @@ import numpy as np
 import pandas as pd
 from keras import Model
 from matplotlib.figure import Figure
+from sklearn.cluster import AgglomerativeClustering
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
-from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE
+from NISTADS.app.constants import EVALUATION_PATH, PAD_VALUE, RSC_PATH
 from NISTADS.app.logger import logger
 from NISTADS.app.utils.data.loader import SCADSDataLoader
+from NISTADS.app.utils.data.serializer import DataSerializer
 
 
-# [LOAD MODEL]
-################################################################################
+###############################################################################
+class AdsorptionExperimentsClustering:
+    def __init__(self, configuration: dict[str, Any]) -> None:
+        self.configuration = configuration
+        self.serializer = DataSerializer()
+        self.seed = configuration.get("seed", 42)
+        self.sample_size = configuration.get("sample_size", 1.0)
+        self.n_clusters = 4        
+        self.grid_size = 50
+        self.pressure_col = self.serializer.P_COL
+        self.uptake_col = self.serializer.Q_COL
+        self.group_keys = [
+            "filename",
+            "temperature",
+            "adsorbent_name",
+            "adsorbate_name",
+        ]
+        self.grid = np.linspace(0.0, 1.0, self.grid_size)
+        self.output_dir = os.path.join(RSC_PATH, "validation")
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    # -------------------------------------------------------------------------
+    def evaluate(
+        self,
+        adsorption_data: pd.DataFrame,
+        **kwargs: Any,
+    ) -> Figure | None:
+        experiments = self._prepare_experiments(adsorption_data)
+        if not experiments:
+            logger.warning("No valid adsorption experiments available for clustering")
+            return None
+
+        experiments = self._limit_experiments(experiments)
+        if len(experiments) < 2:
+            logger.warning("At least two experiments are required for clustering")
+            return None
+
+        worker = kwargs.get("worker")
+        progress_callback = kwargs.get("progress_callback")
+        distance_matrix = self._compute_distance_matrix(
+            [exp["normalized"] for exp in experiments],
+            worker,
+            progress_callback,
+        )
+        cluster_count = min(self.n_clusters, len(experiments))
+        if cluster_count < 2:
+            labels = np.zeros(len(experiments), dtype=int)
+        else:
+            clustering = AgglomerativeClustering(
+                n_clusters=cluster_count,
+                metric="precomputed",
+                linkage="average",
+            )
+            labels = clustering.fit_predict(distance_matrix)
+
+        figure = self._plot_clusters(experiments, labels)
+        self._save_plot(figure)
+
+        return figure
+
+    # -------------------------------------------------------------------------
+    def _prepare_experiments(
+        self,
+        adsorption_data: pd.DataFrame,
+    ) -> list[dict[str, Any]]:
+        required_cols = set(self.group_keys + [self.pressure_col, self.uptake_col])
+        if not required_cols.issubset(adsorption_data.columns):
+            missing = required_cols.difference(adsorption_data.columns)
+            logger.warning(
+                "Adsorption dataset is missing required columns: %s",
+                ", ".join(sorted(missing)),
+            )
+            return []
+
+        cleaned = adsorption_data.dropna(subset=list(required_cols))
+        grouped = cleaned.groupby(self.group_keys, sort=False)
+        selected_keys = self._select_experiment_keys(grouped)
+        if not selected_keys:
+            return []
+
+        experiments: list[dict[str, Any]] = []
+        for keys in selected_keys:
+            group = grouped.get_group(keys).sort_values(self.pressure_col)
+            pressure = group[self.pressure_col].to_numpy(dtype=float)
+            uptake = group[self.uptake_col].to_numpy(dtype=float)
+            mask = np.isfinite(pressure) & np.isfinite(uptake)
+            pressure = pressure[mask]
+            uptake = uptake[mask]
+            if pressure.size < 3 or np.allclose(pressure, pressure[0]):
+                continue
+
+            normalized = self._normalize_curve(pressure, uptake)
+            experiments.append(
+                {
+                    "id": self._format_identifier(keys),
+                    "pressure": pressure,
+                    "uptake": uptake,
+                    "normalized": normalized,
+                }
+            )
+
+        return experiments
+
+    # -------------------------------------------------------------------------
+    def _select_experiment_keys(
+        self,
+        grouped: Any,
+    ) -> list[tuple[Any, ...]]:
+        keys = list(grouped.groups.keys())
+        total = len(keys)
+        if total == 0:
+            return []
+
+        sample_size = self.sample_size
+        if sample_size <= 0:
+            return []
+
+        if sample_size <= 1:
+            if math.isclose(sample_size, 1.0):
+                target = total
+            else:
+                target = max(int(math.floor(total * sample_size)), 1)
+        else:
+            target = min(int(round(sample_size)), total)
+
+        if target >= total:
+            return keys
+
+        rng = np.random.default_rng(self.seed)
+        indices = np.sort(rng.choice(total, size=target, replace=False))
+
+        return [keys[idx] for idx in indices]
+
+    # -------------------------------------------------------------------------
+    def _limit_experiments(
+        self,
+        experiments: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if len(experiments) <= self.max_experiments:
+            return experiments
+
+        step = max(len(experiments) // self.max_experiments, 1)
+        return experiments[::step][: self.max_experiments]
+
+    # -------------------------------------------------------------------------
+    def _normalize_curve(
+        self,
+        pressure: np.ndarray,
+        uptake: np.ndarray,
+    ) -> np.ndarray:
+        pressure_min = pressure.min()
+        pressure_range = pressure.max() - pressure_min
+        uptake_min = uptake.min()
+        uptake_range = uptake.max() - uptake_min
+
+        if pressure_range == 0:
+            pressure_norm = np.zeros_like(pressure, dtype=float)
+        else:
+            pressure_norm = (pressure - pressure_min) / pressure_range
+
+        if uptake_range == 0:
+            uptake_norm = np.zeros_like(uptake, dtype=float)
+        else:
+            uptake_norm = (uptake - uptake_min) / uptake_range
+
+        order = np.argsort(pressure_norm)
+        pressure_norm = pressure_norm[order]
+        uptake_norm = uptake_norm[order]
+        unique_pressure, unique_idx = np.unique(pressure_norm, return_index=True)
+        uptake_unique = uptake_norm[unique_idx]
+
+        if unique_pressure.size < 2:
+            values = np.full_like(
+                self.grid, uptake_unique[0] if uptake_unique.size else 0.0
+            )
+            return np.column_stack((self.grid, values))
+
+        interpolated = np.interp(self.grid, unique_pressure, uptake_unique)
+        return np.column_stack((self.grid, interpolated))
+
+    # -------------------------------------------------------------------------
+    def _compute_distance_matrix(
+        self,
+        curves: list[np.ndarray],
+        worker: Any | None,
+        progress_callback: Any | None,
+    ) -> np.ndarray:
+        size = len(curves)
+        distances = np.zeros((size, size), dtype=float)
+        total = max(size * (size - 1) // 2, 1)
+        completed = 0
+
+        for i in range(size):
+            for j in range(i + 1, size):
+                check_thread_status(worker)
+                distance = self._dtw_distance(curves[i], curves[j])
+                distances[i, j] = distance
+                distances[j, i] = distance
+                completed += 1
+                update_progress_callback(completed, total, progress_callback)
+
+        return distances
+
+    # -------------------------------------------------------------------------
+    def _dtw_distance(
+        self,
+        series_a: np.ndarray,
+        series_b: np.ndarray,
+    ) -> float:
+        len_a, len_b = len(series_a), len(series_b)
+        cost = np.full((len_a + 1, len_b + 1), np.inf, dtype=float)
+        cost[0, 0] = 0.0
+
+        for i in range(1, len_a + 1):
+            for j in range(1, len_b + 1):
+                dist = np.linalg.norm(series_a[i - 1] - series_b[j - 1])
+                cost[i, j] = dist + min(
+                    cost[i - 1, j],
+                    cost[i, j - 1],
+                    cost[i - 1, j - 1],
+                )
+
+        return cost[len_a, len_b] / (len_a + len_b)
+
+    # -------------------------------------------------------------------------
+    def _plot_clusters(
+        self,
+        experiments: list[dict[str, Any]],
+        labels: np.ndarray,
+    ) -> Figure:
+        unique_labels = np.unique(labels)
+        cluster_count = len(unique_labels)
+        fig, axes = plt.subplots(
+            cluster_count,
+            1,
+            figsize=(8, 3 * cluster_count),
+            sharex=True,
+            sharey=True,
+        )
+
+        if cluster_count == 1:
+            axes = [axes]
+
+        cmap = plt.get_cmap("tab10", cluster_count)
+
+        for idx, label in enumerate(unique_labels):
+            ax = axes[idx]
+            cluster_curves = [
+                exp
+                for exp, curve_label in zip(experiments, labels)
+                if curve_label == label
+            ]
+            color = cmap(idx)
+            for exp in cluster_curves:
+                curve = exp["normalized"]
+                ax.plot(self.grid, curve[:, 1], color=color, alpha=0.2)
+
+            mean_curve, std_curve = self._cluster_profile(cluster_curves)
+            ax.plot(
+                self.grid,
+                mean_curve,
+                color=color,
+                linewidth=2.5,
+                label=f"Cluster {idx + 1}",
+            )
+            ax.fill_between(
+                self.grid,
+                mean_curve - std_curve,
+                mean_curve + std_curve,
+                color=color,
+                alpha=0.1,
+            )
+            ax.set_title(f"Cluster {idx + 1} ({len(cluster_curves)} experiments)")
+            ax.set_ylabel("Normalized uptake")
+            ax.grid(True, linestyle="--", alpha=0.3)
+            ax.legend(loc="upper left")
+
+        axes[-1].set_xlabel("Normalized pressure")
+        fig.suptitle("DTW clustering of adsorption isotherms", fontsize=14)
+        fig.tight_layout()
+
+        return fig
+
+    # -------------------------------------------------------------------------
+    def _cluster_profile(
+        self,
+        experiments: list[dict[str, Any]],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        if not experiments:
+            zeros = np.zeros_like(self.grid)
+            return zeros, zeros
+
+        values = np.vstack([exp["normalized"][:, 1] for exp in experiments])
+        return values.mean(axis=0), values.std(axis=0)
+
+    # -------------------------------------------------------------------------
+    def _save_plot(self, fig: Figure) -> None:
+        out_path = os.path.join(
+            self.output_dir, "adsorption_experiments_clustering.jpeg"
+        )
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+
+    # -------------------------------------------------------------------------
+    def _format_identifier(self, keys: tuple[Any, ...]) -> str:
+        filename, temperature, adsorbent, adsorbate = keys
+        return f"{filename} | {adsorbent} | {adsorbate} | {temperature:.1f}K"
+
+
 class AdsorptionPredictionsQuality:
     def __init__(
         self,

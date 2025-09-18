@@ -13,9 +13,6 @@ from NISTADS.app.utils.data.loader import SCADSDataLoader
 from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 
 
-SCADS_ATOMIC_MODEL = "SCADS Single Measurement"
-
-
 # [INFERENCE]
 ###############################################################################
 class AdsorptionPredictions:

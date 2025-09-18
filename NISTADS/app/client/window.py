@@ -373,11 +373,11 @@ class MainWindow:
                 view.setRenderHint(hint, True)
 
         self.graphics = {"view": view, "scene": scene, "pixmap_item": pixmap_item}
-        view_keys = ("train_metrics")
+        view_keys = "train_metrics"
         self.pixmaps = {k: [] for k in view_keys}
         self.current_fig = {k: 0 for k in view_keys}
-        self.pixmap_stream_index = {k: {} for k in view_keys}  
-        self.pixmap_sources = {      
+        self.pixmap_stream_index = {k: {} for k in view_keys}
+        self.pixmap_sources = {
             self.train_metrics_view: "train_metrics",
         }
 
@@ -441,7 +441,7 @@ class MainWindow:
 
     # -------------------------------------------------------------------------
     def _reset_train_metrics_stream(self) -> None:
-        for key in ("train_metrics"): 
+        for key in "train_metrics":
             if key not in self.pixmaps:
                 continue
             self.pixmaps[key].clear()
@@ -449,7 +449,7 @@ class MainWindow:
             self.pixmap_stream_index[key] = {}
             current_radio = getattr(self, f"{key}_view", None)
             if current_radio and current_radio.isChecked():
-                self._update_graphics_view()    
+                self._update_graphics_view()
 
     # -------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot: Any) -> None:

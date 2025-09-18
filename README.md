@@ -51,7 +51,7 @@ Eventually, it is possible to build the training dataset that will be used to tr
 - **Average mean squared error loss and R square** 
 - **Comparison of predicted vs true adsorption isotherms** 
 
-**Viewer:** real time data visualization, coming soon!
+**Viewer:** visualize training metrics in real-time 
 
 ## 5.1 Setup and Maintenance
 You can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
@@ -64,7 +64,7 @@ This folder organizes data and results across various stages of the project, suc
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Validation outputs will be saved separately within *database/validation*. Source data, such as datasets for inference or additional adsorption isotherm data for the training dataset is located in *database/dataset* (a template of the expected datasets is available in *templates*. 
+- **database:** collected adsorption data, processed data and validation results will be stored centrally within the main database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Validation outputs will be saved separately within *database/validation*. Source data, such as datasets for inference or additional adsorption isotherm data for the training dataset is located in *database/dataset* (a template of the expected datasets is available in *templates*). 
 
 - **logs:** log files are saved here
 
