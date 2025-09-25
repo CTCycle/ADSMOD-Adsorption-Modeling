@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 import keras
 
-from keras import Model, layers, optimizers
+from keras import Model, activations, layers, optimizers
 from torch import compile as torch_compile
 
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
@@ -157,7 +157,6 @@ class SCADSAtomicModel:
         )
         self.feature_projection = layers.Dense(
             self.embedding_dims,
-            activation="relu",
             kernel_initializer="he_uniform",
             name="feature_projection",
         )
@@ -169,7 +168,6 @@ class SCADSAtomicModel:
         self.dropout = layers.Dropout(rate=self.dropout_rate, seed=self.seed)
         self.output_head = layers.Dense(
             1,
-            activation="relu",
             kernel_initializer="he_uniform",
             name="adsorption_output",
         )
@@ -231,6 +229,7 @@ class SCADSAtomicModel:
             name="numeric_features",
         )
         projected_features = self.feature_projection(numeric_features)
+        projected_features = activations.relu(projected_features)
 
         combined = layers.concatenate(
             [context_vector, projected_features],
@@ -241,10 +240,11 @@ class SCADSAtomicModel:
         for dense, norm in zip(self.hidden_blocks, self.block_norms):
             layer = dense(layer)
             layer = norm(layer, training=False)
-            layer = layers.Activation("relu")(layer)
+            layer = activations.relu(layer)
             layer = self.dropout(layer, training=False)
 
         output = self.output_head(layer)
+        output = activations.relu(output)
 
         model = Model(
             inputs=[self.adsorbates_input, self.features_input],
