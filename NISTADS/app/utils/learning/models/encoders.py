@@ -16,7 +16,7 @@ class StateEncoder(keras.layers.Layer):
     def __init__(self, dropout_rate: float = 0.2, seed: int = 42, **kwargs) -> None:
         super(StateEncoder, self).__init__(**kwargs)
         self.dropout_rate = dropout_rate
-        self.dense_units = [8, 16, 32, 64]
+        self.dense_units = [16, 32, 64, 128, 128]
         self.dense_layers = [
             layers.Dense(units, kernel_initializer="he_uniform")
             for units in self.dense_units
