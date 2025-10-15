@@ -11,7 +11,7 @@ from keras import Model
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.constants import CHECKPOINT_PATH
 from NISTADS.app.logger import logger
-from NISTADS.app.utils.data.serializer import DataSerializer, ModelSerializer
+from NISTADS.app.utils.repository.serializer import DataSerializer, ModelSerializer
 from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 
 

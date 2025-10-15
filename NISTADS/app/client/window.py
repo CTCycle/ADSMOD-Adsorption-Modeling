@@ -45,7 +45,7 @@ from NISTADS.app.client.events import (
 from NISTADS.app.client.workers import ProcessWorker, ThreadWorker
 from NISTADS.app.configuration import Configuration
 from NISTADS.app.logger import logger
-from NISTADS.app.utils.data.database import database
+from NISTADS.app.utils.repository.database import database
 
 
 ###############################################################################
