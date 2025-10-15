@@ -46,7 +46,7 @@ class AdsorptionExperimentsClustering:
         adsorption_data: pd.DataFrame,
         **kwargs: Any,
     ) -> Figure | None:
-        experiments = self._prepare_experiments(adsorption_data)
+        experiments = self.prepare_experiments(adsorption_data)
         if not experiments:
             logger.warning("No valid adsorption experiments available for clustering")
             return None
@@ -57,7 +57,7 @@ class AdsorptionExperimentsClustering:
 
         worker = kwargs.get("worker")
         progress_callback = kwargs.get("progress_callback")
-        distance_matrix = self._compute_distance_matrix(
+        distance_matrix = self.compute_distance_matrix(
             [exp["normalized"] for exp in experiments],
             worker,
             progress_callback,
@@ -73,13 +73,13 @@ class AdsorptionExperimentsClustering:
             )
             labels = clustering.fit_predict(distance_matrix)
 
-        figure = self._plot_clusters(experiments, labels)
-        self._save_plot(figure)
+        figure = self.plot_clusters(experiments, labels)
+        self.save_plot(figure)
 
         return figure
 
     # -------------------------------------------------------------------------
-    def _prepare_experiments(
+    def prepare_experiments(
         self,
         adsorption_data: pd.DataFrame,
     ) -> list[dict[str, Any]]:
@@ -94,7 +94,7 @@ class AdsorptionExperimentsClustering:
 
         cleaned = adsorption_data.dropna(subset=list(required_cols))
         total_experiments = cleaned["filename"].nunique(dropna=True)
-        selected_filenames = self._select_filenames(cleaned)
+        selected_filenames = self.select_filenames(cleaned)
         if not selected_filenames:
             logger.warning(
                 "No experiments selected for DTW clustering (total=%s, fraction=%s)",
@@ -120,10 +120,10 @@ class AdsorptionExperimentsClustering:
             adsorbent = str(ordered["adsorbent_name"].iloc[0])
             adsorbate = str(ordered["adsorbate_name"].iloc[0])
 
-            normalized = self._normalize_curve(pressure, uptake)
+            normalized = self.normalize_curve(pressure, uptake)
             experiments.append(
                 {
-                    "id": self._format_identifier((filename, temperature, adsorbent, adsorbate)),
+                    "id": self.format_identifier((filename, temperature, adsorbent, adsorbate)),
                     "pressure": pressure,
                     "uptake": uptake,
                     "normalized": normalized,
@@ -140,7 +140,7 @@ class AdsorptionExperimentsClustering:
         return experiments
 
     # -------------------------------------------------------------------------
-    def _select_filenames(self, data: pd.DataFrame) -> list[str]:
+    def select_filenames(self, data: pd.DataFrame) -> list[str]:
         filenames = data["filename"].dropna().unique().tolist()
         total = len(filenames)
         if total == 0:
@@ -161,7 +161,7 @@ class AdsorptionExperimentsClustering:
         return [filenames[idx] for idx in indices]
 
     # -------------------------------------------------------------------------
-    def _normalize_curve(
+    def normalize_curve(
         self,
         pressure: np.ndarray,
         uptake: np.ndarray,
@@ -197,7 +197,7 @@ class AdsorptionExperimentsClustering:
         return np.column_stack((self.grid, interpolated))
 
     # -------------------------------------------------------------------------
-    def _compute_distance_matrix(
+    def compute_distance_matrix(
         self,
         curves: list[np.ndarray],
         worker: Any | None,
@@ -211,7 +211,7 @@ class AdsorptionExperimentsClustering:
         for i in range(size):
             for j in range(i + 1, size):
                 check_thread_status(worker)
-                distance = self._dtw_distance(curves[i], curves[j])
+                distance = self.dtw_distance(curves[i], curves[j])
                 distances[i, j] = distance
                 distances[j, i] = distance
                 completed += 1
@@ -220,7 +220,7 @@ class AdsorptionExperimentsClustering:
         return distances
 
     # -------------------------------------------------------------------------
-    def _dtw_distance(
+    def dtw_distance(
         self,
         series_a: np.ndarray,
         series_b: np.ndarray,
@@ -241,7 +241,7 @@ class AdsorptionExperimentsClustering:
         return cost[len_a, len_b] / (len_a + len_b)
 
     # -------------------------------------------------------------------------
-    def _plot_clusters(
+    def plot_clusters(
         self,
         experiments: list[dict[str, Any]],
         labels: np.ndarray,
@@ -273,7 +273,7 @@ class AdsorptionExperimentsClustering:
                 curve = exp["normalized"]
                 ax.plot(self.grid, curve[:, 1], color=color, alpha=0.2)
 
-            mean_curve, std_curve = self._cluster_profile(cluster_curves)
+            mean_curve, std_curve = self.cluster_profile(cluster_curves)
             ax.plot(
                 self.grid,
                 mean_curve,
@@ -300,7 +300,7 @@ class AdsorptionExperimentsClustering:
         return fig
 
     # -------------------------------------------------------------------------
-    def _cluster_profile(
+    def cluster_profile(
         self,
         experiments: list[dict[str, Any]],
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -312,14 +312,14 @@ class AdsorptionExperimentsClustering:
         return values.mean(axis=0), values.std(axis=0)
 
     # -------------------------------------------------------------------------
-    def _save_plot(self, fig: Figure) -> None:
+    def save_plot(self, fig: Figure) -> None:
         out_path = os.path.join(
             self.output_dir, "adsorption_experiments_clustering.jpeg"
         )
         fig.savefig(out_path, dpi=300, bbox_inches="tight")
 
     # -------------------------------------------------------------------------
-    def _format_identifier(self, keys: tuple[Any, ...]) -> str:
+    def format_identifier(self, keys: tuple[Any, ...]) -> str:
         filename, temperature, adsorbent, adsorbate = keys
         return f"{filename} | {adsorbent} | {adsorbate} | {temperature:.1f}K"
 

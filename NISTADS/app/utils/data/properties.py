@@ -106,7 +106,7 @@ class CompoundProperties:
             "name": [],
             f"{prefix}_molecular_weight": [],
             f"{prefix}_molecular_formula": [],
-            f"{prefix}_SMILE": [],
+            f"{prefix}SMILE": [],
         }
 
     # -------------------------------------------------------------------------
@@ -176,4 +176,4 @@ class CompoundProperties:
         self.properties[f"{self.compound_type}_molecular_formula"].append(
             molecular_formula
         )
-        self.properties[f"{self.compound_type}_SMILE"].append(SMILE)
+        self.properties[f"{self.compound_type}SMILE"].append(SMILE)

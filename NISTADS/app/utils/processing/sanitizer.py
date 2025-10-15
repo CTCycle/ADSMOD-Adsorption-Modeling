@@ -32,7 +32,7 @@ class AggregateDatasets:
             left_on="adsorbate_name",
             right_on="name",
             how="inner",
-            suffixes=("", "_guest"),
+            suffixes=("", "guest"),
         ).drop(columns=["name"])
 
         # Merge hosts with left join (keep all, even if no host match)
@@ -41,7 +41,7 @@ class AggregateDatasets:
             left_on="adsorbent_name",
             right_on="name",
             how="left",
-            suffixes=("", "_host"),
+            suffixes=("", "host"),
         ).drop(columns=["name"])
 
         return merged_data

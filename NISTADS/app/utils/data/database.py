@@ -189,7 +189,7 @@ class NISTADSDatabase:
         return dataset
 
     # -------------------------------------------------------------------------
-    def _upsert_dataframe(self, data: pd.DataFrame, table_cls: Any) -> None:
+    def upsert_dataframe(self, data: pd.DataFrame, table_cls: Any) -> None:
         table = table_cls.__table__
         session = self.Session()
         try:
@@ -237,7 +237,7 @@ class NISTADSDatabase:
     # -------------------------------------------------------------------------
     def upsert_into_database(self, data: pd.DataFrame, table_name: str) -> None:
         table_cls = self.get_table_class(table_name)
-        self._upsert_dataframe(data, table_cls)
+        self.upsert_dataframe(data, table_cls)
 
     # -------------------------------------------------------------------------
     def export_all_tables_as_csv(
