@@ -160,7 +160,7 @@ class CheckpointSummary(Base):
 @singleton
 class NISTADSDatabase:
     def __init__(self) -> None:
-        self.db_path = os.path.join(DATA_PATH, "NISTADS_database.db")
+        self.db_path = os.path.join(DATA_PATH, "database.db")
         self.inference_path = os.path.join(
             DATA_SOURCE_PATH, "inference_adsorption_data.csv"
         )
