@@ -111,6 +111,16 @@ class DatasetEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Collect raw adsorption data and material metadata from remote sources.
+
+        Keyword arguments:
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         # 1. get isotherm indexes invoking api_client from NIST-ARPA-E database
         logger.info("Collect adsorption isotherm indices from NIST-ARPA-E database")
         api_client = AdsorptionDataFetch(self.configuration)
@@ -171,6 +181,18 @@ class DatasetEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Augment stored datasets with molecular descriptors from PubChem.
+
+        Keyword arguments:
+            target -- Dataset to enrich, either "guest" for sorbate species
+                or "host" for adsorbent materials.
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         experiments, guest_data, host_data = self.serializer.load_adsorption_datasets()
         properties = MolecularProperties(self.configuration)
         # process guest (adsorbed species) data by adding molecular properties
@@ -210,6 +232,16 @@ class DatasetEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Transform collected raw datasets into normalized training corpora.
+
+        Keyword arguments:
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         adsorption_data, guest_data, host_data = (
             self.serializer.load_adsorption_datasets()
         )
@@ -338,6 +370,15 @@ class DatasetEvents:
     def rebuild_dataset_from_metadata(
         metadata: dict[str, Any],
     ) -> tuple[DataFrame, DataFrame]:
+        """Recreate processed datasets using the configuration stored in metadata.
+
+        Keyword arguments:
+            metadata -- Serialized preprocessing parameters saved with a
+                checkpoint, used to deterministically rebuild the datasets.
+        Return value:
+            Tuple containing training and validation subsets aligned with the
+            provided metadata.
+        """
         serializer = DataSerializer()
         adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()
         logger.info(f"{len(adsorption_data)} measurements in the dataset")
@@ -428,6 +469,18 @@ class ValidationEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Compute validation graphics for requested dataset quality metrics.
+
+        Keyword arguments:
+            metrics -- Collection of identifiers describing which validation
+                plots should be generated.
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         adsorption_data, guest_data, host_data = (
             self.serializer.load_adsorption_datasets()
         )
@@ -461,6 +514,16 @@ class ValidationEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Aggregate high-level statistics for every stored training checkpoint.
+
+        Keyword arguments:
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         summarizer = ModelEvaluationSummary(self.configuration)
         checkpoints_summary = summarizer.get_checkpoints_summary(
             progress_callback=progress_callback, worker=worker
@@ -478,6 +541,20 @@ class ValidationEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> list[Any] | None:
+        """Generate evaluation visuals for a checkpoint-selected model.
+
+        Keyword arguments:
+            metrics -- Collection of identifiers describing which validation
+                outputs should be produced.
+            selected_checkpoint -- Name of the checkpoint providing weights
+                and preprocessing metadata for evaluation.
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            List of rendered figures or None if evaluation cannot proceed.
+        """
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
             return
@@ -561,6 +638,16 @@ class ModelEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Train a fresh model instance using the latest processed datasets.
+
+        Keyword arguments:
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
@@ -617,6 +704,18 @@ class ModelEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Continue training from a stored checkpoint with consistent metadata.
+
+        Keyword arguments:
+            selected_checkpoint -- Name of the checkpoint to resume from,
+                containing weights, session state, and preprocessing metadata.
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, session, checkpoint_path = (
             self.modser.load_checkpoint(selected_checkpoint)
@@ -693,6 +792,18 @@ class ModelEvents:
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
     ) -> None:
+        """Produce adsorption predictions for user-provided samples.
+
+        Keyword arguments:
+            selected_checkpoint -- Name of the checkpoint providing trained
+                weights and preprocessing configuration for inference.
+            progress_callback -- Optional callable used to emit progress
+                updates to the GUI worker thread.
+            worker -- Active worker instance that can be queried for
+                interruption requests during long-running operations.
+        Return value:
+            None.
+        """
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
             return

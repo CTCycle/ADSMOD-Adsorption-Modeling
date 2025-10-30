@@ -183,6 +183,14 @@ class NISTADSDatabase:
 
     # -------------------------------------------------------------------------
     def update_database_from_sources(self) -> pd.DataFrame | None:
+        """Load the bundled inference CSV and persist it into the database.
+
+        Keyword arguments:
+            None.
+        Return value:
+            DataFrame representing the ingested inference dataset or None if
+            loading fails.
+        """
         dataset = pd.read_csv(self.inference_path, sep=";", encoding="utf-8")
         self.save_into_database(dataset, "PREDICTED_ADSORPTION")
 
@@ -190,6 +198,16 @@ class NISTADSDatabase:
 
     # -------------------------------------------------------------------------
     def upsert_dataframe(self, data: pd.DataFrame, table_cls: Any) -> None:
+        """Insert or update rows in batches using the table unique constraint.
+
+        Keyword arguments:
+            data -- Dataset to store, containing columns matching the SQLAlchemy
+                table definition.
+            table_cls -- Declarative SQLAlchemy class that maps to the destination
+                table.
+        Return value:
+            None.
+        """
         table = table_cls.__table__
         session = self.Session()
         try:
@@ -243,6 +261,15 @@ class NISTADSDatabase:
     def export_all_tables_as_csv(
         self, export_dir: str, chunksize: int | None = None
     ) -> None:
+        """Export every database table to CSV files with optional chunking.
+
+        Keyword arguments:
+            export_dir -- Destination directory where CSV files will be written.
+            chunksize -- Optional number of rows per chunk to limit memory usage
+                during the export.
+        Return value:
+            None.
+        """
         os.makedirs(export_dir, exist_ok=True)
         with self.engine.connect() as conn:
             for table in Base.metadata.sorted_tables:
