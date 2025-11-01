@@ -678,8 +678,7 @@ class ModelEvents:
         logger.info(f"Building {selected_model} model")
         wrapper = model_builder(self.configuration, metadata)
         model = wrapper.get_model(model_summary=True)
-        # generate graphviz plot fo the model layout
-        self.modser.save_model_plot(model, checkpoint_path)
+       
         # perform training and save model at the end
         logger.info(f"Starting {selected_model} training")
         trainer = ModelTraining(self.configuration, metadata)
