@@ -10,7 +10,7 @@ This could have significant implications for industries that rely on these mater
 ## 2. Adsorption datasets
 Users can collect data on adsorbent materials and adsorbate species, along with adsorption isotherm experiments. The data is retrieved asynchronously to enhance processing speed. Conveniently, the app will split adsorption isotherm data in two different datasets (Single Component ADSorption and Binary Mixture ADSorption). Since NISTADS is focused on predicting single component adsorption isotherms, it will make use of the single component dataset (SCADS) for the model training. As the NIST-ARPA-E database does not provide chemical information for either adsorbate species or adsorbent materials, these details are gathered from external sources. For adsorbate species, NISTADS utilizes the PUG REST API (see PubChemPy documentation for more details) to enrich the dataset with molecular properties such as molecular weight and canonical SMILES. However, obtaining information on adsorbent materials is more challenging, as no publicly available API offers this data. 
 
-- **Data preprocessing:** The single-component adsorption dataset is processed through a custom pipeline. Initially, experiments containing negative values for temperature, pressure, or uptake are removed, along with any measurements falling outside predefined pressure and uptake boundaries (as specified in the configuration). Next, pressure and uptake values are standardized to consistent units — Pascals for pressure and mol/g for uptake. After this refinement, the dataset is enriched with molecular properties, including molecular weight and SMILES representations for both adsorbate species and adsorbent materials. The pressure and uptake series are then normalized using predefined upper bounds as ceilings. Finally, all sequences are reshaped to a uniform length via post-padding and re-normalized to ensure consistency across the dataset.
+**Data preprocessing:** The single-component adsorption dataset is processed through a custom pipeline. Initially, experiments containing negative values for temperature, pressure, or uptake are removed, along with any measurements falling outside predefined pressure and uptake boundaries (as specified in the configuration). Next, pressure and uptake values are standardized to consistent units — Pascals for pressure and mol/g for uptake. After this refinement, the dataset is enriched with molecular properties, including molecular weight and SMILES representations for both adsorbate species and adsorbent materials. The pressure and uptake series are then normalized using predefined upper bounds as ceilings. Finally, all sequences are reshaped to a uniform length via post-padding and re-normalized to ensure consistency across the dataset.
 
 ## 3. Machine learning model
 SCADS (Single Component ADSorption) is a deep learning model specifically developed to predict adsorption isotherms for porous materials using a variety of molecular and experimental descriptors. At its core, SCADS leverages the flexibility and power of transformer-based neural architectures to learn complex, physically meaningful relationships between chemical structures, material classes, experimental state variables, and pressure conditions.
@@ -22,61 +22,81 @@ Once embedded, these features are processed through a series of transformer enco
 A unique aspect of SCADS is its pressure series encoder, which applies cross-attention between the input pressure series and the context-rich molecular representation produced by the previous layers. This design enables the model to dynamically adapt its predictions to changing pressure conditions, which is essential for accurately modeling adsorption isotherms across a broad range of experimental scenarios. The final decoder head, known as the Q Decoder, combines the encoded pressure and state information and transforms them through a series of dense layers. Temperature and other state variables are incorporated via scaling mechanisms to ensure that predictions remain physically plausible (higher temperature would correspond to lower uptake)
 
 ## 4. Installation
-The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
+The project targets Windows 10/11 and requires roughly 2 GB of free disk space for the embedded Python runtime, dependencies, checkpoints, and datasets. A CUDA-capable NVIDIA GPU is recommended but not mandatory. Ensure you have the latest GPU drivers installed when enabling TorchInductor + Triton acceleration.
+
+1. **Download the project**: clone the repository or extract the release archive into a writable location (avoid paths that require admin privileges).
+2. **Configure environment variables**: copy `NISTADS/resources/templates/.env` into `NISTADS/setup/.env` and adjust values (e.g., backend selection).
+3. **Run `start_on_windows.bat`**: the bootstrapper installs a portable Python 3.12 build, downloads Astral’s `uv`, syncs dependencies from `pyproject.toml`, prunes caches, then launches the UI through `uv run`. The script is idempotent—rerun it any time to repair the environment or re-open the app.
+
+Running the script the first time can take several minutes depending on bandwidth. Subsequent runs reuse the cached Python runtime and only re-sync packages when `pyproject.toml` changes.
 
 ### 4.1 Just-In-Time (JIT) Compiler
-This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. 
+`torch.compile` is enabled throughout the training and inference pipelines. TorchInductor optimizes the computation graph, performs kernel fusion, and lowers operations to Triton-generated kernels on NVIDIA GPUs or to optimized CPU kernels otherwise. Triton is bundled automatically so no separate CUDA toolkit installation is required.
+
+### 4.2 Manual or developer installation
+If you prefer managing Python yourself (for debugging or CI):
+
+1. Install Python 3.12.x and `uv` (https://github.com/astral-sh/uv).
+2. From the repository root run `uv sync` to create a virtual environment with the versions pinned in `pyproject.toml`.
+3. Copy `.env` as described earlier and ensure the `KERAS_BACKEND` is set to `torch`.
+4. Launch the UI with `uv run python NISTADS/app/app.py`.
+The installation process for Windows is fully automated. Simply run the script `start_on_windows.bat` to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
+
 
 ## 5. How to use
-On Windows, run *start_on_windows.bat* to launch the application. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception in your antivirus settings.
+Launch the application by double-clicking `start_on_windows.bat` (or via `uv run python NISTADS/app/app.py`). On startup the UI loads the last-used configuration, scans the resources folder, and initializes worker pools so long-running jobs (training, inference, validation) do not block the interface.
 
-The main interface streamlines navigation across the application's core services, including dataset evaluation, model training and evaluation, and inference. Users can easily visualize generated plots and browse both training and inference images. Models training supports customizable configurations and also allows resuming previous sessions using pretrained models.
+1. **Prepare data**: verify that `resources/database/images` (training) and `resources/database/inference` (inference) contain the expected files. 
+2. **Adjust configuration**: use the toolbar to load/save configuration templates or modify each parameter manually from the UI.
+3. **Run a pipeline**: pick an action under the Data, Model, or Viewer tabs. Progress bars, log panes, and popup notifications keep you informed. Background workers can be interrupted at any time.
 
-**Dataset collection, validation and processing:** extract data from the NIST database and organize it into a structured format. Data retrieval is performed concurrently via the NIST/ARPA-E Database API, enabling fast access by maximizing parallel HTTP requests. Once the core dataset is collected, additional molecular properties of adsorbates are fetched using the Pug REST API and integrated into the main database. 
+**Data tab:** dataset analysis and validation.
 
-Once data is collected, one can analyze and validate the dataset with different metrics, such as:
-
-- **Clustering of adsorption isotherms**: use Dynamic Time Warping (DTW) on pressure series to clusterize adsorption isotherms based on curve shapes
+- Extract data from the NIST database and organize it into a structured format.
+- Data retrieval is performed concurrently via the NIST/ARPA-E Database API, enabling fast access by maximizing parallel HTTP requests. 
+- Additional molecular properties of adsorbates are fetched using the Pug REST API and integrated into the main database. 
+- Use Dynamic Time Warping (DTW) on pressure series to clusterize adsorption isotherms based on curve shapes
 
 Eventually, it is possible to build the training dataset that will be used to train the SCADs model on single component adsorption isotherms data. Experiments will be processed through the following steps:
-- **Aggregation of single measurments**
+- **Aggregation of single measurements**
 - **Addition of chemical properties based on adsorbent and adsorbate species**
 - **Encoding SMILE sequences with a regex-based tokenizer**
 - **Conversion of units (Pa for pressure, mol/g for uptake)**
 - **Filtering experiments with too few points, out of boundaries values, trailing zeros**
 - **Train and validation dataset splitting**
 
-**Model:** through this tab one can train the SCADS model from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained checkpoint to predict uptake from given experimental condition and pressure. The SCADS model can be evaluated using different metrics, such as:
+**Model tab:** training, evaluation, and encoding.
+
+through this tab one can train the SCADS model from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained checkpoint to predict uptake from given experimental condition and pressure. The SCADS model can be evaluated using different metrics, such as:
 
 - **Average mean squared error loss and R square** 
 - **Comparison of predicted vs true adsorption isotherms** 
 
-**Viewer:** visualize training metrics in real-time 
+**Viewer tab:** visualization hub.
 
-## 5.1 Setup and Maintenance
-You can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
+### 5.1 Setup and Maintenance
+`setup_and_maintenance.bat` launches a lightweight maintenance console with these options:
 
-- **Update project:** check for updates from Github
-- **Remove logs:** remove all logs file from *resources/logs*
+- **Update project**: performs a `git pull` (or fetches release artifacts) so the local checkout stays in sync.
+- **Remove logs**: clears `resources/logs` to save disk space or to reset diagnostics before a new run.
+- **Open tools**: quick shortcuts to DB Browser for SQLite or other external utilities defined in the script.
 
 ### 5.2 Resources
-This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database. To visualize and interact with the SQLite database, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/. The directory structure includes the following folders:
+The `NISTADS/resources` tree keeps all mutable assets, making backups and migrations straightforward:
 
-- **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
+- **checkpoints** — versioned folders containing saved models, training history, evaluation reports, reconstructed samples, and the JSON configuration that produced them. These folders are what you load when resuming training or running inference.
+- **configurations** — reusable JSON presets saved through the UI dialogs.
+- **database** — includes sub-folders for `images` (training data), `inference` (predicted curves), `metadata` (SQLite records), and `validation` (plots + stats reports).
+- **logs** — rotating application logs for troubleshooting. Attach these when reporting issues.
+- **templates** — contains `.env` and other templates that need to be copied into write-protected directories (`NISTADS/app`).
 
-- **database:** collected adsorption data, processed data and validation results will be stored centrally within the embedded SQLite database *NISTADS_database.db*. All associated metadata will be promptly stored in *database/metadata*. Validation outputs will be saved separately within *database/validation*. Source data, such as datasets for inference or additional adsorption isotherm data for the training dataset is located in *database/dataset* (a template of the expected datasets is available in *templates*). 
+Environmental variables reside in `NISTADS/setup/.env`. Copy the template from `resources/templates/.env` and adjust as needed:
 
-- **logs:** log files are saved here
-
-- **templates:** reference template files can be found here
-
-**Environmental variables** are stored in the *app* folder (within the project folder). For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *app* directory.
-
-| Variable              | Description                                      |
-|-----------------------|--------------------------------------------------|
-| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch   |
-| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                     |
-| MPLBACKEND            | Matplotlib backend, keep default as Agg          |
+| Variable              | Description                                                               |
+|-----------------------|---------------------------------------------------------------------------|
+| KERAS_BACKEND         | Backend for Keras 3; keep `torch` unless you explicitly need TensorFlow.  |
+| TF_CPP_MIN_LOG_LEVEL  | Controls TensorFlow logging verbosity (set to `2` to suppress INFO logs). |
+| MPLBACKEND            | Matplotlib backend; `Agg` keeps plotting headless for worker threads.     |
 
 ## 6. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
