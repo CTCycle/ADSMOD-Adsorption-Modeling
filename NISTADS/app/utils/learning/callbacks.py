@@ -14,7 +14,7 @@ from keras import Model
 from keras.callbacks import Callback
 
 from NISTADS.app.client.workers import ProcessWorker, ThreadWorker, WorkerInterrupted
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.logger import logger
 
 
 # [CALLBACK FOR UI PROGRESS BAR]

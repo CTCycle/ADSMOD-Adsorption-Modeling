@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.logger import logger
 
 
 # [MERGE DATASETS]

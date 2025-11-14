@@ -10,8 +10,8 @@ from keras import Model
 from keras.models import load_model
 from keras.utils import plot_model
 
-from NISTADS.app.constants import CHECKPOINT_PATH, PROCESS_METADATA_FILE
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.constants import CHECKPOINT_PATH, PROCESS_METADATA_FILE
+from NISTADS.app.utils.logger import logger
 from NISTADS.app.utils.repository.database import database
 from NISTADS.app.utils.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
 from NISTADS.app.utils.learning.training.scheduler import LinearDecayLRScheduler

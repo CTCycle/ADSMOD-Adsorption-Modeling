@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
 
-from NISTADS.app.constants import PAD_VALUE
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.constants import PAD_VALUE
+from NISTADS.app.utils.logger import logger
 
 
 # [MERGE DATASETS]

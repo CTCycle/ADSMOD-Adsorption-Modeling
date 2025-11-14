@@ -4,7 +4,7 @@ import json
 import os
 from typing import Any
 
-from NISTADS.app.constants import CONFIG_PATH
+from NISTADS.app.utils.constants import CONFIG_PATH
 
 
 ###############################################################################

@@ -16,7 +16,7 @@ from NISTADS.app.client.workers import (
     update_progress_callback,
     cancel_asyncio_tasks_if_interrupted,
 )
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.logger import logger
 
 
 # function to retrieve HTML data

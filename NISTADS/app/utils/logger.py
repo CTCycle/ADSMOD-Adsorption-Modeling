@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from NISTADS.app.constants import LOGS_PATH
+from NISTADS.app.utils.constants import LOGS_PATH
 
 # Generate timestamp for the log filename
 ###############################################################################

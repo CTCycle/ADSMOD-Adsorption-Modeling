@@ -6,10 +6,7 @@ from typing import cast
 from matplotlib.figure import Figure
 import pandas as pd
 
-from NISTADS.app.variables import EnvironmentVariables
-
-EV = EnvironmentVariables()
-
+from NISTADS.app.utils.variables import env_variables
 from functools import partial
 
 from PySide6.QtCore import QFile, QIODevice, Qt, QThreadPool, QTimer, Slot
@@ -43,8 +40,8 @@ from NISTADS.app.client.events import (
     ValidationEvents,
 )
 from NISTADS.app.client.workers import ProcessWorker, ThreadWorker
-from NISTADS.app.configuration import Configuration
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.configuration import Configuration
+from NISTADS.app.utils.logger import logger
 from NISTADS.app.utils.repository.database import database
 
 

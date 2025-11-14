@@ -5,7 +5,7 @@ from typing import Any
 import keras
 from keras import activations, layers
 
-from NISTADS.app.constants import PAD_VALUE
+from NISTADS.app.utils.constants import PAD_VALUE
 from NISTADS.app.utils.learning.models.transformers import AddNorm, FeedForward
 
 

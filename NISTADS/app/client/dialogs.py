@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from NISTADS.app.constants import CONFIG_PATH
+from NISTADS.app.utils.constants import CONFIG_PATH
 
 
 ###############################################################################

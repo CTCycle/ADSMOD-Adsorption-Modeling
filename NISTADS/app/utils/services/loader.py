@@ -7,8 +7,8 @@ import pandas as pd
 import tensorflow as tf
 from keras.preprocessing.sequence import pad_sequences
 
-from NISTADS.app.constants import PAD_VALUE
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.constants import PAD_VALUE
+from NISTADS.app.utils.logger import logger
 from NISTADS.app.utils.repository.serializer import DataSerializer
 from NISTADS.app.utils.services.sanitizer import AggregateDatasets
 

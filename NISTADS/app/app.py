@@ -9,7 +9,7 @@ warnings.simplefilter(action="ignore", category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from NISTADS.app.client.window import MainWindow, apply_style
-from NISTADS.app.constants import UI_PATH
+from NISTADS.app.utils.constants import UI_PATH
 
 # [RUN MAIN]
 ###############################################################################

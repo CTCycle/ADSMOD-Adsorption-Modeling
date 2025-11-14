@@ -4,7 +4,7 @@ from typing import Any
 
 import keras
 
-from NISTADS.app.constants import PAD_VALUE
+from NISTADS.app.utils.constants import PAD_VALUE
 
 
 # [LOSS FUNCTION]

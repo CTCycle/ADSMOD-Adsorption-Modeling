@@ -9,8 +9,8 @@ from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from NISTADS.app.constants import DATA_PATH, DATA_SOURCE_PATH
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.constants import DATA_PATH, DATA_SOURCE_PATH
+from NISTADS.app.utils.logger import logger
 from NISTADS.app.utils.singleton import singleton
 
 Base = declarative_base()

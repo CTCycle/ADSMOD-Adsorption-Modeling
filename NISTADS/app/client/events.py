@@ -13,7 +13,7 @@ from NISTADS.app.client.workers import (
     check_thread_status,
     update_progress_callback,
 )
-from NISTADS.app.logger import logger
+from NISTADS.app.utils.logger import logger
 from NISTADS.app.utils.services.server import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.app.utils.services.builder import BuildAdsorptionDataset
 from NISTADS.app.utils.services.loader import (
@@ -46,7 +46,7 @@ from NISTADS.app.utils.validation.dataset import (
     AdsorptionExperimentsClustering,
     AdsorptionPredictionsQuality,
 )
-from NISTADS.app.constants import (
+from NISTADS.app.utils.constants import (
     SCADS_SERIES_MODEL,
     SCADS_ATOMIC_MODEL,
 )
