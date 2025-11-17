@@ -4,9 +4,9 @@ import os
 import subprocess
 import time
 import webbrowser
-from typing import Any
-from io import BytesIO
 from collections.abc import Callable
+from io import BytesIO
+from typing import Any
 
 import keras
 import matplotlib.pyplot as plt

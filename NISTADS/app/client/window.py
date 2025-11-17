@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 from typing import cast
 
-from matplotlib.figure import Figure
 import pandas as pd
-
-from NISTADS.app.utils.variables import env_variables
-from functools import partial
-
+from matplotlib.figure import Figure
 from PySide6.QtCore import QFile, QIODevice, Qt, QThreadPool, QTimer, Slot
 from PySide6.QtGui import QAction, QPainter, QPixmap
 from PySide6.QtUiTools import QUiLoader
@@ -886,9 +883,7 @@ class MainWindow:
         self.reset_train_metrics_stream()
 
         # send message to status bar
-        self.send_message(
-            f"Resume training from checkpoint {self.selected_checkpoint}"
-        )
+        self.send_message(f"Resume training from checkpoint {self.selected_checkpoint}")
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ProcessWorker(
             self.model_handler.resume_training_pipeline, self.selected_checkpoint

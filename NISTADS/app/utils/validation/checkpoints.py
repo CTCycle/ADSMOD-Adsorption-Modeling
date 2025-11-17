@@ -10,9 +10,9 @@ from keras import Model
 
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.utils.constants import CHECKPOINT_PATH
+from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 from NISTADS.app.utils.logger import logger
 from NISTADS.app.utils.repository.serializer import DataSerializer, ModelSerializer
-from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
 
 
 # [LOAD MODEL]
@@ -105,7 +105,7 @@ class ModelEvaluationSummary:
         callbacks_list = [LearningInterruptCallback(kwargs.get("worker", None))]
         validation = model.evaluate(
             validation_dataset,
-            verbose=1, # type: ignore
+            verbose=1,  # type: ignore
             callbacks=callbacks_list,  # type: ignore
         )
         logger.info(

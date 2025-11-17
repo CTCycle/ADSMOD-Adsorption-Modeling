@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from typing import Any
-import keras
 
+import keras
 from keras import Model, activations, layers, optimizers
 from torch import compile as torch_compile
 
@@ -129,6 +129,7 @@ class SCADSModel:
         model = self.compile_model(model, model_summary=model_summary)
 
         return model
+
 
 ###############################################################################
 class SCADSAtomicModel:

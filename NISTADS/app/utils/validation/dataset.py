@@ -15,8 +15,8 @@ from sklearn.cluster import AgglomerativeClustering
 from NISTADS.app.client.workers import check_thread_status, update_progress_callback
 from NISTADS.app.utils.constants import EVALUATION_PATH, PAD_VALUE
 from NISTADS.app.utils.logger import logger
-from NISTADS.app.utils.services.loader import SCADSDataLoader
 from NISTADS.app.utils.repository.serializer import DataSerializer
+from NISTADS.app.utils.services.loader import SCADSDataLoader
 
 
 ###############################################################################
@@ -123,7 +123,9 @@ class AdsorptionExperimentsClustering:
             normalized = self.normalize_curve(pressure, uptake)
             experiments.append(
                 {
-                    "id": self.format_identifier((filename, temperature, adsorbent, adsorbate)),
+                    "id": self.format_identifier(
+                        (filename, temperature, adsorbent, adsorbate)
+                    ),
                     "pressure": pressure,
                     "uptake": uptake,
                     "normalized": normalized,

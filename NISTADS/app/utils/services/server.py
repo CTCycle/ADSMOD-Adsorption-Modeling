@@ -12,9 +12,9 @@ from tqdm import tqdm
 
 from NISTADS.app.client.workers import (
     WorkerInterrupted,
+    cancel_asyncio_tasks_if_interrupted,
     check_thread_status,
     update_progress_callback,
-    cancel_asyncio_tasks_if_interrupted,
 )
 from NISTADS.app.utils.logger import logger
 

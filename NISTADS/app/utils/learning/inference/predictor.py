@@ -9,8 +9,8 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from NISTADS.app.utils.constants import PAD_VALUE, SCADS_ATOMIC_MODEL
-from NISTADS.app.utils.services.loader import SCADSDataLoader
 from NISTADS.app.utils.learning.callbacks import LearningInterruptCallback
+from NISTADS.app.utils.services.loader import SCADSDataLoader
 
 
 # [INFERENCE]

@@ -13,23 +13,26 @@ from NISTADS.app.client.workers import (
     check_thread_status,
     update_progress_callback,
 )
-from NISTADS.app.utils.logger import logger
-from NISTADS.app.utils.services.server import AdsorptionDataFetch, GuestHostDataFetch
-from NISTADS.app.utils.services.builder import BuildAdsorptionDataset
-from NISTADS.app.utils.services.loader import (
-    SCADSDataLoader,
-    SCADSAtomicDataLoader,
+from NISTADS.app.utils.constants import (
+    SCADS_ATOMIC_MODEL,
+    SCADS_SERIES_MODEL,
 )
-from NISTADS.app.utils.services.properties import MolecularProperties
-from NISTADS.app.utils.repository.serializer import DataSerializer, ModelSerializer
 from NISTADS.app.utils.learning.device import DeviceConfig
 from NISTADS.app.utils.learning.inference.predictor import AdsorptionPredictions
 from NISTADS.app.utils.learning.models.qmodel import (
-    SCADSModel,
     SCADSAtomicModel,
+    SCADSModel,
 )
 from NISTADS.app.utils.learning.training.fitting import ModelTraining
+from NISTADS.app.utils.logger import logger
+from NISTADS.app.utils.repository.serializer import DataSerializer, ModelSerializer
+from NISTADS.app.utils.services.builder import BuildAdsorptionDataset
 from NISTADS.app.utils.services.conversion import PQ_units_conversion
+from NISTADS.app.utils.services.loader import (
+    SCADSAtomicDataLoader,
+    SCADSDataLoader,
+)
+from NISTADS.app.utils.services.properties import MolecularProperties
 from NISTADS.app.utils.services.sanitizer import (
     AdsorbentEncoder,
     AggregateDatasets,
@@ -41,14 +44,11 @@ from NISTADS.app.utils.services.sequences import (
     PressureUptakeSeriesProcess,
     SMILETokenization,
 )
+from NISTADS.app.utils.services.server import AdsorptionDataFetch, GuestHostDataFetch
 from NISTADS.app.utils.validation.checkpoints import ModelEvaluationSummary
 from NISTADS.app.utils.validation.dataset import (
     AdsorptionExperimentsClustering,
     AdsorptionPredictionsQuality,
-)
-from NISTADS.app.utils.constants import (
-    SCADS_SERIES_MODEL,
-    SCADS_ATOMIC_MODEL,
 )
 
 MODEL_COMPONENTS = {
@@ -678,7 +678,7 @@ class ModelEvents:
         logger.info(f"Building {selected_model} model")
         wrapper = model_builder(self.configuration, metadata)
         model = wrapper.get_model(model_summary=True)
-       
+
         # perform training and save model at the end
         logger.info(f"Starting {selected_model} training")
         trainer = ModelTraining(self.configuration, metadata)
