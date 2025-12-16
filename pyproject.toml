@@ -3,38 +3,23 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "NISTADS"
-version = "1.5"
+name = "ADSMOD"
+version = "2.0"
 requires-python = ">=3.12,<3.13"
-
-dependencies = [    
-    "torch==2.9.0+cu130",    
-    "tensorflow-cpu==2.20.0",
-    "keras==3.12", 
-    "scikit-learn==1.7.1",
-    "opencv-python==4.11.0.86",
-    "triton-windows==3.4.0.post20",    
-    "PySide6==6.9.1",
-    "qt-material==2.17",
-    "matplotlib==3.10.1",
-    "aiohttp==3.12.15",
+dependencies = [
+    "fastapi==0.117.1",
+    "scikit-learn==1.6.1",    
     "numpy==2.3.2",
     "pandas==2.2.3",
     "tqdm==4.67.1",
-    "PubChemPy==1.0.4",
-    "SQLAlchemy==2.0.41",     
-    "python-dotenv==1.1.0"
+    "SQLAlchemy==2.0.41",
+    "psycopg[binary]==3.3.1",
+    "python-dotenv==1.1.0",
+    "httpx==0.27.2",
+    "uvicorn[standard]==0.32.1",
+    "python-multipart==0.0.12"
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["nistads"] 
+packages = ["adsmod"] 
 
-[[tool.uv.index]]
-name = "pytorch-cu130"
-url = "https://download.pytorch.org/whl/cu130"
-explicit = true 
-
-[tool.uv.sources]
-torch = { index = "pytorch-cu130" }
-# torchvision = { index = "pytorch-cu130" }
-# torchaudio  = { index = "pytorch-cu130" }

@@ -1,0 +1,22 @@
+experiment;temperature [K];pressure [Pa];uptake [mol/g]
+Experiment A;303;7.70E+00;0.001
+Experiment A;303;9.60E+00;0.001
+Experiment A;303;18.3;0.001
+Experiment A;303;32.7;0.002
+Experiment A;303;29.8;0.002
+Experiment A;303;45.2;0.002
+Experiment A;303;69.2;0.003
+Experiment A;303;77.9;0.003
+Experiment A;303;78.8;0.003
+Experiment A;303;99;0.003
+Experiment A;303;110;0.003
+Experiment A;303;114;0.003
+Experiment A;303;120;0.003
+Experiment A;303;152;0.003
+Experiment B;343;196;0.125
+Experiment B;343;225;0.223
+Experiment B;343;254;0.445
+Experiment B;343;283;0.589
+Experiment B;343;305;0.662
+Experiment B;343;327;0.669
+Experiment B;343;414;0.860
