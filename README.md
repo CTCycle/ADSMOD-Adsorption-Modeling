@@ -1,114 +1,121 @@
-# NISTADS: NIST/ARPA-E dataset composer and modeling
+# ADSMOD: Automated Adsorption Model Fitting
 
-## 1. Introduction
-The NISTADS project delves into the fascinating world of adsorption, a surface-based process where a film of particles (adsorbate) accumulate on the surface of a material (adsorbent). This phenomenon plays a pivotal role in numerous industries. For instance, it is widely applied in water treatment facilities for the purification of water, in air filters to improve air quality, and in the automotive industry within catalytic converters to reduce harmful emissions. The adsorption of compounds is usually quantified by measuring the adsorption isotherm a given adsorbate/adsorbent combination. The objective of this project is two-fold: 1) to collect adsorption isotherms data from the NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials (https://adsorption.nist.gov/index.php#home) through their dedicated API; 2) build a machine learning model that can accurately predict the adsorbed amount of a specific guest-host combination under various conditions, by leveraging the data from the NIST/ARPA-E Database.
+## 1. Project Overview
+ADSMOD is a local, browser-based application for fitting adsorption isotherm models to experimental datasets and comparing results in a single workflow.
 
-This could have significant implications for industries that rely on these materials, potentially leading to more efficient processes and better materials design. As such, this project takes a different approach compared to fitting adsorption data with theoretical model for adsorption constants calculation, instead proposing the use of a deep learning approach to understand adsorption isotherm patterns by leveraging a large volume of experimental data.
+- **Backend (FastAPI):** ingests datasets, runs the fitting process, and exposes an API for the UI; results and experiment metadata are persisted locally.
+- **Frontend (React + TypeScript):** provides an interactive interface to upload data, configure fitting options, run fits, and review/compare outputs.
 
-![Adsorbent material](NISTADS/assets/5A_with_gas.png)  
+Core workflow: import data → configure active models and parameter bounds → run fitting → inspect and compare fitted curves/metrics → keep results for later review.
 
-## 2. Adsorption datasets
-Users can collect data on adsorbent materials and adsorbate species, along with adsorption isotherm experiments. The data is retrieved asynchronously to enhance processing speed. Conveniently, the app will split adsorption isotherm data in two different datasets (Single Component ADSorption and Binary Mixture ADSorption). Since NISTADS is focused on predicting single component adsorption isotherms, it will make use of the single component dataset (SCADS) for the model training. As the NIST-ARPA-E database does not provide chemical information for either adsorbate species or adsorbent materials, these details are gathered from external sources. For adsorbate species, NISTADS utilizes the PUG REST API (see PubChemPy documentation for more details) to enrich the dataset with molecular properties such as molecular weight and canonical SMILES. However, obtaining information on adsorbent materials is more challenging, as no publicly available API offers this data. 
+## 2. Installation
 
-**Data preprocessing:** The single-component adsorption dataset is processed through a custom pipeline. Initially, experiments containing negative values for temperature, pressure, or uptake are removed, along with any measurements falling outside predefined pressure and uptake boundaries (as specified in the configuration). Next, pressure and uptake values are standardized to consistent units — Pascals for pressure and mol/g for uptake. After this refinement, the dataset is enriched with molecular properties, including molecular weight and SMILES representations for both adsorbate species and adsorbent materials. The pressure and uptake series are then normalized using predefined upper bounds as ceilings. Finally, all sequences are reshaped to a uniform length via post-padding and re-normalized to ensure consistency across the dataset.
+### 2.1 Windows (One Click Setup)
+The Windows setup is automated and portable. Run `ADSMOD/start_on_windows.bat`; the launcher performs the following actions:
 
-## 3. Machine learning model
-SCADS (Single Component ADSorption) is a deep learning model specifically developed to predict adsorption isotherms for porous materials using a variety of molecular and experimental descriptors. At its core, SCADS leverages the flexibility and power of transformer-based neural architectures to learn complex, physically meaningful relationships between chemical structures, material classes, experimental state variables, and pressure conditions.
+1. Download and extract an embeddable Python 3.12 runtime into `ADSMOD/resources/runtimes/python`
+2. Download and extract a portable `uv` binary into `ADSMOD/resources/runtimes/uv`
+3. Download and extract a portable Node.js runtime into `ADSMOD/resources/runtimes/nodejs`
+4. Install backend dependencies from `pyproject.toml` using `uv sync`
+5. Install frontend dependencies (if needed) in `ADSMOD/client`
+6. Build the frontend (if needed) in `ADSMOD/client`
+7. Start backend and frontend and open the UI in your default browser
 
-SCADS takes as input a detailed set of features describing the adsorption system, including the adsorbate SMILE sequence and molecular weight, the categorically-encoded adsorbents, the experiment temperature and the pressure series over which the adsorption isotherm is to be predicted. Each of these components is embedded into a shared, high-dimensional space using learnable neural embeddings. For sequential inputs such as SMILES, positional encodings are also added to preserve the order and meaning of the sequence. Masking mechanisms are built in to ensure that padding values do not contaminate the learned representations.
+**First run behavior:** downloads runtimes and installs dependencies, so it can take a few minutes.
 
-Once embedded, these features are processed through a series of transformer encoder layers, using multi-head self-attention to capture intricate dependencies within and between the different molecular and contextual descriptors. In parallel, a dedicated state encoder transforms experimental state variables, such as temperature, into dense vectors that the model can use to modulate its predictions.
+**Subsequent run behavior:** reuses the cached runtimes and previously built assets, so startup is typically quick.
 
-A unique aspect of SCADS is its pressure series encoder, which applies cross-attention between the input pressure series and the context-rich molecular representation produced by the previous layers. This design enables the model to dynamically adapt its predictions to changing pressure conditions, which is essential for accurately modeling adsorption isotherms across a broad range of experimental scenarios. The final decoder head, known as the Q Decoder, combines the encoded pressure and state information and transforms them through a series of dense layers. Temperature and other state variables are incorporated via scaling mechanisms to ensure that predictions remain physically plausible (higher temperature would correspond to lower uptake)
+> **Portability / system side effects:** the launcher keeps runtimes and caches under `ADSMOD/resources/runtimes/` and avoids system-wide installs. Deleting `ADSMOD/resources/runtimes/` forces a clean setup on the next run.
 
-## 4. Installation
-The project targets Windows 10/11 and requires roughly 2 GB of free disk space for the embedded Python runtime, dependencies, checkpoints, and datasets. A CUDA-capable NVIDIA GPU is recommended but not mandatory. Ensure you have the latest GPU drivers installed when enabling TorchInductor + Triton acceleration.
+### 2.2 macOS / Linux (Manual Setup)
 
-1. **Download the project**: clone the repository or extract the release archive into a writable location (avoid paths that require admin privileges).
-2. **Configure environment variables**: copy `NISTADS/resources/templates/.env` into `NISTADS/setup/.env` and adjust values (e.g., backend selection).
-3. **Run `start_on_windows.bat`**: the bootstrapper installs a portable Python 3.12 build, downloads Astral’s `uv`, syncs dependencies from `pyproject.toml`, prunes caches, then launches the UI through `uv run`. The script is idempotent—rerun it any time to repair the environment or re-open the app.
+**Prerequisites**
+- Python 3.12
+- Node.js + npm
+- Optional: `uv` (recommended) or a recent `pip`
 
-Running the script the first time can take several minutes depending on bandwidth. Subsequent runs reuse the cached Python runtime and only re-sync packages when `pyproject.toml` changes.
+**Setup steps**
+1. Backend: create and activate a Python 3.12 environment.
+2. Backend: from the repository root, install dependencies: `pip install -e . --use-pep517` (or `uv pip install -e .`).
+3. (Optional) Backend: install development extras: `pip install -e .[dev]`.
+4. Frontend: from `ADSMOD/client`, install dependencies: `npm install`.
 
-### 4.1 Just-In-Time (JIT) Compiler
-`torch.compile` is enabled throughout the training and inference pipelines. TorchInductor optimizes the computation graph, performs kernel fusion, and lowers operations to Triton-generated kernels on NVIDIA GPUs or to optimized CPU kernels otherwise. Triton is bundled automatically so no separate CUDA toolkit installation is required.
+## 3. How to use
 
-### 4.2 Manual or developer installation
-If you prefer managing Python yourself (for debugging or CI):
+### 3.1 Windows
+Launch `ADSMOD/start_on_windows.bat`.
 
-1. Install Python 3.12.x and `uv` (https://github.com/astral-sh/uv).
-2. From the repository root run `uv sync` to create a virtual environment with the versions pinned in `pyproject.toml`.
-3. Copy `.env` as described earlier and ensure the `KERAS_BACKEND` is set to `torch`.
-4. Launch the UI with `uv run python NISTADS/app/app.py`.
-The installation process for Windows is fully automated. Simply run the script `start_on_windows.bat` to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
+The UI becomes available at `http://127.0.0.1:7861`.
 
+### 3.2 macOS / Linux
+Start backend and frontend in separate terminals:
 
-## 5. How to use
-Launch the application by double-clicking `start_on_windows.bat` (or via `uv run python NISTADS/app/app.py`). On startup the UI loads the last-used configuration, scans the resources folder, and initializes worker pools so long-running jobs (training, inference, validation) do not block the interface.
+```bash
+uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 8000
+```
 
-1. **Prepare data**: verify that `resources/database/images` (training) and `resources/database/inference` (inference) contain the expected files. 
-2. **Adjust configuration**: use the toolbar to load/save configuration templates or modify each parameter manually from the UI.
-3. **Run a pipeline**: pick an action under the Data, Model, or Viewer tabs. Progress bars, log panes, and popup notifications keep you informed. Background workers can be interrupted at any time.
+```bash
+cd ADSMOD/client
+npm run dev -- --host 127.0.0.1 --port 7861
+```
 
-**Data tab:** dataset analysis and validation.
+Local URLs:
+- UI: `http://127.0.0.1:7861`
+- Backend API: `http://127.0.0.1:8000`
+- API docs: `http://127.0.0.1:8000/docs`
 
-- Extract data from the NIST database and organize it into a structured format.
-- Data retrieval is performed concurrently via the NIST/ARPA-E Database API, enabling fast access by maximizing parallel HTTP requests. 
-- Additional molecular properties of adsorbates are fetched using the Pug REST API and integrated into the main database. 
-- Use Dynamic Time Warping (DTW) on pressure series to clusterize adsorption isotherms based on curve shapes
+### 3.3 Using the Application
+Typical workflow:
+1. Import data on the **Dataset** page.
+2. Enable/configure isotherm models on the **Models** page.
+3. Run and compare fits on the **Fitting** page (iterate as needed).
 
-Eventually, it is possible to build the training dataset that will be used to train the SCADs model on single component adsorption isotherms data. Experiments will be processed through the following steps:
-- **Aggregation of single measurements**
-- **Addition of chemical properties based on adsorbent and adsorbate species**
-- **Encoding SMILE sequences with a regex-based tokenizer**
-- **Conversion of units (Pa for pressure, mol/g for uptake)**
-- **Filtering experiments with too few points, out of boundaries values, trailing zeros**
-- **Train and validation dataset splitting**
+#### Dataset Page
+Upload adsorption data from CSV/Excel, inspect the parsed table, and sanity-check basic summaries before fitting.
+Run the optimization and keep the best results for later review; tweak model selection/bounds and re-run to improve fit quality.
 
-![data tab](NISTADS/assets/data_tab.png)
+![Dataset page](ADSMOD/assets/figures/dataset_page.png)
 
-**Model tab:** training, evaluation, and encoding.
+#### Models Page
+Select which models to include in the run and define parameter bounds/limits to keep optimization physically meaningful.
 
-through this tab one can train the SCADS model from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained checkpoint to predict uptake from given experimental condition and pressure. The SCADS model can be evaluated using different metrics, such as:
+![Models page](ADSMOD/assets/figures/models_page.png)
 
-- **Average mean squared error loss and R square** 
-- **Comparison of predicted vs true adsorption isotherms** 
+#### Database browser
+Explore the database to fetch data such as uploaded adsorption data, fitting results and best model fittings.
 
-![model tab](NISTADS/assets/model_tab.png)
+![Browser page](ADSMOD/assets/figures/browser_page.png)
 
-**Viewer tab:** visualization hub.
-- Browse any plots generated during dataset or model evaluation.
-- Useful for quick sanity checks without leaving the application.
+## 4. Setup and Maintenance
+Use `ADSMOD/setup_and_maintenance.bat` for common maintenance tasks:
 
-![viewer tab](NISTADS/assets/viewer_tab.png)
+- **Remove logs:** deletes `*.log` files under `ADSMOD/resources/logs`.
+- **Uninstall app:** removes local runtimes/caches and build artifacts (for a clean setup on next launch).
+- **Initialize database:** runs the backend initialization routine using the bundled Windows runtimes (run `ADSMOD/start_on_windows.bat` at least once first).
 
-### 5.1 Setup and Maintenance
-`setup_and_maintenance.bat` launches a lightweight maintenance console with these options:
+## 5. Resources
+`ADSMOD/resources` contains local runtime assets, templates, logs, and persistent data used by ADSMOD.
 
-- **Update project**: performs a `git pull` (or fetches release artifacts) so the local checkout stays in sync.
-- **Remove logs**: clears `resources/logs` to save disk space or to reset diagnostics before a new run.
-- **Open tools**: quick shortcuts to DB Browser for SQLite or other external utilities defined in the script.
+- database: local database files used to persist uploaded experiments and fitting results.
+- logs: launcher/backend logs used for troubleshooting.
+- runtimes: portable runtimes and caches used by the Windows launcher.
+- templates: starter files such as `ADSMOD/resources/templates/adsorption_data.csv` and `ADSMOD/resources/templates/.env`.
 
-### 5.2 Resources
-The `NISTADS/resources` tree keeps all mutable assets, making backups and migrations straightforward:
+## 6. Configuration
+Configuration files are stored alongside the app so the project can be run and moved without a system-wide install.
 
-- **checkpoints** — versioned folders containing saved models, training history, evaluation reports, reconstructed samples, and the JSON configuration that produced them. These folders are what you load when resuming training or running inference.
-- **configurations** — reusable JSON presets saved through the UI dialogs.
-- **database** — includes sub-folders for `images` (training data), `inference` (predicted curves), `metadata` (SQLite records), and `validation` (plots + stats reports).
-- **logs** — rotating application logs for troubleshooting. Attach these when reporting issues.
-- **templates** — contains `.env` and other templates that need to be copied into write-protected directories (`NISTADS/app`).
+- **Backend / launcher configuration:** `ADSMOD/settings/.env` (start from `ADSMOD/resources/templates/.env`). These values control backend bind settings and launcher options.
+- **Frontend configuration:** `ADSMOD/client/.env`. These values control `VITE_` build-time variables used by the React app.
 
-Environmental variables reside in `NISTADS/setup/.env`. Copy the template from `resources/templates/.env` and adjust as needed:
-
-| Variable              | Description                                                               |
-|-----------------------|---------------------------------------------------------------------------|
-| KERAS_BACKEND         | Backend for Keras 3; keep `torch` unless you explicitly need TensorFlow.  |
-| TF_CPP_MIN_LOG_LEVEL  | Controls TensorFlow logging verbosity (set to `2` to suppress INFO logs). |
-| MPLBACKEND            | Matplotlib backend; `Agg` keeps plotting headless for worker threads.     |
-
-## 6. License
-This project is licensed under the terms of the MIT license. See the LICENSE file for details.
+| Variable | Description |
+|----------|-------------|
+| `FASTAPI_HOST` | Backend bind host. Defined in `ADSMOD/settings/.env`. Default: `127.0.0.1`. |
+| `FASTAPI_PORT` | Backend bind port. Defined in `ADSMOD/settings/.env`. Default: `8000`. |
+| `RELOAD` | Enable backend auto-reload when using the Windows launcher. Defined in `ADSMOD/settings/.env`. Default: `false`. |
+| `UI_HOST` | UI bind host used by the Windows launcher. Defined in `ADSMOD/settings/.env` (optional). Default: `127.0.0.1`. |
+| `UI_PORT` | UI bind port used by the Windows launcher. Defined in `ADSMOD/settings/.env` (optional). Default: `7861`. |
+| `VITE_API_BASE_URL` | Frontend API base path/URL. Defined in `ADSMOD/client/.env`. Default: `/api`. |
 
 
-
-
+## 7. License
+This project is licensed under the MIT license. See `LICENSE` for details.

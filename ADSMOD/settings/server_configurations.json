@@ -1,0 +1,35 @@
+{
+  "fastapi": {
+    "title": "ADSMOD Model Fitting Backend",
+    "description": "FastAPI backend",
+    "version": "1.2.0"  
+  },
+  "database": {
+    "embedded_database": true,
+    "engine": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database_name": "ADSMOD",
+    "username": "postgres",
+    "password": "admin",
+    "ssl": false,
+    "ssl_ca": null,
+    "connect_timeout": 30,
+    "insert_batch_size": 1000,
+    "select_page_size": 2000,
+    "browser_page_size": 1000
+  },
+  "datasets": {
+    "allowed_extensions": [".csv", ".xls", ".xlsx"],
+    "column_detection_cutoff": 0.6
+  },
+    "fitting": {
+      "default_max_iterations": 1000,
+      "max_iterations_upper_bound": 1000000,
+      "default_parameter_initial": 1.0,
+      "default_parameter_min": 0.0,
+      "default_parameter_max": 100.0,
+      "preview_row_limit": 5,
+      "best_model_metric": "AICc"
+    }
+}
