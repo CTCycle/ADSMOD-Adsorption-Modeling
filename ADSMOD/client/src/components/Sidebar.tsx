@@ -1,8 +1,10 @@
 import React from 'react';
 
+export type PageId = 'config' | 'models' | 'analysis' | 'browser';
+
 interface SidebarProps {
-    currentPage: 'config' | 'models' | 'browser';
-    onPageChange: (page: 'config' | 'models' | 'browser') => void;
+    currentPage: PageId;
+    onPageChange: (page: PageId) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
@@ -11,25 +13,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
             <button
                 className={`sidebar-icon ${currentPage === 'config' ? 'active' : ''}`}
                 onClick={() => onPageChange('config')}
-                title="Configuration"
+                title="Data Source"
             >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 20C4 20 8 4 18 4" />
-                    <circle cx="6" cy="18" r="2" />
-                    <circle cx="12" cy="11" r="2" />
-                    <circle cx="18" cy="5" r="2" />
+                    <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
+                    <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
+                    <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z" />
                 </svg>
             </button>
             <button
                 className={`sidebar-icon ${currentPage === 'models' ? 'active' : ''}`}
                 onClick={() => onPageChange('models')}
-                title="Models"
+                title="Models & Fitting"
             >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 3v18h18" />
+                    <path d="M18 17V9" />
+                    <path d="M13 17V5" />
+                    <path d="M8 17v-3" />
+                </svg>
+            </button>
+
+            <button
+                className={`sidebar-icon ${currentPage === 'analysis' ? 'active' : ''}`}
+                onClick={() => onPageChange('analysis')}
+                title="Analysis"
+            >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
+                    <path d="M8.5 8.5v.01" />
+                    <path d="M16 16v.01" />
+                    <path d="M12 12v.01" />
                 </svg>
             </button>
 
@@ -39,9 +53,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                 title="Database Browser"
             >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <ellipse cx="12" cy="5" rx="9" ry="3" />
-                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
                 </svg>
             </button>
         </div>

@@ -276,6 +276,7 @@ pre,
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -545,6 +546,7 @@ pre,
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -706,6 +708,25 @@ button.primary:hover {
 }
 
 button.primary:active {
+  transform: translateY(0);
+}
+
+button.secondary {
+  background: white;
+  color: var(--slate-700);
+  border: 1px solid var(--slate-300);
+  box-shadow: var(--shadow-sm);
+}
+
+button.secondary:hover {
+  border-color: var(--slate-400);
+  background: var(--slate-50);
+  color: var(--slate-900);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+button.secondary:active {
   transform: translateY(0);
 }
 

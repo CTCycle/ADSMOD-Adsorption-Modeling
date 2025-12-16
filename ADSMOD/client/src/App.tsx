@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, PageId } from './components/Sidebar';
 import { ConfigPage } from './components/ConfigPage';
 import { ModelsPage } from './components/ModelsPage';
 import { DatabaseBrowserPage, initialDatabaseBrowserState } from './components/DatabaseBrowserPage';
+import { MachineLearningPage } from './components/MachineLearningPage';
 import type { DatabaseBrowserState } from './components/DatabaseBrowserPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
 import { loadDataset, startFitting } from './services';
@@ -14,11 +15,10 @@ interface ModelState {
     config: ModelParameters;
 }
 
-type PageType = 'config' | 'models' | 'browser';
 type OptimizationMethod = FittingPayload['optimization_method'];
 
 function App() {
-    const [currentPage, setCurrentPage] = useState<PageType>('config');
+    const [currentPage, setCurrentPage] = useState<PageId>('config');
     const [maxIterations, setMaxIterations] = useState(10000);
     const [optimizationMethod, setOptimizationMethod] = useState<OptimizationMethod>('LSS');
     const [datasetStats, setDatasetStats] = useState('No dataset loaded.');
@@ -161,18 +161,10 @@ function App() {
                 <main className="app-main">
                     {currentPage === 'config' && (
                         <ConfigPage
-                            maxIterations={maxIterations}
-                            onMaxIterationsChange={setMaxIterations}
-                            optimizationMethod={optimizationMethod}
-                            onOptimizationMethodChange={setOptimizationMethod}
                             datasetStats={datasetStats}
-                            fittingStatus={fittingStatus}
                             datasetName={datasetName}
                             datasetSamples={datasetSamples}
-                            optimizationLabel={optimizationLabel}
                             onDatasetUpload={handleDatasetUpload}
-                            onStartFitting={handleStartFitting}
-                            onResetFittingStatus={handleResetFittingStatus}
                         />
                     )}
 
@@ -181,7 +173,18 @@ function App() {
                             modelStates={modelStates}
                             onParametersChange={handleParametersChange}
                             onToggle={handleModelToggle}
+                            maxIterations={maxIterations}
+                            onMaxIterationsChange={setMaxIterations}
+                            optimizationMethod={optimizationMethod}
+                            onOptimizationMethodChange={setOptimizationMethod}
+                            fittingStatus={fittingStatus}
+                            onStartFitting={handleStartFitting}
+                            onResetFittingStatus={handleResetFittingStatus}
                         />
+                    )}
+
+                    {currentPage === 'analysis' && (
+                        <MachineLearningPage />
                     )}
 
                     {currentPage === 'browser' && (
