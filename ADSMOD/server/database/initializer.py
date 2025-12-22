@@ -56,10 +56,8 @@ def clone_settings_with_database(
 
 # -------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
-    repository = SQLiteRepository(settings)
-    Base.metadata.create_all(repository.engine)
+    repository = SQLiteRepository(settings)    
     logger.info("Initialized SQLite database at %s", repository.db_path)
-
 
 # -------------------------------------------------------------------------
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
