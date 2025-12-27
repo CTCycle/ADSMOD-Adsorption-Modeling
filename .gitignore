@@ -1,3 +1,24 @@
+NISTADS/resources/database/metadata/*
+NISTADS/resources/database/inference/*
+NISTADS/resources/database/validation/*
+NISTADS/resources/checkpoints/*
+
+NISTADS/setup/python/*
+NISTADS/setup/uv/*
+NISTADS/setup/.env
+
+__pycache__
+*.vscode
+*.db
+*.log
+*.npy
+
+*.lock
+*.venv
+
+!.gitkeep
+
+
 # Project-specific generated/runtime artifacts
 docs/**
 ADSMOD/resources/database/**
@@ -55,7 +76,6 @@ Thumbs.db
 *.db
 *.sqlite*
 *.exe
-AGENTS.MD
 
 !.gitkeep
 !ADSMOD/settings/server_configurations.json
