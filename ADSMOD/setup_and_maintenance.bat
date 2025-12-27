@@ -28,6 +28,7 @@ set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
 set "scripts_dir=%server_dir%\scripts"
 set "init_db_script=%scripts_dir%\initialize_database.py"
+
 set "init_db_module=AEGIS.server.scripts.initialize_database"
 set "gibs_module=AEGIS.server.scripts.update_gibs_layers"
 
@@ -43,14 +44,14 @@ echo ==========================================================================
 echo 1. Remove logs
 echo 2. Uninstall app
 echo 3. Initialize database
-echo 5. Exit
+echo 4. Exit
 echo.
-set /p sub_choice="Select an option (1-5): "
+set /p sub_choice="Select an option (1-4): "
 
 if "%sub_choice%"=="1" goto :logs
 if "%sub_choice%"=="2" goto :uninstall
 if "%sub_choice%"=="3" goto :run_init_db
-if "%sub_choice%"=="5" goto :exit
+if "%sub_choice%"=="4" goto :exit
 echo Invalid option, try again.
 pause
 goto :setup_menu
