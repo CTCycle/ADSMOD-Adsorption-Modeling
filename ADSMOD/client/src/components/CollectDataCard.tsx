@@ -7,9 +7,7 @@ export const CollectDataCard: React.FC = () => {
     const [experimentsFraction, setExperimentsFraction] = useState(1.0);
     const [parallelRequests, setParallelRequests] = useState(20);
 
-    const handleLoadFiles = () => {
-        console.log('[INFO] Load data from files (Not implemented yet)');
-    };
+
 
     const handleCollectData = () => {
         console.log('[INFO] Collect adsorption data (Not implemented yet)');
@@ -66,9 +64,7 @@ export const CollectDataCard: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <button className="button secondary" onClick={handleLoadFiles} style={{ justifyContent: 'center' }}>
-                        Load data from files
-                    </button>
+
                     <button className="button primary" onClick={handleCollectData} style={{ justifyContent: 'center' }}>
                         Collect adsorption data
                     </button>
