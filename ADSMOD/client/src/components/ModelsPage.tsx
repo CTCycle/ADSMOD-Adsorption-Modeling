@@ -21,6 +21,7 @@ interface ModelsPageProps {
     onOptimizationMethodChange: (value: OptimizationMethod) => void;
     fittingStatus: string;
     onStartFitting: () => void;
+    onResetFittingStatus: () => void;
 }
 
 /**
@@ -41,6 +42,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     onOptimizationMethodChange,
     fittingStatus,
     onStartFitting,
+    onResetFittingStatus,
 }) => {
     // Single expanded card strategy: only one card can be expanded at a time
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -136,8 +138,25 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                                 </select>
                             </div>
                             <div className="control-group">
-                                <button className="primary" onClick={onStartFitting} style={{ width: '100%', justifyContent: 'center' }}>
+                                <button className="primary" onClick={onStartFitting} style={{ width: '100%', justifyContent: 'center', marginBottom: '0.75rem' }}>
                                     Start Fitting
+                                </button>
+                                <button
+                                    onClick={onResetFittingStatus}
+                                    style={{
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        padding: '0.6rem',
+                                        background: 'transparent',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        color: '#475569',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 500
+                                    }}
+                                >
+                                    Reset Log
                                 </button>
                             </div>
                         </div>
