@@ -272,3 +272,39 @@ class AdsorptionBestFit(Base):
         UniqueConstraint("id"),
         UniqueConstraint("experiment_id"),
     )
+
+
+###############################################################################
+class TrainingDataset(Base):
+    __tablename__ = "TRAINING_DATASET"
+    id = Column(Integer, primary_key=True)
+    dataset_name = Column(String)
+    split = Column(String)
+    temperature = Column(Float)
+    pressure = Column(String)
+    adsorbed_amount = Column(String)
+    encoded_adsorbent = Column(Integer)
+    adsorbate_molecular_weight = Column(Float)
+    adsorbate_encoded_SMILE = Column(String)
+    __table_args__ = (UniqueConstraint("id"),)
+
+
+###############################################################################
+class TrainingMetadata(Base):
+    __tablename__ = "TRAINING_METADATA"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(String)
+    sample_size = Column(Float)
+    validation_size = Column(Float)
+    min_measurements = Column(Integer)
+    max_measurements = Column(Integer)
+    smile_sequence_size = Column(Integer)
+    max_pressure = Column(Float)
+    max_uptake = Column(Float)
+    total_samples = Column(Integer)
+    train_samples = Column(Integer)
+    validation_samples = Column(Integer)
+    smile_vocabulary = Column(String)
+    adsorbent_vocabulary = Column(String)
+    normalization_stats = Column(String)
+    __table_args__ = (UniqueConstraint("id"),)

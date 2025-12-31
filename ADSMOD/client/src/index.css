@@ -1321,3 +1321,473 @@ input:checked+.slider:before {
 .sidebar-spacer {
   flex: 1;
 }
+
+/* Machine Learning Page - New Layout */
+.ml-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1rem 2rem;
+}
+
+.ml-header {
+  margin-bottom: 1.5rem;
+}
+
+.ml-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--slate-900);
+  margin: 0 0 0.25rem 0;
+}
+
+.ml-subtitle {
+  font-size: 0.95rem;
+  color: var(--slate-500);
+  margin: 0;
+}
+
+/* Collapsible Sections */
+.collapsible-section {
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.collapsible-header:hover {
+  background: var(--slate-50);
+}
+
+.collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--slate-800);
+}
+
+.collapsible-icon {
+  color: var(--primary-600);
+}
+
+.collapsible-chevron {
+  color: var(--slate-400);
+  font-size: 0.875rem;
+  transition: transform 0.2s ease;
+}
+
+.collapsible-chevron.open {
+  transform: rotate(180deg);
+}
+
+.collapsible-content {
+  padding: 0 1.25rem 1.25rem;
+  animation: slideDown 0.2s ease;
+}
+
+/* Config Cards Grid */
+.training-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.config-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.config-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--slate-200);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--slate-700);
+}
+
+.config-card-icon {
+  font-size: 1rem;
+}
+
+.config-card-body {
+  padding: 1rem;
+}
+
+.config-fields-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.config-fields-row>* {
+  flex: 1;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.toggles-row {
+  display: flex;
+  gap: 2rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.status-badge-small {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.status-badge-small.available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-badge-small.unavailable {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Training Parameters Section */
+.training-params-section {
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--slate-700);
+  margin-bottom: 1rem;
+}
+
+.section-icon {
+  color: #f59e0b;
+}
+
+.lr-scheduler-params {
+  background: var(--slate-50);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.start-training-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.start-btn {
+  min-width: 160px;
+}
+
+/* Resume Section */
+.resume-section-content {
+  padding-top: 0.5rem;
+}
+
+.resume-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.resume-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.resume-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Training Dashboard */
+.training-dashboard {
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--slate-800);
+}
+
+.dashboard-icon {
+  color: #f59e0b;
+}
+
+.training-status-badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+}
+
+.training-status-badge.active {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.training-status-badge.idle {
+  background: var(--slate-100);
+  color: var(--slate-600);
+  border: 1px solid var(--slate-200);
+}
+
+/* Metrics Row */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+}
+
+.metric-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.metric-icon {
+  font-size: 0.75rem;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Dashboard Progress */
+.dashboard-progress {
+  margin-bottom: 1.5rem;
+}
+
+.progress-label {
+  font-size: 0.85rem;
+  color: var(--slate-600);
+  margin-bottom: 0.5rem;
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: var(--slate-200);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progress-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.stop-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stop-btn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.stop-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Charts Container */
+.charts-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-panel {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.chart-title {
+  background: var(--slate-100);
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--slate-700);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chart-placeholder {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--slate-400);
+  font-size: 0.9rem;
+}
+
+.chart-placeholder small {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--slate-500);
+}
+
+/* Log Panel (Light Theme) */
+.log-panel {
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: var(--slate-100);
+  border-bottom: 1px solid var(--slate-200);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--slate-700);
+}
+
+.training-log-light {
+  margin: 0;
+  padding: 1rem;
+  background: #ffffff;
+  color: var(--slate-700);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 120px;
+  max-height: 200px;
+}
+
+.no-data-message {
+  font-size: 0.875rem;
+  color: var(--slate-500);
+  margin: 0;
+  line-height: 1.5;
+  padding: 1rem 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .training-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .charts-container {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .resume-buttons {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 600px) {
+  .metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .config-fields-row {
+    flex-direction: column;
+  }
+}

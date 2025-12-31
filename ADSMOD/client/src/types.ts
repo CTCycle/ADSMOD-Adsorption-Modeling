@@ -67,3 +67,106 @@ export interface TableDataResponse {
     columns: string[];
     data: Record<string, unknown>[];
 }
+
+// Training API types
+export interface TrainingConfig {
+    // Dataset settings
+    sample_size: number;        // 0.0-1.0 fraction
+    validation_size: number;    // 0.0-1.0 fraction
+    batch_size: number;
+    shuffle_dataset: boolean;
+    shuffle_size: number;
+
+    // Model settings
+    selected_model: 'SCADS Series' | 'SCADS Atomic';
+    dropout_rate: number;
+    num_attention_heads: number;
+    num_encoders: number;
+    molecular_embedding_size: number;
+
+    // Training settings
+    epochs: number;
+
+    // LR scheduler settings
+    use_lr_scheduler: boolean;
+    initial_lr: number;
+    target_lr: number;
+    constant_steps: number;
+    decay_steps: number;
+
+    // Callbacks
+    save_checkpoints: boolean;
+    checkpoints_frequency: number;
+}
+
+export interface TrainingUpdate {
+    type: 'log' | 'metric' | 'progress' | 'status';
+    data: {
+        message?: string;
+        epoch?: number;
+        batch?: number;
+        loss?: number;
+        accuracy?: number;
+        val_loss?: number;
+        val_accuracy?: number;
+        progress?: number;
+        status?: 'training' | 'completed' | 'stopped' | 'error';
+    };
+}
+
+export interface CheckpointInfo {
+    name: string;
+    created_at?: string;
+    epochs_trained?: number;
+    final_loss?: number;
+    final_accuracy?: number;
+}
+
+export interface TrainingDatasetInfo {
+    available: boolean;
+    name?: string;
+    train_samples?: number;
+    validation_samples?: number;
+}
+
+export interface TrainingStatus {
+    is_training: boolean;
+    current_epoch: number;
+    total_epochs: number;
+    progress: number;
+}
+
+// Dataset Builder types
+export interface DatasetBuildConfig {
+    sample_size: number;
+    validation_size: number;
+    min_measurements: number;
+    max_measurements: number;
+    smile_sequence_size: number;
+    max_pressure: number;
+    max_uptake: number;
+    source_datasets: string[];
+}
+
+export interface DatasetBuildResult {
+    success: boolean;
+    message: string;
+    total_samples?: number;
+    train_samples?: number;
+    validation_samples?: number;
+}
+
+export interface DatasetFullInfo {
+    available: boolean;
+    created_at?: string;
+    sample_size?: number;
+    validation_size?: number;
+    min_measurements?: number;
+    max_measurements?: number;
+    smile_sequence_size?: number;
+    max_pressure?: number;
+    max_uptake?: number;
+    total_samples?: number;
+    train_samples?: number;
+    validation_samples?: number;
+}

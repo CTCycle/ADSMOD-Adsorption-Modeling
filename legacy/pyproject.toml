@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "NISTADS"
 version = "1.5"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.14"
 
 dependencies = [    
     "torch==2.9.0+cu130",    
