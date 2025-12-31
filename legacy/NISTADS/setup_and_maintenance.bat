@@ -9,7 +9,7 @@ set "root_folder=%project_folder%..\"
 set "setup_dir=%project_folder%setup"
 set "python_dir=%setup_dir%\python"
 set "python_exe=%python_dir%\python.exe"
-set "python_pth_file=%python_dir%\python312._pth"
+set "python_pth_file=%python_dir%\python314._pth"
 set "env_marker=%python_dir%\.is_installed"
 
 set "uv_dir=%setup_dir%\uv"

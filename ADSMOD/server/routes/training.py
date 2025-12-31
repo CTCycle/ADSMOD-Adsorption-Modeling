@@ -1,0 +1,419 @@
+"""Training routes for ML model training and checkpoint management."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+from ADSMOD.server.database.database import database
+from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
+
+router = APIRouter(prefix="/training", tags=["training"])
+
+
+# Request/Response Models
+class TrainingConfigRequest(BaseModel):
+    """Training configuration from frontend."""
+
+    # Dataset settings
+    sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
+    validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
+    batch_size: int = Field(default=32, ge=1, le=256)
+    shuffle_dataset: bool = True
+    shuffle_size: int = Field(default=1000, ge=100, le=10000)
+
+    # Model settings
+    selected_model: str = "SCADS Series"
+    dropout_rate: float = Field(default=0.1, ge=0.0, le=0.5)
+    num_attention_heads: int = Field(default=8, ge=1, le=16)
+    num_encoders: int = Field(default=4, ge=1, le=12)
+    molecular_embedding_size: int = Field(default=256, ge=64, le=1024)
+
+    # Training settings
+    epochs: int = Field(default=50, ge=1, le=500)
+
+    # LR scheduler settings
+    use_lr_scheduler: bool = True
+    initial_lr: float = Field(default=1e-4, ge=1e-7, le=1e-2)
+    target_lr: float = Field(default=1e-5, ge=1e-8, le=1e-3)
+    constant_steps: int = Field(default=5, ge=0, le=50)
+    decay_steps: int = Field(default=10, ge=1, le=100)
+
+    # Callbacks
+    save_checkpoints: bool = True
+    checkpoints_frequency: int = Field(default=5, ge=1, le=50)
+
+
+class ResumeTrainingRequest(BaseModel):
+    """Request to resume training from a checkpoint."""
+
+    checkpoint_name: str
+    additional_epochs: int = Field(default=10, ge=1, le=100)
+
+
+class TrainingDatasetResponse(BaseModel):
+    """Response with training dataset availability info."""
+
+    available: bool
+    name: str | None = None
+    train_samples: int | None = None
+    validation_samples: int | None = None
+
+
+class CheckpointsResponse(BaseModel):
+    """Response with list of available checkpoints."""
+
+    checkpoints: list[str]
+
+
+class TrainingStartResponse(BaseModel):
+    """Response after starting training."""
+
+    status: str
+    session_id: str
+    message: str
+
+
+class TrainingStatusResponse(BaseModel):
+    """Response with current training status."""
+
+    is_training: bool
+    current_epoch: int
+    total_epochs: int
+    progress: float
+
+
+class DatasetBuildRequest(BaseModel):
+    """Request to build a training dataset."""
+
+    sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
+    validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
+    min_measurements: int = Field(default=1, ge=1, le=100)
+    max_measurements: int = Field(default=30, ge=5, le=500)
+    smile_sequence_size: int = Field(default=20, ge=5, le=100)
+    max_pressure: float = Field(default=10000.0, ge=100.0, le=100000.0)
+    max_uptake: float = Field(default=20.0, ge=1.0, le=1000.0)
+    source_datasets: list[str] = Field(default=["ADSORPTION_PROCESSED_DATA"])
+
+
+class DatasetBuildResponse(BaseModel):
+    """Response after building a dataset."""
+
+    success: bool
+    message: str
+    total_samples: int | None = None
+    train_samples: int | None = None
+    validation_samples: int | None = None
+
+
+class DatasetInfoResponse(BaseModel):
+    """Response with training dataset info."""
+
+    available: bool
+    created_at: str | None = None
+    sample_size: float | None = None
+    validation_size: float | None = None
+    min_measurements: int | None = None
+    max_measurements: int | None = None
+    smile_sequence_size: int | None = None
+    max_pressure: float | None = None
+    max_uptake: float | None = None
+    total_samples: int | None = None
+    train_samples: int | None = None
+    validation_samples: int | None = None
+
+
+# Training state (in-memory for now)
+_training_state: dict[str, Any] = {
+    "is_training": False,
+    "current_epoch": 0,
+    "total_epochs": 0,
+    "session_id": None,
+    "stop_requested": False,
+}
+
+
+@router.get("/datasets", response_model=TrainingDatasetResponse)
+async def get_training_datasets() -> TrainingDatasetResponse:
+    """Check if training datasets are available in the database."""
+    try:
+        logger.info("Checking training dataset availability")
+        info = DatasetBuilder.get_training_dataset_info()
+
+        if info is None:
+            return TrainingDatasetResponse(
+                available=False,
+                name=None,
+                train_samples=None,
+                validation_samples=None,
+            )
+
+        return TrainingDatasetResponse(
+            available=True,
+            name="Training Dataset",
+            train_samples=info.get("train_samples"),
+            validation_samples=info.get("validation_samples"),
+        )
+
+    except Exception as e:
+        logger.error(f"Error checking training datasets: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/build-dataset", response_model=DatasetBuildResponse)
+async def build_training_dataset(request: DatasetBuildRequest) -> DatasetBuildResponse:
+    """Build a new training dataset from raw adsorption data."""
+    try:
+        logger.info(f"Building training dataset with config: {request.model_dump()}")
+
+        config = DatasetBuilderConfig(
+            sample_size=request.sample_size,
+            validation_size=request.validation_size,
+            min_measurements=request.min_measurements,
+            max_measurements=request.max_measurements,
+            smile_sequence_size=request.smile_sequence_size,
+            max_pressure=request.max_pressure,
+            max_uptake=request.max_uptake,
+        )
+
+        builder = DatasetBuilder(config)
+
+        adsorption_data = database.load_from_database("ADSORPTION_PROCESSED_DATA")
+
+        if adsorption_data.empty:
+            return DatasetBuildResponse(
+                success=False,
+                message="No raw adsorption data available. Please run fitting first.",
+            )
+
+        result = builder.build_training_dataset(
+            adsorption_data=adsorption_data,
+            dataset_name="processed",
+        )
+
+        if result.get("success"):
+            return DatasetBuildResponse(
+                success=True,
+                message="Training dataset built successfully.",
+                total_samples=result.get("total_samples"),
+                train_samples=result.get("train_samples"),
+                validation_samples=result.get("validation_samples"),
+            )
+        else:
+            return DatasetBuildResponse(
+                success=False,
+                message=result.get("error", "Unknown error during dataset building."),
+            )
+
+    except Exception as e:
+        logger.error(f"Error building training dataset: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/dataset-info", response_model=DatasetInfoResponse)
+async def get_dataset_info() -> DatasetInfoResponse:
+    """Get current training dataset info and metadata."""
+    try:
+        info = DatasetBuilder.get_training_dataset_info()
+
+        if info is None:
+            return DatasetInfoResponse(available=False)
+
+        return DatasetInfoResponse(
+            available=True,
+            created_at=info.get("created_at"),
+            sample_size=info.get("sample_size"),
+            validation_size=info.get("validation_size"),
+            min_measurements=info.get("min_measurements"),
+            max_measurements=info.get("max_measurements"),
+            smile_sequence_size=info.get("smile_sequence_size"),
+            max_pressure=info.get("max_pressure"),
+            max_uptake=info.get("max_uptake"),
+            total_samples=info.get("total_samples"),
+            train_samples=info.get("train_samples"),
+            validation_samples=info.get("validation_samples"),
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting dataset info: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete("/dataset")
+async def clear_training_dataset() -> dict[str, str]:
+    """Clear the current training dataset."""
+    try:
+        success = DatasetBuilder.clear_training_dataset()
+
+        if success:
+            return {"status": "success", "message": "Training dataset cleared."}
+        else:
+            return {"status": "error", "message": "Failed to clear training dataset."}
+
+    except Exception as e:
+        logger.error(f"Error clearing training dataset: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/checkpoints", response_model=CheckpointsResponse)
+async def get_checkpoints() -> CheckpointsResponse:
+    """List available model checkpoints."""
+    try:
+        # TODO: Implement checkpoint scanning from resources/checkpoints directory
+        logger.info("Scanning for available checkpoints")
+
+        # This will be replaced with actual filesystem scanning
+        # similar to legacy ModelSerializer.scan_checkpoints_folder()
+        checkpoints: list[str] = []
+
+        return CheckpointsResponse(checkpoints=checkpoints)
+
+    except Exception as e:
+        logger.error(f"Error scanning checkpoints: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/start", response_model=TrainingStartResponse)
+async def start_training(config: TrainingConfigRequest) -> TrainingStartResponse:
+    """Start a new training session."""
+    global _training_state
+
+    if _training_state["is_training"]:
+        raise HTTPException(
+            status_code=400, detail="Training is already in progress. Stop it first."
+        )
+
+    try:
+        logger.info(f"Starting training with config: {config.model_dump()}")
+
+        # Generate session ID
+        import uuid
+
+        session_id = str(uuid.uuid4())[:8]
+
+        # Update training state
+        _training_state.update(
+            {
+                "is_training": True,
+                "current_epoch": 0,
+                "total_epochs": config.epochs,
+                "session_id": session_id,
+                "stop_requested": False,
+            }
+        )
+
+        # TODO: Implement actual training pipeline
+        # This will spawn a background task that:
+        # 1. Loads training data from database
+        # 2. Builds dataloaders
+        # 3. Creates/loads model
+        # 4. Runs training loop with callbacks
+        # 5. Saves checkpoint on completion
+
+        return TrainingStartResponse(
+            status="started",
+            session_id=session_id,
+            message=f"Training started with {config.epochs} epochs. Session: {session_id}",
+        )
+
+    except Exception as e:
+        _training_state["is_training"] = False
+        logger.error(f"Error starting training: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/resume", response_model=TrainingStartResponse)
+async def resume_training(request: ResumeTrainingRequest) -> TrainingStartResponse:
+    """Resume training from a checkpoint."""
+    global _training_state
+
+    if _training_state["is_training"]:
+        raise HTTPException(
+            status_code=400, detail="Training is already in progress. Stop it first."
+        )
+
+    try:
+        logger.info(
+            f"Resuming training from checkpoint: {request.checkpoint_name} "
+            f"with {request.additional_epochs} additional epochs"
+        )
+
+        # Generate session ID
+        import uuid
+
+        session_id = str(uuid.uuid4())[:8]
+
+        # Update training state
+        _training_state.update(
+            {
+                "is_training": True,
+                "current_epoch": 0,
+                "total_epochs": request.additional_epochs,
+                "session_id": session_id,
+                "stop_requested": False,
+            }
+        )
+
+        # TODO: Implement actual resume training pipeline
+        # This will:
+        # 1. Load checkpoint (model, config, metadata, session)
+        # 2. Validate/rebuild dataset if needed
+        # 3. Build dataloaders
+        # 4. Resume training from saved epoch
+        # 5. Save updated checkpoint on completion
+
+        return TrainingStartResponse(
+            status="started",
+            session_id=session_id,
+            message=f"Resuming training from {request.checkpoint_name} with {request.additional_epochs} epochs. Session: {session_id}",
+        )
+
+    except Exception as e:
+        _training_state["is_training"] = False
+        logger.error(f"Error resuming training: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/stop")
+async def stop_training() -> dict[str, str]:
+    """Stop the current training session."""
+    global _training_state
+
+    if not _training_state["is_training"]:
+        return {"status": "stopped", "message": "No training session is running."}
+
+    try:
+        logger.info("Stop requested for current training session")
+        _training_state["stop_requested"] = True
+
+        # TODO: Signal the training loop to stop gracefully
+        # The training loop should check stop_requested flag
+
+        # For now, just update state
+        _training_state["is_training"] = False
+
+        return {"status": "stopped", "message": "Training stop requested."}
+
+    except Exception as e:
+        logger.error(f"Error stopping training: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/status", response_model=TrainingStatusResponse)
+async def get_training_status() -> TrainingStatusResponse:
+    """Get current training status."""
+    progress = 0.0
+    if _training_state["total_epochs"] > 0:
+        progress = (
+            _training_state["current_epoch"] / _training_state["total_epochs"]
+        ) * 100
+
+    return TrainingStatusResponse(
+        is_training=_training_state["is_training"],
+        current_epoch=_training_state["current_epoch"],
+        total_epochs=_training_state["total_epochs"],
+        progress=progress,
+    )

@@ -189,3 +189,308 @@ export async function fetchTableData(tableName: string): Promise<{
         return { data: [], columns: [], rowCount: 0, columnCount: 0, displayName: '', error: 'An unknown error occurred.' };
     }
 }
+
+// Training API functions
+import type { TrainingConfig, TrainingDatasetInfo, CheckpointInfo } from './types';
+
+export async function fetchTrainingDatasets(): Promise<{
+    data: TrainingDatasetInfo;
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/datasets`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { data: { available: false }, error: message };
+        }
+
+        const result = await response.json();
+        return {
+            data: {
+                available: result.available || false,
+                name: result.name,
+                train_samples: result.train_samples,
+                validation_samples: result.validation_samples,
+            },
+            error: null,
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: { available: false }, error: error.message };
+        }
+        return { data: { available: false }, error: 'An unknown error occurred.' };
+    }
+}
+
+export async function fetchCheckpoints(): Promise<{
+    checkpoints: CheckpointInfo[];
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/checkpoints`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { checkpoints: [], error: message };
+        }
+
+        const result = await response.json();
+        const checkpoints: CheckpointInfo[] = (result.checkpoints || []).map((name: string) => ({
+            name,
+        }));
+        return { checkpoints, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { checkpoints: [], error: error.message };
+        }
+        return { checkpoints: [], error: 'An unknown error occurred.' };
+    }
+}
+
+export async function startTraining(config: TrainingConfig): Promise<{
+    sessionId: string;
+    message: string;
+    status: 'started' | 'error';
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/start`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config),
+            },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { sessionId: '', message, status: 'error' };
+        }
+
+        const result = await response.json();
+        return {
+            sessionId: result.session_id || '',
+            message: result.message || 'Training started.',
+            status: 'started',
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { sessionId: '', message: error.message, status: 'error' };
+        }
+        return { sessionId: '', message: 'An unknown error occurred.', status: 'error' };
+    }
+}
+
+export async function resumeTraining(checkpoint: string, additionalEpochs: number): Promise<{
+    sessionId: string;
+    message: string;
+    status: 'started' | 'error';
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/resume`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    checkpoint_name: checkpoint,
+                    additional_epochs: additionalEpochs,
+                }),
+            },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { sessionId: '', message, status: 'error' };
+        }
+
+        const result = await response.json();
+        return {
+            sessionId: result.session_id || '',
+            message: result.message || 'Training resumed.',
+            status: 'started',
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { sessionId: '', message: error.message, status: 'error' };
+        }
+        return { sessionId: '', message: 'An unknown error occurred.', status: 'error' };
+    }
+}
+
+export async function stopTraining(): Promise<{
+    message: string;
+    status: 'stopped' | 'error';
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/stop`,
+            { method: 'POST' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { message, status: 'error' };
+        }
+
+        const result = await response.json();
+        return {
+            message: result.message || 'Training stopped.',
+            status: 'stopped',
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { message: error.message, status: 'error' };
+        }
+        return { message: 'An unknown error occurred.', status: 'error' };
+    }
+}
+
+export async function getTrainingStatus(): Promise<{
+    is_training: boolean;
+    current_epoch: number;
+    total_epochs: number;
+    progress: number;
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/status`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { is_training: false, current_epoch: 0, total_epochs: 0, progress: 0, error: message };
+        }
+
+        const result = await response.json();
+        return {
+            is_training: result.is_training || false,
+            current_epoch: result.current_epoch || 0,
+            total_epochs: result.total_epochs || 0,
+            progress: result.progress || 0,
+            error: null,
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { is_training: false, current_epoch: 0, total_epochs: 0, progress: 0, error: error.message };
+        }
+        return { is_training: false, current_epoch: 0, total_epochs: 0, progress: 0, error: 'An unknown error occurred.' };
+    }
+}
+
+// Dataset Builder API functions
+import type { DatasetBuildConfig, DatasetBuildResult, DatasetFullInfo } from './types';
+
+export async function buildTrainingDataset(config: DatasetBuildConfig): Promise<DatasetBuildResult> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/build-dataset`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config),
+            },
+            HTTP_TIMEOUT * 2
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { success: false, message };
+        }
+
+        const result = await response.json();
+        return {
+            success: result.success || false,
+            message: result.message || 'Dataset built.',
+            total_samples: result.total_samples,
+            train_samples: result.train_samples,
+            validation_samples: result.validation_samples,
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { success: false, message: error.message };
+        }
+        return { success: false, message: 'An unknown error occurred.' };
+    }
+}
+
+export async function getTrainingDatasetInfo(): Promise<DatasetFullInfo> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/dataset-info`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            return { available: false };
+        }
+
+        const result = await response.json();
+        return {
+            available: result.available || false,
+            created_at: result.created_at,
+            sample_size: result.sample_size,
+            validation_size: result.validation_size,
+            min_measurements: result.min_measurements,
+            max_measurements: result.max_measurements,
+            smile_sequence_size: result.smile_sequence_size,
+            max_pressure: result.max_pressure,
+            max_uptake: result.max_uptake,
+            total_samples: result.total_samples,
+            train_samples: result.train_samples,
+            validation_samples: result.validation_samples,
+        };
+    } catch {
+        return { available: false };
+    }
+}
+
+export async function clearTrainingDataset(): Promise<{ success: boolean; message: string }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/dataset`,
+            { method: 'DELETE' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { success: false, message };
+        }
+
+        const result = await response.json();
+        return {
+            success: result.status === 'success',
+            message: result.message || 'Dataset cleared.',
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { success: false, message: error.message };
+        }
+        return { success: false, message: 'An unknown error occurred.' };
+    }
+}
