@@ -8,6 +8,7 @@ from urllib.parse import quote
 import httpx
 import pandas as pd
 
+from ADSMOD.server.utils.configurations import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 
@@ -456,12 +457,11 @@ class NISTDataService:
         experiments_fraction: float,
         guest_fraction: float,
         host_fraction: float,
-        parallel_tasks: int,
     ) -> dict[str, int]:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise ValueError("Dataset name cannot be empty.")
-        api_client = NISTApiClient(parallel_tasks)
+        api_client = NISTApiClient(server_settings.nist.parallel_tasks)
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             experiments_index = await api_client.fetch_experiments_index(client)
@@ -495,9 +495,7 @@ class NISTDataService:
         }
 
     # -------------------------------------------------------------------------
-    async def enrich_properties(
-        self, target: str, parallel_tasks: int
-    ) -> dict[str, int]:
+    async def enrich_properties(self, target: str) -> dict[str, int]:
         adsorption_data, guest_data, host_data = await asyncio.to_thread(
             self.serializer.load_adsorption_datasets
         )
@@ -540,7 +538,7 @@ class NISTDataService:
                 "rows_updated": 0,
             }
 
-        pubchem = PubChemClient(parallel_tasks)
+        pubchem = PubChemClient(server_settings.nist.pubchem_parallel_tasks)
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             properties = await pubchem.fetch_properties_for_names(client, names)

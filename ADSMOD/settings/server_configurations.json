@@ -23,6 +23,10 @@
     "allowed_extensions": [".csv", ".xls", ".xlsx"],
     "column_detection_cutoff": 0.6
   },
+  "nist": {
+    "parallel_tasks": 20,
+    "pubchem_parallel_tasks": 10
+  },
     "fitting": {
       "default_max_iterations": 1000,
       "max_iterations_upper_bound": 1000000,
