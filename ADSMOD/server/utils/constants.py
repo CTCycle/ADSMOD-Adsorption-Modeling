@@ -103,6 +103,9 @@ DATASETS_ROUTER_PREFIX = "/datasets"
 DATASETS_LOAD_ENDPOINT = "/load"
 FITTING_ROUTER_PREFIX = "/fitting"
 FITTING_RUN_ENDPOINT = "/run"
+NIST_ROUTER_PREFIX = "/nist"
+NIST_FETCH_ENDPOINT = "/fetch"
+NIST_PROPERTIES_ENDPOINT = "/properties"
 BROWSER_ROUTER_PREFIX = "/browser"
 BROWSER_TABLES_ENDPOINT = "/tables"
 BROWSER_DATA_ENDPOINT = "/data"
@@ -111,6 +114,10 @@ DOCS_ENDPOINT = "/docs"
 
 # Table name to friendly display name mapping for database browser
 BROWSER_TABLE_DISPLAY_NAMES: dict[str, str] = {
+    "SINGLE_COMPONENT_ADSORPTION": "Single-Component Adsorption Data",
+    "BINARY_MIXTURE_ADSORPTION": "Binary Mixture Adsorption Data",
+    "ADSORBATES": "Adsorbate Materials",
+    "ADSORBENTS": "Adsorbent Materials",
     "ADSORPTION_DATA": "Uploaded Adsorption Data",
     "ADSORPTION_LANGMUIR": "Langmuir Model Results",
     "ADSORPTION_SIPS": "Sips Model Results",
