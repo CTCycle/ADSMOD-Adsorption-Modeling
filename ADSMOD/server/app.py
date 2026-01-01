@@ -10,6 +10,7 @@ from ADSMOD.server.routes.datasets import router as dataset_router
 from ADSMOD.server.routes.fitting import router as fit_router
 from ADSMOD.server.routes.browser import router as browser_router
 from ADSMOD.server.routes.training import router as training_router
+from ADSMOD.server.routes.nist import router as nist_router
 
 
 ###############################################################################
@@ -23,6 +24,7 @@ app.include_router(dataset_router)
 app.include_router(fit_router)
 app.include_router(browser_router)
 app.include_router(training_router)
+app.include_router(nist_router)
 
 # -------------------------------------------------------------------------
 @app.get(ROOT_ENDPOINT)
