@@ -7,6 +7,7 @@ from ADSMOD.server.utils.configurations.base import (
 from ADSMOD.server.utils.configurations.server import (
     DatabaseSettings,
     FastAPISettings,
+    NISTSettings,
     ServerSettings,
     server_settings,
     get_server_settings,
@@ -15,6 +16,7 @@ from ADSMOD.server.utils.configurations.server import (
 __all__ = [    
     "DatabaseSettings",
     "FastAPISettings",
+    "NISTSettings",
     "ServerSettings",
     "server_settings",
     "get_server_settings",   

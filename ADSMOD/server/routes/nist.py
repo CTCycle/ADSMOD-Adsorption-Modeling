@@ -33,7 +33,6 @@ async def fetch_nist_data(request: NISTFetchRequest) -> NISTFetchResponse:
             experiments_fraction=request.experiments_fraction,
             guest_fraction=request.guest_fraction,
             host_fraction=request.host_fraction,
-            parallel_tasks=request.parallel_tasks,
         )
     except ValueError as exc:
         logger.warning("NIST fetch validation failed: %s", exc)
@@ -60,9 +59,7 @@ async def fetch_nist_properties(
     request: NISTPropertiesRequest,
 ) -> NISTPropertiesResponse:
     try:
-        result = await service.enrich_properties(
-            target=request.target, parallel_tasks=request.parallel_tasks
-        )
+        result = await service.enrich_properties(target=request.target)
     except ValueError as exc:
         logger.warning("NIST properties request failed: %s", exc)
         raise HTTPException(

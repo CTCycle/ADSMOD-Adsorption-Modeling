@@ -50,6 +50,12 @@ class DatasetSettings:
 
 ###############################################################################
 @dataclass(frozen=True)
+class NISTSettings:
+    parallel_tasks: int
+    pubchem_parallel_tasks: int
+
+###############################################################################
+@dataclass(frozen=True)
 class FittingSettings:
     default_max_iterations: int
     max_iterations_upper_bound: int
@@ -65,6 +71,7 @@ class ServerSettings:
     fastapi: FastAPISettings
     database: DatabaseSettings
     datasets: DatasetSettings
+    nist: NISTSettings
     fitting: FittingSettings
 
 
@@ -150,6 +157,15 @@ def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     )
 
 # -------------------------------------------------------------------------
+def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
+    return NISTSettings(
+        parallel_tasks=coerce_int(payload.get("parallel_tasks"), 20, minimum=1),
+        pubchem_parallel_tasks=coerce_int(
+            payload.get("pubchem_parallel_tasks"), 10, minimum=1
+        ),
+    )
+
+# -------------------------------------------------------------------------
 def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
     default_iterations = coerce_int(
         payload.get("default_max_iterations"), 1000, minimum=1
@@ -182,12 +198,14 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     fastapi_payload = ensure_mapping(payload.get("fastapi"))
     database_payload = ensure_mapping(payload.get("database"))
     dataset_payload = ensure_mapping(payload.get("datasets"))
+    nist_payload = ensure_mapping(payload.get("nist"))
     fitting_payload = ensure_mapping(payload.get("fitting"))
 
     return ServerSettings(
         fastapi=build_fastapi_settings(fastapi_payload),
         database=build_database_settings(database_payload),
         datasets=build_dataset_settings(dataset_payload),
+        nist=build_nist_settings(nist_payload),
         fitting=build_fitting_settings(fitting_payload),
     )
 

@@ -5,7 +5,6 @@ export const CollectDataCard: React.FC = () => {
     const [guestFraction, setGuestFraction] = useState(1.0);
     const [hostFraction, setHostFraction] = useState(1.0);
     const [experimentsFraction, setExperimentsFraction] = useState(1.0);
-    const [parallelRequests, setParallelRequests] = useState(20);
 
 
 
@@ -51,15 +50,6 @@ export const CollectDataCard: React.FC = () => {
                         max={1.0}
                         step={0.01}
                         precision={3}
-                    />
-                    <NumberInput
-                        label="Parallel requests"
-                        value={parallelRequests}
-                        onChange={setParallelRequests}
-                        min={1}
-                        max={500}
-                        step={1}
-                        precision={0}
                     />
                 </div>
 
