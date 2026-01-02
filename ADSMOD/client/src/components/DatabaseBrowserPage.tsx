@@ -4,6 +4,7 @@ import { fetchTableList, fetchTableData } from '../services';
 interface TableInfo {
     table_name: string;
     display_name: string;
+    category: string;
 }
 
 export interface DatabaseBrowserState {
@@ -176,10 +177,19 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                             disabled={loading}
                         >
                             <option value="">Select data</option>
-                            {tables.map((table) => (
-                                <option key={table.table_name} value={table.table_name}>
-                                    {table.display_name}
-                                </option>
+                            {Object.entries(
+                                tables.reduce((acc, table) => {
+                                    (acc[table.category] ??= []).push(table);
+                                    return acc;
+                                }, {} as Record<string, TableInfo[]>)
+                            ).map(([category, categoryTables]) => (
+                                <optgroup key={category} label={category}>
+                                    {categoryTables.map((table) => (
+                                        <option key={table.table_name} value={table.table_name}>
+                                            {table.display_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
                             ))}
                         </select>
                         <button

@@ -26,14 +26,14 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
             <div className="config-grid-v2">
                 <section className="controls-column">
                     <div className="form-stack">
-                        <div className="section-heading">
-                            <div className="section-title">Data Source</div>
-                            <div className="section-caption">Load existing data or collect from NIST-A.</div>
-                        </div>
-
                         <div className="field-block">
                             <div className="section-heading">
-                                <div className="section-title">Load existing data</div>
+                                <div className="section-title">Load Experimental Data</div>
+                                <div className="section-caption">
+                                    Upload adsorption data from local CSV or Excel files.
+                                    This data is stored separately from the NIST-A collection
+                                    and can be processed independently for model fitting.
+                                </div>
                             </div>
                             <FileUpload
                                 label="Load dataset"
