@@ -17,8 +17,16 @@ interface ModelState {
 
 type OptimizationMethod = FittingPayload['optimization_method'];
 
+const initialMountedPages: Record<PageId, boolean> = {
+    config: true,
+    models: false,
+    analysis: false,
+    browser: false,
+};
+
 function App() {
     const [currentPage, setCurrentPage] = useState<PageId>('config');
+    const [mountedPages, setMountedPages] = useState<Record<PageId, boolean>>(initialMountedPages);
     const [maxIterations, setMaxIterations] = useState(10000);
     const [optimizationMethod, setOptimizationMethod] = useState<OptimizationMethod>('LSS');
     const [datasetStats, setDatasetStats] = useState('No dataset loaded.');
@@ -40,6 +48,11 @@ function App() {
 
     // Database browser state - lifted for persistence across page navigation
     const [databaseBrowserState, setDatabaseBrowserState] = useState<DatabaseBrowserState>(initialDatabaseBrowserState);
+
+    const handlePageChange = useCallback((page: PageId) => {
+        setCurrentPage(page);
+        setMountedPages((prev) => (prev[page] ? prev : { ...prev, [page]: true }));
+    }, []);
 
     const handleModelToggle = useCallback((modelName: string, enabled: boolean) => {
         setModelStates((prev) => ({
@@ -160,43 +173,51 @@ function App() {
             </header>
 
             <div className="app-layout">
-                <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+                <Sidebar currentPage={currentPage} onPageChange={handlePageChange} />
 
                 <main className="app-main">
-                    {currentPage === 'config' && (
-                        <ConfigPage
-                            datasetStats={datasetStats}
-                            datasetName={datasetName}
-                            datasetSamples={datasetSamples}
-                            onDatasetUpload={handleDatasetUpload}
-                            onNistStatusUpdate={handleNistStatusUpdate}
-                        />
+                    {mountedPages.config && (
+                        <section hidden={currentPage !== 'config'} aria-hidden={currentPage !== 'config'}>
+                            <ConfigPage
+                                datasetStats={datasetStats}
+                                datasetName={datasetName}
+                                datasetSamples={datasetSamples}
+                                onDatasetUpload={handleDatasetUpload}
+                                onNistStatusUpdate={handleNistStatusUpdate}
+                            />
+                        </section>
                     )}
 
-                    {currentPage === 'models' && (
-                        <ModelsPage
-                            modelStates={modelStates}
-                            onParametersChange={handleParametersChange}
-                            onToggle={handleModelToggle}
-                            maxIterations={maxIterations}
-                            onMaxIterationsChange={setMaxIterations}
-                            optimizationMethod={optimizationMethod}
-                            onOptimizationMethodChange={setOptimizationMethod}
-                            fittingStatus={fittingStatus}
-                            onStartFitting={handleStartFitting}
-                            onResetFittingStatus={handleResetFittingStatus}
-                        />
+                    {mountedPages.models && (
+                        <section hidden={currentPage !== 'models'} aria-hidden={currentPage !== 'models'}>
+                            <ModelsPage
+                                modelStates={modelStates}
+                                onParametersChange={handleParametersChange}
+                                onToggle={handleModelToggle}
+                                maxIterations={maxIterations}
+                                onMaxIterationsChange={setMaxIterations}
+                                optimizationMethod={optimizationMethod}
+                                onOptimizationMethodChange={setOptimizationMethod}
+                                fittingStatus={fittingStatus}
+                                onStartFitting={handleStartFitting}
+                                onResetFittingStatus={handleResetFittingStatus}
+                            />
+                        </section>
                     )}
 
-                    {currentPage === 'analysis' && (
-                        <MachineLearningPage />
+                    {mountedPages.analysis && (
+                        <section hidden={currentPage !== 'analysis'} aria-hidden={currentPage !== 'analysis'}>
+                            <MachineLearningPage />
+                        </section>
                     )}
 
-                    {currentPage === 'browser' && (
-                        <DatabaseBrowserPage
-                            state={databaseBrowserState}
-                            onStateChange={setDatabaseBrowserState}
-                        />
+                    {mountedPages.browser && (
+                        <section hidden={currentPage !== 'browser'} aria-hidden={currentPage !== 'browser'}>
+                            <DatabaseBrowserPage
+                                state={databaseBrowserState}
+                                onStateChange={setDatabaseBrowserState}
+                            />
+                        </section>
                     )}
                 </main>
             </div>
