@@ -22,6 +22,9 @@ interface ModelsPageProps {
     fittingStatus: string;
     onStartFitting: () => void;
     onResetFittingStatus: () => void;
+    availableDatasets: string[];
+    selectedDataset: string | null;
+    onDatasetSelect: (name: string | null) => void;
 }
 
 /**
@@ -43,6 +46,9 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     fittingStatus,
     onStartFitting,
     onResetFittingStatus,
+    availableDatasets,
+    selectedDataset,
+    onDatasetSelect,
 }) => {
     // Single expanded card strategy: only one card can be expanded at a time
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -112,6 +118,23 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                 <div className="fitting-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1.5rem' }}>
                     <div className="fitting-controls-column">
                         <div className="fitting-controls-row" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div className="control-group">
+                                <label className="field-label">Dataset</label>
+                                <select
+                                    value={selectedDataset || ''}
+                                    onChange={(e) => onDatasetSelect(e.target.value || null)}
+                                    className="select-input"
+                                >
+                                    <option value="">
+                                        {availableDatasets.length === 0 ? 'No datasets available' : 'Select a dataset'}
+                                    </option>
+                                    {availableDatasets.map((name) => (
+                                        <option key={name} value={name}>
+                                            {name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="control-group">
                                 <NumberInput
                                     label="Max iterations"

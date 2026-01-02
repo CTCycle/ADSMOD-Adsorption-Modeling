@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileUpload } from './UIComponents';
-import { CollectDataCard } from './CollectDataCard';
+import { NistCollectCard, NistPropertiesCard } from './CollectDataCard';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ConfigPageProps {
@@ -33,75 +33,135 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
 
     return (
         <div className="config-page">
-            <div className="config-grid-v2">
-                <section className="controls-column">
-                    <div className="form-stack">
-                        <div className="field-block">
-                            <div className="section-heading">
-                                <div className="section-title">Load Experimental Data</div>
-                                <div className="section-caption">
-                                    Select a local CSV or Excel file, confirm the size, and upload it.
-                                    This data is stored separately from the NIST-A collection
-                                    and can be processed independently for model fitting.
+            <div className="config-rows">
+                {/* First Row: Dataset Upload */}
+                <div className="config-row">
+                    <div className="config-row-info">
+                        <div className="section-heading">
+                            <div className="section-title">Load Experimental Data</div>
+                            <div className="section-caption">
+                                Upload adsorption data from local CSV or Excel files.
+                                This data is stored separately from the NIST-A collection
+                                and can be processed independently for model fitting.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="config-row-center">
+                        <div className="card">
+                            <div className="card-content">
+                                <FileUpload
+                                    label="Load dataset"
+                                    accept=".csv,.xls,.xlsx"
+                                    onSelect={onDatasetPreload}
+                                    autoUpload={false}
+                                    disabled={isDatasetUploading}
+                                />
+                                <div className="dataset-inline" style={{ marginTop: '0.75rem' }}>
+                                    <span className="inline-pill">{pendingLabel}</span>
+                                    <span className="inline-separator">|</span>
+                                    <span className="inline-pill">{pendingSize}</span>
+                                </div>
+                                <div className="nist-actions" style={{ marginTop: '1rem' }}>
+                                    <button
+                                        className="button primary"
+                                        onClick={onDatasetUpload}
+                                        style={{ justifyContent: 'center' }}
+                                        disabled={!pendingFileName || isDatasetUploading}
+                                    >
+                                        {isDatasetUploading ? 'Uploading...' : 'Upload data'}
+                                    </button>
                                 </div>
                             </div>
-                            <FileUpload
-                                label="Select dataset file"
-                                accept=".csv,.xls,.xlsx"
-                                onSelect={onDatasetPreload}
-                                autoUpload={false}
-                                disabled={isDatasetUploading}
-                            />
-                            <div className="dataset-inline">
-                                <span className="inline-pill">{pendingLabel}</span>
-                                <span className="inline-separator">|</span>
-                                <span className="inline-pill">{pendingSize}</span>
+                        </div>
+                    </div>
+
+                    <div className="config-row-right">
+                        <div className="panel dataset-panel" style={{ height: '100%' }}>
+                            <div className="panel-header">
+                                <div>
+                                    <div className="panel-title">Dataset Statistics</div>
+                                    <div className="panel-subtitle">
+                                        {datasetBadge} | {sampleBadge}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="nist-actions">
-                                <button
-                                    className="button primary"
-                                    onClick={onDatasetUpload}
-                                    style={{ justifyContent: 'center' }}
-                                    disabled={!pendingFileName || isDatasetUploading}
-                                >
-                                    {isDatasetUploading ? 'Uploading...' : 'Upload data'}
-                                </button>
+                            <div className="panel-body stats-scroll markdown-content compact-stats">
+                                <MarkdownRenderer content={datasetStats} />
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div className="dataset-inline">
-                            <span className="inline-pill">{datasetBadge}</span>
-                            <span className="inline-separator">|</span>
-                            <span className="inline-pill">{sampleBadge}</span>
-                        </div>
-
-                        <div className="divider" />
-
+                {/* Second Row: NIST Collection */}
+                <div className="config-row">
+                    <div className="config-row-info">
                         <div className="section-heading">
                             <div className="section-title">NIST-A Collection</div>
                             <div className="section-caption">
-                                Fetch NIST-A isotherms and materials into the local database. Use fractions to sample the catalog.
+                                Fetch NIST-A isotherms and materials into the local database.
+                                Use fractions to sample the catalog.
                             </div>
                         </div>
-                        <CollectDataCard onStatusUpdate={onNistStatusUpdate} />
+                        <NistStatusIndicator onStatusUpdate={onNistStatusUpdate} />
                     </div>
-                </section>
 
-                <section className="panels-column">
-                    <div className="panel dataset-panel resizable-panel" style={{ height: '100%' }}>
-                        <div className="panel-header">
-                            <div>
-                                <div className="panel-title">Dataset Statistics</div>
-                                <div className="panel-subtitle">
-                                    {datasetBadge} | {sampleBadge}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="panel-body stats-scroll markdown-content">
-                            <MarkdownRenderer content={datasetStats} />
-                        </div>
+                    <div className="config-row-center">
+                        <NistCollectCard onStatusUpdate={onNistStatusUpdate} />
                     </div>
-                </section>
+
+                    <div className="config-row-right">
+                        <NistPropertiesCard onStatusUpdate={onNistStatusUpdate} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/** 
+ * Standalone LED status indicator for the left column.
+ * Fetches status independently to show availability.
+ */
+const NistStatusIndicator: React.FC<{ onStatusUpdate: (msg: string) => void }> = () => {
+    const [dataAvailable, setDataAvailable] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [hasError, setHasError] = React.useState(false);
+
+    React.useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const response = await fetch('/api/nist/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    setDataAvailable(Boolean(data.data_available));
+                    setHasError(false);
+                } else {
+                    setHasError(true);
+                }
+            } catch {
+                setHasError(true);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        void checkStatus();
+    }, []);
+
+    let statusLabel = 'Not ready';
+    if (isLoading) {
+        statusLabel = 'Checking';
+    } else if (hasError) {
+        statusLabel = 'Unavailable';
+    } else if (dataAvailable) {
+        statusLabel = 'Ready';
+    }
+
+    return (
+        <div className="nist-status-footer" style={{ marginTop: 'auto' }}>
+            <div className="nist-status-indicator">
+                <span className={`nist-status-led ${dataAvailable ? 'available' : 'unavailable'}`} />
+                <span className="nist-status-label">{statusLabel}</span>
             </div>
         </div>
     );

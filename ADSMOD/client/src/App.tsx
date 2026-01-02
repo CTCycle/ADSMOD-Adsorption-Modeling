@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Sidebar, PageId } from './components/Sidebar';
 import { ConfigPage } from './components/ConfigPage';
 import { ModelsPage } from './components/ModelsPage';
@@ -6,7 +6,7 @@ import { DatabaseBrowserPage, initialDatabaseBrowserState } from './components/D
 import { MachineLearningPage } from './components/MachineLearningPage';
 import type { DatabaseBrowserState } from './components/DatabaseBrowserPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
-import { loadDataset, startFitting } from './services';
+import { loadDataset, startFitting, fetchDatasetNames } from './services';
 import type { DatasetPayload, FittingPayload, ModelParameters, ModelConfiguration } from './types';
 import './index.css';
 
@@ -57,6 +57,21 @@ function App() {
     // Database browser state - lifted for persistence across page navigation
     const [databaseBrowserState, setDatabaseBrowserState] = useState<DatabaseBrowserState>(initialDatabaseBrowserState);
 
+    // Dataset selector state for fitting page
+    const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
+    const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
+
+    // Load available dataset names on mount
+    useEffect(() => {
+        const loadDatasetNames = async () => {
+            const result = await fetchDatasetNames();
+            if (!result.error) {
+                setAvailableDatasets(result.names);
+            }
+        };
+        void loadDatasetNames();
+    }, []);
+
     const handlePageChange = useCallback((page: PageId) => {
         setCurrentPage(page);
         setMountedPages((prev) => (prev[page] ? prev : { ...prev, [page]: true }));
@@ -101,6 +116,16 @@ function App() {
 
         setDatasetStats(result.message);
         setIsDatasetUploading(false);
+
+        // Refresh available datasets after upload
+        const namesResult = await fetchDatasetNames();
+        if (!namesResult.error) {
+            setAvailableDatasets(namesResult.names);
+            // Auto-select the newly uploaded dataset
+            if (result.dataset?.dataset_name) {
+                setSelectedDataset(result.dataset.dataset_name);
+            }
+        }
     }, [pendingFile]);
 
     const handleNistStatusUpdate = useCallback((message: string) => {
@@ -207,6 +232,9 @@ function App() {
                                 fittingStatus={fittingStatus}
                                 onStartFitting={handleStartFitting}
                                 onResetFittingStatus={handleResetFittingStatus}
+                                availableDatasets={availableDatasets}
+                                selectedDataset={selectedDataset}
+                                onDatasetSelect={setSelectedDataset}
                             />
                         </section>
                     )}

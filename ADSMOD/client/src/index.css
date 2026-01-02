@@ -216,6 +216,58 @@ pre,
   align-items: start;
 }
 
+/* New: Config Rows Layout (two rows with 3 columns each) */
+.config-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  height: calc(100vh - 180px);
+}
+
+.config-row {
+  display: grid;
+  grid-template-columns: 280px 1fr 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.config-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-right: 1rem;
+  border-right: 1px solid var(--slate-200);
+}
+
+.config-row-center,
+.config-row-right {
+  display: flex;
+  flex-direction: column;
+}
+
+.config-row-center .card,
+.config-row-right .card,
+.config-row-center .panel,
+.config-row-right .panel {
+  height: 100%;
+}
+
+/* Compact stats panel for dataset statistics */
+.compact-stats {
+  min-height: 120px;
+  max-height: 200px;
+  font-size: 0.85rem;
+}
+
+.compact-stats table {
+  font-size: 0.8rem;
+}
+
+.compact-stats th,
+.compact-stats td {
+  padding: 0.3rem 0.5rem;
+}
+
 .controls-column {
   display: flex;
   flex-direction: column;
