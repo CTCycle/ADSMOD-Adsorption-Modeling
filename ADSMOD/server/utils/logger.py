@@ -41,6 +41,10 @@ LOG_CONFIG = {
             "encoding": "utf-8",
         },
     },
+    "loggers": {
+        "httpx": {"level": "WARNING"},
+        "httpcore": {"level": "WARNING"},
+    },
     "root": {
         "level": "DEBUG",
         "handlers": ["console", "file"],

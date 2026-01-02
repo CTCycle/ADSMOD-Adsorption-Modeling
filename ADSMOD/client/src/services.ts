@@ -1,9 +1,19 @@
 // API service for dataset and fitting endpoints
 
-import type { DatasetPayload, DatasetResponse, FittingPayload, FittingResponse } from './types';
+import type {
+    DatasetPayload,
+    DatasetResponse,
+    FittingPayload,
+    FittingResponse,
+    NISTFetchRequest,
+    NISTFetchResponse,
+    NISTPropertiesRequest,
+    NISTPropertiesResponse,
+} from './types';
 import { API_BASE_URL } from './constants';
 
 const HTTP_TIMEOUT = 120000; // 120 seconds
+const NIST_TIMEOUT = 300000; // 5 minutes for larger NIST collections
 
 async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
     const controller = new AbortController();
@@ -125,6 +135,76 @@ export async function startFitting(payload: FittingPayload): Promise<{ message: 
             return { message: `[ERROR] Failed to reach ADSMOD backend: ${error.message}`, data: null };
         }
         return { message: '[ERROR] An unknown error occurred.', data: null };
+    }
+}
+
+export async function fetchNistData(
+    payload: NISTFetchRequest
+): Promise<{ data: NISTFetchResponse | null; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/nist/fetch`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            },
+            NIST_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { data: null, error: message };
+        }
+
+        const result = (await response.json()) as NISTFetchResponse;
+        if (result.status !== 'success') {
+            const detail = result.detail || result.message || 'Failed to collect NIST data.';
+            return { data: result, error: detail };
+        }
+
+        return { data: result, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: null, error: error.message };
+        }
+        return { data: null, error: 'An unknown error occurred.' };
+    }
+}
+
+export async function fetchNistProperties(
+    payload: NISTPropertiesRequest
+): Promise<{ data: NISTPropertiesResponse | null; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/nist/properties`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            },
+            NIST_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { data: null, error: message };
+        }
+
+        const result = (await response.json()) as NISTPropertiesResponse;
+        if (result.status !== 'success') {
+            const detail = result.detail || result.message || 'Failed to enrich NIST properties.';
+            return { data: result, error: detail };
+        }
+
+        return { data: result, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: null, error: error.message };
+        }
+        return { data: null, error: 'An unknown error occurred.' };
     }
 }
 

@@ -45,6 +45,40 @@ export interface FittingResponse {
     models?: string[];
 }
 
+// NIST API types
+export interface NISTFetchRequest {
+    dataset_name: string;
+    experiments_fraction: number;
+    guest_fraction: number;
+    host_fraction: number;
+}
+
+export interface NISTFetchResponse {
+    status: string;
+    dataset_name: string;
+    experiments_count: number;
+    single_component_rows: number;
+    binary_mixture_rows: number;
+    guest_rows: number;
+    host_rows: number;
+    detail?: string;
+    message?: string;
+}
+
+export interface NISTPropertiesRequest {
+    target: 'guest' | 'host';
+}
+
+export interface NISTPropertiesResponse {
+    status: string;
+    target: string;
+    names_requested: number;
+    names_matched: number;
+    rows_updated: number;
+    detail?: string;
+    message?: string;
+}
+
 export type ParameterKey = [string, string, string]; // [model, parameter, bound_type]
 
 // Browser API types
