@@ -7,8 +7,6 @@ interface CollectDataCardProps {
     onStatusUpdate: (message: string) => void;
 }
 
-const DEFAULT_DATASET_NAME = 'NIST-A';
-
 export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate }) => {
     const [guestFraction, setGuestFraction] = useState(1.0);
     const [hostFraction, setHostFraction] = useState(1.0);
@@ -74,7 +72,6 @@ export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate
         onStatusUpdate('[INFO] Starting NIST-A data collection...');
         try {
             const result = await fetchNistData({
-                dataset_name: DEFAULT_DATASET_NAME,
                 experiments_fraction: experimentsFraction,
                 guest_fraction: guestFraction,
                 host_fraction: hostFraction,
@@ -85,7 +82,6 @@ export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate
                 const lines = [
                     '[INFO] NIST-A data collection complete.',
                     '',
-                    `- Dataset name: ${result.data.dataset_name}`,
                     `- Experiments fetched: ${result.data.experiments_count}`,
                     `- Single-component rows: ${result.data.single_component_rows}`,
                     `- Binary-mixture rows: ${result.data.binary_mixture_rows}`,

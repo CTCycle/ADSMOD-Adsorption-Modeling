@@ -18,6 +18,14 @@ class DatasetService:
         )
 
     # -------------------------------------------------------------------------
+    def derive_dataset_name(self, filename: str | None) -> str:
+        if isinstance(filename, str):
+            base = os.path.splitext(os.path.basename(filename))[0].strip()
+            if base:
+                return base
+        return "uploaded_dataset"
+
+    # -------------------------------------------------------------------------
     def escape_markdown_table_cell(self, value: object) -> str:
         text = str(value)
         return text.replace("|", "\\|").replace("\n", " ")
@@ -41,7 +49,9 @@ class DatasetService:
 
         dataframe = self.read_dataframe(payload, filename)
         serializable = dataframe.where(pd.notna(dataframe), None)
+        dataset_name = self.derive_dataset_name(filename)
         dataset_payload: dict[str, Any] = {
+            "dataset_name": dataset_name,
             "columns": list(serializable.columns),
             "records": serializable.to_dict(orient="records"),
             "row_count": int(serializable.shape[0]),

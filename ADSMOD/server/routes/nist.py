@@ -31,7 +31,6 @@ service = NISTDataService()
 async def fetch_nist_data(request: NISTFetchRequest) -> NISTFetchResponse:
     try:
         result = await service.fetch_and_store(
-            dataset_name=request.dataset_name,
             experiments_fraction=request.experiments_fraction,
             guest_fraction=request.guest_fraction,
             host_fraction=request.host_fraction,
@@ -48,7 +47,7 @@ async def fetch_nist_data(request: NISTFetchRequest) -> NISTFetchResponse:
             detail="Failed to fetch NIST data.",
         ) from exc
 
-    return NISTFetchResponse(dataset_name=request.dataset_name, **result)
+    return NISTFetchResponse(**result)
 
 
 ###############################################################################

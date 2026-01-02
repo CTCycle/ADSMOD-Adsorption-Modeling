@@ -24,6 +24,11 @@ const initialMountedPages: Record<PageId, boolean> = {
     browser: false,
 };
 
+const formatFileSize = (bytes: number): string => {
+    const kb = Math.max(1, Math.round(bytes / 1024));
+    return `${kb} kb`;
+};
+
 function App() {
     const [currentPage, setCurrentPage] = useState<PageId>('config');
     const [mountedPages, setMountedPages] = useState<Record<PageId, boolean>>(initialMountedPages);
@@ -34,6 +39,9 @@ function App() {
     const [dataset, setDataset] = useState<DatasetPayload | null>(null);
     const [datasetName, setDatasetName] = useState<string | null>(null);
     const [datasetSamples, setDatasetSamples] = useState(0);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [pendingFileSize, setPendingFileSize] = useState<string | null>(null);
+    const [isDatasetUploading, setIsDatasetUploading] = useState(false);
     const [modelStates, setModelStates] = useState<Record<string, ModelState>>(() => {
         const initial: Record<string, ModelState> = {};
         ADSORPTION_MODELS.forEach((model) => {
@@ -68,22 +76,32 @@ function App() {
         }));
     }, []);
 
-    const handleDatasetUpload = useCallback(async (file: File) => {
+    const handleDatasetPreload = useCallback((file: File) => {
+        setPendingFile(file);
+        setPendingFileSize(formatFileSize(file.size));
+    }, []);
+
+    const handleDatasetUpload = useCallback(async () => {
+        if (!pendingFile) {
+            setDatasetStats('[ERROR] Please select a dataset file before uploading.');
+            return;
+        }
+        setIsDatasetUploading(true);
         setDatasetStats('[INFO] Uploading dataset...');
-        const result = await loadDataset(file);
-        setDataset(result.dataset);
+        const result = await loadDataset(pendingFile);
 
         if (result.dataset) {
-            setDatasetName(file.name);
+            setDataset(result.dataset);
+            setDatasetName(result.dataset.dataset_name);
             const recordCount = Array.isArray(result.dataset.records) ? result.dataset.records.length : 0;
             setDatasetSamples(recordCount);
-        } else {
-            setDatasetName(null);
-            setDatasetSamples(0);
+            setPendingFile(null);
+            setPendingFileSize(null);
         }
 
         setDatasetStats(result.message);
-    }, []);
+        setIsDatasetUploading(false);
+    }, [pendingFile]);
 
     const handleNistStatusUpdate = useCallback((message: string) => {
         setDatasetStats(message);
@@ -166,7 +184,11 @@ function App() {
                                 datasetStats={datasetStats}
                                 datasetName={datasetName}
                                 datasetSamples={datasetSamples}
+                                pendingFileName={pendingFile?.name ?? null}
+                                pendingFileSize={pendingFileSize}
+                                onDatasetPreload={handleDatasetPreload}
                                 onDatasetUpload={handleDatasetUpload}
+                                isDatasetUploading={isDatasetUploading}
                                 onNistStatusUpdate={handleNistStatusUpdate}
                             />
                         </section>

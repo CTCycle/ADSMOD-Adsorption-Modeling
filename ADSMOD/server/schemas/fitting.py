@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 ###############################################################################
 class DatasetPayload(BaseModel):
+    dataset_name: str = Field(..., min_length=1)
     columns: list[str] = Field(default_factory=list)
     records: list[dict[str, Any]] = Field(default_factory=list)
 
