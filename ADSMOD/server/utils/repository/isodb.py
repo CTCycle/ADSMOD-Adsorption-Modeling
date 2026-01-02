@@ -19,6 +19,15 @@ class NISTDataSerializer:
         return adsorption_data, guest_data, host_data
 
     # -------------------------------------------------------------------------
+    def count_nist_rows(self) -> dict[str, int]:
+        return {
+            "single_component_rows": database.count_rows("SINGLE_COMPONENT_ADSORPTION"),
+            "binary_mixture_rows": database.count_rows("BINARY_MIXTURE_ADSORPTION"),
+            "guest_rows": database.count_rows("ADSORBATES"),
+            "host_rows": database.count_rows("ADSORBENTS"),
+        }
+
+    # -------------------------------------------------------------------------
     def save_materials_datasets(
         self,
         guest_data: pd.DataFrame | None = None,

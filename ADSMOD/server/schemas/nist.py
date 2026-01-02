@@ -36,3 +36,13 @@ class NISTPropertiesResponse(BaseModel):
     names_requested: int
     names_matched: int
     rows_updated: int
+
+
+###############################################################################
+class NISTStatusResponse(BaseModel):
+    status: str = Field(default="success")
+    data_available: bool
+    single_component_rows: int
+    binary_mixture_rows: int
+    guest_rows: int
+    host_rows: int

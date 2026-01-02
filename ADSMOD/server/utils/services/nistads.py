@@ -522,6 +522,10 @@ class NISTDataService:
         else:
             raise ValueError("Target must be 'guest' or 'host'.")
 
+        weight_col = f"{prefix}_molecular_weight"
+        formula_col = f"{prefix}_molecular_formula"
+        smile_col = f"{prefix}_SMILE"
+
         names = (
             name_series.dropna()
             .astype(str)
@@ -539,6 +543,10 @@ class NISTDataService:
                 "rows_updated": 0,
             }
 
+        for column in (weight_col, formula_col, smile_col):
+            if column not in data.columns:
+                data[column] = pd.NA
+
         pubchem = PubChemClient(server_settings.nist.pubchem_parallel_tasks)
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -552,12 +560,10 @@ class NISTDataService:
                 "rows_updated": 0,
             }
 
-        weight_col = f"{prefix}_molecular_weight"
-        formula_col = f"{prefix}_molecular_formula"
-        smile_col = f"{prefix}_SMILE"
-
-        data["name"] = data["name"].astype(str).str.lower()
-        properties_frame["name"] = properties_frame["name"].astype(str).str.lower()
+        data["name"] = data["name"].astype("string").str.strip().str.lower()
+        properties_frame["name"] = (
+            properties_frame["name"].astype("string").str.strip().str.lower()
+        )
 
         before_count = 0
         if weight_col in data.columns:
@@ -600,4 +606,13 @@ class NISTDataService:
             "names_requested": len(names),
             "names_matched": matched,
             "rows_updated": rows_updated,
+        }
+
+    # -------------------------------------------------------------------------
+    async def get_status(self) -> dict[str, int | bool]:
+        counts = await asyncio.to_thread(self.serializer.count_nist_rows)
+        data_available = any(value > 0 for value in counts.values())
+        return {
+            "data_available": data_available,
+            **counts,
         }
