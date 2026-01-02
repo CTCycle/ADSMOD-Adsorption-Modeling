@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from ADSMOD.server.schemas.datasets import DatasetLoadResponse
+from ADSMOD.server.schemas.datasets import DatasetLoadResponse, DatasetNamesResponse
 from ADSMOD.server.utils.constants import (
     DATASETS_LOAD_ENDPOINT,
+    DATASETS_NAMES_ENDPOINT,
     DATASETS_ROUTER_PREFIX,
 )
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.services.datasets import DatasetService
+from ADSMOD.server.database.database import database
 
 router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["load"])
 dataset_service = DatasetService()
@@ -48,3 +50,20 @@ async def load_dataset(file: UploadFile = File(...)) -> DatasetLoadResponse:
         ) from exc
 
     return DatasetLoadResponse(summary=summary, dataset=dataset_payload)
+
+
+###############################################################################
+# -------------------------------------------------------------------------
+@router.get(
+    DATASETS_NAMES_ENDPOINT,
+    response_model=DatasetNamesResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_dataset_names() -> DatasetNamesResponse:
+    """Return list of unique dataset names from ADSORPTION_DATA."""
+    try:
+        names = database.get_unique_dataset_names()
+        return DatasetNamesResponse(names=names)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to fetch dataset names: %s", exc)
+        return DatasetNamesResponse(names=[])

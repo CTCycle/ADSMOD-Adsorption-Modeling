@@ -84,6 +84,18 @@ class ADSMODDatabase:
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
         return self.backend.count_rows(table_name)
+
+    # -------------------------------------------------------------------------
+    def get_unique_dataset_names(self) -> list[str]:
+        """Return unique dataset names from the ADSORPTION_DATA table."""
+        try:
+            df = self.backend.load_from_database("ADSORPTION_DATA")
+            if df.empty or "dataset_name" not in df.columns:
+                return []
+            names = df["dataset_name"].dropna().unique().tolist()
+            return sorted([str(n) for n in names if n])
+        except Exception:
+            return []
    
 
 database = ADSMODDatabase()

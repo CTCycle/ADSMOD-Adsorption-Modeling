@@ -87,6 +87,30 @@ export async function loadDataset(file: File): Promise<{ dataset: DatasetPayload
     }
 }
 
+export async function fetchDatasetNames(): Promise<{ names: string[]; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/datasets/names`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { names: [], error: message };
+        }
+
+        const result = await response.json();
+        return { names: result.names || [], error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { names: [], error: error.message };
+        }
+        return { names: [], error: 'An unknown error occurred.' };
+    }
+}
+
 export async function startFitting(payload: FittingPayload): Promise<{ message: string; data: FittingResponse | null }> {
     try {
         const response = await fetchWithTimeout(

@@ -101,6 +101,7 @@ FITTING_MODEL_NAMES = (
 ###############################################################################
 DATASETS_ROUTER_PREFIX = "/datasets"
 DATASETS_LOAD_ENDPOINT = "/load"
+DATASETS_NAMES_ENDPOINT = "/names"
 FITTING_ROUTER_PREFIX = "/fitting"
 FITTING_RUN_ENDPOINT = "/run"
 NIST_ROUTER_PREFIX = "/nist"
