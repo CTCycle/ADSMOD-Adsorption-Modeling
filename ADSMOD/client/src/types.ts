@@ -79,6 +79,17 @@ export interface NISTPropertiesResponse {
     message?: string;
 }
 
+export interface NISTStatusResponse {
+    status: string;
+    data_available: boolean;
+    single_component_rows: number;
+    binary_mixture_rows: number;
+    guest_rows: number;
+    host_rows: number;
+    detail?: string;
+    message?: string;
+}
+
 export type ParameterKey = [string, string, string]; // [model, parameter, bound_type]
 
 // Browser API types

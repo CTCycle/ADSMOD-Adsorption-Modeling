@@ -7,11 +7,13 @@ from ADSMOD.server.schemas.nist import (
     NISTFetchResponse,
     NISTPropertiesRequest,
     NISTPropertiesResponse,
+    NISTStatusResponse,
 )
 from ADSMOD.server.utils.constants import (
     NIST_FETCH_ENDPOINT,
     NIST_PROPERTIES_ENDPOINT,
     NIST_ROUTER_PREFIX,
+    NIST_STATUS_ENDPOINT,
 )
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.services.nistads import NISTDataService
@@ -73,3 +75,22 @@ async def fetch_nist_properties(
         ) from exc
 
     return NISTPropertiesResponse(target=request.target, **result)
+
+
+###############################################################################
+@router.get(
+    NIST_STATUS_ENDPOINT,
+    response_model=NISTStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def fetch_nist_status() -> NISTStatusResponse:
+    try:
+        result = await service.get_status()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("NIST status check failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load NIST status.",
+        ) from exc
+
+    return NISTStatusResponse(**result)

@@ -53,7 +53,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                         <div className="section-heading">
                             <div className="section-title">NIST-A Collection</div>
                             <div className="section-caption">
-                                Fetch NIST-A isotherms and materials into the local database. Use fractions to sample the catalog, then enrich with properties.
+                                Fetch NIST-A isotherms and materials into the local database. Use fractions to sample the catalog.
                             </div>
                         </div>
                         <CollectDataCard onStatusUpdate={onNistStatusUpdate} />

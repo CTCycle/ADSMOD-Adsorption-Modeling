@@ -9,6 +9,7 @@ import type {
     NISTFetchResponse,
     NISTPropertiesRequest,
     NISTPropertiesResponse,
+    NISTStatusResponse,
 } from './types';
 import { API_BASE_URL } from './constants';
 
@@ -196,6 +197,38 @@ export async function fetchNistProperties(
         const result = (await response.json()) as NISTPropertiesResponse;
         if (result.status !== 'success') {
             const detail = result.detail || result.message || 'Failed to enrich NIST properties.';
+            return { data: result, error: detail };
+        }
+
+        return { data: result, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: null, error: error.message };
+        }
+        return { data: null, error: 'An unknown error occurred.' };
+    }
+}
+
+export async function fetchNistStatus(): Promise<{
+    data: NISTStatusResponse | null;
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/nist/status`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { data: null, error: message };
+        }
+
+        const result = (await response.json()) as NISTStatusResponse;
+        if (result.status !== 'success') {
+            const detail = result.detail || result.message || 'Failed to load NIST status.';
             return { data: result, error: detail };
         }
 
