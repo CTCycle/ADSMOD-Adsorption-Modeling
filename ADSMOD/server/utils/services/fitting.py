@@ -491,6 +491,11 @@ class FittingPipeline:
             dataframe = pd.DataFrame.from_records(records, columns=columns)
         else:
             dataframe = pd.DataFrame()
+        dataset_name = payload.get("dataset_name")
+        if isinstance(dataset_name, str):
+            dataset_name = dataset_name.strip()
+            if dataset_name:
+                dataframe["dataset_name"] = dataset_name
         return dataframe
 
     # -------------------------------------------------------------------------

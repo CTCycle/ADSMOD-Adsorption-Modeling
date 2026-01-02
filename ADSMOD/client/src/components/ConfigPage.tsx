@@ -7,7 +7,11 @@ interface ConfigPageProps {
     datasetStats: string;
     datasetName: string | null;
     datasetSamples: number;
-    onDatasetUpload: (file: File) => void;
+    pendingFileName: string | null;
+    pendingFileSize: string | null;
+    onDatasetPreload: (file: File) => void;
+    onDatasetUpload: () => void;
+    isDatasetUploading: boolean;
     onNistStatusUpdate: (message: string) => void;
 }
 
@@ -15,11 +19,17 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
     datasetStats,
     datasetName,
     datasetSamples,
+    pendingFileName,
+    pendingFileSize,
+    onDatasetPreload,
     onDatasetUpload,
+    isDatasetUploading,
     onNistStatusUpdate,
 }) => {
     const datasetBadge = datasetName || 'No dataset loaded';
     const sampleBadge = datasetSamples > 0 ? `${datasetSamples} samples` : '0 samples';
+    const pendingLabel = pendingFileName ? `Selected: ${pendingFileName}` : 'No file selected';
+    const pendingSize = pendingFileSize || '-- kb';
 
     return (
         <div className="config-page">
@@ -30,16 +40,33 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                             <div className="section-heading">
                                 <div className="section-title">Load Experimental Data</div>
                                 <div className="section-caption">
-                                    Upload adsorption data from local CSV or Excel files.
+                                    Select a local CSV or Excel file, confirm the size, and upload it.
                                     This data is stored separately from the NIST-A collection
                                     and can be processed independently for model fitting.
                                 </div>
                             </div>
                             <FileUpload
-                                label="Load dataset"
+                                label="Select dataset file"
                                 accept=".csv,.xls,.xlsx"
-                                onUpload={onDatasetUpload}
+                                onSelect={onDatasetPreload}
+                                autoUpload={false}
+                                disabled={isDatasetUploading}
                             />
+                            <div className="dataset-inline">
+                                <span className="inline-pill">{pendingLabel}</span>
+                                <span className="inline-separator">|</span>
+                                <span className="inline-pill">{pendingSize}</span>
+                            </div>
+                            <div className="nist-actions">
+                                <button
+                                    className="button primary"
+                                    onClick={onDatasetUpload}
+                                    style={{ justifyContent: 'center' }}
+                                    disabled={!pendingFileName || isDatasetUploading}
+                                >
+                                    {isDatasetUploading ? 'Uploading...' : 'Upload data'}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="dataset-inline">

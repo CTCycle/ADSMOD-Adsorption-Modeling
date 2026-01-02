@@ -107,20 +107,35 @@ export const Checkbox: React.FC<CheckboxProps> = ({ label, checked, onChange }) 
 interface FileUploadProps {
     label: string;
     accept: string;
-    onUpload: (file: File) => void;
+    onSelect?: (file: File) => void;
+    onUpload?: (file: File) => void;
+    autoUpload?: boolean;
+    disabled?: boolean;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ label, accept, onUpload }) => {
+export const FileUpload: React.FC<FileUploadProps> = ({
+    label,
+    accept,
+    onSelect,
+    onUpload,
+    autoUpload = true,
+    disabled = false,
+}) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            onUpload(file);
+            if (onSelect) {
+                onSelect(file);
+            }
+            if (autoUpload && onUpload) {
+                onUpload(file);
+            }
         }
     };
 
     return (
         <div className="file-upload">
-            <input type="file" accept={accept} onChange={handleChange} />
+            <input type="file" accept={accept} onChange={handleChange} disabled={disabled} />
             <div className="file-upload-label">
                 <span>📁</span>
                 <span>{label}</span>

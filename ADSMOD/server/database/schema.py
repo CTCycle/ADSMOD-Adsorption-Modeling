@@ -18,6 +18,7 @@ Base = declarative_base()
 class AdsorptionData(Base):
     __tablename__ = "ADSORPTION_DATA"
     id = Column(Integer, primary_key=True)
+    dataset_name = Column(String)
     experiment = Column(String)
     temperature_K = Column("temperature [K]", BigInteger)
     pressure_Pa = Column("pressure [Pa]", Float)
@@ -277,7 +278,6 @@ class AdsorptionBestFit(Base):
 ###############################################################################
 class SingleComponentAdsorption(Base):
     __tablename__ = "SINGLE_COMPONENT_ADSORPTION"
-    dataset_name = Column(String, primary_key=True)
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorptionUnits = Column(String)
@@ -289,7 +289,6 @@ class SingleComponentAdsorption(Base):
     composition = Column(Float)
     __table_args__ = (
         UniqueConstraint(
-            "dataset_name",
             "filename",
             "temperature",
             "pressure",
@@ -302,7 +301,6 @@ class SingleComponentAdsorption(Base):
 ###############################################################################
 class BinaryMixtureAdsorption(Base):
     __tablename__ = "BINARY_MIXTURE_ADSORPTION"
-    dataset_name = Column(String, primary_key=True)
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorptionUnits = Column(String)
@@ -318,7 +316,6 @@ class BinaryMixtureAdsorption(Base):
     compound_2_adsorption = Column(Float)
     __table_args__ = (
         UniqueConstraint(
-            "dataset_name",
             "filename",
             "temperature",
             "adsorbent_name",

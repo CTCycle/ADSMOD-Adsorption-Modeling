@@ -454,14 +454,10 @@ class NISTDataService:
     # -------------------------------------------------------------------------
     async def fetch_and_store(
         self,
-        dataset_name: str,
         experiments_fraction: float,
         guest_fraction: float,
         host_fraction: float,
     ) -> dict[str, int]:
-        dataset_name = dataset_name.strip()
-        if not dataset_name:
-            raise ValueError("Dataset name cannot be empty.")
         api_client = NISTApiClient(server_settings.nist.parallel_tasks)
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -475,10 +471,6 @@ class NISTDataService:
             )
 
         single_component, binary_mixture = self.builder.build_datasets(experiments_data)
-        if not single_component.empty:
-            single_component["dataset_name"] = dataset_name
-        if not binary_mixture.empty:
-            binary_mixture["dataset_name"] = dataset_name
 
         await asyncio.to_thread(
             self.serializer.save_adsorption_datasets, single_component, binary_mixture

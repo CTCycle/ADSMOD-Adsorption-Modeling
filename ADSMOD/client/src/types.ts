@@ -1,6 +1,7 @@
 // Type definitions for ADSMOD frontend
 
 export interface DatasetPayload {
+    dataset_name: string;
     columns: string[];
     records: Record<string, unknown>[];
 }
@@ -47,7 +48,6 @@ export interface FittingResponse {
 
 // NIST API types
 export interface NISTFetchRequest {
-    dataset_name: string;
     experiments_fraction: number;
     guest_fraction: number;
     host_fraction: number;
@@ -55,7 +55,6 @@ export interface NISTFetchRequest {
 
 export interface NISTFetchResponse {
     status: string;
-    dataset_name: string;
     experiments_count: number;
     single_component_rows: number;
     binary_mixture_rows: number;
