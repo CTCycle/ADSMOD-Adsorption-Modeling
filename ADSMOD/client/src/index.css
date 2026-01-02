@@ -308,9 +308,9 @@ pre,
 
 .nist-properties-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
 
@@ -346,6 +346,13 @@ pre,
   font-size: 0.85rem;
   color: var(--slate-600);
   margin-bottom: 1rem;
+}
+
+.nist-status-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.75rem;
 }
 
 .panels-column {
@@ -1141,15 +1148,6 @@ input:checked+.slider:before {
 
   .panel-header {
     flex-direction: column;
-  }
-
-  .nist-properties-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .nist-status-indicator {
-    align-self: flex-start;
   }
 }
 

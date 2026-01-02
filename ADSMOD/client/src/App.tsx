@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Sidebar, PageId } from './components/Sidebar';
 import { ConfigPage } from './components/ConfigPage';
 import { ModelsPage } from './components/ModelsPage';
@@ -148,27 +148,11 @@ function App() {
         setFittingStatus(result.message);
     }, [dataset, modelStates, maxIterations, optimizationMethod]);
 
-    const methodLabels: Record<OptimizationMethod, string> = {
-        LSS: 'Least Squares',
-        BFGS: 'BFGS',
-        'L-BFGS-B': 'L-BFGS-B',
-        'Nelder-Mead': 'Nelder-Mead',
-        Powell: 'Powell',
-    };
-
-    const optimizationLabel = methodLabels[optimizationMethod];
-    const datasetLabel = datasetName || 'none';
-
     return (
         <div className="app-container">
             <header className="app-header">
                 <div className="header-content">
                     <h1>ADSMOD Adsorption Modeling</h1>
-                    <div className="header-meta">
-                        <span className="meta-chip">Dataset: {datasetLabel}</span>
-                        <span className="meta-separator">|</span>
-                        <span className="meta-chip">Method: {optimizationLabel}</span>
-                    </div>
                 </div>
             </header>
 

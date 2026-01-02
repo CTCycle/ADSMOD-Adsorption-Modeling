@@ -50,13 +50,13 @@ export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate
     const canFetchGuest = !isBusy && guestAvailable && !isStatusLoading && !nistStatusError;
     const canFetchHost = !isBusy && hostAvailable && !isStatusLoading && !nistStatusError;
 
-    let statusLabel = 'No data';
+    let statusLabel = 'Not ready';
     if (isStatusLoading) {
-        statusLabel = 'Checking data';
+        statusLabel = 'Checking';
     } else if (nistStatusError) {
-        statusLabel = 'Status unavailable';
+        statusLabel = 'Unavailable';
     } else if (dataAvailable) {
-        statusLabel = 'Data ready';
+        statusLabel = 'Ready';
     }
 
     let statusMessage = 'Collect adsorption data to enable property enrichment.';
@@ -154,9 +154,6 @@ export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate
                 <div className="card-content">
                     <div className="section-heading">
                         <div className="section-title">Collect adsorption data</div>
-                        <div className="section-caption">
-                            Fetch NIST-A isotherms and materials into the local database.
-                        </div>
                     </div>
                     <div className="nist-inputs">
                         <NumberInput
@@ -210,12 +207,6 @@ export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate
                                 Use stored NIST-A materials to fetch PubChem properties.
                             </div>
                         </div>
-                        <div className="nist-status-indicator">
-                            <span
-                                className={`nist-status-led ${dataAvailable ? 'available' : 'unavailable'}`}
-                            />
-                            <span className="nist-status-label">{statusLabel}</span>
-                        </div>
                     </div>
                     <div className="nist-status-message">{statusMessage}</div>
 
@@ -236,6 +227,14 @@ export const CollectDataCard: React.FC<CollectDataCardProps> = ({ onStatusUpdate
                         >
                             {isHostUpdating ? 'Retrieving adsorbents...' : 'Retrieve adsorbents props'}
                         </button>
+                    </div>
+                    <div className="nist-status-footer">
+                        <div className="nist-status-indicator">
+                            <span
+                                className={`nist-status-led ${dataAvailable ? 'available' : 'unavailable'}`}
+                            />
+                            <span className="nist-status-label">{statusLabel}</span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -55,6 +55,20 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
         onStateChange({ ...state, ...updates });
     }, [state, onStateChange]);
 
+    const clearTableSelection = useCallback((nextSelectedTable: string) => {
+        onStateChange({
+            ...state,
+            selectedTable: nextSelectedTable,
+            tableData: [],
+            columns: [],
+            rowCount: 0,
+            columnCount: 0,
+            displayName: '',
+            loading: false,
+            error: null,
+        });
+    }, [state, onStateChange]);
+
     // Fetch table list on mount (only once)
     useEffect(() => {
         if (tablesLoaded) return;
@@ -64,10 +78,16 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             if (result.error) {
                 updateState({ error: result.error, tablesLoaded: true });
             } else {
-                const firstTable = result.tables.length > 0 ? result.tables[0].table_name : '';
                 updateState({
                     tables: result.tables,
-                    selectedTable: firstTable,
+                    selectedTable: '',
+                    tableData: [],
+                    columns: [],
+                    rowCount: 0,
+                    columnCount: 0,
+                    displayName: '',
+                    loading: false,
+                    error: null,
                     tablesLoaded: true,
                 });
             }
@@ -112,12 +132,26 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
     // Fetch data when table selection changes
     const handleTableChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newTable = e.target.value;
+        if (!newTable) {
+            clearTableSelection('');
+            return;
+        }
         loadTableData(newTable);
     };
 
     const handleRefresh = () => {
+        if (!selectedTable) {
+            clearTableSelection('');
+            return;
+        }
         loadTableData(selectedTable);
     };
+
+    const emptyMessage = selectedTable
+        ? 'No data available in this table.'
+        : 'Select data to view table contents.';
+
+    const tableLabel = selectedTable ? displayName : 'Select data';
 
     return (
         <div className="browser-page">
@@ -141,6 +175,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                             onChange={handleTableChange}
                             disabled={loading}
                         >
+                            <option value="">Select data</option>
                             {tables.map((table) => (
                                 <option key={table.table_name} value={table.table_name}>
                                     {table.display_name}
@@ -150,7 +185,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                         <button
                             className="browser-refresh-btn"
                             onClick={handleRefresh}
-                            disabled={loading}
+                            disabled={loading || !selectedTable}
                             title="Refresh data"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -166,7 +201,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                     <span className="browser-stat-label">Statistics</span>
                     <span className="browser-stat-item">Rows: <strong>{rowCount}</strong></span>
                     <span className="browser-stat-item">Columns: <strong>{columnCount}</strong></span>
-                    <span className="browser-stat-item">Table: <strong className="browser-stat-table">{displayName}</strong></span>
+                    <span className="browser-stat-item">Table: <strong className="browser-stat-table">{tableLabel}</strong></span>
                 </div>
             </div>
 
@@ -214,7 +249,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                             <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
                             <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                         </svg>
-                        <p>No data available in this table.</p>
+                        <p>{emptyMessage}</p>
                     </div>
                 )}
             </div>
