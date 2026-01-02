@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class TableInfo(BaseModel):
     table_name: str
     display_name: str
+    category: str
 
 
 class TableListResponse(BaseModel):

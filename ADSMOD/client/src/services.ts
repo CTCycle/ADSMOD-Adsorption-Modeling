@@ -241,7 +241,7 @@ export async function fetchNistStatus(): Promise<{
     }
 }
 
-export async function fetchTableList(): Promise<{ tables: { table_name: string; display_name: string }[]; error: string | null }> {
+export async function fetchTableList(): Promise<{ tables: { table_name: string; display_name: string; category: string }[]; error: string | null }> {
     try {
         const response = await fetchWithTimeout(
             `${API_BASE_URL}/browser/tables`,

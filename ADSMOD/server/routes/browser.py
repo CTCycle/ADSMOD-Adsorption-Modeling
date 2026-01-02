@@ -7,6 +7,7 @@ from ADSMOD.server.utils.repository.serializer import DataSerializer
 from ADSMOD.server.utils.constants import (
     BROWSER_DATA_ENDPOINT,
     BROWSER_ROUTER_PREFIX,
+    BROWSER_TABLE_CATEGORIES,
     BROWSER_TABLE_DISPLAY_NAMES,
     BROWSER_TABLES_ENDPOINT,
 )
@@ -26,7 +27,11 @@ router = APIRouter(prefix=BROWSER_ROUTER_PREFIX, tags=["browser"])
 async def list_tables() -> TableListResponse:
     """Return list of available database tables with friendly display names."""
     tables = [
-        TableInfo(table_name=table_name, display_name=display_name)
+        TableInfo(
+            table_name=table_name,
+            display_name=display_name,
+            category=BROWSER_TABLE_CATEGORIES[table_name],
+        )
         for table_name, display_name in BROWSER_TABLE_DISPLAY_NAMES.items()
     ]
     return TableListResponse(tables=tables)
