@@ -8,6 +8,7 @@ interface ConfigPageProps {
     datasetName: string | null;
     datasetSamples: number;
     onDatasetUpload: (file: File) => void;
+    onNistStatusUpdate: (message: string) => void;
 }
 
 export const ConfigPage: React.FC<ConfigPageProps> = ({
@@ -15,6 +16,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
     datasetName,
     datasetSamples,
     onDatasetUpload,
+    onNistStatusUpdate,
 }) => {
     const datasetBadge = datasetName || 'No dataset loaded';
     const sampleBadge = datasetSamples > 0 ? `${datasetSamples} samples` : '0 samples';
@@ -50,8 +52,11 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
 
                         <div className="section-heading">
                             <div className="section-title">NIST-A Collection</div>
+                            <div className="section-caption">
+                                Fetch NIST-A isotherms and materials into the local database. Use fractions to sample the catalog, then enrich with properties.
+                            </div>
                         </div>
-                        <CollectDataCard />
+                        <CollectDataCard onStatusUpdate={onNistStatusUpdate} />
                     </div>
                 </section>
 

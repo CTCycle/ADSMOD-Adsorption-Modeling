@@ -72,6 +72,10 @@ function App() {
         setDatasetStats(result.message);
     }, []);
 
+    const handleNistStatusUpdate = useCallback((message: string) => {
+        setDatasetStats(message);
+    }, []);
+
     const handleResetFittingStatus = useCallback(() => {
         setFittingStatus('');
     }, []);
@@ -146,7 +150,7 @@ function App() {
         <div className="app-container">
             <header className="app-header">
                 <div className="header-content">
-                    <h1>ADSMOD Model Fitting</h1>
+                    <h1>ADSMOD Adsorption Modeling</h1>
                     <div className="header-meta">
                         <span className="meta-chip">Dataset: {datasetLabel}</span>
                         <span className="meta-separator">|</span>
@@ -165,6 +169,7 @@ function App() {
                             datasetName={datasetName}
                             datasetSamples={datasetSamples}
                             onDatasetUpload={handleDatasetUpload}
+                            onNistStatusUpdate={handleNistStatusUpdate}
                         />
                     )}
 

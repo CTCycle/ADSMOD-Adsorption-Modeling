@@ -69,9 +69,10 @@ class NISTDatasetBuilder:
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         if dataframe.empty:
             return dataframe, dataframe
+        dataframe = dataframe.copy()
         dataframe["num_guests"] = dataframe["adsorbates"].str.len()
-        single_component = dataframe[dataframe["num_guests"] == 1]
-        binary_mixture = dataframe[dataframe["num_guests"] == 2]
+        single_component = dataframe.loc[dataframe["num_guests"] == 1].copy()
+        binary_mixture = dataframe.loc[dataframe["num_guests"] == 2].copy()
         return single_component, binary_mixture
 
     # -------------------------------------------------------------------------
