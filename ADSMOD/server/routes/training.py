@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from ADSMOD.server.database.database import database
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
+from ADSMOD.server.utils.services.training_manager import training_manager
 
 router = APIRouter(prefix="/training", tags=["training"])
 
@@ -96,7 +97,7 @@ class DatasetBuildRequest(BaseModel):
     smile_sequence_size: int = Field(default=20, ge=5, le=100)
     max_pressure: float = Field(default=10000.0, ge=100.0, le=100000.0)
     max_uptake: float = Field(default=20.0, ge=1.0, le=1000.0)
-    source_datasets: list[str] = Field(default=["ADSORPTION_PROCESSED_DATA"])
+    source_datasets: list[str] = Field(default=["SINGLE_COMPONENT_ADSORPTION"])
 
 
 class DatasetBuildResponse(BaseModel):
@@ -124,16 +125,6 @@ class DatasetInfoResponse(BaseModel):
     total_samples: int | None = None
     train_samples: int | None = None
     validation_samples: int | None = None
-
-
-# Training state (in-memory for now)
-_training_state: dict[str, Any] = {
-    "is_training": False,
-    "current_epoch": 0,
-    "total_epochs": 0,
-    "session_id": None,
-    "stop_requested": False,
-}
 
 
 @router.get("/datasets", response_model=TrainingDatasetResponse)
@@ -181,17 +172,31 @@ async def build_training_dataset(request: DatasetBuildRequest) -> DatasetBuildRe
 
         builder = DatasetBuilder(config)
 
-        adsorption_data = database.load_from_database("ADSORPTION_PROCESSED_DATA")
+        source_datasets = [name.upper() for name in request.source_datasets]
+        guest_data = None
+        host_data = None
+        if "SINGLE_COMPONENT_ADSORPTION" in source_datasets:
+            adsorption_data = database.load_from_database("SINGLE_COMPONENT_ADSORPTION")
+            guest_data = database.load_from_database("ADSORBATES")
+            host_data = database.load_from_database("ADSORBENTS")
+            dataset_name = "nist"
+        else:
+            return DatasetBuildResponse(
+                success=False,
+                message="Unsupported dataset source. Use SINGLE_COMPONENT_ADSORPTION.",
+            )
 
         if adsorption_data.empty:
             return DatasetBuildResponse(
                 success=False,
-                message="No raw adsorption data available. Please run fitting first.",
+                message="No adsorption data available. Please fetch NIST data first.",
             )
 
         result = builder.build_training_dataset(
             adsorption_data=adsorption_data,
-            dataset_name="processed",
+            guest_data=guest_data,
+            host_data=host_data,
+            dataset_name=dataset_name,
         )
 
         if result.get("success"):
@@ -262,12 +267,8 @@ async def clear_training_dataset() -> dict[str, str]:
 async def get_checkpoints() -> CheckpointsResponse:
     """List available model checkpoints."""
     try:
-        # TODO: Implement checkpoint scanning from resources/checkpoints directory
         logger.info("Scanning for available checkpoints")
-
-        # This will be replaced with actual filesystem scanning
-        # similar to legacy ModelSerializer.scan_checkpoints_folder()
-        checkpoints: list[str] = []
+        checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
 
         return CheckpointsResponse(checkpoints=checkpoints)
 
@@ -279,39 +280,22 @@ async def get_checkpoints() -> CheckpointsResponse:
 @router.post("/start", response_model=TrainingStartResponse)
 async def start_training(config: TrainingConfigRequest) -> TrainingStartResponse:
     """Start a new training session."""
-    global _training_state
-
-    if _training_state["is_training"]:
+    state = training_manager.state.snapshot()
+    if state["is_training"]:
         raise HTTPException(
             status_code=400, detail="Training is already in progress. Stop it first."
         )
 
     try:
         logger.info(f"Starting training with config: {config.model_dump()}")
+        info = DatasetBuilder.get_training_dataset_info()
+        if info is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No training dataset available. Build the dataset first.",
+            )
 
-        # Generate session ID
-        import uuid
-
-        session_id = str(uuid.uuid4())[:8]
-
-        # Update training state
-        _training_state.update(
-            {
-                "is_training": True,
-                "current_epoch": 0,
-                "total_epochs": config.epochs,
-                "session_id": session_id,
-                "stop_requested": False,
-            }
-        )
-
-        # TODO: Implement actual training pipeline
-        # This will spawn a background task that:
-        # 1. Loads training data from database
-        # 2. Builds dataloaders
-        # 3. Creates/loads model
-        # 4. Runs training loop with callbacks
-        # 5. Saves checkpoint on completion
+        session_id = training_manager.start_training(config.model_dump())
 
         return TrainingStartResponse(
             status="started",
@@ -320,7 +304,6 @@ async def start_training(config: TrainingConfigRequest) -> TrainingStartResponse
         )
 
     except Exception as e:
-        _training_state["is_training"] = False
         logger.error(f"Error starting training: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -328,9 +311,8 @@ async def start_training(config: TrainingConfigRequest) -> TrainingStartResponse
 @router.post("/resume", response_model=TrainingStartResponse)
 async def resume_training(request: ResumeTrainingRequest) -> TrainingStartResponse:
     """Resume training from a checkpoint."""
-    global _training_state
-
-    if _training_state["is_training"]:
+    state = training_manager.state.snapshot()
+    if state["is_training"]:
         raise HTTPException(
             status_code=400, detail="Training is already in progress. Stop it first."
         )
@@ -340,30 +322,16 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStartRespon
             f"Resuming training from checkpoint: {request.checkpoint_name} "
             f"with {request.additional_epochs} additional epochs"
         )
-
-        # Generate session ID
-        import uuid
-
-        session_id = str(uuid.uuid4())[:8]
-
-        # Update training state
-        _training_state.update(
-            {
-                "is_training": True,
-                "current_epoch": 0,
-                "total_epochs": request.additional_epochs,
-                "session_id": session_id,
-                "stop_requested": False,
-            }
+        available = training_manager.model_serializer.scan_checkpoints_folder()
+        if request.checkpoint_name not in available:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Checkpoint '{request.checkpoint_name}' not found.",
+            )
+        session_id = training_manager.resume_training(
+            request.checkpoint_name,
+            request.additional_epochs,
         )
-
-        # TODO: Implement actual resume training pipeline
-        # This will:
-        # 1. Load checkpoint (model, config, metadata, session)
-        # 2. Validate/rebuild dataset if needed
-        # 3. Build dataloaders
-        # 4. Resume training from saved epoch
-        # 5. Save updated checkpoint on completion
 
         return TrainingStartResponse(
             status="started",
@@ -372,7 +340,6 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStartRespon
         )
 
     except Exception as e:
-        _training_state["is_training"] = False
         logger.error(f"Error resuming training: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -380,20 +347,13 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStartRespon
 @router.post("/stop")
 async def stop_training() -> dict[str, str]:
     """Stop the current training session."""
-    global _training_state
-
-    if not _training_state["is_training"]:
+    state = training_manager.state.snapshot()
+    if not state["is_training"]:
         return {"status": "stopped", "message": "No training session is running."}
 
     try:
         logger.info("Stop requested for current training session")
-        _training_state["stop_requested"] = True
-
-        # TODO: Signal the training loop to stop gracefully
-        # The training loop should check stop_requested flag
-
-        # For now, just update state
-        _training_state["is_training"] = False
+        training_manager.stop_training()
 
         return {"status": "stopped", "message": "Training stop requested."}
 
@@ -405,15 +365,14 @@ async def stop_training() -> dict[str, str]:
 @router.get("/status", response_model=TrainingStatusResponse)
 async def get_training_status() -> TrainingStatusResponse:
     """Get current training status."""
+    state = training_manager.state.snapshot()
     progress = 0.0
-    if _training_state["total_epochs"] > 0:
-        progress = (
-            _training_state["current_epoch"] / _training_state["total_epochs"]
-        ) * 100
+    if state["total_epochs"] > 0:
+        progress = (state["current_epoch"] / state["total_epochs"]) * 100
 
     return TrainingStatusResponse(
-        is_training=_training_state["is_training"],
-        current_epoch=_training_state["current_epoch"],
-        total_epochs=_training_state["total_epochs"],
+        is_training=state["is_training"],
+        current_epoch=state["current_epoch"],
+        total_epochs=state["total_epochs"],
         progress=progress,
     )

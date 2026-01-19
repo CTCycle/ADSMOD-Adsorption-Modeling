@@ -44,7 +44,7 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
             smile_sequence_size: smileSequenceSize,
             max_pressure: maxPressure,
             max_uptake: maxUptake,
-            source_datasets: ['ADSORPTION_PROCESSED_DATA'],
+            source_datasets: ['SINGLE_COMPONENT_ADSORPTION'],
         };
 
         const result = await buildTrainingDataset(config);
