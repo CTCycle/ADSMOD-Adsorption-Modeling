@@ -8,6 +8,7 @@ import pandas as pd
 
 from ADSMOD.server.database.database import database
 from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.utils.services.conversion import PQ_units_conversion
 from ADSMOD.server.utils.services.sanitizer import (
     AdsorbentEncoder,
     AggregateDatasets,
@@ -95,6 +96,9 @@ class DatasetBuilder:
             processed_data = aggregator.join_materials_properties(
                 processed_data, guest_data, host_data
             )
+
+        logger.info("Converting pressure into Pascal and uptake into mol/g")
+        processed_data = PQ_units_conversion(processed_data)
 
         sanitizer = DataSanitizer(self.configuration)
         logger.info("Filtering Out-of-Boundary values")
