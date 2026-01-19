@@ -12,7 +12,7 @@ class NISTDataSerializer:
     def load_adsorption_datasets(
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        adsorption_data = database.load_from_database("SINGLE_COMPONENT_ADSORPTION")
+        adsorption_data = database.load_from_database("NIST_SINGLE_COMPONENT_ADSORPTION")
         guest_data = database.load_from_database("ADSORBATES")
         host_data = database.load_from_database("ADSORBENTS")
 
@@ -21,8 +21,8 @@ class NISTDataSerializer:
     # -------------------------------------------------------------------------
     def count_nist_rows(self) -> dict[str, int]:
         return {
-            "single_component_rows": database.count_rows("SINGLE_COMPONENT_ADSORPTION"),
-            "binary_mixture_rows": database.count_rows("BINARY_MIXTURE_ADSORPTION"),
+            "single_component_rows": database.count_rows("NIST_SINGLE_COMPONENT_ADSORPTION"),
+            "binary_mixture_rows": database.count_rows("NIST_BINARY_MIXTURE_ADSORPTION"),
             "guest_rows": database.count_rows("ADSORBATES"),
             "host_rows": database.count_rows("ADSORBENTS"),
         }
@@ -44,9 +44,9 @@ class NISTDataSerializer:
     ) -> None:
         if isinstance(single_component, pd.DataFrame):
             database.upsert_into_database(
-                single_component, "SINGLE_COMPONENT_ADSORPTION"
+                single_component, "NIST_SINGLE_COMPONENT_ADSORPTION"
             )
         if isinstance(binary_mixture, pd.DataFrame):
             database.upsert_into_database(
-                binary_mixture, "BINARY_MIXTURE_ADSORPTION"
+                binary_mixture, "NIST_BINARY_MIXTURE_ADSORPTION"
             )

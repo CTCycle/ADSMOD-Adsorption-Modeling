@@ -276,8 +276,8 @@ class AdsorptionBestFit(Base):
 
 
 ###############################################################################
-class SingleComponentAdsorption(Base):
-    __tablename__ = "SINGLE_COMPONENT_ADSORPTION"
+class NistSingleComponentAdsorption(Base):
+    __tablename__ = "NIST_SINGLE_COMPONENT_ADSORPTION"
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorptionUnits = Column(String)
@@ -299,8 +299,8 @@ class SingleComponentAdsorption(Base):
 
 
 ###############################################################################
-class BinaryMixtureAdsorption(Base):
-    __tablename__ = "BINARY_MIXTURE_ADSORPTION"
+class NistBinaryMixtureAdsorption(Base):
+    __tablename__ = "NIST_BINARY_MIXTURE_ADSORPTION"
     filename = Column(String, primary_key=True)
     temperature = Column(Float, primary_key=True)
     adsorptionUnits = Column(String)

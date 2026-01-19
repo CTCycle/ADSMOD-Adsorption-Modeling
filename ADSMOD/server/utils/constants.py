@@ -120,8 +120,8 @@ DOCS_ENDPOINT = "/docs"
 
 # Table name to friendly display name mapping for database browser
 BROWSER_TABLE_DISPLAY_NAMES: dict[str, str] = {
-    "SINGLE_COMPONENT_ADSORPTION": "Single-Component Adsorption",
-    "BINARY_MIXTURE_ADSORPTION": "Binary Mixture Adsorption",
+    "NIST_SINGLE_COMPONENT_ADSORPTION": "Single-Component Adsorption",
+    "NIST_BINARY_MIXTURE_ADSORPTION": "Binary Mixture Adsorption",
     "ADSORBATES": "Adsorbate Materials",
     "ADSORBENTS": "Adsorbent Materials",
     "ADSORPTION_DATA": "Adsorption Data",
@@ -139,8 +139,8 @@ BROWSER_TABLE_DISPLAY_NAMES: dict[str, str] = {
 
 # Table categories for dropdown grouping
 BROWSER_TABLE_CATEGORIES: dict[str, str] = {
-    "SINGLE_COMPONENT_ADSORPTION": "NIST-A Data",
-    "BINARY_MIXTURE_ADSORPTION": "NIST-A Data",
+    "NIST_SINGLE_COMPONENT_ADSORPTION": "NIST-A Data",
+    "NIST_BINARY_MIXTURE_ADSORPTION": "NIST-A Data",
     "ADSORBATES": "NIST-A Data",
     "ADSORBENTS": "NIST-A Data",
     "ADSORPTION_DATA": "Uploaded Data",

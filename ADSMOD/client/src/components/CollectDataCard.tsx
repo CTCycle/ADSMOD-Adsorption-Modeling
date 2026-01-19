@@ -209,13 +209,15 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate }) 
             <div className="card-content">
                 <div className="nist-properties-header">
                     <div className="section-heading">
-                        <div className="section-title">Enrich materials properties</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <div className="section-title" style={{ marginBottom: 0 }}>Enrich materials properties</div>
+                            <NistStatusIndicator />
+                        </div>
                         <div className="section-caption">
                             Use stored NIST-A materials to fetch PubChem properties.
                         </div>
                     </div>
                 </div>
-                <div className="nist-status-message">{statusMessage}</div>
 
                 <div className="nist-actions">
                     <button
@@ -236,6 +238,52 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate }) 
                     </button>
                 </div>
             </div>
+        </div>
+    );
+};
+
+/** 
+ * Standalone LED status indicator for the header.
+ * Fetches status independently to show availability.
+ */
+const NistStatusIndicator: React.FC = () => {
+    const [dataAvailable, setDataAvailable] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [hasError, setHasError] = React.useState(false);
+
+    React.useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const response = await fetch('/api/nist/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    setDataAvailable(Boolean(data.data_available));
+                    setHasError(false);
+                } else {
+                    setHasError(true);
+                }
+            } catch {
+                setHasError(true);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        void checkStatus();
+    }, []);
+
+    let statusLabel = 'Not ready';
+    if (isLoading) {
+        statusLabel = 'Checking';
+    } else if (hasError) {
+        statusLabel = 'Unavailable';
+    } else if (dataAvailable) {
+        statusLabel = 'Ready';
+    }
+
+    return (
+        <div className="nist-status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className={`nist-status-led ${dataAvailable ? 'available' : 'unavailable'}`} />
+            <span className="nist-status-label" style={{ fontSize: '0.85rem', color: '#666' }}>{statusLabel}</span>
         </div>
     );
 };

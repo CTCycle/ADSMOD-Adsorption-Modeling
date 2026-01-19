@@ -34,8 +34,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
     return (
         <div className="config-page">
             <div className="config-rows">
-                {/* First Row: Dataset Upload */}
-                <div className="config-row">
+                {/* First Row: Dataset Upload - Centered and Constrained */}
+                <div className="config-row" style={{ justifyContent: 'center' }}>
                     <div className="config-row-info">
                         <div className="section-heading">
                             <div className="section-title">Load Experimental Data</div>
@@ -47,7 +47,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                         </div>
                     </div>
 
-                    <div className="config-row-center">
+                    <div className="config-row-center" style={{ flex: '0 0 auto', width: '100%', maxWidth: '600px' }}>
                         <div className="card">
                             <div className="card-content">
                                 <FileUpload
@@ -75,22 +75,8 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                             </div>
                         </div>
                     </div>
-
-                    <div className="config-row-right">
-                        <div className="panel dataset-panel" style={{ height: '100%' }}>
-                            <div className="panel-header">
-                                <div>
-                                    <div className="panel-title">Dataset Statistics</div>
-                                    <div className="panel-subtitle">
-                                        {datasetBadge} | {sampleBadge}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="panel-body stats-scroll markdown-content compact-stats">
-                                <MarkdownRenderer content={datasetStats} />
-                            </div>
-                        </div>
-                    </div>
+                    {/* Empty spacer to balance layout if needed, or just let center take space */}
+                    <div className="config-row-right" style={{ visibility: 'hidden', height: 0 }} />
                 </div>
 
                 {/* Second Row: NIST Collection */}
@@ -103,7 +89,6 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                                 Use fractions to sample the catalog.
                             </div>
                         </div>
-                        <NistStatusIndicator onStatusUpdate={onNistStatusUpdate} />
                     </div>
 
                     <div className="config-row-center">
@@ -114,55 +99,35 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                         <NistPropertiesCard onStatusUpdate={onNistStatusUpdate} />
                     </div>
                 </div>
+
+                {/* Third Row: Shared Statistics */}
+                <div className="config-row" style={{ marginTop: '2rem' }}>
+                    <div className="config-row-info">
+                        <div className="section-heading">
+                            <div className="section-title">Data Verification</div>
+                            <div className="section-caption">
+                                Summary statistics and structure of the currently loaded dataset or NIST collection sample.
+                            </div>
+                            <div className="panel-subtitle" style={{ marginTop: '1rem' }}>
+                                {datasetBadge} | {sampleBadge}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="config-row-center" style={{ flexGrow: 2 }}>
+                        <div className="panel dataset-panel" style={{ height: '100%', minHeight: '300px' }}>
+                            <div className="panel-header">
+                                <div className="panel-title">Dataset Statistics</div>
+                            </div>
+                            <div className="panel-body stats-scroll markdown-content compact-stats">
+                                <MarkdownRenderer content={datasetStats} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
-/** 
- * Standalone LED status indicator for the left column.
- * Fetches status independently to show availability.
- */
-const NistStatusIndicator: React.FC<{ onStatusUpdate: (msg: string) => void }> = () => {
-    const [dataAvailable, setDataAvailable] = React.useState(false);
-    const [isLoading, setIsLoading] = React.useState(true);
-    const [hasError, setHasError] = React.useState(false);
 
-    React.useEffect(() => {
-        const checkStatus = async () => {
-            try {
-                const response = await fetch('/api/nist/status');
-                if (response.ok) {
-                    const data = await response.json();
-                    setDataAvailable(Boolean(data.data_available));
-                    setHasError(false);
-                } else {
-                    setHasError(true);
-                }
-            } catch {
-                setHasError(true);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        void checkStatus();
-    }, []);
-
-    let statusLabel = 'Not ready';
-    if (isLoading) {
-        statusLabel = 'Checking';
-    } else if (hasError) {
-        statusLabel = 'Unavailable';
-    } else if (dataAvailable) {
-        statusLabel = 'Ready';
-    }
-
-    return (
-        <div className="nist-status-footer" style={{ marginTop: 'auto' }}>
-            <div className="nist-status-indicator">
-                <span className={`nist-status-led ${dataAvailable ? 'available' : 'unavailable'}`} />
-                <span className="nist-status-label">{statusLabel}</span>
-            </div>
-        </div>
-    );
-};
