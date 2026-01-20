@@ -17,7 +17,6 @@ dataset_service = DatasetService()
 
 
 ###############################################################################
-# -------------------------------------------------------------------------
 @router.post(
     DATASETS_LOAD_ENDPOINT,
     response_model=DatasetLoadResponse,
@@ -53,7 +52,6 @@ async def load_dataset(file: UploadFile = File(...)) -> DatasetLoadResponse:
 
 
 ###############################################################################
-# -------------------------------------------------------------------------
 @router.get(
     DATASETS_NAMES_ENDPOINT,
     response_model=DatasetNamesResponse,
