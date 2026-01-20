@@ -673,6 +673,17 @@ class NISTDataService:
                 "smile": smile_col,
             }
         )
+        if weight_col in properties_frame.columns:
+            properties_frame[weight_col] = pd.to_numeric(
+                properties_frame[weight_col], errors="coerce"
+            )
+        if weight_col in data.columns:
+            data[weight_col] = pd.to_numeric(data[weight_col], errors="coerce")
+        for col in (formula_col, smile_col):
+            if col in properties_frame.columns:
+                properties_frame[col] = properties_frame[col].astype("string")
+            if col in data.columns:
+                data[col] = data[col].astype("string")
         data_indexed = data.set_index("name")
         properties_indexed = properties_frame.set_index("name")
         data_indexed.update(properties_indexed)
