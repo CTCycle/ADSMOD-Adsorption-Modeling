@@ -3,12 +3,20 @@ import { NumberInput } from './UIComponents';
 import { fetchNistData, fetchNistProperties, fetchNistStatus } from '../services';
 import type { NISTStatusResponse } from '../types';
 
+export interface NistStatusState {
+    nistStatus: NISTStatusResponse | null;
+    nistStatusError: string | null;
+    isStatusLoading: boolean;
+    loadNistStatus: () => Promise<void>;
+}
+
 interface NistCardProps {
     onStatusUpdate: (message: string) => void;
+    nistStatusState: NistStatusState;
 }
 
 /** Shared NIST status hook */
-function useNistStatus() {
+export function useNistStatus(): NistStatusState {
     const [nistStatus, setNistStatus] = useState<NISTStatusResponse | null>(null);
     const [nistStatusError, setNistStatusError] = useState<string | null>(null);
     const [isStatusLoading, setIsStatusLoading] = useState(false);
@@ -40,13 +48,13 @@ function useNistStatus() {
  * NistCollectCard: Contains the "Collect adsorption data" form.
  * Handles fraction inputs and the collect button.
  */
-export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate }) => {
+export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistStatusState }) => {
     const [guestFraction, setGuestFraction] = useState(1.0);
     const [hostFraction, setHostFraction] = useState(1.0);
     const [experimentsFraction, setExperimentsFraction] = useState(1.0);
     const [isCollecting, setIsCollecting] = useState(false);
 
-    const { loadNistStatus } = useNistStatus();
+    const { loadNistStatus } = nistStatusState;
 
     const handleCollectData = async () => {
         if (isCollecting) return;
@@ -137,10 +145,10 @@ export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate }) => 
  * NistPropertiesCard: Contains the "Enrich materials properties" section.
  * Handles property retrieval for adsorbates and adsorbents.
  */
-export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate }) => {
+export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistStatusState }) => {
     const [isGuestUpdating, setIsGuestUpdating] = useState(false);
     const [isHostUpdating, setIsHostUpdating] = useState(false);
-    const { nistStatus, nistStatusError, isStatusLoading } = useNistStatus();
+    const { nistStatus, nistStatusError, isStatusLoading, loadNistStatus } = nistStatusState;
 
     const isBusy = isGuestUpdating || isHostUpdating;
     const guestRows = nistStatus?.guest_rows ?? 0;
@@ -164,44 +172,52 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate }) 
         if (isBusy) return;
         setIsGuestUpdating(true);
         onStatusUpdate('[INFO] Retrieving adsorbates properties from PubChem...');
-        const result = await fetchNistProperties({ target: 'guest' });
-        if (result.error) {
-            onStatusUpdate(`[ERROR] ${result.error}`);
-        } else if (result.data) {
-            const lines = [
-                '[INFO] Adsorbates properties updated.',
-                '',
-                `- Names requested: ${result.data.names_requested}`,
-                `- Names matched: ${result.data.names_matched}`,
-                `- Rows updated: ${result.data.rows_updated}`,
-            ];
-            onStatusUpdate(lines.join('\n'));
-        } else {
-            onStatusUpdate('[ERROR] Adsorbates properties returned an empty response.');
+        try {
+            const result = await fetchNistProperties({ target: 'guest' });
+            if (result.error) {
+                onStatusUpdate(`[ERROR] ${result.error}`);
+            } else if (result.data) {
+                const lines = [
+                    '[INFO] Adsorbates properties updated.',
+                    '',
+                    `- Names requested: ${result.data.names_requested}`,
+                    `- Names matched: ${result.data.names_matched}`,
+                    `- Rows updated: ${result.data.rows_updated}`,
+                ];
+                onStatusUpdate(lines.join('\n'));
+            } else {
+                onStatusUpdate('[ERROR] Adsorbates properties returned an empty response.');
+            }
+        } finally {
+            setIsGuestUpdating(false);
+            await loadNistStatus();
         }
-        setIsGuestUpdating(false);
     };
 
     const handleRetrieveAdsorbents = async () => {
         if (isBusy) return;
         setIsHostUpdating(true);
         onStatusUpdate('[INFO] Retrieving adsorbents properties from PubChem...');
-        const result = await fetchNistProperties({ target: 'host' });
-        if (result.error) {
-            onStatusUpdate(`[ERROR] ${result.error}`);
-        } else if (result.data) {
-            const lines = [
-                '[INFO] Adsorbents properties updated.',
-                '',
-                `- Names requested: ${result.data.names_requested}`,
-                `- Names matched: ${result.data.names_matched}`,
-                `- Rows updated: ${result.data.rows_updated}`,
-            ];
-            onStatusUpdate(lines.join('\n'));
-        } else {
-            onStatusUpdate('[ERROR] Adsorbents properties returned an empty response.');
+        try {
+            const result = await fetchNistProperties({ target: 'host' });
+            if (result.error) {
+                onStatusUpdate(`[ERROR] ${result.error}`);
+            } else if (result.data) {
+                const lines = [
+                    '[INFO] Adsorbents properties updated.',
+                    '',
+                    `- Names requested: ${result.data.names_requested}`,
+                    `- Names matched: ${result.data.names_matched}`,
+                    `- Rows updated: ${result.data.rows_updated}`,
+                ];
+                onStatusUpdate(lines.join('\n'));
+            } else {
+                onStatusUpdate('[ERROR] Adsorbents properties returned an empty response.');
+            }
+        } finally {
+            setIsHostUpdating(false);
+            await loadNistStatus();
         }
-        setIsHostUpdating(false);
     };
 
     return (
@@ -211,7 +227,11 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate }) 
                     <div className="section-heading">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                             <div className="section-title" style={{ marginBottom: 0 }}>Enrich materials properties</div>
-                            <NistStatusIndicator />
+                            <NistStatusIndicator
+                                dataAvailable={dataAvailable}
+                                isLoading={isStatusLoading}
+                                hasError={Boolean(nistStatusError)}
+                            />
                         </div>
                         <div className="section-caption">
                             Use stored NIST-A materials to fetch PubChem properties.
@@ -246,31 +266,13 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate }) 
  * Standalone LED status indicator for the header.
  * Fetches status independently to show availability.
  */
-const NistStatusIndicator: React.FC = () => {
-    const [dataAvailable, setDataAvailable] = React.useState(false);
-    const [isLoading, setIsLoading] = React.useState(true);
-    const [hasError, setHasError] = React.useState(false);
+interface NistStatusIndicatorProps {
+    dataAvailable: boolean;
+    isLoading: boolean;
+    hasError: boolean;
+}
 
-    React.useEffect(() => {
-        const checkStatus = async () => {
-            try {
-                const response = await fetch('/api/nist/status');
-                if (response.ok) {
-                    const data = await response.json();
-                    setDataAvailable(Boolean(data.data_available));
-                    setHasError(false);
-                } else {
-                    setHasError(true);
-                }
-            } catch {
-                setHasError(true);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        void checkStatus();
-    }, []);
-
+const NistStatusIndicator: React.FC<NistStatusIndicatorProps> = ({ dataAvailable, isLoading, hasError }) => {
     let statusLabel = 'Not ready';
     if (isLoading) {
         statusLabel = 'Checking';
@@ -292,11 +294,11 @@ const NistStatusIndicator: React.FC = () => {
  * Legacy CollectDataCard - kept for backward compatibility.
  * Renders both cards stacked vertically as before.
  */
-export const CollectDataCard: React.FC<NistCardProps> = ({ onStatusUpdate }) => {
+export const CollectDataCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistStatusState }) => {
     return (
         <div className="nist-card-stack">
-            <NistCollectCard onStatusUpdate={onStatusUpdate} />
-            <NistPropertiesCard onStatusUpdate={onStatusUpdate} />
+            <NistCollectCard onStatusUpdate={onStatusUpdate} nistStatusState={nistStatusState} />
+            <NistPropertiesCard onStatusUpdate={onStatusUpdate} nistStatusState={nistStatusState} />
         </div>
     );
 };

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+from time import monotonic
 from typing import Any
 from urllib.parse import quote
 
@@ -458,25 +459,79 @@ class NISTDataService:
         guest_fraction: float,
         host_fraction: float,
     ) -> dict[str, int]:
+        logger.info(
+            "NIST fetch starting (experiments_fraction=%s, guest_fraction=%s, host_fraction=%s)",
+            experiments_fraction,
+            guest_fraction,
+            host_fraction,
+        )
+        start_time = monotonic()
         api_client = NISTApiClient(server_settings.nist.parallel_tasks)
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             experiments_index = await api_client.fetch_experiments_index(client)
+            experiments_total = len(experiments_index)
+            experiments_requested = 0
+            if experiments_total > 0 and experiments_fraction > 0:
+                experiments_requested = int(
+                    math.ceil(experiments_fraction * experiments_total)
+                )
+            logger.info(
+                "NIST experiments index loaded (total=%d, requested=%d)",
+                experiments_total,
+                experiments_requested,
+            )
             experiments_data = await api_client.fetch_experiments_data(
                 client, experiments_index, experiments_fraction
             )
             guest_index, host_index = await api_client.fetch_materials_index(client)
+            guest_total = len(guest_index)
+            host_total = len(host_index)
+            guest_requested = 0
+            host_requested = 0
+            if guest_total > 0 and guest_fraction > 0:
+                guest_requested = int(math.ceil(guest_fraction * guest_total))
+            if host_total > 0 and host_fraction > 0:
+                host_requested = int(math.ceil(host_fraction * host_total))
+            logger.info(
+                "NIST materials index loaded (guests=%d requested=%d, hosts=%d requested=%d)",
+                guest_total,
+                guest_requested,
+                host_total,
+                host_requested,
+            )
             guest_data, host_data = await api_client.fetch_materials_data(
                 client, guest_index, host_index, guest_fraction, host_fraction
             )
 
+        logger.info(
+            "NIST payload fetched (experiments=%d, guests=%d, hosts=%d)",
+            len(experiments_data),
+            len(guest_data),
+            len(host_data),
+        )
         single_component, binary_mixture = self.builder.build_datasets(experiments_data)
+        logger.info(
+            "NIST datasets built (single_component_rows=%d, binary_mixture_rows=%d)",
+            len(single_component),
+            len(binary_mixture),
+        )
 
         await asyncio.to_thread(
             self.serializer.save_adsorption_datasets, single_component, binary_mixture
         )
         await asyncio.to_thread(
             self.serializer.save_materials_datasets, guest_data, host_data
+        )
+        elapsed = monotonic() - start_time
+        logger.info(
+            "NIST fetch stored (experiments=%d, single_component_rows=%d, binary_mixture_rows=%d, guests=%d, hosts=%d, elapsed_s=%.2f)",
+            len(experiments_data),
+            len(single_component),
+            len(binary_mixture),
+            len(guest_data),
+            len(host_data),
+            elapsed,
         )
 
         return {
@@ -489,6 +544,7 @@ class NISTDataService:
 
     # -------------------------------------------------------------------------
     async def enrich_properties(self, target: str) -> dict[str, int]:
+        logger.info("NIST properties enrichment starting (target=%s)", target)
         adsorption_data, guest_data, host_data = await asyncio.to_thread(
             self.serializer.load_adsorption_datasets
         )
@@ -529,6 +585,12 @@ class NISTDataService:
         )
 
         if not names or data.empty:
+            logger.info(
+                "NIST properties enrichment skipped (target=%s, names=%d, data_empty=%s)",
+                target,
+                len(names),
+                data.empty,
+            )
             return {
                 "names_requested": len(names),
                 "names_matched": 0,
@@ -546,6 +608,11 @@ class NISTDataService:
 
         properties_frame = pd.DataFrame(properties)
         if properties_frame.empty:
+            logger.info(
+                "NIST properties enrichment returned no results (target=%s, names=%d)",
+                target,
+                len(names),
+            )
             return {
                 "names_requested": len(names),
                 "names_matched": 0,
@@ -592,6 +659,13 @@ class NISTDataService:
             .notna()
             .any(axis=1)
             .sum()
+        )
+        logger.info(
+            "NIST properties enrichment completed (target=%s, names_requested=%d, names_matched=%d, rows_updated=%d)",
+            target,
+            len(names),
+            matched,
+            rows_updated,
         )
 
         return {
