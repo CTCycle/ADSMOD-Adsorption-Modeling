@@ -15,6 +15,10 @@ interface NistCardProps {
     nistStatusState: NistStatusState;
 }
 
+interface NistLegacyCardProps {
+    onStatusUpdate: (message: string) => void;
+}
+
 /** Shared NIST status hook */
 export function useNistStatus(): NistStatusState {
     const [nistStatus, setNistStatus] = useState<NISTStatusResponse | null>(null);
@@ -97,24 +101,26 @@ export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistS
                     <div className="section-title">Collect adsorption data</div>
                 </div>
                 <div className="nist-inputs">
-                    <NumberInput
-                        label="Guest fraction"
-                        value={guestFraction}
-                        onChange={setGuestFraction}
-                        min={0.001}
-                        max={1.0}
-                        step={0.01}
-                        precision={3}
-                    />
-                    <NumberInput
-                        label="Host fraction"
-                        value={hostFraction}
-                        onChange={setHostFraction}
-                        min={0.001}
-                        max={1.0}
-                        step={0.01}
-                        precision={3}
-                    />
+                    <div className="nist-inputs-row">
+                        <NumberInput
+                            label="Guest fraction"
+                            value={guestFraction}
+                            onChange={setGuestFraction}
+                            min={0.001}
+                            max={1.0}
+                            step={0.01}
+                            precision={3}
+                        />
+                        <NumberInput
+                            label="Host fraction"
+                            value={hostFraction}
+                            onChange={setHostFraction}
+                            min={0.001}
+                            max={1.0}
+                            step={0.01}
+                            precision={3}
+                        />
+                    </div>
                     <NumberInput
                         label="Experiments fraction"
                         value={experimentsFraction}
@@ -294,7 +300,8 @@ const NistStatusIndicator: React.FC<NistStatusIndicatorProps> = ({ dataAvailable
  * Legacy CollectDataCard - kept for backward compatibility.
  * Renders both cards stacked vertically as before.
  */
-export const CollectDataCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistStatusState }) => {
+export const CollectDataCard: React.FC<NistLegacyCardProps> = ({ onStatusUpdate }) => {
+    const nistStatusState = useNistStatus();
     return (
         <div className="nist-card-stack">
             <NistCollectCard onStatusUpdate={onStatusUpdate} nistStatusState={nistStatusState} />

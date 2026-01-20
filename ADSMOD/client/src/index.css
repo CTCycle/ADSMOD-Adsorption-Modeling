@@ -352,6 +352,15 @@ pre,
   margin-bottom: 1.5rem;
 }
 
+.nist-inputs-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.nist-inputs-row > * {
+  flex: 1;
+}
+
 .nist-actions {
   display: flex;
   flex-direction: column;
@@ -1199,6 +1208,12 @@ input:checked+.slider:before {
   }
 
   .panel-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 700px) {
+  .nist-inputs-row {
     flex-direction: column;
   }
 }

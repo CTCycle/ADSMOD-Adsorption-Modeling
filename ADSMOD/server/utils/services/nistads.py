@@ -77,10 +77,15 @@ class NISTDatasetBuilder:
         return single_component, binary_mixture
 
     # -------------------------------------------------------------------------
-    def extract_nested_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        if dataframe.empty:
-            return dataframe
+    def is_single_component(self, dataframe: pd.DataFrame) -> bool:
+        return (dataframe["num_guests"] == 1).all()
 
+    # -------------------------------------------------------------------------
+    def is_binary_mixture(self, dataframe: pd.DataFrame) -> bool:
+        return (dataframe["num_guests"] == 2).all()
+
+    # -------------------------------------------------------------------------
+    def add_material_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         dataframe["adsorbent_ID"] = dataframe["adsorbent"].apply(
             lambda x: (x or {}).get("hashkey")
         )
@@ -88,7 +93,9 @@ class NISTDatasetBuilder:
             lambda x: str((x or {}).get("name", "")).lower()
         )
         dataframe["adsorbates_ID"] = dataframe["adsorbates"].apply(
-            lambda x: [item.get("InChIKey") for item in (x or []) if isinstance(item, dict)]
+            lambda x: [
+                item.get("InChIKey") for item in (x or []) if isinstance(item, dict)
+            ]
         )
         dataframe["adsorbate_name"] = dataframe["adsorbates"].apply(
             lambda x: [
@@ -97,92 +104,100 @@ class NISTDatasetBuilder:
                 if isinstance(item, dict)
             ]
         )
+        return dataframe
 
-        if (dataframe["num_guests"] == 1).all():
-            dataframe["pressure"] = dataframe["isotherm_data"].apply(
-                lambda x: [
-                    item.get("pressure")
-                    for item in (x or [])
-                    if isinstance(item, dict)
-                ]
+    # -------------------------------------------------------------------------
+    def add_single_component_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        dataframe["pressure"] = dataframe["isotherm_data"].apply(
+            lambda x: [
+                item.get("pressure") for item in (x or []) if isinstance(item, dict)
+            ]
+        )
+        dataframe["adsorbed_amount"] = dataframe["isotherm_data"].apply(
+            lambda x: [
+                item.get("total_adsorption")
+                for item in (x or [])
+                if isinstance(item, dict)
+            ]
+        )
+        dataframe["adsorbate_name"] = dataframe["adsorbates"].apply(
+            lambda x: (
+                str(x[0].get("name", "")).lower() if isinstance(x, list) and x else ""
             )
-            dataframe["adsorbed_amount"] = dataframe["isotherm_data"].apply(
-                lambda x: [
-                    item.get("total_adsorption")
-                    for item in (x or [])
-                    if isinstance(item, dict)
-                ]
-            )
-            dataframe["adsorbate_name"] = dataframe["adsorbates"].apply(
-                lambda x: (
-                    str(x[0].get("name", "")).lower()
-                    if isinstance(x, list) and x
-                    else ""
+        )
+        dataframe["composition"] = 1.0
+        return dataframe
+
+    # -------------------------------------------------------------------------
+    def add_binary_mixture_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        data_placeholder = {"composition": 1.0, "adsorption": 1.0}
+        dataframe["total_pressure"] = dataframe["isotherm_data"].apply(
+            lambda x: [
+                item.get("pressure") for item in (x or []) if isinstance(item, dict)
+            ]
+        )
+        dataframe["all_species_data"] = dataframe["isotherm_data"].apply(
+            lambda x: [
+                item.get("species_data") for item in (x or []) if isinstance(item, dict)
+            ]
+        )
+        dataframe["compound_1"] = dataframe["adsorbate_name"].apply(
+            lambda x: str(x[0]).lower() if isinstance(x, list) and x else ""
+        )
+        dataframe["compound_2"] = dataframe["adsorbate_name"].apply(
+            lambda x: str(x[1]).lower() if isinstance(x, list) and len(x) > 1 else ""
+        )
+        dataframe["compound_1_data"] = dataframe["all_species_data"].apply(
+            lambda x: [item[0] if item else data_placeholder for item in (x or [])]
+        )
+        dataframe["compound_2_data"] = dataframe["all_species_data"].apply(
+            lambda x: [
+                item[1] if item and len(item) > 1 else data_placeholder
+                for item in (x or [])
+            ]
+        )
+        dataframe["compound_1_composition"] = dataframe["compound_1_data"].apply(
+            lambda x: [item.get("composition") for item in (x or [])]
+        )
+        dataframe["compound_2_composition"] = dataframe["compound_2_data"].apply(
+            lambda x: [item.get("composition") for item in (x or [])]
+        )
+        dataframe["compound_1_pressure"] = dataframe.apply(
+            lambda row: [
+                a * b
+                for a, b in zip(
+                    row["compound_1_composition"], row["total_pressure"], strict=False
                 )
-            )
-            dataframe["composition"] = 1.0
+            ],
+            axis=1,
+        )
+        dataframe["compound_2_pressure"] = dataframe.apply(
+            lambda row: [
+                a * b
+                for a, b in zip(
+                    row["compound_2_composition"], row["total_pressure"], strict=False
+                )
+            ],
+            axis=1,
+        )
+        dataframe["compound_1_adsorption"] = dataframe["compound_1_data"].apply(
+            lambda x: [item.get("adsorption") for item in (x or [])]
+        )
+        dataframe["compound_2_adsorption"] = dataframe["compound_2_data"].apply(
+            lambda x: [item.get("adsorption") for item in (x or [])]
+        )
+        return dataframe
 
-        elif (dataframe["num_guests"] == 2).all():
-            data_placeholder = {"composition": 1.0, "adsorption": 1.0}
-            dataframe["total_pressure"] = dataframe["isotherm_data"].apply(
-                lambda x: [
-                    item.get("pressure")
-                    for item in (x or [])
-                    if isinstance(item, dict)
-                ]
-            )
-            dataframe["all_species_data"] = dataframe["isotherm_data"].apply(
-                lambda x: [
-                    item.get("species_data")
-                    for item in (x or [])
-                    if isinstance(item, dict)
-                ]
-            )
-            dataframe["compound_1"] = dataframe["adsorbate_name"].apply(
-                lambda x: str(x[0]).lower() if isinstance(x, list) and x else ""
-            )
-            dataframe["compound_2"] = dataframe["adsorbate_name"].apply(
-                lambda x: str(x[1]).lower() if isinstance(x, list) and len(x) > 1 else ""
-            )
-            dataframe["compound_1_data"] = dataframe["all_species_data"].apply(
-                lambda x: [item[0] if item else data_placeholder for item in (x or [])]
-            )
-            dataframe["compound_2_data"] = dataframe["all_species_data"].apply(
-                lambda x: [
-                    item[1] if item and len(item) > 1 else data_placeholder
-                    for item in (x or [])
-                ]
-            )
-            dataframe["compound_1_composition"] = dataframe["compound_1_data"].apply(
-                lambda x: [item.get("composition") for item in (x or [])]
-            )
-            dataframe["compound_2_composition"] = dataframe["compound_2_data"].apply(
-                lambda x: [item.get("composition") for item in (x or [])]
-            )
-            dataframe["compound_1_pressure"] = dataframe.apply(
-                lambda row: [
-                    a * b
-                    for a, b in zip(
-                        row["compound_1_composition"], row["total_pressure"], strict=False
-                    )
-                ],
-                axis=1,
-            )
-            dataframe["compound_2_pressure"] = dataframe.apply(
-                lambda row: [
-                    a * b
-                    for a, b in zip(
-                        row["compound_2_composition"], row["total_pressure"], strict=False
-                    )
-                ],
-                axis=1,
-            )
-            dataframe["compound_1_adsorption"] = dataframe["compound_1_data"].apply(
-                lambda x: [item.get("adsorption") for item in (x or [])]
-            )
-            dataframe["compound_2_adsorption"] = dataframe["compound_2_data"].apply(
-                lambda x: [item.get("adsorption") for item in (x or [])]
-            )
+    # -------------------------------------------------------------------------
+    def extract_nested_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        if dataframe.empty:
+            return dataframe
+
+        dataframe = self.add_material_fields(dataframe)
+        if self.is_single_component(dataframe):
+            return self.add_single_component_fields(dataframe)
+        if self.is_binary_mixture(dataframe):
+            return self.add_binary_mixture_fields(dataframe)
 
         return dataframe
 
@@ -321,6 +336,59 @@ class NISTApiClient:
         return guest_data, host_data
 
     # -------------------------------------------------------------------------
+    def build_material_urls(
+        self, identifiers: list[str], fraction: float, url_template: str
+    ) -> list[str]:
+        if not identifiers or fraction <= 0:
+            return []
+        num_samples = int(math.ceil(fraction * len(identifiers)))
+        return [
+            url_template.format(identifier=identifier)
+            for identifier in identifiers[:num_samples]
+        ]
+
+    # -------------------------------------------------------------------------
+    def prepare_materials_frame(
+        self,
+        results: list[Any],
+        identifier_column: str,
+        extra_columns: list[str],
+        drop_columns: list[str],
+    ) -> pd.DataFrame:
+        data = pd.DataFrame(results)
+        if data.empty:
+            return pd.DataFrame(columns=[identifier_column, "name", *extra_columns])
+        data = data.drop(columns=drop_columns, errors="ignore")
+        data["name"] = data["name"].astype(str).str.lower()
+        for col in extra_columns:
+            data[col] = pd.NA
+        return data
+
+    # -------------------------------------------------------------------------
+    async def fetch_material_dataset(
+        self,
+        client: httpx.AsyncClient,
+        index: pd.DataFrame,
+        identifier_column: str,
+        fraction: float,
+        url_template: str,
+        extra_columns: list[str],
+        drop_columns: list[str],
+        label: str,
+    ) -> pd.DataFrame:
+        if index.empty or fraction <= 0:
+            logger.warning("No %s index available for NIST fetch.", label)
+            return pd.DataFrame()
+        if identifier_column not in index.columns:
+            raise ValueError(f"NIST {label} index missing {identifier_column} column.")
+        identifiers = index[identifier_column].tolist()
+        urls = self.build_material_urls(identifiers, fraction, url_template)
+        results = await self.fetch_multiple(client, urls)
+        return self.prepare_materials_frame(
+            results, identifier_column, extra_columns, drop_columns
+        )
+
+    # -------------------------------------------------------------------------
     async def fetch_materials_data(
         self,
         client: httpx.AsyncClient,
@@ -329,56 +397,26 @@ class NISTApiClient:
         guest_fraction: float,
         host_fraction: float,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        guest_data = pd.DataFrame()
-        host_data = pd.DataFrame()
-
-        if not guest_index.empty and guest_fraction > 0:
-            if self.guest_identifier not in guest_index.columns:
-                raise ValueError("NIST guest index missing InChIKey column.")
-            guest_ids = guest_index[self.guest_identifier].tolist()
-            guest_samples = int(math.ceil(guest_fraction * len(guest_ids)))
-            guest_urls = [
-                f"https://adsorption.nist.gov/isodb/api/gas/{identifier}.json"
-                for identifier in guest_ids[:guest_samples]
-            ]
-            results = await self.fetch_multiple(client, guest_urls)
-            guest_data = pd.DataFrame(results)
-            if not guest_data.empty:
-                guest_data = guest_data.drop(columns=["synonyms"], errors="ignore")
-                guest_data["name"] = guest_data["name"].astype(str).str.lower()
-                for col in self.extra_guest_columns:
-                    guest_data[col] = pd.NA
-            else:
-                guest_data = pd.DataFrame(
-                    columns=[self.guest_identifier, "name", *self.extra_guest_columns]
-                )
-        else:
-            logger.warning("No guest index available for NIST fetch.")
-
-        if not host_index.empty and host_fraction > 0:
-            if self.host_identifier not in host_index.columns:
-                raise ValueError("NIST host index missing hashkey column.")
-            host_ids = host_index[self.host_identifier].tolist()
-            host_samples = int(math.ceil(host_fraction * len(host_ids)))
-            host_urls = [
-                f"https://adsorption.nist.gov/matdb/api/material/{identifier}.json"
-                for identifier in host_ids[:host_samples]
-            ]
-            results = await self.fetch_multiple(client, host_urls)
-            host_data = pd.DataFrame(results)
-            if not host_data.empty:
-                host_data = host_data.drop(
-                    columns=["External_Resources", "synonyms"], errors="ignore"
-                )
-                host_data["name"] = host_data["name"].astype(str).str.lower()
-                for col in self.extra_host_columns:
-                    host_data[col] = pd.NA
-            else:
-                host_data = pd.DataFrame(
-                    columns=[self.host_identifier, "name", *self.extra_host_columns]
-                )
-        else:
-            logger.warning("No host index available for NIST fetch.")
+        guest_data = await self.fetch_material_dataset(
+            client=client,
+            index=guest_index,
+            identifier_column=self.guest_identifier,
+            fraction=guest_fraction,
+            url_template="https://adsorption.nist.gov/isodb/api/gas/{identifier}.json",
+            extra_columns=self.extra_guest_columns,
+            drop_columns=["synonyms"],
+            label="guest",
+        )
+        host_data = await self.fetch_material_dataset(
+            client=client,
+            index=host_index,
+            identifier_column=self.host_identifier,
+            fraction=host_fraction,
+            url_template="https://adsorption.nist.gov/matdb/api/material/{identifier}.json",
+            extra_columns=self.extra_host_columns,
+            drop_columns=["External_Resources", "synonyms"],
+            label="host",
+        )
 
         return guest_data, host_data
 
