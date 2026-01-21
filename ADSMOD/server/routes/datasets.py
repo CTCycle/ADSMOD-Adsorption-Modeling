@@ -48,6 +48,9 @@ async def load_dataset(file: UploadFile = File(...)) -> DatasetLoadResponse:
             detail="Failed to process uploaded dataset.",
         ) from exc
 
+    # Persist to database immediately so it appears in dropdown
+    dataset_service.save_to_database(dataset_payload)
+
     return DatasetLoadResponse(summary=summary, dataset=dataset_payload)
 
 
