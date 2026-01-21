@@ -59,6 +59,10 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def save_fitting_results(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
+            empty_experiments = pd.DataFrame(
+                columns=["id", *self.experiment_columns]
+            )
+            database.save_into_database(empty_experiments, self.processed_table)
             for schema in MODEL_SCHEMAS.values():
                 empty_model = pd.DataFrame(
                     columns=["id", "experiment_id", *schema["fields"].values()]
@@ -66,10 +70,8 @@ class DataSerializer:
                 database.save_into_database(empty_model, schema["table"])
             return
         encoded = self.convert_lists_to_strings(dataset)
-        experiments = self.load_table(self.processed_table)
-        if experiments.empty:
-            experiments = self.build_experiment_frame(encoded)
-            database.save_into_database(experiments, self.processed_table)
+        experiments = self.build_experiment_frame(encoded)
+        database.save_into_database(experiments, self.processed_table)
         experiment_map = self.build_experiment_map(experiments)
         for schema in MODEL_SCHEMAS.values():
             model_frame = self.build_model_frame(encoded, experiment_map, schema)
@@ -131,10 +133,13 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def build_experiment_frame(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        missing = [column for column in self.experiment_columns if column not in dataset]
-        if missing:
-            raise ValueError(f"Missing experiment columns: {missing}")
-        experiments = dataset.loc[:, self.experiment_columns].copy()
+        if "experiment" not in dataset.columns:
+            raise ValueError("Missing experiment column for fitting results.")
+        experiments = dataset.copy()
+        for column in self.experiment_columns:
+            if column not in experiments.columns:
+                experiments[column] = pd.NA
+        experiments = experiments.loc[:, self.experiment_columns].copy()
         experiments.insert(0, "id", range(1, len(experiments) + 1))
         return experiments
 

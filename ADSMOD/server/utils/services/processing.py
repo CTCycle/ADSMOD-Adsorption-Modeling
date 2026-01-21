@@ -60,9 +60,10 @@ class AdsorptionDataProcessor:
 
         cleaned = self.drop_invalid_values(self.dataset)
         grouped = self.aggregate_by_experiment(cleaned)
-        stats = self.build_statistics(cleaned, grouped)
+        filtered = self.filter_invalid_experiments(grouped)
+        stats = self.build_statistics(cleaned, filtered)
 
-        return grouped, self.columns, stats
+        return filtered, self.columns, stats
 
     # -------------------------------------------------------------------------
     def identify_columns(self) -> None:
@@ -142,6 +143,42 @@ class AdsorptionDataProcessor:
         grouped["min_uptake"] = grouped[cols["uptake"]].apply(min)
         grouped["max_uptake"] = grouped[cols["uptake"]].apply(max)
         return grouped
+
+    # -------------------------------------------------------------------------
+    def validate_experiment(self, pressure: Any, uptake: Any) -> bool:
+        try:
+            pressure_array = np.asarray(pressure, dtype=np.float64)
+            uptake_array = np.asarray(uptake, dtype=np.float64)
+        except Exception:  # noqa: BLE001
+            return False
+
+        if pressure_array.ndim != 1 or uptake_array.ndim != 1:
+            return False
+        if pressure_array.size < 2 or uptake_array.size < 2:
+            return False
+        if pressure_array.size != uptake_array.size:
+            return False
+        if not np.all(np.isfinite(pressure_array)):
+            return False
+        if not np.all(np.isfinite(uptake_array)):
+            return False
+
+        return True
+
+    # -------------------------------------------------------------------------
+    def validate_experiment_row(self, row: pd.Series) -> bool:
+        cols = self.columns.as_dict()
+        return self.validate_experiment(row[cols["pressure"]], row[cols["uptake"]])
+
+    # -------------------------------------------------------------------------
+    def filter_invalid_experiments(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        valid_mask = dataset.apply(self.validate_experiment_row, axis=1)
+        removed_count = int((~valid_mask).sum())
+        if removed_count:
+            logger.info(
+                "Skipped %s invalid experiments during preprocessing", removed_count
+            )
+        return dataset.loc[valid_mask].reset_index(drop=True)
 
     # -------------------------------------------------------------------------
     def build_statistics(self, cleaned: pd.DataFrame, grouped: pd.DataFrame) -> str:

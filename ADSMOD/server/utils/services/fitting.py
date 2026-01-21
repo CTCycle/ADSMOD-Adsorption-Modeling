@@ -18,6 +18,7 @@ from ADSMOD.server.utils.services.models import AdsorptionModels
 from ADSMOD.server.utils.services.processing import (
     AdsorptionDataProcessor,
     DatasetAdapter,
+    DatasetColumns,
 )
 
 SUPPORTED_OPTIMIZATION_METHODS: tuple[str, ...] = (
@@ -376,32 +377,88 @@ class ModelSolver:
         max_iterations: int,
         optimization_method: str,
         progress_callback: Callable[[int, int], None] | None = None,
-    ) -> dict[str, list[dict[str, Any]]]:
+    ) -> tuple[dict[str, list[dict[str, Any]]], list[int], list[str]]:
         """Iterate over the dataset and fit every experiment with the configured models."""
         results: dict[str, list[dict[str, Any]]] = {
             model: [] for model in configuration.keys()
         }
+        valid_indices: list[int] = []
+        skipped_experiments: list[str] = []
         total_experiments = dataset.shape[0]
         normalized_method = self.normalize_method(optimization_method)
         for index, row in dataset.iterrows():
-            pressure = np.asarray(row[pressure_col], dtype=np.float64)
-            uptake = np.asarray(row[uptake_col], dtype=np.float64)
-            experiment_name = row.get("experiment", f"experiment_{index}")
-            experiment_results = self.single_experiment_fit(
-                pressure,
-                uptake,
-                experiment_name,
-                configuration,
-                max_iterations,
-                normalized_method,
-            )
+            experiment_name_value = row.get("experiment")
+            if experiment_name_value is None or pd.isna(experiment_name_value):
+                experiment_name = f"experiment_{index}"
+            else:
+                experiment_name = str(experiment_name_value)
+            try:
+                pressure = np.asarray(row[pressure_col], dtype=np.float64)
+                uptake = np.asarray(row[uptake_col], dtype=np.float64)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Skipping experiment %s due to invalid measurements: %s",
+                    experiment_name,
+                    exc,
+                )
+                skipped_experiments.append(experiment_name)
+                if progress_callback is not None:
+                    progress_callback(index + 1, total_experiments)
+                continue
+
+            if not self.validate_measurements(pressure, uptake):
+                logger.info(
+                    "Skipping experiment %s due to invalid measurements", experiment_name
+                )
+                skipped_experiments.append(experiment_name)
+                if progress_callback is not None:
+                    progress_callback(index + 1, total_experiments)
+                continue
+
+            try:
+                experiment_results = self.single_experiment_fit(
+                    pressure,
+                    uptake,
+                    experiment_name,
+                    configuration,
+                    max_iterations,
+                    normalized_method,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "Failed to fit experiment %s due to an unexpected error",
+                    experiment_name,
+                )
+                skipped_experiments.append(experiment_name)
+                if progress_callback is not None:
+                    progress_callback(index + 1, total_experiments)
+                continue
+
             for model_name, data in experiment_results.items():
                 results[model_name].append(data)
+            valid_indices.append(index)
 
             if progress_callback is not None:
                 progress_callback(index + 1, total_experiments)
 
-        return results
+        return results, valid_indices, skipped_experiments
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def validate_measurements(
+        pressure: np.ndarray, uptake: np.ndarray
+    ) -> bool:
+        if pressure.ndim != 1 or uptake.ndim != 1:
+            return False
+        if pressure.size < 2 or uptake.size < 2:
+            return False
+        if pressure.size != uptake.size:
+            return False
+        if not np.all(np.isfinite(pressure)):
+            return False
+        if not np.all(np.isfinite(uptake)):
+            return False
+        return True
 
 
 ###############################################################################
@@ -430,16 +487,10 @@ class FittingPipeline:
         else:
             dataset_name = None
 
-        logger.info("Saving raw dataset with %s rows", dataframe.shape[0])
-        self.serializer.save_raw_dataset(dataframe)
-
         processor = AdsorptionDataProcessor(dataframe)
         processed, detected_columns, stats = processor.preprocess(detect_columns=True)
 
         logger.info("Processed dataset contains %s experiments", processed.shape[0])
-        serializable_processed = self.stringify_sequences(processed)
-        self.serializer.save_processed_dataset(serializable_processed)
-
         logger.debug("Detected dataset statistics:\n%s", stats)
 
         if processed.empty:
@@ -453,7 +504,7 @@ class FittingPipeline:
             raise ValueError("No supported models were selected for fitting.")
         logger.debug("Running solver with configuration: %s", model_configuration)
 
-        results = self.solver.bulk_data_fitting(
+        results, valid_indices, skipped_experiments = self.solver.bulk_data_fitting(
             processed,
             model_configuration,
             detected_columns.pressure,
@@ -463,12 +514,28 @@ class FittingPipeline:
             progress_callback=progress_callback,
         )
 
+        if skipped_experiments:
+            logger.info(
+                "Skipped %s experiments during fitting", len(skipped_experiments)
+            )
+
+        if valid_indices:
+            processed = processed.loc[valid_indices].reset_index(drop=True)
+        else:
+            processed = processed.iloc[0:0]
+
+        if processed.empty:
+            raise ValueError(
+                "No valid experiments were available after fitting validation."
+            )
+
         combined = self.adapter.combine_results(results, processed)
-        self.serializer.save_fitting_results(combined)
+        storage_dataset = self.trim_fitting_dataset(combined, detected_columns)
+        self.serializer.save_fitting_results(storage_dataset)
 
         ranking_metric = server_settings.fitting.best_model_metric
         normalized_metric = self.adapter.normalize_metric(ranking_metric)
-        best_frame = self.adapter.compute_best_models(combined, normalized_metric)
+        best_frame = self.adapter.compute_best_models(storage_dataset, normalized_metric)
         self.serializer.save_best_fit(best_frame)
 
         experiment_count = int(processed.shape[0])
@@ -493,6 +560,10 @@ class FittingPipeline:
             f"Max iterations: {int(max_iterations)}",
             f"Ranking metric: {normalized_metric}",
         ]
+        if skipped_experiments:
+            summary_lines.append(
+                f"[WARN] Skipped experiments: {len(skipped_experiments)}"
+            )
         if requested_models:
             summary_lines.append("Requested models:")
             summary_lines.extend([f"  - {model}" for model in requested_models])
@@ -651,6 +722,23 @@ class FittingPipeline:
         limited = trimmed.head(server_settings.fitting.preview_row_limit)
         limited = limited.replace({np.nan: None})
         return limited.to_dict(orient="records")
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def trim_fitting_dataset(
+        dataset: pd.DataFrame, detected_columns: DatasetColumns
+    ) -> pd.DataFrame:
+        drop_columns = [
+            detected_columns.temperature,
+            detected_columns.pressure,
+            detected_columns.uptake,
+            "measurement_count",
+            "min_pressure",
+            "max_pressure",
+            "min_uptake",
+            "max_uptake",
+        ]
+        return dataset.drop(columns=drop_columns, errors="ignore")
 
     # -------------------------------------------------------------------------
     @staticmethod
