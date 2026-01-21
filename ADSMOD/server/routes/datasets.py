@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from ADSMOD.server.database.database import database
 from ADSMOD.server.schemas.datasets import DatasetLoadResponse, DatasetNamesResponse
 from ADSMOD.server.utils.constants import (
+    DATASETS_FETCH_ENDPOINT,
     DATASETS_LOAD_ENDPOINT,
     DATASETS_NAMES_ENDPOINT,
     DATASETS_ROUTER_PREFIX,
@@ -58,11 +58,29 @@ class DatasetEndpoint:
     async def get_dataset_names(self) -> DatasetNamesResponse:
         """Return list of unique dataset names from ADSORPTION_DATA."""
         try:
-            names = database.get_unique_dataset_names()
+            names = self.service.get_dataset_names()
             return DatasetNamesResponse(names=names)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to fetch dataset names: %s", exc)
             return DatasetNamesResponse(names=[])
+
+    # -------------------------------------------------------------------------
+    async def get_dataset_by_name(self, dataset_name: str) -> DatasetLoadResponse:
+        """Return dataset payload and summary for a stored dataset name."""
+        try:
+            dataset_payload, summary = self.service.load_from_database(dataset_name)
+            return DatasetLoadResponse(summary=summary, dataset=dataset_payload)
+        except ValueError as exc:
+            logger.warning("Failed to load dataset '%s': %s", dataset_name, exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Dataset lookup failed")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to load dataset.",
+            ) from exc
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
@@ -79,6 +97,13 @@ class DatasetEndpoint:
             self.get_dataset_names,
             methods=["GET"],
             response_model=DatasetNamesResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            DATASETS_FETCH_ENDPOINT,
+            self.get_dataset_by_name,
+            methods=["GET"],
+            response_model=DatasetLoadResponse,
             status_code=status.HTTP_200_OK,
         )
 

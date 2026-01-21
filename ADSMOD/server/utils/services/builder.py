@@ -6,8 +6,8 @@ from typing import Any
 
 import pandas as pd
 
-from ADSMOD.server.database.database import database
 from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.utils.repository.serializer import TrainingDataSerializer
 from ADSMOD.server.utils.services.conversion import PQ_units_conversion
 from ADSMOD.server.utils.services.sanitizer import (
     AdsorbentEncoder,
@@ -66,6 +66,7 @@ class DatasetBuilder:
     def __init__(self, config: DatasetBuilderConfig) -> None:
         self.config = config
         self.configuration = config.to_dict()
+        self.serializer = TrainingDataSerializer()
 
     # -------------------------------------------------------------------------
     def build_training_dataset(
@@ -97,7 +98,7 @@ class DatasetBuilder:
                 processed_data, guest_data, host_data
             )
 
-        logger.info("Converting pressure into Pascal and uptake into mol/g")
+        logger.info("Converting pressure into Pascal and uptake into mmol/g")
         processed_data = PQ_units_conversion(processed_data)
 
         sanitizer = DataSanitizer(self.configuration)
@@ -187,7 +188,7 @@ class DatasetBuilder:
         available_columns = [c for c in columns_to_save if c in training_data.columns]
         data_to_save = training_data[available_columns].copy()
 
-        database.save_into_database(data_to_save, "TRAINING_DATASET")
+        self.serializer.save_training_dataset(data_to_save)
 
     # -------------------------------------------------------------------------
     def save_training_metadata(
@@ -215,29 +216,28 @@ class DatasetBuilder:
             "normalization_stats": json.dumps(statistics) if statistics else "{}",
         }])
 
-        database.save_into_database(metadata, "TRAINING_METADATA")
+        self.serializer.save_training_metadata(metadata)
 
     # -------------------------------------------------------------------------
     @staticmethod
     def get_training_dataset_info() -> dict[str, Any] | None:
         try:
-            metadata = database.load_from_database("TRAINING_METADATA")
-            if metadata.empty:
+            serializer = TrainingDataSerializer()
+            metadata = serializer.load_training_metadata()
+            if not metadata:
                 return None
-
-            row = metadata.iloc[0]
             return {
-                "created_at": row.get("created_at", ""),
-                "sample_size": row.get("sample_size", 1.0),
-                "validation_size": row.get("validation_size", 0.2),
-                "min_measurements": row.get("min_measurements", 1),
-                "max_measurements": row.get("max_measurements", 30),
-                "smile_sequence_size": row.get("smile_sequence_size", 20),
-                "max_pressure": row.get("max_pressure", 10000.0),
-                "max_uptake": row.get("max_uptake", 20.0),
-                "total_samples": row.get("total_samples", 0),
-                "train_samples": row.get("train_samples", 0),
-                "validation_samples": row.get("validation_samples", 0),
+                "created_at": metadata.get("created_at", ""),
+                "sample_size": metadata.get("sample_size", 1.0),
+                "validation_size": metadata.get("validation_size", 0.2),
+                "min_measurements": metadata.get("min_measurements", 1),
+                "max_measurements": metadata.get("max_measurements", 30),
+                "smile_sequence_size": metadata.get("smile_sequence_size", 20),
+                "max_pressure": metadata.get("max_pressure", 10000.0),
+                "max_uptake": metadata.get("max_uptake", 20.0),
+                "total_samples": metadata.get("total_samples", 0),
+                "train_samples": metadata.get("train_samples", 0),
+                "validation_samples": metadata.get("validation_samples", 0),
             }
         except Exception as e:
             logger.warning(f"Failed to load training dataset info: {e}")
@@ -247,9 +247,8 @@ class DatasetBuilder:
     @staticmethod
     def clear_training_dataset() -> bool:
         try:
-            empty_df = pd.DataFrame()
-            database.save_into_database(empty_df, "TRAINING_DATASET")
-            database.save_into_database(empty_df, "TRAINING_METADATA")
+            serializer = TrainingDataSerializer()
+            serializer.clear_training_dataset()
             logger.info("Training dataset cleared")
             return True
         except Exception as e:

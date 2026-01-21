@@ -5,8 +5,6 @@ from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, status
-
-from ADSMOD.server.database.database import database
 from ADSMOD.server.schemas.fitting import FittingRequest, FittingResponse
 from ADSMOD.server.utils.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
@@ -15,6 +13,7 @@ from ADSMOD.server.utils.constants import (
     FITTING_RUN_ENDPOINT,
 )
 from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.services.conversion import PQ_units_conversion
 from ADSMOD.server.utils.services.fitting import FittingPipeline
 
@@ -28,6 +27,17 @@ class FittingEndpoint:
     def __init__(self, router: APIRouter, pipeline: FittingPipeline) -> None:
         self.router = router
         self.pipeline = pipeline
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_uptake_to_mol_g(
+        value: float | list[float] | None,
+    ) -> float | list[float] | None:
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return [val / 1000.0 for val in value]
+        return float(value) / 1000.0
 
     # -------------------------------------------------------------------------
     async def run_fitting_job(self, payload: FittingRequest) -> Any:
@@ -75,14 +85,14 @@ class FittingEndpoint:
         experiment identifiers from filename + adsorbent + adsorbate + temperature.
         """
         try:
-            nist_df = database.load_from_database("NIST_SINGLE_COMPONENT_ADSORPTION")
+            serializer = NISTDataSerializer()
+            nist_df, adsorbates_df, _ = serializer.load_adsorption_datasets()
             if nist_df.empty:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="No NIST single-component data available. Please fetch data first.",
                 )
 
-            adsorbates_df = database.load_from_database("ADSORBATES")
             if not adsorbates_df.empty and "name" in adsorbates_df.columns:
                 nist_df = nist_df.merge(
                     adsorbates_df[["name", "adsorbate_molecular_weight"]],
@@ -92,6 +102,11 @@ class FittingEndpoint:
                 )
 
             converted_df = PQ_units_conversion(nist_df.copy())
+
+            if "adsorbed_amount" in converted_df.columns:
+                converted_df["adsorbed_amount"] = converted_df["adsorbed_amount"].apply(
+                    self.normalize_uptake_to_mol_g
+                )
 
             converted_df["experiment"] = (
                 converted_df["filename"].astype(str)

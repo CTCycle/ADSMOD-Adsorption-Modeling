@@ -248,6 +248,20 @@ class TrainingDataSerializer:
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
+    def save_training_dataset(self, dataset: pd.DataFrame) -> None:
+        database.save_into_database(dataset, "TRAINING_DATASET")
+
+    # -------------------------------------------------------------------------
+    def save_training_metadata(self, metadata: pd.DataFrame) -> None:
+        database.save_into_database(metadata, "TRAINING_METADATA")
+
+    # -------------------------------------------------------------------------
+    def clear_training_dataset(self) -> None:
+        empty_df = pd.DataFrame()
+        database.save_into_database(empty_df, "TRAINING_DATASET")
+        database.save_into_database(empty_df, "TRAINING_METADATA")
+
+    # -------------------------------------------------------------------------
     def deserialize_series(self, data: pd.DataFrame) -> pd.DataFrame:
         if data.empty:
             return data

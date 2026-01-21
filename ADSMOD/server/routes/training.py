@@ -7,8 +7,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from ADSMOD.server.database.database import database
 from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
 from ADSMOD.server.utils.services.training_manager import training_manager
 
@@ -186,11 +186,8 @@ class TrainingEndpoint:
             guest_data = None
             host_data = None
             if "SINGLE_COMPONENT_ADSORPTION" in source_datasets:
-                adsorption_data = database.load_from_database(
-                    "SINGLE_COMPONENT_ADSORPTION"
-                )
-                guest_data = database.load_from_database("ADSORBATES")
-                host_data = database.load_from_database("ADSORBENTS")
+                serializer = NISTDataSerializer()
+                adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()
                 dataset_name = "nist"
             else:
                 return DatasetBuildResponse(
