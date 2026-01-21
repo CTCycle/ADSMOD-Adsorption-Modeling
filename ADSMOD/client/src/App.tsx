@@ -6,7 +6,7 @@ import { DatabaseBrowserPage, initialDatabaseBrowserState } from './components/D
 import { MachineLearningPage } from './components/MachineLearningPage';
 import type { DatabaseBrowserState } from './components/DatabaseBrowserPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
-import { loadDataset, startFitting, fetchDatasetNames } from './services';
+import { loadDataset, startFitting, fetchDatasetNames, fetchNistDataForFitting } from './services';
 import type { DatasetPayload, FittingPayload, ModelParameters, ModelConfiguration } from './types';
 import './index.css';
 
@@ -139,9 +139,23 @@ function App() {
     }, []);
 
     const handleStartFitting = useCallback(async () => {
-        if (!dataset) {
-            setFittingStatus('[ERROR] Please load a dataset before starting the fitting process.');
-            return;
+        // Determine which dataset to use
+        let fittingDataset: DatasetPayload | null = null;
+
+        if (useNistData) {
+            setFittingStatus('[INFO] Loading NIST single-component data...');
+            const nistResult = await fetchNistDataForFitting();
+            if (nistResult.error || !nistResult.dataset) {
+                setFittingStatus(`[ERROR] ${nistResult.error || 'Failed to load NIST data.'}`);
+                return;
+            }
+            fittingDataset = nistResult.dataset;
+        } else {
+            if (!dataset) {
+                setFittingStatus('[ERROR] Please load a dataset before starting the fitting process.');
+                return;
+            }
+            fittingDataset = dataset;
         }
 
         const selectedModels = Object.entries(modelStates)
@@ -186,12 +200,12 @@ function App() {
             max_iterations: Math.max(1, Math.round(maxIterations)),
             optimization_method: optimizationMethod,
             parameter_bounds: parameterBounds,
-            dataset,
+            dataset: fittingDataset,
         };
 
         const result = await startFitting(payload);
         setFittingStatus(result.message);
-    }, [dataset, modelStates, maxIterations, optimizationMethod]);
+    }, [dataset, modelStates, maxIterations, optimizationMethod, useNistData]);
 
     return (
         <div className="app-container">

@@ -111,6 +111,35 @@ export async function fetchDatasetNames(): Promise<{ names: string[]; error: str
     }
 }
 
+export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPayload | null; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/fitting/nist-dataset`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { dataset: null, error: message };
+        }
+
+        const result = await response.json();
+        if (result.status !== 'success') {
+            const detail = result.detail || result.message || 'Failed to load NIST data.';
+            return { dataset: null, error: detail };
+        }
+
+        return { dataset: result.dataset || null, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { dataset: null, error: error.message };
+        }
+        return { dataset: null, error: 'An unknown error occurred.' };
+    }
+}
+
 export async function startFitting(payload: FittingPayload): Promise<{ message: string; data: FittingResponse | null }> {
     try {
         const response = await fetchWithTimeout(

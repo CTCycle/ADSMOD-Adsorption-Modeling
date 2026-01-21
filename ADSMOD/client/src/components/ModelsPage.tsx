@@ -123,34 +123,34 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                     <div className="fitting-controls-column">
                         <div className="fitting-controls-row" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div className="control-group">
-                                <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={useNistData}
-                                        onChange={(e) => onUseNistDataChange(e.target.checked)}
-                                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                                    />
-                                    Use NIST Single-Component Data
-                                </label>
-                            </div>
-                            <div className="control-group">
                                 <label className="field-label">Dataset</label>
-                                <select
-                                    value={selectedDataset || ''}
-                                    onChange={(e) => onDatasetSelect(e.target.value || null)}
-                                    className="select-input"
-                                    disabled={useNistData}
-                                    style={useNistData ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-                                >
-                                    <option value="">
-                                        {availableDatasets.length === 0 ? 'No datasets available' : 'Select a dataset'}
-                                    </option>
-                                    {availableDatasets.map((name) => (
-                                        <option key={name} value={name}>
-                                            {name}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <select
+                                        value={selectedDataset || ''}
+                                        onChange={(e) => onDatasetSelect(e.target.value || null)}
+                                        className="select-input"
+                                        disabled={useNistData}
+                                        style={useNistData ? { opacity: 0.5, cursor: 'not-allowed', flex: 1 } : { flex: 1 }}
+                                    >
+                                        <option value="">
+                                            {availableDatasets.length === 0 ? 'No datasets available' : 'Select a dataset'}
                                         </option>
-                                    ))}
-                                </select>
+                                        {availableDatasets.map((name) => (
+                                            <option key={name} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={useNistData}
+                                            onChange={(e) => onUseNistDataChange(e.target.checked)}
+                                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                        />
+                                        NIST Data
+                                    </label>
+                                </div>
                             </div>
                             <div className="control-group">
                                 <NumberInput
