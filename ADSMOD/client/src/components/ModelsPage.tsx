@@ -119,7 +119,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
 
                 </div>
 
-                <div className="fitting-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1.5rem' }}>
+                <div className="fitting-main-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 380px) 1fr', gap: '2rem', marginTop: '1.5rem' }}>
                     <div className="fitting-controls-column">
                         <div className="fitting-controls-row" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div className="control-group">
@@ -202,19 +202,28 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                         </div>
                     </div>
 
-                    <div className="fitting-status-box" style={{ height: '100%' }}>
-                        <div className="status-label" style={{ marginBottom: '0.5rem', fontWeight: 500, color: 'var(--slate-700)' }}>Fitting Log:</div>
-                        <pre className="status-text" style={{
-                            height: 'calc(100% - 1.5rem)',
-                            minHeight: '160px',
-                            background: '#0f172a',
-                            color: '#e2e8f0',
-                            padding: '1rem',
-                            borderRadius: 'var(--radius-md)',
-                            overflow: 'auto',
-                            fontFamily: 'monospace',
-                            fontSize: '0.9rem'
-                        }}>{fittingStatus || 'Ready to start...'}</pre>
+                    <div style={{ position: 'relative' }}>
+                        <div className="fitting-status-box" style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            position: 'absolute',
+                            inset: 0,
+                            height: '100%'
+                        }}>
+                            <div className="status-label" style={{ marginBottom: '0.5rem', fontWeight: 500, color: 'var(--slate-700)' }}>Fitting Log:</div>
+                            <pre className="status-text" style={{
+                                flex: 1,
+                                minHeight: 0,
+                                background: '#0f172a',
+                                color: '#e2e8f0',
+                                padding: '1rem',
+                                borderRadius: 'var(--radius-md)',
+                                overflowY: 'auto',
+                                overflowX: 'hidden',
+                                fontFamily: 'monospace',
+                                fontSize: '0.9rem'
+                            }}>{fittingStatus || 'Ready to start...'}</pre>
+                        </div>
                     </div>
                 </div>
             </div>

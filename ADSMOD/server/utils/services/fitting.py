@@ -423,6 +423,12 @@ class FittingPipeline:
         if dataframe.empty:
             raise ValueError("Uploaded dataset is empty.")
 
+        dataset_name = dataset_payload.get("dataset_name")
+        if isinstance(dataset_name, str):
+            dataset_name = dataset_name.strip() or None
+        else:
+            dataset_name = None
+
         logger.info("Saving raw dataset with %s rows", dataframe.shape[0])
         self.serializer.save_raw_dataset(dataframe)
 
@@ -440,7 +446,10 @@ class FittingPipeline:
                 "No valid experiments found after preprocessing the dataset."
             )
 
-        model_configuration = self.normalize_configuration(configuration)
+        requested_models = sorted(configuration.keys())
+        model_configuration, skipped_models = self.normalize_configuration(configuration)
+        if not model_configuration:
+            raise ValueError("No supported models were selected for fitting.")
         logger.debug("Running solver with configuration: %s", model_configuration)
 
         results = self.solver.bulk_data_fitting(
@@ -462,22 +471,50 @@ class FittingPipeline:
         self.serializer.save_best_fit(best_frame)
 
         experiment_count = int(processed.shape[0])
+        configured_models = sorted(model_configuration.keys())
+        model_outcomes = self.summarize_model_outcomes(results)
         response: dict[str, Any] = {
             "status": "success",
             "processed_rows": experiment_count,
-            "models": sorted(model_configuration.keys()),
+            "models": configured_models,
             "best_model_saved": True,
         }
 
         if best_frame is not None:
             response["best_model_preview"] = self.build_preview(best_frame)
 
-        summary_lines = [
+        summary_lines: list[str] = [
             "[INFO] ADSMOD fitting completed.",
+            f"Dataset: {dataset_name or 'unknown'}",
+            f"Raw rows: {int(dataframe.shape[0])}",
             f"Experiments processed: {experiment_count}",
             f"Optimization method: {self.solver.normalize_method(optimization_method)}",
+            f"Max iterations: {int(max_iterations)}",
             f"Ranking metric: {normalized_metric}",
         ]
+        if requested_models:
+            summary_lines.append("Requested models:")
+            summary_lines.extend([f"  - {model}" for model in requested_models])
+        if configured_models:
+            summary_lines.append("Configured models:")
+            summary_lines.extend([f"  - {model}" for model in configured_models])
+        if skipped_models:
+            summary_lines.append("[WARN] Skipped unsupported models:")
+            summary_lines.extend([f"  - {model}" for model in sorted(skipped_models)])
+        if model_outcomes:
+            summary_lines.append("Model results (success/total):")
+            for model_name in configured_models:
+                stats = model_outcomes.get(model_name)
+                if not stats:
+                    continue
+                total = stats["total"]
+                failures = stats["failures"]
+                successes = max(0, total - failures)
+                summary_lines.append(f"  - {model_name}: {successes}/{total}")
+                if failures:
+                    summary_lines.append(
+                        f"[WARN] {model_name}: {failures} failures out of {total}"
+                    )
         summary_lines.append("Best model selection stored in database.")
         response["summary"] = "\n".join(summary_lines)
 
@@ -501,8 +538,9 @@ class FittingPipeline:
     # -------------------------------------------------------------------------
     def normalize_configuration(
         self, configuration: dict[str, dict[str, dict[str, float]]]
-    ) -> dict[str, dict[str, dict[str, float]]]:
+    ) -> tuple[dict[str, dict[str, dict[str, float]]], list[str]]:
         normalized: dict[str, dict[str, dict[str, float]]] = {}
+        skipped: list[str] = []
         supported = {
             self.normalize_model_key(name): name for name in self.solver.collection.model_names
         }
@@ -511,6 +549,7 @@ class FittingPipeline:
             resolved_name = self.resolve_model_name(model_name)
             if normalized_key not in supported or resolved_name is None:
                 logger.warning("Skipping unsupported model configuration: %s", model_name)
+                skipped.append(model_name)
                 continue
 
             defaults = MODEL_PARAMETER_DEFAULTS.get(resolved_name, {})
@@ -561,7 +600,19 @@ class FittingPipeline:
                     )
 
             normalized[resolved_name] = normalized_entry
-        return normalized
+        return normalized, skipped
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def summarize_model_outcomes(
+        results: dict[str, list[dict[str, Any]]]
+    ) -> dict[str, dict[str, int]]:
+        summary: dict[str, dict[str, int]] = {}
+        for model_name, entries in results.items():
+            total = len(entries)
+            failures = sum(1 for entry in entries if entry.get("exception"))
+            summary[model_name] = {"total": total, "failures": failures}
+        return summary
 
     # -------------------------------------------------------------------------
     def stringify_sequences(self, dataset: pd.DataFrame) -> pd.DataFrame:
