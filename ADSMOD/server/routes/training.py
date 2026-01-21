@@ -15,7 +15,9 @@ from ADSMOD.server.utils.services.training_manager import training_manager
 router = APIRouter(prefix="/training", tags=["training"])
 
 
+###############################################################################
 # Request/Response Models
+###############################################################################
 class TrainingConfigRequest(BaseModel):
     """Training configuration from frontend."""
 
@@ -127,252 +129,318 @@ class DatasetInfoResponse(BaseModel):
     validation_samples: int | None = None
 
 
-@router.get("/datasets", response_model=TrainingDatasetResponse)
-async def get_training_datasets() -> TrainingDatasetResponse:
-    """Check if training datasets are available in the database."""
-    try:
-        logger.info("Checking training dataset availability")
-        info = DatasetBuilder.get_training_dataset_info()
+###############################################################################
+class TrainingEndpoint:
+    """Endpoint for ML model training and checkpoint management operations."""
 
-        if info is None:
+    def __init__(self, router: APIRouter) -> None:
+        self.router = router
+
+    # -------------------------------------------------------------------------
+    async def get_training_datasets(self) -> TrainingDatasetResponse:
+        """Check if training datasets are available in the database."""
+        try:
+            logger.info("Checking training dataset availability")
+            info = DatasetBuilder.get_training_dataset_info()
+
+            if info is None:
+                return TrainingDatasetResponse(
+                    available=False,
+                    name=None,
+                    train_samples=None,
+                    validation_samples=None,
+                )
+
             return TrainingDatasetResponse(
-                available=False,
-                name=None,
-                train_samples=None,
-                validation_samples=None,
+                available=True,
+                name="Training Dataset",
+                train_samples=info.get("train_samples"),
+                validation_samples=info.get("validation_samples"),
             )
 
-        return TrainingDatasetResponse(
-            available=True,
-            name="Training Dataset",
-            train_samples=info.get("train_samples"),
-            validation_samples=info.get("validation_samples"),
-        )
+        except Exception as e:
+            logger.error(f"Error checking training datasets: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
-    except Exception as e:
-        logger.error(f"Error checking training datasets: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    # -------------------------------------------------------------------------
+    async def build_training_dataset(
+        self, request: DatasetBuildRequest
+    ) -> DatasetBuildResponse:
+        """Build a new training dataset from raw adsorption data."""
+        try:
+            logger.info(f"Building training dataset with config: {request.model_dump()}")
 
-
-@router.post("/build-dataset", response_model=DatasetBuildResponse)
-async def build_training_dataset(request: DatasetBuildRequest) -> DatasetBuildResponse:
-    """Build a new training dataset from raw adsorption data."""
-    try:
-        logger.info(f"Building training dataset with config: {request.model_dump()}")
-
-        config = DatasetBuilderConfig(
-            sample_size=request.sample_size,
-            validation_size=request.validation_size,
-            min_measurements=request.min_measurements,
-            max_measurements=request.max_measurements,
-            smile_sequence_size=request.smile_sequence_size,
-            max_pressure=request.max_pressure,
-            max_uptake=request.max_uptake,
-        )
-
-        builder = DatasetBuilder(config)
-
-        source_datasets = [name.upper() for name in request.source_datasets]
-        guest_data = None
-        host_data = None
-        if "SINGLE_COMPONENT_ADSORPTION" in source_datasets:
-            adsorption_data = database.load_from_database("SINGLE_COMPONENT_ADSORPTION")
-            guest_data = database.load_from_database("ADSORBATES")
-            host_data = database.load_from_database("ADSORBENTS")
-            dataset_name = "nist"
-        else:
-            return DatasetBuildResponse(
-                success=False,
-                message="Unsupported dataset source. Use SINGLE_COMPONENT_ADSORPTION.",
+            config = DatasetBuilderConfig(
+                sample_size=request.sample_size,
+                validation_size=request.validation_size,
+                min_measurements=request.min_measurements,
+                max_measurements=request.max_measurements,
+                smile_sequence_size=request.smile_sequence_size,
+                max_pressure=request.max_pressure,
+                max_uptake=request.max_uptake,
             )
 
-        if adsorption_data.empty:
-            return DatasetBuildResponse(
-                success=False,
-                message="No adsorption data available. Please fetch NIST data first.",
+            builder = DatasetBuilder(config)
+
+            source_datasets = [name.upper() for name in request.source_datasets]
+            guest_data = None
+            host_data = None
+            if "SINGLE_COMPONENT_ADSORPTION" in source_datasets:
+                adsorption_data = database.load_from_database(
+                    "SINGLE_COMPONENT_ADSORPTION"
+                )
+                guest_data = database.load_from_database("ADSORBATES")
+                host_data = database.load_from_database("ADSORBENTS")
+                dataset_name = "nist"
+            else:
+                return DatasetBuildResponse(
+                    success=False,
+                    message="Unsupported dataset source. Use SINGLE_COMPONENT_ADSORPTION.",
+                )
+
+            if adsorption_data.empty:
+                return DatasetBuildResponse(
+                    success=False,
+                    message="No adsorption data available. Please fetch NIST data first.",
+                )
+
+            result = builder.build_training_dataset(
+                adsorption_data=adsorption_data,
+                guest_data=guest_data,
+                host_data=host_data,
+                dataset_name=dataset_name,
             )
 
-        result = builder.build_training_dataset(
-            adsorption_data=adsorption_data,
-            guest_data=guest_data,
-            host_data=host_data,
-            dataset_name=dataset_name,
-        )
+            if result.get("success"):
+                return DatasetBuildResponse(
+                    success=True,
+                    message="Training dataset built successfully.",
+                    total_samples=result.get("total_samples"),
+                    train_samples=result.get("train_samples"),
+                    validation_samples=result.get("validation_samples"),
+                )
+            else:
+                return DatasetBuildResponse(
+                    success=False,
+                    message=result.get("error", "Unknown error during dataset building."),
+                )
 
-        if result.get("success"):
-            return DatasetBuildResponse(
-                success=True,
-                message="Training dataset built successfully.",
-                total_samples=result.get("total_samples"),
-                train_samples=result.get("train_samples"),
-                validation_samples=result.get("validation_samples"),
+        except Exception as e:
+            logger.error(f"Error building training dataset: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
+    async def get_dataset_info(self) -> DatasetInfoResponse:
+        """Get current training dataset info and metadata."""
+        try:
+            info = DatasetBuilder.get_training_dataset_info()
+
+            if info is None:
+                return DatasetInfoResponse(available=False)
+
+            return DatasetInfoResponse(
+                available=True,
+                created_at=info.get("created_at"),
+                sample_size=info.get("sample_size"),
+                validation_size=info.get("validation_size"),
+                min_measurements=info.get("min_measurements"),
+                max_measurements=info.get("max_measurements"),
+                smile_sequence_size=info.get("smile_sequence_size"),
+                max_pressure=info.get("max_pressure"),
+                max_uptake=info.get("max_uptake"),
+                total_samples=info.get("total_samples"),
+                train_samples=info.get("train_samples"),
+                validation_samples=info.get("validation_samples"),
             )
-        else:
-            return DatasetBuildResponse(
-                success=False,
-                message=result.get("error", "Unknown error during dataset building."),
-            )
 
-    except Exception as e:
-        logger.error(f"Error building training dataset: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        except Exception as e:
+            logger.error(f"Error getting dataset info: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
+    # -------------------------------------------------------------------------
+    async def clear_training_dataset(self) -> dict[str, str]:
+        """Clear the current training dataset."""
+        try:
+            success = DatasetBuilder.clear_training_dataset()
 
-@router.get("/dataset-info", response_model=DatasetInfoResponse)
-async def get_dataset_info() -> DatasetInfoResponse:
-    """Get current training dataset info and metadata."""
-    try:
-        info = DatasetBuilder.get_training_dataset_info()
+            if success:
+                return {"status": "success", "message": "Training dataset cleared."}
+            else:
+                return {"status": "error", "message": "Failed to clear training dataset."}
 
-        if info is None:
-            return DatasetInfoResponse(available=False)
+        except Exception as e:
+            logger.error(f"Error clearing training dataset: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
-        return DatasetInfoResponse(
-            available=True,
-            created_at=info.get("created_at"),
-            sample_size=info.get("sample_size"),
-            validation_size=info.get("validation_size"),
-            min_measurements=info.get("min_measurements"),
-            max_measurements=info.get("max_measurements"),
-            smile_sequence_size=info.get("smile_sequence_size"),
-            max_pressure=info.get("max_pressure"),
-            max_uptake=info.get("max_uptake"),
-            total_samples=info.get("total_samples"),
-            train_samples=info.get("train_samples"),
-            validation_samples=info.get("validation_samples"),
-        )
+    # -------------------------------------------------------------------------
+    async def get_checkpoints(self) -> CheckpointsResponse:
+        """List available model checkpoints."""
+        try:
+            logger.info("Scanning for available checkpoints")
+            checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
 
-    except Exception as e:
-        logger.error(f"Error getting dataset info: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+            return CheckpointsResponse(checkpoints=checkpoints)
 
+        except Exception as e:
+            logger.error(f"Error scanning checkpoints: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
-@router.delete("/dataset")
-async def clear_training_dataset() -> dict[str, str]:
-    """Clear the current training dataset."""
-    try:
-        success = DatasetBuilder.clear_training_dataset()
-
-        if success:
-            return {"status": "success", "message": "Training dataset cleared."}
-        else:
-            return {"status": "error", "message": "Failed to clear training dataset."}
-
-    except Exception as e:
-        logger.error(f"Error clearing training dataset: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/checkpoints", response_model=CheckpointsResponse)
-async def get_checkpoints() -> CheckpointsResponse:
-    """List available model checkpoints."""
-    try:
-        logger.info("Scanning for available checkpoints")
-        checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
-
-        return CheckpointsResponse(checkpoints=checkpoints)
-
-    except Exception as e:
-        logger.error(f"Error scanning checkpoints: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.post("/start", response_model=TrainingStartResponse)
-async def start_training(config: TrainingConfigRequest) -> TrainingStartResponse:
-    """Start a new training session."""
-    state = training_manager.state.snapshot()
-    if state["is_training"]:
-        raise HTTPException(
-            status_code=400, detail="Training is already in progress. Stop it first."
-        )
-
-    try:
-        logger.info(f"Starting training with config: {config.model_dump()}")
-        info = DatasetBuilder.get_training_dataset_info()
-        if info is None:
+    # -------------------------------------------------------------------------
+    async def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
+        """Start a new training session."""
+        state = training_manager.state.snapshot()
+        if state["is_training"]:
             raise HTTPException(
-                status_code=400,
-                detail="No training dataset available. Build the dataset first.",
+                status_code=400, detail="Training is already in progress. Stop it first."
             )
 
-        session_id = training_manager.start_training(config.model_dump())
+        try:
+            logger.info(f"Starting training with config: {config.model_dump()}")
+            info = DatasetBuilder.get_training_dataset_info()
+            if info is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No training dataset available. Build the dataset first.",
+                )
 
-        return TrainingStartResponse(
-            status="started",
-            session_id=session_id,
-            message=f"Training started with {config.epochs} epochs. Session: {session_id}",
-        )
+            session_id = training_manager.start_training(config.model_dump())
 
-    except Exception as e:
-        logger.error(f"Error starting training: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+            return TrainingStartResponse(
+                status="started",
+                session_id=session_id,
+                message=f"Training started with {config.epochs} epochs. Session: {session_id}",
+            )
 
+        except Exception as e:
+            logger.error(f"Error starting training: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
-@router.post("/resume", response_model=TrainingStartResponse)
-async def resume_training(request: ResumeTrainingRequest) -> TrainingStartResponse:
-    """Resume training from a checkpoint."""
-    state = training_manager.state.snapshot()
-    if state["is_training"]:
-        raise HTTPException(
-            status_code=400, detail="Training is already in progress. Stop it first."
-        )
-
-    try:
-        logger.info(
-            f"Resuming training from checkpoint: {request.checkpoint_name} "
-            f"with {request.additional_epochs} additional epochs"
-        )
-        available = training_manager.model_serializer.scan_checkpoints_folder()
-        if request.checkpoint_name not in available:
+    # -------------------------------------------------------------------------
+    async def resume_training(
+        self, request: ResumeTrainingRequest
+    ) -> TrainingStartResponse:
+        """Resume training from a checkpoint."""
+        state = training_manager.state.snapshot()
+        if state["is_training"]:
             raise HTTPException(
-                status_code=404,
-                detail=f"Checkpoint '{request.checkpoint_name}' not found.",
+                status_code=400, detail="Training is already in progress. Stop it first."
             )
-        session_id = training_manager.resume_training(
-            request.checkpoint_name,
-            request.additional_epochs,
+
+        try:
+            logger.info(
+                f"Resuming training from checkpoint: {request.checkpoint_name} "
+                f"with {request.additional_epochs} additional epochs"
+            )
+            available = training_manager.model_serializer.scan_checkpoints_folder()
+            if request.checkpoint_name not in available:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Checkpoint '{request.checkpoint_name}' not found.",
+                )
+            session_id = training_manager.resume_training(
+                request.checkpoint_name,
+                request.additional_epochs,
+            )
+
+            return TrainingStartResponse(
+                status="started",
+                session_id=session_id,
+                message=f"Resuming training from {request.checkpoint_name} with {request.additional_epochs} epochs. Session: {session_id}",
+            )
+
+        except Exception as e:
+            logger.error(f"Error resuming training: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
+    async def stop_training(self) -> dict[str, str]:
+        """Stop the current training session."""
+        state = training_manager.state.snapshot()
+        if not state["is_training"]:
+            return {"status": "stopped", "message": "No training session is running."}
+
+        try:
+            logger.info("Stop requested for current training session")
+            training_manager.stop_training()
+
+            return {"status": "stopped", "message": "Training stop requested."}
+
+        except Exception as e:
+            logger.error(f"Error stopping training: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
+    async def get_training_status(self) -> TrainingStatusResponse:
+        """Get current training status."""
+        state = training_manager.state.snapshot()
+        progress = 0.0
+        if state["total_epochs"] > 0:
+            progress = (state["current_epoch"] / state["total_epochs"]) * 100
+
+        return TrainingStatusResponse(
+            is_training=state["is_training"],
+            current_epoch=state["current_epoch"],
+            total_epochs=state["total_epochs"],
+            progress=progress,
         )
 
-        return TrainingStartResponse(
-            status="started",
-            session_id=session_id,
-            message=f"Resuming training from {request.checkpoint_name} with {request.additional_epochs} epochs. Session: {session_id}",
+    # -------------------------------------------------------------------------
+    def add_routes(self) -> None:
+        """Register all training-related routes with the router."""
+        self.router.add_api_route(
+            "/datasets",
+            self.get_training_datasets,
+            methods=["GET"],
+            response_model=TrainingDatasetResponse,
+        )
+        self.router.add_api_route(
+            "/build-dataset",
+            self.build_training_dataset,
+            methods=["POST"],
+            response_model=DatasetBuildResponse,
+        )
+        self.router.add_api_route(
+            "/dataset-info",
+            self.get_dataset_info,
+            methods=["GET"],
+            response_model=DatasetInfoResponse,
+        )
+        self.router.add_api_route(
+            "/dataset",
+            self.clear_training_dataset,
+            methods=["DELETE"],
+        )
+        self.router.add_api_route(
+            "/checkpoints",
+            self.get_checkpoints,
+            methods=["GET"],
+            response_model=CheckpointsResponse,
+        )
+        self.router.add_api_route(
+            "/start",
+            self.start_training,
+            methods=["POST"],
+            response_model=TrainingStartResponse,
+        )
+        self.router.add_api_route(
+            "/resume",
+            self.resume_training,
+            methods=["POST"],
+            response_model=TrainingStartResponse,
+        )
+        self.router.add_api_route(
+            "/stop",
+            self.stop_training,
+            methods=["POST"],
+        )
+        self.router.add_api_route(
+            "/status",
+            self.get_training_status,
+            methods=["GET"],
+            response_model=TrainingStatusResponse,
         )
 
-    except Exception as e:
-        logger.error(f"Error resuming training: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
-
-@router.post("/stop")
-async def stop_training() -> dict[str, str]:
-    """Stop the current training session."""
-    state = training_manager.state.snapshot()
-    if not state["is_training"]:
-        return {"status": "stopped", "message": "No training session is running."}
-
-    try:
-        logger.info("Stop requested for current training session")
-        training_manager.stop_training()
-
-        return {"status": "stopped", "message": "Training stop requested."}
-
-    except Exception as e:
-        logger.error(f"Error stopping training: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/status", response_model=TrainingStatusResponse)
-async def get_training_status() -> TrainingStatusResponse:
-    """Get current training status."""
-    state = training_manager.state.snapshot()
-    progress = 0.0
-    if state["total_epochs"] > 0:
-        progress = (state["current_epoch"] / state["total_epochs"]) * 100
-
-    return TrainingStatusResponse(
-        is_training=state["is_training"],
-        current_epoch=state["current_epoch"],
-        total_epochs=state["total_epochs"],
-        progress=progress,
-    )
+###############################################################################
+training_endpoint = TrainingEndpoint(router=router)
+training_endpoint.add_routes()
