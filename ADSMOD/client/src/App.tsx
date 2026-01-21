@@ -35,6 +35,7 @@ function App() {
     const [maxIterations, setMaxIterations] = useState(10000);
     const [optimizationMethod, setOptimizationMethod] = useState<OptimizationMethod>('LSS');
     const [datasetStats, setDatasetStats] = useState('No dataset loaded.');
+    const [nistStatusMessage, setNistStatusMessage] = useState('NIST-A updates will appear here.');
     const [fittingStatus, setFittingStatus] = useState('');
     const [dataset, setDataset] = useState<DatasetPayload | null>(null);
     const [datasetName, setDatasetName] = useState<string | null>(null);
@@ -129,7 +130,7 @@ function App() {
     }, [pendingFile]);
 
     const handleNistStatusUpdate = useCallback((message: string) => {
-        setDatasetStats(message);
+        setNistStatusMessage(message);
     }, []);
 
     const handleResetFittingStatus = useCallback(() => {
@@ -207,6 +208,7 @@ function App() {
                         <section hidden={currentPage !== 'config'} aria-hidden={currentPage !== 'config'}>
                             <ConfigPage
                                 datasetStats={datasetStats}
+                                nistStatusMessage={nistStatusMessage}
                                 datasetName={datasetName}
                                 datasetSamples={datasetSamples}
                                 pendingFileName={pendingFile?.name ?? null}
