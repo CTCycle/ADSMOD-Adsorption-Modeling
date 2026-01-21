@@ -5,6 +5,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ConfigPageProps {
     datasetStats: string;
+    nistStatusMessage: string;
     datasetName: string | null;
     datasetSamples: number;
     pendingFileName: string | null;
@@ -17,6 +18,7 @@ interface ConfigPageProps {
 
 export const ConfigPage: React.FC<ConfigPageProps> = ({
     datasetStats,
+    nistStatusMessage,
     datasetName,
     datasetSamples,
     pendingFileName,
@@ -51,42 +53,39 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                         </div>
                     </div>
 
-                    <div className="config-row-center">
-                        <div className="card">
-                            <div className="card-content">
-                                <FileUpload
-                                    label="Load dataset"
-                                    accept=".csv,.xls,.xlsx"
-                                    onSelect={onDatasetPreload}
-                                    autoUpload={false}
-                                    disabled={isDatasetUploading}
-                                />
-                                <div className="dataset-inline" style={{ marginTop: '0.75rem' }}>
-                                    <span className="inline-pill">{pendingLabel}</span>
-                                    <span className="inline-separator">|</span>
-                                    <span className="inline-pill">{pendingSize}</span>
+                    <div className="config-row-main">
+                        <div className="card split-card">
+                            <div className="split-card-content">
+                                <div className="split-card-left">
+                                    <FileUpload
+                                        label="Load dataset"
+                                        accept=".csv,.xls,.xlsx"
+                                        onSelect={onDatasetPreload}
+                                        autoUpload={false}
+                                        disabled={isDatasetUploading}
+                                    />
+                                    <div className="dataset-inline" style={{ marginTop: '0.75rem' }}>
+                                        <span className="inline-pill">{pendingLabel}</span>
+                                        <span className="inline-separator">|</span>
+                                        <span className="inline-pill">{pendingSize}</span>
+                                    </div>
+                                    <div className="nist-actions" style={{ marginTop: '1rem' }}>
+                                        <button
+                                            className="button primary"
+                                            onClick={onDatasetUpload}
+                                            style={{ justifyContent: 'center' }}
+                                            disabled={!pendingFileName || isDatasetUploading}
+                                        >
+                                            {isDatasetUploading ? 'Uploading...' : 'Upload data'}
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="nist-actions" style={{ marginTop: '1rem' }}>
-                                    <button
-                                        className="button primary"
-                                        onClick={onDatasetUpload}
-                                        style={{ justifyContent: 'center' }}
-                                        disabled={!pendingFileName || isDatasetUploading}
-                                    >
-                                        {isDatasetUploading ? 'Uploading...' : 'Upload data'}
-                                    </button>
+                                <div className="split-card-right">
+                                    <div className="panel-title split-card-title">Uploaded Data Statistics</div>
+                                    <div className="panel-body stats-scroll markdown-content compact-stats">
+                                        <MarkdownRenderer content={datasetStats} />
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="config-row-right">
-                        <div className="panel dataset-panel" style={{ height: '100%', minHeight: '300px' }}>
-                            <div className="panel-header">
-                                <div className="panel-title">Uploaded Data Statistics</div>
-                            </div>
-                            <div className="panel-body stats-scroll markdown-content compact-stats">
-                                <MarkdownRenderer content={datasetStats} />
                             </div>
                         </div>
                     </div>
@@ -104,16 +103,22 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                         </div>
                     </div>
 
-                    <div className="config-row-center">
-                        <NistCollectCard onStatusUpdate={onNistStatusUpdate} nistStatusState={nistStatusState} />
-                    </div>
-
-                    <div className="config-row-right">
-                        <NistPropertiesCard onStatusUpdate={onNistStatusUpdate} nistStatusState={nistStatusState} />
+                    <div className="config-row-main">
+                        <div className="config-row-stack">
+                            <NistCollectCard onStatusUpdate={onNistStatusUpdate} nistStatusState={nistStatusState} />
+                            <NistPropertiesCard onStatusUpdate={onNistStatusUpdate} nistStatusState={nistStatusState} />
+                        </div>
+                        <div className="panel nist-status-panel">
+                            <div className="panel-header">
+                                <div className="panel-title">NIST-A Status Updates</div>
+                            </div>
+                            <div className="panel-body stats-scroll markdown-content nist-status-body">
+                                <MarkdownRenderer content={nistStatusMessage} />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
-
