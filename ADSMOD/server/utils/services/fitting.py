@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -654,7 +655,10 @@ class FittingPipeline:
     # -------------------------------------------------------------------------
     @staticmethod
     def normalize_model_key(model_name: str) -> str:
-        return model_name.replace("-", "_").replace(" ", "_").upper()
+        normalized = model_name.replace("\u2013", "-").replace("\u2014", "-")
+        normalized = re.sub(r"\s*\([^)]*\)\s*", " ", normalized)
+        normalized = " ".join(normalized.split()).strip()
+        return normalized.replace("-", "_").replace(" ", "_").upper()
 
     # -------------------------------------------------------------------------
     @staticmethod
