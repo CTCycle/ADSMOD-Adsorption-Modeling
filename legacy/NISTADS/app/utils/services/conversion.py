@@ -34,7 +34,7 @@ class UptakeConversion:
     def __init__(self) -> None:
         self.Q_COL = "adsorbed_amount"
         self.Q_UNIT_COL = "adsorptionUnits"
-        self.mol_W = "adsorbate_molecular_weight"
+        self.mol_weight = "adsorbate_molecular_weight"
 
         # Dictionary mapping units to their respective conversion methods
         self.conversions = {
@@ -88,7 +88,7 @@ class UptakeConversion:
             lambda row: (
                 self.conversions.get(row[self.Q_UNIT_COL], lambda x, *args: x)(
                     row[self.Q_COL],
-                    *(row[self.mol_W],)
+                    *(row[self.mol_weight],)
                     if row[self.Q_UNIT_COL]
                     in {"mg/g", "g/g", "wt%", "g Adsorbate / 100g Adsorbent", "g/100g"}
                     else (),

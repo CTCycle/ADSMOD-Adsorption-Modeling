@@ -32,9 +32,29 @@ class PressureConversion:
     def __init__(self) -> None:
         self.P_COL = "pressure"
         self.P_UNIT_COL = "pressureUnits"
-        self.conversions: dict[str, Callable[[list[int | float]], list[float]]] = {
+        self.conversions: dict[
+            str,
+            Callable[
+                [list[int | float] | int | float | None],
+                list[float] | float | None,
+            ],
+        ] = {
             "bar": self.bar_to_pascal,
+            "pa": self.pascal_identity,
+            "kpa": self.kpa_to_pascal,
+            "mpa": self.mpa_to_pascal,
+            "atm": self.atm_to_pascal,
+            "torr": self.torr_to_pascal,
+            "mmhg": self.torr_to_pascal,
+            "psi": self.psi_to_pascal,
         }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_unit(unit: object) -> str:
+        if unit is None or pd.isna(unit):
+            return ""
+        return " ".join(str(unit).strip().lower().split())
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -44,15 +64,57 @@ class PressureConversion:
         return map_values(p_vals, lambda value: value * 100000.0)
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def pascal_identity(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def kpa_to_pascal(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value * 1000.0)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def mpa_to_pascal(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value * 1000000.0)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def atm_to_pascal(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value * 101325.0)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def torr_to_pascal(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value * 133.322)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def psi_to_pascal(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value * 6894.757)
+
+    # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         if self.P_UNIT_COL not in dataframe.columns or self.P_COL not in dataframe.columns:
             logger.debug("Pressure conversion skipped (missing pressure columns).")
             return dataframe
 
         dataframe[self.P_COL] = dataframe.apply(
-            lambda row: self.conversions.get(row[self.P_UNIT_COL], lambda x: x)(
-                row[self.P_COL]
-            ),
+            lambda row: self.conversions.get(
+                self.normalize_unit(row.get(self.P_UNIT_COL)), lambda x: x
+            )(row.get(self.P_COL)),
             axis=1,
         )
         dataframe.drop(columns=self.P_UNIT_COL, inplace=True)
@@ -66,20 +128,34 @@ class UptakeConversion:
     def __init__(self) -> None:
         self.Q_COL = "adsorbed_amount"
         self.Q_UNIT_COL = "adsorptionUnits"
-        self.mol_W = "adsorbate_molecular_weight"
+        self.mol_weight = "adsorbate_molecular_weight"
 
-        self.conversions: dict[str, Callable[..., list[float]]] = {
+        self.weight_units = {
+            "mg/g",
+            "g/g",
+            "wt%",
+            "g adsorbate / 100g adsorbent",
+            "g/100g",
+        }
+        self.conversions: dict[str, Callable[..., list[float] | float | None]] = {
             "mmol/g": self.convert_mmol_g_or_mol_kg,
             "mol/kg": self.convert_mmol_g_or_mol_kg,
             "mmol/kg": self.convert_mmol_kg,
             "mg/g": self.convert_mg_g,
             "g/g": self.convert_g_g,
             "wt%": self.convert_wt_percent,
-            "g Adsorbate / 100g Adsorbent": self.convert_g_adsorbate_per_100g_adsorbent,
+            "g adsorbate / 100g adsorbent": self.convert_g_adsorbate_per_100g_adsorbent,
             "g/100g": self.convert_g_adsorbate_per_100g_adsorbent,
-            "ml(STP)/g": self.convert_ml_stp_g_or_cm3_stp_g,
-            "cm3(STP)/g": self.convert_ml_stp_g_or_cm3_stp_g,
+            "ml(stp)/g": self.convert_ml_stp_g_or_cm3_stp_g,
+            "cm3(stp)/g": self.convert_ml_stp_g_or_cm3_stp_g,
         }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_unit(unit: object) -> str:
+        if unit is None or pd.isna(unit):
+            return ""
+        return " ".join(str(unit).strip().lower().split())
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -140,15 +216,15 @@ class UptakeConversion:
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 
-        def convert_row(row: pd.Series) -> list[float]:
-            unit = row.get(self.Q_UNIT_COL)
+        def convert_row(row: pd.Series) -> list[float] | float | None:
+            unit = self.normalize_unit(row.get(self.Q_UNIT_COL))
             values = row.get(self.Q_COL)
             converter = self.conversions.get(unit)
             if converter is None:
                 return values
-            if unit in {"mg/g", "g/g", "wt%", "g Adsorbate / 100g Adsorbent", "g/100g"}:
-                mol_weight = row.get(self.mol_W)
-                if mol_weight in (None, 0, ""):
+            if unit in self.weight_units:
+                mol_weight = row.get(self.mol_weight)
+                if mol_weight in (None, 0, "") or pd.isna(mol_weight):
                     return values
                 return converter(values, mol_weight)
             return converter(values)
