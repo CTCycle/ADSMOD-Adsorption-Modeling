@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface ExpansionProps {
     title: string;
@@ -121,6 +121,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     autoUpload = true,
     disabled = false,
 }) => {
+    const inputRef = useRef<HTMLInputElement>(null);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -131,11 +133,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 onUpload(file);
             }
         }
+        // Reset the input value so the same file can be selected again
+        if (inputRef.current) {
+            inputRef.current.value = '';
+        }
     };
 
     return (
         <div className="file-upload">
-            <input type="file" accept={accept} onChange={handleChange} disabled={disabled} />
+            <input ref={inputRef} type="file" accept={accept} onChange={handleChange} disabled={disabled} />
             <div className="file-upload-label">
                 <span>📁</span>
                 <span>{label}</span>

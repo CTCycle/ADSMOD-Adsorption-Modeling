@@ -61,6 +61,7 @@ function App() {
     // Dataset selector state for fitting page
     const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
     const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
+    const [useNistData, setUseNistData] = useState(false);
 
     // Load available dataset names on mount
     useEffect(() => {
@@ -237,6 +238,8 @@ function App() {
                                 availableDatasets={availableDatasets}
                                 selectedDataset={selectedDataset}
                                 onDatasetSelect={setSelectedDataset}
+                                useNistData={useNistData}
+                                onUseNistDataChange={setUseNistData}
                             />
                         </section>
                     )}

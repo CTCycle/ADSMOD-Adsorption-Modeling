@@ -25,6 +25,8 @@ interface ModelsPageProps {
     availableDatasets: string[];
     selectedDataset: string | null;
     onDatasetSelect: (name: string | null) => void;
+    useNistData: boolean;
+    onUseNistDataChange: (value: boolean) => void;
 }
 
 /**
@@ -49,6 +51,8 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     availableDatasets,
     selectedDataset,
     onDatasetSelect,
+    useNistData,
+    onUseNistDataChange,
 }) => {
     // Single expanded card strategy: only one card can be expanded at a time
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -119,11 +123,24 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                     <div className="fitting-controls-column">
                         <div className="fitting-controls-row" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div className="control-group">
+                                <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={useNistData}
+                                        onChange={(e) => onUseNistDataChange(e.target.checked)}
+                                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                    />
+                                    Use NIST Single-Component Data
+                                </label>
+                            </div>
+                            <div className="control-group">
                                 <label className="field-label">Dataset</label>
                                 <select
                                     value={selectedDataset || ''}
                                     onChange={(e) => onDatasetSelect(e.target.value || null)}
                                     className="select-input"
+                                    disabled={useNistData}
+                                    style={useNistData ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
                                 >
                                     <option value="">
                                         {availableDatasets.length === 0 ? 'No datasets available' : 'Select a dataset'}

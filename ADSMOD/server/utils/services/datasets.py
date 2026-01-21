@@ -8,6 +8,7 @@ import pandas as pd
 
 from ADSMOD.server.utils.configurations import server_settings
 from ADSMOD.server.utils.constants import DATASET_FALLBACK_DELIMITERS
+from ADSMOD.server.utils.repository.serializer import DataSerializer
 
 
 ###############################################################################
@@ -145,3 +146,22 @@ class DatasetService:
             *column_lines,
         ]
         return "\n".join(summary_lines)
+
+    # -------------------------------------------------------------------------
+    def save_to_database(self, payload: dict[str, Any]) -> None:
+        """Persist uploaded dataset to ADSORPTION_DATA table.
+
+        Keyword arguments:
+        payload -- Dataset payload containing records, columns, and dataset_name.
+        """
+        records = payload.get("records", [])
+        columns = payload.get("columns", [])
+        dataset_name = payload.get("dataset_name", "uploaded_dataset")
+
+        if not records:
+            return
+
+        df = pd.DataFrame.from_records(records, columns=columns)
+        df["dataset_name"] = dataset_name
+        serializer = DataSerializer()
+        serializer.save_raw_dataset(df)
