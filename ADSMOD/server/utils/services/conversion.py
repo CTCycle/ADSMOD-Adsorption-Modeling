@@ -1,10 +1,29 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
 
 import pandas as pd
 
 from ADSMOD.server.utils.logger import logger
+
+
+def map_values(
+    values: list[int | float] | int | float | None,
+    converter: Callable[[float], float],
+) -> list[float] | float | None:
+    if values is None:
+        return None
+    if isinstance(values, (list, tuple)):
+        converted: list[float] = []
+        for value in values:
+            if value is None or pd.isna(value):
+                converted.append(float("nan"))
+                continue
+            converted.append(converter(float(value)))
+        return converted
+    if pd.isna(values):
+        return None
+    return converter(float(values))
 
 
 # [CONVERSION OF PRESSURE]
@@ -19,8 +38,10 @@ class PressureConversion:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def bar_to_pascal(p_vals: list[int | float]) -> list[float]:
-        return [float(p_val) * 100000.0 for p_val in p_vals]
+    def bar_to_pascal(
+        p_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(p_vals, lambda value: value * 100000.0)
 
     # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -62,42 +83,56 @@ class UptakeConversion:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def convert_mmol_g_or_mol_kg(q_vals: list[int | float]) -> list[float]:
-        return [float(q_val) for q_val in q_vals]
+    def convert_mmol_g_or_mol_kg(
+        q_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(q_vals, lambda value: value)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def convert_mmol_kg(q_vals: list[int | float]) -> list[float]:
-        return [float(q_val) / 1000.0 for q_val in q_vals]
+    def convert_mmol_kg(
+        q_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(q_vals, lambda value: value / 1000.0)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def convert_mg_g(q_vals: list[int | float], mol_weight: float) -> list[float]:
-        return [float(q_val) / float(mol_weight) for q_val in q_vals]
+    def convert_mg_g(
+        q_vals: list[int | float] | int | float | None, mol_weight: float
+    ) -> list[float] | float | None:
+        return map_values(q_vals, lambda value: value / float(mol_weight))
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def convert_g_g(q_vals: list[int | float], mol_weight: float) -> list[float]:
-        return [float(q_val) / float(mol_weight) * 1000.0 for q_val in q_vals]
+    def convert_g_g(
+        q_vals: list[int | float] | int | float | None, mol_weight: float
+    ) -> list[float] | float | None:
+        return map_values(q_vals, lambda value: value / float(mol_weight) * 1000.0)
 
     # -------------------------------------------------------------------------
     @staticmethod
     def convert_wt_percent(
-        q_vals: list[int | float], mol_weight: float
-    ) -> list[float]:
-        return [(float(q_val) / 100.0) / float(mol_weight) * 1000.0 for q_val in q_vals]
+        q_vals: list[int | float] | int | float | None, mol_weight: float
+    ) -> list[float] | float | None:
+        return map_values(
+            q_vals, lambda value: (value / 100.0) / float(mol_weight) * 1000.0
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
     def convert_g_adsorbate_per_100g_adsorbent(
-        q_vals: list[int | float], mol_weight: float
-    ) -> list[float]:
-        return [(float(q_val) / 100.0) / float(mol_weight) * 1000.0 for q_val in q_vals]
+        q_vals: list[int | float] | int | float | None, mol_weight: float
+    ) -> list[float] | float | None:
+        return map_values(
+            q_vals, lambda value: (value / 100.0) / float(mol_weight) * 1000.0
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def convert_ml_stp_g_or_cm3_stp_g(q_vals: list[int | float]) -> list[float]:
-        return [float(q_val) / 22.414 * 1000.0 for q_val in q_vals]
+    def convert_ml_stp_g_or_cm3_stp_g(
+        q_vals: list[int | float] | int | float | None,
+    ) -> list[float] | float | None:
+        return map_values(q_vals, lambda value: value / 22.414)
 
     # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:

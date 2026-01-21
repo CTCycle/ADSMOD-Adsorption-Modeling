@@ -6,7 +6,7 @@ import { DatabaseBrowserPage, initialDatabaseBrowserState } from './components/D
 import { MachineLearningPage } from './components/MachineLearningPage';
 import type { DatabaseBrowserState } from './components/DatabaseBrowserPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
-import { loadDataset, startFitting, fetchDatasetNames, fetchNistDataForFitting } from './services';
+import { loadDataset, startFitting, fetchDatasetNames, fetchDatasetByName, fetchNistDataForFitting } from './services';
 import type { DatasetPayload, FittingPayload, ModelParameters, ModelConfiguration } from './types';
 import './index.css';
 
@@ -151,11 +151,32 @@ function App() {
             }
             fittingDataset = nistResult.dataset;
         } else {
-            if (!dataset) {
-                setFittingStatus('[ERROR] Please load a dataset before starting the fitting process.');
-                return;
+            if (selectedDataset) {
+                if (!dataset || dataset.dataset_name !== selectedDataset) {
+                    setFittingStatus(`[INFO] Loading dataset "${selectedDataset}"...`);
+                    const lookup = await fetchDatasetByName(selectedDataset);
+                    if (lookup.error || !lookup.dataset) {
+                        setFittingStatus(`[ERROR] ${lookup.error || 'Failed to load dataset.'}`);
+                        return;
+                    }
+                    fittingDataset = lookup.dataset;
+                    setDataset(lookup.dataset);
+                    setDatasetName(lookup.dataset.dataset_name);
+                    const recordCount = Array.isArray(lookup.dataset.records) ? lookup.dataset.records.length : 0;
+                    setDatasetSamples(recordCount);
+                    if (lookup.summary) {
+                        setDatasetStats(lookup.summary);
+                    }
+                } else {
+                    fittingDataset = dataset;
+                }
+            } else {
+                if (!dataset) {
+                    setFittingStatus('[ERROR] Please load a dataset before starting the fitting process.');
+                    return;
+                }
+                fittingDataset = dataset;
             }
-            fittingDataset = dataset;
         }
 
         const selectedModels = Object.entries(modelStates)
@@ -205,7 +226,7 @@ function App() {
 
         const result = await startFitting(payload);
         setFittingStatus(result.message);
-    }, [dataset, modelStates, maxIterations, optimizationMethod, useNistData]);
+    }, [dataset, modelStates, maxIterations, optimizationMethod, selectedDataset, useNistData]);
 
     return (
         <div className="app-container">

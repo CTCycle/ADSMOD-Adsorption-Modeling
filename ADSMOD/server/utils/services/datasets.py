@@ -148,6 +148,48 @@ class DatasetService:
         return "\n".join(summary_lines)
 
     # -------------------------------------------------------------------------
+    def load_from_database(
+        self, dataset_name: str
+    ) -> tuple[dict[str, Any], str]:
+        if not isinstance(dataset_name, str) or not dataset_name.strip():
+            raise ValueError("Dataset name is required.")
+        dataset_name = dataset_name.strip()
+
+        serializer = DataSerializer()
+        dataframe = serializer.load_table("ADSORPTION_DATA")
+        if dataframe.empty:
+            raise ValueError("No datasets found in the database.")
+
+        if "dataset_name" in dataframe.columns:
+            filtered = dataframe[dataframe["dataset_name"] == dataset_name].copy()
+        else:
+            filtered = dataframe.copy()
+
+        if filtered.empty:
+            raise ValueError(f"Dataset '{dataset_name}' was not found.")
+
+        cleaned = filtered.drop(columns=["dataset_name"], errors="ignore")
+        serializable = cleaned.where(pd.notna(cleaned), None)
+        dataset_payload: dict[str, Any] = {
+            "dataset_name": dataset_name,
+            "columns": list(serializable.columns),
+            "records": serializable.to_dict(orient="records"),
+            "row_count": int(serializable.shape[0]),
+        }
+        summary = self.format_dataset_summary(cleaned)
+        return dataset_payload, summary
+
+    # -------------------------------------------------------------------------
+    def get_dataset_names(self) -> list[str]:
+        serializer = DataSerializer()
+        dataframe = serializer.load_table("ADSORPTION_DATA")
+        if dataframe.empty or "dataset_name" not in dataframe.columns:
+            return []
+        names = dataframe["dataset_name"].dropna().unique().tolist()
+        cleaned = [str(name).strip() for name in names if str(name).strip()]
+        return sorted(cleaned)
+
+    # -------------------------------------------------------------------------
     def save_to_database(self, payload: dict[str, Any]) -> None:
         """Persist uploaded dataset to ADSORPTION_DATA table.
 

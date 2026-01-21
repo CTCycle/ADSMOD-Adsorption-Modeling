@@ -111,6 +111,39 @@ export async function fetchDatasetNames(): Promise<{ names: string[]; error: str
     }
 }
 
+export async function fetchDatasetByName(datasetName: string): Promise<{
+    dataset: DatasetPayload | null;
+    summary: string | null;
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/datasets/by-name/${encodeURIComponent(datasetName)}`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { dataset: null, summary: null, error: message };
+        }
+
+        const data = (await response.json()) as DatasetResponse;
+        if (data.status !== 'success') {
+            const detail = data.detail || data.message || 'Failed to load dataset.';
+            return { dataset: null, summary: null, error: detail };
+        }
+
+        return { dataset: data.dataset || null, summary: data.summary || null, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { dataset: null, summary: null, error: error.message };
+        }
+        return { dataset: null, summary: null, error: 'An unknown error occurred.' };
+    }
+}
+
 export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPayload | null; error: string | null }> {
     try {
         const response = await fetchWithTimeout(
