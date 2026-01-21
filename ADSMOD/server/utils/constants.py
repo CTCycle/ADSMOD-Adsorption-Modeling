@@ -17,7 +17,7 @@ DATABASE_FILENAME = "sqlite.db"
 
 
 ###############################################################################
-SERVER_CONFIGURATION_FILE = join(SETTING_PATH, "server_configurations.json")
+CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 
 
 ###############################################################################

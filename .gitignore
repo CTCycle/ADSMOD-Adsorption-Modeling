@@ -78,4 +78,4 @@ Thumbs.db
 *.exe
 
 !.gitkeep
-!ADSMOD/settings/server_configurations.json
+!ADSMOD/settings/configurations.json

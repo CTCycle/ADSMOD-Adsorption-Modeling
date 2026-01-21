@@ -30,7 +30,7 @@ from ADSMOD.server.utils.logger import logger
 
 ###############################################################################
 class DataSerializer:
-    experiment_table = "ADSORPTION_EXPERIMENT"
+    processed_table = "ADSORPTION_PROCESSED_DATA"
     best_fit_table = "ADSORPTION_BEST_FIT"
     experiment_columns = [
         "experiment",
@@ -59,10 +59,6 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def save_fitting_results(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
-            empty_experiments = pd.DataFrame(
-                columns=["id", *self.experiment_columns]
-            )
-            database.save_into_database(empty_experiments, self.experiment_table)
             for schema in MODEL_SCHEMAS.values():
                 empty_model = pd.DataFrame(
                     columns=["id", "experiment_id", *schema["fields"].values()]
@@ -70,9 +66,11 @@ class DataSerializer:
                 database.save_into_database(empty_model, schema["table"])
             return
         encoded = self.convert_lists_to_strings(dataset)
-        experiments = self.build_experiment_frame(encoded)
+        experiments = self.load_table(self.processed_table)
+        if experiments.empty:
+            experiments = self.build_experiment_frame(encoded)
+            database.save_into_database(experiments, self.processed_table)
         experiment_map = self.build_experiment_map(experiments)
-        database.save_into_database(experiments, self.experiment_table)
         for schema in MODEL_SCHEMAS.values():
             model_frame = self.build_model_frame(encoded, experiment_map, schema)
             if model_frame is None:
@@ -81,7 +79,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_fitting_results(self) -> pd.DataFrame:
-        experiments = self.load_table(self.experiment_table)
+        experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return experiments
         experiments = experiments.rename(columns={"id": "experiment_id"})
@@ -103,7 +101,7 @@ class DataSerializer:
             )
             database.save_into_database(empty_best, self.best_fit_table)
             return
-        experiments = self.load_table(self.experiment_table)
+        experiments = self.load_table(self.processed_table)
         if experiments.empty:
             raise ValueError("No experiments available to link best fit results.")
         experiment_map = self.build_experiment_map(experiments)
@@ -121,7 +119,7 @@ class DataSerializer:
         best = self.load_table(self.best_fit_table)
         if best.empty:
             return best
-        experiments = self.load_table(self.experiment_table)
+        experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return pd.DataFrame()
         experiments = experiments.rename(columns={"id": "experiment_id"})
@@ -215,6 +213,13 @@ class DataSerializer:
             stripped = value.strip()
             if not stripped:
                 return []
+            if stripped.startswith("[") and stripped.endswith("]"):
+                try:
+                    parsed = json.loads(stripped)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, list):
+                    return parsed
             parts = [segment.strip() for segment in stripped.split(",")]
             converted: list[float] = []
             for part in parts:

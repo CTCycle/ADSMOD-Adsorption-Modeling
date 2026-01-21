@@ -20,7 +20,7 @@ class AdsorptionData(Base):
     id = Column(Integer, primary_key=True)
     dataset_name = Column(String)
     experiment = Column(String)
-    temperature_K = Column("temperature [K]", BigInteger)
+    temperature_K = Column("temperature [K]", Integer)
     pressure_Pa = Column("pressure [Pa]", Float)
     uptake_mol_g = Column("uptake [mol/g]", Float)
     __table_args__ = (UniqueConstraint("id"),)
@@ -31,10 +31,10 @@ class AdsorptionProcessedData(Base):
     __tablename__ = "ADSORPTION_PROCESSED_DATA"
     id = Column(Integer, primary_key=True)
     experiment = Column(String)
-    temperature_K = Column("temperature [K]", BigInteger)
+    temperature_K = Column("temperature [K]", Integer)
     pressure_Pa = Column("pressure [Pa]", String)
     uptake_mol_g = Column("uptake [mol/g]", String)
-    measurement_count = Column(BigInteger)
+    measurement_count = Column(Integer)
     min_pressure = Column(Float)
     max_pressure = Column(Float)
     min_uptake = Column(Float)
@@ -43,30 +43,11 @@ class AdsorptionProcessedData(Base):
 
 
 ###############################################################################
-class AdsorptionExperiment(Base):
-    __tablename__ = "ADSORPTION_EXPERIMENT"
-    id = Column(Integer, primary_key=True)
-    experiment = Column(String)
-    temperature_K = Column("temperature [K]", BigInteger)
-    pressure_Pa = Column("pressure [Pa]", String)
-    uptake_mol_g = Column("uptake [mol/g]", String)
-    measurement_count = Column(BigInteger)
-    min_pressure = Column(Float)
-    max_pressure = Column(Float)
-    min_uptake = Column(Float)
-    max_uptake = Column(Float)
-    __table_args__ = (
-        UniqueConstraint("id"),
-        UniqueConstraint("experiment"),
-    )
-
-
-###############################################################################
 class AdsorptionLangmuirResults(Base):
     __tablename__ = "ADSORPTION_LANGMUIR"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -87,7 +68,7 @@ class AdsorptionSipsResults(Base):
     __tablename__ = "ADSORPTION_SIPS"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -110,7 +91,7 @@ class AdsorptionFreundlichResults(Base):
     __tablename__ = "ADSORPTION_FREUNDLICH"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -131,7 +112,7 @@ class AdsorptionTemkinResults(Base):
     __tablename__ = "ADSORPTION_TEMKIN"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -152,7 +133,7 @@ class AdsorptionTothResults(Base):
     __tablename__ = "ADSORPTION_TOTH"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -175,7 +156,7 @@ class AdsorptionDubininRadushkevichResults(Base):
     __tablename__ = "ADSORPTION_DUBININ_RADUSHKEVICH"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -196,7 +177,7 @@ class AdsorptionDualSiteLangmuirResults(Base):
     __tablename__ = "ADSORPTION_DUAL_SITE_LANGMUIR"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -221,7 +202,7 @@ class AdsorptionRedlichPetersonResults(Base):
     __tablename__ = "ADSORPTION_REDLICH_PETERSON"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -244,7 +225,7 @@ class AdsorptionJovanovicResults(Base):
     __tablename__ = "ADSORPTION_JOVANOVIC"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
@@ -265,7 +246,7 @@ class AdsorptionBestFit(Base):
     __tablename__ = "ADSORPTION_BEST_FIT"
     id = Column(Integer, primary_key=True)
     experiment_id = Column(
-        Integer, ForeignKey("ADSORPTION_EXPERIMENT.id"), nullable=False
+        Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
     best_model = Column("best model", String)
     worst_model = Column("worst model", String)

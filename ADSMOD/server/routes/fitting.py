@@ -14,7 +14,11 @@ from ADSMOD.server.utils.constants import (
 )
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
-from ADSMOD.server.utils.services.conversion import PQ_units_conversion
+from ADSMOD.server.utils.services.conversion import (
+    PQ_units_conversion,
+    PressureConversion,
+    UptakeConversion,
+)
 from ADSMOD.server.utils.services.fitting import FittingPipeline
 
 router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
@@ -38,6 +42,119 @@ class FittingEndpoint:
         if isinstance(value, list):
             return [val / 1000.0 for val in value]
         return float(value) / 1000.0
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_unit_series(series: pd.Series) -> pd.Series:
+        return series.astype("string").str.strip().str.lower()
+
+    # -------------------------------------------------------------------------
+    def prepare_nist_dataframe(
+        self,
+        nist_df: pd.DataFrame,
+        adsorbates_df: pd.DataFrame,
+    ) -> pd.DataFrame:
+        required_cols = [
+            "filename",
+            "adsorbent_name",
+            "adsorbate_name",
+            "temperature",
+            "pressure",
+            "adsorbed_amount",
+        ]
+        missing = [column for column in required_cols if column not in nist_df.columns]
+        if missing:
+            raise ValueError(f"NIST dataset missing required columns: {missing}")
+
+        cleaned = nist_df.copy()
+        cleaned = cleaned.dropna(subset=required_cols)
+        cleaned["filename"] = cleaned["filename"].astype("string").str.strip()
+        cleaned["adsorbent_name"] = (
+            cleaned["adsorbent_name"].astype("string").str.strip().str.lower()
+        )
+        cleaned["adsorbate_name"] = (
+            cleaned["adsorbate_name"].astype("string").str.strip().str.lower()
+        )
+        cleaned = cleaned[cleaned["filename"] != ""]
+        cleaned = cleaned[cleaned["adsorbent_name"] != ""]
+        cleaned = cleaned[cleaned["adsorbate_name"] != ""]
+
+        if not adsorbates_df.empty and "name" in adsorbates_df.columns:
+            weights = adsorbates_df[["name", "adsorbate_molecular_weight"]].copy()
+            weights["name"] = (
+                weights["name"].astype("string").str.strip().str.lower()
+            )
+            weights = weights.dropna(subset=["name"]).drop_duplicates(
+                subset=["name"], keep="first"
+            )
+            cleaned = cleaned.merge(
+                weights, left_on="adsorbate_name", right_on="name", how="left"
+            )
+
+        pressure_converter = PressureConversion()
+        uptake_converter = UptakeConversion()
+        valid_mask = pd.Series(True, index=cleaned.index)
+
+        if "pressureUnits" in cleaned.columns:
+            cleaned["pressureUnits"] = self.normalize_unit_series(
+                cleaned["pressureUnits"]
+            )
+            valid_mask &= cleaned["pressureUnits"].isin(
+                pressure_converter.conversions.keys()
+            )
+
+        if "adsorptionUnits" in cleaned.columns:
+            cleaned["adsorptionUnits"] = self.normalize_unit_series(
+                cleaned["adsorptionUnits"]
+            )
+            valid_mask &= cleaned["adsorptionUnits"].isin(
+                uptake_converter.conversions.keys()
+            )
+            if "adsorbate_molecular_weight" in cleaned.columns:
+                mol_weight = pd.to_numeric(
+                    cleaned["adsorbate_molecular_weight"], errors="coerce"
+                )
+                requires_weight = cleaned["adsorptionUnits"].isin(
+                    uptake_converter.weight_units
+                )
+                valid_mask &= ~requires_weight | mol_weight.notna()
+
+        if not valid_mask.all():
+            removed = int((~valid_mask).sum())
+            logger.info("Filtered %s NIST rows due to unsupported units", removed)
+        cleaned = cleaned.loc[valid_mask].copy()
+
+        converted = PQ_units_conversion(cleaned)
+        if "adsorbed_amount" in converted.columns:
+            converted["adsorbed_amount"] = converted["adsorbed_amount"].apply(
+                self.normalize_uptake_to_mol_g
+            )
+
+        for column in ("temperature", "pressure", "adsorbed_amount"):
+            if column in converted.columns:
+                converted[column] = pd.to_numeric(
+                    converted[column], errors="coerce"
+                )
+
+        converted = converted.dropna(
+            subset=["temperature", "pressure", "adsorbed_amount"]
+        )
+        converted = converted[converted["temperature"] > 0]
+        converted = converted[converted["pressure"] >= 0]
+        converted = converted[converted["adsorbed_amount"] >= 0]
+
+        converted["experiment"] = (
+            converted["filename"].astype("string").str.strip()
+            + "_"
+            + converted["adsorbent_name"].astype("string").str.strip()
+            + "_"
+            + converted["adsorbate_name"].astype("string").str.strip()
+            + "_"
+            + converted["temperature"].astype(str)
+            + "K"
+        )
+
+        return converted
 
     # -------------------------------------------------------------------------
     async def run_fitting_job(self, payload: FittingRequest) -> Any:
@@ -93,31 +210,12 @@ class FittingEndpoint:
                     detail="No NIST single-component data available. Please fetch data first.",
                 )
 
-            if not adsorbates_df.empty and "name" in adsorbates_df.columns:
-                nist_df = nist_df.merge(
-                    adsorbates_df[["name", "adsorbate_molecular_weight"]],
-                    left_on="adsorbate_name",
-                    right_on="name",
-                    how="left",
+            converted_df = self.prepare_nist_dataframe(nist_df, adsorbates_df)
+            if converted_df.empty:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No valid NIST rows were available after unit normalization.",
                 )
-
-            converted_df = PQ_units_conversion(nist_df.copy())
-
-            if "adsorbed_amount" in converted_df.columns:
-                converted_df["adsorbed_amount"] = converted_df["adsorbed_amount"].apply(
-                    self.normalize_uptake_to_mol_g
-                )
-
-            converted_df["experiment"] = (
-                converted_df["filename"].astype(str)
-                + "_"
-                + converted_df["adsorbent_name"].astype(str)
-                + "_"
-                + converted_df["adsorbate_name"].astype(str)
-                + "_"
-                + converted_df["temperature"].astype(str)
-                + "K"
-            )
 
             final_columns = {
                 "pressure": DEFAULT_DATASET_COLUMN_MAPPING["pressure"],
@@ -150,6 +248,11 @@ class FittingEndpoint:
 
         except HTTPException:
             raise
+        except ValueError as exc:
+            logger.warning("Invalid NIST dataset: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to load NIST dataset for fitting")
             raise HTTPException(
