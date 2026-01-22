@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, status
-from ADSMOD.server.schemas.fitting import FittingRequest, FittingResponse
+
+from ADSMOD.server.schemas.fitting import FittingRequest
+from ADSMOD.server.schemas.jobs import JobListResponse, JobStartResponse, JobStatusResponse
 from ADSMOD.server.utils.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
+    FITTING_JOBS_ENDPOINT,
+    FITTING_JOB_STATUS_ENDPOINT,
     FITTING_NIST_DATASET_ENDPOINT,
     FITTING_ROUTER_PREFIX,
     FITTING_RUN_ENDPOINT,
@@ -20,6 +23,7 @@ from ADSMOD.server.utils.services.conversion import (
     UptakeConversion,
 )
 from ADSMOD.server.utils.services.fitting import FittingPipeline
+from ADSMOD.server.utils.services.jobs import job_manager
 
 router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 
@@ -27,6 +31,8 @@ router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 ###############################################################################
 class FittingEndpoint:
     """Endpoint for adsorption model fitting operations."""
+
+    JOB_TYPE = "fitting"
 
     def __init__(self, router: APIRouter, pipeline: FittingPipeline) -> None:
         self.router = router
@@ -157,53 +163,109 @@ class FittingEndpoint:
         return converted
 
     # -------------------------------------------------------------------------
-    async def run_fitting_job(self, payload: FittingRequest) -> Any:
-        """Execute the fitting pipeline for the provided dataset and configuration."""
+    def _run_fitting_sync(
+        self,
+        dataset_dict: dict,
+        parameter_bounds_dict: dict,
+        max_iterations: int,
+        optimization_method: str,
+    ) -> dict:
+        return self.pipeline.run(
+            dataset_dict,
+            parameter_bounds_dict,
+            max_iterations,
+            optimization_method,
+        )
+
+    # -------------------------------------------------------------------------
+    async def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
+        """Start a background fitting job for the provided dataset."""
+        if job_manager.is_job_running(self.JOB_TYPE):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A fitting job is already running.",
+            )
+
         logger.info(
             "Received fitting request: iterations=%s, method=%s",
             payload.max_iterations,
             payload.optimization_method,
         )
 
-        try:
-            response = await asyncio.to_thread(
-                self.pipeline.run,
-                payload.dataset.model_dump(),
-                {
-                    name: config.model_dump()
-                    for name, config in payload.parameter_bounds.items()
-                },
+        dataset_dict = payload.dataset.model_dump()
+        parameter_bounds_dict = {
+            name: config.model_dump()
+            for name, config in payload.parameter_bounds.items()
+        }
+
+        job_id = job_manager.start_job(
+            job_type=self.JOB_TYPE,
+            runner=self._run_fitting_sync,
+            args=(
+                dataset_dict,
+                parameter_bounds_dict,
                 payload.max_iterations,
                 payload.optimization_method,
-            )
-        except ValueError as exc:
-            logger.warning("Invalid fitting request: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-            ) from exc
-        except Exception as exc:  # noqa: BLE001
-            error_type = type(exc).__name__
-            error_msg = str(exc).split("\n")[0][:120]
-            logger.error("Fitting job failed: %s - %s", error_type, error_msg)
-            logger.debug("Fitting job error details", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to complete the fitting job.",
-            ) from exc
-
-        logger.info(
-            "Fitting job completed successfully with %s experiments",
-            response.get("processed_rows"),
+            ),
         )
-        return response
+        logger.info("Started fitting job %s", job_id)
+        return JobStartResponse(
+            job_id=job_id,
+            job_type=self.JOB_TYPE,
+            status="running",
+            message="Fitting job started.",
+        )
+
+    # -------------------------------------------------------------------------
+    async def get_job_status(self, job_id: str) -> JobStatusResponse:
+        """Get the status of a fitting background job."""
+        job_status = job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job {job_id} not found.",
+            )
+        return JobStatusResponse(
+            job_id=job_status["job_id"],
+            job_type=job_status["job_type"],
+            status=job_status["status"],
+            progress=job_status["progress"],
+            result=job_status["result"],
+            error=job_status["error"],
+        )
+
+    # -------------------------------------------------------------------------
+    async def list_jobs(self) -> JobListResponse:
+        """List all fitting jobs."""
+        all_jobs = job_manager.list_jobs(self.JOB_TYPE)
+        return JobListResponse(
+            jobs=[
+                JobStatusResponse(
+                    job_id=j["job_id"],
+                    job_type=j["job_type"],
+                    status=j["status"],
+                    progress=j["progress"],
+                    result=j["result"],
+                    error=j["error"],
+                )
+                for j in all_jobs
+            ]
+        )
+
+    # -------------------------------------------------------------------------
+    async def cancel_job(self, job_id: str) -> dict:
+        """Cancel a running fitting job."""
+        success = job_manager.cancel_job(job_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Job {job_id} cannot be cancelled (not found or already completed).",
+            )
+        return {"status": "cancelled", "job_id": job_id}
 
     # -------------------------------------------------------------------------
     async def get_nist_dataset_for_fitting(self) -> Any:
-        """Load NIST single-component data as a DatasetPayload for fitting.
-
-        Applies unit conversion (pressure to Pa, uptake to mol/g) and builds
-        experiment identifiers from filename + adsorbent + adsorbate + temperature.
-        """
+        """Load NIST single-component data as a DatasetPayload for fitting."""
         try:
             serializer = NISTDataSerializer()
             nist_df, adsorbates_df, _ = serializer.load_adsorption_datasets()
@@ -272,15 +334,35 @@ class FittingEndpoint:
         """Register all fitting-related routes with the router."""
         self.router.add_api_route(
             FITTING_RUN_ENDPOINT,
-            self.run_fitting_job,
+            self.start_fitting_job,
             methods=["POST"],
-            response_model=FittingResponse,
+            response_model=JobStartResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             FITTING_NIST_DATASET_ENDPOINT,
             self.get_nist_dataset_for_fitting,
             methods=["GET"],
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            FITTING_JOBS_ENDPOINT,
+            self.list_jobs,
+            methods=["GET"],
+            response_model=JobListResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            FITTING_JOB_STATUS_ENDPOINT,
+            self.get_job_status,
+            methods=["GET"],
+            response_model=JobStatusResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            FITTING_JOB_STATUS_ENDPOINT,
+            self.cancel_job,
+            methods=["DELETE"],
             status_code=status.HTTP_200_OK,
         )
 

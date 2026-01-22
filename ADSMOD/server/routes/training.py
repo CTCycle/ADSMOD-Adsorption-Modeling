@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
-from ADSMOD.server.utils.services.training_manager import training_manager
+from ADSMOD.server.utils.services.training import training_manager
 
 router = APIRouter(prefix="/training", tags=["training"])
 
