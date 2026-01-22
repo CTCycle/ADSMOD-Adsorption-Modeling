@@ -89,6 +89,23 @@ export interface NISTStatusResponse {
     message?: string;
 }
 
+// Background Job types
+export interface JobStartResponse {
+    job_id: string;
+    job_type: string;
+    status: string;
+    message: string;
+}
+
+export interface JobStatusResponse {
+    job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress: number;
+    result?: Record<string, unknown>;
+    error?: string;
+}
+
 export type ParameterKey = [string, string, string]; // [model, parameter, bound_type]
 
 // Browser API types
