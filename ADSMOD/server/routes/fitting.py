@@ -182,7 +182,10 @@ class FittingEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
             ) from exc
         except Exception as exc:  # noqa: BLE001
-            logger.exception("ADSMOD fitting job failed")
+            error_type = type(exc).__name__
+            error_msg = str(exc).split("\n")[0][:120]
+            logger.error("Fitting job failed: %s - %s", error_type, error_msg)
+            logger.debug("Fitting job error details", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to complete the fitting job.",
@@ -254,7 +257,10 @@ class FittingEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
             ) from exc
         except Exception as exc:  # noqa: BLE001
-            logger.exception("Failed to load NIST dataset for fitting")
+            error_type = type(exc).__name__
+            error_msg = str(exc).split("\n")[0][:120]
+            logger.error("NIST dataset load failed: %s - %s", error_type, error_msg)
+            logger.debug("NIST dataset load error details", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to load NIST data.",
