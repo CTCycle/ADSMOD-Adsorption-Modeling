@@ -23,7 +23,14 @@ class AdsorptionData(Base):
     temperature_K = Column("temperature [K]", Integer)
     pressure_Pa = Column("pressure [Pa]", Float)
     uptake_mol_g = Column("uptake [mol/g]", Float)
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_name",
+            "experiment",
+            "temperature [K]",
+            "pressure [Pa]",
+        ),
+    )
 
 
 ###############################################################################
