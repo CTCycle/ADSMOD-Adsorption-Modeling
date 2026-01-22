@@ -20,6 +20,12 @@ dependencies = [
     "python-multipart==0.0.12"
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-playwright>=0.5",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["adsmod"] 
 

@@ -46,7 +46,35 @@ class DataSerializer:
     
     # -------------------------------------------------------------------------
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
-        database.save_into_database(dataset, "ADSORPTION_DATA")
+        try:
+            database.upsert_into_database(dataset, "ADSORPTION_DATA")
+            return
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Upsert failed for ADSORPTION_DATA, falling back to merge: %s",
+                exc,
+            )
+
+        existing = database.load_from_database("ADSORPTION_DATA")
+        if existing.empty:
+            database.save_into_database(dataset, "ADSORPTION_DATA")
+            return
+
+        key_columns = [
+            "dataset_name",
+            "experiment",
+            "temperature [K]",
+            "pressure [Pa]",
+        ]
+        available_keys = [
+            col
+            for col in key_columns
+            if col in dataset.columns and col in existing.columns
+        ]
+        merged = pd.concat([existing, dataset], ignore_index=True)
+        if available_keys:
+            merged = merged.drop_duplicates(subset=available_keys, keep="last")
+        database.save_into_database(merged, "ADSORPTION_DATA")
 
     # -------------------------------------------------------------------------
     def load_table(self, table_name: str) -> pd.DataFrame:
