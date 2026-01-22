@@ -183,10 +183,20 @@ class ModelSolver:
                     "parameter_count": parameter_count,
                 }
             except Exception as exc:  # noqa: BLE001
-                logger.exception(
-                    "Failed to fit experiment %s with model %s",
+                error_type = type(exc).__name__
+                error_msg = str(exc).split("\n")[0][:120]
+                logger.error(
+                    "Fitting failed for %s [%s]: %s - %s",
                     experiment_name,
                     model_name,
+                    error_type,
+                    error_msg,
+                )
+                logger.debug(
+                    "Full traceback for %s [%s]",
+                    experiment_name,
+                    model_name,
+                    exc_info=True,
                 )
                 results[model_name] = {
                     "optimal_params": [np.nan] * len(param_names),
@@ -424,10 +434,18 @@ class ModelSolver:
                     max_iterations,
                     normalized_method,
                 )
-            except Exception:  # noqa: BLE001
-                logger.exception(
-                    "Failed to fit experiment %s due to an unexpected error",
+            except Exception as exc:  # noqa: BLE001
+                error_type = type(exc).__name__
+                error_msg = str(exc).split("\n")[0][:120]
+                logger.error(
+                    "Unexpected fitting error for %s: %s - %s",
                     experiment_name,
+                    error_type,
+                    error_msg,
+                )
+                logger.debug(
+                    "Full traceback for experiment %s", experiment_name,
+                    exc_info=True,
                 )
                 skipped_experiments.append(experiment_name)
                 if progress_callback is not None:
