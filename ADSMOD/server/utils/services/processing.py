@@ -9,7 +9,23 @@ import numpy as np
 import pandas as pd
 
 from ADSMOD.server.utils.configurations import server_settings
-from ADSMOD.server.utils.constants import DEFAULT_DATASET_COLUMN_MAPPING
+from ADSMOD.server.utils.constants import (
+    COLUMN_AIC,
+    COLUMN_AICC,
+    COLUMN_BEST_MODEL,
+    COLUMN_DATASET_NAME,
+    COLUMN_EXPERIMENT,
+    COLUMN_FILENAME,
+    COLUMN_MAX_PRESSURE,
+    COLUMN_MAX_UPTAKE,
+    COLUMN_MEASUREMENT_COUNT,
+    COLUMN_MIN_PRESSURE,
+    COLUMN_MIN_UPTAKE,
+    COLUMN_OPTIMIZATION_METHOD,
+    COLUMN_SCORE,
+    COLUMN_WORST_MODEL,
+    DEFAULT_DATASET_COLUMN_MAPPING,
+)
 from ADSMOD.server.utils.logger import logger
 
 
@@ -130,7 +146,7 @@ class AdsorptionDataProcessor:
             cols["pressure"]: list,
             cols["uptake"]: list,
         }
-        for optional_column in ("dataset_name", "filename"):
+        for optional_column in (COLUMN_DATASET_NAME, COLUMN_FILENAME):
             if optional_column in dataset.columns:
                 aggregate[optional_column] = "first"
         # ``groupby`` collects all measurements for each experiment so downstream
@@ -138,13 +154,13 @@ class AdsorptionDataProcessor:
         grouped = (
             dataset.groupby(cols["experiment"], as_index=False)
             .agg(aggregate)
-            .rename(columns={cols["experiment"]: "experiment"})
+            .rename(columns={cols["experiment"]: COLUMN_EXPERIMENT})
         )
-        grouped["measurement_count"] = grouped[cols["pressure"]].apply(len)
-        grouped["min_pressure"] = grouped[cols["pressure"]].apply(min)
-        grouped["max_pressure"] = grouped[cols["pressure"]].apply(max)
-        grouped["min_uptake"] = grouped[cols["uptake"]].apply(min)
-        grouped["max_uptake"] = grouped[cols["uptake"]].apply(max)
+        grouped[COLUMN_MEASUREMENT_COUNT] = grouped[cols["pressure"]].apply(len)
+        grouped[COLUMN_MIN_PRESSURE] = grouped[cols["pressure"]].apply(min)
+        grouped[COLUMN_MAX_PRESSURE] = grouped[cols["pressure"]].apply(max)
+        grouped[COLUMN_MIN_UPTAKE] = grouped[cols["uptake"]].apply(min)
+        grouped[COLUMN_MAX_UPTAKE] = grouped[cols["uptake"]].apply(max)
         return grouped
 
     # -------------------------------------------------------------------------
@@ -246,16 +262,16 @@ class DatasetAdapter:
                 continue
             params = entries[0].get("arguments", [])
             # Columns for each model store experiment-level metrics aligned by order.
-            result_df[f"{model_name} score"] = [
+            result_df[f"{model_name} {COLUMN_SCORE}"] = [
                 entry.get("score", np.nan) for entry in entries
             ]
-            result_df[f"{model_name} AIC"] = [
+            result_df[f"{model_name} {COLUMN_AIC}"] = [
                 entry.get("aic", np.nan) for entry in entries
             ]
-            result_df[f"{model_name} AICc"] = [
+            result_df[f"{model_name} {COLUMN_AICC}"] = [
                 entry.get("aicc", np.nan) for entry in entries
             ]
-            result_df[f"{model_name} optimization method"] = [
+            result_df[f"{model_name} {COLUMN_OPTIMIZATION_METHOD}"] = [
                 entry.get("optimization_method") for entry in entries
             ]
             for index, param in enumerate(params):
@@ -295,10 +311,10 @@ class DatasetAdapter:
 
         ranked = dataset.copy()
         ranked_values = ranked[metric_columns].replace({np.inf: np.nan})
-        ranked["best model"] = ranked_values.idxmin(axis=1).str.replace(
+        ranked[COLUMN_BEST_MODEL] = ranked_values.idxmin(axis=1).str.replace(
             f" {selected_suffix}", ""
         )
-        ranked["worst model"] = ranked_values.idxmax(axis=1).str.replace(
+        ranked[COLUMN_WORST_MODEL] = ranked_values.idxmax(axis=1).str.replace(
             f" {selected_suffix}", ""
         )
         return ranked
@@ -308,17 +324,17 @@ class DatasetAdapter:
     def normalize_metric(metric: str) -> str:
         normalized = metric.replace("-", "").replace("_", "").strip().upper()
         if normalized == "AICC":
-            return "AICc"
+            return COLUMN_AICC
         if normalized == "AIC":
-            return "AIC"
+            return COLUMN_AIC
         if normalized == "SCORE":
-            return "score"
-        return "AICc"
+            return COLUMN_SCORE
+        return COLUMN_AICC
 
     # -------------------------------------------------------------------------
     @staticmethod
     def metric_priority(primary: str) -> list[str]:
-        order = ["AICc", "AIC", "score"]
+        order = [COLUMN_AICC, COLUMN_AIC, COLUMN_SCORE]
         prioritized = [primary] + [metric for metric in order if metric != primary]
         seen: set[str] = set()
         unique: list[str] = []

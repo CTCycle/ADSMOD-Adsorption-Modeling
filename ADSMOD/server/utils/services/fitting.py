@@ -11,7 +11,23 @@ import pandas as pd
 from scipy.optimize import curve_fit, minimize
 
 from ADSMOD.server.utils.configurations import server_settings
-from ADSMOD.server.utils.constants import MODEL_PARAMETER_DEFAULTS
+from ADSMOD.server.utils.constants import (
+    COLUMN_AIC,
+    COLUMN_AICC,
+    COLUMN_BEST_MODEL,
+    COLUMN_DATASET_NAME,
+    COLUMN_EXPERIMENT,
+    COLUMN_EXPERIMENT_NAME,
+    COLUMN_FILENAME,
+    COLUMN_MAX_PRESSURE,
+    COLUMN_MAX_UPTAKE,
+    COLUMN_MEASUREMENT_COUNT,
+    COLUMN_MIN_PRESSURE,
+    COLUMN_MIN_UPTAKE,
+    COLUMN_SCORE,
+    COLUMN_WORST_MODEL,
+    MODEL_PARAMETER_DEFAULTS,
+)
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.serializer import DataSerializer
 from ADSMOD.server.utils.services.models import AdsorptionModels
@@ -397,7 +413,7 @@ class ModelSolver:
         total_experiments = dataset.shape[0]
         normalized_method = self.normalize_method(optimization_method)
         for index, row in dataset.iterrows():
-            experiment_name_value = row.get("experiment")
+            experiment_name_value = row.get(COLUMN_EXPERIMENT)
             if experiment_name_value is None or pd.isna(experiment_name_value):
                 experiment_name = f"experiment_{index}"
             else:
@@ -619,43 +635,43 @@ class FittingPipeline:
             dataframe = pd.DataFrame.from_records(records, columns=columns)
         else:
             dataframe = pd.DataFrame()
-        dataset_name = payload.get("dataset_name")
+        dataset_name = payload.get(COLUMN_DATASET_NAME)
         if isinstance(dataset_name, str):
             dataset_name = dataset_name.strip()
             if dataset_name:
-                dataframe["dataset_name"] = dataset_name
+                dataframe[COLUMN_DATASET_NAME] = dataset_name
         return dataframe
 
     # -------------------------------------------------------------------------
     def attach_experiment_name(
         self, dataset: pd.DataFrame, dataset_name: str | None
     ) -> pd.DataFrame:
-        if dataset.empty or "experiment name" in dataset.columns:
+        if dataset.empty or COLUMN_EXPERIMENT_NAME in dataset.columns:
             return dataset
-        if "experiment" not in dataset.columns:
+        if COLUMN_EXPERIMENT not in dataset.columns:
             return dataset
 
         base_series = None
-        if "filename" in dataset.columns:
-            base_series = dataset["filename"]
-        elif "dataset_name" in dataset.columns:
-            base_series = dataset["dataset_name"]
+        if COLUMN_FILENAME in dataset.columns:
+            base_series = dataset[COLUMN_FILENAME]
+        elif COLUMN_DATASET_NAME in dataset.columns:
+            base_series = dataset[COLUMN_DATASET_NAME]
         elif dataset_name:
             base_series = pd.Series([dataset_name] * len(dataset), index=dataset.index)
 
-        experiment_series = dataset["experiment"].astype("string").str.strip()
+        experiment_series = dataset[COLUMN_EXPERIMENT].astype("string").str.strip()
         if base_series is None:
-            dataset["experiment name"] = experiment_series
+            dataset[COLUMN_EXPERIMENT_NAME] = experiment_series
             return dataset
 
         base_series = base_series.astype("string").str.strip()
-        if "filename" in dataset.columns:
+        if COLUMN_FILENAME in dataset.columns:
             name_series = base_series
         else:
             name_series = base_series + "_" + experiment_series
             name_series = name_series.where(base_series != "", experiment_series)
 
-        dataset["experiment name"] = name_series.fillna(experiment_series)
+        dataset[COLUMN_EXPERIMENT_NAME] = name_series.fillna(experiment_series)
         return dataset
 
     # -------------------------------------------------------------------------
@@ -758,15 +774,16 @@ class FittingPipeline:
         preview_columns = [
             column
             for column in dataset.columns
-            if column.endswith("score")
-            or column.endswith("AIC")
-            or column.endswith("AICc")
+            if column.endswith(COLUMN_SCORE)
+            or column.endswith(COLUMN_AIC)
+            or column.endswith(COLUMN_AICC)
         ]
         preview_columns.extend(
             [
                 column
                 for column in dataset.columns
-                if column in {"experiment", "best model", "worst model"}
+                if column
+                in {COLUMN_EXPERIMENT, COLUMN_BEST_MODEL, COLUMN_WORST_MODEL}
             ]
         )
         trimmed = dataset.loc[:, dict.fromkeys(preview_columns).keys()]
@@ -783,11 +800,11 @@ class FittingPipeline:
             detected_columns.temperature,
             detected_columns.pressure,
             detected_columns.uptake,
-            "measurement_count",
-            "min_pressure",
-            "max_pressure",
-            "min_uptake",
-            "max_uptake",
+            COLUMN_MEASUREMENT_COUNT,
+            COLUMN_MIN_PRESSURE,
+            COLUMN_MAX_PRESSURE,
+            COLUMN_MIN_UPTAKE,
+            COLUMN_MAX_UPTAKE,
         ]
         return dataset.drop(columns=drop_columns, errors="ignore")
 

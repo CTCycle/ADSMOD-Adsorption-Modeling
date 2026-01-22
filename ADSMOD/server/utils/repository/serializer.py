@@ -12,7 +12,23 @@ from keras.models import load_model
 
 from ADSMOD.server.database.database import database
 from ADSMOD.server.schemas.models import MODEL_SCHEMAS
-from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
+from ADSMOD.server.utils.constants import (
+    CHECKPOINTS_PATH,
+    COLUMN_BEST_MODEL,
+    COLUMN_DATASET_NAME,
+    COLUMN_EXPERIMENT,
+    COLUMN_EXPERIMENT_NAME,
+    COLUMN_ID,
+    COLUMN_MAX_PRESSURE,
+    COLUMN_MAX_UPTAKE,
+    COLUMN_MEASUREMENT_COUNT,
+    COLUMN_MIN_PRESSURE,
+    COLUMN_MIN_UPTAKE,
+    COLUMN_PRESSURE_PA,
+    COLUMN_TEMPERATURE_K,
+    COLUMN_UPTAKE_MOL_G,
+    COLUMN_WORST_MODEL,
+)
 from ADSMOD.server.utils.learning.metrics import (
     MaskedMeanSquaredError,
     MaskedRSquared,
@@ -33,18 +49,17 @@ class DataSerializer:
     processed_table = "ADSORPTION_PROCESSED_DATA"
     best_fit_table = "ADSORPTION_BEST_FIT"
     experiment_columns = [
-        "experiment",
-        "experiment name",
-        "temperature [K]",
-        "pressure [Pa]",
-        "uptake [mol/g]",
-        "measurement_count",
-        "min_pressure",
-        "max_pressure",
-        "min_uptake",
-        "max_uptake",
+        COLUMN_EXPERIMENT,
+        COLUMN_EXPERIMENT_NAME,
+        COLUMN_TEMPERATURE_K,
+        COLUMN_PRESSURE_PA,
+        COLUMN_UPTAKE_MOL_G,
+        COLUMN_MEASUREMENT_COUNT,
+        COLUMN_MIN_PRESSURE,
+        COLUMN_MAX_PRESSURE,
+        COLUMN_MIN_UPTAKE,
+        COLUMN_MAX_UPTAKE,
     ]
-    model_extra_columns = ["experiment name"]
     
     # -------------------------------------------------------------------------
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
@@ -63,10 +78,10 @@ class DataSerializer:
             return
 
         key_columns = [
-            "dataset_name",
-            "experiment",
-            "temperature [K]",
-            "pressure [Pa]",
+            COLUMN_DATASET_NAME,
+            COLUMN_EXPERIMENT,
+            COLUMN_TEMPERATURE_K,
+            COLUMN_PRESSURE_PA,
         ]
         available_keys = [
             col
@@ -83,119 +98,98 @@ class DataSerializer:
         return database.load_from_database(table_name)
 
     # -------------------------------------------------------------------------
+    def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
+        try:
+            database.upsert_into_database(dataset, table_name)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Upsert failed for %s, falling back to overwrite: %s",
+                table_name,
+                exc,
+            )
+            database.save_into_database(dataset, table_name)
+
+    # -------------------------------------------------------------------------
     def save_processed_dataset(self, dataset: pd.DataFrame) -> None:
-        database.save_into_database(dataset, "ADSORPTION_PROCESSED_DATA")
+        self.upsert_table(dataset, self.processed_table)
 
     # -------------------------------------------------------------------------
     def save_fitting_results(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
-            empty_experiments = pd.DataFrame(
-                columns=["id", *self.experiment_columns]
-            )
-            database.save_into_database(empty_experiments, self.processed_table)
-            for schema in MODEL_SCHEMAS.values():
-                empty_model = pd.DataFrame(
-                    columns=[
-                        "id",
-                        "experiment_id",
-                        *self.model_extra_columns,
-                        *schema["fields"].values(),
-                    ]
-                )
-                database.save_into_database(empty_model, schema["table"])
             return
         encoded = self.convert_lists_to_strings(dataset)
         experiments = self.build_experiment_frame(encoded)
-        database.save_into_database(experiments, self.processed_table)
-        experiment_map = self.build_experiment_map(experiments)
+        self.upsert_table(experiments, self.processed_table)
         for schema in MODEL_SCHEMAS.values():
-            model_frame = self.build_model_frame(encoded, experiment_map, schema)
+            model_frame = self.build_model_frame(encoded, schema)
             if model_frame is None:
                 continue
-            database.save_into_database(model_frame, schema["table"])
+            self.upsert_table(model_frame, schema["table"])
 
     # -------------------------------------------------------------------------
     def load_fitting_results(self) -> pd.DataFrame:
         experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return experiments
-        experiments = experiments.rename(columns={"id": "experiment_id"})
         experiments = self.convert_strings_to_lists(experiments)
         combined = experiments.copy()
+        if COLUMN_EXPERIMENT_NAME not in combined.columns:
+            return combined
         for schema in MODEL_SCHEMAS.values():
             model_frame = self.load_table(schema["table"])
             if model_frame.empty:
                 continue
+            if COLUMN_EXPERIMENT_NAME not in model_frame.columns:
+                continue
             renamed = self.rename_model_columns(model_frame, schema)
-            combined = combined.merge(renamed, how="left", on="experiment_id")
+            combined = combined.merge(
+                renamed, how="left", on=COLUMN_EXPERIMENT_NAME
+            )
         return combined
 
     # -------------------------------------------------------------------------
     def save_best_fit(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
-            empty_best = pd.DataFrame(
-                columns=[
-                    "id",
-                    "experiment_id",
-                    "experiment name",
-                    "best model",
-                    "worst model",
-                ]
-            )
-            database.save_into_database(empty_best, self.best_fit_table)
             return
-        experiments = self.load_table(self.processed_table)
-        if experiments.empty:
-            raise ValueError("No experiments available to link best fit results.")
-        experiment_map = self.build_experiment_map(experiments)
+        if COLUMN_EXPERIMENT_NAME not in dataset.columns:
+            raise ValueError("Missing experiment name column for best fit results.")
         best = pd.DataFrame()
-        best["experiment_id"] = dataset["experiment"].map(experiment_map)
-        if best["experiment_id"].isnull().any():
-            raise ValueError("Unmapped experiments found while saving best fit results.")
-        best["experiment name"] = dataset.get("experiment name")
-        best["best model"] = dataset.get("best model")
-        best["worst model"] = dataset.get("worst model")
-        best.insert(0, "id", range(1, len(best) + 1))
-        database.save_into_database(best, self.best_fit_table)
+        best[COLUMN_EXPERIMENT_NAME] = dataset.get(COLUMN_EXPERIMENT_NAME)
+        best[COLUMN_BEST_MODEL] = dataset.get(COLUMN_BEST_MODEL)
+        best[COLUMN_WORST_MODEL] = dataset.get(COLUMN_WORST_MODEL)
+        self.upsert_table(best, self.best_fit_table)
 
     # -------------------------------------------------------------------------
     def load_best_fit(self) -> pd.DataFrame:
         best = self.load_table(self.best_fit_table)
         if best.empty:
             return best
+        if COLUMN_EXPERIMENT_NAME not in best.columns:
+            return best
         experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return pd.DataFrame()
-        experiments = experiments.rename(columns={"id": "experiment_id"})
         experiments = self.convert_strings_to_lists(experiments)
-        drop_columns = ["id"]
-        if "experiment name" in best.columns:
-            drop_columns.append("experiment name")
+        drop_columns = [COLUMN_ID]
         merged = experiments.merge(
-            best.drop(columns=drop_columns), how="left", on="experiment_id"
+            best.drop(columns=drop_columns, errors="ignore"),
+            how="left",
+            on=COLUMN_EXPERIMENT_NAME,
         )
         return merged
 
     # -------------------------------------------------------------------------
     def build_experiment_frame(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        if "experiment" not in dataset.columns:
+        if COLUMN_EXPERIMENT not in dataset.columns:
             raise ValueError("Missing experiment column for fitting results.")
+        if COLUMN_EXPERIMENT_NAME not in dataset.columns:
+            raise ValueError("Missing experiment name column for fitting results.")
         experiments = dataset.copy()
         for column in self.experiment_columns:
             if column not in experiments.columns:
                 experiments[column] = pd.NA
         experiments = experiments.loc[:, self.experiment_columns].copy()
-        experiments.insert(0, "id", range(1, len(experiments) + 1))
         return experiments
-
-    # -------------------------------------------------------------------------
-    def build_experiment_map(self, experiments: pd.DataFrame) -> dict[str, int]:
-        return {
-            name: int(identifier)
-            for name, identifier in zip(
-                experiments["experiment"], experiments["id"], strict=False
-            )
-        }
 
     # -------------------------------------------------------------------------
     def resolve_dataset_column(
@@ -211,7 +205,6 @@ class DataSerializer:
     def build_model_frame(
         self,
         dataset: pd.DataFrame,
-        experiment_map: dict[str, int],
         schema: dict[str, Any],
     ) -> pd.DataFrame | None:
         resolved = {
@@ -220,18 +213,16 @@ class DataSerializer:
         }
         if all(column is None for column in resolved.values()):
             return None
+        if COLUMN_EXPERIMENT_NAME not in dataset.columns:
+            raise ValueError("Missing experiment name column for fitting results.")
         model_frame = pd.DataFrame()
-        model_frame["experiment_id"] = dataset["experiment"].map(experiment_map)
-        if model_frame["experiment_id"].isnull().any():
-            raise ValueError("Unmapped experiments found while building model results.")
-        model_frame["experiment name"] = dataset.get("experiment name")
+        model_frame[COLUMN_EXPERIMENT_NAME] = dataset.get(COLUMN_EXPERIMENT_NAME)
         for field, column in resolved.items():
             target = schema["fields"][field]
             if column is None:
                 model_frame[target] = pd.NA
             else:
                 model_frame[target] = dataset[column]
-        model_frame.insert(0, "id", range(1, len(model_frame) + 1))
         return model_frame
 
     # -------------------------------------------------------------------------
@@ -243,10 +234,8 @@ class DataSerializer:
             for column_name in schema["fields"].values()
         }
         trimmed = model_frame.rename(columns=rename_map)
-        drop_columns = ["id"]
-        if "experiment name" in trimmed.columns:
-            drop_columns.append("experiment name")
-        return trimmed.drop(columns=drop_columns)
+        drop_columns = [COLUMN_ID, "experiment_id"]
+        return trimmed.drop(columns=drop_columns, errors="ignore")
 
     # -------------------------------------------------------------------------
     def convert_list_to_string(self, value: Any) -> Any:
