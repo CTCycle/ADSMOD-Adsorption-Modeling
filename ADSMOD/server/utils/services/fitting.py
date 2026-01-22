@@ -507,6 +507,7 @@ class FittingPipeline:
 
         processor = AdsorptionDataProcessor(dataframe)
         processed, detected_columns, stats = processor.preprocess(detect_columns=True)
+        processed = self.attach_experiment_name(processed, dataset_name)
 
         logger.info("Processed dataset contains %s experiments", processed.shape[0])
         logger.debug("Detected dataset statistics:\n%s", stats)
@@ -624,6 +625,38 @@ class FittingPipeline:
             if dataset_name:
                 dataframe["dataset_name"] = dataset_name
         return dataframe
+
+    # -------------------------------------------------------------------------
+    def attach_experiment_name(
+        self, dataset: pd.DataFrame, dataset_name: str | None
+    ) -> pd.DataFrame:
+        if dataset.empty or "experiment name" in dataset.columns:
+            return dataset
+        if "experiment" not in dataset.columns:
+            return dataset
+
+        base_series = None
+        if "filename" in dataset.columns:
+            base_series = dataset["filename"]
+        elif "dataset_name" in dataset.columns:
+            base_series = dataset["dataset_name"]
+        elif dataset_name:
+            base_series = pd.Series([dataset_name] * len(dataset), index=dataset.index)
+
+        experiment_series = dataset["experiment"].astype("string").str.strip()
+        if base_series is None:
+            dataset["experiment name"] = experiment_series
+            return dataset
+
+        base_series = base_series.astype("string").str.strip()
+        if "filename" in dataset.columns:
+            name_series = base_series
+        else:
+            name_series = base_series + "_" + experiment_series
+            name_series = name_series.where(base_series != "", experiment_series)
+
+        dataset["experiment name"] = name_series.fillna(experiment_series)
+        return dataset
 
     # -------------------------------------------------------------------------
     def normalize_configuration(

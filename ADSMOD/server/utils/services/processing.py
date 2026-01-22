@@ -130,6 +130,9 @@ class AdsorptionDataProcessor:
             cols["pressure"]: list,
             cols["uptake"]: list,
         }
+        for optional_column in ("dataset_name", "filename"):
+            if optional_column in dataset.columns:
+                aggregate[optional_column] = "first"
         # ``groupby`` collects all measurements for each experiment so downstream
         # fitting can consume full pressure/uptake vectors.
         grouped = (
