@@ -21,6 +21,28 @@ CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 
 
 ###############################################################################
+COLUMN_ID = "id"
+COLUMN_EXPERIMENT = "experiment"
+COLUMN_EXPERIMENT_NAME = "experiment name"
+COLUMN_DATASET_NAME = "dataset_name"
+COLUMN_FILENAME = "filename"
+COLUMN_TEMPERATURE_K = "temperature [K]"
+COLUMN_PRESSURE_PA = "pressure [Pa]"
+COLUMN_UPTAKE_MOL_G = "uptake [mol/g]"
+COLUMN_MEASUREMENT_COUNT = "measurement_count"
+COLUMN_MIN_PRESSURE = "min_pressure"
+COLUMN_MAX_PRESSURE = "max_pressure"
+COLUMN_MIN_UPTAKE = "min_uptake"
+COLUMN_MAX_UPTAKE = "max_uptake"
+COLUMN_OPTIMIZATION_METHOD = "optimization method"
+COLUMN_SCORE = "score"
+COLUMN_AIC = "AIC"
+COLUMN_AICC = "AICc"
+COLUMN_BEST_MODEL = "best model"
+COLUMN_WORST_MODEL = "worst model"
+
+
+###############################################################################
 MODELS_LIST = [
     "Langmuir",
     "Sips",
@@ -78,10 +100,10 @@ MODEL_PARAMETER_DEFAULTS: dict[str, dict[str, tuple[float, float]]] = {
 }
 
 DEFAULT_DATASET_COLUMN_MAPPING = {
-    "experiment": "experiment",
-    "temperature": "temperature [K]",
-    "pressure": "pressure [Pa]",
-    "uptake": "uptake [mol/g]",
+    "experiment": COLUMN_EXPERIMENT,
+    "temperature": COLUMN_TEMPERATURE_K,
+    "pressure": COLUMN_PRESSURE_PA,
+    "uptake": COLUMN_UPTAKE_MOL_G,
 }
 
 DATASET_FALLBACK_DELIMITERS = (";", "\t", "|")
