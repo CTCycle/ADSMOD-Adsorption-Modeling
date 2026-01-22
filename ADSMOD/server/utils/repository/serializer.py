@@ -34,6 +34,7 @@ class DataSerializer:
     best_fit_table = "ADSORPTION_BEST_FIT"
     experiment_columns = [
         "experiment",
+        "experiment name",
         "temperature [K]",
         "pressure [Pa]",
         "uptake [mol/g]",
@@ -43,6 +44,7 @@ class DataSerializer:
         "min_uptake",
         "max_uptake",
     ]
+    model_extra_columns = ["experiment name"]
     
     # -------------------------------------------------------------------------
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
@@ -93,7 +95,12 @@ class DataSerializer:
             database.save_into_database(empty_experiments, self.processed_table)
             for schema in MODEL_SCHEMAS.values():
                 empty_model = pd.DataFrame(
-                    columns=["id", "experiment_id", *schema["fields"].values()]
+                    columns=[
+                        "id",
+                        "experiment_id",
+                        *self.model_extra_columns,
+                        *schema["fields"].values(),
+                    ]
                 )
                 database.save_into_database(empty_model, schema["table"])
             return
@@ -127,7 +134,13 @@ class DataSerializer:
     def save_best_fit(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
             empty_best = pd.DataFrame(
-                columns=["id", "experiment_id", "best model", "worst model"]
+                columns=[
+                    "id",
+                    "experiment_id",
+                    "experiment name",
+                    "best model",
+                    "worst model",
+                ]
             )
             database.save_into_database(empty_best, self.best_fit_table)
             return
@@ -139,6 +152,7 @@ class DataSerializer:
         best["experiment_id"] = dataset["experiment"].map(experiment_map)
         if best["experiment_id"].isnull().any():
             raise ValueError("Unmapped experiments found while saving best fit results.")
+        best["experiment name"] = dataset.get("experiment name")
         best["best model"] = dataset.get("best model")
         best["worst model"] = dataset.get("worst model")
         best.insert(0, "id", range(1, len(best) + 1))
@@ -154,8 +168,11 @@ class DataSerializer:
             return pd.DataFrame()
         experiments = experiments.rename(columns={"id": "experiment_id"})
         experiments = self.convert_strings_to_lists(experiments)
+        drop_columns = ["id"]
+        if "experiment name" in best.columns:
+            drop_columns.append("experiment name")
         merged = experiments.merge(
-            best.drop(columns=["id"]), how="left", on="experiment_id"
+            best.drop(columns=drop_columns), how="left", on="experiment_id"
         )
         return merged
 
@@ -207,6 +224,7 @@ class DataSerializer:
         model_frame["experiment_id"] = dataset["experiment"].map(experiment_map)
         if model_frame["experiment_id"].isnull().any():
             raise ValueError("Unmapped experiments found while building model results.")
+        model_frame["experiment name"] = dataset.get("experiment name")
         for field, column in resolved.items():
             target = schema["fields"][field]
             if column is None:
@@ -225,7 +243,10 @@ class DataSerializer:
             for column_name in schema["fields"].values()
         }
         trimmed = model_frame.rename(columns=rename_map)
-        return trimmed.drop(columns=["id"])
+        drop_columns = ["id"]
+        if "experiment name" in trimmed.columns:
+            drop_columns.append("experiment name")
+        return trimmed.drop(columns=drop_columns)
 
     # -------------------------------------------------------------------------
     def convert_list_to_string(self, value: Any) -> Any:

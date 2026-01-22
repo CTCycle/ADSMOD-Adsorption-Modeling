@@ -38,6 +38,7 @@ class AdsorptionProcessedData(Base):
     __tablename__ = "ADSORPTION_PROCESSED_DATA"
     id = Column(Integer, primary_key=True)
     experiment = Column(String)
+    experiment_name = Column("experiment name", String)
     temperature_K = Column("temperature [K]", Integer)
     pressure_Pa = Column("pressure [Pa]", String)
     uptake_mol_g = Column("uptake [mol/g]", String)
@@ -56,6 +57,7 @@ class AdsorptionLangmuirResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -77,6 +79,7 @@ class AdsorptionSipsResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -100,6 +103,7 @@ class AdsorptionFreundlichResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -121,6 +125,7 @@ class AdsorptionTemkinResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -142,6 +147,7 @@ class AdsorptionTothResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -165,6 +171,7 @@ class AdsorptionDubininRadushkevichResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -186,6 +193,7 @@ class AdsorptionDualSiteLangmuirResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -211,6 +219,7 @@ class AdsorptionRedlichPetersonResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -234,6 +243,7 @@ class AdsorptionJovanovicResults(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     optimization_method = Column("optimization method", String)
     score = Column("score", Float)
     aic = Column("AIC", Float)
@@ -255,6 +265,7 @@ class AdsorptionBestFit(Base):
     experiment_id = Column(
         Integer, ForeignKey("ADSORPTION_PROCESSED_DATA.id"), nullable=False
     )
+    experiment_name = Column("experiment name", String)
     best_model = Column("best model", String)
     worst_model = Column("worst model", String)
     __table_args__ = (

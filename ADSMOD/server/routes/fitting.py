@@ -228,6 +228,7 @@ class FittingEndpoint:
             converted_df = converted_df.rename(columns=final_columns)
 
             required_cols = [
+                "filename",
                 "experiment",
                 DEFAULT_DATASET_COLUMN_MAPPING["temperature"],
                 DEFAULT_DATASET_COLUMN_MAPPING["pressure"],
