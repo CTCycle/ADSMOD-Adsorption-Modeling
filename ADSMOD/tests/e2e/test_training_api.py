@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from playwright.sync_api import APIRequestContext
 
 
@@ -159,9 +160,67 @@ class TestClearDataset:
     ) -> None:
         """Verify clear dataset endpoint responds."""
         # Act
-        response = api_context.post("/training/clear-dataset")
+        response = api_context.delete("/training/dataset")
 
         # Assert
         assert response.ok
         data = response.json()
-        assert "success" in data or "message" in data
+        assert data.get("status") in {"success", "error"}
+        assert "message" in data
+
+
+###############################################################################
+class TestTrainingLifecycle:
+    """Tests for training start/resume/stop behavior."""
+
+    # -------------------------------------------------------------------------
+    def test_start_training_when_dataset_missing(
+        self, api_context: APIRequestContext
+    ) -> None:
+        """Verify start training fails when no dataset is available."""
+        # Arrange
+        dataset_response = api_context.get("/training/datasets")
+        assert dataset_response.ok
+        if dataset_response.json().get("available"):
+            pytest.skip("Training dataset exists; avoid starting a real session.")
+
+        payload = {"epochs": 1}
+
+        # Act
+        response = api_context.post("/training/start", data=payload)
+
+        # Assert
+        assert response.status == 400
+
+    # -------------------------------------------------------------------------
+    def test_resume_training_with_missing_checkpoint(
+        self, api_context: APIRequestContext
+    ) -> None:
+        """Verify resume training fails for a missing checkpoint."""
+        # Arrange
+        checkpoints_response = api_context.get("/training/checkpoints")
+        assert checkpoints_response.ok
+        if checkpoints_response.json().get("checkpoints"):
+            pytest.skip("Checkpoints exist; avoid resuming a real session.")
+
+        payload = {"checkpoint_name": "missing-checkpoint", "additional_epochs": 1}
+
+        # Act
+        response = api_context.post("/training/resume", data=payload)
+
+        # Assert
+        assert response.status == 404
+
+    # -------------------------------------------------------------------------
+    def test_stop_training_when_idle(
+        self, api_context: APIRequestContext
+    ) -> None:
+        """Verify stop training succeeds when no session is active."""
+        # Act
+        response = api_context.post("/training/stop")
+
+        # Assert
+        assert response.ok
+        data = response.json()
+        assert data.get("status") == "stopped"
+        assert "message" in data
