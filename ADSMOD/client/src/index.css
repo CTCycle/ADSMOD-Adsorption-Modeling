@@ -982,8 +982,8 @@ input[type="checkbox"] {
 .switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 36px;
+  height: 20px;
 }
 
 .switch input {
@@ -1001,14 +1001,14 @@ input[type="checkbox"] {
   bottom: 0;
   background-color: var(--slate-300);
   transition: 0.3s;
-  border-radius: 24px;
+  border-radius: 20px;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
+  height: 14px;
+  width: 14px;
   left: 3px;
   bottom: 3px;
   background-color: white;
@@ -1022,7 +1022,7 @@ input:checked+.slider {
 }
 
 input:checked+.slider:before {
-  transform: translateX(20px);
+  transform: translateX(16px);
 }
 
 /* Status area */
@@ -1592,6 +1592,91 @@ input:checked+.slider:before {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   box-shadow: var(--shadow-sm);
+}
+
+/* Training Setup Row */
+.training-setup-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.training-setup-card {
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 220px;
+}
+
+.training-setup-card.disabled {
+  opacity: 0.7;
+}
+
+.training-setup-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--slate-800);
+}
+
+.training-setup-card-icon {
+  font-size: 1.2rem;
+}
+
+.training-setup-card-description {
+  margin: 0;
+  color: var(--slate-600);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.training-setup-card-status {
+  align-self: flex-start;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--slate-200);
+  background: var(--slate-50);
+  color: var(--slate-500);
+}
+
+.training-setup-card-status.ready {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.training-setup-card-status.blocked {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.training-setup-card-status.busy {
+  background: #e0f2fe;
+  color: #1d4ed8;
+  border-color: #bae6fd;
+}
+
+.training-setup-card-action {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.training-setup-card-action button {
+  min-width: 160px;
 }
 
 .dataset-processing-header {
@@ -2320,6 +2405,10 @@ input:checked+.slider:before {
   }
 
   .dataset-processing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .training-setup-row {
     grid-template-columns: 1fr;
   }
 
