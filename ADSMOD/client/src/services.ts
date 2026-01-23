@@ -14,7 +14,6 @@ import type {
 import { API_BASE_URL } from './constants';
 
 const HTTP_TIMEOUT = 120000; // 120 seconds
-const NIST_TIMEOUT = 300000; // 5 minutes for larger NIST collections
 
 async function fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response> {
     const controller = new AbortController();
