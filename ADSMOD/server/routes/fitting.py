@@ -30,7 +30,7 @@ router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 
 ###############################################################################
 class FittingEndpoint:
-    """Endpoint for adsorption model fitting operations."""
+
 
     JOB_TYPE = "fitting"
 
@@ -179,7 +179,7 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
-        """Start a background fitting job for the provided dataset."""
+
         if job_manager.is_job_running(self.JOB_TYPE):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -218,7 +218,7 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_job_status(self, job_id: str) -> JobStatusResponse:
-        """Get the status of a fitting background job."""
+
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -236,7 +236,7 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def list_jobs(self) -> JobListResponse:
-        """List all fitting jobs."""
+
         all_jobs = job_manager.list_jobs(self.JOB_TYPE)
         return JobListResponse(
             jobs=[
@@ -254,7 +254,7 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def cancel_job(self, job_id: str) -> dict:
-        """Cancel a running fitting job."""
+
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -265,7 +265,7 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_nist_dataset_for_fitting(self) -> Any:
-        """Load NIST single-component data as a DatasetPayload for fitting."""
+
         try:
             serializer = NISTDataSerializer()
             nist_df, adsorbates_df, _ = serializer.load_adsorption_datasets()
@@ -331,7 +331,7 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-        """Register all fitting-related routes with the router."""
+
         self.router.add_api_route(
             FITTING_RUN_ENDPOINT,
             self.start_fitting_job,

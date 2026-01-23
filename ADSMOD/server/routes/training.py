@@ -1,4 +1,4 @@
-"""Training routes for ML model training and checkpoint management."""
+
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from ADSMOD.server.schemas.training import (
     TrainingStartResponse,
     TrainingStatusResponse,
 )
+from ADSMOD.server.utils.configurations.server import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
 from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
@@ -35,7 +36,7 @@ router = APIRouter(prefix="/training", tags=["training"])
 
 ###############################################################################
 class TrainingEndpoint:
-    """Endpoint for ML model training and checkpoint management operations."""
+
 
     DATASET_JOB_TYPE = "training_dataset"
 
@@ -44,7 +45,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
-        """Check if training datasets are available in the database."""
+
         try:
             logger.info("Checking training dataset availability")
             info = DatasetBuilder.get_training_dataset_info()
@@ -70,7 +71,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_dataset_sources(self) -> DatasetSourcesResponse:
-        """List datasets available for composition."""
+
         try:
             composer = DatasetCompositionService()
             datasets = [
@@ -124,7 +125,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def build_training_dataset(self, request: DatasetBuildRequest) -> JobStartResponse:
-        """Start a background job to build a training dataset."""
+
         if job_manager.is_job_running(self.DATASET_JOB_TYPE):
             raise HTTPException(
                 status_code=400,
@@ -145,7 +146,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_dataset_job_status(self, job_id: str) -> JobStatusResponse:
-        """Get the status of a dataset build job."""
+
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found.")
@@ -160,7 +161,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def list_dataset_jobs(self) -> JobListResponse:
-        """List dataset build jobs."""
+
         all_jobs = job_manager.list_jobs(self.DATASET_JOB_TYPE)
         return JobListResponse(
             jobs=[
@@ -178,7 +179,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def cancel_dataset_job(self, job_id: str) -> dict[str, str]:
-        """Cancel a dataset build job."""
+
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -189,7 +190,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_dataset_info(self) -> DatasetInfoResponse:
-        """Get current training dataset info and metadata."""
+
         try:
             info = DatasetBuilder.get_training_dataset_info()
 
@@ -217,7 +218,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(self) -> dict[str, str]:
-        """Clear the current training dataset."""
+
         try:
             success = DatasetBuilder.clear_training_dataset()
 
@@ -232,7 +233,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
-        """List available model checkpoints."""
+
         try:
             logger.info("Scanning for available checkpoints")
             checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
@@ -317,7 +318,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
-        """Start a new training session."""
+
         state = training_manager.state.snapshot()
         if state["is_training"]:
             raise HTTPException(
@@ -325,6 +326,9 @@ class TrainingEndpoint:
             )
 
         try:
+            # Force mixed precision setting from server configuration
+            config.use_mixed_precision = server_settings.training.use_mixed_precision
+
             logger.info(f"Starting training with config: {config.model_dump()}")
             info = DatasetBuilder.get_training_dataset_info()
             if info is None:
@@ -349,7 +353,7 @@ class TrainingEndpoint:
     def resume_training(
         self, request: ResumeTrainingRequest
     ) -> TrainingStartResponse:
-        """Resume training from a checkpoint."""
+
         state = training_manager.state.snapshot()
         if state["is_training"]:
             raise HTTPException(
@@ -384,7 +388,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def stop_training(self) -> dict[str, str]:
-        """Stop the current training session."""
+
         state = training_manager.state.snapshot()
         if not state["is_training"]:
             return {"status": "stopped", "message": "No training session is running."}
@@ -401,7 +405,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
-        """Get current training status."""
+
         state = training_manager.state.snapshot()
         progress = 0.0
         if state["total_epochs"] > 0:
@@ -416,7 +420,7 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-        """Register all training-related routes with the router."""
+
         self.router.add_api_route(
             "/datasets",
             self.get_training_datasets,

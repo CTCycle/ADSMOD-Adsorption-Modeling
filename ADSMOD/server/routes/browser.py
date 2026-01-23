@@ -25,7 +25,7 @@ router = APIRouter(prefix=BROWSER_ROUTER_PREFIX, tags=["browser"])
     status_code=status.HTTP_200_OK,
 )
 async def list_tables() -> TableListResponse:
-    """Return list of available database tables with friendly display names."""
+
     tables = [
         TableInfo(
             table_name=table_name,
@@ -44,7 +44,7 @@ async def list_tables() -> TableListResponse:
     status_code=status.HTTP_200_OK,
 )
 async def get_table_data(table_name: str) -> TableDataResponse:
-    """Fetch all data from the specified table with row and column counts."""
+
     if table_name not in BROWSER_TABLE_DISPLAY_NAMES:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

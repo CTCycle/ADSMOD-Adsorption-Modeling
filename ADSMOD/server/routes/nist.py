@@ -27,7 +27,7 @@ router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
 
 ###############################################################################
 class NistEndpoint:
-    """Endpoint for NIST data collection and enrichment operations."""
+
 
     JOB_TYPE_FETCH = "nist_fetch"
     JOB_TYPE_PROPERTIES = "nist_properties"
@@ -67,7 +67,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
-        """Start a background job to fetch NIST adsorption data."""
+
         if job_manager.is_job_running(self.JOB_TYPE_FETCH):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -100,7 +100,7 @@ class NistEndpoint:
     async def start_properties_job(
         self, request: NISTPropertiesRequest
     ) -> JobStartResponse:
-        """Start a background job to enrich materials with PubChem properties."""
+
         if job_manager.is_job_running(self.JOB_TYPE_PROPERTIES):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -127,7 +127,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_job_status(self, job_id: str) -> JobStatusResponse:
-        """Get the status of a NIST background job."""
+
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -145,7 +145,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def list_jobs(self) -> JobListResponse:
-        """List all NIST-related jobs."""
+
         fetch_jobs = job_manager.list_jobs(self.JOB_TYPE_FETCH)
         properties_jobs = job_manager.list_jobs(self.JOB_TYPE_PROPERTIES)
         all_jobs = fetch_jobs + properties_jobs
@@ -165,7 +165,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def cancel_job(self, job_id: str) -> dict:
-        """Cancel a running NIST job."""
+
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -176,7 +176,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def fetch_nist_status(self) -> NISTStatusResponse:
-        """Get availability and row counts for NIST data tables."""
+
         try:
             result = await self.service.get_status()
         except Exception as exc:  # noqa: BLE001
@@ -190,7 +190,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-        """Register all NIST-related routes with the router."""
+
         self.router.add_api_route(
             NIST_FETCH_ENDPOINT,
             self.start_fetch_job,
