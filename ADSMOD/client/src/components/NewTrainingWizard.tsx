@@ -229,6 +229,16 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                 checked={config.use_lr_scheduler}
                                                 onChange={(value) => updateConfig('use_lr_scheduler', value)}
                                             />
+                                            <Checkbox
+                                                label="Use GPU"
+                                                checked={config.use_device_GPU}
+                                                onChange={(value) => updateConfig('use_device_GPU', value)}
+                                            />
+                                            <Checkbox
+                                                label="Mixed Precision"
+                                                checked={config.use_mixed_precision}
+                                                onChange={(value) => updateConfig('use_mixed_precision', value)}
+                                            />
                                         </div>
                                     </div>
                                     {config.use_lr_scheduler && (
@@ -321,6 +331,10 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                         <strong>{config.batch_size}</strong>
                                         <span>Save checkpoints</span>
                                         <strong>{config.save_checkpoints ? 'Enabled' : 'Disabled'}</strong>
+                                        <span>Use GPU</span>
+                                        <strong>{config.use_device_GPU ? 'Enabled' : 'Disabled'}</strong>
+                                        <span>Mixed precision</span>
+                                        <strong>{config.use_mixed_precision ? 'Enabled' : 'Disabled'}</strong>
                                         <span>LR scheduler</span>
                                         <strong>{config.use_lr_scheduler ? 'Enabled' : 'Disabled'}</strong>
                                         {config.use_lr_scheduler && (

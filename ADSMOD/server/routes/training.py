@@ -95,7 +95,7 @@ class TrainingEndpoint:
             max_pressure=request.max_pressure,
             max_uptake=request.max_uptake,
         )
-        composer = DatasetCompositionService()
+        composer = DatasetCompositionService(allow_pubchem_fetch=False)
         selections = [selection.model_dump() for selection in request.datasets]
         adsorption_data, guest_data, host_data, dataset_label = composer.compose_datasets(
             selections

@@ -18,9 +18,10 @@ from ADSMOD.server.utils.services.nistads import PubChemClient
 
 ###############################################################################
 class DatasetCompositionService:
-    def __init__(self) -> None:
+    def __init__(self, allow_pubchem_fetch: bool = False) -> None:
         self.serializer = DataSerializer()
         self.nist_serializer = NISTDataSerializer()
+        self.allow_pubchem_fetch = allow_pubchem_fetch
         self.upload_column_aliases = {
             "filename": ["filename", "experiment", "experiment name", "sample", "run"],
             "temperature": ["temperature", "temp", "temperature [k]", "temp [k]"],
@@ -309,6 +310,7 @@ class DatasetCompositionService:
             weight_column="adsorbate_molecular_weight",
             formula_column="adsorbate_molecular_formula",
             smile_column="adsorbate_SMILE",
+            allow_pubchem_fetch=self.allow_pubchem_fetch,
         )
         host_data = self.enrich_materials(
             host_data,
@@ -318,9 +320,11 @@ class DatasetCompositionService:
             weight_column="adsorbent_molecular_weight",
             formula_column="adsorbent_molecular_formula",
             smile_column="adsorbent_SMILE",
+            allow_pubchem_fetch=self.allow_pubchem_fetch,
         )
 
-        self.nist_serializer.save_materials_datasets(guest_data, host_data)
+        if self.allow_pubchem_fetch:
+            self.nist_serializer.save_materials_datasets(guest_data, host_data)
         return guest_data, host_data
 
     # -------------------------------------------------------------------------
@@ -349,6 +353,7 @@ class DatasetCompositionService:
         weight_column: str,
         formula_column: str,
         smile_column: str,
+        allow_pubchem_fetch: bool,
     ) -> pd.DataFrame:
         if not names:
             return existing if isinstance(existing, pd.DataFrame) else pd.DataFrame()
@@ -370,6 +375,22 @@ class DatasetCompositionService:
         )
         incomplete_names = data.loc[incomplete_mask, "name"].tolist()
         names_to_fetch = sorted(set(missing_names + incomplete_names))
+
+        if names_to_fetch and not allow_pubchem_fetch:
+            empty_properties = pd.DataFrame(
+                columns=["name", weight_column, formula_column, smile_column]
+            )
+            data = self.merge_material_properties(
+                data,
+                empty_properties,
+                names_to_fetch,
+                key_column,
+                weight_column,
+                formula_column,
+                smile_column,
+                target,
+            )
+            return data
 
         if names_to_fetch:
             properties = self.fetch_pubchem_properties(names_to_fetch)

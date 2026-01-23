@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 ###############################################################################
 class TrainingConfigRequest(BaseModel):
-    """Training configuration from frontend."""
+
 
     # Dataset settings
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
@@ -26,6 +26,8 @@ class TrainingConfigRequest(BaseModel):
 
     # Training settings
     epochs: int = Field(default=50, ge=1, le=500)
+    use_device_GPU: bool = False
+    use_mixed_precision: bool = False
 
     # LR scheduler settings
     use_lr_scheduler: bool = True
@@ -41,7 +43,7 @@ class TrainingConfigRequest(BaseModel):
 
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
-    """Request to resume training from a checkpoint."""
+
 
     checkpoint_name: str
     additional_epochs: int = Field(default=10, ge=1, le=100)
@@ -49,7 +51,7 @@ class ResumeTrainingRequest(BaseModel):
 
 ###############################################################################
 class TrainingDatasetResponse(BaseModel):
-    """Response with training dataset availability info."""
+
 
     available: bool
     name: str | None = None
@@ -59,18 +61,7 @@ class TrainingDatasetResponse(BaseModel):
 
 ###############################################################################
 class CheckpointDetailInfo(BaseModel):
-    """Detailed checkpoint info for resume training wizard.
 
-    Arguments:
-        name: Checkpoint folder name.
-        epochs_trained: Epochs completed for the checkpoint.
-        final_loss: Last recorded training loss.
-        final_accuracy: Last recorded training accuracy or R2 metric.
-        is_compatible: Whether the checkpoint matches current training metadata.
-
-    Return value:
-        None.
-    """
 
     name: str
     epochs_trained: int | None = None
@@ -81,14 +72,14 @@ class CheckpointDetailInfo(BaseModel):
 
 ###############################################################################
 class CheckpointsResponse(BaseModel):
-    """Response with list of available checkpoints."""
+
 
     checkpoints: list[CheckpointDetailInfo]
 
 
 ###############################################################################
 class TrainingStartResponse(BaseModel):
-    """Response after starting training."""
+
 
     status: str
     session_id: str
@@ -97,7 +88,7 @@ class TrainingStartResponse(BaseModel):
 
 ###############################################################################
 class TrainingStatusResponse(BaseModel):
-    """Response with current training status."""
+
 
     is_training: bool
     current_epoch: int
@@ -107,7 +98,7 @@ class TrainingStatusResponse(BaseModel):
 
 ###############################################################################
 class DatasetSelection(BaseModel):
-    """Dataset selection for training dataset composition."""
+
 
     source: Literal["nist", "uploaded"]
     dataset_name: str = Field(min_length=1)
@@ -115,7 +106,7 @@ class DatasetSelection(BaseModel):
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
-    """Request to build a training dataset."""
+
 
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
@@ -129,7 +120,7 @@ class DatasetBuildRequest(BaseModel):
 
 ###############################################################################
 class DatasetSourceInfo(BaseModel):
-    """Response entry for available dataset sources."""
+
 
     source: Literal["nist", "uploaded"]
     dataset_name: str
@@ -139,14 +130,14 @@ class DatasetSourceInfo(BaseModel):
 
 ###############################################################################
 class DatasetSourcesResponse(BaseModel):
-    """Response listing available dataset sources for processing."""
+
 
     datasets: list[DatasetSourceInfo]
 
 
 ###############################################################################
 class DatasetBuildResponse(BaseModel):
-    """Response after building a dataset."""
+
 
     success: bool
     message: str
@@ -157,7 +148,7 @@ class DatasetBuildResponse(BaseModel):
 
 ###############################################################################
 class DatasetInfoResponse(BaseModel):
-    """Response with training dataset info."""
+
 
     available: bool
     created_at: str | None = None
