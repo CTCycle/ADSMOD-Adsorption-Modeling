@@ -235,6 +235,100 @@
   font-weight: 600;
 }
 
+.checkpoint-list {
+  margin-top: 1rem;
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.checkpoint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--slate-100);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.checkpoint-row:first-child {
+  border-top: none;
+}
+
+.checkpoint-row:hover {
+  background: var(--slate-50);
+}
+
+.checkpoint-row.selected {
+  background: #e0f2fe;
+  box-shadow: inset 0 0 0 1px var(--primary-500);
+}
+
+.checkpoint-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.checkpoint-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--slate-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.checkpoint-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--slate-500);
+}
+
+.checkpoint-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.checkpoint-stat strong {
+  font-size: 0.8rem;
+  color: var(--slate-800);
+}
+
+.checkpoint-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--slate-500);
+  font-size: 0.85rem;
+}
+
+.led-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--slate-400);
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2), 0 0 8px rgba(148, 163, 184, 0.4);
+}
+
+.led-indicator.compatible {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2), 0 0 10px rgba(34, 197, 94, 0.45);
+}
+
+.led-indicator.incompatible {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2), 0 0 10px rgba(239, 68, 68, 0.45);
+}
+
 .wizard-footer {
   display: flex;
   justify-content: flex-end;

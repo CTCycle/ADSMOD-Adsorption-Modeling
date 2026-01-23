@@ -16,7 +16,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
     isTraining,
 }) => {
     const newTrainingDisabled = !datasetAvailable || isTraining;
-    const resumeDisabled = true;
+    const resumeDisabled = !checkpointsAvailable || isTraining;
 
     const newTrainingStatus = isTraining
         ? 'Training active'

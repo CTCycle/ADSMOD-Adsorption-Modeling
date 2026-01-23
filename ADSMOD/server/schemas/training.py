@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -57,10 +58,32 @@ class TrainingDatasetResponse(BaseModel):
 
 
 ###############################################################################
+class CheckpointDetailInfo(BaseModel):
+    """Detailed checkpoint info for resume training wizard.
+
+    Arguments:
+        name: Checkpoint folder name.
+        epochs_trained: Epochs completed for the checkpoint.
+        final_loss: Last recorded training loss.
+        final_accuracy: Last recorded training accuracy or R2 metric.
+        is_compatible: Whether the checkpoint matches current training metadata.
+
+    Return value:
+        None.
+    """
+
+    name: str
+    epochs_trained: int | None = None
+    final_loss: float | None = None
+    final_accuracy: float | None = None
+    is_compatible: bool = True
+
+
+###############################################################################
 class CheckpointsResponse(BaseModel):
     """Response with list of available checkpoints."""
 
-    checkpoints: list[str]
+    checkpoints: list[CheckpointDetailInfo]
 
 
 ###############################################################################

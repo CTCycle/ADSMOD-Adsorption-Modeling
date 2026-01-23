@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
 from ADSMOD.server.schemas.jobs import JobListResponse, JobStartResponse, JobStatusResponse
 from ADSMOD.server.schemas.training import (
+    CheckpointDetailInfo,
     CheckpointsResponse,
     DatasetBuildRequest,
     DatasetInfoResponse,
@@ -21,6 +24,7 @@ from ADSMOD.server.schemas.training import (
     TrainingStatusResponse,
 )
 from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
 from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
 from ADSMOD.server.utils.services.composition import DatasetCompositionService
 from ADSMOD.server.utils.services.jobs import job_manager
@@ -232,8 +236,80 @@ class TrainingEndpoint:
         try:
             logger.info("Scanning for available checkpoints")
             checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
+            current_metadata = training_manager.data_serializer.load_training_metadata()
+            detailed_checkpoints: list[CheckpointDetailInfo] = []
 
-            return CheckpointsResponse(checkpoints=checkpoints)
+            for checkpoint in checkpoints:
+                checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint)
+                epochs_trained: int | None = None
+                final_loss: float | None = None
+                final_accuracy: float | None = None
+                is_compatible = False
+
+                try:
+                    training_configuration, metadata, session = (
+                        training_manager.model_serializer.load_training_configuration(
+                            checkpoint_path
+                        )
+                    )
+                    session_history = session.get("history") if isinstance(session, dict) else {}
+                    if not isinstance(session_history, dict):
+                        session_history = {}
+
+                    epochs_value = session.get("epochs") if isinstance(session, dict) else None
+                    if isinstance(epochs_value, int):
+                        epochs_trained = epochs_value
+
+                    loss_values = session_history.get("loss")
+                    if isinstance(loss_values, list) and loss_values:
+                        last_loss = loss_values[-1]
+                        if isinstance(last_loss, (int, float)):
+                            final_loss = float(last_loss)
+                        if epochs_trained is None:
+                            epochs_trained = len(loss_values)
+
+                    if epochs_trained is None and isinstance(training_configuration, dict):
+                        configured_epochs = training_configuration.get("epochs")
+                        if isinstance(configured_epochs, int):
+                            epochs_trained = configured_epochs
+
+                    for metric_key in [
+                        "accuracy",
+                        "MaskedR2",
+                        "masked_r2",
+                        "masked_r_squared",
+                        "val_accuracy",
+                    ]:
+                        metric_values = session_history.get(metric_key)
+                        if isinstance(metric_values, list) and metric_values:
+                            last_value = metric_values[-1]
+                            if isinstance(last_value, (int, float)):
+                                final_accuracy = float(last_value)
+                            break
+
+                    metadata_payload = metadata if isinstance(metadata, dict) else {}
+                    is_compatible = training_manager.data_serializer.validate_metadata(
+                        current_metadata, metadata_payload
+                    )
+
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "Failed to load checkpoint details for %s: %s",
+                        checkpoint,
+                        exc,
+                    )
+
+                detailed_checkpoints.append(
+                    CheckpointDetailInfo(
+                        name=checkpoint,
+                        epochs_trained=epochs_trained,
+                        final_loss=final_loss,
+                        final_accuracy=final_accuracy,
+                        is_compatible=is_compatible,
+                    )
+                )
+
+            return CheckpointsResponse(checkpoints=detailed_checkpoints)
 
         except Exception as e:
             logger.error(f"Error scanning checkpoints: {e}")
