@@ -7,6 +7,7 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
+    Legend,
 } from 'recharts';
 import { DatasetBuilderCard } from './DatasetBuilderCard';
 import { NewTrainingWizard } from './NewTrainingWizard';
@@ -18,6 +19,7 @@ import type {
     CheckpointInfo,
     TrainingStatus,
     ResumeTrainingConfig,
+    TrainingHistoryPoint,
 } from '../types';
 import {
     fetchTrainingDatasets,
@@ -75,6 +77,26 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon, color = 'va
         <div className="metric-value" style={{ color }}>{value}</div>
     </div>
 );
+
+const CHART_COLORS = {
+    loss: '#f59e0b',
+    valLoss: '#fbbf24',
+    metric: '#22c55e',
+    valMetric: '#4ade80',
+};
+
+const formatLossValue = (value: number | undefined): string => {
+    const safeValue = typeof value === 'number' ? value : 0;
+    return safeValue.toFixed(4);
+};
+
+const formatMetricValue = (value: number | undefined, asPercent: boolean): string => {
+    const safeValue = typeof value === 'number' ? value : 0;
+    if (asPercent) {
+        return `${(safeValue * 100).toFixed(2)}%`;
+    }
+    return safeValue.toFixed(4);
+};
 
 export const MachineLearningPage: React.FC = () => {
     // Training configuration state
@@ -184,7 +206,17 @@ export const MachineLearningPage: React.FC = () => {
     };
 
     // Derived metrics for UI
-    const metrics = trainingStatus.metrics || {};
+    const metrics: Record<string, number> = trainingStatus.metrics || {};
+    const history: TrainingHistoryPoint[] = trainingStatus.history || [];
+    const hasAccuracyMetric = history.some((entry) =>
+        typeof entry.accuracy === 'number' || typeof entry.val_accuracy === 'number'
+    ) || typeof metrics.accuracy === 'number' || typeof metrics.val_accuracy === 'number';
+    const metricKey = hasAccuracyMetric ? 'accuracy' : 'masked_r2';
+    const valMetricKey = hasAccuracyMetric ? 'val_accuracy' : 'val_masked_r2';
+    const metricLabel = hasAccuracyMetric ? 'ACC' : 'R2';
+    const metricTitle = hasAccuracyMetric ? 'ACCURACY' : 'R2 SCORE';
+    const metricAsPercent = hasAccuracyMetric;
+    const hasHistory = history.length > 0;
 
     // Handlers for training actions
     const handleConfirmTraining = useCallback(async () => {
@@ -281,26 +313,26 @@ export const MachineLearningPage: React.FC = () => {
                     <MetricCard
                         label="TRAIN LOSS"
                         icon="↘"
-                        value={metrics.loss?.toFixed(4) || '0.0000'}
-                        color="#f59e0b"
+                        value={formatLossValue(metrics.loss)}
+                        color={CHART_COLORS.loss}
                     />
                     <MetricCard
                         label="VAL LOSS"
                         icon="↘"
-                        value={metrics.val_loss?.toFixed(4) || '0.0000'}
-                        color="#f59e0b"
+                        value={formatLossValue(metrics.val_loss)}
+                        color={CHART_COLORS.valLoss}
                     />
                     <MetricCard
-                        label="TRAIN ACC"
+                        label={`TRAIN ${metricLabel}`}
                         icon="◉"
-                        value={`${(metrics.accuracy ? metrics.accuracy * 100 : 0).toFixed(2)}%`}
-                        color="#22c55e"
+                        value={formatMetricValue(metrics[metricKey], metricAsPercent)}
+                        color={CHART_COLORS.metric}
                     />
                     <MetricCard
-                        label="VAL ACC"
+                        label={`VAL ${metricLabel}`}
                         icon="◉"
-                        value={`${(metrics.val_accuracy ? metrics.val_accuracy * 100 : 0).toFixed(2)}%`}
-                        color="#22c55e"
+                        value={formatMetricValue(metrics[valMetricKey], metricAsPercent)}
+                        color={CHART_COLORS.valMetric}
                     />
                 </div>
 
@@ -328,37 +360,96 @@ export const MachineLearningPage: React.FC = () => {
                 <div className="charts-container">
                     <div className="chart-panel">
                         <div className="chart-title">LOSS</div>
-                        <div className="chart-wrapper" style={{ width: '100%', height: 250 }}>
-                            <ResponsiveContainer>
-                                <LineChart data={trainingStatus.history}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis dataKey="epoch" tick={{ fontSize: 12 }} />
-                                    <YAxis tick={{ fontSize: 12 }} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '4px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                                    />
-                                    <Line type="monotone" dataKey="loss" stroke="#f59e0b" strokeWidth={2} dot={false} name="Train Loss" />
-                                    <Line type="monotone" dataKey="val_loss" stroke="#ef4444" strokeWidth={2} dot={false} name="Val Loss" />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
+                        {hasHistory ? (
+                            <div className="chart-wrapper" style={{ width: '100%', height: 250 }}>
+                                <ResponsiveContainer>
+                                    <LineChart data={history}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <XAxis dataKey="epoch" tick={{ fontSize: 12 }} />
+                                        <YAxis tick={{ fontSize: 12 }} />
+                                        <Tooltip
+                                            labelFormatter={(value) => `Epoch ${value}`}
+                                            contentStyle={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                borderRadius: '4px',
+                                                border: 'none',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="loss"
+                                            stroke={CHART_COLORS.loss}
+                                            strokeWidth={2}
+                                            dot={false}
+                                            name="Train Loss"
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="val_loss"
+                                            stroke={CHART_COLORS.valLoss}
+                                            strokeWidth={2}
+                                            dot={false}
+                                            name="Val Loss"
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="chart-placeholder">
+                                Waiting for training data...
+                                <small>Loss metrics will appear once training starts.</small>
+                            </div>
+                        )}
                     </div>
                     <div className="chart-panel">
-                        <div className="chart-title">ACCURACY</div>
-                        <div className="chart-wrapper" style={{ width: '100%', height: 250 }}>
-                            <ResponsiveContainer>
-                                <LineChart data={trainingStatus.history}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                    <XAxis dataKey="epoch" tick={{ fontSize: 12 }} />
-                                    <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '4px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                                    />
-                                    <Line type="monotone" dataKey="accuracy" stroke="#22c55e" strokeWidth={2} dot={false} name="Train Acc" />
-                                    <Line type="monotone" dataKey="val_accuracy" stroke="#3b82f6" strokeWidth={2} dot={false} name="Val Acc" />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <div className="chart-title">{metricTitle}</div>
+                        {hasHistory ? (
+                            <div className="chart-wrapper" style={{ width: '100%', height: 250 }}>
+                                <ResponsiveContainer>
+                                    <LineChart data={history}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                        <XAxis dataKey="epoch" tick={{ fontSize: 12 }} />
+                                        <YAxis
+                                            domain={metricAsPercent ? [0, 1] : ['auto', 'auto']}
+                                            tick={{ fontSize: 12 }}
+                                        />
+                                        <Tooltip
+                                            labelFormatter={(value) => `Epoch ${value}`}
+                                            contentStyle={{
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                borderRadius: '4px',
+                                                border: 'none',
+                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Line
+                                            type="monotone"
+                                            dataKey={metricKey}
+                                            stroke={CHART_COLORS.metric}
+                                            strokeWidth={2}
+                                            dot={false}
+                                            name={`Train ${metricLabel}`}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey={valMetricKey}
+                                            stroke={CHART_COLORS.valMetric}
+                                            strokeWidth={2}
+                                            dot={false}
+                                            name={`Val ${metricLabel}`}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        ) : (
+                            <div className="chart-placeholder">
+                                Waiting for training data...
+                                <small>Validation metrics will appear once training starts.</small>
+                            </div>
+                        )}
                     </div>
                 </div>
 
