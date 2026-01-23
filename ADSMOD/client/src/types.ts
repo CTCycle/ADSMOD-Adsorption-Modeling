@@ -177,10 +177,15 @@ export interface TrainingUpdate {
 
 export interface CheckpointInfo {
     name: string;
-    created_at?: string;
-    epochs_trained?: number;
-    final_loss?: number;
-    final_accuracy?: number;
+    epochs_trained: number | null;
+    final_loss: number | null;
+    final_accuracy: number | null;
+    is_compatible: boolean;
+}
+
+export interface ResumeTrainingConfig {
+    checkpoint_name: string;
+    additional_epochs: number;
 }
 
 export interface TrainingDatasetInfo {

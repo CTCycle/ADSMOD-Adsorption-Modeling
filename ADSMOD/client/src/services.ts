@@ -485,7 +485,7 @@ export async function fetchTableData(tableName: string): Promise<{
 }
 
 // Training API functions
-import type { TrainingConfig, TrainingDatasetInfo, CheckpointInfo } from './types';
+import type { TrainingConfig, TrainingDatasetInfo, CheckpointInfo, ResumeTrainingConfig } from './types';
 
 export async function fetchTrainingDatasets(): Promise<{
     data: TrainingDatasetInfo;
@@ -570,9 +570,26 @@ export async function fetchCheckpoints(): Promise<{
         }
 
         const result = await response.json();
-        const checkpoints: CheckpointInfo[] = (result.checkpoints || []).map((name: string) => ({
-            name,
-        }));
+        const rawCheckpoints = Array.isArray(result.checkpoints) ? result.checkpoints : [];
+        const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint) => {
+            if (typeof checkpoint === 'string') {
+                return {
+                    name: checkpoint,
+                    epochs_trained: null,
+                    final_loss: null,
+                    final_accuracy: null,
+                    is_compatible: false,
+                };
+            }
+            const record = checkpoint as Partial<CheckpointInfo>;
+            return {
+                name: record.name || 'Unknown checkpoint',
+                epochs_trained: record.epochs_trained ?? null,
+                final_loss: record.final_loss ?? null,
+                final_accuracy: record.final_accuracy ?? null,
+                is_compatible: record.is_compatible ?? false,
+            };
+        });
         return { checkpoints, error: null };
     } catch (error) {
         if (error instanceof Error) {
@@ -618,7 +635,7 @@ export async function startTraining(config: TrainingConfig): Promise<{
     }
 }
 
-export async function resumeTraining(checkpoint: string, additionalEpochs: number): Promise<{
+export async function resumeTraining(config: ResumeTrainingConfig): Promise<{
     sessionId: string;
     message: string;
     status: 'started' | 'error';
@@ -629,10 +646,7 @@ export async function resumeTraining(checkpoint: string, additionalEpochs: numbe
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    checkpoint_name: checkpoint,
-                    additional_epochs: additionalEpochs,
-                }),
+                body: JSON.stringify(config),
             },
             HTTP_TIMEOUT
         );

@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DatasetBuilderCard } from './DatasetBuilderCard';
 import { NewTrainingWizard } from './NewTrainingWizard';
+import { ResumeTrainingWizard } from './ResumeTrainingWizard';
 import { TrainingSetupRow } from './TrainingSetupRow';
-import type { TrainingConfig, TrainingDatasetInfo, CheckpointInfo, TrainingStatus } from '../types';
+import type {
+    TrainingConfig,
+    TrainingDatasetInfo,
+    CheckpointInfo,
+    TrainingStatus,
+    ResumeTrainingConfig,
+} from '../types';
 import {
     fetchTrainingDatasets,
     fetchCheckpoints,
     startTraining,
+    resumeTraining,
     stopTraining,
 } from '../services';
 
@@ -74,6 +82,11 @@ export const MachineLearningPage: React.FC = () => {
     const [trainingLog, setTrainingLog] = useState<string>('Ready to start training...');
     const [isLoading, setIsLoading] = useState(false);
     const [showNewTrainingWizard, setShowNewTrainingWizard] = useState(false);
+    const [showResumeTrainingWizard, setShowResumeTrainingWizard] = useState(false);
+    const [resumeConfig, setResumeConfig] = useState<ResumeTrainingConfig>({
+        checkpoint_name: '',
+        additional_epochs: 10,
+    });
 
     // Training metrics for dashboard (will be updated via WebSocket)
     const [metrics, _setMetrics] = useState({
@@ -151,6 +164,54 @@ export const MachineLearningPage: React.FC = () => {
         setShowNewTrainingWizard(false);
     };
 
+    const handleResumeTrainingClick = () => {
+        const compatibleCheckpoint = checkpoints.find((checkpoint) => checkpoint.is_compatible);
+        const fallbackCheckpoint = compatibleCheckpoint || checkpoints[0];
+        setResumeConfig((prev) => ({
+            checkpoint_name: fallbackCheckpoint ? fallbackCheckpoint.name : prev.checkpoint_name,
+            additional_epochs: prev.additional_epochs || 10,
+        }));
+        setShowResumeTrainingWizard(true);
+    };
+
+    const handleConfirmResume = async () => {
+        if (!resumeConfig.checkpoint_name) {
+            appendLog('[ERROR] Select a checkpoint before resuming training.');
+            return;
+        }
+
+        setIsLoading(true);
+        setTrainingLog('[INFO] Resuming training...');
+
+        try {
+            const result = await resumeTraining(resumeConfig);
+            if (result.status === 'started') {
+                const selectedCheckpoint = checkpoints.find(
+                    (checkpoint) => checkpoint.name === resumeConfig.checkpoint_name
+                );
+                const trainedEpochs = selectedCheckpoint?.epochs_trained ?? 0;
+                const baseEpochs = typeof trainedEpochs === 'number' ? trainedEpochs : 0;
+                const totalEpochs = baseEpochs + resumeConfig.additional_epochs;
+
+                appendLog(`[INFO] ${result.message}`);
+                const resumeProgress = totalEpochs > 0 ? (baseEpochs / totalEpochs) * 100 : 0;
+                setTrainingStatus({
+                    is_training: true,
+                    current_epoch: baseEpochs,
+                    total_epochs: totalEpochs,
+                    progress: resumeProgress,
+                });
+                setShowResumeTrainingWizard(false);
+            } else {
+                appendLog(`[ERROR] ${result.message}`);
+            }
+        } catch (error) {
+            appendLog(`[ERROR] Failed to resume training: ${error}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="ml-page">
             {/* Page Header */}
@@ -165,7 +226,7 @@ export const MachineLearningPage: React.FC = () => {
             {/* Training Setup Cards */}
             <TrainingSetupRow
                 onNewTrainingClick={() => setShowNewTrainingWizard(true)}
-                onResumeTrainingClick={() => {}}
+                onResumeTrainingClick={handleResumeTrainingClick}
                 datasetAvailable={datasetInfo.available}
                 checkpointsAvailable={checkpoints.length > 0}
                 isTraining={trainingStatus.is_training}
@@ -277,6 +338,17 @@ export const MachineLearningPage: React.FC = () => {
                     onConfigChange={setConfig}
                     onClose={() => setShowNewTrainingWizard(false)}
                     onConfirm={handleConfirmTraining}
+                    isLoading={isLoading}
+                />
+            )}
+
+            {showResumeTrainingWizard && (
+                <ResumeTrainingWizard
+                    checkpoints={checkpoints}
+                    config={resumeConfig}
+                    onConfigChange={setResumeConfig}
+                    onClose={() => setShowResumeTrainingWizard(false)}
+                    onConfirm={handleConfirmResume}
                     isLoading={isLoading}
                 />
             )}
