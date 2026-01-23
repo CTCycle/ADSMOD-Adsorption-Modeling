@@ -159,20 +159,13 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
     const isBusy = isGuestUpdating || isHostUpdating;
     const guestRows = nistStatus?.guest_rows ?? 0;
     const hostRows = nistStatus?.host_rows ?? 0;
-    const dataAvailable = Boolean(nistStatus?.data_available);
+
     const guestAvailable = guestRows > 0;
     const hostAvailable = hostRows > 0;
     const canFetchGuest = !isBusy && guestAvailable && !isStatusLoading && !nistStatusError;
     const canFetchHost = !isBusy && hostAvailable && !isStatusLoading && !nistStatusError;
 
-    let statusMessage = 'Collect adsorption data to enable property enrichment.';
-    if (isStatusLoading) {
-        statusMessage = 'Checking the local database for NIST-A materials...';
-    } else if (nistStatusError) {
-        statusMessage = 'Run a NIST-A collection to initialize the local database.';
-    } else if (dataAvailable) {
-        statusMessage = `Adsorbates: ${guestRows} | Adsorbents: ${hostRows}`;
-    }
+
 
     const handleRetrieveAdsorbates = async () => {
         if (isBusy) return;
@@ -231,16 +224,9 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
             <div className="card-content">
                 <div className="nist-properties-header">
                     <div className="section-heading">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div className="section-title" style={{ marginBottom: 0 }}>Enrich materials properties</div>
-                            <NistStatusIndicator
-                                dataAvailable={dataAvailable}
-                                isLoading={isStatusLoading}
-                                hasError={Boolean(nistStatusError)}
-                            />
-                        </div>
+                        <div className="section-title">Enrich materials properties</div>
                         <div className="section-caption">
-                            Use stored NIST-A materials to fetch PubChem properties.
+                            There are {guestRows} adsorbate species and {hostRows} adsorbent materials available in the database.
                         </div>
                     </div>
                 </div>
@@ -268,33 +254,7 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
     );
 };
 
-/** 
- * Standalone LED status indicator for the header.
- * Fetches status independently to show availability.
- */
-interface NistStatusIndicatorProps {
-    dataAvailable: boolean;
-    isLoading: boolean;
-    hasError: boolean;
-}
 
-const NistStatusIndicator: React.FC<NistStatusIndicatorProps> = ({ dataAvailable, isLoading, hasError }) => {
-    let statusLabel = 'Not ready';
-    if (isLoading) {
-        statusLabel = 'Checking';
-    } else if (hasError) {
-        statusLabel = 'Unavailable';
-    } else if (dataAvailable) {
-        statusLabel = 'Ready';
-    }
-
-    return (
-        <div className="nist-status-indicator" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span className={`nist-status-led ${dataAvailable ? 'available' : 'unavailable'}`} />
-            <span className="nist-status-label" style={{ fontSize: '0.85rem', color: '#666' }}>{statusLabel}</span>
-        </div>
-    );
-};
 
 /**
  * Legacy CollectDataCard - kept for backward compatibility.

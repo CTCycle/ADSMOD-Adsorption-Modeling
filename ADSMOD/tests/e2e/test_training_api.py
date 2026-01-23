@@ -119,7 +119,9 @@ class TestDatasetBuild:
             "smile_sequence_size": 100,
             "max_pressure": 10000.0,
             "max_uptake": 20.0,
-            "source_datasets": ["SINGLE_COMPONENT_ADSORPTION"],
+            "datasets": [
+                {"source": "nist", "dataset_name": "NIST_SINGLE_COMPONENT_ADSORPTION"}
+            ],
         }
 
         # Act
@@ -130,7 +132,7 @@ class TestDatasetBuild:
         assert response.status in (200, 400, 500)
         if response.ok:
             data = response.json()
-            assert "success" in data
+            assert "job_id" in data
 
     # -------------------------------------------------------------------------
     def test_build_dataset_invalid_params(
@@ -141,6 +143,9 @@ class TestDatasetBuild:
         payload = {
             "sample_size": 2.0,  # Invalid: > 1.0
             "validation_size": 0.2,
+            "datasets": [
+                {"source": "nist", "dataset_name": "NIST_SINGLE_COMPONENT_ADSORPTION"}
+            ],
         }
 
         # Act

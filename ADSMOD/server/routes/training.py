@@ -5,139 +5,41 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
+from ADSMOD.server.schemas.jobs import JobListResponse, JobStartResponse, JobStatusResponse
+from ADSMOD.server.schemas.training import (
+    CheckpointsResponse,
+    DatasetBuildRequest,
+    DatasetInfoResponse,
+    DatasetSelection,
+    DatasetSourceInfo,
+    DatasetSourcesResponse,
+    ResumeTrainingRequest,
+    TrainingConfigRequest,
+    TrainingDatasetResponse,
+    TrainingStartResponse,
+    TrainingStatusResponse,
+)
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
+from ADSMOD.server.utils.services.composition import DatasetCompositionService
+from ADSMOD.server.utils.services.jobs import job_manager
 from ADSMOD.server.utils.services.training import training_manager
 
 router = APIRouter(prefix="/training", tags=["training"])
 
 
 ###############################################################################
-# Request/Response Models
-###############################################################################
-class TrainingConfigRequest(BaseModel):
-    """Training configuration from frontend."""
-
-    # Dataset settings
-    sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
-    validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
-    batch_size: int = Field(default=32, ge=1, le=256)
-    shuffle_dataset: bool = True
-    shuffle_size: int = Field(default=1000, ge=100, le=10000)
-
-    # Model settings
-    selected_model: str = "SCADS Series"
-    dropout_rate: float = Field(default=0.1, ge=0.0, le=0.5)
-    num_attention_heads: int = Field(default=8, ge=1, le=16)
-    num_encoders: int = Field(default=4, ge=1, le=12)
-    molecular_embedding_size: int = Field(default=256, ge=64, le=1024)
-
-    # Training settings
-    epochs: int = Field(default=50, ge=1, le=500)
-
-    # LR scheduler settings
-    use_lr_scheduler: bool = True
-    initial_lr: float = Field(default=1e-4, ge=1e-7, le=1e-2)
-    target_lr: float = Field(default=1e-5, ge=1e-8, le=1e-3)
-    constant_steps: int = Field(default=5, ge=0, le=50)
-    decay_steps: int = Field(default=10, ge=1, le=100)
-
-    # Callbacks
-    save_checkpoints: bool = True
-    checkpoints_frequency: int = Field(default=5, ge=1, le=50)
-
-
-class ResumeTrainingRequest(BaseModel):
-    """Request to resume training from a checkpoint."""
-
-    checkpoint_name: str
-    additional_epochs: int = Field(default=10, ge=1, le=100)
-
-
-class TrainingDatasetResponse(BaseModel):
-    """Response with training dataset availability info."""
-
-    available: bool
-    name: str | None = None
-    train_samples: int | None = None
-    validation_samples: int | None = None
-
-
-class CheckpointsResponse(BaseModel):
-    """Response with list of available checkpoints."""
-
-    checkpoints: list[str]
-
-
-class TrainingStartResponse(BaseModel):
-    """Response after starting training."""
-
-    status: str
-    session_id: str
-    message: str
-
-
-class TrainingStatusResponse(BaseModel):
-    """Response with current training status."""
-
-    is_training: bool
-    current_epoch: int
-    total_epochs: int
-    progress: float
-
-
-class DatasetBuildRequest(BaseModel):
-    """Request to build a training dataset."""
-
-    sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
-    validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
-    min_measurements: int = Field(default=1, ge=1, le=100)
-    max_measurements: int = Field(default=30, ge=5, le=500)
-    smile_sequence_size: int = Field(default=20, ge=5, le=100)
-    max_pressure: float = Field(default=10000.0, ge=100.0, le=100000.0)
-    max_uptake: float = Field(default=20.0, ge=1.0, le=1000.0)
-    source_datasets: list[str] = Field(default=["SINGLE_COMPONENT_ADSORPTION"])
-
-
-class DatasetBuildResponse(BaseModel):
-    """Response after building a dataset."""
-
-    success: bool
-    message: str
-    total_samples: int | None = None
-    train_samples: int | None = None
-    validation_samples: int | None = None
-
-
-class DatasetInfoResponse(BaseModel):
-    """Response with training dataset info."""
-
-    available: bool
-    created_at: str | None = None
-    sample_size: float | None = None
-    validation_size: float | None = None
-    min_measurements: int | None = None
-    max_measurements: int | None = None
-    smile_sequence_size: int | None = None
-    max_pressure: float | None = None
-    max_uptake: float | None = None
-    total_samples: int | None = None
-    train_samples: int | None = None
-    validation_samples: int | None = None
-
-
-###############################################################################
 class TrainingEndpoint:
     """Endpoint for ML model training and checkpoint management operations."""
+
+    DATASET_JOB_TYPE = "training_dataset"
 
     def __init__(self, router: APIRouter) -> None:
         self.router = router
 
     # -------------------------------------------------------------------------
-    async def get_training_datasets(self) -> TrainingDatasetResponse:
+    def get_training_datasets(self) -> TrainingDatasetResponse:
         """Check if training datasets are available in the database."""
         try:
             logger.info("Checking training dataset availability")
@@ -163,71 +65,126 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def build_training_dataset(
-        self, request: DatasetBuildRequest
-    ) -> DatasetBuildResponse:
-        """Build a new training dataset from raw adsorption data."""
+    def get_dataset_sources(self) -> DatasetSourcesResponse:
+        """List datasets available for composition."""
         try:
-            logger.info(f"Building training dataset with config: {request.model_dump()}")
-
-            config = DatasetBuilderConfig(
-                sample_size=request.sample_size,
-                validation_size=request.validation_size,
-                min_measurements=request.min_measurements,
-                max_measurements=request.max_measurements,
-                smile_sequence_size=request.smile_sequence_size,
-                max_pressure=request.max_pressure,
-                max_uptake=request.max_uptake,
-            )
-
-            builder = DatasetBuilder(config)
-
-            source_datasets = [name.upper() for name in request.source_datasets]
-            guest_data = None
-            host_data = None
-            if "SINGLE_COMPONENT_ADSORPTION" in source_datasets:
-                serializer = NISTDataSerializer()
-                adsorption_data, guest_data, host_data = serializer.load_adsorption_datasets()
-                dataset_name = "nist"
-            else:
-                return DatasetBuildResponse(
-                    success=False,
-                    message="Unsupported dataset source. Use SINGLE_COMPONENT_ADSORPTION.",
-                )
-
-            if adsorption_data.empty:
-                return DatasetBuildResponse(
-                    success=False,
-                    message="No adsorption data available. Please fetch NIST data first.",
-                )
-
-            result = builder.build_training_dataset(
-                adsorption_data=adsorption_data,
-                guest_data=guest_data,
-                host_data=host_data,
-                dataset_name=dataset_name,
-            )
-
-            if result.get("success"):
-                return DatasetBuildResponse(
-                    success=True,
-                    message="Training dataset built successfully.",
-                    total_samples=result.get("total_samples"),
-                    train_samples=result.get("train_samples"),
-                    validation_samples=result.get("validation_samples"),
-                )
-            else:
-                return DatasetBuildResponse(
-                    success=False,
-                    message=result.get("error", "Unknown error during dataset building."),
-                )
-
+            composer = DatasetCompositionService()
+            datasets = [
+                DatasetSourceInfo(**entry) for entry in composer.list_sources()
+            ]
+            return DatasetSourcesResponse(datasets=datasets)
         except Exception as e:
-            logger.error(f"Error building training dataset: {e}")
+            logger.error(f"Error listing dataset sources: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def get_dataset_info(self) -> DatasetInfoResponse:
+    def run_dataset_build(self, request_data: dict[str, Any]) -> dict[str, Any]:
+        request = DatasetBuildRequest(**request_data)
+        logger.info("Building training dataset with config: %s", request.model_dump())
+
+        config = DatasetBuilderConfig(
+            sample_size=request.sample_size,
+            validation_size=request.validation_size,
+            min_measurements=request.min_measurements,
+            max_measurements=request.max_measurements,
+            smile_sequence_size=request.smile_sequence_size,
+            max_pressure=request.max_pressure,
+            max_uptake=request.max_uptake,
+        )
+        composer = DatasetCompositionService()
+        selections = [selection.model_dump() for selection in request.datasets]
+        adsorption_data, guest_data, host_data, dataset_label = composer.compose_datasets(
+            selections
+        )
+
+        builder = DatasetBuilder(config)
+        result = builder.build_training_dataset(
+            adsorption_data=adsorption_data,
+            guest_data=guest_data,
+            host_data=host_data,
+            dataset_name=dataset_label,
+        )
+
+        if result.get("success"):
+            return {
+                "success": True,
+                "message": "Training dataset built successfully.",
+                "total_samples": result.get("total_samples"),
+                "train_samples": result.get("train_samples"),
+                "validation_samples": result.get("validation_samples"),
+            }
+        return {
+            "success": False,
+            "message": result.get("error", "Unknown error during dataset building."),
+        }
+
+    # -------------------------------------------------------------------------
+    def build_training_dataset(self, request: DatasetBuildRequest) -> JobStartResponse:
+        """Start a background job to build a training dataset."""
+        if job_manager.is_job_running(self.DATASET_JOB_TYPE):
+            raise HTTPException(
+                status_code=400,
+                detail="A dataset build job is already running.",
+            )
+
+        job_id = job_manager.start_job(
+            job_type=self.DATASET_JOB_TYPE,
+            runner=self.run_dataset_build,
+            args=(request.model_dump(),),
+        )
+        return JobStartResponse(
+            job_id=job_id,
+            job_type=self.DATASET_JOB_TYPE,
+            status="running",
+            message="Dataset build job started.",
+        )
+
+    # -------------------------------------------------------------------------
+    def get_dataset_job_status(self, job_id: str) -> JobStatusResponse:
+        """Get the status of a dataset build job."""
+        job_status = job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found.")
+        return JobStatusResponse(
+            job_id=job_status["job_id"],
+            job_type=job_status["job_type"],
+            status=job_status["status"],
+            progress=job_status["progress"],
+            result=job_status["result"],
+            error=job_status["error"],
+        )
+
+    # -------------------------------------------------------------------------
+    def list_dataset_jobs(self) -> JobListResponse:
+        """List dataset build jobs."""
+        all_jobs = job_manager.list_jobs(self.DATASET_JOB_TYPE)
+        return JobListResponse(
+            jobs=[
+                JobStatusResponse(
+                    job_id=j["job_id"],
+                    job_type=j["job_type"],
+                    status=j["status"],
+                    progress=j["progress"],
+                    result=j["result"],
+                    error=j["error"],
+                )
+                for j in all_jobs
+            ]
+        )
+
+    # -------------------------------------------------------------------------
+    def cancel_dataset_job(self, job_id: str) -> dict[str, str]:
+        """Cancel a dataset build job."""
+        success = job_manager.cancel_job(job_id)
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Job {job_id} cannot be cancelled.",
+            )
+        return {"status": "cancelled", "job_id": job_id}
+
+    # -------------------------------------------------------------------------
+    def get_dataset_info(self) -> DatasetInfoResponse:
         """Get current training dataset info and metadata."""
         try:
             info = DatasetBuilder.get_training_dataset_info()
@@ -255,7 +212,7 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def clear_training_dataset(self) -> dict[str, str]:
+    def clear_training_dataset(self) -> dict[str, str]:
         """Clear the current training dataset."""
         try:
             success = DatasetBuilder.clear_training_dataset()
@@ -270,7 +227,7 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def get_checkpoints(self) -> CheckpointsResponse:
+    def get_checkpoints(self) -> CheckpointsResponse:
         """List available model checkpoints."""
         try:
             logger.info("Scanning for available checkpoints")
@@ -283,7 +240,7 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
+    def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
         """Start a new training session."""
         state = training_manager.state.snapshot()
         if state["is_training"]:
@@ -313,7 +270,7 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def resume_training(
+    def resume_training(
         self, request: ResumeTrainingRequest
     ) -> TrainingStartResponse:
         """Resume training from a checkpoint."""
@@ -350,7 +307,7 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def stop_training(self) -> dict[str, str]:
+    def stop_training(self) -> dict[str, str]:
         """Stop the current training session."""
         state = training_manager.state.snapshot()
         if not state["is_training"]:
@@ -367,7 +324,7 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    async def get_training_status(self) -> TrainingStatusResponse:
+    def get_training_status(self) -> TrainingStatusResponse:
         """Get current training status."""
         state = training_manager.state.snapshot()
         progress = 0.0
@@ -391,10 +348,16 @@ class TrainingEndpoint:
             response_model=TrainingDatasetResponse,
         )
         self.router.add_api_route(
+            "/dataset-sources",
+            self.get_dataset_sources,
+            methods=["GET"],
+            response_model=DatasetSourcesResponse,
+        )
+        self.router.add_api_route(
             "/build-dataset",
             self.build_training_dataset,
             methods=["POST"],
-            response_model=DatasetBuildResponse,
+            response_model=JobStartResponse,
         )
         self.router.add_api_route(
             "/dataset-info",
@@ -405,6 +368,23 @@ class TrainingEndpoint:
         self.router.add_api_route(
             "/dataset",
             self.clear_training_dataset,
+            methods=["DELETE"],
+        )
+        self.router.add_api_route(
+            "/jobs",
+            self.list_dataset_jobs,
+            methods=["GET"],
+            response_model=JobListResponse,
+        )
+        self.router.add_api_route(
+            "/jobs/{job_id}",
+            self.get_dataset_job_status,
+            methods=["GET"],
+            response_model=JobStatusResponse,
+        )
+        self.router.add_api_route(
+            "/jobs/{job_id}",
+            self.cancel_dataset_job,
             methods=["DELETE"],
         )
         self.router.add_api_route(
