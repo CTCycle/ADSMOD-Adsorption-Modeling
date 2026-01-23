@@ -12,7 +12,6 @@ __pycache__
 *.db
 *.log
 *.npy
-
 *.lock
 *.venv
 
@@ -31,9 +30,7 @@ ADSMOD/client/dist-ssr/
 ADSMOD/client/package-lock.json
 ADSMOD/client/logs/
 
-# Environment files (keep templates)
-ADSMOD/settings/.env
-ADSMOD/client/.env
+# Environment files 
 ADSMOD/client/*.local
 !.env.example
 !.env.sample
