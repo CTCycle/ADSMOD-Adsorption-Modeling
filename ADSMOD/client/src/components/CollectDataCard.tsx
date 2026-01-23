@@ -226,7 +226,7 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
                     <div className="section-heading">
                         <div className="section-title">Enrich materials properties</div>
                         <div className="section-caption">
-                            There are {guestRows} adsorbate species and {hostRows} adsorbent materials available in the database.
+                            Database holds {guestRows} species and {hostRows} materials. Enrich with molecular properties to enable advanced adsorption modeling.
                         </div>
                     </div>
                 </div>
