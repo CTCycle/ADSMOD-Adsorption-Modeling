@@ -148,7 +148,6 @@ export interface TrainingConfig {
     // Training settings
     epochs: number;
     use_device_GPU: boolean;
-    use_mixed_precision: boolean;
 
     // LR scheduler settings
     use_lr_scheduler: boolean;

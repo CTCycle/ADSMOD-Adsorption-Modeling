@@ -185,7 +185,6 @@ class SCADSDataLoader:
         metadata: dict[str, Any],
         shuffle: bool = True,
     ) -> None:
-        _require_torch()
         self.processor = DataLoaderProcessor(configuration, metadata)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
@@ -282,7 +281,6 @@ class SCADSAtomicDataLoader:
         metadata: dict[str, Any],
         shuffle: bool = True,
     ) -> None:
-        _require_torch()
         self.processor = DataLoaderProcessor(configuration, metadata)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)

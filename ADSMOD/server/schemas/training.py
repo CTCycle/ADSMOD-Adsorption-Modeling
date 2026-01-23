@@ -8,8 +8,6 @@ from pydantic import BaseModel, Field
 
 ###############################################################################
 class TrainingConfigRequest(BaseModel):
-
-
     # Dataset settings
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
@@ -43,16 +41,12 @@ class TrainingConfigRequest(BaseModel):
 
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
-
-
     checkpoint_name: str
     additional_epochs: int = Field(default=10, ge=1, le=100)
 
 
 ###############################################################################
 class TrainingDatasetResponse(BaseModel):
-
-
     available: bool
     name: str | None = None
     train_samples: int | None = None
@@ -61,8 +55,6 @@ class TrainingDatasetResponse(BaseModel):
 
 ###############################################################################
 class CheckpointDetailInfo(BaseModel):
-
-
     name: str
     epochs_trained: int | None = None
     final_loss: float | None = None
@@ -72,15 +64,11 @@ class CheckpointDetailInfo(BaseModel):
 
 ###############################################################################
 class CheckpointsResponse(BaseModel):
-
-
     checkpoints: list[CheckpointDetailInfo]
 
 
 ###############################################################################
 class TrainingStartResponse(BaseModel):
-
-
     status: str
     session_id: str
     message: str
@@ -88,8 +76,6 @@ class TrainingStartResponse(BaseModel):
 
 ###############################################################################
 class TrainingStatusResponse(BaseModel):
-
-
     is_training: bool
     current_epoch: int
     total_epochs: int
@@ -98,16 +84,12 @@ class TrainingStatusResponse(BaseModel):
 
 ###############################################################################
 class DatasetSelection(BaseModel):
-
-
     source: Literal["nist", "uploaded"]
     dataset_name: str = Field(min_length=1)
 
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
-
-
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     min_measurements: int = Field(default=1, ge=1, le=100)
@@ -120,8 +102,6 @@ class DatasetBuildRequest(BaseModel):
 
 ###############################################################################
 class DatasetSourceInfo(BaseModel):
-
-
     source: Literal["nist", "uploaded"]
     dataset_name: str
     display_name: str
@@ -130,15 +110,11 @@ class DatasetSourceInfo(BaseModel):
 
 ###############################################################################
 class DatasetSourcesResponse(BaseModel):
-
-
     datasets: list[DatasetSourceInfo]
 
 
 ###############################################################################
 class DatasetBuildResponse(BaseModel):
-
-
     success: bool
     message: str
     total_samples: int | None = None
@@ -148,8 +124,6 @@ class DatasetBuildResponse(BaseModel):
 
 ###############################################################################
 class DatasetInfoResponse(BaseModel):
-
-
     available: bool
     created_at: str | None = None
     sample_size: float | None = None
