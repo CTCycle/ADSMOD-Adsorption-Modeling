@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { NumberInput } from './UIComponents';
+import { DatasetProcessingWizard } from './DatasetProcessingWizard';
 import {
     buildTrainingDataset,
     clearTrainingDataset,
@@ -9,7 +9,6 @@ import {
 import type {
     DatasetBuildConfig,
     DatasetFullInfo,
-    DatasetSelection,
     DatasetSourceInfo,
 } from '../types';
 
@@ -21,25 +20,18 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string =>
     `${dataset.source}:${dataset.dataset_name}`;
 
 export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatasetBuilt }) => {
-    // Build configuration state
-    const [sampleSize, setSampleSize] = useState(1.0);
-    const [validationSize, setValidationSize] = useState(0.2);
-    const [minMeasurements, setMinMeasurements] = useState(1);
-    const [maxMeasurements, setMaxMeasurements] = useState(30);
-    const [smileSequenceSize, setSmileSequenceSize] = useState(20);
-    const [maxPressure, setMaxPressure] = useState(10000);
-    const [maxUptake, setMaxUptake] = useState(20);
-
     // Dataset sources and selection state
     const [datasetSources, setDatasetSources] = useState<DatasetSourceInfo[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+
+    // Wizard visibility
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
 
     // UI state
     const [isBuilding, setIsBuilding] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [statusTone, setStatusTone] = useState<'info' | 'success' | 'error'>('info');
     const [datasetInfo, setDatasetInfo] = useState<DatasetFullInfo | null>(null);
-    const [isReviewOpen, setIsReviewOpen] = useState(false);
     const [jobProgress, setJobProgress] = useState<number | null>(null);
 
     const selectedDatasets = useMemo(
@@ -59,6 +51,10 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
     };
 
     const loadDatasetSources = async () => {
+        // Clear selection on refresh
+        setSelectedKeys(new Set());
+        setStatusMessage(null);
+
         const result = await fetchDatasetSources();
         if (result.error) {
             setDatasetSources([]);
@@ -83,34 +79,11 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
         });
     };
 
-    const handleBuildDataset = async () => {
-        if (selectedDatasets.length === 0) {
-            setStatusTone('error');
-            setStatusMessage('ERROR: Select at least one dataset before building.');
-            return;
-        }
-
-        setIsReviewOpen(false);
+    const handleBuildStart = async (config: DatasetBuildConfig) => {
         setIsBuilding(true);
         setJobProgress(0);
         setStatusTone('info');
-        setStatusMessage('Starting dataset build job...');
-
-        const datasets: DatasetSelection[] = selectedDatasets.map((dataset) => ({
-            source: dataset.source,
-            dataset_name: dataset.dataset_name,
-        }));
-
-        const config: DatasetBuildConfig = {
-            sample_size: sampleSize,
-            validation_size: validationSize,
-            min_measurements: minMeasurements,
-            max_measurements: maxMeasurements,
-            smile_sequence_size: smileSequenceSize,
-            max_pressure: maxPressure,
-            max_uptake: maxUptake,
-            datasets,
-        };
+        setStatusMessage('Building dataset...');
 
         const result = await buildTrainingDataset(config, (status) => {
             setJobProgress(status.progress);
@@ -153,43 +126,16 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                     <p>Compose training-ready data from your available sources.</p>
                 </div>
                 <div className="dataset-processing-actions">
-                    {datasetInfo?.available && (
-                        <div className="dataset-current-info">
-                            <span>Train: <strong>{datasetInfo.train_samples}</strong></span>
-                            <span>Val: <strong>{datasetInfo.validation_samples}</strong></span>
-                            <button
-                                className="ghost-button"
-                                onClick={handleClearDataset}
-                                title="Clear dataset"
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    )}
                     <button className="secondary" onClick={loadDatasetSources}>
                         Refresh
                     </button>
                 </div>
             </div>
 
-            <div className="wizard-steps">
-                <div className={`wizard-step ${selectedDatasets.length > 0 ? 'complete' : 'active'}`}>
-                    <span className="wizard-index">1</span>
-                    <span>Select datasets</span>
-                </div>
-                <div className="wizard-step">
-                    <span className="wizard-index">2</span>
-                    <span>Configure processing</span>
-                </div>
-                <div className="wizard-step">
-                    <span className="wizard-index">3</span>
-                    <span>Review and build</span>
-                </div>
-            </div>
+            <div className="dataset-split-layout">
+                {/* Left side: Dataset grid (60%) */}
+                <div className="dataset-split-left">
 
-            <div className="dataset-processing-grid">
-                <div className="dataset-selection-panel">
-                    <div className="panel-title">Available datasets</div>
                     <div className="dataset-table">
                         <div className="dataset-table-header">
                             <span>Name</span>
@@ -226,90 +172,44 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                             })}
                         </div>
                     </div>
-
-                    <div className="dataset-action-row">
-                        <div className="dataset-action-text">
-                            Builds a single training + validation split from the selected datasets.
-                        </div>
-                        <button
-                            className="primary"
-                            onClick={() => setIsReviewOpen(true)}
-                            disabled={selectedDatasets.length === 0 || isBuilding}
-                        >
-                            {isBuilding ? 'Building...' : 'Build Dataset'}
-                        </button>
-                        <div className="dataset-selection-summary">
-                            {selectedDatasets.length} selected
-                        </div>
+                    <div className="dataset-selection-summary">
+                        {selectedDatasets.length} selected
                     </div>
                 </div>
 
-                <div className="dataset-settings-panel">
-                    <div className="panel-title">Processing settings</div>
-                    <div className="dataset-settings-grid">
-                        <NumberInput
-                            label="Sample Size"
-                            value={sampleSize}
-                            onChange={setSampleSize}
-                            min={0.01}
-                            max={1.0}
-                            step={0.01}
-                            precision={2}
-                        />
-                        <NumberInput
-                            label="Validation %"
-                            value={validationSize}
-                            onChange={setValidationSize}
-                            min={0.05}
-                            max={0.5}
-                            step={0.05}
-                            precision={2}
-                        />
-                        <NumberInput
-                            label="SMILE Length"
-                            value={smileSequenceSize}
-                            onChange={setSmileSequenceSize}
-                            min={5}
-                            max={100}
-                            step={5}
-                            precision={0}
-                        />
-                        <NumberInput
-                            label="Min Measurements"
-                            value={minMeasurements}
-                            onChange={setMinMeasurements}
-                            min={1}
-                            max={50}
-                            step={1}
-                            precision={0}
-                        />
-                        <NumberInput
-                            label="Max Measurements"
-                            value={maxMeasurements}
-                            onChange={setMaxMeasurements}
-                            min={5}
-                            max={500}
-                            step={5}
-                            precision={0}
-                        />
-                        <NumberInput
-                            label="Max Pressure (kPa)"
-                            value={maxPressure}
-                            onChange={setMaxPressure}
-                            min={100}
-                            max={100000}
-                            step={1000}
-                            precision={0}
-                        />
-                        <NumberInput
-                            label="Max Uptake (mol/g)"
-                            value={maxUptake}
-                            onChange={setMaxUptake}
-                            min={1}
-                            max={1000}
-                            step={1}
-                            precision={1}
-                        />
+                {/* Right side: Info + Button (40%) */}
+                <div className="dataset-split-right">
+                    <div className="dataset-info-text">
+                        <p>
+                            Select one or more datasets from the grid, then configure processing
+                            settings to build a unified training dataset. The wizard will guide you
+                            through sampling, filtering, and validation split options.
+                            {datasetInfo?.available && (
+                                <>
+                                    <br /><br />
+                                    <span className="text-sm text-slate-500 font-semibold">
+                                        {' '}Currently: {datasetInfo.train_samples} training samples, {datasetInfo.validation_samples} validation samples.
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                    </div>
+                    <div className="dataset-action-center">
+                        <button
+                            className="secondary"
+                            onClick={handleClearDataset}
+                            disabled={!datasetInfo?.available || isBuilding}
+                            title="Clear current training dataset"
+                        >
+                            Clear
+                        </button>
+                        <button
+                            className="primary"
+                            onClick={() => setIsWizardOpen(true)}
+                            disabled={selectedDatasets.length === 0 || isBuilding}
+                        >
+                            {isBuilding ? 'Building...' : 'Configure Processing'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -323,52 +223,12 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                 </div>
             )}
 
-            {isReviewOpen && (
-                <div className="modal-backdrop" role="dialog" aria-modal="true">
-                    <div className="modal-card">
-                        <div className="modal-header">
-                            <h4>Review dataset build</h4>
-                            <p>Confirm your selections before starting the job.</p>
-                        </div>
-                        <div className="modal-section">
-                            <h5>Selected datasets</h5>
-                            <ul>
-                                {selectedDatasets.map((dataset) => (
-                                    <li key={buildDatasetKey(dataset)}>
-                                        {dataset.display_name} ({dataset.source}, {dataset.row_count} rows)
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div className="modal-section">
-                            <h5>Processing settings</h5>
-                            <div className="modal-grid">
-                                <span>Sample size</span>
-                                <strong>{sampleSize}</strong>
-                                <span>Validation split</span>
-                                <strong>{validationSize}</strong>
-                                <span>SMILE length</span>
-                                <strong>{smileSequenceSize}</strong>
-                                <span>Min measurements</span>
-                                <strong>{minMeasurements}</strong>
-                                <span>Max measurements</span>
-                                <strong>{maxMeasurements}</strong>
-                                <span>Max pressure (kPa)</span>
-                                <strong>{maxPressure}</strong>
-                                <span>Max uptake (mol/g)</span>
-                                <strong>{maxUptake}</strong>
-                            </div>
-                        </div>
-                        <div className="modal-actions">
-                            <button className="secondary" onClick={() => setIsReviewOpen(false)}>
-                                Go back
-                            </button>
-                            <button className="primary" onClick={handleBuildDataset} disabled={isBuilding}>
-                                {isBuilding ? 'Creating...' : 'Create dataset'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {isWizardOpen && (
+                <DatasetProcessingWizard
+                    selectedDatasets={selectedDatasets}
+                    onClose={() => setIsWizardOpen(false)}
+                    onBuildStart={handleBuildStart}
+                />
             )}
         </div>
     );
