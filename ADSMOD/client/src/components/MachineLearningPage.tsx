@@ -216,10 +216,8 @@ export const MachineLearningPage: React.FC = () => {
                 <p className="ml-subtitle">Configure and monitor your training sessions</p>
             </div>
 
-            {/* Dataset Builder Section */}
-            <CollapsibleSection title="Build Training Dataset" icon="📦" defaultOpen={!datasetInfo.available}>
-                <DatasetBuilderCard onDatasetBuilt={loadDatasetInfo} />
-            </CollapsibleSection>
+            {/* Dataset Processing Section */}
+            <DatasetBuilderCard onDatasetBuilt={loadDatasetInfo} />
 
             {/* New Training Session */}
             <CollapsibleSection title="New Training Session" icon="▷" defaultOpen={true}>

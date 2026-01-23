@@ -197,6 +197,18 @@ export interface TrainingStatus {
     progress: number;
 }
 
+export interface DatasetSourceInfo {
+    source: 'nist' | 'uploaded';
+    dataset_name: string;
+    display_name: string;
+    row_count: number;
+}
+
+export interface DatasetSelection {
+    source: 'nist' | 'uploaded';
+    dataset_name: string;
+}
+
 // Dataset Builder types
 export interface DatasetBuildConfig {
     sample_size: number;
@@ -206,7 +218,7 @@ export interface DatasetBuildConfig {
     smile_sequence_size: number;
     max_pressure: number;
     max_uptake: number;
-    source_datasets: string[];
+    datasets: DatasetSelection[];
 }
 
 export interface DatasetBuildResult {
