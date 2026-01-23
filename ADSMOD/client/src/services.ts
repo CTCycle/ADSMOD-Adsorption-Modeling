@@ -485,7 +485,13 @@ export async function fetchTableData(tableName: string): Promise<{
 }
 
 // Training API functions
-import type { TrainingConfig, TrainingDatasetInfo, CheckpointInfo, ResumeTrainingConfig } from './types';
+import type {
+    TrainingConfig,
+    TrainingDatasetInfo,
+    CheckpointInfo,
+    ResumeTrainingConfig,
+    TrainingStatus,
+} from './types';
 
 export async function fetchTrainingDatasets(): Promise<{
     data: TrainingDatasetInfo;
@@ -701,13 +707,7 @@ export async function stopTraining(): Promise<{
     }
 }
 
-export async function getTrainingStatus(): Promise<{
-    is_training: boolean;
-    current_epoch: number;
-    total_epochs: number;
-    progress: number;
-    error: string | null;
-}> {
+export async function getTrainingStatus(): Promise<TrainingStatus & { error: string | null }> {
     try {
         const response = await fetchWithTimeout(
             `${API_BASE_URL}/training/status`,
@@ -718,7 +718,16 @@ export async function getTrainingStatus(): Promise<{
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             const message = extractErrorMessage(response, data);
-            return { is_training: false, current_epoch: 0, total_epochs: 0, progress: 0, error: message };
+            return {
+                is_training: false,
+                current_epoch: 0,
+                total_epochs: 0,
+                progress: 0,
+                metrics: {},
+                history: [],
+                log: [],
+                error: message,
+            };
         }
 
         const result = await response.json();
@@ -727,13 +736,34 @@ export async function getTrainingStatus(): Promise<{
             current_epoch: result.current_epoch || 0,
             total_epochs: result.total_epochs || 0,
             progress: result.progress || 0,
+            metrics: typeof result.metrics === 'object' && result.metrics !== null ? result.metrics : {},
+            history: Array.isArray(result.history) ? result.history : [],
+            log: Array.isArray(result.log) ? result.log : [],
             error: null,
         };
     } catch (error) {
         if (error instanceof Error) {
-            return { is_training: false, current_epoch: 0, total_epochs: 0, progress: 0, error: error.message };
+            return {
+                is_training: false,
+                current_epoch: 0,
+                total_epochs: 0,
+                progress: 0,
+                metrics: {},
+                history: [],
+                log: [],
+                error: error.message,
+            };
         }
-        return { is_training: false, current_epoch: 0, total_epochs: 0, progress: 0, error: 'An unknown error occurred.' };
+        return {
+            is_training: false,
+            current_epoch: 0,
+            total_epochs: 0,
+            progress: 0,
+            metrics: {},
+            history: [],
+            log: [],
+            error: 'An unknown error occurred.',
+        };
     }
 }
 

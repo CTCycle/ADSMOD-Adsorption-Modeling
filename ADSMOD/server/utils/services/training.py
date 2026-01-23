@@ -154,25 +154,84 @@ class TrainingManager:
         self.state.update(current_epoch=epoch, total_epochs=total_epochs)
 
         # Extract metrics
-        loss = float(logs.get("loss", 0.0))
-        accuracy = float(logs.get("accuracy", 0.0))
-        val_loss = float(logs.get("val_loss", 0.0))
-        val_accuracy = float(logs.get("val_accuracy", 0.0))
-        masked_r2 = float(logs.get("MaskedR2", 0.0))
-        
+        loss_value = logs.get("loss")
+        loss = float(loss_value) if isinstance(loss_value, (int, float)) else 0.0
+        val_loss_value = logs.get("val_loss")
+        val_loss = (
+            float(val_loss_value) if isinstance(val_loss_value, (int, float)) else 0.0
+        )
+
+        accuracy_value = None
+        for key in ["accuracy", "MaskedAccuracy", "masked_accuracy"]:
+            candidate = logs.get(key)
+            if isinstance(candidate, (int, float)):
+                accuracy_value = candidate
+                break
+        accuracy = (
+            float(accuracy_value) if isinstance(accuracy_value, (int, float)) else 0.0
+        )
+
+        val_accuracy_value = None
+        for key in ["val_accuracy", "val_MaskedAccuracy", "val_masked_accuracy"]:
+            candidate = logs.get(key)
+            if isinstance(candidate, (int, float)):
+                val_accuracy_value = candidate
+                break
+        val_accuracy = (
+            float(val_accuracy_value)
+            if isinstance(val_accuracy_value, (int, float))
+            else 0.0
+        )
+
+        masked_r2_value = None
+        for key in ["MaskedR2", "masked_r2", "masked_r_squared"]:
+            candidate = logs.get(key)
+            if isinstance(candidate, (int, float)):
+                masked_r2_value = candidate
+                break
+        masked_r2 = (
+            float(masked_r2_value) if isinstance(masked_r2_value, (int, float)) else 0.0
+        )
+
+        val_masked_r2_value = None
+        for key in ["val_MaskedR2", "val_masked_r2", "val_masked_r_squared"]:
+            candidate = logs.get(key)
+            if isinstance(candidate, (int, float)):
+                val_masked_r2_value = candidate
+                break
+        val_masked_r2 = (
+            float(val_masked_r2_value)
+            if isinstance(val_masked_r2_value, (int, float))
+            else 0.0
+        )
+
         metrics = {
             "loss": loss,
-            "accuracy": accuracy,
             "val_loss": val_loss,
-            "val_accuracy": val_accuracy,
-            "masked_r2": masked_r2,
         }
+        if isinstance(accuracy_value, (int, float)):
+            metrics["accuracy"] = accuracy
+        if isinstance(val_accuracy_value, (int, float)):
+            metrics["val_accuracy"] = val_accuracy
+        if isinstance(masked_r2_value, (int, float)):
+            metrics["masked_r2"] = masked_r2
+        if isinstance(val_masked_r2_value, (int, float)):
+            metrics["val_masked_r2"] = val_masked_r2
         self.state.update(metrics=metrics)
 
-        # Add generic log entry
-        self.state.add_log(
-            f"Epoch {epoch}/{total_epochs} - loss: {loss:.4f} - acc: {accuracy:.4f} - val_loss: {val_loss:.4f} - val_acc: {val_accuracy:.4f}"
+        metric_label = "acc" if isinstance(accuracy_value, (int, float)) else "r2"
+        metric_value = accuracy if isinstance(accuracy_value, (int, float)) else masked_r2
+        val_metric_value = (
+            val_accuracy if isinstance(val_accuracy_value, (int, float)) else val_masked_r2
         )
+
+        # Add generic log entry
+        log_message = (
+            f"Epoch {epoch}/{total_epochs} - loss: {loss:.4f} - "
+            f"{metric_label}: {metric_value:.4f} - val_loss: {val_loss:.4f} - "
+            f"val_{metric_label}: {val_metric_value:.4f}"
+        )
+        self.state.add_log(log_message)
         
         # Add to history for plotting
         history_entry = {

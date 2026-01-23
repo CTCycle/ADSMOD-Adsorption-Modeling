@@ -202,8 +202,13 @@ export interface TrainingStatus {
     total_epochs: number;
     progress: number;
     metrics?: Record<string, number>;
-    history?: Record<string, unknown>[];
+    history?: TrainingHistoryPoint[];
     log?: string[];
+}
+
+export interface TrainingHistoryPoint {
+    epoch: number;
+    [metric: string]: number | undefined;
 }
 
 export interface DatasetSourceInfo {
