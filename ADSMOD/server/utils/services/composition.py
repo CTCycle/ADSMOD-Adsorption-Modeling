@@ -411,11 +411,7 @@ class DatasetCompositionService:
     async def fetch_properties_async(
         self, pubchem: PubChemClient, names: list[str]
     ) -> list[dict[str, Any]]:
-        import httpx
-
-        timeout = httpx.Timeout(30.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            return await pubchem.fetch_properties_for_names(client, names)
+        return await pubchem.fetch_properties_for_names(names)
 
     # -------------------------------------------------------------------------
     def merge_material_properties(

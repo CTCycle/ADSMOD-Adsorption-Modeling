@@ -114,6 +114,13 @@ class DatasetBuilder:
             logger.warning("No data remaining after filtering")
             return {"success": False, "error": "No data remaining after filtering"}
 
+        if "adsorbate_SMILE" not in processed_data.columns:
+            logger.warning("Training data missing adsorbate_SMILE column")
+            return {
+                "success": False,
+                "error": "Training data missing adsorbate_SMILE values.",
+            }
+
         smile_vocab = {}
         if "adsorbate_SMILE" in processed_data.columns:
             tokenization = SMILETokenization(self.configuration)
@@ -121,6 +128,18 @@ class DatasetBuilder:
             processed_data, smile_vocab = tokenization.process_SMILE_sequences(
                 processed_data
             )
+            if processed_data.empty:
+                logger.warning("No data remaining after SMILE tokenization")
+                return {
+                    "success": False,
+                    "error": "No valid SMILE sequences found in the dataset.",
+                }
+            if not smile_vocab:
+                logger.warning("SMILE vocabulary is empty after tokenization")
+                return {
+                    "success": False,
+                    "error": "SMILE vocabulary is empty. Check adsorbate_SMILE values.",
+                }
 
         logger.info("Generate train and validation datasets through stratified splitting")
         splitter = TrainValidationSplit(self.configuration)

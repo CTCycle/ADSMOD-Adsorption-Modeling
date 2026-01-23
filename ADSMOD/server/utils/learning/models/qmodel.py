@@ -27,9 +27,8 @@ class SCADSModel:
     def __init__(self, configuration: dict[str, Any], metadata: dict[str, Any]) -> None:
         smile_vocab = metadata.get("smile_vocabulary") or metadata.get("SMILE_vocabulary") or {}
         ads_vocab = metadata.get("adsorbent_vocabulary") or metadata.get("adsorbent_vocabulary") or {}
-        self.smile_vocab_size = metadata.get("smile_vocabulary_size") or metadata.get(
-            "SMILE_vocabulary_size"
-        ) or len(smile_vocab)
+        max_smile_index = max(smile_vocab.values()) if smile_vocab else 0
+        self.smile_vocab_size = int(max_smile_index) + 1
         self.ads_vocab_size = metadata.get("adsorbent_vocabulary_size") or len(ads_vocab)
         self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
             "SMILE_sequence_size", 20
@@ -147,9 +146,8 @@ class SCADSAtomicModel:
     def __init__(self, configuration: dict[str, Any], metadata: dict[str, Any]) -> None:
         smile_vocab = metadata.get("smile_vocabulary") or metadata.get("SMILE_vocabulary") or {}
         ads_vocab = metadata.get("adsorbent_vocabulary") or metadata.get("adsorbent_vocabulary") or {}
-        self.smile_vocab_size = metadata.get("smile_vocabulary_size") or metadata.get(
-            "SMILE_vocabulary_size"
-        ) or len(smile_vocab)
+        max_smile_index = max(smile_vocab.values()) if smile_vocab else 0
+        self.smile_vocab_size = int(max_smile_index) + 1
         self.ads_vocab_size = metadata.get("adsorbent_vocabulary_size") or len(ads_vocab)
         self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
             "SMILE_sequence_size", 20
