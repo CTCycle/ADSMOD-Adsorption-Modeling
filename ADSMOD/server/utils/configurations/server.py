@@ -67,12 +67,18 @@ class FittingSettings:
 
 ###############################################################################
 @dataclass(frozen=True)
+class TrainingSettings:
+    use_mixed_precision: bool
+
+###############################################################################
+@dataclass(frozen=True)
 class ServerSettings:
     fastapi: FastAPISettings
     database: DatabaseSettings
     datasets: DatasetSettings
     nist: NISTSettings
     fitting: FittingSettings
+    training: TrainingSettings
 
 
 # [BUILDER FUNCTIONS]
@@ -194,12 +200,19 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
     )
 
 # -------------------------------------------------------------------------
+def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
+    return TrainingSettings(
+        use_mixed_precision=coerce_bool(payload.get("use_mixed_precision"), False),
+    )
+
+# -------------------------------------------------------------------------
 def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     fastapi_payload = ensure_mapping(payload.get("fastapi"))
     database_payload = ensure_mapping(payload.get("database"))
     dataset_payload = ensure_mapping(payload.get("datasets"))
     nist_payload = ensure_mapping(payload.get("nist"))
     fitting_payload = ensure_mapping(payload.get("fitting"))
+    training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
         fastapi=build_fastapi_settings(fastapi_payload),
@@ -207,6 +220,7 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
         datasets=build_dataset_settings(dataset_payload),
         nist=build_nist_settings(nist_payload),
         fitting=build_fitting_settings(fitting_payload),
+        training=build_training_settings(training_payload),
     )
 
 

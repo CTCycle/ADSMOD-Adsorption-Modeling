@@ -39,5 +39,8 @@
     "default_parameter_max": 100.0,
     "preview_row_limit": 20,
     "best_model_metric": "AICc"
+  },
+  "training": {
+    "use_mixed_precision": false
   }
 }

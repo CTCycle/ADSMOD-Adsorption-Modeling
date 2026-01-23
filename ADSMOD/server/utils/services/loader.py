@@ -5,41 +5,33 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
+import torch
+from torch.utils.data import DataLoader, Dataset
 
 from ADSMOD.server.utils.constants import PAD_VALUE
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.services.sanitizer import AggregateDatasets
-
-try:
-    import torch
-    from torch.utils.data import DataLoader, Dataset
-except Exception as exc:  # noqa: BLE001
-    torch = None
-    DataLoader = None
-    Dataset = object
-    _TORCH_IMPORT_ERROR = exc
-else:
-    _TORCH_IMPORT_ERROR = None
-
-
-def _require_torch() -> None:
-    if torch is None:
-        raise ImportError(
-            "Torch is required for ML data loaders; install torch to enable training."
-        ) from _TORCH_IMPORT_ERROR
+from ADSMOD.server.utils.learning.device import DeviceConfig
 
 
 # [CUSTOM DATASET FOR TORCH DATALOADERS]
 ###############################################################################
 class TorchDictDataset(Dataset):
-    def __init__(self, inputs: dict[str, np.ndarray], outputs: np.ndarray | None) -> None:
-        _require_torch()
-        self.inputs = {
-            key: torch.as_tensor(value)
-            for key, value in inputs.items()
-        }
+    def __init__(
+        self,
+        inputs: dict[str, np.ndarray],
+        outputs: np.ndarray | None,
+        device: Any | None = None,
+    ) -> None:
+        self.device = device
+        self.inputs = {key: torch.as_tensor(value) for key, value in inputs.items()}
+        if self.device is not None:
+            self.inputs = {key: value.to(self.device) for key, value in self.inputs.items()}
+
         self.outputs = torch.as_tensor(outputs) if outputs is not None else None
+        if self.outputs is not None and self.device is not None:
+            self.outputs = self.outputs.to(self.device)
         self.length = 0
         if self.inputs:
             sample = next(iter(self.inputs.values()))
@@ -202,6 +194,7 @@ class SCADSDataLoader:
         self.configuration = configuration
         self.shuffle = shuffle
         self.output = "adsorbed_amount"
+        self.device = DeviceConfig(configuration).set_device()
 
     # -------------------------------------------------------------------------
     def separate_inputs_and_output(
@@ -263,7 +256,7 @@ class SCADSDataLoader:
     ) -> Any:
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)
-        dataset = TorchDictDataset(inputs, output)
+        dataset = TorchDictDataset(inputs, output, self.device)
         return DataLoader(
             dataset,
             batch_size=batch_size,
@@ -277,7 +270,7 @@ class SCADSDataLoader:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         processed_data = self.process_inference_inputs(data)
         inputs, _ = self.separate_inputs_and_output(processed_data)
-        dataset = TorchDictDataset(inputs, outputs=None)
+        dataset = TorchDictDataset(inputs, outputs=None, device=self.device)
         return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 
@@ -301,6 +294,7 @@ class SCADSAtomicDataLoader:
         self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
             "SMILE_sequence_size", 20
         )
+        self.device = DeviceConfig(configuration).set_device()
 
     # -------------------------------------------------------------------------
     def expand_to_single_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -408,7 +402,7 @@ class SCADSAtomicDataLoader:
     ) -> Any:
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)
-        dataset = TorchDictDataset(inputs, output)
+        dataset = TorchDictDataset(inputs, output, self.device)
         return DataLoader(dataset, batch_size=batch_size, shuffle=self.shuffle)
 
     # -------------------------------------------------------------------------
@@ -432,5 +426,5 @@ class SCADSAtomicDataLoader:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         processed_data = self.process_inference_inputs(data)
         inputs, _ = self.separate_inputs_and_output(processed_data)
-        dataset = TorchDictDataset(inputs, outputs=None)
+        dataset = TorchDictDataset(inputs, outputs=None, device=self.device)
         return DataLoader(dataset, batch_size=batch_size, shuffle=False)
