@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -80,6 +80,9 @@ class TrainingStatusResponse(BaseModel):
     current_epoch: int
     total_epochs: int
     progress: float
+    metrics: dict[str, float] = Field(default_factory=dict)
+    history: list[dict[str, Any]] = Field(default_factory=list)
+    log: list[str] = Field(default_factory=list)
 
 
 ###############################################################################

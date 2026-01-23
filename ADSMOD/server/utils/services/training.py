@@ -40,6 +40,9 @@ class TrainingState:
     session_id: str | None = None
     stop_requested: bool = False
     last_error: str | None = None
+    metrics: dict[str, float] = field(default_factory=dict)
+    history: list[dict[str, Any]] = field(default_factory=list)
+    log: list[str] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     # ---------------------------------------------------------------------
@@ -48,6 +51,19 @@ class TrainingState:
             for key, value in kwargs.items():
                 if hasattr(self, key):
                     setattr(self, key, value)
+
+    # ---------------------------------------------------------------------
+    def add_log(self, message: str) -> None:
+        with self.lock:
+            self.log.append(message)
+            # Keep only last 1000 logs
+            if len(self.log) > 1000:
+                self.log = self.log[-1000:]
+
+    # ---------------------------------------------------------------------
+    def add_history(self, epoch_data: dict[str, Any]) -> None:
+        with self.lock:
+            self.history.append(epoch_data)
 
     # ---------------------------------------------------------------------
     def snapshot(self) -> dict[str, Any]:
@@ -59,9 +75,12 @@ class TrainingState:
                 "session_id": self.session_id,
                 "stop_requested": self.stop_requested,
                 "last_error": self.last_error,
+                "metrics": self.metrics.copy(),
+                "history": list(self.history),
+                "log": list(self.log),
             }
 
-
+###############################################################################
 class TrainingManager:
     def __init__(self) -> None:
         self.state = TrainingState()
@@ -70,7 +89,7 @@ class TrainingManager:
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def start_training(self, configuration: dict[str, Any]) -> str:
         with self._thread_lock:
             if self.state.is_training:
@@ -84,7 +103,11 @@ class TrainingManager:
                 session_id=session_id,
                 stop_requested=False,
                 last_error=None,
+                metrics={},
+                history=[],
+                log=[],
             )
+            self.state.add_log(f"Starting training session: {session_id}")
             self._thread = threading.Thread(
                 target=self._run_training,
                 args=(configuration, None, 0),
@@ -106,7 +129,11 @@ class TrainingManager:
                 session_id=session_id,
                 stop_requested=False,
                 last_error=None,
+                metrics={},
+                history=[],
+                log=[],
             )
+            self.state.add_log(f"Resuming training session: {session_id}")
             self._thread = threading.Thread(
                 target=self._run_training,
                 args=({}, checkpoint, additional_epochs),
@@ -120,10 +147,39 @@ class TrainingManager:
         if not self.state.is_training:
             return
         self.state.update(stop_requested=True)
+        self.state.add_log("Stop requested by user...")
 
     # ---------------------------------------------------------------------
     def _on_epoch_end(self, epoch: int, total_epochs: int, logs: dict[str, Any]) -> None:
         self.state.update(current_epoch=epoch, total_epochs=total_epochs)
+
+        # Extract metrics
+        loss = float(logs.get("loss", 0.0))
+        accuracy = float(logs.get("accuracy", 0.0))
+        val_loss = float(logs.get("val_loss", 0.0))
+        val_accuracy = float(logs.get("val_accuracy", 0.0))
+        masked_r2 = float(logs.get("MaskedR2", 0.0))
+        
+        metrics = {
+            "loss": loss,
+            "accuracy": accuracy,
+            "val_loss": val_loss,
+            "val_accuracy": val_accuracy,
+            "masked_r2": masked_r2,
+        }
+        self.state.update(metrics=metrics)
+
+        # Add generic log entry
+        self.state.add_log(
+            f"Epoch {epoch}/{total_epochs} - loss: {loss:.4f} - acc: {accuracy:.4f} - val_loss: {val_loss:.4f} - val_acc: {val_accuracy:.4f}"
+        )
+        
+        # Add to history for plotting
+        history_entry = {
+            "epoch": epoch,
+            **metrics
+        }
+        self.state.add_history(history_entry)
 
     # ---------------------------------------------------------------------
     def _should_stop(self) -> bool:

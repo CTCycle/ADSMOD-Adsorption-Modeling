@@ -416,6 +416,9 @@ class TrainingEndpoint:
             current_epoch=state["current_epoch"],
             total_epochs=state["total_epochs"],
             progress=progress,
+            metrics=state["metrics"],
+            history=state["history"],
+            log=state["log"],
         )
 
     # -------------------------------------------------------------------------

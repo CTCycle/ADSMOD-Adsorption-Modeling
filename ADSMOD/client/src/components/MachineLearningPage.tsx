@@ -1,4 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+} from 'recharts';
 import { DatasetBuilderCard } from './DatasetBuilderCard';
 import { NewTrainingWizard } from './NewTrainingWizard';
 import { ResumeTrainingWizard } from './ResumeTrainingWizard';
@@ -16,6 +25,7 @@ import {
     startTraining,
     resumeTraining,
     stopTraining,
+    getTrainingStatus,
 } from '../services';
 
 // Default training configuration based on legacy app
@@ -79,9 +89,13 @@ export const MachineLearningPage: React.FC = () => {
         is_training: false,
         current_epoch: 0,
         total_epochs: 0,
-        progress: 0
+        progress: 0,
+        metrics: {},
+        history: [],
+        log: [],
     });
-    const [trainingLog, setTrainingLog] = useState<string>('Ready to start training...');
+
+    // UI state
     const [isLoading, setIsLoading] = useState(false);
     const [showNewTrainingWizard, setShowNewTrainingWizard] = useState(false);
     const [showResumeTrainingWizard, setShowResumeTrainingWizard] = useState(false);
@@ -90,19 +104,70 @@ export const MachineLearningPage: React.FC = () => {
         additional_epochs: 10,
     });
 
-    // Training metrics for dashboard (will be updated via WebSocket)
-    const [metrics, _setMetrics] = useState({
-        trainLoss: 0,
-        valLoss: 0,
-        trainAcc: 0,
-        valAcc: 0,
-    });
+    // Polling ref
+    const pollIntervalRef = useRef<number | null>(null);
+    const logContainerRef = useRef<HTMLPreElement>(null);
 
     // Load initial data
     useEffect(() => {
         loadDatasetInfo();
         loadCheckpoints();
+        // Initial status check to catch up if page is refreshed
+        checkStatus();
+        return () => stopPolling();
     }, []);
+
+    // Auto-scroll logs
+    useEffect(() => {
+        if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+    }, [trainingStatus.log]);
+
+    // Poll status when training is active
+    useEffect(() => {
+        if (trainingStatus.is_training) {
+            startPolling();
+        } else {
+            stopPolling();
+        }
+    }, [trainingStatus.is_training]);
+
+    const startPolling = () => {
+        if (pollIntervalRef.current) return;
+        pollIntervalRef.current = window.setInterval(checkStatus, 1000);
+    };
+
+    const stopPolling = () => {
+        if (pollIntervalRef.current) {
+            window.clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+    };
+
+    const checkStatus = async () => {
+        const status = await getTrainingStatus();
+        if (status.error) {
+            console.error('Failed to poll status:', status.error);
+            return;
+        }
+
+        // Merge logs to avoid full overwrite if needed, but for now full replace is fine as backend sends window
+        setTrainingStatus({
+            is_training: status.is_training,
+            current_epoch: status.current_epoch,
+            total_epochs: status.total_epochs,
+            progress: status.progress,
+            metrics: status.metrics || {},
+            history: status.history || [],
+            log: status.log || [],
+        });
+
+        // Refresh checkpoints if training just finished
+        if (!status.is_training && trainingStatus.is_training) {
+            loadCheckpoints();
+        }
+    };
 
     const loadDatasetInfo = async () => {
         const result = await fetchTrainingDatasets();
@@ -118,114 +183,76 @@ export const MachineLearningPage: React.FC = () => {
         }
     };
 
-    const appendLog = useCallback((message: string) => {
-        setTrainingLog(prev => prev + '\n' + message);
-    }, []);
+    // Derived metrics for UI
+    const metrics = trainingStatus.metrics || {};
 
-    const handleStartTraining = async () => {
-        if (!datasetInfo.available) {
-            appendLog('[ERROR] No training dataset available. Please build dataset first.');
-            return;
-        }
-
+    // Handlers for training actions
+    const handleConfirmTraining = useCallback(async () => {
         setIsLoading(true);
-        setTrainingLog('[INFO] Starting training...');
-
-        try {
-            const result = await startTraining(config);
-            if (result.status === 'started') {
-                appendLog(`[INFO] ${result.message}`);
-                setTrainingStatus(prev => ({ ...prev, is_training: true, total_epochs: config.epochs }));
-            } else {
-                appendLog(`[ERROR] ${result.message}`);
-            }
-        } catch (error) {
-            appendLog(`[ERROR] Failed to start training: ${error}`);
-        } finally {
-            setIsLoading(false);
+        const result = await startTraining(config);
+        setIsLoading(false);
+        if (result.status === 'started') {
+            setShowNewTrainingWizard(false);
+            setTrainingStatus(prev => ({
+                ...prev,
+                log: [...(prev.log || []), result.message]
+            }));
+            checkStatus(); // Immediately check status to update UI
+        } else {
+            console.error('Failed to start training:', result.message);
+            alert(`Failed to start training: ${result.message}`);
         }
-    };
+    }, [config]);
 
-    const handleStopTraining = async () => {
-        setIsLoading(true);
-        appendLog('[INFO] Stopping training...');
-
-        try {
-            const result = await stopTraining();
-            appendLog(`[INFO] ${result.message}`);
-            setTrainingStatus(prev => ({ ...prev, is_training: false }));
-        } catch (error) {
-            appendLog(`[ERROR] Failed to stop training: ${error}`);
-        } finally {
-            setIsLoading(false);
+    const handleResumeTrainingClick = useCallback(() => {
+        if (checkpoints.length > 0) {
+            setResumeConfig(prev => ({ ...prev, checkpoint_name: checkpoints[0].name }));
         }
-    };
-
-    const handleConfirmTraining = async () => {
-        await handleStartTraining();
-        setShowNewTrainingWizard(false);
-    };
-
-    const handleResumeTrainingClick = () => {
-        const compatibleCheckpoint = checkpoints.find((checkpoint) => checkpoint.is_compatible);
-        const fallbackCheckpoint = compatibleCheckpoint || checkpoints[0];
-        setResumeConfig((prev) => ({
-            checkpoint_name: fallbackCheckpoint ? fallbackCheckpoint.name : prev.checkpoint_name,
-            additional_epochs: prev.additional_epochs || 10,
-        }));
         setShowResumeTrainingWizard(true);
-    };
+    }, [checkpoints]);
 
-    const handleConfirmResume = async () => {
-        if (!resumeConfig.checkpoint_name) {
-            appendLog('[ERROR] Select a checkpoint before resuming training.');
-            return;
-        }
-
+    const handleConfirmResume = useCallback(async () => {
         setIsLoading(true);
-        setTrainingLog('[INFO] Resuming training...');
-
-        try {
-            const result = await resumeTraining(resumeConfig);
-            if (result.status === 'started') {
-                const selectedCheckpoint = checkpoints.find(
-                    (checkpoint) => checkpoint.name === resumeConfig.checkpoint_name
-                );
-                const trainedEpochs = selectedCheckpoint?.epochs_trained ?? 0;
-                const baseEpochs = typeof trainedEpochs === 'number' ? trainedEpochs : 0;
-                const totalEpochs = baseEpochs + resumeConfig.additional_epochs;
-
-                appendLog(`[INFO] ${result.message}`);
-                const resumeProgress = totalEpochs > 0 ? (baseEpochs / totalEpochs) * 100 : 0;
-                setTrainingStatus({
-                    is_training: true,
-                    current_epoch: baseEpochs,
-                    total_epochs: totalEpochs,
-                    progress: resumeProgress,
-                });
-                setShowResumeTrainingWizard(false);
-            } else {
-                appendLog(`[ERROR] ${result.message}`);
-            }
-        } catch (error) {
-            appendLog(`[ERROR] Failed to resume training: ${error}`);
-        } finally {
-            setIsLoading(false);
+        const result = await resumeTraining(resumeConfig);
+        setIsLoading(false);
+        if (result.status === 'started') {
+            setShowResumeTrainingWizard(false);
+            setTrainingStatus(prev => ({
+                ...prev,
+                log: [...(prev.log || []), result.message]
+            }));
+            checkStatus(); // Immediately check status to update UI
+        } else {
+            console.error('Failed to resume training:', result.message);
+            alert(`Failed to resume training: ${result.message}`);
         }
-    };
+    }, [resumeConfig]);
+
+    const handleStopTraining = useCallback(async () => {
+        setIsLoading(true);
+        const result = await stopTraining();
+        setIsLoading(false);
+        if (result.status === 'stopped') {
+            setTrainingStatus(prev => ({
+                ...prev,
+                log: [...(prev.log || []), result.message]
+            }));
+            checkStatus(); // Immediately check status to update UI
+        } else {
+            console.error('Failed to stop training:', result.message);
+            alert(`Failed to stop training: ${result.message}`);
+        }
+    }, []);
 
     return (
         <div className="ml-page">
-            {/* Page Header */}
             <div className="ml-header">
                 <h2>SCADS Model Training</h2>
                 <p className="ml-subtitle">Configure and monitor your training sessions</p>
             </div>
 
-            {/* Dataset Processing Section */}
             <DatasetBuilderCard onDatasetBuilt={loadDatasetInfo} />
 
-            {/* Training Setup Cards */}
             <TrainingSetupRow
                 onNewTrainingClick={() => setShowNewTrainingWizard(true)}
                 onResumeTrainingClick={handleResumeTrainingClick}
@@ -234,7 +261,6 @@ export const MachineLearningPage: React.FC = () => {
                 isTraining={trainingStatus.is_training}
             />
 
-            {/* Training Dashboard */}
             <div className="training-dashboard">
                 <div className="dashboard-header">
                     <div className="dashboard-title">
@@ -246,7 +272,6 @@ export const MachineLearningPage: React.FC = () => {
                     </span>
                 </div>
 
-                {/* Metrics Row */}
                 <div className="metrics-row">
                     <MetricCard
                         label="EPOCH"
@@ -256,30 +281,29 @@ export const MachineLearningPage: React.FC = () => {
                     <MetricCard
                         label="TRAIN LOSS"
                         icon="↘"
-                        value={metrics.trainLoss.toFixed(4)}
+                        value={metrics.loss?.toFixed(4) || '0.0000'}
                         color="#f59e0b"
                     />
                     <MetricCard
                         label="VAL LOSS"
                         icon="↘"
-                        value={metrics.valLoss.toFixed(4)}
+                        value={metrics.val_loss?.toFixed(4) || '0.0000'}
                         color="#f59e0b"
                     />
                     <MetricCard
                         label="TRAIN ACC"
                         icon="◉"
-                        value={`${(metrics.trainAcc * 100).toFixed(2)}%`}
+                        value={`${(metrics.accuracy ? metrics.accuracy * 100 : 0).toFixed(2)}%`}
                         color="#22c55e"
                     />
                     <MetricCard
                         label="VAL ACC"
                         icon="◉"
-                        value={`${(metrics.valAcc * 100).toFixed(2)}%`}
+                        value={`${(metrics.val_accuracy ? metrics.val_accuracy * 100 : 0).toFixed(2)}%`}
                         color="#22c55e"
                     />
                 </div>
 
-                {/* Progress Bar */}
                 <div className="dashboard-progress">
                     <div className="progress-label">
                         <span>% Progress: {Math.round(trainingStatus.progress)}%</span>
@@ -301,36 +325,56 @@ export const MachineLearningPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Charts Placeholder */}
                 <div className="charts-container">
                     <div className="chart-panel">
                         <div className="chart-title">LOSS</div>
-                        <div className="chart-placeholder">
-                            <p>Loss chart will appear during training</p>
-                            <small>Train Loss ● Val Loss</small>
+                        <div className="chart-wrapper" style={{ width: '100%', height: 250 }}>
+                            <ResponsiveContainer>
+                                <LineChart data={trainingStatus.history}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="epoch" tick={{ fontSize: 12 }} />
+                                    <YAxis tick={{ fontSize: 12 }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '4px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Line type="monotone" dataKey="loss" stroke="#f59e0b" strokeWidth={2} dot={false} name="Train Loss" />
+                                    <Line type="monotone" dataKey="val_loss" stroke="#ef4444" strokeWidth={2} dot={false} name="Val Loss" />
+                                </LineChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                     <div className="chart-panel">
                         <div className="chart-title">ACCURACY</div>
-                        <div className="chart-placeholder">
-                            <p>Accuracy chart will appear during training</p>
-                            <small>Train Accuracy ● Val Accuracy</small>
+                        <div className="chart-wrapper" style={{ width: '100%', height: 250 }}>
+                            <ResponsiveContainer>
+                                <LineChart data={trainingStatus.history}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                    <XAxis dataKey="epoch" tick={{ fontSize: 12 }} />
+                                    <YAxis domain={[0, 1]} tick={{ fontSize: 12 }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '4px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Line type="monotone" dataKey="accuracy" stroke="#22c55e" strokeWidth={2} dot={false} name="Train Acc" />
+                                    <Line type="monotone" dataKey="val_accuracy" stroke="#3b82f6" strokeWidth={2} dot={false} name="Val Acc" />
+                                </LineChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
 
-                {/* Training Log */}
                 <div className="log-panel">
                     <div className="log-header">
                         <span>Training Log</span>
                         <button
                             className="ghost-button"
-                            onClick={() => setTrainingLog('Ready to start training...')}
+                            onClick={() => setTrainingStatus(prev => ({ ...prev, log: ['Ready to start training...'] }))}
                         >
                             Clear
                         </button>
                     </div>
-                    <pre className="training-log-light">{trainingLog}</pre>
+                    <pre className="training-log-light" ref={logContainerRef}>
+                        {(trainingStatus.log || []).join('\n')}
+                    </pre>
                 </div>
             </div>
 
