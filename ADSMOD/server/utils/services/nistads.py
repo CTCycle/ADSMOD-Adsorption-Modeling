@@ -4,10 +4,10 @@ import asyncio
 import math
 from time import monotonic
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 import pandas as pd
+import pubchempy as pcp
 
 from ADSMOD.server.utils.configurations import server_settings
 from ADSMOD.server.utils.logger import logger
@@ -426,31 +426,10 @@ class PubChemClient:
     def __init__(self, parallel_tasks: int) -> None:
         self.parallel_tasks = max(1, int(parallel_tasks))
         self.semaphore = asyncio.Semaphore(self.parallel_tasks)
-        self.base_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 
     # -------------------------------------------------------------------------
-    async def fetch_properties_for_name(
-        self, client: httpx.AsyncClient, name: str
-    ) -> dict[str, Any]:
-        safe_name = quote(name)
-        url = (
-            f"{self.base_url}/compound/name/{safe_name}"
-            "/property/MolecularWeight,MolecularFormula,IsomericSMILES,CanonicalSMILES/JSON"
-        )
-        async with self.semaphore:
-            try:
-                response = await client.get(url)
-                response.raise_for_status()
-            except httpx.HTTPError:
-                return {
-                    "name": name,
-                    "molecular_weight": None,
-                    "molecular_formula": None,
-                    "smile": None,
-                }
-        try:
-            payload = response.json()
-        except ValueError:
+    async def fetch_properties_for_name(self, name: str) -> dict[str, Any]:
+        if not name:
             return {
                 "name": name,
                 "molecular_weight": None,
@@ -458,29 +437,34 @@ class PubChemClient:
                 "smile": None,
             }
 
-        properties = payload.get("PropertyTable", {}).get("Properties", [])
-        if not properties:
+        async with self.semaphore:
+            try:
+                compounds = await asyncio.to_thread(pcp.get_compounds, name, "name")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("PubChem lookup failed for %s: %s", name, exc)
+                compounds = []
+
+        if not compounds:
             return {
                 "name": name,
                 "molecular_weight": None,
                 "molecular_formula": None,
                 "smile": None,
             }
-        entry = properties[0]
+
+        compound = compounds[0]
         return {
             "name": name,
-            "molecular_weight": entry.get("MolecularWeight"),
-            "molecular_formula": entry.get("MolecularFormula"),
-            "smile": entry.get("IsomericSMILES") or entry.get("CanonicalSMILES"),
+            "molecular_weight": compound.molecular_weight,
+            "molecular_formula": compound.molecular_formula,
+            "smile": compound.smiles,
         }
 
     # -------------------------------------------------------------------------
-    async def fetch_properties_for_names(
-        self, client: httpx.AsyncClient, names: list[str]
-    ) -> list[dict[str, Any]]:
+    async def fetch_properties_for_names(self, names: list[str]) -> list[dict[str, Any]]:
         if not names:
             return []
-        tasks = [self.fetch_properties_for_name(client, name) for name in names]
+        tasks = [self.fetch_properties_for_name(name) for name in names]
         return await asyncio.gather(*tasks)
 
 
@@ -640,9 +624,7 @@ class NISTDataService:
                 data[column] = pd.NA
 
         pubchem = PubChemClient(server_settings.nist.pubchem_parallel_tasks)
-        timeout = httpx.Timeout(30.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            properties = await pubchem.fetch_properties_for_names(client, names)
+        properties = await pubchem.fetch_properties_for_names(names)
 
         properties_frame = pd.DataFrame(properties)
         if properties_frame.empty:

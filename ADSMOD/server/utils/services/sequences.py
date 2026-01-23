@@ -178,7 +178,9 @@ class SMILETokenization:
             token for tokens in data["adsorbate_tokenized_SMILE"] for token in tokens
         )
 
-        token_to_id = {token: idx for idx, token in enumerate(sorted(SMILE_tokens))}
+        token_to_id = {
+            token: idx for idx, token in enumerate(sorted(SMILE_tokens), start=1)
+        }
         data["adsorbate_encoded_SMILE"] = data["adsorbate_tokenized_SMILE"].apply(
             lambda tokens: [int(token_to_id[token]) for token in tokens]
         )
@@ -204,6 +206,14 @@ class SMILETokenization:
         dataset["adsorbate_tokenized_SMILE"] = dataset["adsorbate_SMILE"].apply(
             lambda x: self.tokenize_SMILE_string(x)
         )
+        token_sizes = dataset["adsorbate_tokenized_SMILE"].apply(len)
+        valid_mask = token_sizes > 0
+        if not valid_mask.all():
+            dropped = int((~valid_mask).sum())
+            logger.warning("Dropped %d rows with empty SMILE tokenization", dropped)
+        dataset = dataset.loc[valid_mask].copy()
+        if dataset.empty:
+            return dataset, {}
 
         dataset, smile_vocabulary = self.encode_SMILE_tokens(dataset)
         dataset = self.SMILE_series_padding(dataset)

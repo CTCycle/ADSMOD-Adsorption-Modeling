@@ -351,6 +351,8 @@ class TrainingDataSerializer:
         row = metadata_df.iloc[0]
         smile_vocabulary = self._parse_json(row.get("smile_vocabulary"))
         adsorbent_vocabulary = self._parse_json(row.get("adsorbent_vocabulary"))
+        max_smile_index = max(smile_vocabulary.values()) if smile_vocabulary else 0
+        smile_vocab_size = int(max_smile_index) + 1
         normalization_stats = self._parse_json(row.get("normalization_stats"))
 
         metadata = {
@@ -369,11 +371,11 @@ class TrainingDataSerializer:
             "adsorbent_vocabulary": adsorbent_vocabulary,
             "normalization": normalization_stats,
             "normalization_stats": normalization_stats,
-            "smile_vocabulary_size": len(smile_vocabulary),
+            "smile_vocabulary_size": smile_vocab_size,
             "adsorbent_vocabulary_size": len(adsorbent_vocabulary),
             "SMILE_sequence_size": row.get("smile_sequence_size", 20),
             "SMILE_vocabulary": smile_vocabulary,
-            "SMILE_vocabulary_size": len(smile_vocabulary),
+            "SMILE_vocabulary_size": smile_vocab_size,
         }
 
         return metadata
