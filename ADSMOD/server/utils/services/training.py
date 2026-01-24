@@ -291,20 +291,26 @@ class TrainingManager:
         self._ensure_required_columns(validation_data, required_columns)
 
         train_loader = dataloader_builder(
-            configuration, metadata, shuffle=configuration.get("shuffle_dataset", True)
+            configuration, metadata.model_dump(), shuffle=configuration.get("shuffle_dataset", True)
         )
-        val_loader = dataloader_builder(configuration, metadata, shuffle=False)
+        val_loader = dataloader_builder(configuration, metadata.model_dump(), shuffle=False)
         train_dataset = train_loader.build_training_dataloader(train_data)
         validation_dataset = val_loader.build_training_dataloader(validation_data)
 
         DeviceConfig(configuration).set_device()
-        self.model_serializer = ModelSerializer(model_name=selected_model.replace(" ", "_"))
+        custom_name = configuration.get("custom_name")
+        if custom_name and isinstance(custom_name, str) and custom_name.strip():
+            model_name = custom_name.strip().replace(" ", "_")
+        else:
+            model_name = selected_model.replace(" ", "_")
+            
+        self.model_serializer = ModelSerializer(model_name=model_name)
         checkpoint_path = self.model_serializer.create_checkpoint_folder()
 
-        wrapper = model_builder(configuration, metadata)
+        wrapper = model_builder(configuration, metadata.model_dump())
         model = wrapper.get_model(model_summary=True)
 
-        trainer = ModelTraining(configuration, metadata)
+        trainer = ModelTraining(configuration, metadata.model_dump())
         model, history = trainer.train_model(
             model,
             train_dataset,
@@ -357,9 +363,9 @@ class TrainingManager:
         self._ensure_required_columns(validation_data, required_columns)
 
         train_loader = dataloader_builder(
-            train_config, model_metadata, shuffle=train_config.get("shuffle_dataset", True)
+            train_config, model_metadata.model_dump(), shuffle=train_config.get("shuffle_dataset", True)
         )
-        val_loader = dataloader_builder(train_config, model_metadata, shuffle=False)
+        val_loader = dataloader_builder(train_config, model_metadata.model_dump(), shuffle=False)
         train_dataset = train_loader.build_training_dataloader(train_data)
         validation_dataset = val_loader.build_training_dataloader(validation_data)
 
@@ -369,7 +375,7 @@ class TrainingManager:
         total_epochs = from_epoch + additional_epochs
         self.state.update(current_epoch=from_epoch, total_epochs=total_epochs)
 
-        trainer = ModelTraining(train_config, model_metadata)
+        trainer = ModelTraining(train_config, model_metadata.model_dump())
         model, history = trainer.resume_training(
             model,
             train_dataset,

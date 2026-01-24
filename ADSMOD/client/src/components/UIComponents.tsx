@@ -82,6 +82,27 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     );
 };
 
+interface TextInputProps {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+}
+
+export const TextInput: React.FC<TextInputProps> = ({ label, value, onChange, placeholder }) => {
+    return (
+        <div style={{ flex: 1, minWidth: '140px' }}>
+            <label>{label}</label>
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+            />
+        </div>
+    );
+};
+
 interface CheckboxProps {
     label: string;
     checked: boolean;

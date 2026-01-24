@@ -37,6 +37,7 @@ class TrainingConfigRequest(BaseModel):
     # Callbacks
     save_checkpoints: bool = True
     checkpoints_frequency: int = Field(default=5, ge=1, le=50)
+    custom_name: str | None = None
 
 
 ###############################################################################
@@ -139,3 +140,45 @@ class DatasetInfoResponse(BaseModel):
     total_samples: int | None = None
     train_samples: int | None = None
     validation_samples: int | None = None
+
+
+###############################################################################
+class TrainingMetadata(BaseModel):
+    created_at: str | None = None
+    sample_size: float = 1.0
+    validation_size: float = 0.2
+    min_measurements: int = 1
+    max_measurements: int = 30
+    smile_sequence_size: int = 20
+    max_pressure: float = 10000.0
+    max_uptake: float = 20.0
+    total_samples: int = 0
+    train_samples: int = 0
+    validation_samples: int = 0
+    
+    # Vocabularies
+    smile_vocabulary: dict[str, int] = Field(default_factory=dict)
+    adsorbent_vocabulary: dict[str, int] = Field(default_factory=dict)
+    
+    # Statistics
+    normalization_stats: dict[str, list[float] | float | dict] = Field(default_factory=dict)
+    # Also support 'normalization' key logic via this field or separate
+    normalization: dict[str, list[float] | float | dict] = Field(default_factory=dict)
+
+    # Integrity Check
+    dataset_hash: str | None = None
+
+    # Computed/Derived fields that might be stored
+    smile_vocabulary_size: int = 0
+    adsorbent_vocabulary_size: int = 0
+    
+    # Legacy/Frontend fields (optional, can be aliases)
+    SMILE_sequence_size: int | None = None
+    SMILE_vocabulary: dict[str, int] | None = None
+    SMILE_vocabulary_size: int | None = None
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "ignore"
+    }
+

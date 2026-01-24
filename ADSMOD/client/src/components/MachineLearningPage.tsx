@@ -52,15 +52,16 @@ const DEFAULT_CONFIG: TrainingConfig = {
     use_mixed_precision: false,
 
     // LR scheduler settings
-    use_lr_scheduler: true,
+    use_lr_scheduler: false,
     initial_lr: 1e-4,
     target_lr: 1e-5,
     constant_steps: 5,
     decay_steps: 10,
 
     // Callbacks
-    save_checkpoints: true,
+    save_checkpoints: false,
     checkpoints_frequency: 5,
+    custom_name: '',
 };
 
 // Metric Card Component
@@ -80,9 +81,9 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon, color = 'va
 
 const CHART_COLORS = {
     loss: '#f59e0b',
-    valLoss: '#fbbf24',
-    metric: '#22c55e',
-    valMetric: '#4ade80',
+    valLoss: '#2563eb', // Blue for high contrast against Orange
+    metric: '#16a34a',
+    valMetric: '#9333ea', // Purple for high contrast against Green
 };
 
 const formatLossValue = (value: number | undefined): string => {
@@ -340,13 +341,13 @@ export const MachineLearningPage: React.FC = () => {
                     <div className="progress-label">
                         <span>% Progress: {Math.round(trainingStatus.progress)}%</span>
                     </div>
-                    <div className="progress-bar-container">
-                        <div
-                            className="progress-bar-fill"
-                            style={{ width: `${trainingStatus.progress}%` }}
-                        />
-                    </div>
-                    <div className="progress-actions">
+                    <div className="progress-bar-wrapper">
+                        <div className="progress-bar-container">
+                            <div
+                                className="progress-bar-fill"
+                                style={{ width: `${trainingStatus.progress}%` }}
+                            />
+                        </div>
                         <button
                             className="stop-btn"
                             onClick={handleStopTraining}

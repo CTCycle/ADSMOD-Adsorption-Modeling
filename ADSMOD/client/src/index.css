@@ -2281,6 +2281,17 @@ input:checked+.slider:before {
   margin-bottom: 1rem;
 }
 
+.progress-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.progress-bar-wrapper .progress-bar-container {
+  flex: 1;
+  margin-bottom: 0;
+}
+
 .progress-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);

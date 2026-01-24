@@ -158,7 +158,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
         <div className="browser-page">
             <div className="browser-header">
                 <div className="browser-title-section">
-                    <span className="browser-label">ADSMOD DATA</span>
+
                     <h1 className="browser-title">Database Browser</h1>
                     <p className="browser-subtitle">
                         Browse model fitting results and uploaded adsorption data.

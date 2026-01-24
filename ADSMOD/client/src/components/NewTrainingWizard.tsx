@@ -168,7 +168,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                             step={0.05}
                                             precision={2}
                                         />
-                                        <div style={{ minWidth: '160px', gridColumn: 'span 2' }}>
+                                        <div style={{ minWidth: '160px', gridColumn: 'span 2', width: '100%' }}>
                                             <label className="field-label">Model Type</label>
                                             <select
                                                 value={config.selected_model}
@@ -176,6 +176,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                     updateConfig('selected_model', getModelType(event.target.value))
                                                 }
                                                 className="select-input"
+                                                style={{ width: '100%' }}
                                             >
                                                 <option value="SCADS Series">SCADS Series</option>
                                                 <option value="SCADS Atomic">SCADS Atomic</option>
@@ -220,6 +221,11 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                         />
                                         <div className="wizard-toggle-column">
                                             <Checkbox
+                                                label="Use GPU"
+                                                checked={config.use_device_GPU}
+                                                onChange={(value) => updateConfig('use_device_GPU', value)}
+                                            />
+                                            <Checkbox
                                                 label="Save Checkpoints"
                                                 checked={config.save_checkpoints}
                                                 onChange={(value) => updateConfig('save_checkpoints', value)}
@@ -228,11 +234,6 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                 label="LR Scheduler"
                                                 checked={config.use_lr_scheduler}
                                                 onChange={(value) => updateConfig('use_lr_scheduler', value)}
-                                            />
-                                            <Checkbox
-                                                label="Use GPU"
-                                                checked={config.use_device_GPU}
-                                                onChange={(value) => updateConfig('use_device_GPU', value)}
                                             />
                                         </div>
                                     </div>
@@ -283,6 +284,36 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
 
                     {currentPage === 4 && (
                         <div className="wizard-page">
+                            <div className="wizard-card" style={{ marginBottom: '1rem', border: '1px solid var(--primary-200)' }}>
+                                <div className="wizard-card-header">
+                                    <span className="wizard-card-icon">🏷️</span>
+                                    <span>Training Name</span>
+                                </div>
+                                <div className="wizard-card-body">
+                                    <div style={{ padding: '0.5rem 0' }}>
+                                        <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                                            Custom Name (Optional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={config.custom_name || ''}
+                                            onChange={(e) => updateConfig('custom_name', e.target.value)}
+                                            placeholder="e.g. Experiment_A"
+                                            className="number-input-field"
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '0.5rem 0.75rem',
+                                                fontSize: '0.95rem',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--slate-300)',
+                                                height: 'auto'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="wizard-summary">
                                 <div className="wizard-summary-section">
                                     <h5>Dataset Configuration</h5>
@@ -370,7 +401,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
