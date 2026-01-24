@@ -51,6 +51,9 @@ set "TMPFINDNODE=%TEMP%\app_find_node.ps1"
 
 set "UV_LINK_MODE=copy"
 
+REM Set to "true" to install optional dependencies (e.g., test dependencies)
+set "INSTALL_EXTRAS=true"
+
 title ADSMOD Launcher
 echo.
 
@@ -162,11 +165,13 @@ if not exist "%pyproject%" (
 )
 
 pushd "%root_folder%" >nul
-"%uv_exe%" sync --python "%python_exe%"
+set "uv_extras_flag="
+if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
+"%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
-  "%uv_exe%" sync
+  "%uv_exe%" sync %uv_extras_flag%
   set "sync_ec=%ERRORLEVEL%"
 )
 popd >nul
@@ -218,6 +223,11 @@ set "UI_URL=http://!UI_HOST!:!UI_PORT!"
 set "RELOAD_FLAG="
 if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
 
+REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
+set "PYTHONHOME=%python_dir%"
+set "PYTHONPATH="
+set "PYTHONNOUSERSITE=1"
+
 REM ============================================================================
 REM Start backend and frontend
 REM ============================================================================
@@ -255,6 +265,18 @@ if not exist "%FRONTEND_DIST%" (
 ) else (
   echo [INFO] Frontend build already present at "%FRONTEND_DIST%".
 )
+
+REM ============================================================================
+REM Wait for backend to allow it to initialize
+REM ============================================================================
+echo [WAIT] Waiting for backend to be ready on port %FASTAPI_PORT%...
+for /L %%i in (1,1,20) do (
+  netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
+  if !errorlevel! equ 0 goto :backend_ready_check
+  timeout /t 1 /nobreak >nul
+)
+echo [WARN] Timed out waiting for backend. Proceeding to launch frontend...
+:backend_ready_check
 
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul

@@ -101,6 +101,7 @@ class DatasetBuildRequest(BaseModel):
     smile_sequence_size: int = Field(default=20, ge=5, le=100)
     max_pressure: float = Field(default=10000.0, ge=100.0, le=100000.0)
     max_uptake: float = Field(default=20.0, ge=1.0, le=1000.0)
+    reference_checkpoint: str | None = None
     datasets: list[DatasetSelection] = Field(default_factory=list, min_length=1)
 
 

@@ -87,6 +87,31 @@ class TrainingEndpoint:
         request = DatasetBuildRequest(**request_data)
         logger.info("Building training dataset with config: %s", request.model_dump())
 
+        reference_metadata = None
+        if request.reference_checkpoint:
+            checkpoint_path = os.path.join(CHECKPOINTS_PATH, request.reference_checkpoint)
+            if not os.path.isdir(checkpoint_path):
+                return {
+                    "success": False,
+                    "message": "Reference checkpoint not found.",
+                }
+            try:
+                _, reference_metadata, _ = (
+                    training_manager.model_serializer.load_training_configuration(
+                        checkpoint_path
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to load reference checkpoint metadata from %s: %s",
+                    request.reference_checkpoint,
+                    exc,
+                )
+                return {
+                    "success": False,
+                    "message": "Failed to load reference checkpoint metadata.",
+                }
+
         config = DatasetBuilderConfig(
             sample_size=request.sample_size,
             validation_size=request.validation_size,
@@ -108,6 +133,7 @@ class TrainingEndpoint:
             guest_data=guest_data,
             host_data=host_data,
             dataset_name=dataset_label,
+            reference_metadata=reference_metadata,
         )
 
         if result.get("success"):

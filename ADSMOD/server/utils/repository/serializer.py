@@ -448,7 +448,7 @@ class TrainingDataSerializer:
         hash_b = TrainingDataSerializer.compute_metadata_hash(target_metadata)
 
         if hash_a != hash_b:
-            logger.warning(
+            logger.debug(
                 "Metadata mismatch: Content hash mismatch (%s != %s)",
                 hash_a,
                 hash_b,

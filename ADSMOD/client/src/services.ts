@@ -577,7 +577,7 @@ export async function fetchCheckpoints(): Promise<{
 
         const result = await response.json();
         const rawCheckpoints = Array.isArray(result.checkpoints) ? result.checkpoints : [];
-        const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint) => {
+        const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint: unknown) => {
             if (typeof checkpoint === 'string') {
                 return {
                     name: checkpoint,
