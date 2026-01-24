@@ -68,18 +68,26 @@ Once the application is running, the typical workflow involves:
     - Initiate a fetch from the NIST database to populate your local repository with raw isotherms.
     - Enriched material properties are automatically fetched to ensure data completeness.
 
+    ![Database Browser](ADSMOD/assets/figures/04_database_browser.png)
+
 2.  **Dataset Building**:
     - Use the "Processing" tools to convert raw data into structured datasets.
     - Define parameters such as training/validation splits and specific material filters.
+
+    ![Data Configuration](ADSMOD/assets/figures/data_source.png)
 
 3.  **Model Training**:
     - Go to the "Training" area.
     - Select a built dataset and configure training parameters (e.g., batch size, epochs).
     - Start the training job. Real-time progress and metrics (loss, accuracy) will be displayed.
 
+    ![Model Training](ADSMOD/assets/figures/fiitting_page.png)
+
 4.  **Analysis and Inference (to be implemented)**:
     - Review training history and final model performance.
     - Use trained models to predict adsorption isotherms for new or existing material pairings.
+
+    ![Analysis Results](ADSMOD/assets/figures/03_analysis.png)
 
 
 ## 5. Setup and Maintenance

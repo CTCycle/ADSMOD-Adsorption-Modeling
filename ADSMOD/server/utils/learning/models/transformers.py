@@ -15,18 +15,26 @@ class AddNorm(keras.layers.Layer):
         self.epsilon = epsilon
         self.add = layers.Add()
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)
+        self.supports_masking = True
 
     # -------------------------------------------------------------------------
     def build(self, input_shape) -> None:
         super().build(input_shape)
 
     # -------------------------------------------------------------------------
-    def call(self, inputs: Any) -> Any:
+    def call(self, inputs: Any, mask=None) -> Any:
         x1, x2 = inputs
         x_add = self.add([x1, x2])
         x_norm = self.layernorm(x_add)
 
         return x_norm
+
+    def compute_mask(self, inputs: Any, mask=None) -> Any:
+        if mask is None:
+            return None
+        if isinstance(mask, (list, tuple)):
+            return mask[0]
+        return mask
 
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
