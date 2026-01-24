@@ -300,7 +300,9 @@ class TrainingManager:
         DeviceConfig(configuration).set_device()
         custom_name = configuration.get("custom_name")
         if custom_name and isinstance(custom_name, str) and custom_name.strip():
-            model_name = custom_name.strip().replace(" ", "_")
+            # Sanitize custom name to be safe for file system
+            safe_name = "".join(c for c in custom_name.strip() if c.isalnum() or c in ("-", "_"))
+            model_name = safe_name if safe_name else selected_model.replace(" ", "_")
         else:
             model_name = selected_model.replace(" ", "_")
             

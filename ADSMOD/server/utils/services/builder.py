@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 
 from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.schemas.training import TrainingMetadata
 from ADSMOD.server.utils.repository.serializer import TrainingDataSerializer
 from ADSMOD.server.utils.services.conversion import PQ_units_conversion
 from ADSMOD.server.utils.services.sanitizer import (
@@ -211,34 +212,6 @@ class DatasetBuilder:
         self.serializer.save_training_dataset(data_to_save)
 
     # -------------------------------------------------------------------------
-    def _generate_dataset_hash(
-        self,
-        smile_vocab: dict,
-        adsorbent_vocab: dict,
-        statistics: dict | None
-    ) -> str:
-        """
-        Generates a unique hexadecimal string based on the training parameters.
-        This includes configuration settings and data-dependent statistics/vocabularies.
-        """
-        # Create a dictionary of parameters that define the dataset compatibility
-        # We include the configuration and key data properties
-        params = {
-            "config": self.config.to_dict(),
-            "smile_vocab_keys": sorted(smile_vocab.keys()),
-            "adsorbent_vocab_keys": sorted(adsorbent_vocab.keys()),
-            "normalization_stats": statistics or {}
-        }
-        
-        # Serialize to JSON with sort_keys=True for determinism
-        params_json = json.dumps(params, sort_keys=True)
-        
-        # Create hash
-        full_hash = hashlib.sha256(params_json.encode('utf-8')).hexdigest()
-        
-        return full_hash
-
-    # -------------------------------------------------------------------------
     def save_training_metadata(
         self,
         train_samples: int,
@@ -247,50 +220,78 @@ class DatasetBuilder:
         adsorbent_vocab: dict,
         statistics: dict | None,
     ) -> None:
-        dataset_hash = self._generate_dataset_hash(
-            smile_vocab, adsorbent_vocab, statistics
+        # Construct the metadata object first
+        metadata = TrainingMetadata(
+            created_at=datetime.now().isoformat(),
+            sample_size=self.config.sample_size,
+            validation_size=self.config.validation_size,
+            min_measurements=self.config.min_measurements,
+            max_measurements=self.config.max_measurements,
+            smile_sequence_size=self.config.smile_sequence_size,
+            max_pressure=self.config.max_pressure,
+            max_uptake=self.config.max_uptake,
+            total_samples=train_samples + validation_samples,
+            train_samples=train_samples,
+            validation_samples=validation_samples,
+            smile_vocabulary=smile_vocab,
+            adsorbent_vocabulary=adsorbent_vocab,
+            normalization_stats=statistics or {},
+            normalization=statistics or {},
         )
 
-        metadata = pd.DataFrame([{
-            "created_at": datetime.now().isoformat(),
-            "dataset_hash": dataset_hash,
-            "sample_size": self.config.sample_size,
-            "validation_size": self.config.validation_size,
-            "min_measurements": self.config.min_measurements,
-            "max_measurements": self.config.max_measurements,
-            "smile_sequence_size": self.config.smile_sequence_size,
-            "max_pressure": self.config.max_pressure,
-            "max_uptake": self.config.max_uptake,
-            "total_samples": train_samples + validation_samples,
-            "train_samples": train_samples,
-            "validation_samples": validation_samples,
-            "smile_vocabulary": json.dumps(smile_vocab),
-            "adsorbent_vocabulary": json.dumps(adsorbent_vocab),
-            "normalization_stats": json.dumps(statistics) if statistics else "{}",
+        # Compute hash using the centralized logic in serializer
+        dataset_hash = TrainingDataSerializer.compute_metadata_hash(metadata)
+        metadata.dataset_hash = dataset_hash
+
+        # Convert to DataFrame for compatibility with existing save method if needed
+        # Or preferably use the serializer's method directly if it accepts the object
+        # Looking at serializer.py logic, save_training_metadata(metadata: pd.DataFrame)
+        # So we convert to DataFrame as before, but with the correct hash.
+        
+        metadata_df = pd.DataFrame([{
+            "created_at": metadata.created_at,
+            "dataset_hash": metadata.dataset_hash,
+            "sample_size": metadata.sample_size,
+            "validation_size": metadata.validation_size,
+            "min_measurements": metadata.min_measurements,
+            "max_measurements": metadata.max_measurements,
+            "smile_sequence_size": metadata.smile_sequence_size,
+            "max_pressure": metadata.max_pressure,
+            "max_uptake": metadata.max_uptake,
+            "total_samples": metadata.total_samples,
+            "train_samples": metadata.train_samples,
+            "validation_samples": metadata.validation_samples,
+            "smile_vocabulary": json.dumps(metadata.smile_vocabulary),
+            "adsorbent_vocabulary": json.dumps(metadata.adsorbent_vocabulary),
+            "normalization_stats": json.dumps(metadata.normalization_stats),
         }])
 
-        self.serializer.save_training_metadata(metadata)
+        self.serializer.save_training_metadata(metadata_df)
 
     # -------------------------------------------------------------------------
     @staticmethod
     def get_training_dataset_info() -> dict[str, Any] | None:
         try:
             serializer = TrainingDataSerializer()
+            # load_training_metadata returns a TrainingMetadata object
             metadata = serializer.load_training_metadata()
-            if not metadata:
+            
+            # Check if empty (default object usually has total_samples=0)
+            if not metadata or metadata.total_samples == 0:
                 return None
+                
             return {
-                "created_at": metadata.get("created_at", ""),
-                "sample_size": metadata.get("sample_size", 1.0),
-                "validation_size": metadata.get("validation_size", 0.2),
-                "min_measurements": metadata.get("min_measurements", 1),
-                "max_measurements": metadata.get("max_measurements", 30),
-                "smile_sequence_size": metadata.get("smile_sequence_size", 20),
-                "max_pressure": metadata.get("max_pressure", 10000.0),
-                "max_uptake": metadata.get("max_uptake", 20.0),
-                "total_samples": metadata.get("total_samples", 0),
-                "train_samples": metadata.get("train_samples", 0),
-                "validation_samples": metadata.get("validation_samples", 0),
+                "created_at": metadata.created_at,
+                "sample_size": metadata.sample_size,
+                "validation_size": metadata.validation_size,
+                "min_measurements": metadata.min_measurements,
+                "max_measurements": metadata.max_measurements,
+                "smile_sequence_size": metadata.smile_sequence_size,
+                "max_pressure": metadata.max_pressure,
+                "max_uptake": metadata.max_uptake,
+                "total_samples": metadata.total_samples,
+                "train_samples": metadata.train_samples,
+                "validation_samples": metadata.validation_samples,
             }
         except Exception as e:
             logger.warning(f"Failed to load training dataset info: {e}")
