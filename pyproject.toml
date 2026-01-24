@@ -7,9 +7,9 @@ name = "ADSMOD"
 version = "2.0"
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi==0.117.1",
-    "torch==2.9.0+cu130",    
-    "tensorflow-cpu==2.20.0",
+    "fastapi==0.128.1",
+    "uvicorn[standard]==0.32.1",
+    "torch==2.9.0+cu130",
     "keras==3.12", 
     "scikit-learn==1.7.1",    
     "numpy==2.3.2",
@@ -18,11 +18,10 @@ dependencies = [
     "SQLAlchemy==2.0.41",
     "psycopg[binary]==3.3.1",
     "python-dotenv==1.1.0",
-    "httpx==0.27.2",
-    "uvicorn[standard]==0.32.1",
+    "httpx==0.27.2",    
     "python-multipart==0.0.12",
     "aiohttp==3.12.15",   
-    "PubChemPy==1.0.4",
+    "PubChemPy==1.0.5",
 ]
 
 [project.optional-dependencies]

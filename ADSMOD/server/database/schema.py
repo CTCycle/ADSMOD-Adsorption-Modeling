@@ -330,6 +330,7 @@ class TrainingMetadata(Base):
     __tablename__ = "TRAINING_METADATA"
     id = Column(Integer, primary_key=True)
     created_at = Column(String)
+    dataset_hash = Column(String)
     sample_size = Column(Float)
     validation_size = Column(Float)
     min_measurements = Column(Integer)

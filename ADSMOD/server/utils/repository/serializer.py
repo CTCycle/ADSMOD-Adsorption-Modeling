@@ -33,6 +33,7 @@ from ADSMOD.server.utils.learning.metrics import (
     MaskedMeanSquaredError,
     MaskedRSquared,
 )
+from ADSMOD.server.schemas.training import TrainingMetadata
 from ADSMOD.server.utils.learning.models.embeddings import MolecularEmbedding
 from ADSMOD.server.utils.learning.models.encoders import (
     PressureSerierEncoder,
@@ -343,10 +344,10 @@ class TrainingDataSerializer:
         return {}
 
     # -------------------------------------------------------------------------
-    def load_training_metadata(self) -> dict[str, Any]:
+    def load_training_metadata(self) -> TrainingMetadata:
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
-            return {}
+            return TrainingMetadata()
 
         row = metadata_df.iloc[0]
         smile_vocabulary = self._parse_json(row.get("smile_vocabulary"))
@@ -355,35 +356,36 @@ class TrainingDataSerializer:
         smile_vocab_size = int(max_smile_index) + 1
         normalization_stats = self._parse_json(row.get("normalization_stats"))
 
-        metadata = {
-            "created_at": row.get("created_at", ""),
-            "sample_size": row.get("sample_size", 1.0),
-            "validation_size": row.get("validation_size", 0.2),
-            "min_measurements": row.get("min_measurements", 1),
-            "max_measurements": row.get("max_measurements", 30),
-            "smile_sequence_size": row.get("smile_sequence_size", 20),
-            "max_pressure": row.get("max_pressure", 10000.0),
-            "max_uptake": row.get("max_uptake", 20.0),
-            "total_samples": row.get("total_samples", 0),
-            "train_samples": row.get("train_samples", 0),
-            "validation_samples": row.get("validation_samples", 0),
-            "smile_vocabulary": smile_vocabulary,
-            "adsorbent_vocabulary": adsorbent_vocabulary,
-            "normalization": normalization_stats,
-            "normalization_stats": normalization_stats,
-            "smile_vocabulary_size": smile_vocab_size,
-            "adsorbent_vocabulary_size": len(adsorbent_vocabulary),
-            "SMILE_sequence_size": row.get("smile_sequence_size", 20),
-            "SMILE_vocabulary": smile_vocabulary,
-            "SMILE_vocabulary_size": smile_vocab_size,
-        }
+        metadata = TrainingMetadata(
+            created_at=str(row.get("created_at", "")),
+            dataset_hash=str(row.get("dataset_hash")) if row.get("dataset_hash") else None,
+            sample_size=float(row.get("sample_size", 1.0)),
+            validation_size=float(row.get("validation_size", 0.2)),
+            min_measurements=int(row.get("min_measurements", 1)),
+            max_measurements=int(row.get("max_measurements", 30)),
+            smile_sequence_size=int(row.get("smile_sequence_size", 20)),
+            max_pressure=float(row.get("max_pressure", 10000.0)),
+            max_uptake=float(row.get("max_uptake", 20.0)),
+            total_samples=int(row.get("total_samples", 0)),
+            train_samples=int(row.get("train_samples", 0)),
+            validation_samples=int(row.get("validation_samples", 0)),
+            smile_vocabulary=smile_vocabulary,
+            adsorbent_vocabulary=adsorbent_vocabulary,
+            normalization_stats=normalization_stats,
+            normalization=normalization_stats,
+            smile_vocabulary_size=smile_vocab_size,
+            adsorbent_vocabulary_size=len(adsorbent_vocabulary),
+            SMILE_sequence_size=int(row.get("smile_sequence_size", 20)),
+            SMILE_vocabulary=smile_vocabulary,
+            SMILE_vocabulary_size=smile_vocab_size,
+        )
 
         return metadata
 
     # -------------------------------------------------------------------------
     def load_training_data(
         self, only_metadata: bool = False
-    ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]] | dict[str, Any]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, TrainingMetadata] | TrainingMetadata:
         metadata = self.load_training_metadata()
         if only_metadata:
             return metadata
@@ -400,20 +402,109 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     @staticmethod
     def validate_metadata(
-        metadata: dict[str, Any] | Any, target_metadata: dict[str, Any]
+        metadata: TrainingMetadata, target_metadata: TrainingMetadata
     ) -> bool:
         if not metadata or not target_metadata:
+            logger.warning("Metadata validation failed: missing metadata")
             return False
-        keys_to_compare = [k for k in metadata if k not in {"created_at"}]
-        meta_current = {k: metadata.get(k) for k in keys_to_compare}
-        meta_target = {k: target_metadata.get(k) for k in keys_to_compare}
-        differences = {
-            k: (meta_current[k], meta_target[k])
-            for k in keys_to_compare
-            if meta_current[k] != meta_target[k]
-        }
 
-        return False if differences else True
+        # 0. Hash check (Fast fail)
+        if metadata.dataset_hash and target_metadata.dataset_hash:
+            if metadata.dataset_hash != target_metadata.dataset_hash:
+                logger.warning(
+                    "Metadata mismatch: Dataset hash mismatch (%s != %s)",
+                    metadata.dataset_hash,
+                    target_metadata.dataset_hash,
+                )
+                return False
+
+        # 1. Critical parameters check
+        critical_params = [
+            "smile_vocabulary_size",
+            "adsorbent_vocabulary_size",
+            "smile_sequence_size",
+            "sample_size",
+            "validation_size",
+            "min_measurements",
+            "max_measurements",
+            "max_pressure",
+            "max_uptake",
+        ]
+        
+        for param in critical_params:
+            val_a = getattr(metadata, param, None)
+            val_b = getattr(target_metadata, param, None)
+            
+            # Robust comparison dealing with potential string/int mismatches
+            # Checkpoints serialized with default=str might have "20", while DB has 20.
+            try:
+                if str(val_a) != str(val_b):
+                    logger.warning(f"Metadata mismatch for {param}: {val_a} != {val_b}")
+                    return False
+            except Exception:
+                if val_a != val_b:
+                    logger.warning(f"Metadata mismatch for {param}: {val_a} != {val_b}")
+                    return False
+
+        # 2. Vocabulary keys check (integrity check)
+        vocab_keys = ["smile_vocabulary", "adsorbent_vocabulary"]
+        for key in vocab_keys:
+            vocab_a = getattr(metadata, key, {})
+            vocab_b = getattr(target_metadata, key, {})
+            
+            if not isinstance(vocab_a, dict) or not isinstance(vocab_b, dict):
+                logger.warning(f"Metadata mismatch: {key} is not a dictionary")
+                return False
+                
+            if set(vocab_a.keys()) != set(vocab_b.keys()):
+                logger.warning(f"Metadata mismatch: {key} keys differ")
+                return False
+
+        # 3. Normalization stats check
+        norm_a = getattr(metadata, "normalization_stats", {})
+        norm_b = getattr(target_metadata, "normalization_stats", {})
+        
+        if not norm_a or not norm_b:
+             logger.warning("Metadata mismatch: missing normalization_stats")
+             return False
+
+        try:
+            if set(norm_a.keys()) != set(norm_b.keys()):
+                 logger.warning("Metadata mismatch: normalization_stats keys differ")
+                 return False
+            
+            for key in norm_a:
+                val_a = norm_a[key]
+                val_b = norm_b[key]
+                
+                if isinstance(val_a, (tuple, set)): val_a = list(val_a)
+                if isinstance(val_b, (tuple, set)): val_b = list(val_b)
+                
+                if not isinstance(val_a, list) or not isinstance(val_b, list):
+                     if val_a != val_b:
+                          logger.warning(f"Metadata mismatch for normalization {key}: {val_a} != {val_b}")
+                          return False
+                     continue
+
+                if len(val_a) != len(val_b):
+                     logger.warning(f"Metadata mismatch: normalization {key} length differs")
+                     return False
+                
+                for x, y in zip(val_a, val_b):
+                    try:
+                        if abs(float(x) - float(y)) > 1e-6:
+                             logger.warning(f"Metadata mismatch for normalization {key}: {x} != {y}")
+                             return False
+                    except (ValueError, TypeError):
+                        if x != y:
+                             logger.warning(f"Metadata mismatch for normalization {key}: {x} != {y}")
+                             return False
+
+        except Exception as e:
+            logger.error(f"Error during metadata validation: {e}")
+            return False
+
+        return True
 
 
 ###############################################################################
@@ -443,7 +534,7 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
-        self, path: str, history: dict, configuration: dict[str, Any], metadata: dict
+        self, path: str, history: dict, configuration: dict[str, Any], metadata: TrainingMetadata
     ) -> None:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
@@ -452,7 +543,7 @@ class ModelSerializer:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(configuration, f, indent=4, default=str)
         with open(metadata_path, "w", encoding="utf-8") as f:
-            json.dump(metadata, f, indent=4, default=str)
+            f.write(metadata.model_dump_json(indent=4))
         with open(history_path, "w", encoding="utf-8") as f:
             json.dump(history, f, indent=4, default=str)
 
@@ -478,14 +569,15 @@ class ModelSerializer:
         return sorted(model_folders)
 
     # -------------------------------------------------------------------------
-    def load_training_configuration(self, path: str) -> tuple[dict, dict, dict]:
+    def load_training_configuration(self, path: str) -> tuple[dict, TrainingMetadata, dict]:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
         history_path = os.path.join(path, "configuration", "session_history.json")
         with open(config_path, encoding="utf-8") as f:
             configuration = json.load(f)
         with open(metadata_path, encoding="utf-8") as f:
-            metadata = json.load(f)
+            metadata_dict = json.load(f)
+            metadata = TrainingMetadata(**metadata_dict)
         with open(history_path, encoding="utf-8") as f:
             history = json.load(f)
 
@@ -494,7 +586,7 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def load_checkpoint(
         self, checkpoint: str
-    ) -> tuple[Model | Any, dict, dict, dict, str]:
+    ) -> tuple[Model | Any, dict, TrainingMetadata, dict, str]:
         custom_objects = {
             "MaskedMeanSquaredError": MaskedMeanSquaredError,
             "MaskedRSquared": MaskedRSquared,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import datetime
 from typing import Any
 
@@ -210,6 +211,34 @@ class DatasetBuilder:
         self.serializer.save_training_dataset(data_to_save)
 
     # -------------------------------------------------------------------------
+    def _generate_dataset_hash(
+        self,
+        smile_vocab: dict,
+        adsorbent_vocab: dict,
+        statistics: dict | None
+    ) -> str:
+        """
+        Generates a unique hexadecimal string based on the training parameters.
+        This includes configuration settings and data-dependent statistics/vocabularies.
+        """
+        # Create a dictionary of parameters that define the dataset compatibility
+        # We include the configuration and key data properties
+        params = {
+            "config": self.config.to_dict(),
+            "smile_vocab_keys": sorted(smile_vocab.keys()),
+            "adsorbent_vocab_keys": sorted(adsorbent_vocab.keys()),
+            "normalization_stats": statistics or {}
+        }
+        
+        # Serialize to JSON with sort_keys=True for determinism
+        params_json = json.dumps(params, sort_keys=True)
+        
+        # Create hash
+        full_hash = hashlib.sha256(params_json.encode('utf-8')).hexdigest()
+        
+        return full_hash
+
+    # -------------------------------------------------------------------------
     def save_training_metadata(
         self,
         train_samples: int,
@@ -218,8 +247,13 @@ class DatasetBuilder:
         adsorbent_vocab: dict,
         statistics: dict | None,
     ) -> None:
+        dataset_hash = self._generate_dataset_hash(
+            smile_vocab, adsorbent_vocab, statistics
+        )
+
         metadata = pd.DataFrame([{
             "created_at": datetime.now().isoformat(),
+            "dataset_hash": dataset_hash,
             "sample_size": self.config.sample_size,
             "validation_size": self.config.validation_size,
             "min_measurements": self.config.min_measurements,

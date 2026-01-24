@@ -148,6 +148,7 @@ export interface TrainingConfig {
     // Training settings
     epochs: number;
     use_device_GPU: boolean;
+    use_mixed_precision?: boolean;
 
     // LR scheduler settings
     use_lr_scheduler: boolean;
@@ -159,6 +160,7 @@ export interface TrainingConfig {
     // Callbacks
     save_checkpoints: boolean;
     checkpoints_frequency: number;
+    custom_name?: string;
 }
 
 export interface TrainingUpdate {
