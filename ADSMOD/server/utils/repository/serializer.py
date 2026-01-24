@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import json
+import hashlib
 import os
 from datetime import datetime
 
@@ -400,6 +401,38 @@ class TrainingDataSerializer:
         return train_data, val_data, metadata
 
     # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def compute_metadata_hash(metadata: TrainingMetadata) -> str:
+        """
+        Computes a SHA256 hash of the metadata to ensure strict compatibility.
+        Includes all configuration parameters, vocabularies (keys + indices), and statistics.
+        """
+        if not metadata:
+            return ""
+
+        # specialized serialization for hashing
+        payload = {
+            "sample_size": metadata.sample_size,
+            "validation_size": metadata.validation_size,
+            "min_measurements": metadata.min_measurements,
+            "max_measurements": metadata.max_measurements,
+            "smile_sequence_size": metadata.smile_sequence_size,
+            "max_pressure": metadata.max_pressure,
+            "max_uptake": metadata.max_uptake,
+            # Sort dictionaries to ensure deterministic hashing
+            # Vocabularies must include both keys and values (indices)
+            "smile_vocabulary": sorted(metadata.smile_vocabulary.items()) if metadata.smile_vocabulary else [],
+            "adsorbent_vocabulary": sorted(metadata.adsorbent_vocabulary.items()) if metadata.adsorbent_vocabulary else [],
+            # normalization stats
+            "normalization_stats": metadata.normalization_stats,
+        }
+        
+        # Serialize to JSON with sort_keys=True
+        serialized = json.dumps(payload, sort_keys=True)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def validate_metadata(
         metadata: TrainingMetadata, target_metadata: TrainingMetadata
@@ -408,100 +441,18 @@ class TrainingDataSerializer:
             logger.warning("Metadata validation failed: missing metadata")
             return False
 
-        # 0. Hash check (Fast fail)
-        if metadata.dataset_hash and target_metadata.dataset_hash:
-            if metadata.dataset_hash != target_metadata.dataset_hash:
-                logger.warning(
-                    "Metadata mismatch: Dataset hash mismatch (%s != %s)",
-                    metadata.dataset_hash,
-                    target_metadata.dataset_hash,
-                )
-                return False
+        # Strict validation: Re-compute hashes for both and compare.
+        # This ensures that even if the stored hash was manipulated or outdated,
+        # the actual content compatibility is verified.
+        hash_a = TrainingDataSerializer.compute_metadata_hash(metadata)
+        hash_b = TrainingDataSerializer.compute_metadata_hash(target_metadata)
 
-        # 1. Critical parameters check
-        critical_params = [
-            "smile_vocabulary_size",
-            "adsorbent_vocabulary_size",
-            "smile_sequence_size",
-            "sample_size",
-            "validation_size",
-            "min_measurements",
-            "max_measurements",
-            "max_pressure",
-            "max_uptake",
-        ]
-        
-        for param in critical_params:
-            val_a = getattr(metadata, param, None)
-            val_b = getattr(target_metadata, param, None)
-            
-            # Robust comparison dealing with potential string/int mismatches
-            # Checkpoints serialized with default=str might have "20", while DB has 20.
-            try:
-                if str(val_a) != str(val_b):
-                    logger.warning(f"Metadata mismatch for {param}: {val_a} != {val_b}")
-                    return False
-            except Exception:
-                if val_a != val_b:
-                    logger.warning(f"Metadata mismatch for {param}: {val_a} != {val_b}")
-                    return False
-
-        # 2. Vocabulary keys check (integrity check)
-        vocab_keys = ["smile_vocabulary", "adsorbent_vocabulary"]
-        for key in vocab_keys:
-            vocab_a = getattr(metadata, key, {})
-            vocab_b = getattr(target_metadata, key, {})
-            
-            if not isinstance(vocab_a, dict) or not isinstance(vocab_b, dict):
-                logger.warning(f"Metadata mismatch: {key} is not a dictionary")
-                return False
-                
-            if set(vocab_a.keys()) != set(vocab_b.keys()):
-                logger.warning(f"Metadata mismatch: {key} keys differ")
-                return False
-
-        # 3. Normalization stats check
-        norm_a = getattr(metadata, "normalization_stats", {})
-        norm_b = getattr(target_metadata, "normalization_stats", {})
-        
-        if not norm_a or not norm_b:
-             logger.warning("Metadata mismatch: missing normalization_stats")
-             return False
-
-        try:
-            if set(norm_a.keys()) != set(norm_b.keys()):
-                 logger.warning("Metadata mismatch: normalization_stats keys differ")
-                 return False
-            
-            for key in norm_a:
-                val_a = norm_a[key]
-                val_b = norm_b[key]
-                
-                if isinstance(val_a, (tuple, set)): val_a = list(val_a)
-                if isinstance(val_b, (tuple, set)): val_b = list(val_b)
-                
-                if not isinstance(val_a, list) or not isinstance(val_b, list):
-                     if val_a != val_b:
-                          logger.warning(f"Metadata mismatch for normalization {key}: {val_a} != {val_b}")
-                          return False
-                     continue
-
-                if len(val_a) != len(val_b):
-                     logger.warning(f"Metadata mismatch: normalization {key} length differs")
-                     return False
-                
-                for x, y in zip(val_a, val_b):
-                    try:
-                        if abs(float(x) - float(y)) > 1e-6:
-                             logger.warning(f"Metadata mismatch for normalization {key}: {x} != {y}")
-                             return False
-                    except (ValueError, TypeError):
-                        if x != y:
-                             logger.warning(f"Metadata mismatch for normalization {key}: {x} != {y}")
-                             return False
-
-        except Exception as e:
-            logger.error(f"Error during metadata validation: {e}")
+        if hash_a != hash_b:
+            logger.warning(
+                "Metadata mismatch: Content hash mismatch (%s != %s)",
+                hash_a,
+                hash_b,
+            )
             return False
 
         return True

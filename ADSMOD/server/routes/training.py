@@ -288,9 +288,8 @@ class TrainingEndpoint:
                                 final_accuracy = float(last_value)
                             break
 
-                    metadata_payload = metadata if isinstance(metadata, dict) else {}
                     is_compatible = training_manager.data_serializer.validate_metadata(
-                        current_metadata, metadata_payload
+                        current_metadata, metadata
                     )
 
                 except Exception as exc:  # noqa: BLE001
