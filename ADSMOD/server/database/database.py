@@ -14,7 +14,7 @@ from ADSMOD.server.database.sqlite import SQLiteRepository
 
 ###############################################################################
 class DatabaseBackend(Protocol):
-    db_path: str | None  
+    db_path: str | None
     engine: Any
 
     # -------------------------------------------------------------------------
@@ -36,6 +36,7 @@ BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
 # -------------------------------------------------------------------------
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return SQLiteRepository(settings)
+
 
 # -------------------------------------------------------------------------
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
@@ -96,6 +97,6 @@ class ADSMODDatabase:
             return sorted([str(n) for n in names if n])
         except Exception:
             return []
-   
+
 
 database = ADSMODDatabase()

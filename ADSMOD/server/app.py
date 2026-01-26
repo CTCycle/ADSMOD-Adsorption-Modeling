@@ -26,6 +26,7 @@ app.include_router(browser_router)
 app.include_router(training_router)
 app.include_router(nist_router)
 
+
 # -------------------------------------------------------------------------
 @app.get(ROOT_ENDPOINT)
 def redirect_to_docs() -> RedirectResponse:

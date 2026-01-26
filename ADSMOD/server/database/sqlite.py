@@ -18,7 +18,7 @@ from ADSMOD.server.database.schema import Base
 
 ###############################################################################
 class SQLiteRepository:
-    def __init__(self, settings: DatabaseSettings) -> None:  
+    def __init__(self, settings: DatabaseSettings) -> None:
         self.db_path: str | None = os.path.join(DATA_PATH, DATABASE_FILENAME)
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self.engine: Engine = sqlalchemy.create_engine(
@@ -26,7 +26,7 @@ class SQLiteRepository:
         )
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
-        Base.metadata.create_all(self.engine, checkfirst=True)  
+        Base.metadata.create_all(self.engine, checkfirst=True)
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:

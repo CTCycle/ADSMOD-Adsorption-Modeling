@@ -14,9 +14,7 @@ from ADSMOD.server.utils.repository.serializer import DataSerializer
 ###############################################################################
 class DatasetService:
     def __init__(self) -> None:
-        self.allowed_extensions = set(
-            server_settings.datasets.allowed_extensions
-        )
+        self.allowed_extensions = set(server_settings.datasets.allowed_extensions)
 
     # -------------------------------------------------------------------------
     def derive_dataset_name(self, filename: str | None) -> str:
@@ -126,9 +124,7 @@ class DatasetService:
             dtype = self.escape_markdown_table_cell(series.dtype)
             missing = int(series.isna().sum())
             safe_name = self.escape_markdown_table_cell(name)
-            column_lines.append(
-                f"| `{safe_name}` | `{dtype}` | {missing} |"
-            )
+            column_lines.append(f"| `{safe_name}` | `{dtype}` | {missing} |")
 
         summary_lines = [
             "### Dataset overview",
@@ -148,9 +144,7 @@ class DatasetService:
         return "\n".join(summary_lines)
 
     # -------------------------------------------------------------------------
-    def load_from_database(
-        self, dataset_name: str
-    ) -> tuple[dict[str, Any], str]:
+    def load_from_database(self, dataset_name: str) -> tuple[dict[str, Any], str]:
         if not isinstance(dataset_name, str) or not dataset_name.strip():
             raise ValueError("Dataset name is required.")
         dataset_name = dataset_name.strip()

@@ -66,9 +66,7 @@ class AdsorptionPredictions:
         )
         processed_inputs = dataloader.process_inference_inputs(data)
         processed_inputs, _ = dataloader.separate_inputs_and_output(processed_inputs)
-        callbacks_list = [
-            StopTrainingCallback(should_stop=kwargs.get("should_stop"))
-        ]
+        callbacks_list = [StopTrainingCallback(should_stop=kwargs.get("should_stop"))]
         predictions = self.model.predict(
             processed_inputs,
             verbose=1,  # type: ignore

@@ -10,7 +10,10 @@ from ADSMOD.server.utils.learning.device import DeviceConfig
 from ADSMOD.server.utils.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.utils.learning.training.fitting import ModelTraining
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.repository.serializer import ModelSerializer, TrainingDataSerializer
+from ADSMOD.server.utils.repository.serializer import (
+    ModelSerializer,
+    TrainingDataSerializer,
+)
 from ADSMOD.server.utils.services.loader import (
     SCADSAtomicDataLoader,
     SCADSDataLoader,
@@ -79,6 +82,7 @@ class TrainingState:
                 "history": list(self.history),
                 "log": list(self.log),
             }
+
 
 ###############################################################################
 class TrainingManager:
@@ -150,7 +154,9 @@ class TrainingManager:
         self.state.add_log("Stop requested by user...")
 
     # ---------------------------------------------------------------------
-    def _on_epoch_end(self, epoch: int, total_epochs: int, logs: dict[str, Any]) -> None:
+    def _on_epoch_end(
+        self, epoch: int, total_epochs: int, logs: dict[str, Any]
+    ) -> None:
         self.state.update(current_epoch=epoch, total_epochs=total_epochs)
 
         # Extract metrics
@@ -220,9 +226,13 @@ class TrainingManager:
         self.state.update(metrics=metrics)
 
         metric_label = "acc" if isinstance(accuracy_value, (int, float)) else "r2"
-        metric_value = accuracy if isinstance(accuracy_value, (int, float)) else masked_r2
+        metric_value = (
+            accuracy if isinstance(accuracy_value, (int, float)) else masked_r2
+        )
         val_metric_value = (
-            val_accuracy if isinstance(val_accuracy_value, (int, float)) else val_masked_r2
+            val_accuracy
+            if isinstance(val_accuracy_value, (int, float))
+            else val_masked_r2
         )
 
         # Add generic log entry
@@ -232,12 +242,9 @@ class TrainingManager:
             f"val_{metric_label}: {val_metric_value:.4f}"
         )
         self.state.add_log(log_message)
-        
+
         # Add to history for plotting
-        history_entry = {
-            "epoch": epoch,
-            **metrics
-        }
+        history_entry = {"epoch": epoch, **metrics}
         self.state.add_history(history_entry)
 
     # ---------------------------------------------------------------------
@@ -255,7 +262,10 @@ class TrainingManager:
 
     # ---------------------------------------------------------------------
     def _run_training(
-        self, configuration: dict[str, Any], checkpoint: str | None, additional_epochs: int
+        self,
+        configuration: dict[str, Any],
+        checkpoint: str | None,
+        additional_epochs: int,
     ) -> None:
         try:
             if checkpoint:
@@ -270,7 +280,9 @@ class TrainingManager:
 
     # ---------------------------------------------------------------------
     def _start_training_internal(self, configuration: dict[str, Any]) -> None:
-        train_data, validation_data, metadata = self.data_serializer.load_training_data()
+        train_data, validation_data, metadata = (
+            self.data_serializer.load_training_data()
+        )
         if train_data.empty or validation_data.empty:
             raise ValueError("No training data available. Build the dataset first.")
 
@@ -291,9 +303,13 @@ class TrainingManager:
         self._ensure_required_columns(validation_data, required_columns)
 
         train_loader = dataloader_builder(
-            configuration, metadata.model_dump(), shuffle=configuration.get("shuffle_dataset", True)
+            configuration,
+            metadata.model_dump(),
+            shuffle=configuration.get("shuffle_dataset", True),
         )
-        val_loader = dataloader_builder(configuration, metadata.model_dump(), shuffle=False)
+        val_loader = dataloader_builder(
+            configuration, metadata.model_dump(), shuffle=False
+        )
         train_dataset = train_loader.build_training_dataloader(train_data)
         validation_dataset = val_loader.build_training_dataloader(validation_data)
 
@@ -301,11 +317,13 @@ class TrainingManager:
         custom_name = configuration.get("custom_name")
         if custom_name and isinstance(custom_name, str) and custom_name.strip():
             # Sanitize custom name to be safe for file system
-            safe_name = "".join(c for c in custom_name.strip() if c.isalnum() or c in ("-", "_"))
+            safe_name = "".join(
+                c for c in custom_name.strip() if c.isalnum() or c in ("-", "_")
+            )
             model_name = safe_name if safe_name else selected_model.replace(" ", "_")
         else:
             model_name = selected_model.replace(" ", "_")
-            
+
         self.model_serializer = ModelSerializer(model_name=model_name)
         checkpoint_path = self.model_serializer.create_checkpoint_folder()
 
@@ -328,7 +346,9 @@ class TrainingManager:
         )
 
     # ---------------------------------------------------------------------
-    def _resume_training_internal(self, checkpoint: str, additional_epochs: int) -> None:
+    def _resume_training_internal(
+        self, checkpoint: str, additional_epochs: int
+    ) -> None:
         (
             model,
             train_config,
@@ -365,9 +385,13 @@ class TrainingManager:
         self._ensure_required_columns(validation_data, required_columns)
 
         train_loader = dataloader_builder(
-            train_config, model_metadata.model_dump(), shuffle=train_config.get("shuffle_dataset", True)
+            train_config,
+            model_metadata.model_dump(),
+            shuffle=train_config.get("shuffle_dataset", True),
         )
-        val_loader = dataloader_builder(train_config, model_metadata.model_dump(), shuffle=False)
+        val_loader = dataloader_builder(
+            train_config, model_metadata.model_dump(), shuffle=False
+        )
         train_dataset = train_loader.build_training_dataloader(train_data)
         validation_dataset = val_loader.build_training_dataloader(validation_data)
 

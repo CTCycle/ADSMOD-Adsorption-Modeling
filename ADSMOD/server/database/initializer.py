@@ -56,8 +56,9 @@ def clone_settings_with_database(
 
 # -------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
-    repository = SQLiteRepository(settings)    
+    repository = SQLiteRepository(settings)
     logger.info("Initialized SQLite database at %s", repository.db_path)
+
 
 # -------------------------------------------------------------------------
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
@@ -109,7 +110,12 @@ def run_database_initialization() -> None:
         return
 
     engine_name = normalize_postgres_engine(settings.engine).lower()
-    if engine_name not in {"postgres", "postgresql", "postgresql+psycopg", "postgresql+psycopg2"}:
+    if engine_name not in {
+        "postgres",
+        "postgresql",
+        "postgresql+psycopg",
+        "postgresql+psycopg2",
+    }:
         raise ValueError(f"Unsupported database engine: {settings.engine}")
 
     ensure_postgres_database(settings)

@@ -7,12 +7,13 @@ from ADSMOD.server.database.database import database
 
 ###############################################################################
 class NISTDataSerializer:
-    
     # -------------------------------------------------------------------------
     def load_adsorption_datasets(
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        adsorption_data = database.load_from_database("NIST_SINGLE_COMPONENT_ADSORPTION")
+        adsorption_data = database.load_from_database(
+            "NIST_SINGLE_COMPONENT_ADSORPTION"
+        )
         guest_data = database.load_from_database("ADSORBATES")
         host_data = database.load_from_database("ADSORBENTS")
 
@@ -21,8 +22,12 @@ class NISTDataSerializer:
     # -------------------------------------------------------------------------
     def count_nist_rows(self) -> dict[str, int]:
         return {
-            "single_component_rows": database.count_rows("NIST_SINGLE_COMPONENT_ADSORPTION"),
-            "binary_mixture_rows": database.count_rows("NIST_BINARY_MIXTURE_ADSORPTION"),
+            "single_component_rows": database.count_rows(
+                "NIST_SINGLE_COMPONENT_ADSORPTION"
+            ),
+            "binary_mixture_rows": database.count_rows(
+                "NIST_BINARY_MIXTURE_ADSORPTION"
+            ),
             "guest_rows": database.count_rows("ADSORBATES"),
             "host_rows": database.count_rows("ADSORBENTS"),
         }

@@ -27,7 +27,9 @@ class TorchDictDataset(Dataset):
         self.device = device
         self.inputs = {key: torch.as_tensor(value) for key, value in inputs.items()}
         if self.device is not None:
-            self.inputs = {key: value.to(self.device) for key, value in self.inputs.items()}
+            self.inputs = {
+                key: value.to(self.device) for key, value in self.inputs.items()
+            }
 
         self.outputs = torch.as_tensor(outputs) if outputs is not None else None
         if self.outputs is not None and self.device is not None:
@@ -204,8 +206,12 @@ class SCADSDataLoader:
                 "state_input": np.empty((0,), dtype=np.float32),
                 "chemo_input": np.empty((0,), dtype=np.float32),
                 "adsorbent_input": np.empty((0,), dtype=np.int32),
-                "adsorbate_input": np.empty((0, self.processor.smile_length), dtype=np.int32),
-                "pressure_input": np.empty((0, self.processor.series_length), dtype=np.float32),
+                "adsorbate_input": np.empty(
+                    (0, self.processor.smile_length), dtype=np.int32
+                ),
+                "pressure_input": np.empty(
+                    (0, self.processor.series_length), dtype=np.float32
+                ),
             }
             return inputs, np.empty((0, self.processor.series_length), dtype=np.float32)
 

@@ -23,9 +23,7 @@ class TestListTables:
         assert len(data["tables"]) > 0
 
     # -------------------------------------------------------------------------
-    def test_tables_have_required_fields(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_tables_have_required_fields(self, api_context: APIRequestContext) -> None:
         """Verify each table entry has required fields."""
         # Act
         response = api_context.get("/browser/tables")
@@ -58,9 +56,7 @@ class TestGetTableData:
     """Tests for fetching table data."""
 
     # -------------------------------------------------------------------------
-    def test_get_table_data_adsorption(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_get_table_data_adsorption(self, api_context: APIRequestContext) -> None:
         """Verify fetching ADSORPTION_DATA table succeeds."""
         # Act
         response = api_context.get("/browser/data/ADSORPTION_DATA")
@@ -76,9 +72,7 @@ class TestGetTableData:
         assert "column_count" in data
 
     # -------------------------------------------------------------------------
-    def test_get_table_data_langmuir(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_get_table_data_langmuir(self, api_context: APIRequestContext) -> None:
         """Verify fetching ADSORPTION_LANGMUIR table succeeds."""
         # Act
         response = api_context.get("/browser/data/ADSORPTION_LANGMUIR")
@@ -103,9 +97,7 @@ class TestTableCategories:
     """Tests for table category groupings."""
 
     # -------------------------------------------------------------------------
-    def test_tables_grouped_by_category(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_tables_grouped_by_category(self, api_context: APIRequestContext) -> None:
         """Verify tables are properly categorized."""
         # Act
         response = api_context.get("/browser/tables")

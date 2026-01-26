@@ -4,7 +4,11 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, status
 
-from ADSMOD.server.schemas.jobs import JobListResponse, JobStartResponse, JobStatusResponse
+from ADSMOD.server.schemas.jobs import (
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
 from ADSMOD.server.schemas.nist import (
     NISTFetchRequest,
     NISTPropertiesRequest,
@@ -27,8 +31,6 @@ router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
 
 ###############################################################################
 class NistEndpoint:
-
-
     JOB_TYPE_FETCH = "nist_fetch"
     JOB_TYPE_PROPERTIES = "nist_properties"
 
@@ -61,13 +63,14 @@ class NistEndpoint:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            return loop.run_until_complete(self.service.enrich_properties(target=target))
+            return loop.run_until_complete(
+                self.service.enrich_properties(target=target)
+            )
         finally:
             loop.close()
 
     # -------------------------------------------------------------------------
     async def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
-
         if job_manager.is_job_running(self.JOB_TYPE_FETCH):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -100,7 +103,6 @@ class NistEndpoint:
     async def start_properties_job(
         self, request: NISTPropertiesRequest
     ) -> JobStartResponse:
-
         if job_manager.is_job_running(self.JOB_TYPE_PROPERTIES):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -117,7 +119,9 @@ class NistEndpoint:
             runner=self._run_properties_sync,
             args=(request.target,),
         )
-        logger.info("Started NIST properties job %s (target=%s)", job_id, request.target)
+        logger.info(
+            "Started NIST properties job %s (target=%s)", job_id, request.target
+        )
         return JobStartResponse(
             job_id=job_id,
             job_type=self.JOB_TYPE_PROPERTIES,
@@ -127,7 +131,6 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_job_status(self, job_id: str) -> JobStatusResponse:
-
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -145,7 +148,6 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def list_jobs(self) -> JobListResponse:
-
         fetch_jobs = job_manager.list_jobs(self.JOB_TYPE_FETCH)
         properties_jobs = job_manager.list_jobs(self.JOB_TYPE_PROPERTIES)
         all_jobs = fetch_jobs + properties_jobs
@@ -165,7 +167,6 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def cancel_job(self, job_id: str) -> dict:
-
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -176,7 +177,6 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     async def fetch_nist_status(self) -> NISTStatusResponse:
-
         try:
             result = await self.service.get_status()
         except Exception as exc:  # noqa: BLE001
@@ -190,7 +190,6 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-
         self.router.add_api_route(
             NIST_FETCH_ENDPOINT,
             self.start_fetch_job,

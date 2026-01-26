@@ -41,7 +41,11 @@ from ADSMOD.server.utils.learning.models.encoders import (
     QDecoder,
     StateEncoder,
 )
-from ADSMOD.server.utils.learning.models.transformers import AddNorm, FeedForward, TransformerEncoder
+from ADSMOD.server.utils.learning.models.transformers import (
+    AddNorm,
+    FeedForward,
+    TransformerEncoder,
+)
 from ADSMOD.server.utils.learning.training.scheduler import LinearDecayLRScheduler
 from ADSMOD.server.utils.logger import logger
 
@@ -62,7 +66,7 @@ class DataSerializer:
         COLUMN_MIN_UPTAKE,
         COLUMN_MAX_UPTAKE,
     ]
-    
+
     # -------------------------------------------------------------------------
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
         try:
@@ -144,9 +148,7 @@ class DataSerializer:
             if COLUMN_EXPERIMENT_NAME not in model_frame.columns:
                 continue
             renamed = self.rename_model_columns(model_frame, schema)
-            combined = combined.merge(
-                renamed, how="left", on=COLUMN_EXPERIMENT_NAME
-            )
+            combined = combined.merge(renamed, how="left", on=COLUMN_EXPERIMENT_NAME)
         return combined
 
     # -------------------------------------------------------------------------
@@ -210,7 +212,9 @@ class DataSerializer:
         schema: dict[str, Any],
     ) -> pd.DataFrame | None:
         resolved = {
-            field: self.resolve_dataset_column(schema["prefix"], suffix, dataset.columns)
+            field: self.resolve_dataset_column(
+                schema["prefix"], suffix, dataset.columns
+            )
             for field, suffix in schema["fields"].items()
         }
         if all(column is None for column in resolved.values()):
@@ -298,27 +302,31 @@ class TrainingDataSerializer:
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
-    def save_training_dataset(self, dataset: pd.DataFrame, dataset_label: str = "default") -> None:
+    def save_training_dataset(
+        self, dataset: pd.DataFrame, dataset_label: str = "default"
+    ) -> None:
         # Load existing data
         existing = database.load_from_database("TRAINING_DATASET")
-        
+
         # Filter out rows with the same dataset_label
         if not existing.empty and "dataset_label" in existing.columns:
             existing = existing[existing["dataset_label"] != dataset_label]
-        
+
         # Append new dataset
         combined = pd.concat([existing, dataset], ignore_index=True)
         database.save_into_database(combined, "TRAINING_DATASET")
 
     # -------------------------------------------------------------------------
-    def save_training_metadata(self, metadata: pd.DataFrame, dataset_label: str = "default") -> None:
+    def save_training_metadata(
+        self, metadata: pd.DataFrame, dataset_label: str = "default"
+    ) -> None:
         # Load existing metadata
         existing = database.load_from_database("TRAINING_METADATA")
-        
+
         # Filter out row with the same dataset_label (upsert logic)
         if not existing.empty and "dataset_label" in existing.columns:
             existing = existing[existing["dataset_label"] != dataset_label]
-        
+
         # Append new metadata row
         combined = pd.concat([existing, metadata], ignore_index=True)
         database.save_into_database(combined, "TRAINING_METADATA")
@@ -334,13 +342,17 @@ class TrainingDataSerializer:
             # Clear only the specified dataset
             existing_data = database.load_from_database("TRAINING_DATASET")
             existing_meta = database.load_from_database("TRAINING_METADATA")
-            
+
             if not existing_data.empty and "dataset_label" in existing_data.columns:
-                filtered_data = existing_data[existing_data["dataset_label"] != dataset_label]
+                filtered_data = existing_data[
+                    existing_data["dataset_label"] != dataset_label
+                ]
                 database.save_into_database(filtered_data, "TRAINING_DATASET")
-            
+
             if not existing_meta.empty and "dataset_label" in existing_meta.columns:
-                filtered_meta = existing_meta[existing_meta["dataset_label"] != dataset_label]
+                filtered_meta = existing_meta[
+                    existing_meta["dataset_label"] != dataset_label
+                ]
                 database.save_into_database(filtered_meta, "TRAINING_METADATA")
 
     # -------------------------------------------------------------------------
@@ -377,7 +389,9 @@ class TrainingDataSerializer:
         return {}
 
     # -------------------------------------------------------------------------
-    def load_training_metadata(self, dataset_label: str = "default") -> TrainingMetadata:
+    def load_training_metadata(
+        self, dataset_label: str = "default"
+    ) -> TrainingMetadata:
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
             return TrainingMetadata()
@@ -400,7 +414,9 @@ class TrainingDataSerializer:
 
         metadata = TrainingMetadata(
             created_at=str(row.get("created_at", "")),
-            dataset_hash=str(row.get("dataset_hash")) if row.get("dataset_hash") else None,
+            dataset_hash=str(row.get("dataset_hash"))
+            if row.get("dataset_hash")
+            else None,
             sample_size=float(row.get("sample_size", 1.0)),
             validation_size=float(row.get("validation_size", 0.2)),
             min_measurements=int(row.get("min_measurements", 1)),
@@ -435,11 +451,13 @@ class TrainingDataSerializer:
         training_data = database.load_from_database("TRAINING_DATASET")
         if training_data.empty:
             return training_data, training_data, metadata
-        
+
         # Filter by dataset_label if column exists
         if "dataset_label" in training_data.columns:
-            training_data = training_data[training_data["dataset_label"] == dataset_label]
-        
+            training_data = training_data[
+                training_data["dataset_label"] == dataset_label
+            ]
+
         training_data = self.deserialize_series(training_data)
         train_data = training_data[training_data["split"] == "train"]
         val_data = training_data[training_data["split"] == "validation"]
@@ -456,17 +474,21 @@ class TrainingDataSerializer:
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
             return []
-        
+
         datasets = []
         for _, row in metadata_df.iterrows():
-            datasets.append({
-                "dataset_label": str(row.get("dataset_label", "default")),
-                "dataset_hash": str(row.get("dataset_hash")) if row.get("dataset_hash") else None,
-                "train_samples": int(row.get("train_samples", 0)),
-                "validation_samples": int(row.get("validation_samples", 0)),
-                "created_at": str(row.get("created_at", "")),
-            })
-        
+            datasets.append(
+                {
+                    "dataset_label": str(row.get("dataset_label", "default")),
+                    "dataset_hash": str(row.get("dataset_hash"))
+                    if row.get("dataset_hash")
+                    else None,
+                    "train_samples": int(row.get("train_samples", 0)),
+                    "validation_samples": int(row.get("validation_samples", 0)),
+                    "created_at": str(row.get("created_at", "")),
+                }
+            )
+
         return datasets
 
     # -------------------------------------------------------------------------
@@ -490,12 +512,16 @@ class TrainingDataSerializer:
             "max_uptake": metadata.max_uptake,
             # Sort dictionaries to ensure deterministic hashing
             # Vocabularies must include both keys and values (indices)
-            "smile_vocabulary": sorted(metadata.smile_vocabulary.items()) if metadata.smile_vocabulary else [],
-            "adsorbent_vocabulary": sorted(metadata.adsorbent_vocabulary.items()) if metadata.adsorbent_vocabulary else [],
+            "smile_vocabulary": sorted(metadata.smile_vocabulary.items())
+            if metadata.smile_vocabulary
+            else [],
+            "adsorbent_vocabulary": sorted(metadata.adsorbent_vocabulary.items())
+            if metadata.adsorbent_vocabulary
+            else [],
             # normalization stats
             "normalization_stats": metadata.normalization_stats,
         }
-        
+
         # Serialize to JSON with sort_keys=True
         serialized = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
@@ -553,7 +579,11 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
-        self, path: str, history: dict, configuration: dict[str, Any], metadata: TrainingMetadata
+        self,
+        path: str,
+        history: dict,
+        configuration: dict[str, Any],
+        metadata: TrainingMetadata,
     ) -> None:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
@@ -588,7 +618,9 @@ class ModelSerializer:
         return sorted(model_folders)
 
     # -------------------------------------------------------------------------
-    def load_training_configuration(self, path: str) -> tuple[dict, TrainingMetadata, dict]:
+    def load_training_configuration(
+        self, path: str
+    ) -> tuple[dict, TrainingMetadata, dict]:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
         history_path = os.path.join(path, "configuration", "session_history.json")

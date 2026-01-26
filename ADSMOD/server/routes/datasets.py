@@ -17,15 +17,12 @@ router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["load"])
 
 ###############################################################################
 class DatasetEndpoint:
-
-
     def __init__(self, router: APIRouter, service: DatasetService) -> None:
         self.router = router
         self.service = service
 
     # -------------------------------------------------------------------------
     async def load_dataset(self, file: UploadFile = File(...)) -> DatasetLoadResponse:
-
         try:
             payload = await file.read()
         except Exception as exc:  # noqa: BLE001
@@ -56,7 +53,6 @@ class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_dataset_names(self) -> DatasetNamesResponse:
-
         try:
             names = self.service.get_dataset_names()
             return DatasetNamesResponse(names=names)
@@ -66,7 +62,6 @@ class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_dataset_by_name(self, dataset_name: str) -> DatasetLoadResponse:
-
         try:
             dataset_payload, summary = self.service.load_from_database(dataset_name)
             return DatasetLoadResponse(summary=summary, dataset=dataset_payload)
@@ -84,7 +79,6 @@ class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-
         self.router.add_api_route(
             DATASETS_LOAD_ENDPOINT,
             self.load_dataset,

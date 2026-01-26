@@ -6,7 +6,11 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, status
 
 from ADSMOD.server.schemas.fitting import FittingRequest
-from ADSMOD.server.schemas.jobs import JobListResponse, JobStartResponse, JobStatusResponse
+from ADSMOD.server.schemas.jobs import (
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
 from ADSMOD.server.utils.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
     FITTING_JOBS_ENDPOINT,
@@ -30,8 +34,6 @@ router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 
 ###############################################################################
 class FittingEndpoint:
-
-
     JOB_TYPE = "fitting"
 
     def __init__(self, router: APIRouter, pipeline: FittingPipeline) -> None:
@@ -87,9 +89,7 @@ class FittingEndpoint:
 
         if not adsorbates_df.empty and "name" in adsorbates_df.columns:
             weights = adsorbates_df[["name", "adsorbate_molecular_weight"]].copy()
-            weights["name"] = (
-                weights["name"].astype("string").str.strip().str.lower()
-            )
+            weights["name"] = weights["name"].astype("string").str.strip().str.lower()
             weights = weights.dropna(subset=["name"]).drop_duplicates(
                 subset=["name"], keep="first"
             )
@@ -138,9 +138,7 @@ class FittingEndpoint:
 
         for column in ("temperature", "pressure", "adsorbed_amount"):
             if column in converted.columns:
-                converted[column] = pd.to_numeric(
-                    converted[column], errors="coerce"
-                )
+                converted[column] = pd.to_numeric(converted[column], errors="coerce")
 
         converted = converted.dropna(
             subset=["temperature", "pressure", "adsorbed_amount"]
@@ -179,7 +177,6 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
-
         if job_manager.is_job_running(self.JOB_TYPE):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -218,7 +215,6 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_job_status(self, job_id: str) -> JobStatusResponse:
-
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -236,7 +232,6 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def list_jobs(self) -> JobListResponse:
-
         all_jobs = job_manager.list_jobs(self.JOB_TYPE)
         return JobListResponse(
             jobs=[
@@ -254,7 +249,6 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def cancel_job(self, job_id: str) -> dict:
-
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -265,7 +259,6 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     async def get_nist_dataset_for_fitting(self) -> Any:
-
         try:
             serializer = NISTDataSerializer()
             nist_df, adsorbates_df, _ = serializer.load_adsorption_datasets()
@@ -331,7 +324,6 @@ class FittingEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-
         self.router.add_api_route(
             FITTING_RUN_ENDPOINT,
             self.start_fitting_job,

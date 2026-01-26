@@ -5,7 +5,7 @@ from typing import Any
 
 from ADSMOD.server.utils.types import coerce_str_sequence
 
-from ADSMOD.server.utils.configurations import (  
+from ADSMOD.server.utils.configurations import (
     ensure_mapping,
     load_configurations,
 )
@@ -19,6 +19,7 @@ from ADSMOD.server.utils.types import (
 )
 from ADSMOD.server.utils.variables import env_variables
 
+
 # [SERVER SETTINGS]
 ###############################################################################
 @dataclass(frozen=True)
@@ -26,6 +27,7 @@ class FastAPISettings:
     title: str
     description: str
     version: str
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -42,17 +44,20 @@ class DatabaseSettings:
     connect_timeout: int
     insert_batch_size: int
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatasetSettings:
     allowed_extensions: tuple[str, ...]
     column_detection_cutoff: float
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class NISTSettings:
     parallel_tasks: int
     pubchem_parallel_tasks: int
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -65,10 +70,12 @@ class FittingSettings:
     preview_row_limit: int
     best_model_metric: str
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class TrainingSettings:
     use_mixed_precision: bool
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -95,12 +102,15 @@ def build_fastapi_settings(payload: dict[str, Any] | Any) -> FastAPISettings:
         version=coerce_str(version_value, "0.1.0"),
     )
 
+
 # -------------------------------------------------------------------------
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
     embedded_value = payload.get("embedded_database")
     embedded = coerce_bool(embedded_value, True)
 
-    insert_batch_value = env_variables.get("DB_INSERT_BATCH_SIZE") or payload.get("insert_batch_size")
+    insert_batch_value = env_variables.get("DB_INSERT_BATCH_SIZE") or payload.get(
+        "insert_batch_size"
+    )
 
     if embedded:
         return DatabaseSettings(
@@ -114,7 +124,8 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
             ssl=False,
             ssl_ca=None,
             connect_timeout=coerce_int(
-                env_variables.get("DB_CONNECT_TIMEOUT") or payload.get("connect_timeout"),
+                env_variables.get("DB_CONNECT_TIMEOUT")
+                or payload.get("connect_timeout"),
                 10,
                 minimum=1,
             ),
@@ -135,7 +146,9 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
     password_value = env_variables.get("DB_PASSWORD") or payload.get("password")
     ssl_value = env_variables.get("DB_SSL") or payload.get("ssl")
     ssl_ca_value = env_variables.get("DB_SSL_CA") or payload.get("ssl_ca")
-    timeout_value = env_variables.get("DB_CONNECT_TIMEOUT") or payload.get("connect_timeout")
+    timeout_value = env_variables.get("DB_CONNECT_TIMEOUT") or payload.get(
+        "connect_timeout"
+    )
 
     return DatabaseSettings(
         embedded_database=False,
@@ -151,6 +164,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         insert_batch_size=coerce_int(insert_batch_value, 1000, minimum=1),
     )
 
+
 # -------------------------------------------------------------------------
 def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     return DatasetSettings(
@@ -162,6 +176,7 @@ def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
         ),
     )
 
+
 # -------------------------------------------------------------------------
 def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
     return NISTSettings(
@@ -170,6 +185,7 @@ def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
             payload.get("pubchem_parallel_tasks"), 10, minimum=1
         ),
     )
+
 
 # -------------------------------------------------------------------------
 def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
@@ -199,11 +215,13 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
         best_model_metric=best_model_metric,
     )
 
+
 # -------------------------------------------------------------------------
 def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     return TrainingSettings(
         use_mixed_precision=coerce_bool(payload.get("use_mixed_precision"), False),
     )
+
 
 # -------------------------------------------------------------------------
 def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:

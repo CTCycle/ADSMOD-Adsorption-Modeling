@@ -36,7 +36,9 @@ class LinearDecayLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         decayed_lr = initial_lr - (initial_lr - target_lr) * progress
         decayed_lr = keras.ops.maximum(decayed_lr, target_lr)
 
-        learning_rate = keras.ops.where(global_step < constant_steps, initial_lr, decayed_lr)
+        learning_rate = keras.ops.where(
+            global_step < constant_steps, initial_lr, decayed_lr
+        )
 
         return learning_rate
 

@@ -83,7 +83,9 @@ class ModelTraining:
         if session and "history" in session:
             merged_history: dict[str, list[Any]] = {}
             for key, values in session["history"].items():
-                merged_history[key] = list(values) + list(new_session.history.get(key, []))
+                merged_history[key] = list(values) + list(
+                    new_session.history.get(key, [])
+                )
             history["history"] = merged_history
 
         return model, history

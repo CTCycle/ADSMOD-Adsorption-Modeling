@@ -75,10 +75,7 @@ class DatasetCompositionService:
         adsorption = self.serializer.load_table("ADSORPTION_DATA")
         if not adsorption.empty and COLUMN_DATASET_NAME in adsorption.columns:
             name_series = (
-                adsorption[COLUMN_DATASET_NAME]
-                .fillna("")
-                .astype("string")
-                .str.strip()
+                adsorption[COLUMN_DATASET_NAME].fillna("").astype("string").str.strip()
             )
             counts = name_series.value_counts()
             for name, count in counts.items():
@@ -119,9 +116,7 @@ class DatasetCompositionService:
                 adsorption = self.nist_serializer.load_adsorption_datasets()[0]
                 if adsorption.empty:
                     raise ValueError("NIST single-component dataset is not available.")
-                dataset_frame = self.standardize_nist_dataset(
-                    adsorption, dataset_name
-                )
+                dataset_frame = self.standardize_nist_dataset(adsorption, dataset_name)
             elif source == "uploaded":
                 dataset_frame = self.standardize_uploaded_dataset(dataset_name)
             else:
@@ -159,11 +154,12 @@ class DatasetCompositionService:
                 f"{dataset_name}_{idx}" for idx in range(len(standardized))
             ]
 
-        missing = [col for col in self.required_columns if col not in standardized.columns]
+        missing = [
+            col for col in self.required_columns if col not in standardized.columns
+        ]
         if missing:
             raise ValueError(
-                "Uploaded dataset is missing required columns: "
-                + ", ".join(missing)
+                "Uploaded dataset is missing required columns: " + ", ".join(missing)
             )
 
         for column in ("adsorbate_name", "adsorbent_name"):
@@ -231,7 +227,9 @@ class DatasetCompositionService:
                 if alias in value:
                     return column
         if aliases:
-            matches = get_close_matches(aliases[0], list(normalized.values()), cutoff=0.78)
+            matches = get_close_matches(
+                aliases[0], list(normalized.values()), cutoff=0.78
+            )
             if matches:
                 match = matches[0]
                 for column, value in normalized.items():
@@ -265,11 +263,11 @@ class DatasetCompositionService:
         return dataframe
 
     # -------------------------------------------------------------------------
-    def ensure_filename_prefix(self, dataframe: pd.DataFrame, prefix: str) -> pd.DataFrame:
+    def ensure_filename_prefix(
+        self, dataframe: pd.DataFrame, prefix: str
+    ) -> pd.DataFrame:
         if "filename" not in dataframe.columns:
-            dataframe["filename"] = [
-                f"{prefix}_{idx}" for idx in range(len(dataframe))
-            ]
+            dataframe["filename"] = [f"{prefix}_{idx}" for idx in range(len(dataframe))]
             return dataframe
 
         dataframe["filename"] = dataframe["filename"].astype("string").str.strip()
@@ -397,10 +395,7 @@ class DatasetCompositionService:
             properties_frame = pd.DataFrame(properties)
             if not properties_frame.empty:
                 properties_frame["name"] = (
-                    properties_frame["name"]
-                    .astype("string")
-                    .str.strip()
-                    .str.lower()
+                    properties_frame["name"].astype("string").str.strip().str.lower()
                 )
                 properties_frame = properties_frame.rename(
                     columns={
@@ -410,7 +405,9 @@ class DatasetCompositionService:
                     }
                 )
             else:
-                properties_frame = pd.DataFrame(columns=["name", weight_column, formula_column, smile_column])
+                properties_frame = pd.DataFrame(
+                    columns=["name", weight_column, formula_column, smile_column]
+                )
             data = self.merge_material_properties(
                 data,
                 properties_frame,
