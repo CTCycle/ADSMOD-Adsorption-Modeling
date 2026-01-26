@@ -138,6 +138,7 @@ export interface TrainingConfig {
     shuffle_dataset: boolean;
     shuffle_size: number;
     dataset_label?: string;
+    dataset_hash?: string | null;
 
     // Model settings
     selected_model: 'SCADS Series' | 'SCADS Atomic';

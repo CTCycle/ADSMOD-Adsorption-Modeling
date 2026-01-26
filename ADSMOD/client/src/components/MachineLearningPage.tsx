@@ -129,6 +129,7 @@ export const MachineLearningPage: React.FC = () => {
     // Processed datasets for training wizard
     const [processedDatasets, setProcessedDatasets] = useState<ProcessedDatasetInfo[]>([]);
     const [selectedDatasetLabel, setSelectedDatasetLabel] = useState<string | null>(null);
+    const [selectedDatasetHash, setSelectedDatasetHash] = useState<string | null>(null);
 
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
@@ -230,7 +231,8 @@ export const MachineLearningPage: React.FC = () => {
         // Include the selected dataset label in the configuration
         const trainingConfig = {
             ...config,
-            dataset_label: selectedDatasetLabel || undefined
+            dataset_label: selectedDatasetLabel || undefined,
+            dataset_hash: selectedDatasetHash || undefined,
         };
         const result = await startTraining(trainingConfig);
         setIsLoading(false);
@@ -253,6 +255,12 @@ export const MachineLearningPage: React.FC = () => {
         }
         setShowResumeTrainingWizard(true);
     }, [checkpoints]);
+
+    const handleDatasetSelect = useCallback((label: string) => {
+        setSelectedDatasetLabel(label);
+        const match = processedDatasets.find((dataset) => dataset.dataset_label === label);
+        setSelectedDatasetHash(match?.dataset_hash ?? null);
+    }, [processedDatasets]);
 
     const handleConfirmResume = useCallback(async () => {
         setIsLoading(true);
@@ -489,7 +497,7 @@ export const MachineLearningPage: React.FC = () => {
                     isLoading={isLoading}
                     processedDatasets={processedDatasets}
                     selectedDatasetLabel={selectedDatasetLabel}
-                    onDatasetSelect={setSelectedDatasetLabel}
+                    onDatasetSelect={handleDatasetSelect}
                 />
             )}
 

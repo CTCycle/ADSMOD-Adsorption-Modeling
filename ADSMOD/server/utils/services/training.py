@@ -280,8 +280,11 @@ class TrainingManager:
 
     # ---------------------------------------------------------------------
     def _start_training_internal(self, configuration: dict[str, Any]) -> None:
+        dataset_label = self.data_serializer.normalize_dataset_label(
+            configuration.get("dataset_label")
+        )
         train_data, validation_data, metadata = (
-            self.data_serializer.load_training_data()
+            self.data_serializer.load_training_data(dataset_label)
         )
         if train_data.empty or validation_data.empty:
             raise ValueError("No training data available. Build the dataset first.")
@@ -357,14 +360,19 @@ class TrainingManager:
             checkpoint_path,
         ) = self.model_serializer.load_checkpoint(checkpoint)
 
-        current_metadata = self.data_serializer.load_training_metadata()
+        dataset_label = self.data_serializer.normalize_dataset_label(
+            train_config.get("dataset_label")
+        )
+        current_metadata = self.data_serializer.load_training_metadata(dataset_label)
         if not self.data_serializer.validate_metadata(current_metadata, model_metadata):
             raise ValueError(
                 "Training dataset metadata does not match the checkpoint. "
                 "Rebuild the dataset using the checkpoint configuration before resuming."
             )
 
-        train_data, validation_data, _ = self.data_serializer.load_training_data()
+        train_data, validation_data, _ = self.data_serializer.load_training_data(
+            dataset_label
+        )
         if train_data.empty or validation_data.empty:
             raise ValueError("No training data available. Build the dataset first.")
 
