@@ -302,9 +302,18 @@ class TrainingDataSerializer:
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_dataset_label(dataset_label: str | None) -> str:
+        if not dataset_label:
+            return "default"
+        normalized = str(dataset_label).strip()
+        return normalized or "default"
+
+    # -------------------------------------------------------------------------
     def save_training_dataset(
         self, dataset: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
+        dataset_label = self.normalize_dataset_label(dataset_label)
         # Load existing data
         existing = database.load_from_database("TRAINING_DATASET")
 
@@ -320,6 +329,7 @@ class TrainingDataSerializer:
     def save_training_metadata(
         self, metadata: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
+        dataset_label = self.normalize_dataset_label(dataset_label)
         # Load existing metadata
         existing = database.load_from_database("TRAINING_METADATA")
 
@@ -339,6 +349,7 @@ class TrainingDataSerializer:
             database.save_into_database(empty_df, "TRAINING_DATASET")
             database.save_into_database(empty_df, "TRAINING_METADATA")
         else:
+            dataset_label = self.normalize_dataset_label(dataset_label)
             # Clear only the specified dataset
             existing_data = database.load_from_database("TRAINING_DATASET")
             existing_meta = database.load_from_database("TRAINING_METADATA")
@@ -392,6 +403,7 @@ class TrainingDataSerializer:
     def load_training_metadata(
         self, dataset_label: str = "default"
     ) -> TrainingMetadata:
+        dataset_label = self.normalize_dataset_label(dataset_label)
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
             return TrainingMetadata()
@@ -444,6 +456,7 @@ class TrainingDataSerializer:
     def load_training_data(
         self, dataset_label: str = "default", only_metadata: bool = False
     ) -> tuple[pd.DataFrame, pd.DataFrame, TrainingMetadata] | TrainingMetadata:
+        dataset_label = self.normalize_dataset_label(dataset_label)
         metadata = self.load_training_metadata(dataset_label)
         if only_metadata:
             return metadata

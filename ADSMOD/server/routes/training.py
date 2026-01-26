@@ -224,7 +224,10 @@ class TrainingEndpoint:
     # -------------------------------------------------------------------------
     def get_dataset_info(self, dataset_label: str = "default") -> DatasetInfoResponse:
         try:
-            info = DatasetBuilder.get_training_dataset_info(dataset_label)
+            resolved_label = training_manager.data_serializer.normalize_dataset_label(
+                dataset_label
+            )
+            info = DatasetBuilder.get_training_dataset_info(resolved_label)
 
             if info is None:
                 return DatasetInfoResponse(available=False)
@@ -254,12 +257,17 @@ class TrainingEndpoint:
         self, dataset_label: str | None = None
     ) -> dict[str, str]:
         try:
-            success = DatasetBuilder.clear_training_dataset(dataset_label)
+            resolved_label = (
+                training_manager.data_serializer.normalize_dataset_label(dataset_label)
+                if dataset_label is not None
+                else None
+            )
+            success = DatasetBuilder.clear_training_dataset(resolved_label)
 
             if success:
                 msg = (
-                    f"Training dataset '{dataset_label}' cleared."
-                    if dataset_label
+                    f"Training dataset '{resolved_label}' cleared."
+                    if resolved_label
                     else "All training datasets cleared."
                 )
                 return {"status": "success", "message": msg}
@@ -375,15 +383,34 @@ class TrainingEndpoint:
             # Force mixed precision setting from server configuration
             config.use_mixed_precision = server_settings.training.use_mixed_precision
 
-            logger.info(f"Starting training with config: {config.model_dump()}")
-            info = DatasetBuilder.get_training_dataset_info(config.dataset_label)
+            resolved_label = training_manager.data_serializer.normalize_dataset_label(
+                config.dataset_label
+            )
+            configuration = config.model_dump()
+            configuration["dataset_label"] = resolved_label
+
+            logger.info("Starting training with config: %s", configuration)
+            metadata = training_manager.data_serializer.load_training_metadata(
+                resolved_label
+            )
+            requested_hash = configuration.get("dataset_hash")
+            if requested_hash and metadata.dataset_hash:
+                if requested_hash != metadata.dataset_hash:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Selected dataset does not match the stored training metadata. "
+                            "Refresh the dataset list and try again."
+                        ),
+                    )
+            info = DatasetBuilder.get_training_dataset_info(resolved_label)
             if info is None:
                 raise HTTPException(
                     status_code=400,
                     detail="No training dataset available. Build the dataset first.",
                 )
 
-            session_id = training_manager.start_training(config.model_dump())
+            session_id = training_manager.start_training(configuration)
 
             return TrainingStartResponse(
                 status="started",

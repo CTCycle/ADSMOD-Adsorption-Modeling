@@ -341,6 +341,7 @@ class DatasetBuilder:
     ) -> dict[str, Any] | None:
         try:
             serializer = TrainingDataSerializer()
+            dataset_label = serializer.normalize_dataset_label(dataset_label)
             # load_training_metadata returns a TrainingMetadata object
             metadata = serializer.load_training_metadata(dataset_label)
 
