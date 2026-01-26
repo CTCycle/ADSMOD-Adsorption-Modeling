@@ -17,6 +17,8 @@ from ADSMOD.server.schemas.training import (
     DatasetSelection,
     DatasetSourceInfo,
     DatasetSourcesResponse,
+    ProcessedDatasetInfo,
+    ProcessedDatasetsResponse,
     ResumeTrainingRequest,
     TrainingConfigRequest,
     TrainingDatasetResponse,
@@ -127,7 +129,7 @@ class TrainingEndpoint:
             selections
         )
 
-        builder = DatasetBuilder(config)
+        builder = DatasetBuilder(config, dataset_label=request.dataset_label)
         result = builder.build_training_dataset(
             adsorption_data=adsorption_data,
             guest_data=guest_data,
@@ -215,16 +217,30 @@ class TrainingEndpoint:
         return {"status": "cancelled", "job_id": job_id}
 
     # -------------------------------------------------------------------------
-    def get_dataset_info(self) -> DatasetInfoResponse:
+    def get_processed_datasets(self) -> ProcessedDatasetsResponse:
+        """Returns a list of all processed datasets with their metadata."""
+        try:
+            datasets_list = DatasetBuilder.list_processed_datasets()
+            datasets = [
+                ProcessedDatasetInfo(**entry) for entry in datasets_list
+            ]
+            return ProcessedDatasetsResponse(datasets=datasets)
+        except Exception as e:
+            logger.error(f"Error listing processed datasets: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
+    def get_dataset_info(self, dataset_label: str = "default") -> DatasetInfoResponse:
 
         try:
-            info = DatasetBuilder.get_training_dataset_info()
+            info = DatasetBuilder.get_training_dataset_info(dataset_label)
 
             if info is None:
                 return DatasetInfoResponse(available=False)
 
             return DatasetInfoResponse(
                 available=True,
+                dataset_label=info.get("dataset_label"),
                 created_at=info.get("created_at"),
                 sample_size=info.get("sample_size"),
                 validation_size=info.get("validation_size"),
@@ -243,13 +259,14 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    def clear_training_dataset(self) -> dict[str, str]:
+    def clear_training_dataset(self, dataset_label: str | None = None) -> dict[str, str]:
 
         try:
-            success = DatasetBuilder.clear_training_dataset()
+            success = DatasetBuilder.clear_training_dataset(dataset_label)
 
             if success:
-                return {"status": "success", "message": "Training dataset cleared."}
+                msg = f"Training dataset '{dataset_label}' cleared." if dataset_label else "All training datasets cleared."
+                return {"status": "success", "message": msg}
             else:
                 return {"status": "error", "message": "Failed to clear training dataset."}
 
@@ -466,6 +483,12 @@ class TrainingEndpoint:
             self.build_training_dataset,
             methods=["POST"],
             response_model=JobStartResponse,
+        )
+        self.router.add_api_route(
+            "/processed-datasets",
+            self.get_processed_datasets,
+            methods=["GET"],
+            response_model=ProcessedDatasetsResponse,
         )
         self.router.add_api_route(
             "/dataset-info",
