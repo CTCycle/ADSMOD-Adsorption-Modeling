@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { NumberInput } from './UIComponents';
-import { fetchProcessedDatasets } from '../services';
 import type {
     DatasetBuildConfig,
     DatasetSourceInfo,
     DatasetSelection,
-    ProcessedDatasetInfo,
 } from '../types';
 
 interface DatasetProcessingWizardProps {
     selectedDatasets: DatasetSourceInfo[];
     onClose: () => void;
     onBuildStart: (config: DatasetBuildConfig) => void;
-    onDatasetSelect?: (dataset: ProcessedDatasetInfo) => void;
 }
 
 const buildDatasetKey = (dataset: DatasetSourceInfo): string =>
@@ -22,15 +19,9 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
     selectedDatasets,
     onClose,
     onBuildStart,
-    onDatasetSelect,
 }) => {
-    // Wizard page state (0: Select/Create, 1: Settings, 2: Summary + Naming)
+    // Wizard page state (0: Settings, 1: Summary + Naming)
     const [currentPage, setCurrentPage] = useState(0);
-
-    // Processed datasets state
-    const [processedDatasets, setProcessedDatasets] = useState<ProcessedDatasetInfo[]>([]);
-    const [selectedProcessedDataset, setSelectedProcessedDataset] = useState<string | null>(null);
-    const [loadingProcessed, setLoadingProcessed] = useState(true);
 
     // Build configuration state
     const [sampleSize, setSampleSize] = useState(1.0);
@@ -42,38 +33,13 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
     const [maxUptake, setMaxUptake] = useState(20);
     const [datasetName, setDatasetName] = useState('');
 
-    // Load processed datasets on mount
-    useEffect(() => {
-        const loadProcessedDatasets = async () => {
-            setLoadingProcessed(true);
-            const { datasets, error } = await fetchProcessedDatasets();
-            if (!error) {
-                setProcessedDatasets(datasets);
-            }
-            setLoadingProcessed(false);
-        };
-        loadProcessedDatasets();
-    }, []);
-
     // Generate default dataset name based on timestamp
     useEffect(() => {
-        if (currentPage === 2 && !datasetName) {
+        if (currentPage === 1 && !datasetName) {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             setDatasetName(`dataset_${timestamp}`);
         }
     }, [currentPage, datasetName]);
-
-    const handleSelectProcessedDataset = () => {
-        const dataset = processedDatasets.find((d) => d.dataset_label === selectedProcessedDataset);
-        if (dataset && onDatasetSelect) {
-            onDatasetSelect(dataset);
-            onClose();
-        }
-    };
-
-    const handleCreateNew = () => {
-        setCurrentPage(1);
-    };
 
     const handleBuildDataset = () => {
         if (selectedDatasets.length === 0) {
@@ -103,7 +69,7 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
     };
 
     const handleNext = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, 2));
+        setCurrentPage((prev) => Math.min(prev + 1, 1));
     };
 
     const handlePrevious = () => {
@@ -121,72 +87,16 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4>Dataset Processing Wizard</h4>
-                    <p>Select an existing dataset or create a new one from your sources.</p>
+                    <p>Configure processing settings for your selected datasets.</p>
                     <div className="wizard-page-indicator">
                         <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>
                         <span className={`wizard-dot-line ${currentPage > 0 ? 'active' : ''}`} />
                         <span className={`wizard-dot ${currentPage === 1 ? 'active' : ''}`}>2</span>
-                        <span className={`wizard-dot-line ${currentPage > 1 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 2 ? 'active' : ''}`}>3</span>
                     </div>
                 </div>
 
                 <div className="wizard-body">
                     {currentPage === 0 && (
-                        <div className="wizard-page">
-                            <div className="wizard-card">
-                                <div className="wizard-card-header">
-                                    <span className="wizard-card-icon">📂</span>
-                                    <span>Select or Create Dataset</span>
-                                </div>
-                                <p className="wizard-card-description">
-                                    Choose an existing processed dataset for training, or create a new one
-                                    from the selected source datasets.
-                                </p>
-                                <div className="wizard-card-body">
-                                    {loadingProcessed ? (
-                                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--slate-500)' }}>
-                                            Loading processed datasets...
-                                        </div>
-                                    ) : processedDatasets.length === 0 ? (
-                                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--slate-500)' }}>
-                                            No processed datasets available yet. Click "Create New" to build your first dataset.
-                                        </div>
-                                    ) : (
-                                        <div className="dataset-table">
-                                            <div className="dataset-table-header">
-                                                <span>Name</span>
-                                                <span>Train Samples</span>
-                                                <span>Validation Samples</span>
-                                            </div>
-                                            <div className="dataset-table-body">
-                                                {processedDatasets.map((dataset) => (
-                                                    <div
-                                                        key={dataset.dataset_label}
-                                                        className={`dataset-row ${selectedProcessedDataset === dataset.dataset_label ? 'selected' : ''}`}
-                                                        onClick={() => setSelectedProcessedDataset(dataset.dataset_label)}
-                                                        role="button"
-                                                        tabIndex={0}
-                                                        onKeyDown={(event) => {
-                                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                                setSelectedProcessedDataset(dataset.dataset_label);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <span>{dataset.dataset_label}</span>
-                                                        <span className="dataset-count">{dataset.train_samples}</span>
-                                                        <span className="dataset-count">{dataset.validation_samples}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {currentPage === 1 && (
                         <div className="wizard-page">
                             <div className="wizard-card">
                                 <div className="wizard-card-header">
@@ -270,7 +180,7 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
                         </div>
                     )}
 
-                    {currentPage === 2 && (
+                    {currentPage === 1 && (
                         <div className="wizard-page">
                             <div className="wizard-card" style={{ marginBottom: '1rem', border: '1px solid var(--primary-200)' }}>
                                 <div className="wizard-card-header">
@@ -341,33 +251,13 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
                 </div>
 
                 <div className="wizard-footer">
+                    <button className="secondary" onClick={onClose}>
+                        Cancel
+                    </button>
                     {currentPage === 0 ? (
-                        <>
-                            <button className="secondary" onClick={onClose}>
-                                Cancel
-                            </button>
-                            {processedDatasets.length > 0 && (
-                                <button
-                                    className="secondary"
-                                    onClick={handleSelectProcessedDataset}
-                                    disabled={!selectedProcessedDataset}
-                                >
-                                    Use Selected
-                                </button>
-                            )}
-                            <button className="primary" onClick={handleCreateNew}>
-                                Create New →
-                            </button>
-                        </>
-                    ) : currentPage === 1 ? (
-                        <>
-                            <button className="secondary" onClick={handlePrevious}>
-                                ← Previous
-                            </button>
-                            <button className="primary" onClick={handleNext}>
-                                Next →
-                            </button>
-                        </>
+                        <button className="primary" onClick={handleNext}>
+                            Next →
+                        </button>
                     ) : (
                         <>
                             <button className="secondary" onClick={handlePrevious}>

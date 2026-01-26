@@ -29,7 +29,7 @@
   },
   "nist": {
     "parallel_tasks": 20,
-    "pubchem_parallel_tasks": 10
+    "pubchem_parallel_tasks": 1
   },
   "fitting": {
     "default_max_iterations": 1000,

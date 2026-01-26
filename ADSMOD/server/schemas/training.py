@@ -14,6 +14,7 @@ class TrainingConfigRequest(BaseModel):
     batch_size: int = Field(default=32, ge=1, le=256)
     shuffle_dataset: bool = True
     shuffle_size: int = Field(default=1000, ge=100, le=10000)
+    dataset_label: str | None = None
 
     # Model settings
     selected_model: str = "SCADS Series"
