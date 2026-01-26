@@ -314,6 +314,7 @@ class Adsorbent(Base):
 class TrainingDataset(Base):
     __tablename__ = "TRAINING_DATASET"
     id = Column(Integer, primary_key=True)
+    dataset_label = Column(String, nullable=False, default="default")
     dataset_name = Column(String)
     split = Column(String)
     temperature = Column(Float)
@@ -329,6 +330,7 @@ class TrainingDataset(Base):
 class TrainingMetadata(Base):
     __tablename__ = "TRAINING_METADATA"
     id = Column(Integer, primary_key=True)
+    dataset_label = Column(String, nullable=False, default="default")
     created_at = Column(String)
     dataset_hash = Column(String)
     sample_size = Column(Float)
@@ -344,4 +346,4 @@ class TrainingMetadata(Base):
     smile_vocabulary = Column(String)
     adsorbent_vocabulary = Column(String)
     normalization_stats = Column(String)
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (UniqueConstraint("dataset_label"),)

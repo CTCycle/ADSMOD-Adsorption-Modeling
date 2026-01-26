@@ -235,6 +235,7 @@ export interface DatasetBuildConfig {
     max_pressure: number;
     max_uptake: number;
     datasets: DatasetSelection[];
+    dataset_label?: string;
 }
 
 export interface DatasetBuildResult {
@@ -247,6 +248,7 @@ export interface DatasetBuildResult {
 
 export interface DatasetFullInfo {
     available: boolean;
+    dataset_label?: string;
     created_at?: string;
     sample_size?: number;
     validation_size?: number;
@@ -258,4 +260,12 @@ export interface DatasetFullInfo {
     total_samples?: number;
     train_samples?: number;
     validation_samples?: number;
+}
+
+export interface ProcessedDatasetInfo {
+    dataset_label: string;
+    dataset_hash: string | null;
+    train_samples: number;
+    validation_samples: number;
+    created_at?: string;
 }

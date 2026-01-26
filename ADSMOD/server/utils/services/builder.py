@@ -65,10 +65,11 @@ class DatasetBuilderConfig:
 
 ###############################################################################
 class DatasetBuilder:
-    def __init__(self, config: DatasetBuilderConfig) -> None:
+    def __init__(self, config: DatasetBuilderConfig, dataset_label: str = "default") -> None:
         self.config = config
         self.configuration = config.to_dict()
         self.serializer = TrainingDataSerializer()
+        self.dataset_label = dataset_label
 
     # -------------------------------------------------------------------------
     def build_training_dataset(
@@ -211,6 +212,7 @@ class DatasetBuilder:
                 adsorbent_vocab = encoding.mapping
 
         training_data["dataset_name"] = dataset_name
+        training_data["dataset_label"] = self.dataset_label
 
         training_data["pressure"] = training_data["pressure"].apply(json.dumps)
         training_data["adsorbed_amount"] = training_data["adsorbed_amount"].apply(json.dumps)
@@ -241,6 +243,7 @@ class DatasetBuilder:
     # -------------------------------------------------------------------------
     def save_training_dataset(self, training_data: pd.DataFrame) -> None:
         columns_to_save = [
+            "dataset_label",
             "dataset_name",
             "split",
             "temperature",
@@ -258,7 +261,7 @@ class DatasetBuilder:
         available_columns = [c for c in columns_to_save if c in training_data.columns]
         data_to_save = training_data[available_columns].copy()
 
-        self.serializer.save_training_dataset(data_to_save)
+        self.serializer.save_training_dataset(data_to_save, self.dataset_label)
 
     # -------------------------------------------------------------------------
     def save_training_metadata(
@@ -298,6 +301,7 @@ class DatasetBuilder:
         # So we convert to DataFrame as before, but with the correct hash.
         
         metadata_df = pd.DataFrame([{
+            "dataset_label": self.dataset_label,
             "created_at": metadata.created_at,
             "dataset_hash": metadata.dataset_hash,
             "sample_size": metadata.sample_size,
@@ -315,21 +319,22 @@ class DatasetBuilder:
             "normalization_stats": json.dumps(metadata.normalization_stats),
         }])
 
-        self.serializer.save_training_metadata(metadata_df)
+        self.serializer.save_training_metadata(metadata_df, self.dataset_label)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def get_training_dataset_info() -> dict[str, Any] | None:
+    def get_training_dataset_info(dataset_label: str = "default") -> dict[str, Any] | None:
         try:
             serializer = TrainingDataSerializer()
             # load_training_metadata returns a TrainingMetadata object
-            metadata = serializer.load_training_metadata()
+            metadata = serializer.load_training_metadata(dataset_label)
             
             # Check if empty (default object usually has total_samples=0)
             if not metadata or metadata.total_samples == 0:
                 return None
                 
             return {
+                "dataset_label": dataset_label,
                 "created_at": metadata.created_at,
                 "sample_size": metadata.sample_size,
                 "validation_size": metadata.validation_size,
@@ -348,12 +353,25 @@ class DatasetBuilder:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def clear_training_dataset() -> bool:
+    def clear_training_dataset(dataset_label: str | None = None) -> bool:
         try:
             serializer = TrainingDataSerializer()
-            serializer.clear_training_dataset()
-            logger.info("Training dataset cleared")
+            serializer.clear_training_dataset(dataset_label)
+            if dataset_label:
+                logger.info(f"Training dataset '{dataset_label}' cleared")
+            else:
+                logger.info("All training datasets cleared")
             return True
         except Exception as e:
             logger.error(f"Failed to clear training dataset: {e}")
             return False
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def list_processed_datasets() -> list[dict[str, Any]]:
+        """Returns a list of all processed datasets with their metadata."""
+        try:
+            return TrainingDataSerializer.list_processed_datasets()
+        except Exception as e:
+            logger.error(f"Failed to list processed datasets: {e}")
+            return []

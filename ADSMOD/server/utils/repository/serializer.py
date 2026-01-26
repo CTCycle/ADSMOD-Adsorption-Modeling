@@ -298,18 +298,50 @@ class TrainingDataSerializer:
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
-    def save_training_dataset(self, dataset: pd.DataFrame) -> None:
-        database.save_into_database(dataset, "TRAINING_DATASET")
+    def save_training_dataset(self, dataset: pd.DataFrame, dataset_label: str = "default") -> None:
+        # Load existing data
+        existing = database.load_from_database("TRAINING_DATASET")
+        
+        # Filter out rows with the same dataset_label
+        if not existing.empty and "dataset_label" in existing.columns:
+            existing = existing[existing["dataset_label"] != dataset_label]
+        
+        # Append new dataset
+        combined = pd.concat([existing, dataset], ignore_index=True)
+        database.save_into_database(combined, "TRAINING_DATASET")
 
     # -------------------------------------------------------------------------
-    def save_training_metadata(self, metadata: pd.DataFrame) -> None:
-        database.save_into_database(metadata, "TRAINING_METADATA")
+    def save_training_metadata(self, metadata: pd.DataFrame, dataset_label: str = "default") -> None:
+        # Load existing metadata
+        existing = database.load_from_database("TRAINING_METADATA")
+        
+        # Filter out row with the same dataset_label (upsert logic)
+        if not existing.empty and "dataset_label" in existing.columns:
+            existing = existing[existing["dataset_label"] != dataset_label]
+        
+        # Append new metadata row
+        combined = pd.concat([existing, metadata], ignore_index=True)
+        database.save_into_database(combined, "TRAINING_METADATA")
 
     # -------------------------------------------------------------------------
-    def clear_training_dataset(self) -> None:
-        empty_df = pd.DataFrame()
-        database.save_into_database(empty_df, "TRAINING_DATASET")
-        database.save_into_database(empty_df, "TRAINING_METADATA")
+    def clear_training_dataset(self, dataset_label: str | None = None) -> None:
+        if dataset_label is None:
+            # Clear all datasets (backward compatibility)
+            empty_df = pd.DataFrame()
+            database.save_into_database(empty_df, "TRAINING_DATASET")
+            database.save_into_database(empty_df, "TRAINING_METADATA")
+        else:
+            # Clear only the specified dataset
+            existing_data = database.load_from_database("TRAINING_DATASET")
+            existing_meta = database.load_from_database("TRAINING_METADATA")
+            
+            if not existing_data.empty and "dataset_label" in existing_data.columns:
+                filtered_data = existing_data[existing_data["dataset_label"] != dataset_label]
+                database.save_into_database(filtered_data, "TRAINING_DATASET")
+            
+            if not existing_meta.empty and "dataset_label" in existing_meta.columns:
+                filtered_meta = existing_meta[existing_meta["dataset_label"] != dataset_label]
+                database.save_into_database(filtered_meta, "TRAINING_METADATA")
 
     # -------------------------------------------------------------------------
     def deserialize_series(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -345,12 +377,21 @@ class TrainingDataSerializer:
         return {}
 
     # -------------------------------------------------------------------------
-    def load_training_metadata(self) -> TrainingMetadata:
+    def load_training_metadata(self, dataset_label: str = "default") -> TrainingMetadata:
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
             return TrainingMetadata()
 
-        row = metadata_df.iloc[0]
+        # Filter by dataset_label if column exists
+        if "dataset_label" in metadata_df.columns:
+            filtered = metadata_df[metadata_df["dataset_label"] == dataset_label]
+            if filtered.empty:
+                return TrainingMetadata()
+            row = filtered.iloc[0]
+        else:
+            # Backward compatibility: use first row if no dataset_label column
+            row = metadata_df.iloc[0]
+
         smile_vocabulary = self._parse_json(row.get("smile_vocabulary"))
         adsorbent_vocabulary = self._parse_json(row.get("adsorbent_vocabulary"))
         max_smile_index = max(smile_vocabulary.values()) if smile_vocabulary else 0
@@ -385,15 +426,20 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     def load_training_data(
-        self, only_metadata: bool = False
+        self, dataset_label: str = "default", only_metadata: bool = False
     ) -> tuple[pd.DataFrame, pd.DataFrame, TrainingMetadata] | TrainingMetadata:
-        metadata = self.load_training_metadata()
+        metadata = self.load_training_metadata(dataset_label)
         if only_metadata:
             return metadata
 
         training_data = database.load_from_database("TRAINING_DATASET")
         if training_data.empty:
             return training_data, training_data, metadata
+        
+        # Filter by dataset_label if column exists
+        if "dataset_label" in training_data.columns:
+            training_data = training_data[training_data["dataset_label"] == dataset_label]
+        
         training_data = self.deserialize_series(training_data)
         train_data = training_data[training_data["split"] == "train"]
         val_data = training_data[training_data["split"] == "validation"]
@@ -401,6 +447,28 @@ class TrainingDataSerializer:
         return train_data, val_data, metadata
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def list_processed_datasets() -> list[dict[str, Any]]:
+        """
+        Returns a list of all processed datasets with their metadata.
+        Each entry contains: dataset_label, dataset_hash, train_samples, validation_samples, created_at
+        """
+        metadata_df = database.load_from_database("TRAINING_METADATA")
+        if metadata_df.empty:
+            return []
+        
+        datasets = []
+        for _, row in metadata_df.iterrows():
+            datasets.append({
+                "dataset_label": str(row.get("dataset_label", "default")),
+                "dataset_hash": str(row.get("dataset_hash")) if row.get("dataset_hash") else None,
+                "train_samples": int(row.get("train_samples", 0)),
+                "validation_samples": int(row.get("validation_samples", 0)),
+                "created_at": str(row.get("created_at", "")),
+            })
+        
+        return datasets
+
     # -------------------------------------------------------------------------
     @staticmethod
     def compute_metadata_hash(metadata: TrainingMetadata) -> str:

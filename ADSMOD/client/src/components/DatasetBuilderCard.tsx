@@ -10,6 +10,7 @@ import type {
     DatasetBuildConfig,
     DatasetFullInfo,
     DatasetSourceInfo,
+    ProcessedDatasetInfo,
 } from '../types';
 
 interface DatasetBuilderCardProps {
@@ -116,6 +117,12 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
             setStatusTone('error');
             setStatusMessage(`ERROR: ${result.message}`);
         }
+    };
+
+    const handleDatasetSelect = async (dataset: ProcessedDatasetInfo) => {
+        setStatusTone('info');
+        setStatusMessage(`Selected dataset: ${dataset.dataset_label} (${dataset.train_samples} train, ${dataset.validation_samples} val)`);
+        await loadDatasetInfo();
     };
 
     return (
@@ -228,6 +235,7 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                     selectedDatasets={selectedDatasets}
                     onClose={() => setIsWizardOpen(false)}
                     onBuildStart={handleBuildStart}
+                    onDatasetSelect={handleDatasetSelect}
                 />
             )}
         </div>

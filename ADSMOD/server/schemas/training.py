@@ -103,6 +103,7 @@ class DatasetBuildRequest(BaseModel):
     max_uptake: float = Field(default=20.0, ge=1.0, le=1000.0)
     reference_checkpoint: str | None = None
     datasets: list[DatasetSelection] = Field(default_factory=list, min_length=1)
+    dataset_label: str = Field(default="default", min_length=1, max_length=64)
 
 
 ###############################################################################
@@ -130,6 +131,7 @@ class DatasetBuildResponse(BaseModel):
 ###############################################################################
 class DatasetInfoResponse(BaseModel):
     available: bool
+    dataset_label: str | None = None
     created_at: str | None = None
     sample_size: float | None = None
     validation_size: float | None = None
@@ -141,6 +143,20 @@ class DatasetInfoResponse(BaseModel):
     total_samples: int | None = None
     train_samples: int | None = None
     validation_samples: int | None = None
+
+
+###############################################################################
+class ProcessedDatasetInfo(BaseModel):
+    dataset_label: str
+    dataset_hash: str | None = None
+    train_samples: int
+    validation_samples: int
+    created_at: str | None = None
+
+
+###############################################################################
+class ProcessedDatasetsResponse(BaseModel):
+    datasets: list[ProcessedDatasetInfo]
 
 
 ###############################################################################

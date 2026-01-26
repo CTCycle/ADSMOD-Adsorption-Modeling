@@ -10,6 +10,7 @@ import type {
     NISTFetchRequest,
     NISTPropertiesRequest,
     NISTStatusResponse,
+    ProcessedDatasetInfo,
 } from './types';
 import { API_BASE_URL } from './constants';
 
@@ -851,10 +852,44 @@ export async function buildTrainingDataset(
     return pollTrainingDatasetJobUntilComplete(jobId, onProgress);
 }
 
-export async function getTrainingDatasetInfo(): Promise<DatasetFullInfo> {
+export async function fetchProcessedDatasets(): Promise<{
+    datasets: ProcessedDatasetInfo[];
+    error: string | null;
+}> {
     try {
         const response = await fetchWithTimeout(
-            `${API_BASE_URL}/training/dataset-info`,
+            `${API_BASE_URL}/training/processed-datasets`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { datasets: [], error: message };
+        }
+
+        const result = await response.json();
+        return {
+            datasets: result.datasets || [],
+            error: null,
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { datasets: [], error: error.message };
+        }
+        return { datasets: [], error: 'An unknown error occurred.' };
+    }
+}
+
+export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<DatasetFullInfo> {
+    try {
+        const url = datasetLabel
+            ? `${API_BASE_URL}/training/dataset-info?dataset_label=${encodeURIComponent(datasetLabel)}`
+            : `${API_BASE_URL}/training/dataset-info`;
+
+        const response = await fetchWithTimeout(
+            url,
             { method: 'GET' },
             HTTP_TIMEOUT
         );
@@ -866,6 +901,7 @@ export async function getTrainingDatasetInfo(): Promise<DatasetFullInfo> {
         const result = await response.json();
         return {
             available: result.available || false,
+            dataset_label: result.dataset_label,
             created_at: result.created_at,
             sample_size: result.sample_size,
             validation_size: result.validation_size,
