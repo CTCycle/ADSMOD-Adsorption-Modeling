@@ -21,9 +21,7 @@ class TestNistStatus:
         assert "data_available" in data
 
     # -------------------------------------------------------------------------
-    def test_nist_status_includes_counts(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_nist_status_includes_counts(self, api_context: APIRequestContext) -> None:
         """Verify NIST status includes row count information."""
         # Act
         response = api_context.get("/nist/status")
@@ -87,9 +85,7 @@ class TestNistProperties:
     """Tests for the NIST properties enrichment endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_fetch_nist_properties_guest(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_fetch_nist_properties_guest(self, api_context: APIRequestContext) -> None:
         """Verify NIST properties fetch for guest materials."""
         # Arrange
         payload = {"target": "guest"}
@@ -106,9 +102,7 @@ class TestNistProperties:
             assert data["target"] == "guest"
 
     # -------------------------------------------------------------------------
-    def test_fetch_nist_properties_host(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_fetch_nist_properties_host(self, api_context: APIRequestContext) -> None:
         """Verify NIST properties fetch for host materials."""
         # Arrange
         payload = {"target": "host"}

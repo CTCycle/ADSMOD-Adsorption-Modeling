@@ -22,9 +22,7 @@ class TestTrainingDatasets:
         assert "available" in data
 
     # -------------------------------------------------------------------------
-    def test_training_datasets_structure(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_training_datasets_structure(self, api_context: APIRequestContext) -> None:
         """Verify training datasets response structure."""
         # Act
         response = api_context.get("/training/datasets")
@@ -70,9 +68,7 @@ class TestTrainingStatus:
         assert "is_training" in data
 
     # -------------------------------------------------------------------------
-    def test_training_status_fields(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_training_status_fields(self, api_context: APIRequestContext) -> None:
         """Verify training status includes progress information."""
         # Act
         response = api_context.get("/training/status")
@@ -135,9 +131,7 @@ class TestDatasetBuild:
             assert "job_id" in data
 
     # -------------------------------------------------------------------------
-    def test_build_dataset_invalid_params(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_build_dataset_invalid_params(self, api_context: APIRequestContext) -> None:
         """Verify dataset build with invalid params returns error."""
         # Arrange
         payload = {
@@ -160,9 +154,7 @@ class TestClearDataset:
     """Tests for the clear dataset endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_clear_training_dataset(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_clear_training_dataset(self, api_context: APIRequestContext) -> None:
         """Verify clear dataset endpoint responds."""
         # Act
         response = api_context.delete("/training/dataset")
@@ -217,9 +209,7 @@ class TestTrainingLifecycle:
         assert response.status == 404
 
     # -------------------------------------------------------------------------
-    def test_stop_training_when_idle(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_stop_training_when_idle(self, api_context: APIRequestContext) -> None:
         """Verify stop training succeeds when no session is active."""
         # Act
         response = api_context.post("/training/stop")

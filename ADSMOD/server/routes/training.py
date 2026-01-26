@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -8,7 +6,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from ADSMOD.server.schemas.jobs import JobListResponse, JobStartResponse, JobStatusResponse
+from ADSMOD.server.schemas.jobs import (
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
 from ADSMOD.server.schemas.training import (
     CheckpointDetailInfo,
     CheckpointsResponse,
@@ -38,8 +40,6 @@ router = APIRouter(prefix="/training", tags=["training"])
 
 ###############################################################################
 class TrainingEndpoint:
-
-
     DATASET_JOB_TYPE = "training_dataset"
 
     def __init__(self, router: APIRouter) -> None:
@@ -47,7 +47,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
-
         try:
             logger.info("Checking training dataset availability")
             info = DatasetBuilder.get_training_dataset_info()
@@ -73,12 +72,9 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_dataset_sources(self) -> DatasetSourcesResponse:
-
         try:
             composer = DatasetCompositionService()
-            datasets = [
-                DatasetSourceInfo(**entry) for entry in composer.list_sources()
-            ]
+            datasets = [DatasetSourceInfo(**entry) for entry in composer.list_sources()]
             return DatasetSourcesResponse(datasets=datasets)
         except Exception as e:
             logger.error(f"Error listing dataset sources: {e}")
@@ -91,7 +87,9 @@ class TrainingEndpoint:
 
         reference_metadata = None
         if request.reference_checkpoint:
-            checkpoint_path = os.path.join(CHECKPOINTS_PATH, request.reference_checkpoint)
+            checkpoint_path = os.path.join(
+                CHECKPOINTS_PATH, request.reference_checkpoint
+            )
             if not os.path.isdir(checkpoint_path):
                 return {
                     "success": False,
@@ -125,8 +123,8 @@ class TrainingEndpoint:
         )
         composer = DatasetCompositionService(allow_pubchem_fetch=False)
         selections = [selection.model_dump() for selection in request.datasets]
-        adsorption_data, guest_data, host_data, dataset_label = composer.compose_datasets(
-            selections
+        adsorption_data, guest_data, host_data, dataset_label = (
+            composer.compose_datasets(selections)
         )
 
         builder = DatasetBuilder(config, dataset_label=request.dataset_label)
@@ -153,7 +151,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def build_training_dataset(self, request: DatasetBuildRequest) -> JobStartResponse:
-
         if job_manager.is_job_running(self.DATASET_JOB_TYPE):
             raise HTTPException(
                 status_code=400,
@@ -174,7 +171,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_dataset_job_status(self, job_id: str) -> JobStatusResponse:
-
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found.")
@@ -189,7 +185,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def list_dataset_jobs(self) -> JobListResponse:
-
         all_jobs = job_manager.list_jobs(self.DATASET_JOB_TYPE)
         return JobListResponse(
             jobs=[
@@ -207,7 +202,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def cancel_dataset_job(self, job_id: str) -> dict[str, str]:
-
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -221,9 +215,7 @@ class TrainingEndpoint:
         """Returns a list of all processed datasets with their metadata."""
         try:
             datasets_list = DatasetBuilder.list_processed_datasets()
-            datasets = [
-                ProcessedDatasetInfo(**entry) for entry in datasets_list
-            ]
+            datasets = [ProcessedDatasetInfo(**entry) for entry in datasets_list]
             return ProcessedDatasetsResponse(datasets=datasets)
         except Exception as e:
             logger.error(f"Error listing processed datasets: {e}")
@@ -231,7 +223,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_dataset_info(self, dataset_label: str = "default") -> DatasetInfoResponse:
-
         try:
             info = DatasetBuilder.get_training_dataset_info(dataset_label)
 
@@ -259,16 +250,24 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    def clear_training_dataset(self, dataset_label: str | None = None) -> dict[str, str]:
-
+    def clear_training_dataset(
+        self, dataset_label: str | None = None
+    ) -> dict[str, str]:
         try:
             success = DatasetBuilder.clear_training_dataset(dataset_label)
 
             if success:
-                msg = f"Training dataset '{dataset_label}' cleared." if dataset_label else "All training datasets cleared."
+                msg = (
+                    f"Training dataset '{dataset_label}' cleared."
+                    if dataset_label
+                    else "All training datasets cleared."
+                )
                 return {"status": "success", "message": msg}
             else:
-                return {"status": "error", "message": "Failed to clear training dataset."}
+                return {
+                    "status": "error",
+                    "message": "Failed to clear training dataset.",
+                }
 
         except Exception as e:
             logger.error(f"Error clearing training dataset: {e}")
@@ -276,7 +275,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
-
         try:
             logger.info("Scanning for available checkpoints")
             checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
@@ -296,11 +294,15 @@ class TrainingEndpoint:
                             checkpoint_path
                         )
                     )
-                    session_history = session.get("history") if isinstance(session, dict) else {}
+                    session_history = (
+                        session.get("history") if isinstance(session, dict) else {}
+                    )
                     if not isinstance(session_history, dict):
                         session_history = {}
 
-                    epochs_value = session.get("epochs") if isinstance(session, dict) else None
+                    epochs_value = (
+                        session.get("epochs") if isinstance(session, dict) else None
+                    )
                     if isinstance(epochs_value, int):
                         epochs_trained = epochs_value
 
@@ -312,7 +314,9 @@ class TrainingEndpoint:
                         if epochs_trained is None:
                             epochs_trained = len(loss_values)
 
-                    if epochs_trained is None and isinstance(training_configuration, dict):
+                    if epochs_trained is None and isinstance(
+                        training_configuration, dict
+                    ):
                         configured_epochs = training_configuration.get("epochs")
                         if isinstance(configured_epochs, int):
                             epochs_trained = configured_epochs
@@ -360,11 +364,11 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
-
         state = training_manager.state.snapshot()
         if state["is_training"]:
             raise HTTPException(
-                status_code=400, detail="Training is already in progress. Stop it first."
+                status_code=400,
+                detail="Training is already in progress. Stop it first.",
             )
 
         try:
@@ -392,14 +396,12 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    def resume_training(
-        self, request: ResumeTrainingRequest
-    ) -> TrainingStartResponse:
-
+    def resume_training(self, request: ResumeTrainingRequest) -> TrainingStartResponse:
         state = training_manager.state.snapshot()
         if state["is_training"]:
             raise HTTPException(
-                status_code=400, detail="Training is already in progress. Stop it first."
+                status_code=400,
+                detail="Training is already in progress. Stop it first.",
             )
 
         try:
@@ -430,7 +432,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def stop_training(self) -> dict[str, str]:
-
         state = training_manager.state.snapshot()
         if not state["is_training"]:
             return {"status": "stopped", "message": "No training session is running."}
@@ -447,7 +448,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
-
         state = training_manager.state.snapshot()
         progress = 0.0
         if state["total_epochs"] > 0:
@@ -465,7 +465,6 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-
         self.router.add_api_route(
             "/datasets",
             self.get_training_datasets,

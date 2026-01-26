@@ -65,7 +65,9 @@ class DatasetBuilderConfig:
 
 ###############################################################################
 class DatasetBuilder:
-    def __init__(self, config: DatasetBuilderConfig, dataset_label: str = "default") -> None:
+    def __init__(
+        self, config: DatasetBuilderConfig, dataset_label: str = "default"
+    ) -> None:
         self.config = config
         self.configuration = config.to_dict()
         self.serializer = TrainingDataSerializer()
@@ -181,7 +183,9 @@ class DatasetBuilder:
             if reference_metadata is not None and reference_smile_vocab:
                 smile_vocab = reference_smile_vocab
 
-        logger.info("Generate train and validation datasets through stratified splitting")
+        logger.info(
+            "Generate train and validation datasets through stratified splitting"
+        )
         splitter = TrainValidationSplit(self.configuration)
         training_data = splitter.split_train_and_validation(processed_data)
         train_samples = training_data[training_data["split"] == "train"]
@@ -200,7 +204,10 @@ class DatasetBuilder:
 
         adsorbent_vocab = {}
         if "adsorbent_name" in training_data.columns:
-            if reference_metadata is not None and reference_metadata.adsorbent_vocabulary:
+            if (
+                reference_metadata is not None
+                and reference_metadata.adsorbent_vocabulary
+            ):
                 encoding = AdsorbentEncoder(self.configuration, train_samples)
                 training_data, _ = encoding.encode_adsorbents_from_vocabulary(
                     training_data, reference_metadata.adsorbent_vocabulary
@@ -215,7 +222,9 @@ class DatasetBuilder:
         training_data["dataset_label"] = self.dataset_label
 
         training_data["pressure"] = training_data["pressure"].apply(json.dumps)
-        training_data["adsorbed_amount"] = training_data["adsorbed_amount"].apply(json.dumps)
+        training_data["adsorbed_amount"] = training_data["adsorbed_amount"].apply(
+            json.dumps
+        )
         if "adsorbate_encoded_SMILE" in training_data.columns:
             training_data["adsorbate_encoded_SMILE"] = training_data[
                 "adsorbate_encoded_SMILE"
@@ -299,40 +308,46 @@ class DatasetBuilder:
         # Or preferably use the serializer's method directly if it accepts the object
         # Looking at serializer.py logic, save_training_metadata(metadata: pd.DataFrame)
         # So we convert to DataFrame as before, but with the correct hash.
-        
-        metadata_df = pd.DataFrame([{
-            "dataset_label": self.dataset_label,
-            "created_at": metadata.created_at,
-            "dataset_hash": metadata.dataset_hash,
-            "sample_size": metadata.sample_size,
-            "validation_size": metadata.validation_size,
-            "min_measurements": metadata.min_measurements,
-            "max_measurements": metadata.max_measurements,
-            "smile_sequence_size": metadata.smile_sequence_size,
-            "max_pressure": metadata.max_pressure,
-            "max_uptake": metadata.max_uptake,
-            "total_samples": metadata.total_samples,
-            "train_samples": metadata.train_samples,
-            "validation_samples": metadata.validation_samples,
-            "smile_vocabulary": json.dumps(metadata.smile_vocabulary),
-            "adsorbent_vocabulary": json.dumps(metadata.adsorbent_vocabulary),
-            "normalization_stats": json.dumps(metadata.normalization_stats),
-        }])
+
+        metadata_df = pd.DataFrame(
+            [
+                {
+                    "dataset_label": self.dataset_label,
+                    "created_at": metadata.created_at,
+                    "dataset_hash": metadata.dataset_hash,
+                    "sample_size": metadata.sample_size,
+                    "validation_size": metadata.validation_size,
+                    "min_measurements": metadata.min_measurements,
+                    "max_measurements": metadata.max_measurements,
+                    "smile_sequence_size": metadata.smile_sequence_size,
+                    "max_pressure": metadata.max_pressure,
+                    "max_uptake": metadata.max_uptake,
+                    "total_samples": metadata.total_samples,
+                    "train_samples": metadata.train_samples,
+                    "validation_samples": metadata.validation_samples,
+                    "smile_vocabulary": json.dumps(metadata.smile_vocabulary),
+                    "adsorbent_vocabulary": json.dumps(metadata.adsorbent_vocabulary),
+                    "normalization_stats": json.dumps(metadata.normalization_stats),
+                }
+            ]
+        )
 
         self.serializer.save_training_metadata(metadata_df, self.dataset_label)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def get_training_dataset_info(dataset_label: str = "default") -> dict[str, Any] | None:
+    def get_training_dataset_info(
+        dataset_label: str = "default",
+    ) -> dict[str, Any] | None:
         try:
             serializer = TrainingDataSerializer()
             # load_training_metadata returns a TrainingMetadata object
             metadata = serializer.load_training_metadata(dataset_label)
-            
+
             # Check if empty (default object usually has total_samples=0)
             if not metadata or metadata.total_samples == 0:
                 return None
-                
+
             return {
                 "dataset_label": dataset_label,
                 "created_at": metadata.created_at,

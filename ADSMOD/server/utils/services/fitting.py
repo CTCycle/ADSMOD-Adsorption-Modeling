@@ -83,7 +83,9 @@ class ModelSolver:
         sample_size: int,
         parameter_count: int,
     ) -> tuple[float, float]:
-        valid_dimensions = parameter_count > 0 and sample_size > 0 and np.isfinite(score)
+        valid_dimensions = (
+            parameter_count > 0 and sample_size > 0 and np.isfinite(score)
+        )
         if not valid_dimensions:
             return (np.inf, np.inf)
 
@@ -98,8 +100,8 @@ class ModelSolver:
             return (aic, np.inf)
 
         aicc = float(
-            aic + (2.0 * parameter_count * (parameter_count + 1.0))
-            / correction_denominator
+            aic
+            + (2.0 * parameter_count * (parameter_count + 1.0)) / correction_denominator
         )
         return (aic, aicc)
 
@@ -169,11 +171,11 @@ class ModelSolver:
                     evaluations,
                 )
                 optimal_list = optimal_params.tolist()
-                covariance_list = covariance.tolist() if covariance is not None else None
+                covariance_list = (
+                    covariance.tolist() if covariance is not None else None
+                )
                 error_list = (
-                    errors.tolist()
-                    if isinstance(errors, np.ndarray)
-                    else errors
+                    errors.tolist() if isinstance(errors, np.ndarray) else errors
                 )
                 if error_list is None:
                     error_list = [np.nan] * len(param_names)
@@ -434,7 +436,8 @@ class ModelSolver:
 
             if not self.validate_measurements(pressure, uptake):
                 logger.info(
-                    "Skipping experiment %s due to invalid measurements", experiment_name
+                    "Skipping experiment %s due to invalid measurements",
+                    experiment_name,
                 )
                 skipped_experiments.append(experiment_name)
                 if progress_callback is not None:
@@ -460,7 +463,8 @@ class ModelSolver:
                     error_msg,
                 )
                 logger.debug(
-                    "Full traceback for experiment %s", experiment_name,
+                    "Full traceback for experiment %s",
+                    experiment_name,
                     exc_info=True,
                 )
                 skipped_experiments.append(experiment_name)
@@ -479,9 +483,7 @@ class ModelSolver:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def validate_measurements(
-        pressure: np.ndarray, uptake: np.ndarray
-    ) -> bool:
+    def validate_measurements(pressure: np.ndarray, uptake: np.ndarray) -> bool:
         if pressure.ndim != 1 or uptake.ndim != 1:
             return False
         if pressure.size < 2 or uptake.size < 2:
@@ -534,7 +536,9 @@ class FittingPipeline:
             )
 
         requested_models = sorted(configuration.keys())
-        model_configuration, skipped_models = self.normalize_configuration(configuration)
+        model_configuration, skipped_models = self.normalize_configuration(
+            configuration
+        )
         if not model_configuration:
             raise ValueError("No supported models were selected for fitting.")
         logger.debug("Running solver with configuration: %s", model_configuration)
@@ -570,7 +574,9 @@ class FittingPipeline:
 
         ranking_metric = server_settings.fitting.best_model_metric
         normalized_metric = self.adapter.normalize_metric(ranking_metric)
-        best_frame = self.adapter.compute_best_models(storage_dataset, normalized_metric)
+        best_frame = self.adapter.compute_best_models(
+            storage_dataset, normalized_metric
+        )
         self.serializer.save_best_fit(best_frame)
 
         experiment_count = int(processed.shape[0])
@@ -681,13 +687,16 @@ class FittingPipeline:
         normalized: dict[str, dict[str, dict[str, float]]] = {}
         skipped: list[str] = []
         supported = {
-            self.normalize_model_key(name): name for name in self.solver.collection.model_names
+            self.normalize_model_key(name): name
+            for name in self.solver.collection.model_names
         }
         for model_name, config in configuration.items():
             normalized_key = self.normalize_model_key(model_name)
             resolved_name = self.resolve_model_name(model_name)
             if normalized_key not in supported or resolved_name is None:
-                logger.warning("Skipping unsupported model configuration: %s", model_name)
+                logger.warning(
+                    "Skipping unsupported model configuration: %s", model_name
+                )
                 skipped.append(model_name)
                 continue
 
@@ -744,7 +753,7 @@ class FittingPipeline:
     # -------------------------------------------------------------------------
     @staticmethod
     def summarize_model_outcomes(
-        results: dict[str, list[dict[str, Any]]]
+        results: dict[str, list[dict[str, Any]]],
     ) -> dict[str, dict[str, int]]:
         summary: dict[str, dict[str, int]] = {}
         for model_name, entries in results.items():
@@ -782,8 +791,7 @@ class FittingPipeline:
             [
                 column
                 for column in dataset.columns
-                if column
-                in {COLUMN_EXPERIMENT, COLUMN_BEST_MODEL, COLUMN_WORST_MODEL}
+                if column in {COLUMN_EXPERIMENT, COLUMN_BEST_MODEL, COLUMN_WORST_MODEL}
             ]
         )
         trimmed = dataset.loc[:, dict.fromkeys(preview_columns).keys()]

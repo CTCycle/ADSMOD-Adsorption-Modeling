@@ -295,9 +295,7 @@ class NISTApiClient:
         return [result for result in results if result is not None]
 
     # -------------------------------------------------------------------------
-    async def fetch_experiments_index(
-        self, client: httpx.AsyncClient
-    ) -> pd.DataFrame:
+    async def fetch_experiments_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
         payload = await self.fetch_json(client, self.url_isotherms)
         if payload is None:
             raise ValueError("Failed to retrieve NIST adsorption isotherm index.")
@@ -461,7 +459,9 @@ class PubChemClient:
         }
 
     # -------------------------------------------------------------------------
-    async def fetch_properties_for_names(self, names: list[str]) -> list[dict[str, Any]]:
+    async def fetch_properties_for_names(
+        self, names: list[str]
+    ) -> list[dict[str, Any]]:
         if not names:
             return []
         tasks = [self.fetch_properties_for_name(name) for name in names]

@@ -146,9 +146,7 @@ class TestNistDatasetForFitting:
     """Tests for the NIST dataset endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_get_nist_dataset_for_fitting(
-        self, api_context: APIRequestContext
-    ) -> None:
+    def test_get_nist_dataset_for_fitting(self, api_context: APIRequestContext) -> None:
         """Verify NIST dataset endpoint returns data when available."""
         # Act
         response = api_context.get("/fitting/nist-dataset")

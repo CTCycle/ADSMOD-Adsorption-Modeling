@@ -172,13 +172,15 @@ class TrainingMetadata(BaseModel):
     total_samples: int = 0
     train_samples: int = 0
     validation_samples: int = 0
-    
+
     # Vocabularies
     smile_vocabulary: dict[str, int] = Field(default_factory=dict)
     adsorbent_vocabulary: dict[str, int] = Field(default_factory=dict)
-    
+
     # Statistics
-    normalization_stats: dict[str, list[float] | float | dict] = Field(default_factory=dict)
+    normalization_stats: dict[str, list[float] | float | dict] = Field(
+        default_factory=dict
+    )
     # Also support 'normalization' key logic via this field or separate
     normalization: dict[str, list[float] | float | dict] = Field(default_factory=dict)
 
@@ -188,14 +190,10 @@ class TrainingMetadata(BaseModel):
     # Computed/Derived fields that might be stored
     smile_vocabulary_size: int = 0
     adsorbent_vocabulary_size: int = 0
-    
+
     # Legacy/Frontend fields (optional, can be aliases)
     SMILE_sequence_size: int | None = None
     SMILE_vocabulary: dict[str, int] | None = None
     SMILE_vocabulary_size: int | None = None
 
-    model_config = {
-        "populate_by_name": True,
-        "extra": "ignore"
-    }
-
+    model_config = {"populate_by_name": True, "extra": "ignore"}

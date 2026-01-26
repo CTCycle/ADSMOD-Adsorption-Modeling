@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from ADSMOD.server.schemas.browser import TableDataResponse, TableInfo, TableListResponse
+from ADSMOD.server.schemas.browser import (
+    TableDataResponse,
+    TableInfo,
+    TableListResponse,
+)
 from ADSMOD.server.utils.repository.serializer import DataSerializer
 from ADSMOD.server.utils.constants import (
     BROWSER_DATA_ENDPOINT,
@@ -25,7 +29,6 @@ router = APIRouter(prefix=BROWSER_ROUTER_PREFIX, tags=["browser"])
     status_code=status.HTTP_200_OK,
 )
 async def list_tables() -> TableListResponse:
-
     tables = [
         TableInfo(
             table_name=table_name,
@@ -44,7 +47,6 @@ async def list_tables() -> TableListResponse:
     status_code=status.HTTP_200_OK,
 )
 async def get_table_data(table_name: str) -> TableDataResponse:
-
     if table_name not in BROWSER_TABLE_DISPLAY_NAMES:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

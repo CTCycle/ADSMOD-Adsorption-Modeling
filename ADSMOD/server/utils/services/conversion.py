@@ -107,7 +107,10 @@ class PressureConversion:
 
     # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        if self.P_UNIT_COL not in dataframe.columns or self.P_COL not in dataframe.columns:
+        if (
+            self.P_UNIT_COL not in dataframe.columns
+            or self.P_COL not in dataframe.columns
+        ):
             logger.debug("Pressure conversion skipped (missing pressure columns).")
             return dataframe
 
@@ -212,7 +215,10 @@ class UptakeConversion:
 
     # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        if self.Q_UNIT_COL not in dataframe.columns or self.Q_COL not in dataframe.columns:
+        if (
+            self.Q_UNIT_COL not in dataframe.columns
+            or self.Q_COL not in dataframe.columns
+        ):
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 
