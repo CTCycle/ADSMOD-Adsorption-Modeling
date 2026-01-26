@@ -37,7 +37,7 @@
   --shadow-xl: 0 22px 60px -40px rgba(30, 41, 59, 0.45);
 
   /* Sidebar */
-  --sidebar-width: 80px;
+  --sidebar-width: 96px;
 }
 
 * {
@@ -132,7 +132,7 @@ pre,
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
-  background: linear-gradient(180deg, var(--slate-800) 0%, var(--slate-900) 100%);
+  background: var(--slate-900);
   display: flex;
   flex-direction: column;
   align-items: center;

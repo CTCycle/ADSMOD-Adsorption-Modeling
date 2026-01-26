@@ -61,33 +61,44 @@ Simply double-click `start_on_windows.bat` in the `ADSMOD` folder. This will ope
 
 ### 4.2 Operational Workflow
 
-Once the application is running, the typical workflow involves:
+The application workflow is divided into four main sections, accessible via the navigation sidebar:
 
-1.  **Data Collection**:
-    - Navigate to the "Data" or "Collection" section.
-    - Initiate a fetch from the NIST database to populate your local repository with raw isotherms.
-    - Enriched material properties are automatically fetched to ensure data completeness.
+#### 4.2.1 Data Source Configuration
 
-    ![Database Browser](ADSMOD/assets/figures/04_database_browser.png)
+This section serves as the entry point for managing experimental data. It allows users to either upload their own datasets or fetch data directly from the NIST Adsorption Database.
+- **Load Experimental Data**: Upload local `.csv` or `.xlsx` files containing adsorption data for independent processing.
+- **NIST-A Collection**: Automatically fetch isotherms and material metadata from the NIST database.
+- **Status Monitoring**: Track the progress of data fetching and enrichment tasks in real-time.
 
-2.  **Dataset Building**:
-    - Use the "Processing" tools to convert raw data into structured datasets.
-    - Define parameters such as training/validation splits and specific material filters.
+![Data Source Configuration](ADSMOD/assets/figures/dataset_page.png)
 
-    ![Data Configuration](ADSMOD/assets/figures/data_source.png)
+#### 4.2.2 Models & Fitting
 
-3.  **Model Training**:
-    - Go to the "Training" area.
-    - Select a built dataset and configure training parameters (e.g., batch size, epochs).
-    - Start the training job. Real-time progress and metrics (loss, accuracy) will be displayed.
+Before training deep learning models, users can analyze individual isotherms using classical theoretical models.
+- **Fitting Configuration**: Select a target dataset (either uploaded or from NIST) and configure the optimizer (e.g., LSS, BFGS) and maximum iterations.
+- **Model Selection**: Choose from 9 available adsorption models (including Langmuir, Freundlich, Sips) to fit to the experimental data.
+- **Execution & Logging**: Run the fitting process and view detailed execution logs to monitor convergence and errors.
 
-    ![Model Training](ADSMOD/assets/figures/fiitting_page.png)
+![Isotherm Fitting](ADSMOD/assets/figures/fitting_page.png)
 
-4.  **Analysis and Inference (to be implemented)**:
-    - Review training history and final model performance.
-    - Use trained models to predict adsorption isotherms for new or existing material pairings.
+#### 4.2.3 Model Training (Analysis)
 
-    ![Analysis Results](ADSMOD/assets/figures/03_analysis.png)
+This is the core interface for the deep learning pipeline, where users can build datasets and train the **SCADS** model.
+- **Dataset Builder**: Create training-ready datasets by processing collected isotherms.
+- **Training Configuration**: Configure hyperparameters such as epochs, batch size, learning rate, and model architecture (e.g., molecular embedding size).
+- **Training Dashboard**: Visualizes training progress with real-time charts for Loss and Accuracy/R2 scores.
+- **Checkpoint Management**: Resume training from previously saved checkpoints to continue optimization.
+
+![Model Training](ADSMOD/assets/figures/training_page.png)
+
+#### 4.2.4 Database Browser
+
+A dedicated tool for exploring the local database of collecting isotherms and materials.
+- **Table Viewer**: Browse through various database tables, including `isotherms`, `materials`, and `experiments`.
+- **Data Inspection**: View raw data in a tabular format to verify data integrity and content.
+- **Statistics**: Quickly check the total number of rows and columns for any selected table.
+
+![Database Browser](ADSMOD/assets/figures/browser_page.png)
 
 
 ## 5. Setup and Maintenance
@@ -119,7 +130,6 @@ Backend configuration is defined in `ADSMOD/settings/server_configurations.json`
 | FASTAPI_PORT | Backend port for uvicorn; defined in `ADSMOD/settings/.env`; default `8000`. |
 | RELOAD | Enables uvicorn reload when `true`; defined in `ADSMOD/settings/.env`; default `false`. |
 | KERAS_BACKEND | Select torch as backend for Keras. Keep it as default. |
-
 
 
 ## 8. License

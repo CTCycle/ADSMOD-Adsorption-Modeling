@@ -56,7 +56,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                     <div className="config-row-main">
                         <div className="card split-card">
                             <div className="split-card-content">
-                                <div className="split-card-left">
+                                <div className="split-card-left" style={{ height: '100%' }}>
                                     <FileUpload
                                         label="Load dataset"
                                         accept=".csv,.xls,.xlsx"
@@ -69,7 +69,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                                         <span className="inline-separator">|</span>
                                         <span className="inline-pill">{pendingSize}</span>
                                     </div>
-                                    <div className="nist-actions" style={{ marginTop: '1rem' }}>
+                                    <div className="nist-actions" style={{ marginTop: 'auto' }}>
                                         <button
                                             className="button primary"
                                             onClick={onDatasetUpload}
