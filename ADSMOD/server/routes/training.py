@@ -376,7 +376,7 @@ class TrainingEndpoint:
             config.use_mixed_precision = server_settings.training.use_mixed_precision
 
             logger.info(f"Starting training with config: {config.model_dump()}")
-            info = DatasetBuilder.get_training_dataset_info()
+            info = DatasetBuilder.get_training_dataset_info(config.dataset_label)
             if info is None:
                 raise HTTPException(
                     status_code=400,

@@ -15,19 +15,19 @@ import { ResumeTrainingWizard } from './ResumeTrainingWizard';
 import { TrainingSetupRow } from './TrainingSetupRow';
 import type {
     TrainingConfig,
-    TrainingDatasetInfo,
     CheckpointInfo,
     TrainingStatus,
     ResumeTrainingConfig,
     TrainingHistoryPoint,
+    ProcessedDatasetInfo,
 } from '../types';
 import {
-    fetchTrainingDatasets,
     fetchCheckpoints,
     startTraining,
     resumeTraining,
     stopTraining,
     getTrainingStatus,
+    fetchProcessedDatasets,
 } from '../services';
 
 // Default training configuration based on legacy app
@@ -103,8 +103,7 @@ export const MachineLearningPage: React.FC = () => {
     // Training configuration state
     const [config, setConfig] = useState<TrainingConfig>(DEFAULT_CONFIG);
 
-    // Data availability state
-    const [datasetInfo, setDatasetInfo] = useState<TrainingDatasetInfo>({ available: false });
+
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
 
     // Training state
@@ -127,14 +126,18 @@ export const MachineLearningPage: React.FC = () => {
         additional_epochs: 10,
     });
 
+    // Processed datasets for training wizard
+    const [processedDatasets, setProcessedDatasets] = useState<ProcessedDatasetInfo[]>([]);
+    const [selectedDatasetLabel, setSelectedDatasetLabel] = useState<string | null>(null);
+
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
     const logContainerRef = useRef<HTMLPreElement>(null);
 
     // Load initial data
     useEffect(() => {
-        loadDatasetInfo();
         loadCheckpoints();
+        loadProcessedDatasets();
         // Initial status check to catch up if page is refreshed
         checkStatus();
         return () => stopPolling();
@@ -192,17 +195,19 @@ export const MachineLearningPage: React.FC = () => {
         }
     };
 
-    const loadDatasetInfo = async () => {
-        const result = await fetchTrainingDatasets();
-        if (!result.error) {
-            setDatasetInfo(result.data);
-        }
-    };
+
 
     const loadCheckpoints = async () => {
         const result = await fetchCheckpoints();
         if (!result.error) {
             setCheckpoints(result.checkpoints);
+        }
+    };
+
+    const loadProcessedDatasets = async () => {
+        const { datasets, error } = await fetchProcessedDatasets();
+        if (!error) {
+            setProcessedDatasets(datasets);
         }
     };
 
@@ -222,7 +227,12 @@ export const MachineLearningPage: React.FC = () => {
     // Handlers for training actions
     const handleConfirmTraining = useCallback(async () => {
         setIsLoading(true);
-        const result = await startTraining(config);
+        // Include the selected dataset label in the configuration
+        const trainingConfig = {
+            ...config,
+            dataset_label: selectedDatasetLabel || undefined
+        };
+        const result = await startTraining(trainingConfig);
         setIsLoading(false);
         if (result.status === 'started') {
             setShowNewTrainingWizard(false);
@@ -235,7 +245,7 @@ export const MachineLearningPage: React.FC = () => {
             console.error('Failed to start training:', result.message);
             alert(`Failed to start training: ${result.message}`);
         }
-    }, [config]);
+    }, [config, selectedDatasetLabel]);
 
     const handleResumeTrainingClick = useCallback(() => {
         if (checkpoints.length > 0) {
@@ -284,12 +294,12 @@ export const MachineLearningPage: React.FC = () => {
                 <p className="ml-subtitle">Configure and monitor your training sessions</p>
             </div>
 
-            <DatasetBuilderCard onDatasetBuilt={loadDatasetInfo} />
+            <DatasetBuilderCard onDatasetBuilt={() => { loadProcessedDatasets(); }} />
 
             <TrainingSetupRow
                 onNewTrainingClick={() => setShowNewTrainingWizard(true)}
                 onResumeTrainingClick={handleResumeTrainingClick}
-                datasetAvailable={datasetInfo.available}
+                datasetAvailable={processedDatasets.length > 0}
                 checkpointsAvailable={checkpoints.length > 0}
                 isTraining={trainingStatus.is_training}
             />
@@ -477,6 +487,9 @@ export const MachineLearningPage: React.FC = () => {
                     onClose={() => setShowNewTrainingWizard(false)}
                     onConfirm={handleConfirmTraining}
                     isLoading={isLoading}
+                    processedDatasets={processedDatasets}
+                    selectedDatasetLabel={selectedDatasetLabel}
+                    onDatasetSelect={setSelectedDatasetLabel}
                 />
             )}
 
