@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 from ADSMOD.server.utils.constants import PAD_VALUE
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
-from ADSMOD.server.utils.services.sanitizer import AggregateDatasets
+from ADSMOD.server.utils.services.data.sanitizer import AggregateDatasets
 from ADSMOD.server.utils.learning.device import DeviceConfig
 
 

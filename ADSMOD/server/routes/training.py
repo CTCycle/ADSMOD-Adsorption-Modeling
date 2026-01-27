@@ -31,10 +31,13 @@ from ADSMOD.server.schemas.training import (
 from ADSMOD.server.utils.configurations.server import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
-from ADSMOD.server.utils.services.builder import DatasetBuilder, DatasetBuilderConfig
-from ADSMOD.server.utils.services.composition import DatasetCompositionService
-from ADSMOD.server.utils.services.jobs import job_manager
-from ADSMOD.server.utils.services.training import training_manager
+from ADSMOD.server.utils.jobs import job_manager
+from ADSMOD.server.utils.learning.training.manager import training_manager
+from ADSMOD.server.utils.services.data.builder import (
+    DatasetBuilder,
+    DatasetBuilderConfig,
+)
+from ADSMOD.server.utils.services.data.composition import DatasetCompositionService
 
 router = APIRouter(prefix="/training", tags=["training"])
 

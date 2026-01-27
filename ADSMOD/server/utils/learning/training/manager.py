@@ -14,7 +14,7 @@ from ADSMOD.server.utils.repository.serializer import (
     ModelSerializer,
     TrainingDataSerializer,
 )
-from ADSMOD.server.utils.services.loader import (
+from ADSMOD.server.utils.learning.loader import (
     SCADSAtomicDataLoader,
     SCADSDataLoader,
 )
