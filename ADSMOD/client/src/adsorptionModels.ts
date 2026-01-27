@@ -27,7 +27,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Langmuir',
         shortDescription:
             'Monolayer adsorption on homogeneous surfaces with identical sites and finite saturation capacity.',
-        equationLatex: 'q_e = \\frac{q_{\\max} K_L C_e}{1 + K_L C_e}',
+        equationLatex: String.raw`q_e = \frac{q_{\max} K_L C_e}{1 + K_L C_e}`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             qsat: [0.0, 100.0],
@@ -38,7 +38,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Freundlich',
         shortDescription:
             'Empirical power-law isotherm for heterogeneous surfaces without explicit saturation.',
-        equationLatex: 'q_e = K_F C_e^{1/n_F}',
+        equationLatex: String.raw`q_e = K_F C_e^{1/n_F}`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             exponent: [0.1, 10.0],
@@ -49,7 +49,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Sips (Langmuir–Freundlich)',
         shortDescription:
             'Combines Langmuir and Freundlich behavior for heterogeneous surfaces with saturation.',
-        equationLatex: 'q_e = \\frac{q_{\\max} K_S C_e^{n_S}}{1 + K_S C_e^{n_S}}',
+        equationLatex: String.raw`q_e = \frac{q_{\max} K_S C_e^{n_S}}{1 + K_S C_e^{n_S}}`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             qsat: [0.0, 100.0],
@@ -61,7 +61,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Temkin',
         shortDescription:
             'Accounts for adsorbate interactions with heat of adsorption decreasing linearly with coverage.',
-        equationLatex: 'q_e = B_T \\ln\\bigl(K_T C_e\\bigr)',
+        equationLatex: String.raw`q_e = B_T \ln\bigl(K_T C_e\bigr)`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             beta: [0.1, 10.0],
@@ -72,7 +72,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Toth',
         shortDescription:
             'Modified Langmuir for heterogeneous surfaces with improved fit at high loading.',
-        equationLatex: 'q_e = \\frac{q_{\\max} K_T C_e}{\\left(1 + (K_T C_e)^{n_T}\\right)^{1/n_T}}',
+        equationLatex: String.raw`q_e = \frac{q_{\max} K_T C_e}{\left(1 + (K_T C_e)^{n_T}\right)^{1/n_T}}`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             qsat: [0.0, 100.0],
@@ -84,7 +84,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Dubinin–Radushkevich',
         shortDescription:
             'Micropore filling model based on Polanyi potential theory for porous solids.',
-        equationLatex: 'q_e = q_{\\max} \\exp\\bigl(-K_{DR} \\varepsilon^{2}\\bigr)',
+        equationLatex: String.raw`q_e = q_{\max} \exp\bigl(-K_{DR} \varepsilon^{2}\bigr)`,
         parameterDefaults: {
             qsat: [0.0, 100.0],
             beta: [1e-6, 10.0],
@@ -96,7 +96,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         shortDescription:
             'Two independent site families with separate capacities; total loading is their sum.',
         equationLatex:
-            'q_e = \\frac{q_{1,\\max} K_1 C_e}{1 + K_1 C_e} + \\frac{q_{2,\\max} K_2 C_e}{1 + K_2 C_e}',
+            String.raw`q_e = \frac{q_{1,\max} K_1 C_e}{1 + K_1 C_e} + \frac{q_{2,\max} K_2 C_e}{1 + K_2 C_e}`,
         parameterDefaults: {
             k1: [1e-6, 10.0],
             qsat1: [0.0, 100.0],
@@ -109,7 +109,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Redlich–Peterson',
         shortDescription:
             'Empirical model interpolating between Langmuir and Freundlich over broad ranges.',
-        equationLatex: 'q_e = \\frac{K_{RP} C_e}{1 + a_{RP} C_e^{\\beta}}',
+        equationLatex: String.raw`q_e = \frac{K_{RP} C_e}{1 + a_{RP} C_e^{\beta}}`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             a: [1e-6, 10.0],
@@ -121,7 +121,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
         name: 'Jovanovic',
         shortDescription:
             'Monolayer isotherm with exponential approach to saturation, suited for rigid adsorbents.',
-        equationLatex: 'q_e = q_{\\max} \\bigl(1 - \\exp(-K_J C_e)\\bigr)',
+        equationLatex: String.raw`q_e = q_{\max} \bigl(1 - \exp(-K_J C_e)\bigr)`,
         parameterDefaults: {
             k: [1e-6, 10.0],
             qsat: [0.0, 100.0],

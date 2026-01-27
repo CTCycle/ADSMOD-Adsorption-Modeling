@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { ModelCard } from './ModelCard';
-import { NumberInput } from './UIComponents';
+import { ModelCard } from '../components/ModelCard';
+import { NumberInput } from '../components/UIComponents';
 import { ADSORPTION_MODELS } from '../adsorptionModels';
 import type { ModelParameters, FittingPayload } from '../types';
 

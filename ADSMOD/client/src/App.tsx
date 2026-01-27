@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Sidebar, PageId } from './components/Sidebar';
-import { ConfigPage } from './components/ConfigPage';
-import { ModelsPage } from './components/ModelsPage';
-import { DatabaseBrowserPage, initialDatabaseBrowserState } from './components/DatabaseBrowserPage';
-import { MachineLearningPage } from './components/MachineLearningPage';
-import type { DatabaseBrowserState } from './components/DatabaseBrowserPage';
+import { ConfigPage } from './pages/ConfigPage';
+import { ModelsPage } from './pages/ModelsPage';
+import { DatabaseBrowserPage, initialDatabaseBrowserState } from './pages/DatabaseBrowserPage';
+import { MachineLearningPage } from './pages/MachineLearningPage';
+import type { DatabaseBrowserState } from './pages/DatabaseBrowserPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
 import { loadDataset, startFitting, fetchDatasetNames, fetchDatasetByName, fetchNistDataForFitting } from './services';
 import type { DatasetPayload, FittingPayload, ModelParameters, ModelConfiguration } from './types';
