@@ -24,6 +24,7 @@ from ADSMOD.server.schemas.training import (
     ResumeTrainingRequest,
     TrainingConfigRequest,
     TrainingDatasetResponse,
+    TrainingMetadata,
     TrainingStartResponse,
     TrainingStatusResponse,
 )
@@ -36,6 +37,35 @@ from ADSMOD.server.utils.services.jobs import job_manager
 from ADSMOD.server.utils.services.training import training_manager
 
 router = APIRouter(prefix="/training", tags=["training"])
+
+
+###############################################################################
+def determine_checkpoint_compatibility(
+    checkpoint_name: str,
+    metadata: TrainingMetadata | None,
+    dataset_hashes: set[str],
+    log_missing_metadata: bool = True,
+) -> bool:
+    if metadata is None:
+        if log_missing_metadata:
+            logger.warning(
+                "Checkpoint %s metadata missing or invalid; marking incompatible.",
+                checkpoint_name,
+            )
+        return False
+
+    checkpoint_hash = metadata.dataset_hash
+    if not checkpoint_hash:
+        logger.warning(
+            "Checkpoint %s metadata missing dataset_hash; marking incompatible.",
+            checkpoint_name,
+        )
+        return False
+
+    if not dataset_hashes:
+        return False
+
+    return checkpoint_hash in dataset_hashes
 
 
 ###############################################################################
@@ -286,7 +316,7 @@ class TrainingEndpoint:
         try:
             logger.info("Scanning for available checkpoints")
             checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
-            current_metadata = training_manager.data_serializer.load_training_metadata()
+            dataset_hashes = training_manager.data_serializer.collect_dataset_hashes()
             detailed_checkpoints: list[CheckpointDetailInfo] = []
 
             for checkpoint in checkpoints:
@@ -295,6 +325,8 @@ class TrainingEndpoint:
                 final_loss: float | None = None
                 final_accuracy: float | None = None
                 is_compatible = False
+                metadata: TrainingMetadata | None = None
+                metadata_load_failed = False
 
                 try:
                     training_configuration, metadata, session = (
@@ -343,16 +375,20 @@ class TrainingEndpoint:
                                 final_accuracy = float(last_value)
                             break
 
-                    is_compatible = training_manager.data_serializer.validate_metadata(
-                        current_metadata, metadata
-                    )
-
                 except Exception as exc:  # noqa: BLE001
+                    metadata_load_failed = True
                     logger.warning(
                         "Failed to load checkpoint details for %s: %s",
                         checkpoint,
                         exc,
                     )
+
+                is_compatible = determine_checkpoint_compatibility(
+                    checkpoint,
+                    metadata,
+                    dataset_hashes,
+                    log_missing_metadata=not metadata_load_failed,
+                )
 
                 detailed_checkpoints.append(
                     CheckpointDetailInfo(

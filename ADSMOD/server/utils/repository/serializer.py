@@ -458,6 +458,42 @@ class TrainingDataSerializer:
         return metadata
 
     # -------------------------------------------------------------------------
+    def collect_dataset_hashes(self) -> set[str]:
+        metadata_df = database.load_from_database("TRAINING_METADATA")
+        if metadata_df.empty:
+            return set()
+
+        dataset_labels: set[str] = set()
+        if "dataset_label" in metadata_df.columns:
+            for label in metadata_df["dataset_label"].tolist():
+                dataset_labels.add(self.normalize_dataset_label(label))
+        else:
+            dataset_labels.add("default")
+
+        dataset_hashes: set[str] = set()
+        for dataset_label in sorted(dataset_labels):
+            metadata = self.load_training_metadata(dataset_label)
+            dataset_hash = metadata.dataset_hash
+            if not dataset_hash:
+                if not metadata or metadata.total_samples == 0:
+                    logger.warning(
+                        "Training metadata missing or empty for dataset '%s'; unable to compute hash.",
+                        dataset_label,
+                    )
+                    continue
+                computed_hash = TrainingDataSerializer.compute_metadata_hash(metadata)
+                if not computed_hash:
+                    logger.warning(
+                        "Training metadata hash could not be computed for dataset '%s'.",
+                        dataset_label,
+                    )
+                    continue
+                dataset_hash = computed_hash
+            dataset_hashes.add(dataset_hash)
+
+        return dataset_hashes
+
+    # -------------------------------------------------------------------------
     def load_training_data(
         self, dataset_label: str = "default", only_metadata: bool = False
     ) -> tuple[pd.DataFrame, pd.DataFrame, TrainingMetadata] | TrainingMetadata:
@@ -646,6 +682,12 @@ class ModelSerializer:
             configuration = json.load(f)
         with open(metadata_path, encoding="utf-8") as f:
             metadata_dict = json.load(f)
+            if "dataset_hash" not in metadata_dict:
+                alias_value = (
+                    metadata_dict.get("hashcode") or metadata_dict.get("hash_code")
+                )
+                if alias_value:
+                    metadata_dict["dataset_hash"] = alias_value
             metadata = TrainingMetadata(**metadata_dict)
         with open(history_path, encoding="utf-8") as f:
             history = json.load(f)
