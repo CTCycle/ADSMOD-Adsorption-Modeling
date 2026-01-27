@@ -30,8 +30,8 @@ from ADSMOD.server.utils.constants import (
 )
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.serializer import DataSerializer
-from ADSMOD.server.utils.services.models import AdsorptionModels
-from ADSMOD.server.utils.services.processing import (
+from ADSMOD.server.utils.services.isotherms.models import AdsorptionModels
+from ADSMOD.server.utils.services.data.processing import (
     AdsorptionDataProcessor,
     DatasetAdapter,
     DatasetColumns,

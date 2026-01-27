@@ -12,8 +12,8 @@ from ADSMOD.server.utils.configurations import server_settings
 from ADSMOD.server.utils.constants import COLUMN_DATASET_NAME
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.repository.serializer import DataSerializer
-from ADSMOD.server.utils.services.conversion import PQ_units_conversion
-from ADSMOD.server.utils.services.nistads import PubChemClient
+from ADSMOD.server.utils.services.data.conversion import PQ_units_conversion
+from ADSMOD.server.utils.services.data.nistads import PubChemClient
 
 
 ###############################################################################
