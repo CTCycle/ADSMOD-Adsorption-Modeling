@@ -163,6 +163,7 @@ BROWSER_TABLE_DISPLAY_NAMES: dict[str, str] = {
     "ADSORPTION_REDLICH_PETERSON": "Redlich-Peterson",
     "ADSORPTION_JOVANOVIC": "Jovanovic",
     "ADSORPTION_BEST_FIT": "Best Fit Summary",
+    "TRAINING_DATASET": "Training Data",
 }
 
 # Table categories for dropdown grouping
@@ -182,4 +183,5 @@ BROWSER_TABLE_CATEGORIES: dict[str, str] = {
     "ADSORPTION_REDLICH_PETERSON": "Model Results",
     "ADSORPTION_JOVANOVIC": "Model Results",
     "ADSORPTION_BEST_FIT": "Model Results",
+    "TRAINING_DATASET": "Training Data",
 }

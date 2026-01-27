@@ -7,6 +7,7 @@ from ADSMOD.server.schemas.browser import (
     TableInfo,
     TableListResponse,
 )
+from ADSMOD.server.database.database import database
 from ADSMOD.server.utils.repository.serializer import DataSerializer
 from ADSMOD.server.utils.constants import (
     BROWSER_DATA_ENDPOINT,
@@ -46,7 +47,11 @@ async def list_tables() -> TableListResponse:
     response_model=TableDataResponse,
     status_code=status.HTTP_200_OK,
 )
-async def get_table_data(table_name: str) -> TableDataResponse:
+async def get_table_data(
+    table_name: str,
+    limit: int = 50,
+    offset: int = 0,
+) -> TableDataResponse:
     if table_name not in BROWSER_TABLE_DISPLAY_NAMES:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -54,7 +59,8 @@ async def get_table_data(table_name: str) -> TableDataResponse:
         )
 
     try:
-        df = serializer.load_table(table_name)
+        total_rows = database.count_rows(table_name)
+        df = serializer.load_table(table_name, limit=limit, offset=offset)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to load table %s", table_name)
         raise HTTPException(
@@ -69,6 +75,7 @@ async def get_table_data(table_name: str) -> TableDataResponse:
     return TableDataResponse(
         table_name=table_name,
         display_name=BROWSER_TABLE_DISPLAY_NAMES[table_name],
+        total_rows=total_rows,
         row_count=len(df),
         column_count=len(columns),
         columns=columns,
