@@ -67,13 +67,25 @@ class SQLiteRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def load_from_database(self, table_name: str) -> pd.DataFrame:
+    def load_from_database(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame:
         with self.engine.connect() as conn:
             inspector = inspect(conn)
             if not inspector.has_table(table_name):
                 logger.warning("Table %s does not exist", table_name)
                 return pd.DataFrame()
-            data = pd.read_sql_table(table_name, conn)
+
+            query = f'SELECT * FROM "{table_name}"'
+            if limit is not None:
+                query += f" LIMIT {limit}"
+            if offset is not None:
+                query += f" OFFSET {offset}"
+
+            data = pd.read_sql_query(query, conn)
         return data
 
     # -------------------------------------------------------------------------

@@ -13,9 +13,11 @@ export interface DatabaseBrowserState {
     tableData: Record<string, unknown>[];
     columns: string[];
     rowCount: number;
+    totalRows: number;
     columnCount: number;
     displayName: string;
     loading: boolean;
+    lazyLoading: boolean;
     error: string | null;
     tablesLoaded: boolean;
 }
@@ -26,9 +28,11 @@ export const initialDatabaseBrowserState: DatabaseBrowserState = {
     tableData: [],
     columns: [],
     rowCount: 0,
+    totalRows: 0,
     columnCount: 0,
     displayName: '',
     loading: false,
+    lazyLoading: false,
     error: null,
     tablesLoaded: false,
 };
@@ -45,9 +49,11 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
         tableData,
         columns,
         rowCount,
+        totalRows,
         columnCount,
         displayName,
         loading,
+        lazyLoading,
         error,
         tablesLoaded,
     } = state;
@@ -64,8 +70,10 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             columns: [],
             rowCount: 0,
             columnCount: 0,
+            totalRows: 0,
             displayName: '',
             loading: false,
+            lazyLoading: false,
             error: null,
         });
     }, [state, onStateChange]);
@@ -86,8 +94,10 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                     columns: [],
                     rowCount: 0,
                     columnCount: 0,
+                    totalRows: 0,
                     displayName: '',
                     loading: false,
+                    lazyLoading: false,
                     error: null,
                     tablesLoaded: true,
                 });
@@ -97,38 +107,41 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
     }, [tablesLoaded, updateState]);
 
     // Fetch table data function
-    const loadTableData = useCallback(async (tableName: string) => {
+    const loadTableData = useCallback(async (tableName: string, offset = 0) => {
         if (!tableName) return;
 
-        onStateChange({ ...state, selectedTable: tableName, loading: true, error: null });
+        if (offset === 0) {
+            onStateChange({ ...state, selectedTable: tableName, loading: true, error: null, tableData: [], totalRows: 0 });
+        } else {
+            updateState({ lazyLoading: true });
+        }
 
-        const result = await fetchTableData(tableName);
+        const result = await fetchTableData(tableName, 50, offset);
 
         if (result.error) {
             onStateChange({
                 ...state,
                 selectedTable: tableName,
                 error: result.error,
-                tableData: [],
-                columns: [],
-                rowCount: 0,
-                columnCount: 0,
-                displayName: '',
                 loading: false,
+                lazyLoading: false,
             });
         } else {
+            const newData = offset === 0 ? result.data : [...state.tableData, ...result.data];
             onStateChange({
                 ...state,
                 selectedTable: tableName,
-                tableData: result.data,
+                tableData: newData,
                 columns: result.columns,
-                rowCount: result.rowCount,
+                rowCount: newData.length,
+                totalRows: result.totalRows, // Note: result.totalRows comes from backend
                 columnCount: result.columnCount,
                 displayName: result.displayName,
                 loading: false,
+                lazyLoading: false,
             });
         }
-    }, [state, onStateChange]);
+    }, [state, onStateChange, updateState]);
 
     // Fetch data when table selection changes
     const handleTableChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -137,7 +150,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             clearTableSelection('');
             return;
         }
-        loadTableData(newTable);
+        loadTableData(newTable, 0);
     };
 
     const handleRefresh = () => {
@@ -145,8 +158,18 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             clearTableSelection('');
             return;
         }
-        loadTableData(selectedTable);
+        loadTableData(selectedTable, 0);
     };
+
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+        if (scrollHeight - scrollTop <= clientHeight + 50) {
+            // Near bottom
+            if (!loading && !lazyLoading && tableData.length < totalRows) {
+                loadTableData(selectedTable, tableData.length);
+            }
+        }
+    }, [loading, lazyLoading, tableData.length, totalRows, selectedTable, loadTableData]);
 
     const emptyMessage = selectedTable
         ? 'No data available in this table.'
@@ -174,7 +197,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                             className="select-input browser-select"
                             value={selectedTable}
                             onChange={handleTableChange}
-                            disabled={loading}
+                            disabled={loading && !lazyLoading}
                         >
                             <option value="">Select data</option>
                             {Object.entries(
@@ -195,7 +218,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                         <button
                             className="browser-refresh-btn"
                             onClick={handleRefresh}
-                            disabled={loading || !selectedTable}
+                            disabled={(loading && !lazyLoading) || !selectedTable}
                             title="Refresh data"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -209,7 +232,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
 
                 <div className="browser-stats">
                     <span className="browser-stat-label">Statistics</span>
-                    <span className="browser-stat-item">Rows: <strong>{rowCount}</strong></span>
+                    <span className="browser-stat-item">Rows: <strong>{totalRows > 0 ? `${rowCount} / ${totalRows}` : rowCount}</strong></span>
                     <span className="browser-stat-item">Columns: <strong>{columnCount}</strong></span>
                     <span className="browser-stat-item">Table: <strong className="browser-stat-table">{tableLabel}</strong></span>
                 </div>
@@ -222,13 +245,13 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             )}
 
             <div className="browser-table-container">
-                {loading ? (
+                {loading && !tableData.length ? (
                     <div className="browser-loading">
                         <div className="browser-spinner"></div>
                         <span>Loading data...</span>
                     </div>
                 ) : tableData.length > 0 ? (
-                    <div className="browser-table-scroll">
+                    <div className="browser-table-scroll" onScroll={handleScroll}>
                         <table className="browser-table">
                             <thead>
                                 <tr>
@@ -249,6 +272,13 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                                         ))}
                                     </tr>
                                 ))}
+                                {lazyLoading && (
+                                    <tr>
+                                        <td colSpan={columns.length} style={{ textAlign: 'center', padding: '10px' }}>
+                                            <div className="browser-spinner" style={{ display: 'inline-block', width: '20px', height: '20px', border: '2px solid rgba(0,0,0,0.1)', borderLeftColor: 'var(--primary-color)' }}></div>
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

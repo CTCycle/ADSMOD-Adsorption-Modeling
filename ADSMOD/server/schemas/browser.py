@@ -21,6 +21,7 @@ class TableDataResponse(BaseModel):
     status: str = Field(default="success")
     table_name: str
     display_name: str
+    total_rows: int
     row_count: int
     column_count: int
     columns: list[str]

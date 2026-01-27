@@ -100,8 +100,13 @@ class DataSerializer:
         database.save_into_database(merged, "ADSORPTION_DATA")
 
     # -------------------------------------------------------------------------
-    def load_table(self, table_name: str) -> pd.DataFrame:
-        return database.load_from_database(table_name)
+    def load_table(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame:
+        return database.load_from_database(table_name, limit=limit, offset=offset)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
