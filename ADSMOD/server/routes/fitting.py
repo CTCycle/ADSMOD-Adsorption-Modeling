@@ -27,7 +27,7 @@ from ADSMOD.server.utils.services.data.conversion import (
     UptakeConversion,
 )
 from ADSMOD.server.utils.services.isotherms.fitting import FittingPipeline
-from ADSMOD.server.utils.jobs import job_manager
+from ADSMOD.server.utils.services.jobs import job_manager
 
 router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 

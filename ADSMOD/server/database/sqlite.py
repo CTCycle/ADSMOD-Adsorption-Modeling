@@ -80,6 +80,21 @@ class SQLiteRepository:
                 return pd.DataFrame()
 
             query = f'SELECT * FROM "{table_name}"'
+            primary_key_columns = []
+            try:
+                primary_key = inspector.get_pk_constraint(table_name)
+                primary_key_columns = primary_key.get("constrained_columns") or []
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to resolve primary key columns for %s: %s",
+                    table_name,
+                    exc,
+                )
+            if primary_key_columns:
+                ordered_columns = ", ".join(
+                    f'"{column}"' for column in primary_key_columns
+                )
+                query += f" ORDER BY {ordered_columns}"
             if limit is not None:
                 query += f" LIMIT {limit}"
             if offset is not None:

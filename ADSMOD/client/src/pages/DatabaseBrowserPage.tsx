@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { fetchTableList, fetchTableData } from '../services';
 
 interface TableInfo {
@@ -20,6 +20,8 @@ export interface DatabaseBrowserState {
     lazyLoading: boolean;
     error: string | null;
     tablesLoaded: boolean;
+    nextOffset: number;
+    hasMore: boolean;
 }
 
 export const initialDatabaseBrowserState: DatabaseBrowserState = {
@@ -35,7 +37,11 @@ export const initialDatabaseBrowserState: DatabaseBrowserState = {
     lazyLoading: false,
     error: null,
     tablesLoaded: false,
+    nextOffset: 0,
+    hasMore: false,
 };
+
+const PAGE_SIZE = 50;
 
 interface DatabaseBrowserPageProps {
     state: DatabaseBrowserState;
@@ -56,7 +62,12 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
         lazyLoading,
         error,
         tablesLoaded,
+        nextOffset,
+        hasMore,
     } = state;
+
+    const tableScrollRef = useRef<HTMLDivElement | null>(null);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
     const updateState = useCallback((updates: Partial<DatabaseBrowserState>) => {
         onStateChange({ ...state, ...updates });
@@ -75,6 +86,8 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             loading: false,
             lazyLoading: false,
             error: null,
+            nextOffset: 0,
+            hasMore: false,
         });
     }, [state, onStateChange]);
 
@@ -100,6 +113,8 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                     lazyLoading: false,
                     error: null,
                     tablesLoaded: true,
+                    nextOffset: 0,
+                    hasMore: false,
                 });
             }
         };
@@ -111,12 +126,23 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
         if (!tableName) return;
 
         if (offset === 0) {
-            onStateChange({ ...state, selectedTable: tableName, loading: true, error: null, tableData: [], totalRows: 0 });
+            onStateChange({
+                ...state,
+                selectedTable: tableName,
+                loading: true,
+                lazyLoading: false,
+                error: null,
+                tableData: [],
+                totalRows: 0,
+                rowCount: 0,
+                nextOffset: 0,
+                hasMore: true,
+            });
         } else {
             updateState({ lazyLoading: true });
         }
 
-        const result = await fetchTableData(tableName, 50, offset);
+        const result = await fetchTableData(tableName, PAGE_SIZE, offset);
 
         if (result.error) {
             onStateChange({
@@ -128,6 +154,11 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
             });
         } else {
             const newData = offset === 0 ? result.data : [...state.tableData, ...result.data];
+            const fetchedCount = result.data.length;
+            const computedOffset = offset + fetchedCount;
+            const resolvedHasMore = result.totalRows > 0
+                ? computedOffset < result.totalRows
+                : fetchedCount === PAGE_SIZE;
             onStateChange({
                 ...state,
                 selectedTable: tableName,
@@ -139,6 +170,8 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                 displayName: result.displayName,
                 loading: false,
                 lazyLoading: false,
+                nextOffset: computedOffset,
+                hasMore: resolvedHasMore,
             });
         }
     }, [state, onStateChange, updateState]);
@@ -161,15 +194,46 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
         loadTableData(selectedTable, 0);
     };
 
+    const requestNextPage = useCallback(() => {
+        if (!selectedTable || loading || lazyLoading || !hasMore) {
+            return;
+        }
+        loadTableData(selectedTable, nextOffset);
+    }, [selectedTable, loading, lazyLoading, hasMore, nextOffset, loadTableData]);
+
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
         if (scrollHeight - scrollTop <= clientHeight + 50) {
             // Near bottom
-            if (!loading && !lazyLoading && tableData.length < totalRows) {
-                loadTableData(selectedTable, tableData.length);
-            }
+            requestNextPage();
         }
-    }, [loading, lazyLoading, tableData.length, totalRows, selectedTable, loadTableData]);
+    }, [requestNextPage]);
+
+    useEffect(() => {
+        const loadTarget = loadMoreRef.current;
+        if (!loadTarget) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    requestNextPage();
+                }
+            },
+            {
+                root: tableScrollRef.current,
+                rootMargin: '200px',
+                threshold: 0.1,
+            }
+        );
+
+        observer.observe(loadTarget);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [requestNextPage]);
 
     const emptyMessage = selectedTable
         ? 'No data available in this table.'
@@ -251,7 +315,7 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                         <span>Loading data...</span>
                     </div>
                 ) : tableData.length > 0 ? (
-                    <div className="browser-table-scroll" onScroll={handleScroll}>
+                    <div className="browser-table-scroll" onScroll={handleScroll} ref={tableScrollRef}>
                         <table className="browser-table">
                             <thead>
                                 <tr>
@@ -276,6 +340,13 @@ export const DatabaseBrowserPage: React.FC<DatabaseBrowserPageProps> = ({ state,
                                     <tr>
                                         <td colSpan={columns.length} style={{ textAlign: 'center', padding: '10px' }}>
                                             <div className="browser-spinner" style={{ display: 'inline-block', width: '20px', height: '20px', border: '2px solid rgba(0,0,0,0.1)', borderLeftColor: 'var(--primary-color)' }}></div>
+                                        </td>
+                                    </tr>
+                                )}
+                                {columns.length > 0 && (
+                                    <tr className="browser-scroll-sentinel-row">
+                                        <td colSpan={columns.length}>
+                                            <div ref={loadMoreRef} className="browser-scroll-sentinel"></div>
                                         </td>
                                     </tr>
                                 )}
