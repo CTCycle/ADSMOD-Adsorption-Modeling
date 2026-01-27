@@ -1515,6 +1515,17 @@ input:checked+.slider:before {
   background: #f0f7ff;
 }
 
+.browser-scroll-sentinel-row td {
+  padding: 0;
+  border: none;
+  height: 1px;
+}
+
+.browser-scroll-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
 .browser-loading {
   flex: 1;
   display: flex;
