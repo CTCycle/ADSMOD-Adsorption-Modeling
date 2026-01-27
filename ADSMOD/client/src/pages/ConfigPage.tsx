@@ -1,7 +1,7 @@
 import React from 'react';
-import { FileUpload } from './UIComponents';
-import { NistCollectCard, NistPropertiesCard, useNistStatus } from './CollectDataCard';
-import { MarkdownRenderer } from './MarkdownRenderer';
+import { FileUpload } from '../components/UIComponents';
+import { NistCollectCard, NistPropertiesCard, useNistStatus } from '../components/CollectDataCard';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
 
 interface ConfigPageProps {
     datasetStats: string;

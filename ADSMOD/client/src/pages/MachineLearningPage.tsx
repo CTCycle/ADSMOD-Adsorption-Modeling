@@ -9,10 +9,10 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts';
-import { DatasetBuilderCard } from './DatasetBuilderCard';
-import { NewTrainingWizard } from './NewTrainingWizard';
-import { ResumeTrainingWizard } from './ResumeTrainingWizard';
-import { TrainingSetupRow } from './TrainingSetupRow';
+import { DatasetBuilderCard } from '../components/DatasetBuilderCard';
+import { NewTrainingWizard } from '../components/NewTrainingWizard';
+import { ResumeTrainingWizard } from '../components/ResumeTrainingWizard';
+import { TrainingSetupRow } from '../components/TrainingSetupRow';
 import type {
     TrainingConfig,
     CheckpointInfo,

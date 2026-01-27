@@ -23,7 +23,7 @@ from ADSMOD.server.utils.constants import (
     NIST_STATUS_ENDPOINT,
 )
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.jobs import job_manager
+from ADSMOD.server.utils.services.jobs import job_manager
 from ADSMOD.server.utils.services.data.nistads import NISTDataService
 
 router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
@@ -186,7 +186,14 @@ class NistEndpoint:
                 detail="Failed to load NIST status.",
             ) from exc
 
-        return NISTStatusResponse(**result)
+        return NISTStatusResponse(
+            status="success",
+            data_available=bool(result.get("data_available", False)),
+            single_component_rows=int(result.get("single_component_rows", 0)),
+            binary_mixture_rows=int(result.get("binary_mixture_rows", 0)),
+            guest_rows=int(result.get("guest_rows", 0)),
+            host_rows=int(result.get("host_rows", 0)),
+        )
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:

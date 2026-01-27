@@ -258,7 +258,7 @@ class FittingEndpoint:
         return {"status": "cancelled", "job_id": job_id}
 
     # -------------------------------------------------------------------------
-    async def get_nist_dataset_for_fitting(self) -> Any:
+    def get_nist_dataset_for_fitting(self) -> Any:
         try:
             serializer = NISTDataSerializer()
             nist_df, adsorbates_df, _ = serializer.load_adsorption_datasets()
@@ -292,13 +292,17 @@ class FittingEndpoint:
             available_cols = [c for c in required_cols if c in converted_df.columns]
             output_df = converted_df[available_cols].copy()
 
-            output_df = output_df.where(pd.notna(output_df), None)
+            output_df = output_df.where(pd.notna(output_df), other=pd.NA)
+            records = [
+                {key: (None if pd.isna(value) else value) for key, value in row.items()}
+                for row in output_df.to_dict(orient="records")
+            ]
             payload = {
                 "status": "success",
                 "dataset": {
                     "dataset_name": "nist_single_component",
                     "columns": list(output_df.columns),
-                    "records": output_df.to_dict(orient="records"),
+                    "records": records,
                     "row_count": int(output_df.shape[0]),
                 },
             }
