@@ -1,25 +1,5 @@
-NISTADS/resources/database/metadata/*
-NISTADS/resources/database/inference/*
-NISTADS/resources/database/validation/*
-NISTADS/resources/checkpoints/*
-
-NISTADS/setup/python/*
-NISTADS/setup/uv/*
-NISTADS/setup/.env
-
-__pycache__
-*.vscode
-*.db
-*.log
-*.npy
-*.lock
-*.venv
-
-!.gitkeep
-
-
 # Project-specific generated/runtime artifacts
-docs/**
+assets/docs/**
 ADSMOD/resources/checkpoints/**
 ADSMOD/resources/database/**
 ADSMOD/resources/runtimes/**
@@ -30,12 +10,7 @@ ADSMOD/client/dist/
 ADSMOD/client/dist-ssr/
 ADSMOD/client/package-lock.json
 ADSMOD/client/logs/
-
-# Environment files 
 ADSMOD/client/*.local
-!.env.example
-!.env.sample
-!ADSMOD/resources/templates/.env
 
 # Python
 __pycache__/
@@ -76,4 +51,4 @@ Thumbs.db
 *.exe
 
 !.gitkeep
-!ADSMOD/settings/configurations.json
+

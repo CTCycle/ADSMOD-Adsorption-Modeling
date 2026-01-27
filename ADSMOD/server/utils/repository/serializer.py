@@ -128,11 +128,10 @@ class DataSerializer:
     def save_fitting_results(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
             return
-        encoded = self.convert_lists_to_strings(dataset)
-        experiments = self.build_experiment_frame(encoded)
+        experiments = self.build_experiment_frame(dataset)
         self.upsert_table(experiments, self.processed_table)
         for schema in MODEL_SCHEMAS.values():
-            model_frame = self.build_model_frame(encoded, schema)
+            model_frame = self.build_model_frame(dataset, schema)
             if model_frame is None:
                 continue
             self.upsert_table(model_frame, schema["table"])
@@ -142,7 +141,6 @@ class DataSerializer:
         experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return experiments
-        experiments = self.convert_strings_to_lists(experiments)
         combined = experiments.copy()
         if COLUMN_EXPERIMENT_NAME not in combined.columns:
             return combined
@@ -178,7 +176,6 @@ class DataSerializer:
         experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return pd.DataFrame()
-        experiments = self.convert_strings_to_lists(experiments)
         drop_columns = [COLUMN_ID]
         merged = experiments.merge(
             best.drop(columns=drop_columns, errors="ignore"),
@@ -248,58 +245,7 @@ class DataSerializer:
         drop_columns = [COLUMN_ID, "experiment_id"]
         return trimmed.drop(columns=drop_columns, errors="ignore")
 
-    # -------------------------------------------------------------------------
-    def convert_list_to_string(self, value: Any) -> Any:
-        if isinstance(value, (list, tuple)):
-            parts: list[str] = []
-            for element in value:
-                if element is None:
-                    continue
-                text = str(element)
-                if text:
-                    parts.append(text)
-            return ",".join(parts)
-        return value
 
-    # -------------------------------------------------------------------------
-    def convert_string_to_list(self, value: Any) -> Any:
-        if isinstance(value, str):
-            stripped = value.strip()
-            if not stripped:
-                return []
-            if stripped.startswith("[") and stripped.endswith("]"):
-                try:
-                    parsed = json.loads(stripped)
-                except json.JSONDecodeError:
-                    parsed = None
-                if isinstance(parsed, list):
-                    return parsed
-            parts = [segment.strip() for segment in stripped.split(",")]
-            converted: list[float] = []
-            for part in parts:
-                if not part:
-                    continue
-                try:
-                    converted.append(float(part))
-                except ValueError:
-                    return value
-            return converted
-        return value
-
-    # -------------------------------------------------------------------------
-    def convert_lists_to_strings(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        converted = dataset.copy()
-        for column in converted.columns:
-            converted[column] = converted[column].apply(self.convert_list_to_string)
-        return converted
-
-    # -------------------------------------------------------------------------
-    def convert_strings_to_lists(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        converted = dataset.copy()
-        for column in converted.columns:
-            if converted[column].dtype == object:
-                converted[column] = converted[column].apply(self.convert_string_to_list)
-        return converted
 
 
 ###############################################################################
@@ -373,18 +319,21 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     def deserialize_series(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Deprecated: JSONSequence type handles this. 
+        Kept briefly for compatibility if called explicitly, but effectively a pass-through 
+        unless raw strings are still encountered (which JSONSequence also handles).
+        """
         if data.empty:
             return data
-        parsed = data.copy()
-        for col in self.series_columns:
-            if col not in parsed.columns:
-                continue
-            parsed[col] = parsed[col].apply(self._deserialize_value)
-        return parsed
+        # We trust the ORM or the JSONSequence type to have done the work.
+        return data
 
+    # -------------------------------------------------------------------------
     # -------------------------------------------------------------------------
     @staticmethod
     def _deserialize_value(value: Any) -> Any:
+        # Legacy helper, likely unused now
         if isinstance(value, str):
             try:
                 return json.loads(value)
@@ -512,7 +461,10 @@ class TrainingDataSerializer:
                 training_data["dataset_label"] == dataset_label
             ]
 
-        training_data = self.deserialize_series(training_data)
+        # The JSONSequence type handles deserialization automatically for list columns
+        # However, if we need to ensure specific formatting or type coercion for 'split', etc.
+        # we can do it here. For now, we assume data comes back mostly correct.
+        
         train_data = training_data[training_data["split"] == "train"]
         val_data = training_data[training_data["split"] == "validation"]
 

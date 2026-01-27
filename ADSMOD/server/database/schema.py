@@ -29,6 +29,7 @@ from ADSMOD.server.utils.constants import (
     COLUMN_UPTAKE_MOL_G,
     COLUMN_WORST_MODEL,
 )
+from ADSMOD.server.database.types import JSONSequence
 
 Base = declarative_base()
 
@@ -59,8 +60,8 @@ class AdsorptionProcessedData(Base):
     experiment = Column(COLUMN_EXPERIMENT, String)
     experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
     temperature_K = Column(COLUMN_TEMPERATURE_K, Integer)
-    pressure_Pa = Column(COLUMN_PRESSURE_PA, String)
-    uptake_mol_g = Column(COLUMN_UPTAKE_MOL_G, String)
+    pressure_Pa = Column(COLUMN_PRESSURE_PA, JSONSequence)
+    uptake_mol_g = Column(COLUMN_UPTAKE_MOL_G, JSONSequence)
     measurement_count = Column(COLUMN_MEASUREMENT_COUNT, Integer)
     min_pressure = Column(COLUMN_MIN_PRESSURE, Float)
     max_pressure = Column(COLUMN_MAX_PRESSURE, Float)
@@ -318,11 +319,11 @@ class TrainingDataset(Base):
     dataset_name = Column(String)
     split = Column(String)
     temperature = Column(Float)
-    pressure = Column(String)
-    adsorbed_amount = Column(String)
+    pressure = Column(JSONSequence)
+    adsorbed_amount = Column(JSONSequence)
     encoded_adsorbent = Column(Integer)
     adsorbate_molecular_weight = Column(Float)
-    adsorbate_encoded_SMILE = Column(String)
+    adsorbate_encoded_SMILE = Column(JSONSequence)
     __table_args__ = (UniqueConstraint("id"),)
 
 
@@ -343,7 +344,7 @@ class TrainingMetadata(Base):
     total_samples = Column(Integer)
     train_samples = Column(Integer)
     validation_samples = Column(Integer)
-    smile_vocabulary = Column(String)
-    adsorbent_vocabulary = Column(String)
-    normalization_stats = Column(String)
+    smile_vocabulary = Column(JSONSequence)
+    adsorbent_vocabulary = Column(JSONSequence)
+    normalization_stats = Column(JSONSequence)
     __table_args__ = (UniqueConstraint("dataset_label"),)

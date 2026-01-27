@@ -70,7 +70,7 @@ This section serves as the entry point for managing experimental data. It allows
 - **NIST-A Collection**: Automatically fetch isotherms and material metadata from the NIST database.
 - **Status Monitoring**: Track the progress of data fetching and enrichment tasks in real-time.
 
-![Data Source Configuration](ADSMOD/assets/figures/dataset_page.png)
+![Data Source Configuration](assets/figures/dataset_page.png)
 
 #### 4.2.2 Models & Fitting
 
@@ -79,7 +79,7 @@ Before training deep learning models, users can analyze individual isotherms usi
 - **Model Selection**: Choose from 9 available adsorption models (including Langmuir, Freundlich, Sips) to fit to the experimental data.
 - **Execution & Logging**: Run the fitting process and view detailed execution logs to monitor convergence and errors.
 
-![Isotherm Fitting](ADSMOD/assets/figures/fitting_page.png)
+![Isotherm Fitting](assets/figures/fitting_page.png)
 
 #### 4.2.3 Model Training (Analysis)
 
@@ -89,7 +89,7 @@ This is the core interface for the deep learning pipeline, where users can build
 - **Training Dashboard**: Visualizes training progress with real-time charts for Loss and Accuracy/R2 scores.
 - **Checkpoint Management**: Resume training from previously saved checkpoints to continue optimization.
 
-![Model Training](ADSMOD/assets/figures/training_page.png)
+![Model Training](assets/figures/training_page.png)
 
 #### 4.2.4 Database Browser
 
@@ -98,7 +98,7 @@ A dedicated tool for exploring the local database of collecting isotherms and ma
 - **Data Inspection**: View raw data in a tabular format to verify data integrity and content.
 - **Statistics**: Quickly check the total number of rows and columns for any selected table.
 
-![Database Browser](ADSMOD/assets/figures/browser_page.png)
+![Database Browser](assets/figures/browser_page.png)
 
 
 ## 5. Setup and Maintenance
