@@ -269,6 +269,9 @@ export interface DatasetFullInfo {
     total_samples?: number;
     train_samples?: number;
     validation_samples?: number;
+    smile_vocabulary_size?: number;
+    adsorbent_vocabulary_size?: number;
+    normalization_stats?: Record<string, any>;
 }
 
 export interface ProcessedDatasetInfo {

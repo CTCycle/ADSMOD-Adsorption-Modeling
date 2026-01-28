@@ -320,6 +320,46 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def parse_sequence_value(value: Any) -> list[Any]:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, tuple):
+            return list(value)
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if not trimmed:
+                return []
+            try:
+                parsed = json.loads(trimmed)
+            except json.JSONDecodeError:
+                return [x.strip() for x in trimmed.split(",") if x.strip()]
+            if isinstance(parsed, list):
+                return parsed
+            if isinstance(parsed, dict):
+                return list(parsed.values())
+            return [parsed]
+        if isinstance(value, pd.Series):
+            return value.tolist()
+        if hasattr(value, "tolist"):
+            return value.tolist()
+        return [value]
+
+    # -------------------------------------------------------------------------
+    def coerce_sequence_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        if dataset.empty:
+            return dataset
+        normalized = dataset.copy()
+        for column in self.series_columns:
+            if column in normalized.columns:
+                normalized[column] = normalized[column].apply(
+                    TrainingDataSerializer.parse_sequence_value
+                )
+        return normalized
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _parse_json(value: Any) -> dict[str, Any]:
         if isinstance(value, str):
             try:
@@ -439,9 +479,7 @@ class TrainingDataSerializer:
                 training_data["dataset_label"] == dataset_label
             ]
 
-        # The JSONSequence type handles deserialization automatically for list columns
-        # However, if we need to ensure specific formatting or type coercion for 'split', etc.
-        # we can do it here. For now, we assume data comes back mostly correct.
+        training_data = self.coerce_sequence_columns(training_data)
         
         train_data = training_data[training_data["split"] == "train"]
         val_data = training_data[training_data["split"] == "validation"]

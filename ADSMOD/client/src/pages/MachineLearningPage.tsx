@@ -234,18 +234,34 @@ export const MachineLearningPage: React.FC = () => {
     };
 
     const handleViewDatasetMetadata = async (label: string) => {
-        // Find dataset in processedDatasets to show info
-        const dataset = processedDatasets.find((d) => d.dataset_label === label);
-        if (dataset) {
+        setIsLoading(true);
+        const info = await getTrainingDatasetInfo(label);
+        setIsLoading(false);
+
+        if (info && info.available) {
             setInfoModalTitle('Dataset Metadata');
-            setInfoModalData({
-                'Label': dataset.dataset_label,
-                'Created At': dataset.created_at,
-                'Train Samples': dataset.train_samples,
-                'Validation Samples': dataset.validation_samples,
-                'Hash': dataset.dataset_hash,
-            });
+            // Create a clean object for the modal mapping backend names to display names
+            const displayData: Record<string, any> = {
+                'Dataset Label': info.dataset_label,
+                'Created At': info.created_at,
+                'Total Samples': info.total_samples,
+                'Train Samples': info.train_samples,
+                'Validation Samples': info.validation_samples,
+                'Sample Fraction': info.sample_size,
+                'Validation Fraction': info.validation_size,
+                'Min Measurements': info.min_measurements,
+                'Max Measurements': info.max_measurements,
+                'SMILES Length': info.smile_sequence_size,
+                'Max Pressure': info.max_pressure,
+                'Max Uptake': info.max_uptake,
+                'SMILES Vocabulary': info.smile_vocabulary_size,
+                'Adsorbents Count': info.adsorbent_vocabulary_size,
+                'Normalization': info.normalization_stats,
+            };
+            setInfoModalData(displayData);
             setInfoModalOpen(true);
+        } else {
+            alert(`Could not fetch details for dataset '${label}'`);
         }
     };
 

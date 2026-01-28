@@ -145,6 +145,9 @@ export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<Dat
             total_samples: result.total_samples,
             train_samples: result.train_samples,
             validation_samples: result.validation_samples,
+            smile_vocabulary_size: result.smile_vocabulary_size,
+            adsorbent_vocabulary_size: result.adsorbent_vocabulary_size,
+            normalization_stats: result.normalization_stats,
         };
     } catch {
         return { available: false };
