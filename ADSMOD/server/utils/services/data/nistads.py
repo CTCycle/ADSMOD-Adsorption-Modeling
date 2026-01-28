@@ -12,6 +12,7 @@ import pubchempy as pcp
 from ADSMOD.server.utils.configurations import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
+from ADSMOD.server.utils.services.jobs import job_manager
 
 
 ###############################################################################
@@ -480,6 +481,7 @@ class NISTDataService:
         experiments_fraction: float,
         guest_fraction: float,
         host_fraction: float,
+        job_id: str | None = None,
     ) -> dict[str, int]:
         logger.info(
             "NIST fetch starting (experiments_fraction=%s, guest_fraction=%s, host_fraction=%s)",
@@ -506,6 +508,9 @@ class NISTDataService:
             experiments_data = await api_client.fetch_experiments_data(
                 client, experiments_index, experiments_fraction
             )
+            if job_id:
+                job_manager.update_progress(job_id, 30.0)
+
             guest_index, host_index = await api_client.fetch_materials_index(client)
             guest_total = len(guest_index)
             host_total = len(host_index)
@@ -525,6 +530,8 @@ class NISTDataService:
             guest_data, host_data = await api_client.fetch_materials_data(
                 client, guest_index, host_index, guest_fraction, host_fraction
             )
+            if job_id:
+                job_manager.update_progress(job_id, 60.0)
 
         logger.info(
             "NIST payload fetched (experiments=%d, guests=%d, hosts=%d)",
@@ -538,6 +545,8 @@ class NISTDataService:
             len(single_component),
             len(binary_mixture),
         )
+        if job_id:
+            job_manager.update_progress(job_id, 80.0)
 
         await asyncio.to_thread(
             self.serializer.save_adsorption_datasets, single_component, binary_mixture
@@ -565,7 +574,7 @@ class NISTDataService:
         }
 
     # -------------------------------------------------------------------------
-    async def enrich_properties(self, target: str) -> dict[str, int]:
+    async def enrich_properties(self, target: str, job_id: str | None = None) -> dict[str, int]:
         logger.info("NIST properties enrichment starting (target=%s)", target)
         adsorption_data, guest_data, host_data = await asyncio.to_thread(
             self.serializer.load_adsorption_datasets
@@ -618,6 +627,9 @@ class NISTDataService:
                 "names_matched": 0,
                 "rows_updated": 0,
             }
+        
+        if job_id:
+            job_manager.update_progress(job_id, 10.0)
 
         for column in (weight_col, formula_col, smile_col):
             if column not in data.columns:
@@ -625,6 +637,9 @@ class NISTDataService:
 
         pubchem = PubChemClient(server_settings.nist.pubchem_parallel_tasks)
         properties = await pubchem.fetch_properties_for_names(names)
+
+        if job_id:
+            job_manager.update_progress(job_id, 50.0)
 
         properties_frame = pd.DataFrame(properties)
         if properties_frame.empty:

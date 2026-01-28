@@ -62,8 +62,10 @@ class JobManager:
         runner: Callable[..., dict[str, Any]],
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
+        job_id: str | None = None,
     ) -> str:
-        job_id = str(uuid.uuid4())[:8]
+        if job_id is None:
+            job_id = str(uuid.uuid4())[:8]
         state = JobState(job_id=job_id, job_type=job_type, status="pending")
 
         with self.lock:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
@@ -44,6 +45,7 @@ class NistEndpoint:
         experiments_fraction: float,
         guest_fraction: float,
         host_fraction: float,
+        job_id: str | None = None,
     ) -> dict:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -53,18 +55,19 @@ class NistEndpoint:
                     experiments_fraction=experiments_fraction,
                     guest_fraction=guest_fraction,
                     host_fraction=host_fraction,
+                    job_id=job_id,
                 )
             )
         finally:
             loop.close()
 
     # -------------------------------------------------------------------------
-    def _run_properties_sync(self, target: str) -> dict:
+    def _run_properties_sync(self, target: str, job_id: str | None = None) -> dict:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(
-                self.service.enrich_properties(target=target)
+                self.service.enrich_properties(target=target, job_id=job_id)
             )
         finally:
             loop.close()
@@ -82,14 +85,17 @@ class NistEndpoint:
                 detail="A NIST properties job is running. Wait for it to complete.",
             )
 
-        job_id = job_manager.start_job(
+        job_id = str(uuid.uuid4())[:8]
+        job_manager.start_job(
             job_type=self.JOB_TYPE_FETCH,
             runner=self._run_fetch_sync,
             args=(
                 request.experiments_fraction,
                 request.guest_fraction,
                 request.host_fraction,
+                job_id,
             ),
+            job_id=job_id,
         )
         logger.info("Started NIST fetch job %s", job_id)
         return JobStartResponse(
@@ -114,10 +120,12 @@ class NistEndpoint:
                 detail="A NIST fetch job is running. Wait for it to complete.",
             )
 
-        job_id = job_manager.start_job(
+        job_id = str(uuid.uuid4())[:8]
+        job_manager.start_job(
             job_type=self.JOB_TYPE_PROPERTIES,
             runner=self._run_properties_sync,
-            args=(request.target,),
+            args=(request.target, job_id),
+            job_id=job_id,
         )
         logger.info(
             "Started NIST properties job %s (target=%s)", job_id, request.target
