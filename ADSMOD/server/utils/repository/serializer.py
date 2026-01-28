@@ -315,31 +315,7 @@ class TrainingDataSerializer:
                 filtered_meta = existing_meta[
                     existing_meta["dataset_label"] != dataset_label
                 ]
-                database.save_into_database(filtered_meta, "TRAINING_METADATA")
-
-    # -------------------------------------------------------------------------
-    def deserialize_series(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Deprecated: JSONSequence type handles this. 
-        Kept briefly for compatibility if called explicitly, but effectively a pass-through 
-        unless raw strings are still encountered (which JSONSequence also handles).
-        """
-        if data.empty:
-            return data
-        # We trust the ORM or the JSONSequence type to have done the work.
-        return data
-
-    # -------------------------------------------------------------------------
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _deserialize_value(value: Any) -> Any:
-        # Legacy helper, likely unused now
-        if isinstance(value, str):
-            try:
-                return json.loads(value)
-            except json.JSONDecodeError:
-                return value
-        return value
+                database.save_into_database(filtered_meta, "TRAINING_METADATA") 
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -377,11 +353,12 @@ class TrainingDataSerializer:
         max_smile_index = max(smile_vocabulary.values()) if smile_vocabulary else 0
         smile_vocab_size = int(max_smile_index) + 1
         normalization_stats = self._parse_json(row.get("normalization_stats"))
+        dataset_hash_value = row.get("dataset_hash")
 
         metadata = TrainingMetadata(
             created_at=str(row.get("created_at", "")),
-            dataset_hash=str(row.get("dataset_hash"))
-            if row.get("dataset_hash")
+            dataset_hash=str(dataset_hash_value).strip()
+            if pd.notna(dataset_hash_value) and str(dataset_hash_value).strip()
             else None,
             sample_size=float(row.get("sample_size", 1.0)),
             validation_size=float(row.get("validation_size", 0.2)),
@@ -472,22 +449,19 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def list_processed_datasets() -> list[dict[str, Any]]:
-        """
-        Returns a list of all processed datasets with their metadata.
-        Each entry contains: dataset_label, dataset_hash, train_samples, validation_samples, created_at
-        """
+    def list_processed_datasets() -> list[dict[str, Any]]:        
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
             return []
 
         datasets = []
         for _, row in metadata_df.iterrows():
+            dataset_hash_value = row.get("dataset_hash")
             datasets.append(
                 {
                     "dataset_label": str(row.get("dataset_label", "default")),
-                    "dataset_hash": str(row.get("dataset_hash"))
-                    if row.get("dataset_hash")
+                    "dataset_hash": str(dataset_hash_value).strip()
+                    if pd.notna(dataset_hash_value) and str(dataset_hash_value).strip()
                     else None,
                     "train_samples": int(row.get("train_samples", 0)),
                     "validation_samples": int(row.get("validation_samples", 0)),
@@ -499,11 +473,7 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def compute_metadata_hash(metadata: TrainingMetadata) -> str:
-        """
-        Computes a SHA256 hash of the metadata to ensure strict compatibility.
-        Includes all configuration parameters, vocabularies (keys + indices), and statistics.
-        """
+    def compute_metadata_hash(metadata: TrainingMetadata) -> str:       
         if not metadata:
             return ""
 

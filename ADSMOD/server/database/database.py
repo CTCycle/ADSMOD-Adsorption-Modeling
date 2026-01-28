@@ -97,8 +97,7 @@ class ADSMODDatabase:
         return self.backend.count_rows(table_name)
 
     # -------------------------------------------------------------------------
-    def get_unique_dataset_names(self) -> list[str]:
-        """Return unique dataset names from the ADSORPTION_DATA table."""
+    def get_unique_dataset_names(self) -> list[str]:        
         try:
             df = self.backend.load_from_database("ADSORPTION_DATA")
             if df.empty or "dataset_name" not in df.columns:
