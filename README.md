@@ -122,7 +122,7 @@ The application stores data and artifacts in specific directories, primarily und
 
 
 ## 7. Configuration
-Backend configuration is defined in `ADSMOD/settings/server_configurations.json` and loaded by the API at startup. Runtime overrides and secrets are read from `ADSMOD/settings/.env`. Frontend configuration is read from `ADSMOD/client/.env` during development or build time.
+Backend configuration is defined in `ADSMOD/settings/configurations.json` and loaded by the API at startup. Runtime overrides and secrets are read from `ADSMOD/settings/.env`. Frontend configuration is read from `ADSMOD/client/.env` during development or build time.
 
 | Variable | Description |
 |-|-|
