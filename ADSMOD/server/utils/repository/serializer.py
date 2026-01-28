@@ -5,6 +5,7 @@ from typing import Any
 import json
 import hashlib
 import os
+import shutil
 from datetime import datetime
 
 import pandas as pd
@@ -544,6 +545,19 @@ class ModelSerializer:
         logger.debug("Created checkpoint folder at %s", checkpoint_path)
 
         return checkpoint_path
+
+    # -------------------------------------------------------------------------
+    def delete_checkpoint(self, checkpoint_name: str) -> bool:
+        checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint_name)
+        if not os.path.exists(checkpoint_path):
+            return False
+        try:
+            shutil.rmtree(checkpoint_path)
+            logger.info("Deleted checkpoint: %s", checkpoint_name)
+            return True
+        except Exception as e:
+            logger.error("Failed to delete checkpoint %s: %s", checkpoint_name, e)
+            return False
 
     # -------------------------------------------------------------------------
     def save_pretrained_model(self, model: Model, path: str) -> None:

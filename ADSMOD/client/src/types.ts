@@ -188,6 +188,13 @@ export interface CheckpointInfo {
     is_compatible: boolean;
 }
 
+export interface CheckpointFullDetails {
+    name: string;
+    configuration: TrainingConfig | null;
+    metadata: DatasetFullInfo | null;
+    history: Record<string, unknown> | null;
+}
+
 export interface ResumeTrainingConfig {
     checkpoint_name: string;
     additional_epochs: number;

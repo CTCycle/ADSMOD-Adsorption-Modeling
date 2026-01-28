@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Checkbox, NumberInput, Switch } from './UIComponents';
-import type { TrainingConfig, ProcessedDatasetInfo } from '../types';
+import type { TrainingConfig } from '../types';
 
 interface NewTrainingWizardProps {
     config: TrainingConfig;
@@ -8,9 +9,7 @@ interface NewTrainingWizardProps {
     onClose: () => void;
     onConfirm: () => void;
     isLoading: boolean;
-    processedDatasets: ProcessedDatasetInfo[];
-    selectedDatasetLabel: string | null;
-    onDatasetSelect: (label: string) => void;
+    selectedDatasetLabel: string; // Now required and must be pre-selected
 }
 
 const getModelType = (value: string): TrainingConfig['selected_model'] => {
@@ -23,18 +22,23 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     onClose,
     onConfirm,
     isLoading,
-    processedDatasets,
     selectedDatasetLabel,
-    onDatasetSelect,
 }) => {
     const [currentPage, setCurrentPage] = useState(0);
+
+    // Ensure the dataset label is set in the config on mount
+    useEffect(() => {
+        if (config.dataset_label !== selectedDatasetLabel) {
+            onConfigChange({ ...config, dataset_label: selectedDatasetLabel });
+        }
+    }, [selectedDatasetLabel, config, onConfigChange]);
 
     const updateConfig = <K extends keyof TrainingConfig>(key: K, value: TrainingConfig[K]) => {
         onConfigChange({ ...config, [key]: value });
     };
 
     const handleNext = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, 4));
+        setCurrentPage((prev) => Math.min(prev + 1, 3));
     };
 
     const handlePrevious = () => {
@@ -47,14 +51,12 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
         }
     };
 
-    const canProceedFromDatasetSelection = selectedDatasetLabel !== null;
-
     return (
         <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={handleBackdropClick}>
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4>New Training Wizard</h4>
-                    <p>Select a dataset and configure training settings before launching a new run.</p>
+                    <p>Configure training settings for dataset: <strong>{selectedDatasetLabel}</strong></p>
                     <div className="wizard-page-indicator">
                         <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>
                         <span className={`wizard-dot-line ${currentPage > 0 ? 'active' : ''}`} />
@@ -63,63 +65,11 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                         <span className={`wizard-dot ${currentPage === 2 ? 'active' : ''}`}>3</span>
                         <span className={`wizard-dot-line ${currentPage > 2 ? 'active' : ''}`} />
                         <span className={`wizard-dot ${currentPage === 3 ? 'active' : ''}`}>4</span>
-                        <span className={`wizard-dot-line ${currentPage > 3 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 4 ? 'active' : ''}`}>5</span>
                     </div>
                 </div>
 
                 <div className="wizard-body">
                     {currentPage === 0 && (
-                        <div className="wizard-page">
-                            <div className="wizard-card">
-                                <div className="wizard-card-header">
-                                    <span className="wizard-card-icon">📂</span>
-                                    <span>Select Dataset</span>
-                                </div>
-                                <p className="wizard-card-description">
-                                    Choose a processed dataset to use for training. Datasets are created
-                                    from the Dataset Processing section above.
-                                </p>
-                                <div className="wizard-card-body">
-                                    {processedDatasets.length === 0 ? (
-                                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--slate-500)' }}>
-                                            No processed datasets available. Create one using the Dataset Processing section.
-                                        </div>
-                                    ) : (
-                                        <div className="dataset-table">
-                                            <div className="dataset-table-header">
-                                                <span>Name</span>
-                                                <span>Train Samples</span>
-                                                <span>Validation Samples</span>
-                                            </div>
-                                            <div className="dataset-table-body">
-                                                {processedDatasets.map((dataset) => (
-                                                    <div
-                                                        key={dataset.dataset_label}
-                                                        className={`dataset-row ${selectedDatasetLabel === dataset.dataset_label ? 'selected' : ''}`}
-                                                        onClick={() => onDatasetSelect(dataset.dataset_label)}
-                                                        role="button"
-                                                        tabIndex={0}
-                                                        onKeyDown={(event) => {
-                                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                                onDatasetSelect(dataset.dataset_label);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <span>{dataset.dataset_label}</span>
-                                                        <span className="dataset-count">{dataset.train_samples}</span>
-                                                        <span className="dataset-count">{dataset.validation_samples}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {currentPage === 1 && (
                         <div className="wizard-page">
                             <div className="wizard-card">
                                 <div className="wizard-card-header">
@@ -179,7 +129,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                         </div>
                     )}
 
-                    {currentPage === 2 && (
+                    {currentPage === 1 && (
                         <div className="wizard-page">
                             <div className="wizard-card">
                                 <div className="wizard-card-header">
@@ -248,7 +198,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                         </div>
                     )}
 
-                    {currentPage === 3 && (
+                    {currentPage === 2 && (
                         <div className="wizard-page">
                             <div className="wizard-card">
                                 <div className="wizard-card-header">
@@ -342,7 +292,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                         </div>
                     )}
 
-                    {currentPage === 4 && (
+                    {currentPage === 3 && (
                         <div className="wizard-page">
                             <div className="wizard-card" style={{ marginBottom: '1rem', border: '1px solid var(--primary-200)' }}>
                                 <div className="wizard-card-header">
@@ -379,7 +329,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                     <h5>Selected Dataset</h5>
                                     <div className="wizard-summary-grid">
                                         <span>Dataset</span>
-                                        <strong>{selectedDatasetLabel || 'None'}</strong>
+                                        <strong>{selectedDatasetLabel}</strong>
                                     </div>
                                 </div>
                                 <div className="wizard-summary-section">
@@ -456,16 +406,16 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                             Previous
                         </button>
                     )}
-                    {currentPage < 4 && (
+                    {currentPage < 3 && (
                         <button
                             className="primary"
                             onClick={handleNext}
-                            disabled={isLoading || (currentPage === 0 && !canProceedFromDatasetSelection)}
+                            disabled={isLoading}
                         >
                             Next
                         </button>
                     )}
-                    {currentPage === 4 && (
+                    {currentPage === 3 && (
                         <button className="primary" onClick={onConfirm} disabled={isLoading}>
                             {isLoading ? 'Starting...' : 'Confirm Training'}
                         </button>
