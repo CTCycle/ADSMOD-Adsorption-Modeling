@@ -66,6 +66,14 @@ class CheckpointDetailInfo(BaseModel):
 
 
 ###############################################################################
+class CheckpointFullDetailsResponse(BaseModel):
+    name: str
+    configuration: dict[str, Any] | None
+    metadata: TrainingMetadata | None
+    history: dict[str, Any] | None = None
+
+
+###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointDetailInfo]
 

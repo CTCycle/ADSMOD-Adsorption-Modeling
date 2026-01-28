@@ -1,5 +1,6 @@
 import type {
     CheckpointInfo,
+    CheckpointFullDetails,
     ResumeTrainingConfig,
     TrainingConfig,
     TrainingDatasetInfo,
@@ -118,6 +119,54 @@ export async function fetchCheckpoints(): Promise<{
             return { checkpoints: [], error: error.message };
         }
         return { checkpoints: [], error: 'An unknown error occurred.' };
+    }
+}
+
+export async function fetchCheckpointDetails(
+    checkpointName: string
+): Promise<{ details: CheckpointFullDetails | null; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/checkpoints/${encodeURIComponent(checkpointName)}`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+        if (!response.ok) {
+            throw new Error(`Failed to fetch checkpoint details: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return { details: data, error: null };
+    } catch (error) {
+        console.error('Error fetching checkpoint details:', error);
+        return {
+            details: null,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
+
+export async function deleteCheckpoint(
+    checkpointName: string
+): Promise<{ success: boolean; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/checkpoints/${encodeURIComponent(checkpointName)}`,
+            {
+                method: 'DELETE',
+            },
+            HTTP_TIMEOUT
+        );
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || `Failed to delete checkpoint: ${response.statusText}`);
+        }
+        return { success: true, error: null };
+    } catch (error) {
+        console.error('Error deleting checkpoint:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
     }
 }
 

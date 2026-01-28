@@ -13,6 +13,7 @@ from ADSMOD.server.schemas.jobs import (
 )
 from ADSMOD.server.schemas.training import (
     CheckpointDetailInfo,
+    CheckpointFullDetailsResponse,
     CheckpointsResponse,
     DatasetBuildRequest,
     DatasetInfoResponse,
@@ -410,6 +411,43 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
+    def get_checkpoint_details(self, checkpoint_name: str) -> CheckpointFullDetailsResponse:
+        try:
+            checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint_name)
+            if not os.path.isdir(checkpoint_path):
+                raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_name} not found")
+
+            configuration, metadata, history = training_manager.model_serializer.load_training_configuration(
+                checkpoint_path
+            )
+
+            return CheckpointFullDetailsResponse(
+                name=checkpoint_name,
+                configuration=configuration,
+                metadata=metadata,
+                history=history,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting checkpoint details: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
+    def delete_checkpoint(self, checkpoint_name: str) -> dict[str, str]:
+        try:
+            success = training_manager.model_serializer.delete_checkpoint(checkpoint_name)
+            if success:
+                return {"status": "success", "message": f"Checkpoint {checkpoint_name} deleted."}
+            else:
+                raise HTTPException(
+                    status_code=400, detail=f"Failed to delete checkpoint {checkpoint_name}."
+                )
+        except Exception as e:
+            logger.error(f"Error deleting checkpoint: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
         state = training_manager.state.snapshot()
         if state["is_training"]:
@@ -588,6 +626,17 @@ class TrainingEndpoint:
             self.get_checkpoints,
             methods=["GET"],
             response_model=CheckpointsResponse,
+        )
+        self.router.add_api_route(
+            "/checkpoints/{checkpoint_name}",
+            self.get_checkpoint_details,
+            methods=["GET"],
+            response_model=CheckpointFullDetailsResponse,
+        )
+        self.router.add_api_route(
+            "/checkpoints/{checkpoint_name}",
+            self.delete_checkpoint,
+            methods=["DELETE"],
         )
         self.router.add_api_route(
             "/start",

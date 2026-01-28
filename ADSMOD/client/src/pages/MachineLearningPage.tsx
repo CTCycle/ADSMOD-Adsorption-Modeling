@@ -13,6 +13,7 @@ import { DatasetBuilderCard } from '../components/DatasetBuilderCard';
 import { NewTrainingWizard } from '../components/NewTrainingWizard';
 import { ResumeTrainingWizard } from '../components/ResumeTrainingWizard';
 import { TrainingSetupRow } from '../components/TrainingSetupRow';
+import { InfoModal } from '../components/InfoModal'; // Import InfoModal
 import type {
     TrainingConfig,
     CheckpointInfo,
@@ -28,6 +29,10 @@ import {
     stopTraining,
     getTrainingStatus,
     fetchProcessedDatasets,
+    deleteDataset, // Import deleteDataset
+    getTrainingDatasetInfo, // Import getTrainingDatasetInfo if needed for view metadata
+    deleteCheckpoint, // Import deleteCheckpoint
+    fetchCheckpointDetails,
 } from '../services';
 
 // Default training configuration based on legacy app
@@ -131,6 +136,11 @@ export const MachineLearningPage: React.FC = () => {
     const [selectedDatasetLabel, setSelectedDatasetLabel] = useState<string | null>(null);
     const [selectedDatasetHash, setSelectedDatasetHash] = useState<string | null>(null);
 
+    // Info Modal State
+    const [infoModalOpen, setInfoModalOpen] = useState(false);
+    const [infoModalTitle, setInfoModalTitle] = useState('');
+    const [infoModalData, setInfoModalData] = useState<Record<string, any> | null>(null);
+
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
     const logContainerRef = useRef<HTMLPreElement>(null);
@@ -210,6 +220,72 @@ export const MachineLearningPage: React.FC = () => {
         if (!error) {
             setProcessedDatasets(datasets);
         }
+    };
+
+    const handleDeleteDataset = async (label: string) => {
+        if (window.confirm(`Are you sure you want to delete dataset '${label}'?`)) {
+            const { success, message } = await deleteDataset(label);
+            if (success) {
+                loadProcessedDatasets();
+            } else {
+                alert(`Failed to delete dataset: ${message}`);
+            }
+        }
+    };
+
+    const handleViewDatasetMetadata = async (label: string) => {
+        // Find dataset in processedDatasets to show info
+        const dataset = processedDatasets.find((d) => d.dataset_label === label);
+        if (dataset) {
+            setInfoModalTitle('Dataset Metadata');
+            setInfoModalData({
+                'Label': dataset.dataset_label,
+                'Created At': dataset.created_at,
+                'Train Samples': dataset.train_samples,
+                'Validation Samples': dataset.validation_samples,
+                'Hash': dataset.dataset_hash,
+            });
+            setInfoModalOpen(true);
+        }
+    };
+
+    const handleDeleteCheckpoint = async (name: string) => {
+        if (window.confirm(`Are you sure you want to delete checkpoint '${name}'?`)) {
+            const { success, error } = await deleteCheckpoint(name);
+            if (success) {
+                loadCheckpoints();
+            } else {
+                alert(`Failed to delete checkpoint: ${error}`);
+            }
+        }
+    };
+
+    const handleViewCheckpointDetails = async (name: string) => {
+        const { details, error } = await fetchCheckpointDetails(name);
+        if (error) {
+            // Error falls back to alert or could use a toast
+            alert(`Failed to load details: ${error}`);
+        } else if (details) {
+            setInfoModalTitle('Checkpoint Details');
+            setInfoModalData({
+                'Name': details.name,
+                'Epochs Trained': details.epochs_trained,
+                'Final Loss': details.final_loss?.toFixed(6) ?? 'N/A',
+                'Is Compatible': details.is_compatible ? 'Yes' : 'No',
+                'Created At': details.created_at || 'Unknown',
+            });
+            setInfoModalOpen(true);
+        }
+    };
+
+    const handleNewTrainingClick = (datasetLabel: string) => {
+        handleDatasetSelect(datasetLabel);
+        setShowNewTrainingWizard(true);
+    };
+
+    const handleResumeTrainingClickWithSelection = (checkpointName: string) => {
+        setResumeConfig(prev => ({ ...prev, checkpoint_name: checkpointName }));
+        setShowResumeTrainingWizard(true);
     };
 
     // Derived metrics for UI
@@ -305,11 +381,19 @@ export const MachineLearningPage: React.FC = () => {
             <DatasetBuilderCard onDatasetBuilt={() => { loadProcessedDatasets(); }} />
 
             <TrainingSetupRow
-                onNewTrainingClick={() => setShowNewTrainingWizard(true)}
-                onResumeTrainingClick={handleResumeTrainingClick}
+                onNewTrainingClick={handleNewTrainingClick}
+                onResumeTrainingClick={handleResumeTrainingClickWithSelection}
                 datasetAvailable={processedDatasets.length > 0}
                 checkpointsAvailable={checkpoints.length > 0}
+                processedDatasets={processedDatasets}
+                checkpoints={checkpoints}
                 isTraining={trainingStatus.is_training}
+                onDeleteDataset={handleDeleteDataset}
+                onViewDatasetMetadata={handleViewDatasetMetadata}
+                onDeleteCheckpoint={handleDeleteCheckpoint}
+                onViewCheckpointDetails={handleViewCheckpointDetails}
+                onRefreshDatasets={loadProcessedDatasets}
+                onRefreshCheckpoints={loadCheckpoints}
             />
 
             <div className="training-dashboard">
@@ -496,8 +580,7 @@ export const MachineLearningPage: React.FC = () => {
                     onConfirm={handleConfirmTraining}
                     isLoading={isLoading}
                     processedDatasets={processedDatasets}
-                    selectedDatasetLabel={selectedDatasetLabel}
-                    onDatasetSelect={handleDatasetSelect}
+                    selectedDatasetLabel={selectedDatasetLabel || ''}
                 />
             )}
 
@@ -509,8 +592,16 @@ export const MachineLearningPage: React.FC = () => {
                     onClose={() => setShowResumeTrainingWizard(false)}
                     onConfirm={handleConfirmResume}
                     isLoading={isLoading}
+                    selectedCheckpointName={resumeConfig.checkpoint_name} // Pass selected checkpoint
                 />
             )}
+
+            <InfoModal
+                isOpen={infoModalOpen}
+                onClose={() => setInfoModalOpen(false)}
+                title={infoModalTitle}
+                data={infoModalData}
+            />
         </div>
     );
 };
