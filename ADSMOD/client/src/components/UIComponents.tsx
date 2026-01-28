@@ -170,3 +170,35 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         </div>
     );
 };
+
+interface ProgressBarProps {
+    value: number; // 0 to 100
+    label?: string;
+    color?: string;
+    showPercent?: boolean;
+}
+
+export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, color = 'var(--primary-color)', showPercent = true }) => {
+    // Clamp value between 0 and 100
+    const clampedValue = Math.min(100, Math.max(0, value));
+
+    return (
+        <div className="progress-bar-container_wrapper">
+            {label && (
+                <div className="progress-bar-header">
+                    <span className="progress-bar-label">{label}</span>
+                    {showPercent && <span className="progress-bar-percent">{clampedValue.toFixed(0)}%</span>}
+                </div>
+            )}
+            <div className="progress-bar-track">
+                <div
+                    className="progress-bar-fill"
+                    style={{
+                        width: `${clampedValue}%`,
+                        backgroundColor: color
+                    }}
+                />
+            </div>
+        </div>
+    );
+};

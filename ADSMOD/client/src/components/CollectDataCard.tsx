@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { NumberInput } from './UIComponents';
+import { NumberInput, ProgressBar } from './UIComponents';
 import { fetchNistData, fetchNistProperties, fetchNistStatus } from '../services';
 import type { NISTStatusResponse } from '../types';
 
@@ -57,18 +57,24 @@ export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistS
     const [hostFraction, setHostFraction] = useState(1.0);
     const [experimentsFraction, setExperimentsFraction] = useState(1.0);
     const [isCollecting, setIsCollecting] = useState(false);
+    const [progress, setProgress] = useState<number>(0);
 
     const { loadNistStatus } = nistStatusState;
 
     const handleCollectData = async () => {
         if (isCollecting) return;
         setIsCollecting(true);
+        setProgress(0);
         onStatusUpdate('[INFO] Starting NIST-A data collection...');
         try {
             const result = await fetchNistData({
                 experiments_fraction: experimentsFraction,
                 guest_fraction: guestFraction,
                 host_fraction: hostFraction,
+            }, (status) => {
+                if (status.progress !== undefined) {
+                    setProgress(status.progress);
+                }
             });
             if (result.error) {
                 onStatusUpdate(`[ERROR] ${result.error}`);
@@ -141,6 +147,7 @@ export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistS
                     >
                         {isCollecting ? 'Collecting...' : 'Collect adsorption data'}
                     </button>
+                    {isCollecting && <ProgressBar value={progress} label="Collection progress" />}
                 </div>
             </div>
         </div>
@@ -154,6 +161,8 @@ export const NistCollectCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistS
 export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, nistStatusState }) => {
     const [isGuestUpdating, setIsGuestUpdating] = useState(false);
     const [isHostUpdating, setIsHostUpdating] = useState(false);
+    const [guestProgress, setGuestProgress] = useState<number>(0);
+    const [hostProgress, setHostProgress] = useState<number>(0);
     const { nistStatus, nistStatusError, isStatusLoading, loadNistStatus } = nistStatusState;
 
     const isBusy = isGuestUpdating || isHostUpdating;
@@ -170,9 +179,14 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
     const handleRetrieveAdsorbates = async () => {
         if (isBusy) return;
         setIsGuestUpdating(true);
+        setGuestProgress(0);
         onStatusUpdate('[INFO] Retrieving adsorbates properties from PubChem...');
         try {
-            const result = await fetchNistProperties({ target: 'guest' });
+            const result = await fetchNistProperties({ target: 'guest' }, (status) => {
+                if (status.progress !== undefined) {
+                    setGuestProgress(status.progress);
+                }
+            });
             if (result.error) {
                 onStatusUpdate(`[ERROR] ${result.error}`);
             } else if (result.data) {
@@ -196,9 +210,14 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
     const handleRetrieveAdsorbents = async () => {
         if (isBusy) return;
         setIsHostUpdating(true);
+        setHostProgress(0);
         onStatusUpdate('[INFO] Retrieving adsorbents properties from PubChem...');
         try {
-            const result = await fetchNistProperties({ target: 'host' });
+            const result = await fetchNistProperties({ target: 'host' }, (status) => {
+                if (status.progress !== undefined) {
+                    setHostProgress(status.progress);
+                }
+            });
             if (result.error) {
                 onStatusUpdate(`[ERROR] ${result.error}`);
             } else if (result.data) {
@@ -240,6 +259,7 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
                     >
                         {isGuestUpdating ? 'Retrieving adsorbates...' : 'Retrieve adsorbates props'}
                     </button>
+
                     <button
                         className="button secondary"
                         onClick={handleRetrieveAdsorbents}
@@ -248,6 +268,9 @@ export const NistPropertiesCard: React.FC<NistCardProps> = ({ onStatusUpdate, ni
                     >
                         {isHostUpdating ? 'Retrieving adsorbents...' : 'Retrieve adsorbents props'}
                     </button>
+
+                    {isGuestUpdating && <ProgressBar value={guestProgress} label="Adsorbates retrieval" />}
+                    {isHostUpdating && <ProgressBar value={hostProgress} label="Adsorbents retrieval" />}
                 </div>
             </div>
         </div>
