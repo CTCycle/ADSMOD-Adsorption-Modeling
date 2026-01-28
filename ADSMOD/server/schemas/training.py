@@ -153,6 +153,9 @@ class DatasetInfoResponse(BaseModel):
     total_samples: int | None = None
     train_samples: int | None = None
     validation_samples: int | None = None
+    smile_vocabulary_size: int | None = None
+    adsorbent_vocabulary_size: int | None = None
+    normalization_stats: dict[str, Any] | None = None
 
 
 ###############################################################################

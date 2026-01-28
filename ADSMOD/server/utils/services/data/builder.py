@@ -362,6 +362,9 @@ class DatasetBuilder:
                 "total_samples": metadata.total_samples,
                 "train_samples": metadata.train_samples,
                 "validation_samples": metadata.validation_samples,
+                "smile_vocabulary_size": metadata.smile_vocabulary_size or len(metadata.smile_vocabulary),
+                "adsorbent_vocabulary_size": metadata.adsorbent_vocabulary_size or len(metadata.adsorbent_vocabulary),
+                "normalization_stats": metadata.normalization_stats,
             }
         except Exception as e:
             logger.warning(f"Failed to load training dataset info: {e}")
