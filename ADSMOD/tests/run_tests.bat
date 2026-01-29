@@ -14,21 +14,46 @@ echo.
 
 REM Store the script directory
 set "SCRIPT_DIR=%~dp0"
-set "PROJECT_ROOT=%SCRIPT_DIR%..\.."
-set "ADSMOD_DIR=%SCRIPT_DIR%.."
+set "PROJECT_ROOT=%SCRIPT_DIR%..\\.."
+set "ADSMOD_DIR=%PROJECT_ROOT%\\ADSMOD"
+set "PYTHON_EXE=%PROJECT_ROOT%\\ADSMOD\\resources\\runtimes\\python\\python.exe"
+set "VENV_PYTHON=%PROJECT_ROOT%\\.venv\\Scripts\\python.exe"
+set "NODEJS_DIR=%PROJECT_ROOT%\\ADSMOD\\resources\\runtimes\\nodejs"
+set "NPM_CMD=%NODEJS_DIR%\\npm.cmd"
+set "FRONTEND_DIR=%ADSMOD_DIR%\\client"
+set "FRONTEND_DIST=%FRONTEND_DIR%\\dist"
 
-REM Check for Python
-where python >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Python not found in PATH. Please install Python 3.14+.
-    exit /b 1
+REM Check for Python (prefer uv-created .venv, then embedded runtime)
+if exist "%VENV_PYTHON%" (
+    set "PYTHON_CMD=%VENV_PYTHON%"
+) else if exist "%PYTHON_EXE%" (
+    set "PYTHON_CMD=%PYTHON_EXE%"
+) else (
+    where python >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Python not found in PATH. Please install Python 3.14+.
+        exit /b 1
+    )
+    set "PYTHON_CMD=python"
+)
+
+REM Check for npm (prefer embedded runtime)
+if exist "%NPM_CMD%" (
+    set "NPM_RUN=%NPM_CMD%"
+) else (
+    where npm >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] npm not found in PATH. Please install Node.js or run start_on_windows.bat.
+        exit /b 1
+    )
+    set "NPM_RUN=npm"
 )
 
 REM Check for pytest
-python -c "import pytest" >nul 2>&1
+"%PYTHON_CMD%" -c "import pytest" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Installing test dependencies...
-    pip install -e "%PROJECT_ROOT%[test]"
+    "%PYTHON_CMD%" -m pip install -e "%PROJECT_ROOT%[test]"
     if %ERRORLEVEL% neq 0 (
         echo [ERROR] Failed to install test dependencies.
         exit /b 1
@@ -36,17 +61,17 @@ if %ERRORLEVEL% neq 0 (
 )
 
 REM Check for playwright
-python -c "import playwright" >nul 2>&1
+"%PYTHON_CMD%" -c "import playwright" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Installing Playwright...
-    pip install pytest-playwright
+    "%PYTHON_CMD%" -m pip install pytest-playwright
 )
 
 REM Install Playwright browsers if needed
-python -m playwright install chromium >nul 2>&1
+"%PYTHON_CMD%" -m playwright install chromium >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Installing Playwright browsers...
-    python -m playwright install
+    "%PYTHON_CMD%" -m playwright install
     if %ERRORLEVEL% neq 0 (
         echo [ERROR] Failed to install Playwright browsers.
         exit /b 1
@@ -61,10 +86,10 @@ REM Check if servers are already running
 set "BACKEND_RUNNING=0"
 set "FRONTEND_RUNNING=0"
 
-curl -s http://127.0.0.1:8000/docs >nul 2>&1
+curl -s --max-time 2 http://127.0.0.1:8000/docs >nul 2>&1
 if %ERRORLEVEL% equ 0 set "BACKEND_RUNNING=1"
 
-curl -s http://127.0.0.1:7861 >nul 2>&1
+curl -s --max-time 2 http://127.0.0.1:7861 >nul 2>&1
 if %ERRORLEVEL% equ 0 set "FRONTEND_RUNNING=1"
 
 REM Start servers if not running
@@ -73,14 +98,38 @@ set "STARTED_FRONTEND=0"
 
 if "%BACKEND_RUNNING%"=="0" (
     echo [INFO] Starting backend server...
-    start /B cmd /c "cd /d %PROJECT_ROOT% && python -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 8000" >nul 2>&1
+    start "" /B cmd /c "cd /d ""%PROJECT_ROOT%"" && ""%PYTHON_CMD%"" -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 8000"
     set "STARTED_BACKEND=1"
     timeout /t 3 /nobreak >nul
 )
 
 if "%FRONTEND_RUNNING%"=="0" (
+    if not exist "%FRONTEND_DIR%\\node_modules" (
+        echo [INFO] Installing frontend dependencies...
+        pushd "%FRONTEND_DIR%" >nul
+        call "%NPM_RUN%" install
+        set "npm_ec=%ERRORLEVEL%"
+        popd >nul
+        if not "%npm_ec%"=="0" (
+            echo [ERROR] npm install failed with code %npm_ec%.
+            exit /b 1
+        )
+    )
+
+    if not exist "%FRONTEND_DIST%" (
+        echo [INFO] Building frontend...
+        pushd "%FRONTEND_DIR%" >nul
+        call "%NPM_RUN%" run build
+        set "npm_build_ec=%ERRORLEVEL%"
+        popd >nul
+        if not "%npm_build_ec%"=="0" (
+            echo [ERROR] Frontend build failed with code %npm_build_ec%.
+            exit /b 1
+        )
+    )
+
     echo [INFO] Starting frontend server...
-    start /B cmd /c "cd /d %ADSMOD_DIR%\client && npm run preview" >nul 2>&1
+    start "" /B cmd /c "cd /d ""%FRONTEND_DIR%"" && ""%NPM_RUN%"" run preview"
     set "STARTED_FRONTEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -94,14 +143,14 @@ if %ATTEMPTS% geq 30 (
     goto cleanup
 )
 
-curl -s http://127.0.0.1:8000/docs >nul 2>&1
+curl -s --max-time 2 http://127.0.0.1:8000/docs >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
     goto wait_loop
 )
 
-curl -s http://127.0.0.1:7861 >nul 2>&1
+curl -s --max-time 2 http://127.0.0.1:7861 >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
@@ -118,7 +167,7 @@ echo ============================================================
 echo.
 
 cd /d "%PROJECT_ROOT%"
-python -m pytest ADSMOD/tests -v --tb=short %*
+"%PYTHON_CMD%" -m pytest "%ADSMOD_DIR%\\tests" -v --tb=short %*
 set "TEST_RESULT=%ERRORLEVEL%"
 
 echo.
