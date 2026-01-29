@@ -33,7 +33,7 @@ class DeviceConfig:
 
         return device
 
-
+###############################################################################
 class DeviceDataLoader:
     def __init__(self, dataloader: Any, device: torch.device) -> None:
         self.dataloader = dataloader
@@ -41,7 +41,11 @@ class DeviceDataLoader:
 
     def __iter__(self) -> Iterator[Any]:
         for batch in self.dataloader:
-            yield self._to_device(batch)
+            batch = self._to_device(batch)
+            if isinstance(batch, list):
+                yield tuple(batch)
+            else:
+                yield batch
 
     def __len__(self) -> int:
         return len(self.dataloader)
@@ -49,8 +53,10 @@ class DeviceDataLoader:
     def _to_device(self, data: Any) -> Any:
         if isinstance(data, torch.Tensor):
             return data.to(self.device, non_blocking=True)
-        elif isinstance(data, (list, tuple)):
+        elif isinstance(data, list):
             return [self._to_device(x) for x in data]
+        elif isinstance(data, tuple):
+            return tuple(self._to_device(x) for x in data)
         elif isinstance(data, dict):
             return {k: self._to_device(v) for k, v in data.items()}
         return data
