@@ -68,7 +68,7 @@ The application workflow is divided into four main sections, accessible via the 
 This section serves as the entry point for managing experimental data. It allows users to either upload their own datasets or fetch data directly from the NIST Adsorption Database.
 - **Load Experimental Data**: Upload local `.csv` or `.xlsx` files containing adsorption data for independent processing.
 - **NIST-A Collection**: Automatically fetch isotherms and material metadata from the NIST database.
-- **Status Monitoring**: Track the progress of data fetching and enrichment tasks in real-time.
+- **Status Monitoring**: Track the progress of data fetching and enrichment tasks in real-time with granular progress bars.
 
 ![Data Source Configuration](assets/figures/dataset_page.png)
 
@@ -83,20 +83,33 @@ Before training deep learning models, users can analyze individual isotherms usi
 
 #### 4.2.3 Model Training (Analysis)
 
-This is the core interface for the deep learning pipeline, where users can build datasets and train the **SCADS** model.
-- **Dataset Builder**: Create training-ready datasets by processing collected isotherms.
-- **Training Configuration**: Configure hyperparameters such as epochs, batch size, learning rate, and model architecture (e.g., molecular embedding size).
-- **Training Dashboard**: Visualizes training progress with real-time charts for Loss and Accuracy/R2 scores.
-- **Checkpoint Management**: Resume training from previously saved checkpoints to continue optimization.
+This is the core interface for the deep learning pipeline, enabling users to build datasets, train models, and resume experiments.
+
+**Dataset Building**
+- **Pipeline Execution**: Transform collected isotherms into training-ready datasets.
+- **Progress Tracking**: Monitor the build process with real-time status updates and progress bars.
+- **Metadata Inspection**: View detailed statistics and properties of processed datasets before training.
+
+**New Training Wizard**
+A step-by-step guided workflow for configuring training experiments:
+1. **Dataset Configuration**: Set sampling rates, validation splits, and shuffling parameters.
+2. **Model Configuration**: Customize the SCADS architecture (encoders, attention heads, embedding dimensions).
+3. **Training Configuration**: Define epochs, batch size, learning rate schedules, and GPU usage.
+4. **Review & Launch**: Name the experiment and verify settings before starting.
+
+**Resume Training**
+- **Checkpoint Selection**: Browse saved checkpoints from previous runs.
+- **Seamless Continuation**: Resume optimization exactly where it left off, with the option to adjust learning parameters.
 
 ![Model Training](assets/figures/training_page.png)
 
 #### 4.2.4 Database Browser
 
-A dedicated tool for exploring the local database of collecting isotherms and materials.
+A dedicated tool for exploring the local database of collected isotherms and materials.
 - **Table Viewer**: Browse through various database tables, including `isotherms`, `materials`, and `experiments`.
 - **Data Inspection**: View raw data in a tabular format to verify data integrity and content.
 - **Statistics**: Quickly check the total number of rows and columns for any selected table.
+- **Live Refresh**: Update the view to reflect the latest database changes without reloading the page.
 
 ![Database Browser](assets/figures/browser_page.png)
 
