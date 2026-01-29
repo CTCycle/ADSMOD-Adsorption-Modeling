@@ -22,19 +22,33 @@ set "NODEJS_DIR=%PROJECT_ROOT%\\ADSMOD\\resources\\runtimes\\nodejs"
 set "NPM_CMD=%NODEJS_DIR%\\npm.cmd"
 set "FRONTEND_DIR=%ADSMOD_DIR%\\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\\dist"
+set "DOTENV=%ADSMOD_DIR%\\settings\\.env"
+set "OPTIONAL_DEPENDENCIES=false"
 
-REM Check for Python (prefer uv-created .venv, then embedded runtime)
+REM Load OPTIONAL_DEPENDENCIES from .env if present
+if exist "%DOTENV%" (
+    for /f "usebackq tokens=* delims=" %%A in ("%DOTENV%") do (
+        set "line=%%A"
+        if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
+            for /f "tokens=1* delims==" %%K in ("!line!") do (
+                if /i "%%K"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=%%L"
+            )
+        )
+    )
+)
+
+if defined OPTIONAL_DEPENDENCIES (
+    if "!OPTIONAL_DEPENDENCIES:~0,1!"=="\"" set "OPTIONAL_DEPENDENCIES=!OPTIONAL_DEPENDENCIES:~1,-1!"
+    if "!OPTIONAL_DEPENDENCIES:~0,1!"=="'" set "OPTIONAL_DEPENDENCIES=!OPTIONAL_DEPENDENCIES:~1,-1!"
+)
+
+REM Check for Python (require uv-created .venv)
 if exist "%VENV_PYTHON%" (
     set "PYTHON_CMD=%VENV_PYTHON%"
-) else if exist "%PYTHON_EXE%" (
-    set "PYTHON_CMD=%PYTHON_EXE%"
 ) else (
-    where python >nul 2>&1
-    if %ERRORLEVEL% neq 0 (
-        echo [ERROR] Python not found in PATH. Please install Python 3.14+.
-        exit /b 1
-    )
-    set "PYTHON_CMD=python"
+    echo [ERROR] .venv not found at "%VENV_PYTHON%".
+    echo [ERROR] Run ADSMOD\\start_on_windows.bat to create the environment.
+    exit /b 1
 )
 
 REM Check for npm (prefer embedded runtime)
@@ -49,31 +63,19 @@ if exist "%NPM_CMD%" (
     set "NPM_RUN=npm"
 )
 
-REM Check for pytest
-"%PYTHON_CMD%" -c "import pytest" >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [INFO] Installing test dependencies...
-    "%PYTHON_CMD%" -m pip install -e "%PROJECT_ROOT%[test]"
+REM Check for pytest/playwright in the existing .venv only (no installs here)
+if /i "%OPTIONAL_DEPENDENCIES%"=="true" (
+    "%PYTHON_CMD%" -c "import pytest" >nul 2>&1
     if %ERRORLEVEL% neq 0 (
-        echo [ERROR] Failed to install test dependencies.
+        echo [ERROR] pytest not installed in .venv.
+        echo [ERROR] Set OPTIONAL_DEPENDENCIES=true and run ADSMOD\\start_on_windows.bat.
         exit /b 1
     )
-)
 
-REM Check for playwright
-"%PYTHON_CMD%" -c "import playwright" >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [INFO] Installing Playwright...
-    "%PYTHON_CMD%" -m pip install pytest-playwright
-)
-
-REM Install Playwright browsers if needed
-"%PYTHON_CMD%" -m playwright install chromium >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [INFO] Installing Playwright browsers...
-    "%PYTHON_CMD%" -m playwright install
+    "%PYTHON_CMD%" -c "import playwright" >nul 2>&1
     if %ERRORLEVEL% neq 0 (
-        echo [ERROR] Failed to install Playwright browsers.
+        echo [ERROR] playwright not installed in .venv.
+        echo [ERROR] Set OPTIONAL_DEPENDENCIES=true and run ADSMOD\\start_on_windows.bat.
         exit /b 1
     )
 )
