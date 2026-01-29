@@ -38,8 +38,6 @@ import {
 // Default training configuration based on legacy app
 const DEFAULT_CONFIG: TrainingConfig = {
     // Dataset settings
-    sample_size: 1.0,
-    validation_size: 0.2,
     batch_size: 16,
     shuffle_dataset: true,
     shuffle_size: 256,
