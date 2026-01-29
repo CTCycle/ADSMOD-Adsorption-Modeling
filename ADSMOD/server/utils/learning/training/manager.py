@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
-
-import multiprocessing
 
 from ADSMOD.server.utils.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
 from ADSMOD.server.utils.learning.device import DeviceConfig
 from ADSMOD.server.utils.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.utils.learning.training.fitting import ModelTraining
+from ADSMOD.server.utils.learning.training.worker import ProcessWorker
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.serializer import (
     ModelSerializer,
@@ -20,7 +20,6 @@ from ADSMOD.server.utils.learning.loader import (
     SCADSAtomicDataLoader,
     SCADSDataLoader,
 )
-from ADSMOD.server.utils.services.jobs import job_manager
 
 
 MODEL_COMPONENTS = {
@@ -38,13 +37,14 @@ def normalize_model_name(name: str | None) -> str:
     return SCADS_SERIES_MODEL
 
 
-def send_training_message(
-    message_queue: Any | None, payload: dict[str, Any]
-) -> None:
-    if message_queue is None:
+def send_training_message(worker: Any | None, payload: dict[str, Any]) -> None:
+    if worker is None:
+        return
+    sender = getattr(worker, "send_message", None)
+    if not callable(sender):
         return
     try:
-        message_queue.put_nowait(payload)
+        sender(payload)
     except Exception as exc:  # noqa: BLE001
         logger.debug("Failed to send training message: %s", exc)
 
@@ -52,24 +52,27 @@ def send_training_message(
 class TrainingProcessRunner:
     def __init__(
         self,
-        stop_event: multiprocessing.Event | None = None,
-        message_queue: Any | None = None,
+        worker: Any | None = None,
     ) -> None:
-        self.stop_event = stop_event
-        self.message_queue = message_queue
+        self.worker = worker
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
 
     # ---------------------------------------------------------------------
     def should_stop(self) -> bool:
-        return bool(self.stop_event and self.stop_event.is_set())
+        if self.worker is None:
+            return False
+        checker = getattr(self.worker, "is_interrupted", None)
+        if callable(checker):
+            return bool(checker())
+        return False
 
     # ---------------------------------------------------------------------
     def on_epoch_end(
         self, epoch: int, total_epochs: int, logs: dict[str, Any]
     ) -> None:
         send_training_message(
-            self.message_queue,
+            self.worker,
             {
                 "type": "epoch_end",
                 "epoch": epoch,
@@ -81,7 +84,7 @@ class TrainingProcessRunner:
     # ---------------------------------------------------------------------
     def log(self, message: str) -> None:
         send_training_message(
-            self.message_queue,
+            self.worker,
             {
                 "type": "log",
                 "message": message,
@@ -158,6 +161,7 @@ class TrainingProcessRunner:
             checkpoint_path,
             should_stop=self.should_stop,
             on_epoch_end=self.on_epoch_end,
+            worker=self.worker,
         )
 
         self.model_serializer.save_pretrained_model(model, checkpoint_path)
@@ -223,7 +227,7 @@ class TrainingProcessRunner:
         from_epoch = session.get("epochs", 0)
         total_epochs = from_epoch + additional_epochs
         send_training_message(
-            self.message_queue,
+            self.worker,
             {
                 "type": "state_update",
                 "current_epoch": from_epoch,
@@ -241,6 +245,7 @@ class TrainingProcessRunner:
             additional_epochs,
             should_stop=self.should_stop,
             on_epoch_end=self.on_epoch_end,
+            worker=self.worker,
         )
 
         self.model_serializer.save_pretrained_model(model, checkpoint_path)
@@ -253,13 +258,9 @@ def run_training_process(
     configuration: dict[str, Any] | None,
     checkpoint: str | None = None,
     additional_epochs: int = 0,
-    stop_event: multiprocessing.Event | None = None,
-    message_queue: Any | None = None,
+    worker: Any | None = None,
 ) -> dict[str, Any]:
-    runner = TrainingProcessRunner(
-        stop_event=stop_event,
-        message_queue=message_queue,
-    )
+    runner = TrainingProcessRunner(worker=worker)
     if checkpoint:
         runner.log(
             f"Resuming training from checkpoint {checkpoint} "
@@ -274,6 +275,20 @@ def run_training_process(
     runner.log("Starting training session.")
     runner.start_training(configuration)
     return {"success": True}
+
+
+def run_resume_training_process(
+    checkpoint: str,
+    additional_epochs: int = 0,
+    worker: Any | None = None,
+) -> dict[str, Any]:
+    runner = TrainingProcessRunner(worker=worker)
+    runner.log(
+        f"Resuming training from checkpoint {checkpoint} "
+        f"for {additional_epochs} additional epochs."
+    )
+    runner.resume_training(checkpoint, additional_epochs)
+    return {"success": True, "checkpoint": checkpoint}
 
 
 @dataclass
@@ -331,6 +346,7 @@ class TrainingManager:
         self.state = TrainingState()
         self._thread: threading.Thread | None = None
         self._thread_lock = threading.Lock()
+        self._worker: ProcessWorker | None = None
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
 
@@ -339,6 +355,11 @@ class TrainingManager:
         with self._thread_lock:
             if self.state.is_training:
                 raise RuntimeError("Training is already in progress.")
+            if self._worker and self._worker.is_alive():
+                raise RuntimeError("Training process is already running.")
+            if self._worker:
+                self._worker.cleanup()
+                self._worker = None
             session_id = str(uuid.uuid4())[:8]
             total_epochs = int(configuration.get("epochs", 0))
             self.state.update(
@@ -353,18 +374,16 @@ class TrainingManager:
                 log=[],
             )
             self.state.add_log(f"Starting training session: {session_id}")
+            worker = ProcessWorker(
+                target=run_training_process,
+                args=(configuration,),
+                kwargs={"checkpoint": None, "additional_epochs": 0},
+            )
+            self._worker = worker
             try:
-                job_manager.start_job(
-                    job_type="training",
-                    runner=run_training_process,
-                    args=(configuration,),
-                    kwargs={"checkpoint": None, "additional_epochs": 0},
-                    job_id=session_id,
-                    run_mode="process",
-                    process_message_handler=self.handle_process_message,
-                    completion_handler=self.handle_job_completion,
-                )
+                worker.start()
             except Exception as exc:  # noqa: BLE001
+                self._worker = None
                 self.state.update(
                     is_training=False,
                     stop_requested=False,
@@ -372,6 +391,12 @@ class TrainingManager:
                 )
                 self.state.add_log(f"Failed to start training job: {exc}")
                 raise
+            self._thread = threading.Thread(
+                target=self._monitor_worker,
+                args=(session_id, worker),
+                daemon=True,
+            )
+            self._thread.start()
             return session_id
 
     # ---------------------------------------------------------------------
@@ -379,6 +404,11 @@ class TrainingManager:
         with self._thread_lock:
             if self.state.is_training:
                 raise RuntimeError("Training is already in progress.")
+            if self._worker and self._worker.is_alive():
+                raise RuntimeError("Training process is already running.")
+            if self._worker:
+                self._worker.cleanup()
+                self._worker = None
             session_id = str(uuid.uuid4())[:8]
             self.state.update(
                 is_training=True,
@@ -392,21 +422,15 @@ class TrainingManager:
                 log=[],
             )
             self.state.add_log(f"Resuming training session: {session_id}")
+            worker = ProcessWorker(
+                target=run_resume_training_process,
+                args=(checkpoint, additional_epochs),
+            )
+            self._worker = worker
             try:
-                job_manager.start_job(
-                    job_type="training_resume",
-                    runner=run_training_process,
-                    args=({},),
-                    kwargs={
-                        "checkpoint": checkpoint,
-                        "additional_epochs": additional_epochs,
-                    },
-                    job_id=session_id,
-                    run_mode="process",
-                    process_message_handler=self.handle_process_message,
-                    completion_handler=self.handle_job_completion,
-                )
+                worker.start()
             except Exception as exc:  # noqa: BLE001
+                self._worker = None
                 self.state.update(
                     is_training=False,
                     stop_requested=False,
@@ -414,6 +438,12 @@ class TrainingManager:
                 )
                 self.state.add_log(f"Failed to start resume job: {exc}")
                 raise
+            self._thread = threading.Thread(
+                target=self._monitor_worker,
+                args=(session_id, worker),
+                daemon=True,
+            )
+            self._thread.start()
             return session_id
 
     # ---------------------------------------------------------------------
@@ -422,9 +452,65 @@ class TrainingManager:
             return
         self.state.update(stop_requested=True)
         self.state.add_log("Stop requested by user...")
-        session_id = self.state.session_id
-        if session_id:
-            job_manager.cancel_job(session_id)
+        if self._worker is not None:
+            self._worker.stop()
+
+    # ---------------------------------------------------------------------
+    def _monitor_worker(self, job_id: str, worker: ProcessWorker) -> None:
+        stop_requested_at: float | None = None
+        completed = False
+        try:
+            while True:
+                for message in worker.poll():
+                    self.handle_process_message(job_id, message)
+
+                if not worker.is_alive():
+                    break
+
+                stop_requested = self.state.snapshot().get("stop_requested", False)
+                if stop_requested:
+                    worker.stop()
+                    if stop_requested_at is None:
+                        stop_requested_at = time.monotonic()
+                    elif (
+                        time.monotonic() - stop_requested_at
+                        > worker.stop_timeout_seconds
+                    ):
+                        logger.warning(
+                            "Forcing training process shutdown for job %s after timeout",
+                            job_id,
+                        )
+                        worker.terminate()
+                        break
+
+                time.sleep(0.2)
+
+            for message in worker.poll():
+                self.handle_process_message(job_id, message)
+
+            worker.join(timeout=1.0)
+            status, result, error = worker.collect_result()
+
+            if status == "interrupted" or self.state.snapshot().get(
+                "stop_requested", False
+            ):
+                self.handle_job_completion(job_id, "cancelled", None, None)
+            elif error:
+                self.handle_job_completion(job_id, "failed", None, error)
+            else:
+                self.handle_job_completion(job_id, "completed", result, None)
+            completed = True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Training monitor failed for job %s: %s", job_id, exc)
+            if not completed:
+                self.handle_job_completion(job_id, "failed", None, str(exc))
+        finally:
+            worker.cleanup()
+            with self._thread_lock:
+                if self._worker is worker:
+                    self._worker = None
+                if self._thread is threading.current_thread():
+                    self._thread = None
 
     # ---------------------------------------------------------------------
     def handle_process_message(self, job_id: str, message: dict[str, Any]) -> None:

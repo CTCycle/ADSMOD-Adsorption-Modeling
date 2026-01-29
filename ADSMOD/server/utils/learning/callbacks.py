@@ -10,6 +10,10 @@ from keras.callbacks import Callback
 from ADSMOD.server.utils.logger import logger
 
 
+class WorkerInterrupted(RuntimeError):
+    """Raised to immediately interrupt training in a worker process."""
+
+
 # [CALLBACK FOR TRAINING PROGRESS]
 ###############################################################################
 class TrainingProgressCallback(Callback):
@@ -52,6 +56,30 @@ class StopTrainingCallback(Callback):
             self.model.stop_training = True
 
 
+# [CALLBACK FOR WORKER INTERRUPTIONS]
+###############################################################################
+class TrainingInterruptCallback(Callback):
+    def __init__(self, worker: Any | None = None) -> None:
+        super().__init__()
+        self.worker = worker
+
+    def _check_interrupt(self) -> None:
+        if self.worker is None:
+            return
+        checker = getattr(self.worker, "is_interrupted", None)
+        if callable(checker) and checker():
+            logger.info("Worker interruption detected; stopping training now.")
+            raise WorkerInterrupted()
+
+    # -------------------------------------------------------------------------
+    def on_batch_end(self, batch, logs: dict | None = None) -> None:
+        self._check_interrupt()
+
+    # -------------------------------------------------------------------------
+    def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
+        self._check_interrupt()
+
+
 # [CALLBACK FOR PERIODIC CHECKPOINTS]
 ###############################################################################
 class PeriodicCheckpointCallback(Callback):
@@ -81,8 +109,10 @@ def build_training_callbacks(
     start_epoch: int = 0,
     should_stop: Callable[[], bool] | None = None,
     on_epoch_end: Callable[[int, int, dict[str, Any]], None] | None = None,
+    worker: Any | None = None,
 ) -> list[Callback]:
     callbacks_list: list[Callback] = [
+        TrainingInterruptCallback(worker=worker),
         TrainingProgressCallback(
             total_epochs=total_epochs,
             on_epoch_end=on_epoch_end,

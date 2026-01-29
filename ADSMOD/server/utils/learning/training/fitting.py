@@ -35,6 +35,7 @@ class ModelTraining:
             start_epoch=0,
             should_stop=kwargs.get("should_stop"),
             on_epoch_end=kwargs.get("on_epoch_end"),
+            worker=kwargs.get("worker"),
         )
 
         session = model.fit(
@@ -69,6 +70,7 @@ class ModelTraining:
             start_epoch=from_epoch,
             should_stop=kwargs.get("should_stop"),
             on_epoch_end=kwargs.get("on_epoch_end"),
+            worker=kwargs.get("worker"),
         )
 
         new_session = model.fit(
