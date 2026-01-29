@@ -59,11 +59,7 @@ const InfoRow: React.FC<{ label: string; value: any; icon: React.ReactNode }> = 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, data }) => {
     if (!isOpen || !data) return null;
 
-    const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (event.target === event.currentTarget) {
-            onClose();
-        }
-    };
+
 
     const getIcon = (key: string) => {
         const lowerKey = key.toLowerCase();
@@ -76,7 +72,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, da
     };
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={handleBackdropClick}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
             <div className="info-modal-content">
                 <div className="info-modal-header">
                     <h4>{title}</h4>

@@ -6,6 +6,7 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from ADSMOD.server.utils.learning.callbacks import build_training_callbacks
+from ADSMOD.server.utils.learning.device import DeviceConfig, DeviceDataLoader
 
 
 # [TOOLS FOR TRAINING MACHINE LEARNING MODELS]
@@ -17,6 +18,13 @@ class ModelTraining:
         set_random_seed(configuration.get("training_seed", 42))
         self.configuration = configuration
         self.metadata = metadata
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _to_generator(loader: Any) -> Any:
+        while True:
+            for batch in loader:
+                yield batch
 
     # -------------------------------------------------------------------------
     def train_model(
@@ -38,10 +46,16 @@ class ModelTraining:
             worker=kwargs.get("worker"),
         )
 
+        device = DeviceConfig(self.configuration).set_device()
+        train_data = DeviceDataLoader(train_data, device)
+        validation_data = DeviceDataLoader(validation_data, device)
+
         session = model.fit(
-            train_data,
+            self._to_generator(train_data),
+            steps_per_epoch=len(train_data),
+            validation_data=self._to_generator(validation_data),
+            validation_steps=len(validation_data),
             epochs=total_epochs,
-            validation_data=validation_data,
             callbacks=callbacks_list,
         )
 
@@ -73,10 +87,16 @@ class ModelTraining:
             worker=kwargs.get("worker"),
         )
 
+        device = DeviceConfig(self.configuration).set_device()
+        train_data = DeviceDataLoader(train_data, device)
+        validation_data = DeviceDataLoader(validation_data, device)
+
         new_session = model.fit(
-            train_data,
+            self._to_generator(train_data),
+            steps_per_epoch=len(train_data),
+            validation_data=self._to_generator(validation_data),
+            validation_steps=len(validation_data),
             epochs=total_epochs,
-            validation_data=validation_data,
             callbacks=callbacks_list,
             initial_epoch=from_epoch,
         )

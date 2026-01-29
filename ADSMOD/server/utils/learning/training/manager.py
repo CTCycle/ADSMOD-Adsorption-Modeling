@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ADSMOD.server.utils.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
+from ADSMOD.server.utils.learning.callbacks import WorkerInterrupted
 from ADSMOD.server.utils.learning.device import DeviceConfig
 from ADSMOD.server.utils.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.utils.learning.training.fitting import ModelTraining
@@ -259,36 +260,82 @@ def run_training_process(
     checkpoint: str | None = None,
     additional_epochs: int = 0,
     worker: Any | None = None,
-) -> dict[str, Any]:
-    runner = TrainingProcessRunner(worker=worker)
-    if checkpoint:
-        runner.log(
-            f"Resuming training from checkpoint {checkpoint} "
-            f"for {additional_epochs} additional epochs."
-        )
-        runner.resume_training(checkpoint, additional_epochs)
-        return {"success": True, "checkpoint": checkpoint}
+) -> None:
+    result_queue = getattr(worker, "result_queue", None)
+    stop_event = getattr(worker, "stop_event", None)
 
-    if configuration is None:
-        raise ValueError("Training configuration is required.")
+    def _safe_put(payload: dict[str, Any]) -> None:
+        if result_queue is None:
+            return
+        try:
+            result_queue.put(payload, block=False)
+        except Exception:
+            try:
+                result_queue.put(payload)
+            except Exception:
+                return
 
-    runner.log("Starting training session.")
-    runner.start_training(configuration)
-    return {"success": True}
+    try:
+        if stop_event is not None and stop_event.is_set():
+            _safe_put({"result": {}})
+            return
+
+        runner = TrainingProcessRunner(worker=worker)
+        if checkpoint:
+            runner.log(
+                f"Resuming training from checkpoint {checkpoint} "
+                f"for {additional_epochs} additional epochs."
+            )
+            runner.resume_training(checkpoint, additional_epochs)
+            _safe_put({"result": {"success": True, "checkpoint": checkpoint}})
+            return
+
+        if configuration is None:
+            raise ValueError("Training configuration is required.")
+
+        runner.log("Starting training session.")
+        runner.start_training(configuration)
+        _safe_put({"result": {"success": True}})
+    except WorkerInterrupted:
+        _safe_put({"result": {}})
+    except Exception as exc:  # noqa: BLE001
+        _safe_put({"error": str(exc)})
 
 
 def run_resume_training_process(
     checkpoint: str,
     additional_epochs: int = 0,
     worker: Any | None = None,
-) -> dict[str, Any]:
-    runner = TrainingProcessRunner(worker=worker)
-    runner.log(
-        f"Resuming training from checkpoint {checkpoint} "
-        f"for {additional_epochs} additional epochs."
-    )
-    runner.resume_training(checkpoint, additional_epochs)
-    return {"success": True, "checkpoint": checkpoint}
+) -> None:
+    result_queue = getattr(worker, "result_queue", None)
+    stop_event = getattr(worker, "stop_event", None)
+
+    def _safe_put(payload: dict[str, Any]) -> None:
+        if result_queue is None:
+            return
+        try:
+            result_queue.put(payload, block=False)
+        except Exception:
+            try:
+                result_queue.put(payload)
+            except Exception:
+                return
+
+    try:
+        if stop_event is not None and stop_event.is_set():
+            _safe_put({"result": {}})
+            return
+        runner = TrainingProcessRunner(worker=worker)
+        runner.log(
+            f"Resuming training from checkpoint {checkpoint} "
+            f"for {additional_epochs} additional epochs."
+        )
+        runner.resume_training(checkpoint, additional_epochs)
+        _safe_put({"result": {"success": True, "checkpoint": checkpoint}})
+    except WorkerInterrupted:
+        _safe_put({"result": {}})
+    except Exception as exc:  # noqa: BLE001
+        _safe_put({"error": str(exc)})
 
 
 @dataclass
@@ -374,14 +421,13 @@ class TrainingManager:
                 log=[],
             )
             self.state.add_log(f"Starting training session: {session_id}")
-            worker = ProcessWorker(
-                target=run_training_process,
-                args=(configuration,),
-                kwargs={"checkpoint": None, "additional_epochs": 0},
-            )
+            worker = ProcessWorker()
             self._worker = worker
             try:
-                worker.start()
+                worker.start(
+                    target=run_training_process,
+                    kwargs={"configuration": configuration},
+                )
             except Exception as exc:  # noqa: BLE001
                 self._worker = None
                 self.state.update(
@@ -422,13 +468,16 @@ class TrainingManager:
                 log=[],
             )
             self.state.add_log(f"Resuming training session: {session_id}")
-            worker = ProcessWorker(
-                target=run_resume_training_process,
-                args=(checkpoint, additional_epochs),
-            )
+            worker = ProcessWorker()
             self._worker = worker
             try:
-                worker.start()
+                worker.start(
+                    target=run_resume_training_process,
+                    kwargs={
+                        "checkpoint": checkpoint,
+                        "additional_epochs": additional_epochs,
+                    },
+                )
             except Exception as exc:  # noqa: BLE001
                 self._worker = None
                 self.state.update(
@@ -461,8 +510,14 @@ class TrainingManager:
         completed = False
         try:
             while True:
-                for message in worker.poll():
+                message = worker.poll(timeout=0.0)
+                if message is not None:
                     self.handle_process_message(job_id, message)
+                    while True:
+                        extra = worker.poll(timeout=0.0)
+                        if extra is None:
+                            break
+                        self.handle_process_message(job_id, extra)
 
                 if not worker.is_alive():
                     break
@@ -472,10 +527,7 @@ class TrainingManager:
                     worker.stop()
                     if stop_requested_at is None:
                         stop_requested_at = time.monotonic()
-                    elif (
-                        time.monotonic() - stop_requested_at
-                        > worker.stop_timeout_seconds
-                    ):
+                    elif time.monotonic() - stop_requested_at > 5.0:
                         logger.warning(
                             "Forcing training process shutdown for job %s after timeout",
                             job_id,
@@ -485,20 +537,34 @@ class TrainingManager:
 
                 time.sleep(0.2)
 
-            for message in worker.poll():
+            while True:
+                message = worker.poll(timeout=0.0)
+                if message is None:
+                    break
                 self.handle_process_message(job_id, message)
 
             worker.join(timeout=1.0)
-            status, result, error = worker.collect_result()
+            result_payload = worker.read_result()
 
-            if status == "interrupted" or self.state.snapshot().get(
-                "stop_requested", False
-            ):
+            if self.state.snapshot().get("stop_requested", False):
                 self.handle_job_completion(job_id, "cancelled", None, None)
-            elif error:
-                self.handle_job_completion(job_id, "failed", None, error)
+            elif result_payload and result_payload.get("error"):
+                self.handle_job_completion(
+                    job_id, "failed", None, str(result_payload.get("error"))
+                )
             else:
-                self.handle_job_completion(job_id, "completed", result, None)
+                result_value = (
+                    result_payload.get("result") if isinstance(result_payload, dict) else None
+                )
+                if result_payload is None and worker.exitcode not in (0, None):
+                    self.handle_job_completion(
+                        job_id,
+                        "failed",
+                        None,
+                        f"Process exited with code {worker.exitcode}",
+                    )
+                else:
+                    self.handle_job_completion(job_id, "completed", result_value, None)
             completed = True
         except Exception as exc:  # noqa: BLE001
             logger.warning("Training monitor failed for job %s: %s", job_id, exc)

@@ -43,11 +43,7 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
         setCurrentPage((prev) => Math.max(prev - 1, 0));
     };
 
-    const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (event.target === event.currentTarget) {
-            onClose();
-        }
-    };
+
 
     const selectedCheckpoint = checkpoints.find((checkpoint) => checkpoint.name === selectedCheckpointName) || null;
     const compatibilityLabel = selectedCheckpoint
@@ -57,7 +53,7 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
         : 'Unknown';
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={handleBackdropClick}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4>Resume Training Wizard</h4>
