@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterator
 
 from ADSMOD.server.utils.logger import logger
 import torch
@@ -32,3 +32,25 @@ class DeviceConfig:
             logger.info("CPU is set as the active device.")
 
         return device
+
+
+class DeviceDataLoader:
+    def __init__(self, dataloader: Any, device: torch.device) -> None:
+        self.dataloader = dataloader
+        self.device = device
+
+    def __iter__(self) -> Iterator[Any]:
+        for batch in self.dataloader:
+            yield self._to_device(batch)
+
+    def __len__(self) -> int:
+        return len(self.dataloader)
+
+    def _to_device(self, data: Any) -> Any:
+        if isinstance(data, torch.Tensor):
+            return data.to(self.device, non_blocking=True)
+        elif isinstance(data, (list, tuple)):
+            return [self._to_device(x) for x in data]
+        elif isinstance(data, dict):
+            return {k: self._to_device(v) for k, v in data.items()}
+        return data

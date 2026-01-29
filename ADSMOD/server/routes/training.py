@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import os
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -33,7 +33,12 @@ from ADSMOD.server.utils.configurations.server import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
 from ADSMOD.server.utils.services.jobs import job_manager
-from ADSMOD.server.utils.learning.training.manager import training_manager
+from ADSMOD.server.utils.learning.training.manager import (
+    run_resume_training_process,
+    run_training_process,
+    training_manager,
+)
+from ADSMOD.server.utils.learning.training.worker import ProcessWorker
 from ADSMOD.server.utils.services.data.builder import (
     DatasetBuilder,
     DatasetBuilderConfig,
@@ -70,6 +75,197 @@ def determine_checkpoint_compatibility(
         return False
 
     return checkpoint_hash in dataset_hashes
+
+
+###############################################################################
+class TrainingSession:
+    def __init__(self) -> None:
+        self.worker: ProcessWorker | None = None
+        self.current_job_id: str | None = None
+
+    # -------------------------------------------------------------------------
+    def reset_for_new_session(
+        self,
+        total_epochs: int,
+        job_id: str,
+        current_epoch: int = 0,
+        message: str | None = None,
+    ) -> None:
+        training_manager.state.update(
+            is_training=True,
+            current_epoch=current_epoch,
+            total_epochs=total_epochs,
+            session_id=job_id,
+            stop_requested=False,
+            last_error=None,
+            metrics={},
+            history=[],
+            log=[],
+        )
+        log_message = message or "Starting training session"
+        training_manager.state.add_log(f"{log_message}: {job_id}")
+        self.current_job_id = job_id
+
+    # -------------------------------------------------------------------------
+    def finish_session(self) -> None:
+        self.worker = None
+        self.current_job_id = None
+
+
+training_session = TrainingSession()
+
+
+# -------------------------------------------------------------------------
+def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
+    training_manager.handle_process_message(job_id, message)
+
+    if not job_id:
+        return
+
+    state = training_manager.state.snapshot()
+    progress = 0.0
+    if state["total_epochs"] > 0:
+        progress = (state["current_epoch"] / state["total_epochs"]) * 100
+
+    job_manager.update_progress(job_id, progress)
+    job_manager.update_result(
+        job_id,
+        {
+            "current_epoch": state["current_epoch"],
+            "total_epochs": state["total_epochs"],
+            "progress": progress,
+            "metrics": state["metrics"],
+        },
+    )
+
+
+# -------------------------------------------------------------------------
+def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
+    while True:
+        message = worker.poll(timeout=0.0)
+        if message is None:
+            return
+        handle_training_progress(job_id, message)
+
+
+# -------------------------------------------------------------------------
+def monitor_training_process(
+    job_id: str,
+    worker: ProcessWorker,
+    stop_timeout_seconds: float,
+) -> dict[str, Any]:
+    stop_requested_at: float | None = None
+
+    while worker.is_alive():
+        if job_manager.should_stop(job_id):
+            if not worker.is_interrupted():
+                worker.stop()
+                stop_requested_at = time.monotonic()
+        if stop_requested_at is not None:
+            elapsed = time.monotonic() - stop_requested_at
+            if elapsed >= stop_timeout_seconds:
+                worker.terminate()
+                break
+        message = worker.poll(timeout=0.25)
+        if message is not None:
+            handle_training_progress(job_id, message)
+            drain_worker_progress(job_id, worker)
+
+    worker.join(timeout=5)
+    drain_worker_progress(job_id, worker)
+
+    result_payload = worker.read_result()
+    if result_payload is None:
+        if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
+            raise RuntimeError(f"Training process exited with code {worker.exitcode}")
+        return {}
+    if result_payload.get("error"):
+        raise RuntimeError(str(result_payload.get("error")))
+    if "result" in result_payload:
+        return result_payload.get("result") or {}
+    return {}
+
+
+# -------------------------------------------------------------------------
+def run_training_job(
+    configuration: dict[str, Any],
+    job_id: str,
+) -> dict[str, Any]:
+    worker = ProcessWorker()
+    training_session.worker = worker
+    try:
+        worker.start(
+            target=run_training_process,
+            kwargs={"configuration": configuration},
+        )
+
+        result = monitor_training_process(
+            job_id,
+            worker,
+            stop_timeout_seconds=5.0,
+        )
+
+        if job_manager.should_stop(job_id):
+            training_manager.handle_job_completion(job_id, "cancelled", None, None)
+            return {}
+
+        training_manager.handle_job_completion(job_id, "completed", result, None)
+        return result
+    except Exception as exc:  # noqa: BLE001
+        if job_manager.should_stop(job_id):
+            training_manager.handle_job_completion(job_id, "cancelled", None, None)
+            return {}
+        training_manager.handle_job_completion(job_id, "failed", None, str(exc))
+        raise
+    finally:
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=5)
+        worker.cleanup()
+        training_session.finish_session()
+
+
+# -------------------------------------------------------------------------
+def run_resume_training_job(
+    checkpoint: str,
+    additional_epochs: int,
+    job_id: str,
+) -> dict[str, Any]:
+    worker = ProcessWorker()
+    training_session.worker = worker
+    try:
+        worker.start(
+            target=run_resume_training_process,
+            kwargs={
+                "checkpoint": checkpoint,
+                "additional_epochs": additional_epochs,
+            },
+        )
+
+        result = monitor_training_process(
+            job_id,
+            worker,
+            stop_timeout_seconds=5.0,
+        )
+
+        if job_manager.should_stop(job_id):
+            training_manager.handle_job_completion(job_id, "cancelled", None, None)
+            return {}
+
+        training_manager.handle_job_completion(job_id, "completed", result, None)
+        return result
+    except Exception as exc:  # noqa: BLE001
+        if job_manager.should_stop(job_id):
+            training_manager.handle_job_completion(job_id, "cancelled", None, None)
+            return {}
+        training_manager.handle_job_completion(job_id, "failed", None, str(exc))
+        raise
+    finally:
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=5)
+        worker.cleanup()
+        training_session.finish_session()
 
 
 ###############################################################################
@@ -450,7 +646,7 @@ class TrainingEndpoint:
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
         state = training_manager.state.snapshot()
-        if state["is_training"]:
+        if state["is_training"] or job_manager.is_job_running("training"):
             raise HTTPException(
                 status_code=400,
                 detail="Training is already in progress. Stop it first.",
@@ -487,12 +683,36 @@ class TrainingEndpoint:
                     detail="No training dataset available. Build the dataset first.",
                 )
 
-            session_id = training_manager.start_training(configuration)
+            job_id = job_manager.start_job(
+                job_type="training",
+                runner=run_training_job,
+                kwargs={
+                    "configuration": configuration,
+                },
+            )
+
+            total_epochs = int(configuration.get("epochs", 0))
+            training_session.reset_for_new_session(
+                total_epochs=total_epochs,
+                job_id=job_id,
+                current_epoch=0,
+                message="Starting training session",
+            )
+            state_snapshot = training_manager.state.snapshot()
+            job_manager.update_result(
+                job_id,
+                {
+                    "current_epoch": state_snapshot["current_epoch"],
+                    "total_epochs": state_snapshot["total_epochs"],
+                    "progress": 0.0,
+                    "metrics": state_snapshot["metrics"],
+                },
+            )
 
             return TrainingStartResponse(
                 status="started",
-                session_id=session_id,
-                message=f"Training started with {config.epochs} epochs. Session: {session_id}",
+                session_id=job_id,
+                message=f"Training started with {config.epochs} epochs. Session: {job_id}",
             )
 
         except Exception as e:
@@ -502,7 +722,7 @@ class TrainingEndpoint:
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> TrainingStartResponse:
         state = training_manager.state.snapshot()
-        if state["is_training"]:
+        if state["is_training"] or job_manager.is_job_running("training"):
             raise HTTPException(
                 status_code=400,
                 detail="Training is already in progress. Stop it first.",
@@ -519,15 +739,58 @@ class TrainingEndpoint:
                     status_code=404,
                     detail=f"Checkpoint '{request.checkpoint_name}' not found.",
                 )
-            session_id = training_manager.resume_training(
-                request.checkpoint_name,
-                request.additional_epochs,
+
+            checkpoint_path = os.path.join(CHECKPOINTS_PATH, request.checkpoint_name)
+            try:
+                _, _, session = training_manager.model_serializer.load_training_configuration(
+                    checkpoint_path
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to load checkpoint metadata: {exc}",
+                ) from exc
+
+            from_epoch = 0
+            if isinstance(session, dict):
+                from_epoch_value = session.get("epochs", 0)
+                if isinstance(from_epoch_value, int):
+                    from_epoch = from_epoch_value
+
+            job_id = job_manager.start_job(
+                job_type="training",
+                runner=run_resume_training_job,
+                kwargs={
+                    "checkpoint": request.checkpoint_name,
+                    "additional_epochs": request.additional_epochs,
+                },
+            )
+
+            total_epochs = from_epoch + request.additional_epochs
+            training_session.reset_for_new_session(
+                total_epochs=total_epochs,
+                job_id=job_id,
+                current_epoch=from_epoch,
+                message="Resuming training session",
+            )
+            state_snapshot = training_manager.state.snapshot()
+            job_manager.update_result(
+                job_id,
+                {
+                    "current_epoch": state_snapshot["current_epoch"],
+                    "total_epochs": state_snapshot["total_epochs"],
+                    "progress": (from_epoch / total_epochs * 100.0) if total_epochs else 0.0,
+                    "metrics": state_snapshot["metrics"],
+                },
             )
 
             return TrainingStartResponse(
                 status="started",
-                session_id=session_id,
-                message=f"Resuming training from {request.checkpoint_name} with {request.additional_epochs} epochs. Session: {session_id}",
+                session_id=job_id,
+                message=(
+                    f"Resuming training from {request.checkpoint_name} "
+                    f"with {request.additional_epochs} epochs. Session: {job_id}"
+                ),
             )
 
         except Exception as e:
@@ -542,7 +805,12 @@ class TrainingEndpoint:
 
         try:
             logger.info("Stop requested for current training session")
-            training_manager.stop_training()
+            training_manager.state.update(stop_requested=True)
+            training_manager.state.add_log("Stop requested by user...")
+            if training_session.worker is not None:
+                training_session.worker.stop()
+            if training_session.current_job_id:
+                job_manager.cancel_job(training_session.current_job_id)
 
             return {"status": "stopped", "message": "Training stop requested."}
 

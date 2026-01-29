@@ -45,14 +45,10 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
         setCurrentPage((prev) => Math.max(prev - 1, 0));
     };
 
-    const handleBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (event.target === event.currentTarget) {
-            onClose();
-        }
-    };
+
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={handleBackdropClick}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4>New Training Wizard</h4>

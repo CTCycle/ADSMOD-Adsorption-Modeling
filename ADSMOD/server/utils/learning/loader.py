@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from keras.preprocessing.sequence import pad_sequences
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -12,7 +11,6 @@ from ADSMOD.server.utils.constants import PAD_VALUE
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
 from ADSMOD.server.utils.services.data.sanitizer import AggregateDatasets
-from ADSMOD.server.utils.learning.device import DeviceConfig
 
 
 # [CUSTOM DATASET FOR TORCH DATALOADERS]
@@ -22,18 +20,10 @@ class TorchDictDataset(Dataset):
         self,
         inputs: dict[str, np.ndarray],
         outputs: np.ndarray | None,
-        device: Any | None = None,
     ) -> None:
-        self.device = device
         self.inputs = {key: torch.as_tensor(value) for key, value in inputs.items()}
-        if self.device is not None:
-            self.inputs = {
-                key: value.to(self.device) for key, value in self.inputs.items()
-            }
 
         self.outputs = torch.as_tensor(outputs) if outputs is not None else None
-        if self.outputs is not None and self.device is not None:
-            self.outputs = self.outputs.to(self.device)
         self.length = 0
         if self.inputs:
             sample = next(iter(self.inputs.values()))
@@ -160,23 +150,42 @@ class DataLoaderProcessor:
 
     # -------------------------------------------------------------------------
     def apply_padding(self, data: pd.DataFrame) -> pd.DataFrame:
-        data["pressure"] = pad_sequences(
-            data["pressure"],
+        data["pressure"] = self._pad_sequences(
+            data["pressure"].tolist(),
             maxlen=self.series_length,
             value=PAD_VALUE,
-            dtype="float32",
-            padding="post",
-        ).tolist()
+            dtype=np.float32,
+        )
 
-        data["adsorbate_encoded_SMILE"] = pad_sequences(
-            data["adsorbate_encoded_SMILE"],
+        data["adsorbate_encoded_SMILE"] = self._pad_sequences(
+            data["adsorbate_encoded_SMILE"].tolist(),
             maxlen=self.smile_length,
             value=PAD_VALUE,
-            dtype="float32",
-            padding="post",
-        ).tolist()
+            dtype=np.float32,
+        )
 
         return data
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _pad_sequences(
+        sequences: list[Any],
+        maxlen: int,
+        value: float,
+        dtype: Any,
+    ) -> list[list[Any]]:
+        if not sequences:
+            return []
+        padded = np.full((len(sequences), maxlen), value, dtype=dtype)
+        for idx, sequence in enumerate(sequences):
+            if sequence is None:
+                continue
+            array = np.asarray(sequence, dtype=dtype).reshape(-1)
+            if array.size == 0:
+                continue
+            length = min(array.size, maxlen)
+            padded[idx, :length] = array[:length]
+        return padded.tolist()
 
 
 ###############################################################################
@@ -191,11 +200,14 @@ class SCADSDataLoader:
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
         self.shuffle_samples = configuration.get("shuffle_size", 1024)
+        self.num_workers = configuration.get("dataloader_workers", 0)
+        self.prefetch_factor = configuration.get("prefetch_factor", 1)
+        self.pin_memory = configuration.get("pin_memory", False)
+        self.persistent_workers = configuration.get("persistent_workers", False)
         self.metadata = metadata
         self.configuration = configuration
         self.shuffle = shuffle
         self.output = "adsorbed_amount"
-        self.device = DeviceConfig(configuration).set_device()
 
     # -------------------------------------------------------------------------
     def separate_inputs_and_output(
@@ -261,12 +273,20 @@ class SCADSDataLoader:
     ) -> Any:
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)
-        dataset = TorchDictDataset(inputs, output, self.device)
-        return DataLoader(
-            dataset,
-            batch_size=batch_size,
-            shuffle=self.shuffle,
-        )
+        dataset = TorchDictDataset(inputs, output)
+        loader_settings: dict[str, Any] = {
+            "batch_size": batch_size,
+            "shuffle": self.shuffle,
+            "num_workers": self.num_workers,
+            "pin_memory": self.pin_memory,
+            "drop_last": False,
+        }
+
+        if self.num_workers > 0:
+            loader_settings["prefetch_factor"] = self.prefetch_factor
+            loader_settings["persistent_workers"] = self.persistent_workers
+
+        return DataLoader(dataset, **loader_settings)
 
     # -------------------------------------------------------------------------
     def build_inference_dataloader(
@@ -275,8 +295,20 @@ class SCADSDataLoader:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         processed_data = self.process_inference_inputs(data)
         inputs, _ = self.separate_inputs_and_output(processed_data)
-        dataset = TorchDictDataset(inputs, outputs=None, device=self.device)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        dataset = TorchDictDataset(inputs, outputs=None)
+        loader_settings: dict[str, Any] = {
+            "batch_size": batch_size,
+            "shuffle": False,
+            "num_workers": self.num_workers,
+            "pin_memory": self.pin_memory,
+            "drop_last": False,
+        }
+
+        if self.num_workers > 0:
+            loader_settings["prefetch_factor"] = self.prefetch_factor
+            loader_settings["persistent_workers"] = self.persistent_workers
+
+        return DataLoader(dataset, **loader_settings)
 
 
 ################################################################################
@@ -291,6 +323,10 @@ class SCADSAtomicDataLoader:
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
         self.shuffle_samples = configuration.get("shuffle_size", 1024)
+        self.num_workers = configuration.get("dataloader_workers", 0)
+        self.prefetch_factor = configuration.get("prefetch_factor", 1)
+        self.pin_memory = configuration.get("pin_memory", False)
+        self.persistent_workers = configuration.get("persistent_workers", False)
         self.metadata = metadata
         self.configuration = configuration
         self.shuffle = shuffle
@@ -298,7 +334,6 @@ class SCADSAtomicDataLoader:
         self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
             "SMILE_sequence_size", 20
         )
-        self.device = DeviceConfig(configuration).set_device()
 
     # -------------------------------------------------------------------------
     def expand_to_single_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -406,8 +441,20 @@ class SCADSAtomicDataLoader:
     ) -> Any:
         batch_size = self.batch_size if batch_size is None else batch_size
         inputs, output = self.separate_inputs_and_output(data)
-        dataset = TorchDictDataset(inputs, output, self.device)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=self.shuffle)
+        dataset = TorchDictDataset(inputs, output)
+        loader_settings: dict[str, Any] = {
+            "batch_size": batch_size,
+            "shuffle": self.shuffle,
+            "num_workers": self.num_workers,
+            "pin_memory": self.pin_memory,
+            "drop_last": False,
+        }
+
+        if self.num_workers > 0:
+            loader_settings["prefetch_factor"] = self.prefetch_factor
+            loader_settings["persistent_workers"] = self.persistent_workers
+
+        return DataLoader(dataset, **loader_settings)
 
     # -------------------------------------------------------------------------
     def process_inference_inputs(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -430,5 +477,17 @@ class SCADSAtomicDataLoader:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         processed_data = self.process_inference_inputs(data)
         inputs, _ = self.separate_inputs_and_output(processed_data)
-        dataset = TorchDictDataset(inputs, outputs=None, device=self.device)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        dataset = TorchDictDataset(inputs, outputs=None)
+        loader_settings: dict[str, Any] = {
+            "batch_size": batch_size,
+            "shuffle": False,
+            "num_workers": self.num_workers,
+            "pin_memory": self.pin_memory,
+            "drop_last": False,
+        }
+
+        if self.num_workers > 0:
+            loader_settings["prefetch_factor"] = self.prefetch_factor
+            loader_settings["persistent_workers"] = self.persistent_workers
+
+        return DataLoader(dataset, **loader_settings)

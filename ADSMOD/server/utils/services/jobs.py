@@ -147,6 +147,10 @@ class JobManager:
         if job_id is None:
             job_id = str(uuid.uuid4())[:8]
         state = JobState(job_id=job_id, job_type=job_type, status="pending")
+        runner_kwargs = kwargs.copy() if kwargs else {}
+
+        if self._runner_accepts_job_id(runner):
+            runner_kwargs["job_id"] = job_id
 
         timeout_seconds = (
             float(process_stop_timeout_seconds)
@@ -166,7 +170,7 @@ class JobManager:
 
         thread = threading.Thread(
             target=self._run_job,
-            args=(job_id, runner, args, kwargs or {}),
+            args=(job_id, runner, args, runner_kwargs),
             daemon=True,
         )
 
@@ -237,6 +241,17 @@ class JobManager:
             state.update(progress=min(100.0, max(0.0, progress)))
 
     # -------------------------------------------------------------------------
+    def update_result(self, job_id: str, patch: dict[str, Any]) -> None:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return
+        with state.lock:
+            existing = state.result or {}
+            merged = {**existing, **patch}
+            state.result = merged
+
+    # -------------------------------------------------------------------------
     def supports_argument(self, runner: Callable[..., dict[str, Any]], name: str) -> bool:
         try:
             signature = inspect.signature(runner)
@@ -247,6 +262,17 @@ class JobManager:
             if param.kind == inspect.Parameter.VAR_KEYWORD:
                 return True
         return name in signature.parameters
+
+    # -------------------------------------------------------------------------
+    def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
+        try:
+            signature = inspect.signature(runner)
+        except (TypeError, ValueError):
+            return False
+        for param in signature.parameters.values():
+            if param.kind == param.VAR_KEYWORD:
+                return True
+        return "job_id" in signature.parameters
 
     # -------------------------------------------------------------------------
     def build_process_kwargs(
@@ -458,7 +484,9 @@ class JobManager:
             final_result = (
                 result if result is None or isinstance(result, dict) else {"result": result}
             )
-            self.finalize_job(job_id, "completed", final_result, None)
+            with state.lock:
+                merged = {**(state.result or {}), **(final_result or {})}
+            self.finalize_job(job_id, "completed", merged if merged else None, None)
             logger.info("Job %s completed successfully", job_id)
 
         with self.lock:
@@ -494,11 +522,15 @@ class JobManager:
             if state.stop_requested:
                 self.finalize_job(job_id, "cancelled", None, None)
             else:
-            final_result = (
-                result if result is None or isinstance(result, dict) else {"result": result}
-            )
-            self.finalize_job(job_id, "completed", final_result, None)
-            logger.info("Job %s completed successfully", job_id)
+                final_result = (
+                    result
+                    if result is None or isinstance(result, dict)
+                    else {"result": result}
+                )
+                with state.lock:
+                    merged = {**(state.result or {}), **(final_result or {})}
+                self.finalize_job(job_id, "completed", merged if merged else None, None)
+                logger.info("Job %s completed successfully", job_id)
         except Exception as exc:  # noqa: BLE001
             error_msg = str(exc).split("\n")[0][:200]
             self.finalize_job(job_id, "failed", None, error_msg)

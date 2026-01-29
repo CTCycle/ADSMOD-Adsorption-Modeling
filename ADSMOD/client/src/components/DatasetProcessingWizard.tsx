@@ -76,14 +76,10 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
         setCurrentPage((prev) => Math.max(prev - 1, 0));
     };
 
-    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
-    };
+
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={handleBackdropClick}>
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4>Dataset Processing Wizard</h4>
