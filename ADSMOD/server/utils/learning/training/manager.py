@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+import multiprocessing
+
 from ADSMOD.server.utils.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
 from ADSMOD.server.utils.learning.device import DeviceConfig
 from ADSMOD.server.utils.learning.models.qmodel import SCADSAtomicModel, SCADSModel
@@ -18,6 +20,7 @@ from ADSMOD.server.utils.learning.loader import (
     SCADSAtomicDataLoader,
     SCADSDataLoader,
 )
+from ADSMOD.server.utils.services.jobs import job_manager
 
 
 MODEL_COMPONENTS = {
@@ -33,6 +36,244 @@ def normalize_model_name(name: str | None) -> str:
     if "atomic" in lowered:
         return SCADS_ATOMIC_MODEL
     return SCADS_SERIES_MODEL
+
+
+def send_training_message(
+    message_queue: Any | None, payload: dict[str, Any]
+) -> None:
+    if message_queue is None:
+        return
+    try:
+        message_queue.put_nowait(payload)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Failed to send training message: %s", exc)
+
+
+class TrainingProcessRunner:
+    def __init__(
+        self,
+        stop_event: multiprocessing.Event | None = None,
+        message_queue: Any | None = None,
+    ) -> None:
+        self.stop_event = stop_event
+        self.message_queue = message_queue
+        self.data_serializer = TrainingDataSerializer()
+        self.model_serializer = ModelSerializer()
+
+    # ---------------------------------------------------------------------
+    def should_stop(self) -> bool:
+        return bool(self.stop_event and self.stop_event.is_set())
+
+    # ---------------------------------------------------------------------
+    def on_epoch_end(
+        self, epoch: int, total_epochs: int, logs: dict[str, Any]
+    ) -> None:
+        send_training_message(
+            self.message_queue,
+            {
+                "type": "epoch_end",
+                "epoch": epoch,
+                "total_epochs": total_epochs,
+                "logs": logs,
+            },
+        )
+
+    # ---------------------------------------------------------------------
+    def log(self, message: str) -> None:
+        send_training_message(
+            self.message_queue,
+            {
+                "type": "log",
+                "message": message,
+            },
+        )
+
+    # ---------------------------------------------------------------------
+    def ensure_required_columns(self, data: Any, required: list[str]) -> None:
+        if data is None or getattr(data, "empty", True):
+            raise ValueError("Training dataset is empty.")
+        missing = [col for col in required if col not in data.columns]
+        if missing:
+            raise ValueError(f"Training dataset missing columns: {', '.join(missing)}")
+
+    # ---------------------------------------------------------------------
+    def start_training(self, configuration: dict[str, Any]) -> None:
+        dataset_label = self.data_serializer.normalize_dataset_label(
+            configuration.get("dataset_label")
+        )
+        train_data, validation_data, metadata = (
+            self.data_serializer.load_training_data(dataset_label)
+        )
+        if train_data.empty or validation_data.empty:
+            raise ValueError("No training data available. Build the dataset first.")
+
+        selected_model = normalize_model_name(configuration.get("selected_model"))
+        model_builder, dataloader_builder = MODEL_COMPONENTS.get(
+            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
+        )
+
+        required_columns = [
+            "temperature",
+            "pressure",
+            "adsorbed_amount",
+            "adsorbate_encoded_SMILE",
+            "adsorbate_molecular_weight",
+            "encoded_adsorbent",
+        ]
+        self.ensure_required_columns(train_data, required_columns)
+        self.ensure_required_columns(validation_data, required_columns)
+
+        train_loader = dataloader_builder(
+            configuration,
+            metadata.model_dump(),
+            shuffle=configuration.get("shuffle_dataset", True),
+        )
+        val_loader = dataloader_builder(
+            configuration, metadata.model_dump(), shuffle=False
+        )
+        train_dataset = train_loader.build_training_dataloader(train_data)
+        validation_dataset = val_loader.build_training_dataloader(validation_data)
+
+        DeviceConfig(configuration).set_device()
+        custom_name = configuration.get("custom_name")
+        if custom_name and isinstance(custom_name, str) and custom_name.strip():
+            safe_name = "".join(
+                c for c in custom_name.strip() if c.isalnum() or c in ("-", "_")
+            )
+            model_name = safe_name if safe_name else selected_model.replace(" ", "_")
+        else:
+            model_name = selected_model.replace(" ", "_")
+
+        self.model_serializer = ModelSerializer(model_name=model_name)
+        checkpoint_path = self.model_serializer.create_checkpoint_folder()
+
+        wrapper = model_builder(configuration, metadata.model_dump())
+        model = wrapper.get_model(model_summary=True)
+
+        trainer = ModelTraining(configuration, metadata.model_dump())
+        model, history = trainer.train_model(
+            model,
+            train_dataset,
+            validation_dataset,
+            checkpoint_path,
+            should_stop=self.should_stop,
+            on_epoch_end=self.on_epoch_end,
+        )
+
+        self.model_serializer.save_pretrained_model(model, checkpoint_path)
+        self.model_serializer.save_training_configuration(
+            checkpoint_path, history, configuration, metadata
+        )
+
+    # ---------------------------------------------------------------------
+    def resume_training(self, checkpoint: str, additional_epochs: int) -> None:
+        (
+            model,
+            train_config,
+            model_metadata,
+            session,
+            checkpoint_path,
+        ) = self.model_serializer.load_checkpoint(checkpoint)
+
+        dataset_label = self.data_serializer.normalize_dataset_label(
+            train_config.get("dataset_label")
+        )
+        current_metadata = self.data_serializer.load_training_metadata(dataset_label)
+        if not self.data_serializer.validate_metadata(current_metadata, model_metadata):
+            raise ValueError(
+                "Training dataset metadata does not match the checkpoint. "
+                "Rebuild the dataset using the checkpoint configuration before resuming."
+            )
+
+        train_data, validation_data, _ = self.data_serializer.load_training_data(
+            dataset_label
+        )
+        if train_data.empty or validation_data.empty:
+            raise ValueError("No training data available. Build the dataset first.")
+
+        selected_model = normalize_model_name(train_config.get("selected_model"))
+        _, dataloader_builder = MODEL_COMPONENTS.get(
+            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
+        )
+
+        required_columns = [
+            "temperature",
+            "pressure",
+            "adsorbed_amount",
+            "adsorbate_encoded_SMILE",
+            "adsorbate_molecular_weight",
+            "encoded_adsorbent",
+        ]
+        self.ensure_required_columns(train_data, required_columns)
+        self.ensure_required_columns(validation_data, required_columns)
+
+        train_loader = dataloader_builder(
+            train_config,
+            model_metadata.model_dump(),
+            shuffle=train_config.get("shuffle_dataset", True),
+        )
+        val_loader = dataloader_builder(
+            train_config, model_metadata.model_dump(), shuffle=False
+        )
+        train_dataset = train_loader.build_training_dataloader(train_data)
+        validation_dataset = val_loader.build_training_dataloader(validation_data)
+
+        DeviceConfig(train_config).set_device()
+
+        from_epoch = session.get("epochs", 0)
+        total_epochs = from_epoch + additional_epochs
+        send_training_message(
+            self.message_queue,
+            {
+                "type": "state_update",
+                "current_epoch": from_epoch,
+                "total_epochs": total_epochs,
+            },
+        )
+
+        trainer = ModelTraining(train_config, model_metadata.model_dump())
+        model, history = trainer.resume_training(
+            model,
+            train_dataset,
+            validation_dataset,
+            checkpoint_path,
+            session,
+            additional_epochs,
+            should_stop=self.should_stop,
+            on_epoch_end=self.on_epoch_end,
+        )
+
+        self.model_serializer.save_pretrained_model(model, checkpoint_path)
+        self.model_serializer.save_training_configuration(
+            checkpoint_path, history, train_config, model_metadata
+        )
+
+
+def run_training_process(
+    configuration: dict[str, Any] | None,
+    checkpoint: str | None = None,
+    additional_epochs: int = 0,
+    stop_event: multiprocessing.Event | None = None,
+    message_queue: Any | None = None,
+) -> dict[str, Any]:
+    runner = TrainingProcessRunner(
+        stop_event=stop_event,
+        message_queue=message_queue,
+    )
+    if checkpoint:
+        runner.log(
+            f"Resuming training from checkpoint {checkpoint} "
+            f"for {additional_epochs} additional epochs."
+        )
+        runner.resume_training(checkpoint, additional_epochs)
+        return {"success": True, "checkpoint": checkpoint}
+
+    if configuration is None:
+        raise ValueError("Training configuration is required.")
+
+    runner.log("Starting training session.")
+    runner.start_training(configuration)
+    return {"success": True}
 
 
 @dataclass
@@ -112,12 +353,25 @@ class TrainingManager:
                 log=[],
             )
             self.state.add_log(f"Starting training session: {session_id}")
-            self._thread = threading.Thread(
-                target=self._run_training,
-                args=(configuration, None, 0),
-                daemon=True,
-            )
-            self._thread.start()
+            try:
+                job_manager.start_job(
+                    job_type="training",
+                    runner=run_training_process,
+                    args=(configuration,),
+                    kwargs={"checkpoint": None, "additional_epochs": 0},
+                    job_id=session_id,
+                    run_mode="process",
+                    process_message_handler=self.handle_process_message,
+                    completion_handler=self.handle_job_completion,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.state.update(
+                    is_training=False,
+                    stop_requested=False,
+                    last_error=str(exc),
+                )
+                self.state.add_log(f"Failed to start training job: {exc}")
+                raise
             return session_id
 
     # ---------------------------------------------------------------------
@@ -138,12 +392,28 @@ class TrainingManager:
                 log=[],
             )
             self.state.add_log(f"Resuming training session: {session_id}")
-            self._thread = threading.Thread(
-                target=self._run_training,
-                args=({}, checkpoint, additional_epochs),
-                daemon=True,
-            )
-            self._thread.start()
+            try:
+                job_manager.start_job(
+                    job_type="training_resume",
+                    runner=run_training_process,
+                    args=({},),
+                    kwargs={
+                        "checkpoint": checkpoint,
+                        "additional_epochs": additional_epochs,
+                    },
+                    job_id=session_id,
+                    run_mode="process",
+                    process_message_handler=self.handle_process_message,
+                    completion_handler=self.handle_job_completion,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self.state.update(
+                    is_training=False,
+                    stop_requested=False,
+                    last_error=str(exc),
+                )
+                self.state.add_log(f"Failed to start resume job: {exc}")
+                raise
             return session_id
 
     # ---------------------------------------------------------------------
@@ -152,6 +422,75 @@ class TrainingManager:
             return
         self.state.update(stop_requested=True)
         self.state.add_log("Stop requested by user...")
+        session_id = self.state.session_id
+        if session_id:
+            job_manager.cancel_job(session_id)
+
+    # ---------------------------------------------------------------------
+    def handle_process_message(self, job_id: str, message: dict[str, Any]) -> None:
+        if job_id != self.state.session_id:
+            return
+
+        message_type = message.get("type")
+        if message_type == "epoch_end":
+            epoch = message.get("epoch")
+            total_epochs = message.get("total_epochs")
+            logs = message.get("logs")
+            if (
+                isinstance(epoch, int)
+                and isinstance(total_epochs, int)
+                and isinstance(logs, dict)
+            ):
+                self._on_epoch_end(epoch, total_epochs, logs)
+            return
+
+        if message_type == "state_update":
+            current_epoch = message.get("current_epoch")
+            total_epochs = message.get("total_epochs")
+            update_payload: dict[str, Any] = {}
+            if isinstance(current_epoch, int):
+                update_payload["current_epoch"] = current_epoch
+            if isinstance(total_epochs, int):
+                update_payload["total_epochs"] = total_epochs
+            if update_payload:
+                self.state.update(**update_payload)
+            return
+
+        if message_type == "log":
+            message_text = message.get("message")
+            if message_text:
+                self.state.add_log(str(message_text))
+            return
+
+        if message_type == "error":
+            error_text = message.get("error")
+            if error_text:
+                self.state.update(last_error=str(error_text))
+                self.state.add_log(f"Training error: {error_text}")
+
+    # ---------------------------------------------------------------------
+    def handle_job_completion(
+        self,
+        job_id: str,
+        status: str,
+        result: dict[str, Any] | None,
+        error: str | None,
+    ) -> None:
+        if job_id != self.state.session_id:
+            return
+
+        if status == "failed":
+            self.state.update(last_error=error)
+            message = error or "Training failed."
+            self.state.add_log(f"Training failed: {message}")
+        elif status == "cancelled":
+            self.state.add_log("Training cancelled.")
+        elif status == "completed":
+            self.state.add_log("Training completed.")
+        elif status:
+            self.state.add_log(f"Training finished with status: {status}")
+
+        self.state.update(is_training=False, stop_requested=False)
 
     # ---------------------------------------------------------------------
     def _on_epoch_end(
