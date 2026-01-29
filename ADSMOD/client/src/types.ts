@@ -132,8 +132,8 @@ export interface TableDataResponse {
 // Training API types
 export interface TrainingConfig {
     // Dataset settings
-    sample_size: number;        // 0.0-1.0 fraction
-    validation_size: number;    // 0.0-1.0 fraction
+    sample_size?: number;        // 0.0-1.0 fraction (deprecated)
+    validation_size?: number;    // 0.0-1.0 fraction (deprecated)
     batch_size: number;
     shuffle_dataset: boolean;
     shuffle_size: number;
