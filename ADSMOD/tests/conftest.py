@@ -56,3 +56,21 @@ def page(playwright: Playwright, base_url: str) -> Page:
 def sample_csv_path() -> str:
     """Return the path to the sample adsorption CSV fixture."""
     return os.path.join(FIXTURES_DIR, "sample_adsorption.csv")
+
+
+# -----------------------------------------------------------------------------
+def pytest_collection_modifyitems(
+    session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Ensure heavy training/data tests run last."""
+    heavy_items: list[pytest.Item] = []
+    regular_items: list[pytest.Item] = []
+
+    for item in items:
+        nodeid = item.nodeid.lower()
+        if "backend/performance" in nodeid or "training_perf" in nodeid:
+            heavy_items.append(item)
+        else:
+            regular_items.append(item)
+
+    items[:] = regular_items + heavy_items

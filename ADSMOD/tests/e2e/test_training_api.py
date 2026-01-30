@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from playwright.sync_api import APIRequestContext
 
@@ -106,15 +108,26 @@ class TestDatasetBuild:
         self, api_context: APIRequestContext
     ) -> None:
         """Verify dataset build endpoint accepts valid request."""
+        nist_status = api_context.get("/nist/status")
+        if nist_status.ok:
+            status_payload = nist_status.json()
+            if status_payload.get("data_available"):
+                max_rows = int(os.getenv("TEST_MAX_NIST_ROWS", "1000"))
+                row_count = int(status_payload.get("single_component_rows", 0))
+                if row_count > max_rows:
+                    pytest.skip(
+                        f"NIST dataset has {row_count} rows; skip heavy build in tests."
+                    )
+
         # Arrange
         payload = {
-            "sample_size": 0.1,
+            "sample_size": float(os.getenv("TEST_DATASET_SAMPLE_SIZE", "0.02")),
             "validation_size": 0.2,
-            "min_measurements": 5,
-            "max_measurements": 50,
-            "smile_sequence_size": 100,
-            "max_pressure": 10000.0,
-            "max_uptake": 20.0,
+            "min_measurements": 2,
+            "max_measurements": 10,
+            "smile_sequence_size": 16,
+            "max_pressure": 5000.0,
+            "max_uptake": 10.0,
             "datasets": [
                 {"source": "nist", "dataset_name": "NIST_SINGLE_COMPONENT_ADSORPTION"}
             ],

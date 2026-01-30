@@ -36,17 +36,38 @@ class JSONSequence(TypeDecorator):
         if value is None:
             return None
         if isinstance(value, list):
-            return value
+            return normalize_sequence_values(value)
         if isinstance(value, str):
             trimmed = value.strip()
             if not trimmed:
                 return []
             try:
                 # Try parsing as JSON first
-                return json.loads(trimmed)
+                parsed = json.loads(trimmed)
+                if isinstance(parsed, list):
+                    return normalize_sequence_values(parsed)
+                return parsed
             except json.JSONDecodeError:
                 # Fallback: Treat as CSV string (Legacy support)
-                return [
-                    x.strip() for x in trimmed.split(",") if x.strip()
-                ]
+                return normalize_sequence_values(
+                    [x.strip() for x in trimmed.split(",") if x.strip()]
+                )
         return value
+
+
+###############################################################################
+def normalize_sequence_values(values: list[Any]) -> list[Any]:
+    normalized: list[Any] = []
+    for item in values:
+        if isinstance(item, str):
+            trimmed = item.strip()
+            if trimmed == "":
+                continue
+            try:
+                normalized.append(float(trimmed))
+                continue
+            except ValueError:
+                normalized.append(trimmed)
+                continue
+        normalized.append(item)
+    return normalized

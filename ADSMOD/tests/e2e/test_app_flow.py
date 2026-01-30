@@ -51,7 +51,7 @@ class TestSidebarNavigation:
         page.goto(base_url)
 
         # Act
-        page.click("text=Models")
+        page.get_by_title("Models & Fitting").click()
 
         # Assert
         models_section = page.locator("section:not([hidden]) .models-grid")
@@ -64,10 +64,10 @@ class TestSidebarNavigation:
         page.goto(base_url)
 
         # Act
-        page.click("text=Database")
+        page.get_by_title("Database Browser").click()
 
         # Assert
-        browser_section = page.locator("section:not([hidden]) .browser-container")
+        browser_section = page.locator("section:not([hidden]) .browser-page")
         expect(browser_section).to_be_visible()
 
     # -------------------------------------------------------------------------
@@ -77,10 +77,10 @@ class TestSidebarNavigation:
         page.goto(base_url)
 
         # Act
-        page.click("text=Analysis")
+        page.get_by_title("Analysis").click()
 
         # Assert
-        analysis_section = page.locator("section:not([hidden])")
+        analysis_section = page.locator("section:not([hidden]) .ml-page")
         expect(analysis_section).to_be_visible()
 
 
@@ -120,10 +120,10 @@ class TestModelsPage:
         page.goto(base_url)
 
         # Act
-        page.click("text=Models")
+        page.get_by_title("Models & Fitting").click()
 
         # Assert
-        model_cards = page.locator(".model-card")
+        model_cards = page.locator(".model-grid-card")
         expect(model_cards.first).to_be_visible()
 
     # -------------------------------------------------------------------------
@@ -133,10 +133,10 @@ class TestModelsPage:
         page.goto(base_url)
 
         # Act
-        page.click("text=Models")
+        page.get_by_title("Models & Fitting").click()
 
         # Assert
-        langmuir_card = page.locator(".model-card:has-text('Langmuir')")
+        langmuir_card = page.locator("#model-card-langmuir")
         expect(langmuir_card).to_be_visible()
 
     # -------------------------------------------------------------------------
@@ -146,7 +146,7 @@ class TestModelsPage:
         page.goto(base_url)
 
         # Act
-        page.click("text=Models")
+        page.get_by_title("Models & Fitting").click()
 
         # Assert
         start_button = page.locator("button:has-text('Start Fitting')")
@@ -164,7 +164,7 @@ class TestDatabaseBrowserPage:
         page.goto(base_url)
 
         # Act
-        page.click("text=Database")
+        page.get_by_title("Database Browser").click()
 
         # Assert
         dropdown = page.locator("select").first

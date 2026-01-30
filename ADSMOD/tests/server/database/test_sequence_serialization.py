@@ -65,9 +65,6 @@ def test_mixed_legacy_string(session):
     )
     session.commit()
     
-    # Note: fallback currently parses as strings if json fails, unless we improved coercion.
-    # The current implementation splits to strings: ['10', '20', '30'] because it doesn't auto-coerce to float in the TypeDecorator.
-    # This is acceptable for the 'fallback', as the application logic often expects strings in the old path or can handle them.
-    # But let's verify exact behavior.
+    # The fallback path normalizes numeric strings into floats.
     retrieved = session.query(TestModel).first()
-    assert retrieved.sequence == ["10", "20", "30"]
+    assert retrieved.sequence == [10.0, 20.0, 30.0]

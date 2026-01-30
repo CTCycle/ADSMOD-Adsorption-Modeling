@@ -83,7 +83,7 @@ class DatasetService:
             dataframe = pd.read_excel(buffer, sheet_name=0)
         else:
             buffer.seek(0)
-            dataframe = pd.read_csv(buffer)
+            dataframe = pd.read_csv(buffer, comment="#")
 
             if dataframe.shape[1] == 1:
                 column_name = dataframe.columns[0]
@@ -98,7 +98,7 @@ class DatasetService:
                         isinstance(first_value, str) and delimiter in first_value
                     ):
                         buffer.seek(0)
-                        dataframe = pd.read_csv(buffer, sep=delimiter)
+                        dataframe = pd.read_csv(buffer, sep=delimiter, comment="#")
                         break
 
         if dataframe.empty:
