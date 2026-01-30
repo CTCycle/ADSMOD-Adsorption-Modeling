@@ -83,6 +83,7 @@ class TrainingStartResponse(BaseModel):
     status: str
     session_id: str
     message: str
+    poll_interval: float | None = None
 
 
 ###############################################################################
@@ -94,6 +95,7 @@ class TrainingStatusResponse(BaseModel):
     metrics: dict[str, float] = Field(default_factory=dict)
     history: list[dict[str, Any]] = Field(default_factory=list)
     log: list[str] = Field(default_factory=list)
+    poll_interval: float | None = None
 
 
 ###############################################################################

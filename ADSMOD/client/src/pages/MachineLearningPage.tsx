@@ -141,6 +141,7 @@ export const MachineLearningPage: React.FC = () => {
 
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
+    const pollIntervalSecondsRef = useRef<number | null>(null);
     const logContainerRef = useRef<HTMLPreElement>(null);
 
     // Load initial data
@@ -162,15 +163,36 @@ export const MachineLearningPage: React.FC = () => {
     // Poll status when training is active
     useEffect(() => {
         if (trainingStatus.is_training) {
-            startPolling();
+             // We don't want to restart polling aggressively here if already running
+             // checkStatus handles regular updates. 
+             // But if we just loaded the page and is_training=true, we default to 1s
+             // until next checkStatus updates us? 
+             // Actually, useEffect on is_training is good for initial load state restoration
+             if (!pollIntervalRef.current) {
+                 const intervalSeconds = trainingStatus.poll_interval
+                     ?? pollIntervalSecondsRef.current
+                     ?? 1.0;
+                 startPolling(intervalSeconds);
+             }
         } else {
             stopPolling();
         }
     }, [trainingStatus.is_training]);
 
-    const startPolling = () => {
-        if (pollIntervalRef.current) return;
-        pollIntervalRef.current = window.setInterval(checkStatus, 1000);
+    const normalizePollingInterval = (intervalSeconds: number | null | undefined) => {
+        if (typeof intervalSeconds !== 'number' || Number.isNaN(intervalSeconds)) {
+            return null;
+        }
+        return intervalSeconds < 0 ? 0 : intervalSeconds;
+    };
+
+    const startPolling = (intervalSeconds: number = 1.0) => {
+        const normalizedInterval = normalizePollingInterval(intervalSeconds) ?? 1.0;
+        if (pollIntervalRef.current) {
+            window.clearInterval(pollIntervalRef.current);
+        }
+        pollIntervalSecondsRef.current = normalizedInterval;
+        pollIntervalRef.current = window.setInterval(checkStatus, normalizedInterval * 1000);
     };
 
     const stopPolling = () => {
@@ -196,7 +218,18 @@ export const MachineLearningPage: React.FC = () => {
             metrics: status.metrics || {},
             history: status.history || [],
             log: status.log || [],
+            poll_interval: status.poll_interval,
         });
+
+        // Update polling interval if backend changed it
+        const nextInterval = normalizePollingInterval(status.poll_interval);
+        if (nextInterval !== null && pollIntervalSecondsRef.current !== nextInterval) {
+            if (status.is_training) {
+                startPolling(nextInterval);
+            } else {
+                pollIntervalSecondsRef.current = nextInterval;
+            }
+        }
 
         // Refresh checkpoints if training just finished
         if (!status.is_training && trainingStatus.is_training) {
@@ -332,6 +365,7 @@ export const MachineLearningPage: React.FC = () => {
                 ...prev,
                 log: [...(prev.log || []), result.message]
             }));
+            startPolling(result.poll_interval ?? 1.0);
             checkStatus(); // Immediately check status to update UI
         } else {
             console.error('Failed to start training:', result.message);
@@ -362,6 +396,7 @@ export const MachineLearningPage: React.FC = () => {
                 ...prev,
                 log: [...(prev.log || []), result.message]
             }));
+            startPolling(result.poll_interval ?? 1.0);
             checkStatus(); // Immediately check status to update UI
         } else {
             console.error('Failed to resume training:', result.message);

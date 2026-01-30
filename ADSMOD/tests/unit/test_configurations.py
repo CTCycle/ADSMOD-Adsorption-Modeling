@@ -37,6 +37,8 @@ def test_config_values_are_respected():
         "prefetch_factor": 2,
         "pin_memory": False,
         "persistent_workers": True,
+        "polling_interval": 0.0,
+        "plot_update_batch_interval": 7,
     }
     
     training_settings = build_training_settings(mock_payload)
@@ -48,6 +50,8 @@ def test_config_values_are_respected():
     assert training_settings.prefetch_factor == 2
     assert training_settings.pin_memory is False
     assert training_settings.persistent_workers is True
+    assert training_settings.polling_interval == 0.0
+    assert training_settings.plot_update_batch_interval == 7
 
 def test_default_fallbacks():
     """
@@ -64,3 +68,5 @@ def test_default_fallbacks():
     assert training_settings.prefetch_factor == 1
     assert training_settings.pin_memory is True
     assert training_settings.persistent_workers is False
+    assert training_settings.polling_interval == 1.0
+    assert training_settings.plot_update_batch_interval == 10

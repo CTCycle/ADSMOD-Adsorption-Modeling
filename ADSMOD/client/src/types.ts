@@ -95,6 +95,7 @@ export interface JobStartResponse {
     job_type: string;
     status: string;
     message: string;
+    poll_interval?: number;
 }
 
 export interface JobStatusResponse {
@@ -215,6 +216,7 @@ export interface TrainingStatus {
     metrics?: Record<string, number>;
     history?: TrainingHistoryPoint[];
     log?: string[];
+    poll_interval?: number;
 }
 
 export interface TrainingHistoryPoint {
