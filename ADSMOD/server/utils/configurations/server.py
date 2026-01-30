@@ -81,6 +81,8 @@ class TrainingSettings:
     prefetch_factor: int
     pin_memory: bool
     persistent_workers: bool
+    polling_interval: float
+    plot_update_batch_interval: int
 
 
 ###############################################################################
@@ -232,6 +234,10 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
         prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
         pin_memory=coerce_bool(payload.get("pin_memory"), True),
         persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
+        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
+        plot_update_batch_interval=coerce_int(
+            payload.get("plot_update_batch_interval"), 10, minimum=1
+        ),
     )
 
 

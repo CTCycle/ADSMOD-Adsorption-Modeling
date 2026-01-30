@@ -20,7 +20,6 @@ from ADSMOD.server.schemas.training import (
     DatasetSelection,
     DatasetSourceInfo,
     DatasetSourcesResponse,
-    ProcessedDatasetInfo,
     ProcessedDatasetsResponse,
     ResumeTrainingRequest,
     TrainingConfigRequest,
@@ -95,6 +94,7 @@ class TrainingSession:
             is_training=True,
             current_epoch=current_epoch,
             total_epochs=total_epochs,
+            progress=0.0,
             session_id=job_id,
             stop_requested=False,
             last_error=None,
@@ -123,8 +123,10 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
         return
 
     state = training_manager.state.snapshot()
-    progress = 0.0
-    if state["total_epochs"] > 0:
+    progress = state.get("progress", 0.0)
+    if not isinstance(progress, (int, float)):
+        progress = 0.0
+    if progress == 0.0 and state["total_epochs"] > 0:
         progress = (state["current_epoch"] / state["total_epochs"]) * 100
 
     job_manager.update_progress(job_id, progress)
@@ -239,6 +241,7 @@ def run_resume_training_job(
             kwargs={
                 "checkpoint": checkpoint,
                 "additional_epochs": additional_epochs,
+                "polling_interval": server_settings.training.polling_interval,
             },
         )
 
@@ -661,6 +664,7 @@ class TrainingEndpoint:
             )
             configuration = config.model_dump()
             configuration["dataset_label"] = resolved_label
+            configuration["polling_interval"] = server_settings.training.polling_interval
 
             logger.info("Starting training with config: %s", configuration)
             metadata = training_manager.data_serializer.load_training_metadata(
@@ -713,6 +717,7 @@ class TrainingEndpoint:
                 status="started",
                 session_id=job_id,
                 message=f"Training started with {config.epochs} epochs. Session: {job_id}",
+                poll_interval=server_settings.training.polling_interval,
             )
 
         except HTTPException:
@@ -793,6 +798,7 @@ class TrainingEndpoint:
                     f"Resuming training from {request.checkpoint_name} "
                     f"with {request.additional_epochs} epochs. Session: {job_id}"
                 ),
+                poll_interval=server_settings.training.polling_interval,
             )
 
         except HTTPException:
@@ -823,12 +829,13 @@ class TrainingEndpoint:
         except Exception as e:
             logger.error(f"Error stopping training: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
-
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
         state = training_manager.state.snapshot()
-        progress = 0.0
-        if state["total_epochs"] > 0:
+        progress = state.get("progress", 0.0)
+        if not isinstance(progress, (int, float)):
+            progress = 0.0
+        if progress == 0.0 and state["total_epochs"] > 0:
             progress = (state["current_epoch"] / state["total_epochs"]) * 100
 
         return TrainingStatusResponse(
@@ -839,6 +846,7 @@ class TrainingEndpoint:
             metrics=state["metrics"],
             history=state["history"],
             log=state["log"],
+            poll_interval=server_settings.training.polling_interval,
         )
 
     # -------------------------------------------------------------------------

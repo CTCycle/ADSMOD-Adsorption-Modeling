@@ -174,6 +174,7 @@ export async function startTraining(config: TrainingConfig): Promise<{
     sessionId: string;
     message: string;
     status: 'started' | 'error';
+    poll_interval?: number;
 }> {
     try {
         const response = await fetchWithTimeout(
@@ -193,10 +194,13 @@ export async function startTraining(config: TrainingConfig): Promise<{
         }
 
         const result = await response.json();
+        const pollInterval =
+            typeof result.poll_interval === 'number' ? result.poll_interval : undefined;
         return {
             sessionId: result.session_id || '',
             message: result.message || 'Training started.',
             status: 'started',
+            poll_interval: pollInterval,
         };
     } catch (error) {
         if (error instanceof Error) {
@@ -210,6 +214,7 @@ export async function resumeTraining(config: ResumeTrainingConfig): Promise<{
     sessionId: string;
     message: string;
     status: 'started' | 'error';
+    poll_interval?: number;
 }> {
     try {
         const response = await fetchWithTimeout(
@@ -229,10 +234,13 @@ export async function resumeTraining(config: ResumeTrainingConfig): Promise<{
         }
 
         const result = await response.json();
+        const pollInterval =
+            typeof result.poll_interval === 'number' ? result.poll_interval : undefined;
         return {
             sessionId: result.session_id || '',
             message: result.message || 'Training resumed.',
             status: 'started',
+            poll_interval: pollInterval,
         };
     } catch (error) {
         if (error instanceof Error) {
@@ -304,6 +312,7 @@ export async function getTrainingStatus(): Promise<TrainingStatus & { error: str
             metrics: typeof result.metrics === 'object' && result.metrics !== null ? result.metrics : {},
             history: Array.isArray(result.history) ? result.history : [],
             log: Array.isArray(result.log) ? result.log : [],
+            poll_interval: typeof result.poll_interval === 'number' ? result.poll_interval : undefined,
             error: null,
         };
     } catch (error) {

@@ -343,6 +343,7 @@ class TrainingState:
     is_training: bool = False
     current_epoch: int = 0
     total_epochs: int = 0
+    progress: float = 0.0
     session_id: str | None = None
     stop_requested: bool = False
     last_error: str | None = None
@@ -378,6 +379,7 @@ class TrainingState:
                 "is_training": self.is_training,
                 "current_epoch": self.current_epoch,
                 "total_epochs": self.total_epochs,
+                "progress": self.progress,
                 "session_id": self.session_id,
                 "stop_requested": self.stop_requested,
                 "last_error": self.last_error,
@@ -413,6 +415,7 @@ class TrainingManager:
                 is_training=True,
                 current_epoch=0,
                 total_epochs=total_epochs,
+                progress=0.0,
                 session_id=session_id,
                 stop_requested=False,
                 last_error=None,
@@ -460,6 +463,7 @@ class TrainingManager:
                 is_training=True,
                 current_epoch=0,
                 total_epochs=additional_epochs,
+                progress=0.0,
                 session_id=session_id,
                 stop_requested=False,
                 last_error=None,
@@ -608,6 +612,41 @@ class TrainingManager:
                 self.state.update(**update_payload)
             return
 
+        if message_type == "training_update":
+            current_epoch = message.get("epoch")
+            total_epochs = message.get("total_epochs")
+            progress_percent = message.get("progress_percent")
+            update_payload: dict[str, Any] = {}
+            if isinstance(current_epoch, int):
+                update_payload["current_epoch"] = current_epoch
+            if isinstance(total_epochs, int):
+                update_payload["total_epochs"] = total_epochs
+            if isinstance(progress_percent, (int, float)):
+                update_payload["progress"] = float(progress_percent)
+            metrics_update: dict[str, float] = {}
+            for key in [
+                "loss",
+                "val_loss",
+                "accuracy",
+                "val_accuracy",
+                "masked_r2",
+                "val_masked_r2",
+            ]:
+                value = message.get(key)
+                if isinstance(value, (int, float)):
+                    metrics_update[key] = float(value)
+            if metrics_update:
+                current_metrics = self.state.snapshot().get("metrics", {})
+                if isinstance(current_metrics, dict):
+                    merged = dict(current_metrics)
+                    merged.update(metrics_update)
+                    update_payload["metrics"] = merged
+                else:
+                    update_payload["metrics"] = metrics_update
+            if update_payload:
+                self.state.update(**update_payload)
+            return
+
         if message_type == "log":
             message_text = message.get("message")
             if message_text:
@@ -642,13 +681,21 @@ class TrainingManager:
         elif status:
             self.state.add_log(f"Training finished with status: {status}")
 
-        self.state.update(is_training=False, stop_requested=False)
+        completion_payload = {"is_training": False, "stop_requested": False}
+        if status == "completed":
+            completion_payload["progress"] = 100.0
+        self.state.update(**completion_payload)
 
     # ---------------------------------------------------------------------
     def _on_epoch_end(
         self, epoch: int, total_epochs: int, logs: dict[str, Any]
     ) -> None:
-        self.state.update(current_epoch=epoch, total_epochs=total_epochs)
+        progress = 0.0
+        if total_epochs > 0:
+            progress = (epoch / total_epochs) * 100
+        self.state.update(
+            current_epoch=epoch, total_epochs=total_epochs, progress=progress
+        )
 
         # Extract metrics
         loss_value = logs.get("loss")
