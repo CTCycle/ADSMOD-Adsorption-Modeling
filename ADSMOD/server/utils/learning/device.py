@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from typing import Any, Iterator
+import torch
 
 from ADSMOD.server.utils.logger import logger
-import torch
 from keras.mixed_precision import set_global_policy
 
-
+###############################################################################
 class DeviceConfig:
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.configuration = configuration

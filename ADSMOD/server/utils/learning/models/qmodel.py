@@ -15,10 +15,7 @@ from ADSMOD.server.utils.learning.models.encoders import (
 from ADSMOD.server.utils.learning.models.transformers import TransformerEncoder
 from ADSMOD.server.utils.learning.training.scheduler import LinearDecayLRScheduler
 
-try:
-    from torch import compile as torch_compile
-except Exception:  # noqa: BLE001
-    torch_compile = None
+from torch import compile as torch_compile
 
 
 # [SCADS SEQUENCE MODEL]
@@ -53,7 +50,11 @@ class SCADSModel:
         self.embedding_dims = configuration.get("molecular_embedding_size", 64)
         self.num_heads = configuration.get("num_attention_heads", 2)
         self.num_encoders = configuration.get("num_encoders", 2)
-        self.jit_compile = configuration.get("jit_compile", False)
+        self.num_encoders = configuration.get("num_encoders", 2)
+        self.jit_compile = configuration.get("use_jit", False) or configuration.get(
+            "jit_compile", False
+        )
+        self.jit_backend = configuration.get("jit_backend", "inductor")
         self.jit_backend = configuration.get("jit_backend", "inductor")
         self.configuration = configuration
 
@@ -109,7 +110,7 @@ class SCADSModel:
         metric = [MaskedRSquared()]
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)  # type: ignore
         model.summary(expand_nested=True) if model_summary else None
-        if self.jit_compile and torch_compile is not None:
+        if self.jit_compile:
             model = torch_compile(model, backend=self.jit_backend, mode="default")  # type: ignore
 
         return model
@@ -178,7 +179,11 @@ class SCADSAtomicModel:
         )
         self.dropout_rate = configuration.get("dropout_rate", 0.2)
         self.embedding_dims = configuration.get("molecular_embedding_size", 64)
-        self.jit_compile = configuration.get("jit_compile", False)
+        self.embedding_dims = configuration.get("molecular_embedding_size", 64)
+        self.jit_compile = configuration.get("use_jit", False) or configuration.get(
+            "jit_compile", False
+        )
+        self.jit_backend = configuration.get("jit_backend", "inductor")
         self.jit_backend = configuration.get("jit_backend", "inductor")
         self.configuration = configuration
 
@@ -241,7 +246,7 @@ class SCADSAtomicModel:
         metric = [MaskedRSquared()]
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)  # type: ignore
         model.summary(expand_nested=True) if model_summary else None
-        if self.jit_compile and torch_compile is not None:
+        if self.jit_compile:
             model = torch_compile(model, backend=self.jit_backend, mode="default")  # type: ignore
 
         return model
