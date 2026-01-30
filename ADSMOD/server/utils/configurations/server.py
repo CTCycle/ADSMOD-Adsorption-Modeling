@@ -74,7 +74,13 @@ class FittingSettings:
 ###############################################################################
 @dataclass(frozen=True)
 class TrainingSettings:
+    use_jit: bool
+    jit_backend: str
     use_mixed_precision: bool
+    dataloader_workers: int
+    prefetch_factor: int
+    pin_memory: bool
+    persistent_workers: bool
 
 
 ###############################################################################
@@ -219,7 +225,13 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
 # -------------------------------------------------------------------------
 def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     return TrainingSettings(
+        use_jit=coerce_bool(payload.get("use_jit"), False),
+        jit_backend=coerce_str(payload.get("jit_backend"), "inductor"),
         use_mixed_precision=coerce_bool(payload.get("use_mixed_precision"), False),
+        dataloader_workers=coerce_int(payload.get("dataloader_workers"), 0, minimum=0),
+        prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
+        pin_memory=coerce_bool(payload.get("pin_memory"), True),
+        persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
     )
 
 
