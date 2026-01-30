@@ -31,7 +31,10 @@ class TestNistStatus:
         data = response.json()
         # Row counts may be present if data is available
         if data.get("data_available"):
-            assert "single_component_count" in data or "row_counts" in data
+            assert "single_component_rows" in data
+            assert "binary_mixture_rows" in data
+            assert "guest_rows" in data
+            assert "host_rows" in data
 
 
 ###############################################################################
@@ -98,8 +101,8 @@ class TestNistProperties:
         assert response.status in (200, 400, 500)
         if response.ok:
             data = response.json()
-            assert "target" in data
-            assert data["target"] == "guest"
+            assert "job_id" in data
+            assert data.get("job_type") == "nist_properties"
 
     # -------------------------------------------------------------------------
     def test_fetch_nist_properties_host(self, api_context: APIRequestContext) -> None:
@@ -114,7 +117,8 @@ class TestNistProperties:
         assert response.status in (200, 400, 500)
         if response.ok:
             data = response.json()
-            assert data["target"] == "host"
+            assert "job_id" in data
+            assert data.get("job_type") == "nist_properties"
 
     # -------------------------------------------------------------------------
     def test_fetch_nist_properties_invalid_target(

@@ -2,12 +2,48 @@
 
 from __future__ import annotations
 
+import os
+import time
+
 from playwright.sync_api import APIRequestContext
 
 
 ###############################################################################
 class TestFittingRun:
     """Tests for the fitting run endpoint."""
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _max_iterations(default_value: int) -> int:
+        value = os.getenv("TEST_MAX_FITTING_ITERATIONS")
+        if value is None:
+            return default_value
+        try:
+            return max(1, int(value))
+        except ValueError:
+            return default_value
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _wait_for_job_completion(
+        api_context: APIRequestContext,
+        job_id: str,
+        timeout_seconds: float = 30.0,
+        poll_interval_seconds: float = 0.5,
+    ) -> dict:
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            status_response = api_context.get(f"/fitting/jobs/{job_id}")
+            if not status_response.ok:
+                raise AssertionError(
+                    f"Failed to fetch job status: {status_response.text()}"
+                )
+            payload = status_response.json()
+            status = payload.get("status")
+            if status in {"completed", "failed", "cancelled"}:
+                return payload
+            time.sleep(poll_interval_seconds)
+        raise AssertionError(f"Job {job_id} did not complete within timeout.")
 
     # -------------------------------------------------------------------------
     def test_run_fitting_langmuir(
@@ -41,7 +77,7 @@ class TestFittingRun:
                     "initial": {"k": 0.5, "qsat": 50.0},
                 }
             },
-            "max_iterations": 1000,
+            "max_iterations": self._max_iterations(100),
             "optimization_method": "LSS",
         }
 
@@ -51,7 +87,9 @@ class TestFittingRun:
         # Assert
         assert response.ok, f"Fitting failed: {response.text()}"
         data = response.json()
-        assert "summary" in data or "message" in data
+        assert "job_id" in data
+        job_status = self._wait_for_job_completion(api_context, data["job_id"])
+        assert job_status.get("status") == "completed"
 
     # -------------------------------------------------------------------------
     def test_run_fitting_multiple_models(
@@ -89,7 +127,7 @@ class TestFittingRun:
                     "initial": {"k": 0.5, "exponent": 1.0},
                 },
             },
-            "max_iterations": 500,
+            "max_iterations": self._max_iterations(60),
             "optimization_method": "LSS",
         }
 
@@ -98,6 +136,10 @@ class TestFittingRun:
 
         # Assert
         assert response.ok
+        data = response.json()
+        assert "job_id" in data
+        job_status = self._wait_for_job_completion(api_context, data["job_id"])
+        assert job_status.get("status") == "completed"
 
     # -------------------------------------------------------------------------
     def test_run_fitting_invalid_method(
@@ -130,7 +172,7 @@ class TestFittingRun:
                     "initial": {"k": 0.5, "qsat": 50.0},
                 }
             },
-            "max_iterations": 100,
+            "max_iterations": self._max_iterations(40),
             "optimization_method": "INVALID_METHOD",
         }
 

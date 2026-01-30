@@ -715,6 +715,8 @@ class TrainingEndpoint:
                 message=f"Training started with {config.epochs} epochs. Session: {job_id}",
             )
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error starting training: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
@@ -793,6 +795,8 @@ class TrainingEndpoint:
                 ),
             )
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error resuming training: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
@@ -814,6 +818,8 @@ class TrainingEndpoint:
 
             return {"status": "stopped", "message": "Training stop requested."}
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error stopping training: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e

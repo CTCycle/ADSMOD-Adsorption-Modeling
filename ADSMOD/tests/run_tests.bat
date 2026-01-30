@@ -78,6 +78,13 @@ if /i "%OPTIONAL_DEPENDENCIES%"=="true" (
         echo [ERROR] Set OPTIONAL_DEPENDENCIES=true and run ADSMOD\\start_on_windows.bat.
         exit /b 1
     )
+
+    "%PYTHON_CMD%" -c "import psutil" >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] psutil not installed in .venv.
+        echo [ERROR] Set OPTIONAL_DEPENDENCIES=true and run ADSMOD\\start_on_windows.bat.
+        exit /b 1
+    )
 )
 
 echo.
