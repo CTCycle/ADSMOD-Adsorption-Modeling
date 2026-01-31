@@ -12,7 +12,7 @@ import pandas as pd
 from keras import Model
 from keras.models import load_model
 
-from ADSMOD.server.database.database import database
+from ADSMOD.server.repositories.database import database
 from ADSMOD.server.schemas.models import MODEL_SCHEMAS
 from ADSMOD.server.utils.constants import (
     CHECKPOINTS_PATH,
@@ -371,24 +371,25 @@ class TrainingDataSerializer:
         return {}
 
     # -------------------------------------------------------------------------
-    def load_training_metadata(
-        self, dataset_label: str = "default"
-    ) -> TrainingMetadata:
-        dataset_label = self.normalize_dataset_label(dataset_label)
-        metadata_df = database.load_from_database("TRAINING_METADATA")
-        if metadata_df.empty:
-            return TrainingMetadata()
+    @staticmethod
+    def _normalize_dataset_hash(dataset_hash_value: Any) -> str | None:
+        if pd.notna(dataset_hash_value) and str(dataset_hash_value).strip():
+            return str(dataset_hash_value).strip()
+        return None
 
-        # Filter by dataset_label if column exists
+    # -------------------------------------------------------------------------
+    def _select_metadata_row(
+        self, metadata_df: pd.DataFrame, dataset_label: str
+    ) -> pd.Series | None:
         if "dataset_label" in metadata_df.columns:
             filtered = metadata_df[metadata_df["dataset_label"] == dataset_label]
             if filtered.empty:
-                return TrainingMetadata()
-            row = filtered.iloc[0]
-        else:
-            # Backward compatibility: use first row if no dataset_label column
-            row = metadata_df.iloc[0]
+                return None
+            return filtered.iloc[0]
+        return metadata_df.iloc[0]
 
+    # -------------------------------------------------------------------------
+    def _build_training_metadata(self, row: pd.Series) -> TrainingMetadata:
         smile_vocabulary = self._parse_json(row.get("smile_vocabulary"))
         adsorbent_vocabulary = self._parse_json(row.get("adsorbent_vocabulary"))
         max_smile_index = max(smile_vocabulary.values()) if smile_vocabulary else 0
@@ -396,11 +397,9 @@ class TrainingDataSerializer:
         normalization_stats = self._parse_json(row.get("normalization_stats"))
         dataset_hash_value = row.get("dataset_hash")
 
-        metadata = TrainingMetadata(
+        return TrainingMetadata(
             created_at=str(row.get("created_at", "")),
-            dataset_hash=str(dataset_hash_value).strip()
-            if pd.notna(dataset_hash_value) and str(dataset_hash_value).strip()
-            else None,
+            dataset_hash=self._normalize_dataset_hash(dataset_hash_value),
             sample_size=float(row.get("sample_size", 1.0)),
             validation_size=float(row.get("validation_size", 0.2)),
             min_measurements=int(row.get("min_measurements", 1)),
@@ -422,7 +421,19 @@ class TrainingDataSerializer:
             SMILE_vocabulary_size=smile_vocab_size,
         )
 
-        return metadata
+    # -------------------------------------------------------------------------
+    def load_training_metadata(
+        self, dataset_label: str = "default"
+    ) -> TrainingMetadata:
+        dataset_label = self.normalize_dataset_label(dataset_label)
+        metadata_df = database.load_from_database("TRAINING_METADATA")
+        if metadata_df.empty:
+            return TrainingMetadata()
+
+        row = self._select_metadata_row(metadata_df, dataset_label)
+        if row is None:
+            return TrainingMetadata()
+        return self._build_training_metadata(row)
 
     # -------------------------------------------------------------------------
     def collect_dataset_hashes(self) -> set[str]:

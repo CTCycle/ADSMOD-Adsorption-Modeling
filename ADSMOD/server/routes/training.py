@@ -126,7 +126,7 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
     progress = state.get("progress", 0.0)
     if not isinstance(progress, (int, float)):
         progress = 0.0
-    if progress == 0.0 and state["total_epochs"] > 0:
+    if progress <= 0.0 and state["total_epochs"] > 0:
         progress = (state["current_epoch"] / state["total_epochs"]) * 100
 
     job_manager.update_progress(job_id, progress)
@@ -835,7 +835,7 @@ class TrainingEndpoint:
         progress = state.get("progress", 0.0)
         if not isinstance(progress, (int, float)):
             progress = 0.0
-        if progress == 0.0 and state["total_epochs"] > 0:
+        if progress <= 0.0 and state["total_epochs"] > 0:
             progress = (state["current_epoch"] / state["total_epochs"]) * 100
 
         return TrainingStatusResponse(

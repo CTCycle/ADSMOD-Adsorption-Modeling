@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import (
-    BigInteger,
+from sqlalchemy import (    
     Column,
     Float,
     Integer,
@@ -29,7 +28,7 @@ from ADSMOD.server.utils.constants import (
     COLUMN_UPTAKE_MOL_G,
     COLUMN_WORST_MODEL,
 )
-from ADSMOD.server.database.types import JSONSequence
+from ADSMOD.server.repositories.types import JSONSequence
 
 Base = declarative_base()
 

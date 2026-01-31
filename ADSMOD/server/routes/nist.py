@@ -73,7 +73,7 @@ class NistEndpoint:
             loop.close()
 
     # -------------------------------------------------------------------------
-    async def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
+    def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
         if job_manager.is_job_running(self.JOB_TYPE_FETCH):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -106,7 +106,7 @@ class NistEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def start_properties_job(
+    def start_properties_job(
         self, request: NISTPropertiesRequest
     ) -> JobStartResponse:
         if job_manager.is_job_running(self.JOB_TYPE_PROPERTIES):
@@ -138,7 +138,7 @@ class NistEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def get_job_status(self, job_id: str) -> JobStatusResponse:
+    def get_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -155,7 +155,7 @@ class NistEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def list_jobs(self) -> JobListResponse:
+    def list_jobs(self) -> JobListResponse:
         fetch_jobs = job_manager.list_jobs(self.JOB_TYPE_FETCH)
         properties_jobs = job_manager.list_jobs(self.JOB_TYPE_PROPERTIES)
         all_jobs = fetch_jobs + properties_jobs
@@ -174,7 +174,7 @@ class NistEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def cancel_job(self, job_id: str) -> dict:
+    def cancel_job(self, job_id: str) -> dict:
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(

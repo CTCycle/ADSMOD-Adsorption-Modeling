@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ADSMOD.server.database.database import database
+from ADSMOD.server.repositories.database import database
 
 
 ###############################################################################
