@@ -26,7 +26,7 @@ from ADSMOD.server.services.data.conversion import (
     PressureConversion,
     UptakeConversion,
 )
-from ADSMOD.server.services.isotherms.fitting import FittingPipeline
+from ADSMOD.server.services.modeling.fitting import FittingPipeline
 from ADSMOD.server.services.jobs import job_manager
 
 router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
@@ -176,7 +176,7 @@ class FittingEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
+    def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
         if job_manager.is_job_running(self.JOB_TYPE):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -214,7 +214,7 @@ class FittingEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def get_job_status(self, job_id: str) -> JobStatusResponse:
+    def get_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -231,7 +231,7 @@ class FittingEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def list_jobs(self) -> JobListResponse:
+    def list_jobs(self) -> JobListResponse:
         all_jobs = job_manager.list_jobs(self.JOB_TYPE)
         return JobListResponse(
             jobs=[
@@ -248,7 +248,7 @@ class FittingEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    async def cancel_job(self, job_id: str) -> dict:
+    def cancel_job(self, job_id: str) -> dict:
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
@@ -292,7 +292,7 @@ class FittingEndpoint:
             available_cols = [c for c in required_cols if c in converted_df.columns]
             output_df = converted_df[available_cols].copy()
 
-            output_df = output_df.where(pd.notna(output_df), other=pd.NA)
+            output_df = output_df.where(pd.notna(output_df))
             records = [
                 {key: (None if pd.isna(value) else value) for key, value in row.items()}
                 for row in output_df.to_dict(orient="records")

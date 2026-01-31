@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from ADSMOD.server.database.database import database
+from ADSMOD.server.repositories.database import database
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.constants import COLUMN_DATASET_NAME
 from ADSMOD.server.repository.isodb import NISTDataSerializer
@@ -18,6 +18,8 @@ from ADSMOD.server.services.data.nistads import PubChemClient
 
 ###############################################################################
 class DatasetCompositionService:
+    ADSORPTION_UNITS_MOL_PER_G = "mol/g"
+
     def __init__(self, allow_pubchem_fetch: bool = False) -> None:
         self.serializer = DataSerializer()
         self.nist_serializer = NISTDataSerializer()
@@ -170,7 +172,7 @@ class DatasetCompositionService:
 
         standardized = self.normalize_measurements(standardized)
         standardized["pressureUnits"] = "pa"
-        standardized["adsorptionUnits"] = "mol/g"
+        standardized["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_PER_G
         standardized[COLUMN_DATASET_NAME] = dataset_name
         standardized = self.ensure_filename_prefix(
             standardized, self.build_dataset_tag("uploaded", dataset_name)
@@ -186,7 +188,7 @@ class DatasetCompositionService:
         cleaned = adsorption.copy()
         if "adsorptionUnits" in cleaned.columns:
             units = cleaned["adsorptionUnits"].astype("string").str.strip().str.lower()
-            mol_g_mask = units.isin({"mol/g", "mol per g"})
+            mol_g_mask = units.isin({self.ADSORPTION_UNITS_MOL_PER_G, "mol per g"})
         else:
             mol_g_mask = pd.Series(True, index=cleaned.index)
         for column in ("adsorbate_name", "adsorbent_name", "filename"):
@@ -201,7 +203,7 @@ class DatasetCompositionService:
                 cleaned.loc[~mol_g_mask, "adsorbed_amount"] / 1000.0
             )
         cleaned["pressureUnits"] = "pa"
-        cleaned["adsorptionUnits"] = "mol/g"
+        cleaned["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_PER_G
         cleaned = self.normalize_measurements(cleaned)
         cleaned = self.ensure_filename_prefix(
             cleaned, self.build_dataset_tag("nist", dataset_name)

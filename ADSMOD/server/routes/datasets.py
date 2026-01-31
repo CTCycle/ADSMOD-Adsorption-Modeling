@@ -52,7 +52,7 @@ class DatasetEndpoint:
         return DatasetLoadResponse(summary=summary, dataset=dataset_payload)
 
     # -------------------------------------------------------------------------
-    async def get_dataset_names(self) -> DatasetNamesResponse:
+    def get_dataset_names(self) -> DatasetNamesResponse:
         try:
             names = self.service.get_dataset_names()
             return DatasetNamesResponse(names=names)
@@ -61,7 +61,7 @@ class DatasetEndpoint:
             return DatasetNamesResponse(names=[])
 
     # -------------------------------------------------------------------------
-    async def get_dataset_by_name(self, dataset_name: str) -> DatasetLoadResponse:
+    def get_dataset_by_name(self, dataset_name: str) -> DatasetLoadResponse:
         try:
             dataset_payload, summary = self.service.load_from_database(dataset_name)
             return DatasetLoadResponse(summary=summary, dataset=dataset_payload)

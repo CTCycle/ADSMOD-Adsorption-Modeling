@@ -7,9 +7,9 @@ import pandas as pd
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.database.postgres import PostgresRepository
-from ADSMOD.server.database.schema import Base
-from ADSMOD.server.database.sqlite import SQLiteRepository
+from ADSMOD.server.repositories.postgres import PostgresRepository
+from ADSMOD.server.repositories.schema import Base
+from ADSMOD.server.repositories.sqlite import SQLiteRepository
 
 
 ###############################################################################
