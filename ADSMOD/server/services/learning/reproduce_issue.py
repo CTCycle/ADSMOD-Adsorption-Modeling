@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
 
-from ADSMOD.server.utils.learning.device import DeviceDataLoader
+from ADSMOD.server.services.learning.device import DeviceDataLoader
 
 # Mocking TorchDictDataset from loader.py
 class TorchDictDataset(Dataset):

@@ -1,7 +1,7 @@
 import pytest
 from ADSMOD.server.utils.constants import CONFIGURATION_FILE
-from ADSMOD.server.utils.configurations import load_configurations
-from ADSMOD.server.utils.configurations.server import (
+from ADSMOD.server.configurations import load_configurations
+from ADSMOD.server.configurations.server import (
     TrainingSettings,
     build_training_settings,
     get_server_settings,

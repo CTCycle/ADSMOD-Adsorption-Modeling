@@ -5,7 +5,7 @@ from typing import Any
 
 from ADSMOD.server.utils.types import coerce_str_sequence
 
-from ADSMOD.server.utils.configurations import (
+from ADSMOD.server.configurations import (
     ensure_mapping,
     load_configurations,
 )

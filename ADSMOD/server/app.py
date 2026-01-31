@@ -9,7 +9,7 @@ warnings.filterwarnings("ignore", message="In the future `np.object` will be def
 
 from ADSMOD.server.utils.constants import DOCS_ENDPOINT, ROOT_ENDPOINT
 from ADSMOD.server.utils.variables import env_variables
-from ADSMOD.server.utils.configurations import server_settings
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.routes.datasets import router as dataset_router
 from ADSMOD.server.routes.fitting import router as fit_router
 from ADSMOD.server.routes.browser import router as browser_router

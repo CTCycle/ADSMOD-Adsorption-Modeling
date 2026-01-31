@@ -5,8 +5,8 @@ from typing import Any
 from keras import Model
 from keras.utils import set_random_seed
 
-from ADSMOD.server.utils.learning.callbacks import build_training_callbacks
-from ADSMOD.server.utils.learning.device import DeviceConfig, DeviceDataLoader
+from ADSMOD.server.services.learning.callbacks import build_training_callbacks
+from ADSMOD.server.services.learning.device import DeviceConfig, DeviceDataLoader
 
 
 # [TOOLS FOR TRAINING MACHINE LEARNING MODELS]

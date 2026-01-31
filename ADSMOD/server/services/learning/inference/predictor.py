@@ -9,8 +9,8 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from ADSMOD.server.utils.constants import PAD_VALUE, SCADS_ATOMIC_MODEL
-from ADSMOD.server.utils.learning.callbacks import StopTrainingCallback
-from ADSMOD.server.utils.learning.loader import SCADSDataLoader
+from ADSMOD.server.services.learning.callbacks import StopTrainingCallback
+from ADSMOD.server.services.learning.loader import SCADSDataLoader
 
 
 # [INFERENCE]

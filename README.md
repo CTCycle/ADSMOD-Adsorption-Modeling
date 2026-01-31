@@ -137,14 +137,6 @@ The application stores data and artifacts in specific directories, primarily und
 ## 7. Configuration
 Backend configuration is defined in `ADSMOD/settings/configurations.json` and loaded by the API at startup. Runtime overrides and secrets are read from `ADSMOD/settings/.env`. Frontend configuration is read from `ADSMOD/client/.env` during development or build time.
 
-| Variable | Description |
-|-|-|
-| FASTAPI_HOST | Backend host used by the Windows launcher; defined in `ADSMOD/settings/.env`; default `127.0.0.1`. |
-| FASTAPI_PORT | Backend port for uvicorn; defined in `ADSMOD/settings/.env`; default `8000`. |
-| RELOAD | Enables uvicorn reload when `true`; defined in `ADSMOD/settings/.env`; default `false`. |
-| KERAS_BACKEND | Select torch as backend for Keras. Keep it as default. |
-
-
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.

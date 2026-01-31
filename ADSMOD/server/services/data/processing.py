@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ADSMOD.server.utils.configurations import server_settings
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.constants import (
     COLUMN_AIC,
     COLUMN_AICC,

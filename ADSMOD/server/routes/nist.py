@@ -24,8 +24,8 @@ from ADSMOD.server.utils.constants import (
     NIST_STATUS_ENDPOINT,
 )
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.services.jobs import job_manager
-from ADSMOD.server.utils.services.data.nistads import NISTDataService
+from ADSMOD.server.services.jobs import job_manager
+from ADSMOD.server.services.data.nistads import NISTDataService
 
 router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
 

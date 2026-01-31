@@ -5,7 +5,7 @@ import urllib.parse
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
-from ADSMOD.server.utils.configurations import DatabaseSettings, server_settings
+from ADSMOD.server.configurations import DatabaseSettings, server_settings
 from ADSMOD.server.database.postgres import PostgresRepository
 from ADSMOD.server.database.schema import Base
 from ADSMOD.server.database.sqlite import SQLiteRepository

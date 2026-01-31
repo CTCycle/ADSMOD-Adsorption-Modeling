@@ -6,9 +6,9 @@ from typing import Any
 
 import pandas as pd
 
-from ADSMOD.server.utils.configurations import server_settings
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.constants import DATASET_FALLBACK_DELIMITERS
-from ADSMOD.server.utils.repository.serializer import DataSerializer
+from ADSMOD.server.repository.serializer import DataSerializer
 
 
 ###############################################################################

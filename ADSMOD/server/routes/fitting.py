@@ -20,14 +20,14 @@ from ADSMOD.server.utils.constants import (
     FITTING_RUN_ENDPOINT,
 )
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
-from ADSMOD.server.utils.services.data.conversion import (
+from ADSMOD.server.repository.isodb import NISTDataSerializer
+from ADSMOD.server.services.data.conversion import (
     PQ_units_conversion,
     PressureConversion,
     UptakeConversion,
 )
-from ADSMOD.server.utils.services.isotherms.fitting import FittingPipeline
-from ADSMOD.server.utils.services.jobs import job_manager
+from ADSMOD.server.services.isotherms.fitting import FittingPipeline
+from ADSMOD.server.services.jobs import job_manager
 
 router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 
