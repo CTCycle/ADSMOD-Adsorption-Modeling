@@ -10,7 +10,7 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from ADSMOD.server.utils.configurations import DatabaseSettings
+from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.utils.constants import DATA_PATH, DATABASE_FILENAME
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.database.schema import Base

@@ -9,10 +9,10 @@ import httpx
 import pandas as pd
 import pubchempy as pcp
 
-from ADSMOD.server.utils.configurations import server_settings
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
-from ADSMOD.server.utils.services.jobs import job_manager
+from ADSMOD.server.repository.isodb import NISTDataSerializer
+from ADSMOD.server.services.jobs import job_manager
 
 
 ###############################################################################

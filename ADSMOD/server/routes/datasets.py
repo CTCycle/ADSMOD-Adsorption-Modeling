@@ -10,7 +10,7 @@ from ADSMOD.server.utils.constants import (
     DATASETS_ROUTER_PREFIX,
 )
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.services.data.datasets import DatasetService
+from ADSMOD.server.services.data.datasets import DatasetService
 
 router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["load"])
 

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit, minimize
 
-from ADSMOD.server.utils.configurations import server_settings
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
@@ -29,9 +29,9 @@ from ADSMOD.server.utils.constants import (
     MODEL_PARAMETER_DEFAULTS,
 )
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.repository.serializer import DataSerializer
-from ADSMOD.server.utils.services.isotherms.models import AdsorptionModels
-from ADSMOD.server.utils.services.data.processing import (
+from ADSMOD.server.repository.serializer import DataSerializer
+from ADSMOD.server.services.isotherms.models import AdsorptionModels
+from ADSMOD.server.services.data.processing import (
     AdsorptionDataProcessor,
     DatasetAdapter,
     DatasetColumns,

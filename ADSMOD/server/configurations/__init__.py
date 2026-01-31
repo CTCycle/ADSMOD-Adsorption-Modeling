@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from ADSMOD.server.utils.configurations.base import (
+from ADSMOD.server.configurations.base import (
     ensure_mapping,
     load_configurations,
 )
-from ADSMOD.server.utils.configurations.server import (
+from ADSMOD.server.configurations.server import (
     DatabaseSettings,
     FastAPISettings,
     NISTSettings,

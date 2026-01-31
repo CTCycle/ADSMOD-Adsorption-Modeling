@@ -8,12 +8,12 @@ from typing import Any
 import pandas as pd
 
 from ADSMOD.server.database.database import database
-from ADSMOD.server.utils.configurations import server_settings
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.constants import COLUMN_DATASET_NAME
-from ADSMOD.server.utils.repository.isodb import NISTDataSerializer
-from ADSMOD.server.utils.repository.serializer import DataSerializer
-from ADSMOD.server.utils.services.data.conversion import PQ_units_conversion
-from ADSMOD.server.utils.services.data.nistads import PubChemClient
+from ADSMOD.server.repository.isodb import NISTDataSerializer
+from ADSMOD.server.repository.serializer import DataSerializer
+from ADSMOD.server.services.data.conversion import PQ_units_conversion
+from ADSMOD.server.services.data.nistads import PubChemClient
 
 
 ###############################################################################
