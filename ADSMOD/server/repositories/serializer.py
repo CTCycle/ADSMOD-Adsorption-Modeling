@@ -342,8 +342,9 @@ class TrainingDataSerializer:
             return [parsed]
         if isinstance(value, pd.Series):
             return value.tolist()
-        if hasattr(value, "tolist"):
-            return value.tolist()
+        tolist = getattr(value, "tolist", None)
+        if callable(tolist):
+            return list(tolist())
         return [value]
 
     # -------------------------------------------------------------------------

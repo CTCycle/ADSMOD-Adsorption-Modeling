@@ -13,7 +13,7 @@ from ADSMOD.server.services.learning.models.qmodel import SCADSAtomicModel, SCAD
 from ADSMOD.server.services.learning.training.fitting import ModelTraining
 from ADSMOD.server.services.learning.training.worker import ProcessWorker
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.repository.serializer import (
+from ADSMOD.server.repositories.serializer import (
     ModelSerializer,
     TrainingDataSerializer,
 )

@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from ADSMOD.server.utils.constants import PAD_VALUE
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.repository.isodb import NISTDataSerializer
+from ADSMOD.server.repositories.isodb import NISTDataSerializer
 from ADSMOD.server.services.data.sanitizer import AggregateDatasets
 
 
@@ -52,7 +52,7 @@ class DataLoaderProcessor:
         self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
             "SMILE_sequence_size", 30
         )
-        self.SMILE_vocab = metadata.get("smile_vocabulary") or metadata.get(
+        self.smile_vocab = metadata.get("smile_vocabulary") or metadata.get(
             "SMILE_vocabulary", {}
         )
         self.adsorbent_vocab = metadata.get("adsorbent_vocabulary") or metadata.get(
@@ -118,12 +118,12 @@ class DataLoaderProcessor:
     def encode_SMILE_from_vocabulary(self, smile: str) -> list[Any]:
         encoded_tokens = []
         i = 0
-        sorted_tokens = sorted(self.SMILE_vocab.keys(), key=len, reverse=True)
+        sorted_tokens = sorted(self.smile_vocab.keys(), key=len, reverse=True)
         while i < len(smile):
             matched = False
             for token in sorted_tokens:
                 if smile[i : i + len(token)] == token:
-                    encoded_tokens.append(self.SMILE_vocab[token])
+                    encoded_tokens.append(self.smile_vocab[token])
                     i += len(token)
                     matched = True
                     break

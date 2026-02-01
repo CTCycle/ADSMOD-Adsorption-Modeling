@@ -9,7 +9,7 @@ import pandas as pd
 
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.schemas.training import TrainingMetadata
-from ADSMOD.server.repository.serializer import TrainingDataSerializer
+from ADSMOD.server.repositories.serializer import TrainingDataSerializer
 from ADSMOD.server.services.data.conversion import PQ_units_conversion
 from ADSMOD.server.services.data.sanitizer import (
     AdsorbentEncoder,
