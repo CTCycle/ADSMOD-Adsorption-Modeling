@@ -74,7 +74,6 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                 </div>
                                 <p className="wizard-card-description">
                                     Control how the training dataset is shuffled during training.
-                                    Use buffer size to control memory usage.
                                 </p>
                                 <div className="wizard-card-body">
                                     <div className="wizard-toggle-row">
@@ -87,17 +86,6 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                 />
                                             </div>
                                         </div>
-                                        {config.shuffle_dataset && (
-                                            <NumberInput
-                                                label="Buffer Size"
-                                                value={config.shuffle_size}
-                                                onChange={(value) => updateConfig('shuffle_size', value)}
-                                                min={100}
-                                                max={10000}
-                                                step={100}
-                                                precision={0}
-                                            />
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -318,12 +306,6 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                         <div className="wizard-summary-grid">
                                             <span>Shuffle buffered</span>
                                             <strong>{config.shuffle_dataset ? 'Enabled' : 'Disabled'}</strong>
-                                            {config.shuffle_dataset && (
-                                                <>
-                                                    <span>Buffer size</span>
-                                                    <strong>{config.shuffle_size}</strong>
-                                                </>
-                                            )}
 
 
                                         </div>

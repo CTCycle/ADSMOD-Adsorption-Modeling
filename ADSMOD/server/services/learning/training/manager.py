@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import threading
-import time
-import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -11,7 +9,6 @@ from ADSMOD.server.services.learning.callbacks import WorkerInterrupted
 from ADSMOD.server.services.learning.device import DeviceConfig
 from ADSMOD.server.services.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.services.learning.training.fitting import ModelTraining
-from ADSMOD.server.services.learning.training.worker import ProcessWorker
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.repositories.serializer import (
     ModelSerializer,
@@ -27,27 +24,6 @@ MODEL_COMPONENTS = {
     SCADS_SERIES_MODEL: (SCADSModel, SCADSDataLoader),
     SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
 }
-
-
-def normalize_model_name(name: str | None) -> str:
-    if not name:
-        return SCADS_SERIES_MODEL
-    lowered = name.strip().lower()
-    if "atomic" in lowered:
-        return SCADS_ATOMIC_MODEL
-    return SCADS_SERIES_MODEL
-
-
-def send_training_message(worker: Any | None, payload: dict[str, Any]) -> None:
-    if worker is None:
-        return
-    sender = getattr(worker, "send_message", None)
-    if not callable(sender):
-        return
-    try:
-        sender(payload)
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Failed to send training message: %s", exc)
 
 
 class TrainingProcessRunner:
@@ -72,7 +48,7 @@ class TrainingProcessRunner:
     def on_epoch_end(
         self, epoch: int, total_epochs: int, logs: dict[str, Any]
     ) -> None:
-        send_training_message(
+        self.send_training_message(
             self.worker,
             {
                 "type": "epoch_end",
@@ -84,13 +60,36 @@ class TrainingProcessRunner:
 
     # ---------------------------------------------------------------------
     def log(self, message: str) -> None:
-        send_training_message(
+        self.send_training_message(
             self.worker,
             {
                 "type": "log",
                 "message": message,
             },
         )
+
+    # ---------------------------------------------------------------------
+    @staticmethod
+    def normalize_model_name(name: str | None) -> str:
+        if not name:
+            return SCADS_SERIES_MODEL
+        lowered = name.strip().lower()
+        if "atomic" in lowered:
+            return SCADS_ATOMIC_MODEL
+        return SCADS_SERIES_MODEL
+
+    # ---------------------------------------------------------------------
+    @staticmethod
+    def send_training_message(worker: Any | None, payload: dict[str, Any]) -> None:
+        if worker is None:
+            return
+        sender = getattr(worker, "send_message", None)
+        if not callable(sender):
+            return
+        try:
+            sender(payload)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Failed to send training message: %s", exc)
 
     # ---------------------------------------------------------------------
     def ensure_required_columns(self, data: Any, required: list[str]) -> None:
@@ -111,7 +110,9 @@ class TrainingProcessRunner:
         if train_data.empty or validation_data.empty:
             raise ValueError("No training data available. Build the dataset first.")
 
-        selected_model = normalize_model_name(configuration.get("selected_model"))
+        selected_model = self.normalize_model_name(
+            configuration.get("selected_model")
+        )
         model_builder, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )
@@ -196,7 +197,7 @@ class TrainingProcessRunner:
         if train_data.empty or validation_data.empty:
             raise ValueError("No training data available. Build the dataset first.")
 
-        selected_model = normalize_model_name(train_config.get("selected_model"))
+        selected_model = self.normalize_model_name(train_config.get("selected_model"))
         _, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )
@@ -302,42 +303,6 @@ def run_training_process(
         _safe_put({"error": str(exc)})
 
 
-def run_resume_training_process(
-    checkpoint: str,
-    additional_epochs: int = 0,
-    worker: Any | None = None,
-) -> None:
-    result_queue = getattr(worker, "result_queue", None)
-    stop_event = getattr(worker, "stop_event", None)
-
-    def _safe_put(payload: dict[str, Any]) -> None:
-        if result_queue is None:
-            return
-        try:
-            result_queue.put(payload, block=False)
-        except Exception:
-            try:
-                result_queue.put(payload)
-            except Exception:
-                return
-
-    try:
-        if stop_event is not None and stop_event.is_set():
-            _safe_put({"result": {}})
-            return
-        runner = TrainingProcessRunner(worker=worker)
-        runner.log(
-            f"Resuming training from checkpoint {checkpoint} "
-            f"for {additional_epochs} additional epochs."
-        )
-        runner.resume_training(checkpoint, additional_epochs)
-        _safe_put({"result": {"success": True, "checkpoint": checkpoint}})
-    except WorkerInterrupted:
-        _safe_put({"result": {}})
-    except Exception as exc:  # noqa: BLE001
-        _safe_put({"error": str(exc)})
-
-
 @dataclass
 class TrainingState:
     is_training: bool = False
@@ -393,194 +358,8 @@ class TrainingState:
 class TrainingManager:
     def __init__(self) -> None:
         self.state = TrainingState()
-        self._thread: threading.Thread | None = None
-        self._thread_lock = threading.Lock()
-        self._worker: ProcessWorker | None = None
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
-
-    # -------------------------------------------------------------------------
-    def start_training(self, configuration: dict[str, Any]) -> str:
-        with self._thread_lock:
-            if self.state.is_training:
-                raise RuntimeError("Training is already in progress.")
-            if self._worker and self._worker.is_alive():
-                raise RuntimeError("Training process is already running.")
-            if self._worker:
-                self._worker.cleanup()
-                self._worker = None
-            session_id = str(uuid.uuid4())[:8]
-            total_epochs = int(configuration.get("epochs", 0))
-            self.state.update(
-                is_training=True,
-                current_epoch=0,
-                total_epochs=total_epochs,
-                progress=0.0,
-                session_id=session_id,
-                stop_requested=False,
-                last_error=None,
-                metrics={},
-                history=[],
-                log=[],
-            )
-            self.state.add_log(f"Starting training session: {session_id}")
-            worker = ProcessWorker()
-            self._worker = worker
-            try:
-                worker.start(
-                    target=run_training_process,
-                    kwargs={"configuration": configuration},
-                )
-            except Exception as exc:  # noqa: BLE001
-                self._worker = None
-                self.state.update(
-                    is_training=False,
-                    stop_requested=False,
-                    last_error=str(exc),
-                )
-                self.state.add_log(f"Failed to start training job: {exc}")
-                raise
-            self._thread = threading.Thread(
-                target=self._monitor_worker,
-                args=(session_id, worker),
-                daemon=True,
-            )
-            self._thread.start()
-            return session_id
-
-    # ---------------------------------------------------------------------
-    def resume_training(self, checkpoint: str, additional_epochs: int) -> str:
-        with self._thread_lock:
-            if self.state.is_training:
-                raise RuntimeError("Training is already in progress.")
-            if self._worker and self._worker.is_alive():
-                raise RuntimeError("Training process is already running.")
-            if self._worker:
-                self._worker.cleanup()
-                self._worker = None
-            session_id = str(uuid.uuid4())[:8]
-            self.state.update(
-                is_training=True,
-                current_epoch=0,
-                total_epochs=additional_epochs,
-                progress=0.0,
-                session_id=session_id,
-                stop_requested=False,
-                last_error=None,
-                metrics={},
-                history=[],
-                log=[],
-            )
-            self.state.add_log(f"Resuming training session: {session_id}")
-            worker = ProcessWorker()
-            self._worker = worker
-            try:
-                worker.start(
-                    target=run_resume_training_process,
-                    kwargs={
-                        "checkpoint": checkpoint,
-                        "additional_epochs": additional_epochs,
-                    },
-                )
-            except Exception as exc:  # noqa: BLE001
-                self._worker = None
-                self.state.update(
-                    is_training=False,
-                    stop_requested=False,
-                    last_error=str(exc),
-                )
-                self.state.add_log(f"Failed to start resume job: {exc}")
-                raise
-            self._thread = threading.Thread(
-                target=self._monitor_worker,
-                args=(session_id, worker),
-                daemon=True,
-            )
-            self._thread.start()
-            return session_id
-
-    # ---------------------------------------------------------------------
-    def stop_training(self) -> None:
-        if not self.state.is_training:
-            return
-        self.state.update(stop_requested=True)
-        self.state.add_log("Stop requested by user...")
-        if self._worker is not None:
-            self._worker.stop()
-
-    # ---------------------------------------------------------------------
-    def _monitor_worker(self, job_id: str, worker: ProcessWorker) -> None:
-        stop_requested_at: float | None = None
-        completed = False
-        try:
-            while True:
-                message = worker.poll(timeout=0.0)
-                if message is not None:
-                    self.handle_process_message(job_id, message)
-                    while True:
-                        extra = worker.poll(timeout=0.0)
-                        if extra is None:
-                            break
-                        self.handle_process_message(job_id, extra)
-
-                if not worker.is_alive():
-                    break
-
-                stop_requested = self.state.snapshot().get("stop_requested", False)
-                if stop_requested:
-                    worker.stop()
-                    if stop_requested_at is None:
-                        stop_requested_at = time.monotonic()
-                    elif time.monotonic() - stop_requested_at > 5.0:
-                        logger.warning(
-                            "Forcing training process shutdown for job %s after timeout",
-                            job_id,
-                        )
-                        worker.terminate()
-                        break
-
-                time.sleep(0.2)
-
-            while True:
-                message = worker.poll(timeout=0.0)
-                if message is None:
-                    break
-                self.handle_process_message(job_id, message)
-
-            worker.join(timeout=1.0)
-            result_payload = worker.read_result()
-
-            if self.state.snapshot().get("stop_requested", False):
-                self.handle_job_completion(job_id, "cancelled", None, None)
-            elif result_payload and result_payload.get("error"):
-                self.handle_job_completion(
-                    job_id, "failed", None, str(result_payload.get("error"))
-                )
-            else:
-                result_value = (
-                    result_payload.get("result") if isinstance(result_payload, dict) else None
-                )
-                if result_payload is None and worker.exitcode not in (0, None):
-                    self.handle_job_completion(
-                        job_id,
-                        "failed",
-                        None,
-                        f"Process exited with code {worker.exitcode}",
-                    )
-                else:
-                    self.handle_job_completion(job_id, "completed", result_value, None)
-            completed = True
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Training monitor failed for job %s: %s", job_id, exc)
-            if not completed:
-                self.handle_job_completion(job_id, "failed", None, str(exc))
-        finally:
-            worker.cleanup()
-            with self._thread_lock:
-                if self._worker is worker:
-                    self._worker = None
-                if self._thread is threading.current_thread():
-                    self._thread = None
 
     # ---------------------------------------------------------------------
     def handle_process_message(self, job_id: str, message: dict[str, Any]) -> None:
@@ -784,185 +563,6 @@ class TrainingManager:
         # Add to history for plotting
         history_entry = {"epoch": epoch, **metrics}
         self.state.add_history(history_entry)
-
-    # ---------------------------------------------------------------------
-    def _should_stop(self) -> bool:
-        return self.state.stop_requested
-
-    # ---------------------------------------------------------------------
-    @staticmethod
-    def _ensure_required_columns(data: Any, required: list[str]) -> None:
-        if data is None or getattr(data, "empty", True):
-            raise ValueError("Training dataset is empty.")
-        missing = [col for col in required if col not in data.columns]
-        if missing:
-            raise ValueError(f"Training dataset missing columns: {', '.join(missing)}")
-
-    # ---------------------------------------------------------------------
-    def _run_training(
-        self,
-        configuration: dict[str, Any],
-        checkpoint: str | None,
-        additional_epochs: int,
-    ) -> None:
-        try:
-            if checkpoint:
-                self._resume_training_internal(checkpoint, additional_epochs)
-            else:
-                self._start_training_internal(configuration)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("Training pipeline failed")
-            self.state.update(last_error=str(exc))
-        finally:
-            self.state.update(is_training=False, stop_requested=False)
-
-    # ---------------------------------------------------------------------
-    def _start_training_internal(self, configuration: dict[str, Any]) -> None:
-        dataset_label = self.data_serializer.normalize_dataset_label(
-            configuration.get("dataset_label")
-        )
-        train_data, validation_data, metadata = (
-            self.data_serializer.load_training_data(dataset_label)
-        )
-        if train_data.empty or validation_data.empty:
-            raise ValueError("No training data available. Build the dataset first.")
-
-        selected_model = normalize_model_name(configuration.get("selected_model"))
-        model_builder, dataloader_builder = MODEL_COMPONENTS.get(
-            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
-        )
-
-        required_columns = [
-            "temperature",
-            "pressure",
-            "adsorbed_amount",
-            "adsorbate_encoded_SMILE",
-            "adsorbate_molecular_weight",
-            "encoded_adsorbent",
-        ]
-        self._ensure_required_columns(train_data, required_columns)
-        self._ensure_required_columns(validation_data, required_columns)
-
-        train_loader = dataloader_builder(
-            configuration,
-            metadata.model_dump(),
-            shuffle=configuration.get("shuffle_dataset", True),
-        )
-        val_loader = dataloader_builder(
-            configuration, metadata.model_dump(), shuffle=False
-        )
-        train_dataset = train_loader.build_training_dataloader(train_data)
-        validation_dataset = val_loader.build_training_dataloader(validation_data)
-
-        DeviceConfig(configuration).set_device()
-        custom_name = configuration.get("custom_name")
-        if custom_name and isinstance(custom_name, str) and custom_name.strip():
-            # Sanitize custom name to be safe for file system
-            safe_name = "".join(
-                c for c in custom_name.strip() if c.isalnum() or c in ("-", "_")
-            )
-            model_name = safe_name if safe_name else selected_model.replace(" ", "_")
-        else:
-            model_name = selected_model.replace(" ", "_")
-
-        self.model_serializer = ModelSerializer(model_name=model_name)
-        checkpoint_path = self.model_serializer.create_checkpoint_folder()
-
-        wrapper = model_builder(configuration, metadata.model_dump())
-        model = wrapper.get_model(model_summary=True)
-
-        trainer = ModelTraining(configuration, metadata.model_dump())
-        model, history = trainer.train_model(
-            model,
-            train_dataset,
-            validation_dataset,
-            checkpoint_path,
-            should_stop=self._should_stop,
-            on_epoch_end=self._on_epoch_end,
-        )
-
-        self.model_serializer.save_pretrained_model(model, checkpoint_path)
-        self.model_serializer.save_training_configuration(
-            checkpoint_path, history, configuration, metadata
-        )
-
-    # ---------------------------------------------------------------------
-    def _resume_training_internal(
-        self, checkpoint: str, additional_epochs: int
-    ) -> None:
-        (
-            model,
-            train_config,
-            model_metadata,
-            session,
-            checkpoint_path,
-        ) = self.model_serializer.load_checkpoint(checkpoint)
-
-        dataset_label = self.data_serializer.normalize_dataset_label(
-            train_config.get("dataset_label")
-        )
-        current_metadata = self.data_serializer.load_training_metadata(dataset_label)
-        if not self.data_serializer.validate_metadata(current_metadata, model_metadata):
-            raise ValueError(
-                "Training dataset metadata does not match the checkpoint. "
-                "Rebuild the dataset using the checkpoint configuration before resuming."
-            )
-
-        train_data, validation_data, _ = self.data_serializer.load_training_data(
-            dataset_label
-        )
-        if train_data.empty or validation_data.empty:
-            raise ValueError("No training data available. Build the dataset first.")
-
-        selected_model = normalize_model_name(train_config.get("selected_model"))
-        _, dataloader_builder = MODEL_COMPONENTS.get(
-            selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
-        )
-
-        required_columns = [
-            "temperature",
-            "pressure",
-            "adsorbed_amount",
-            "adsorbate_encoded_SMILE",
-            "adsorbate_molecular_weight",
-            "encoded_adsorbent",
-        ]
-        self._ensure_required_columns(train_data, required_columns)
-        self._ensure_required_columns(validation_data, required_columns)
-
-        train_loader = dataloader_builder(
-            train_config,
-            model_metadata.model_dump(),
-            shuffle=train_config.get("shuffle_dataset", True),
-        )
-        val_loader = dataloader_builder(
-            train_config, model_metadata.model_dump(), shuffle=False
-        )
-        train_dataset = train_loader.build_training_dataloader(train_data)
-        validation_dataset = val_loader.build_training_dataloader(validation_data)
-
-        DeviceConfig(train_config).set_device()
-
-        from_epoch = session.get("epochs", 0)
-        total_epochs = from_epoch + additional_epochs
-        self.state.update(current_epoch=from_epoch, total_epochs=total_epochs)
-
-        trainer = ModelTraining(train_config, model_metadata.model_dump())
-        model, history = trainer.resume_training(
-            model,
-            train_dataset,
-            validation_dataset,
-            checkpoint_path,
-            session,
-            additional_epochs,
-            should_stop=self._should_stop,
-            on_epoch_end=self._on_epoch_end,
-        )
-
-        self.model_serializer.save_pretrained_model(model, checkpoint_path)
-        self.model_serializer.save_training_configuration(
-            checkpoint_path, history, train_config, model_metadata
-        )
 
 
 training_manager = TrainingManager()
