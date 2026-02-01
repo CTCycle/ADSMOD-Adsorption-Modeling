@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 from difflib import get_close_matches
 from typing import Any
+from collections.abc import Sequence
 
 import pandas as pd
 
@@ -18,7 +19,7 @@ from ADSMOD.server.services.data.nistads import PubChemClient
 
 ###############################################################################
 class DatasetCompositionService:
-    ADSORPTION_UNITS_MOL_PER_G = "mol/g"
+    ADSORPTION_UNITS_MOL_G = "mol/g"
 
     def __init__(self, allow_pubchem_fetch: bool = False) -> None:
         self.serializer = DataSerializer()
@@ -172,7 +173,7 @@ class DatasetCompositionService:
 
         standardized = self.normalize_measurements(standardized)
         standardized["pressureUnits"] = "pa"
-        standardized["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_PER_G
+        standardized["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_G
         standardized[COLUMN_DATASET_NAME] = dataset_name
         standardized = self.ensure_filename_prefix(
             standardized, self.build_dataset_tag("uploaded", dataset_name)
@@ -188,7 +189,7 @@ class DatasetCompositionService:
         cleaned = adsorption.copy()
         if "adsorptionUnits" in cleaned.columns:
             units = cleaned["adsorptionUnits"].astype("string").str.strip().str.lower()
-            mol_g_mask = units.isin({self.ADSORPTION_UNITS_MOL_PER_G, "mol per g"})
+            mol_g_mask = units.isin({self.ADSORPTION_UNITS_MOL_G, "mol per g"})
         else:
             mol_g_mask = pd.Series(True, index=cleaned.index)
         for column in ("adsorbate_name", "adsorbent_name", "filename"):
@@ -203,7 +204,7 @@ class DatasetCompositionService:
                 cleaned.loc[~mol_g_mask, "adsorbed_amount"] / 1000.0
             )
         cleaned["pressureUnits"] = "pa"
-        cleaned["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_PER_G
+        cleaned["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_G
         cleaned = self.normalize_measurements(cleaned)
         cleaned = self.ensure_filename_prefix(
             cleaned, self.build_dataset_tag("nist", dataset_name)
@@ -211,14 +212,14 @@ class DatasetCompositionService:
         return cleaned
 
     # -------------------------------------------------------------------------
-    def resolve_uploaded_columns(self, columns: list[str]) -> dict[str, str | None]:
+    def resolve_uploaded_columns(self, columns: Sequence[str]) -> dict[str, str | None]:
         resolved: dict[str, str | None] = {}
         for key, aliases in self.upload_column_aliases.items():
             resolved[key] = self.match_column(columns, aliases)
         return resolved
 
     # -------------------------------------------------------------------------
-    def match_column(self, columns: list[str], aliases: list[str]) -> str | None:
+    def match_column(self, columns: Sequence[str], aliases: list[str]) -> str | None:
         normalized = {column: str(column).strip().lower() for column in columns}
         for alias in aliases:
             for column, value in normalized.items():

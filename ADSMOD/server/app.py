@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
-import warnings
-
-# Suppress NumPy warning in Keras/TensorFlow
-warnings.filterwarnings("ignore", message="In the future `np.object` will be defined")
 
 from ADSMOD.server.utils.constants import DOCS_ENDPOINT, ROOT_ENDPOINT
 from ADSMOD.server.utils.variables import env_variables
