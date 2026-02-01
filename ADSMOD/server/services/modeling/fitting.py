@@ -29,7 +29,7 @@ from ADSMOD.server.utils.constants import (
     MODEL_PARAMETER_DEFAULTS,
 )
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.repository.serializer import DataSerializer
+from ADSMOD.server.repositories.serializer import DataSerializer
 from ADSMOD.server.services.modeling.models import AdsorptionModels
 from ADSMOD.server.services.data.processing import (
     AdsorptionDataProcessor,

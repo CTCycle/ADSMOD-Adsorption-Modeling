@@ -11,7 +11,7 @@ import pubchempy as pcp
 
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.repository.isodb import NISTDataSerializer
+from ADSMOD.server.repositories.isodb import NISTDataSerializer
 from ADSMOD.server.services.jobs import job_manager
 
 
