@@ -3,6 +3,7 @@ import { DatasetProcessingWizard } from './DatasetProcessingWizard';
 import {
     buildTrainingDataset,
     clearTrainingDataset,
+    deleteDatasetSource,
     fetchDatasetSources,
     getTrainingDatasetInfo,
 } from '../services';
@@ -118,6 +119,23 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
         }
     };
 
+    const handleDeleteSourceDataset = async (dataset: DatasetSourceInfo) => {
+        if (dataset.source !== 'uploaded') {
+            return;
+        }
+        if (!window.confirm(`Are you sure you want to delete dataset '${dataset.display_name}'?`)) {
+            return;
+        }
+        const { success, message } = await deleteDatasetSource(
+            dataset.source,
+            dataset.dataset_name
+        );
+        if (success) {
+            await loadDatasetSources();
+        } else {
+            alert(`Failed to delete dataset: ${message}`);
+        }
+    };
 
 
     return (
@@ -143,6 +161,7 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                             <span>Name</span>
                             <span>Source</span>
                             <span>Rows</span>
+                            <span className="dataset-actions-header">Actions</span>
                         </div>
                         <div className="dataset-table-body">
                             {datasetSources.length === 0 && (
@@ -169,6 +188,31 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                                         <span>{dataset.display_name}</span>
                                         <span className="dataset-source">{dataset.source}</span>
                                         <span className="dataset-count">{dataset.row_count}</span>
+                                        <span className="dataset-actions-cell">
+                                            <button
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    handleDeleteSourceDataset(dataset);
+                                                }}
+                                                title={
+                                                    dataset.source === 'uploaded'
+                                                        ? 'Delete Dataset'
+                                                        : 'NIST datasets cannot be removed'
+                                                }
+                                                disabled={dataset.source !== 'uploaded'}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: dataset.source === 'uploaded' ? 'pointer' : 'not-allowed',
+                                                    fontSize: '1.1rem',
+                                                    padding: '4px',
+                                                    lineHeight: 1,
+                                                    opacity: dataset.source === 'uploaded' ? 1 : 0.4,
+                                                }}
+                                            >
+                                                🗑️
+                                            </button>
+                                        </span>
                                     </div>
                                 );
                             })}

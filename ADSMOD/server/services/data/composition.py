@@ -101,6 +101,22 @@ class DatasetCompositionService:
         return nist_entries + upload_entries
 
     # -------------------------------------------------------------------------
+    def delete_source(self, source: str, dataset_name: str) -> tuple[bool, str]:
+        source = str(source or "").strip().lower()
+        dataset_name = str(dataset_name or "").strip()
+        if not dataset_name:
+            return False, "Dataset name is required."
+        if source == "nist":
+            return False, "NIST datasets cannot be removed."
+        if source != "uploaded":
+            return False, f"Unsupported dataset source: {source or 'unknown'}."
+
+        removed = self.serializer.delete_raw_dataset(dataset_name)
+        if not removed:
+            return False, f"Dataset '{dataset_name}' was not found."
+        return True, f"Dataset '{dataset_name}' deleted."
+
+    # -------------------------------------------------------------------------
     def compose_datasets(
         self, selections: list[dict[str, Any]]
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:

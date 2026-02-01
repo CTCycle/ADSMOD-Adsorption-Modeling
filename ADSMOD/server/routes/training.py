@@ -20,6 +20,7 @@ from ADSMOD.server.schemas.training import (
     DatasetSelection,
     DatasetSourceInfo,
     DatasetSourcesResponse,
+    ProcessedDatasetInfo,
     ProcessedDatasetsResponse,
     ResumeTrainingRequest,
     TrainingConfigRequest,
@@ -311,6 +312,18 @@ class TrainingEndpoint:
             return DatasetSourcesResponse(datasets=datasets)
         except Exception as e:
             logger.error(f"Error listing dataset sources: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # -------------------------------------------------------------------------
+    def delete_dataset_source(self, source: str, dataset_name: str) -> dict[str, str]:
+        try:
+            composer = DatasetCompositionService()
+            success, message = composer.delete_source(source, dataset_name)
+            if success:
+                return {"status": "success", "message": message}
+            return {"status": "error", "message": message}
+        except Exception as e:
+            logger.error(f"Error deleting dataset source: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
@@ -862,6 +875,11 @@ class TrainingEndpoint:
             self.get_dataset_sources,
             methods=["GET"],
             response_model=DatasetSourcesResponse,
+        )
+        self.router.add_api_route(
+            "/dataset-source",
+            self.delete_dataset_source,
+            methods=["DELETE"],
         )
         self.router.add_api_route(
             "/build-dataset",

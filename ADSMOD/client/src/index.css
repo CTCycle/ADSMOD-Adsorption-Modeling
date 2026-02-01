@@ -1805,7 +1805,7 @@ input:checked+.slider:before {
 
 .dataset-table-header {
   display: grid;
-  grid-template-columns: 1.6fr 0.8fr 0.6fr;
+  grid-template-columns: 1.6fr 0.8fr 0.6fr 0.5fr;
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
   background: var(--slate-50);
@@ -1825,7 +1825,7 @@ input:checked+.slider:before {
 
 .dataset-row {
   display: grid;
-  grid-template-columns: 1.6fr 0.8fr 0.6fr;
+  grid-template-columns: 1.6fr 0.8fr 0.6fr 0.5fr;
   gap: 0.5rem;
   padding: 0.65rem 0.75rem;
   border-top: 1px solid var(--slate-100);
@@ -1859,6 +1859,11 @@ input:checked+.slider:before {
 .dataset-count {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.dataset-actions-header,
+.dataset-actions-cell {
+  text-align: right;
 }
 
 .dataset-table-empty {
