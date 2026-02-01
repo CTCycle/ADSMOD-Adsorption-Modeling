@@ -210,5 +210,35 @@ export async function deleteDataset(
     }
 }
 
+export async function deleteDatasetSource(
+    source: string,
+    datasetName: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/dataset-source?source=${encodeURIComponent(source)}&dataset_name=${encodeURIComponent(datasetName)}`,
+            { method: 'DELETE' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { success: false, message };
+        }
+
+        const result = await response.json();
+        return {
+            success: result.status === 'success',
+            message: result.message || 'Dataset deleted.',
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { success: false, message: error.message };
+        }
+        return { success: false, message: 'An unknown error occurred.' };
+    }
+}
+
 
 

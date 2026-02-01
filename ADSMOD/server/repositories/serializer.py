@@ -101,6 +101,23 @@ class DataSerializer:
         database.save_into_database(merged, "ADSORPTION_DATA")
 
     # -------------------------------------------------------------------------
+    def delete_raw_dataset(self, dataset_name: str) -> bool:
+        dataset_name = str(dataset_name or "").strip()
+        if not dataset_name:
+            return False
+
+        existing = database.load_from_database("ADSORPTION_DATA")
+        if existing.empty or COLUMN_DATASET_NAME not in existing.columns:
+            return False
+
+        filtered = existing[existing[COLUMN_DATASET_NAME] != dataset_name].copy()
+        if len(filtered) == len(existing):
+            return False
+
+        database.save_into_database(filtered, "ADSORPTION_DATA")
+        return True
+
+    # -------------------------------------------------------------------------
     def load_table(
         self,
         table_name: str,
