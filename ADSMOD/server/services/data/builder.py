@@ -116,72 +116,15 @@ class DatasetBuilder:
         processed_data = sequencer.remove_leading_zeros(processed_data)
         processed_data = sequencer.filter_by_sequence_size(processed_data)
 
-        if processed_data.empty:
-            logger.warning("No data remaining after filtering")
-            return {"success": False, "error": "No data remaining after filtering"}
+        error = self._validate_processed_data(processed_data, reference_metadata)
+        if error:
+            return error
 
-        if "adsorbate_SMILE" not in processed_data.columns:
-            logger.warning("Training data missing adsorbate_SMILE column")
-            return {
-                "success": False,
-                "error": "Training data missing adsorbate_SMILE values.",
-            }
-
-        if reference_metadata is not None:
-            mismatches = []
-            for field_name in [
-                "sample_size",
-                "validation_size",
-                "min_measurements",
-                "max_measurements",
-                "smile_sequence_size",
-                "max_pressure",
-                "max_uptake",
-            ]:
-                current_value = getattr(self.config, field_name)
-                reference_value = getattr(reference_metadata, field_name)
-                if current_value != reference_value:
-                    mismatches.append(
-                        f"{field_name}={current_value} (expected {reference_value})"
-                    )
-            if mismatches:
-                logger.warning(
-                    "Dataset build config does not match reference metadata: %s",
-                    ", ".join(mismatches),
-                )
-                return {
-                    "success": False,
-                    "error": "Dataset build config does not match reference metadata.",
-                }
-
-        smile_vocab = {}
-        reference_smile_vocab = None
-        if reference_metadata is not None:
-            reference_smile_vocab = (
-                reference_metadata.smile_vocabulary
-                or reference_metadata.SMILE_vocabulary
-                or {}
-            )
-        if "adsorbate_SMILE" in processed_data.columns:
-            tokenization = SMILETokenization(self.configuration)
-            logger.info("Tokenizing SMILE sequences for adsorbate species")
-            processed_data, smile_vocab = tokenization.process_SMILE_sequences(
-                processed_data, reference_vocabulary=reference_smile_vocab
-            )
-            if processed_data.empty:
-                logger.warning("No data remaining after SMILE tokenization")
-                return {
-                    "success": False,
-                    "error": "No valid SMILE sequences found in the dataset.",
-                }
-            if not smile_vocab:
-                logger.warning("SMILE vocabulary is empty after tokenization")
-                return {
-                    "success": False,
-                    "error": "SMILE vocabulary is empty. Check adsorbate_SMILE values.",
-                }
-            if reference_metadata is not None and reference_smile_vocab:
-                smile_vocab = reference_smile_vocab
+        processed_data, smile_vocab, error = self._tokenize_smiles(
+            processed_data, reference_metadata
+        )
+        if error:
+            return error
 
         logger.info(
             "Generate train and validation datasets through stratified splitting"
@@ -202,33 +145,14 @@ class DatasetBuilder:
 
         training_data = sequencer.PQ_series_padding(training_data)
 
-        adsorbent_vocab = {}
-        if "adsorbent_name" in training_data.columns:
-            if (
-                reference_metadata is not None
-                and reference_metadata.adsorbent_vocabulary
-            ):
-                encoding = AdsorbentEncoder(self.configuration, train_samples)
-                training_data, _ = encoding.encode_adsorbents_from_vocabulary(
-                    training_data, reference_metadata.adsorbent_vocabulary
-                )
-                adsorbent_vocab = reference_metadata.adsorbent_vocabulary
-            else:
-                encoding = AdsorbentEncoder(self.configuration, train_samples)
-                training_data = encoding.encode_adsorbents_by_name(training_data)
-                adsorbent_vocab = encoding.mapping
+        training_data, adsorbent_vocab = self._encode_adsorbents(
+            training_data, train_samples, reference_metadata
+        )
 
         training_data["dataset_name"] = dataset_name
         training_data["dataset_label"] = self.dataset_label
 
-        training_data["pressure"] = training_data["pressure"].apply(json.dumps)
-        training_data["adsorbed_amount"] = training_data["adsorbed_amount"].apply(
-            json.dumps
-        )
-        if "adsorbate_encoded_SMILE" in training_data.columns:
-            training_data["adsorbate_encoded_SMILE"] = training_data[
-                "adsorbate_encoded_SMILE"
-            ].apply(json.dumps)
+        training_data = self._serialize_sequence_columns(training_data)
 
         self.save_training_dataset(training_data)
         self.save_training_metadata(
@@ -248,6 +172,132 @@ class DatasetBuilder:
             "train_samples": len(train_samples),
             "validation_samples": len(validation_samples),
         }
+
+    # -------------------------------------------------------------------------
+    def _validate_processed_data(
+        self,
+        processed_data: pd.DataFrame,
+        reference_metadata: TrainingMetadata | None,
+    ) -> dict[str, Any] | None:
+        if processed_data.empty:
+            logger.warning("No data remaining after filtering")
+            return {"success": False, "error": "No data remaining after filtering"}
+
+        if "adsorbate_SMILE" not in processed_data.columns:
+            logger.warning("Training data missing adsorbate_SMILE column")
+            return {
+                "success": False,
+                "error": "Training data missing adsorbate_SMILE values.",
+            }
+
+        if reference_metadata is None:
+            return None
+
+        mismatches = []
+        for field_name in [
+            "sample_size",
+            "validation_size",
+            "min_measurements",
+            "max_measurements",
+            "smile_sequence_size",
+            "max_pressure",
+            "max_uptake",
+        ]:
+            current_value = getattr(self.config, field_name)
+            reference_value = getattr(reference_metadata, field_name)
+            if current_value != reference_value:
+                mismatches.append(
+                    f"{field_name}={current_value} (expected {reference_value})"
+                )
+        if mismatches:
+            logger.warning(
+                "Dataset build config does not match reference metadata: %s",
+                ", ".join(mismatches),
+            )
+            return {
+                "success": False,
+                "error": "Dataset build config does not match reference metadata.",
+            }
+        return None
+
+    # -------------------------------------------------------------------------
+    def _tokenize_smiles(
+        self,
+        processed_data: pd.DataFrame,
+        reference_metadata: TrainingMetadata | None,
+    ) -> tuple[pd.DataFrame, dict, dict[str, Any] | None]:
+        smile_vocab = {}
+        reference_smile_vocab = None
+        if reference_metadata is not None:
+            reference_smile_vocab = (
+                reference_metadata.smile_vocabulary
+                or reference_metadata.SMILE_vocabulary
+                or {}
+            )
+
+        tokenization = SMILETokenization(self.configuration)
+        logger.info("Tokenizing SMILE sequences for adsorbate species")
+        processed_data, smile_vocab = tokenization.process_SMILE_sequences(
+            processed_data, reference_vocabulary=reference_smile_vocab
+        )
+        if processed_data.empty:
+            logger.warning("No data remaining after SMILE tokenization")
+            return (
+                processed_data,
+                smile_vocab,
+                {
+                    "success": False,
+                    "error": "No valid SMILE sequences found in the dataset.",
+                },
+            )
+        if not smile_vocab:
+            logger.warning("SMILE vocabulary is empty after tokenization")
+            return (
+                processed_data,
+                smile_vocab,
+                {
+                    "success": False,
+                    "error": "SMILE vocabulary is empty. Check adsorbate_SMILE values.",
+                },
+            )
+        if reference_metadata is not None and reference_smile_vocab:
+            smile_vocab = reference_smile_vocab
+        return processed_data, smile_vocab, None
+
+    # -------------------------------------------------------------------------
+    def _encode_adsorbents(
+        self,
+        training_data: pd.DataFrame,
+        train_samples: pd.DataFrame,
+        reference_metadata: TrainingMetadata | None,
+    ) -> tuple[pd.DataFrame, dict]:
+        adsorbent_vocab: dict = {}
+        if "adsorbent_name" not in training_data.columns:
+            return training_data, adsorbent_vocab
+
+        encoding = AdsorbentEncoder(self.configuration, train_samples)
+        if reference_metadata is not None and reference_metadata.adsorbent_vocabulary:
+            training_data, _ = encoding.encode_adsorbents_from_vocabulary(
+                training_data, reference_metadata.adsorbent_vocabulary
+            )
+            adsorbent_vocab = reference_metadata.adsorbent_vocabulary
+        else:
+            training_data = encoding.encode_adsorbents_by_name(training_data)
+            adsorbent_vocab = encoding.mapping
+        return training_data, adsorbent_vocab
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _serialize_sequence_columns(training_data: pd.DataFrame) -> pd.DataFrame:
+        training_data["pressure"] = training_data["pressure"].apply(json.dumps)
+        training_data["adsorbed_amount"] = training_data["adsorbed_amount"].apply(
+            json.dumps
+        )
+        if "adsorbate_encoded_SMILE" in training_data.columns:
+            training_data["adsorbate_encoded_SMILE"] = training_data[
+                "adsorbate_encoded_SMILE"
+            ].apply(json.dumps)
+        return training_data
 
     # -------------------------------------------------------------------------
     def save_training_dataset(self, training_data: pd.DataFrame) -> None:
