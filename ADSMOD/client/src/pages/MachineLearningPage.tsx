@@ -40,7 +40,6 @@ const DEFAULT_CONFIG: TrainingConfig = {
     // Dataset settings
     batch_size: 16,
     shuffle_dataset: true,
-    shuffle_size: 256,
 
     // Model settings
     selected_model: 'SCADS Series',

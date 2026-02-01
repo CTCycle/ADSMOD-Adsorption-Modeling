@@ -53,7 +53,6 @@ def build_training_configuration(
         validation_size=scenario.validation_fraction,
         batch_size=scenario.batch_size,
         shuffle_dataset=True,
-        shuffle_size=200,
         dataset_label=dataset_label,
         dataset_hash=dataset_hash,
         selected_model="SCADS Series",

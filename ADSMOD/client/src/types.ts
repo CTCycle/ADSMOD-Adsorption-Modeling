@@ -137,7 +137,6 @@ export interface TrainingConfig {
     validation_size?: number;    // 0.0-1.0 fraction (deprecated)
     batch_size: number;
     shuffle_dataset: boolean;
-    shuffle_size: number;
     dataset_label?: string;
     dataset_hash?: string | null;
 
