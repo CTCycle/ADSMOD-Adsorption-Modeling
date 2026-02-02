@@ -139,122 +139,182 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
 
 
     return (
-        <div className="dataset-processing-panel">
-            <div className="dataset-processing-header">
-                <div>
-                    <h3>Dataset Processing</h3>
-                    <p>Compose training-ready data from your available sources.</p>
-                </div>
-                <div className="dataset-processing-actions">
-                    <button className="secondary" onClick={loadDatasetSources}>
-                        Refresh
-                    </button>
-                </div>
+        <div className="section-container" style={{ marginTop: '20px' }}>
+            <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', color: 'var(--slate-800)', fontWeight: 600 }}>Dataset Processing</h3>
+                <p style={{ margin: 0, color: 'var(--slate-500)', fontSize: '0.9rem' }}>Compose training-ready data from your available sources.</p>
             </div>
 
-            <div className="dataset-split-layout">
-                {/* Left side: Dataset grid (60%) */}
-                <div className="dataset-split-left">
-
-                    <div className="dataset-table">
-                        <div className="dataset-table-header">
-                            <span>Name</span>
-                            <span>Source</span>
-                            <span>Rows</span>
-                            <span className="dataset-actions-header">Actions</span>
-                        </div>
-                        <div className="dataset-table-body">
-                            {datasetSources.length === 0 && (
-                                <div className="dataset-table-empty">
-                                    No datasets available yet.
-                                </div>
-                            )}
-                            {datasetSources.map((dataset) => {
-                                const key = buildDatasetKey(dataset);
-                                const isSelected = selectedKeys.has(key);
-                                return (
-                                    <div
-                                        key={key}
-                                        className={`dataset-row ${isSelected ? 'selected' : ''}`}
-                                        onClick={() => toggleDataset(dataset)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                toggleDataset(dataset);
-                                            }
-                                        }}
-                                    >
-                                        <span>{dataset.display_name}</span>
-                                        <span className="dataset-source">{dataset.source}</span>
-                                        <span className="dataset-count">{dataset.row_count}</span>
-                                        <span className="dataset-actions-cell">
-                                            <button
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    handleDeleteSourceDataset(dataset);
-                                                }}
-                                                title={
-                                                    dataset.source === 'uploaded'
-                                                        ? 'Delete Dataset'
-                                                        : 'NIST datasets cannot be removed'
-                                                }
-                                                disabled={dataset.source !== 'uploaded'}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    cursor: dataset.source === 'uploaded' ? 'pointer' : 'not-allowed',
-                                                    fontSize: '1.1rem',
-                                                    padding: '4px',
-                                                    lineHeight: 1,
-                                                    opacity: dataset.source === 'uploaded' ? 1 : 0.4,
-                                                }}
-                                            >
-                                                🗑️
-                                            </button>
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+            <div className="training-unified-card" style={{
+                display: 'flex',
+                backgroundColor: 'var(--white, #fff)',
+                borderRadius: '12px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                border: '1px solid var(--slate-200, #e2e8f0)',
+                overflow: 'hidden',
+                height: '400px'
+            }}>
+                {/* LEFT Area (70%) */}
+                <div style={{ flex: '0 0 70%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--slate-200)', minWidth: 0 }}>
+                    {/* Table Controls */}
+                    <div style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        borderBottom: '1px solid var(--slate-100)',
+                        backgroundColor: 'var(--slate-50)'
+                    }}>
+                        <button
+                            className="secondary"
+                            onClick={loadDatasetSources}
+                            style={{
+                                background: 'white',
+                                border: '1px solid var(--slate-300)',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                color: 'var(--slate-600)'
+                            }}
+                        >
+                            🔄 Refresh
+                        </button>
                     </div>
-                    <div className="dataset-selection-summary">
-                        {selectedDatasets.length} selected
+
+                    {/* Scrollable Table Container */}
+                    <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                        <div className="dataset-table" style={{ border: 'none', borderRadius: 0 }}>
+                            <div className="dataset-table-header" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', borderBottom: '1px solid var(--slate-100)' }}>
+                                <span>Name</span>
+                                <span>Source</span>
+                                <span>Rows</span>
+                                <span className="dataset-actions-header">Actions</span>
+                            </div>
+                            <div className="dataset-table-body" style={{ maxHeight: 'none' }}>
+                                {datasetSources.length === 0 && (
+                                    <div className="dataset-table-empty" style={{ padding: '40px' }}>
+                                        No datasets available yet.
+                                    </div>
+                                )}
+                                {datasetSources.map((dataset) => {
+                                    const key = buildDatasetKey(dataset);
+                                    const isSelected = selectedKeys.has(key);
+                                    return (
+                                        <div
+                                            key={key}
+                                            className={`dataset-row ${isSelected ? 'selected' : ''}`}
+                                            onClick={() => toggleDataset(dataset)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    toggleDataset(dataset);
+                                                }
+                                            }}
+                                            style={{
+                                                borderTop: 'none',
+                                                borderBottom: '1px solid var(--slate-50)',
+                                                backgroundColor: isSelected ? 'var(--primary-50, #eff6ff)' : 'transparent',
+                                            }}
+                                        >
+                                            <span style={{ fontWeight: 500, color: 'var(--slate-700)' }}>{dataset.display_name}</span>
+                                            <span className="dataset-source">{dataset.source}</span>
+                                            <span className="dataset-count">{dataset.row_count}</span>
+                                            <span className="dataset-actions-cell">
+                                                <button
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleDeleteSourceDataset(dataset);
+                                                    }}
+                                                    title={
+                                                        dataset.source === 'uploaded'
+                                                            ? 'Delete Dataset'
+                                                            : 'NIST datasets cannot be removed'
+                                                    }
+                                                    disabled={dataset.source !== 'uploaded'}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: dataset.source === 'uploaded' ? 'pointer' : 'not-allowed',
+                                                        fontSize: '1.1rem',
+                                                        padding: '4px',
+                                                        lineHeight: 1,
+                                                        opacity: dataset.source === 'uploaded' ? 1 : 0.4,
+                                                    }}
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Right side: Info + Button (40%) */}
-                <div className="dataset-split-right">
-                    <div className="dataset-info-text">
-                        <p>
-                            Select one or more datasets from the grid, then configure processing
-                            settings to build a unified training dataset. The wizard will guide you
-                            through sampling, filtering, and validation split options.
-                            {datasetInfo?.available && (
-                                <>
-                                    <br /><br />
-                                    <span className="text-sm text-slate-500 font-semibold">
-                                        {' '}Currently: {datasetInfo.train_samples} training samples, {datasetInfo.validation_samples} validation samples.
-                                    </span>
-                                </>
-                            )}
-                        </p>
+                {/* RIGHT: Action Area (30%) */}
+                <div style={{ flex: '0 0 30%', backgroundColor: 'var(--slate-50)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                    <div style={{ marginBottom: '16px', color: 'var(--primary-600)' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                            <path d="M12 12v9" />
+                            <path d="m8 17 4 4 4-4" />
+                        </svg>
                     </div>
-                    <div className="dataset-action-center">
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: 'var(--slate-800)', fontWeight: 600 }}>Training Pipeline</h4>
+                    <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: 'var(--slate-500)', lineHeight: '1.5' }}>
+                        Select datasets to build a unified training source.
+                        {datasetInfo?.available && (
+                            <span style={{ display: 'block', marginTop: '8px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-400)' }}>
+                                Ready: {datasetInfo.train_samples}T / {datasetInfo.validation_samples}V
+                            </span>
+                        )}
+                    </p>
+
+                    <div style={{ width: '100%', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {selectedKeys.size > 0 ? (
+                            <div style={{ padding: '10px', backgroundColor: 'white', borderRadius: '6px', border: '1px solid var(--primary-200)', textAlign: 'left' }}>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--slate-400)', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>Selection</span>
+                                <div style={{ color: 'var(--primary-700)', fontWeight: 500, fontSize: '0.9rem' }}>{selectedKeys.size} datasets selected</div>
+                            </div>
+                        ) : (
+                            <div style={{ height: '58px' }}></div>
+                        )}
+                    </div>
+
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <button
+                            className="primary"
+                            onClick={() => setIsWizardOpen(true)}
+                            disabled={selectedDatasets.length === 0 || isBuilding}
+                            style={{
+                                width: '100%',
+                                padding: '10px',
+                                fontSize: '0.95rem',
+                                borderRadius: '6px',
+                                opacity: (selectedDatasets.length === 0 || isBuilding) ? 0.6 : 1,
+                                cursor: (selectedDatasets.length === 0 || isBuilding) ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            {isBuilding ? 'Building...' : 'Configure Processing'}
+                        </button>
                         <button
                             className="secondary"
                             onClick={handleClearDataset}
                             disabled={!datasetInfo?.available || isBuilding}
                             title="Clear current training dataset"
+                            style={{
+                                width: '100%',
+                                padding: '10px',
+                                fontSize: '0.9rem',
+                                borderRadius: '6px',
+                                border: '1px solid var(--slate-300)',
+                                backgroundColor: 'white',
+                                color: 'var(--slate-700)'
+                            }}
                         >
-                            Clear
-                        </button>
-                        <button
-                            className="primary"
-                            onClick={() => setIsWizardOpen(true)}
-                            disabled={selectedDatasets.length === 0 || isBuilding}
-                        >
-                            {isBuilding ? 'Building...' : 'Configure Processing'}
+                            Clear Dataset
                         </button>
                     </div>
                 </div>

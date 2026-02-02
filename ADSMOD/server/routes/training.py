@@ -32,11 +32,11 @@ from ADSMOD.server.configurations.server import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
 from ADSMOD.server.services.jobs import job_manager
-from ADSMOD.server.services.learning.training.manager import (
+from ADSMOD.server.learning.training.manager import (
     run_training_process,
     training_manager,
 )
-from ADSMOD.server.services.learning.training.worker import ProcessWorker
+from ADSMOD.server.learning.training.worker import ProcessWorker
 from ADSMOD.server.services.data.builder import (
     DatasetBuilder,
     DatasetBuilderConfig,

@@ -5,16 +5,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ADSMOD.server.utils.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
-from ADSMOD.server.services.learning.callbacks import WorkerInterrupted
-from ADSMOD.server.services.learning.device import DeviceConfig
-from ADSMOD.server.services.learning.models.qmodel import SCADSAtomicModel, SCADSModel
-from ADSMOD.server.services.learning.training.fitting import ModelTraining
+from ADSMOD.server.learning.callbacks import WorkerInterrupted
+from ADSMOD.server.learning.device import DeviceConfig
+from ADSMOD.server.learning.models.qmodel import SCADSAtomicModel, SCADSModel
+from ADSMOD.server.learning.training.fitting import ModelTraining
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.repositories.serializer import (
     ModelSerializer,
     TrainingDataSerializer,
 )
-from ADSMOD.server.services.learning.loader import (
+from ADSMOD.server.learning.loader import (
     SCADSAtomicDataLoader,
     SCADSDataLoader,
 )
