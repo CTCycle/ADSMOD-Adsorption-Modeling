@@ -13,7 +13,7 @@ from ADSMOD.server.learning.models.encoders import (
     StateEncoder,
 )
 from ADSMOD.server.learning.models.transformers import TransformerEncoder
-from ADSMOD.server.services.learning.training.scheduler import LinearDecayLRScheduler
+from ADSMOD.server.learning.training.scheduler import LinearDecayLRScheduler
 
 from torch import compile as torch_compile
 
