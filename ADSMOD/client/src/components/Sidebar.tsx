@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                     <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
                     <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z" />
                 </svg>
+                <span className="sidebar-label">Sources</span>
             </button>
             <button
                 className={`sidebar-icon ${currentPage === 'models' ? 'active' : ''}`}
@@ -32,6 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                     <path d="M13 17V5" />
                     <path d="M8 17v-3" />
                 </svg>
+                <span className="sidebar-label">Fitting</span>
             </button>
 
             <button
@@ -45,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                     <path d="M16 16v.01" />
                     <path d="M12 12v.01" />
                 </svg>
+                <span className="sidebar-label">Training</span>
             </button>
 
             <button
@@ -57,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                     <line x1="3" y1="9" x2="21" y2="9" />
                     <line x1="9" y1="21" x2="9" y2="9" />
                 </svg>
+                <span className="sidebar-label">Browser</span>
             </button>
         </div>
     );
