@@ -5,14 +5,14 @@ from typing import Any
 import keras
 from keras import Model, activations, layers, optimizers
 
-from ADSMOD.server.services.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
-from ADSMOD.server.services.learning.models.embeddings import MolecularEmbedding
-from ADSMOD.server.services.learning.models.encoders import (
+from ADSMOD.server.learning.metrics import MaskedMeanSquaredError, MaskedRSquared
+from ADSMOD.server.learning.models.embeddings import MolecularEmbedding
+from ADSMOD.server.learning.models.encoders import (
     PressureSerierEncoder,
     QDecoder,
     StateEncoder,
 )
-from ADSMOD.server.services.learning.models.transformers import TransformerEncoder
+from ADSMOD.server.learning.models.transformers import TransformerEncoder
 from ADSMOD.server.services.learning.training.scheduler import LinearDecayLRScheduler
 
 from torch import compile as torch_compile

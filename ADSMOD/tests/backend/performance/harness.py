@@ -8,8 +8,8 @@ from typing import Any
 
 import psutil
 
-from ADSMOD.server.services.learning.training.manager import run_training_process
-from ADSMOD.server.services.learning.training.worker import ProcessWorker
+from ADSMOD.server.learning.training.manager import run_training_process
+from ADSMOD.server.learning.training.worker import ProcessWorker
 
 
 ###############################################################################

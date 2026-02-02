@@ -1,7 +1,7 @@
 
 import torch
 from torch.utils.data import DataLoader, Dataset
-from ADSMOD.server.services.learning.device import DeviceDataLoader
+from ADSMOD.server.learning.device import DeviceDataLoader
 
 class MockDataset(Dataset):
     def __len__(self):
