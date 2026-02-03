@@ -45,9 +45,6 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
     const isNewTrainingReady = selectedDatasetLabel !== null && !isTraining;
     const isResumeTrainingReady = selectedCheckpointName !== null && !isTraining;
 
-    // Fixed height for the table body container to show approx 6 items
-    const TABLE_BODY_HEIGHT = '280px';
-
     return (
         <div className="training-setup-container" style={{ display: 'flex', flexDirection: 'column', gap: '40px', marginTop: '20px', paddingBottom: '40px' }}>
 
