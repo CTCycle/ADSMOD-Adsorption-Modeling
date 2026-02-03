@@ -93,7 +93,6 @@ class NistEndpoint:
                 request.experiments_fraction,
                 request.guest_fraction,
                 request.host_fraction,
-                job_id,
             ),
             job_id=job_id,
         )
@@ -124,7 +123,7 @@ class NistEndpoint:
         job_manager.start_job(
             job_type=self.JOB_TYPE_PROPERTIES,
             runner=self._run_properties_sync,
-            args=(request.target, job_id),
+            args=(request.target,),
             job_id=job_id,
         )
         logger.info(
