@@ -100,6 +100,32 @@ class TrainingProcessRunner:
             raise ValueError(f"Training dataset missing columns: {', '.join(missing)}")
 
     # ---------------------------------------------------------------------
+    def validate_resume_model(self, model: Any) -> None:
+        optimizer = getattr(model, "optimizer", None)
+        compiled_loss = getattr(model, "compiled_loss", None)
+        if optimizer is None or compiled_loss is None:
+            raise ValueError(
+                "Checkpoint model is not compiled or missing optimizer state. "
+                "Resume requires a compiled model with saved optimizer momentum."
+            )
+        opt_vars: list[Any] = []
+        variables = getattr(optimizer, "variables", None)
+        if variables is not None:
+            if callable(variables):
+                opt_vars = list(variables())
+            else:
+                opt_vars = list(variables)
+        if not opt_vars:
+            get_weights = getattr(optimizer, "get_weights", None)
+            if callable(get_weights):
+                opt_vars = list(get_weights())
+        if not opt_vars:
+            raise ValueError(
+                "Checkpoint optimizer state is empty. Resume requires optimizer "
+                "momentum to be saved in the checkpoint."
+            )
+
+    # ---------------------------------------------------------------------
     def start_training(self, configuration: dict[str, Any]) -> None:
         dataset_label = self.data_serializer.normalize_dataset_label(
             configuration.get("dataset_label")
@@ -180,6 +206,7 @@ class TrainingProcessRunner:
             session,
             checkpoint_path,
         ) = self.model_serializer.load_checkpoint(checkpoint)
+        self.validate_resume_model(model)
 
         dataset_label = self.data_serializer.normalize_dataset_label(
             train_config.get("dataset_label")
@@ -228,7 +255,7 @@ class TrainingProcessRunner:
 
         from_epoch = session.get("epochs", 0)
         total_epochs = from_epoch + additional_epochs
-        send_training_message(
+        self.send_training_message(
             self.worker,
             {
                 "type": "state_update",
@@ -360,6 +387,48 @@ class TrainingManager:
         self.state = TrainingState()
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
+
+    # ---------------------------------------------------------------------
+    def build_history_entries(self, session: dict[str, Any]) -> list[dict[str, Any]]:
+        if not isinstance(session, dict):
+            return []
+        session_history = session.get("history")
+        if not isinstance(session_history, dict):
+            return []
+        lengths = [
+            len(values)
+            for values in session_history.values()
+            if isinstance(values, list)
+        ]
+        if not lengths:
+            return []
+        max_len = max(lengths)
+        entries: list[dict[str, Any]] = []
+        for index in range(max_len):
+            entry: dict[str, Any] = {"epoch": index}
+            for key, values in session_history.items():
+                if not isinstance(values, list) or index >= len(values):
+                    continue
+                value = values[index]
+                if isinstance(value, (int, float)):
+                    entry[key] = float(value)
+            entries.append(entry)
+        return entries
+
+    # ---------------------------------------------------------------------
+    def extract_last_metrics(
+        self, history_entries: list[dict[str, Any]]
+    ) -> dict[str, float]:
+        if not history_entries:
+            return {}
+        last_entry = history_entries[-1]
+        metrics: dict[str, float] = {}
+        for key, value in last_entry.items():
+            if key == "epoch":
+                continue
+            if isinstance(value, (int, float)):
+                metrics[key] = float(value)
+        return metrics
 
     # ---------------------------------------------------------------------
     def handle_process_message(self, job_id: str, message: dict[str, Any]) -> None:

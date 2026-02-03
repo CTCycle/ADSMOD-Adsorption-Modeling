@@ -142,6 +142,8 @@ pre,
 }
 
 .sidebar-icon {
+  width: 80px;
+  min-width: 80px;
   height: auto;
   min-height: 64px;
   display: flex;
