@@ -104,8 +104,12 @@ class ModelTraining:
         history = {"history": new_session.history, "epochs": new_session.epoch[-1] + 1}
         if session and "history" in session:
             merged_history: dict[str, list[Any]] = {}
-            for key, values in session["history"].items():
-                merged_history[key] = list(values) + list(
+            session_history = session.get("history", {})
+            if not isinstance(session_history, dict):
+                session_history = {}
+            history_keys = set(session_history) | set(new_session.history)
+            for key in history_keys:
+                merged_history[key] = list(session_history.get(key, [])) + list(
                     new_session.history.get(key, [])
                 )
             history["history"] = merged_history

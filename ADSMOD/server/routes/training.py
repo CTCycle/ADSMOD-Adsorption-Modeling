@@ -59,7 +59,13 @@ class TrainingSession:
         job_id: str,
         current_epoch: int = 0,
         message: str | None = None,
+        history: list[dict[str, Any]] | None = None,
+        metrics: dict[str, float] | None = None,
     ) -> None:
+        if history is None:
+            history = []
+        if metrics is None:
+            metrics = {}
         training_manager.state.update(
             is_training=True,
             current_epoch=current_epoch,
@@ -68,8 +74,8 @@ class TrainingSession:
             session_id=job_id,
             stop_requested=False,
             last_error=None,
-            metrics={},
-            history=[],
+            metrics=metrics,
+            history=history,
             log=[],
         )
         log_message = message or "Starting training session"
@@ -787,6 +793,10 @@ class TrainingEndpoint:
                 from_epoch_value = session.get("epochs", 0)
                 if isinstance(from_epoch_value, int):
                     from_epoch = from_epoch_value
+            history_entries = training_manager.build_history_entries(
+                session if isinstance(session, dict) else {}
+            )
+            last_metrics = training_manager.extract_last_metrics(history_entries)
 
             job_id = job_manager.start_job(
                 job_type="training",
@@ -803,6 +813,8 @@ class TrainingEndpoint:
                 job_id=job_id,
                 current_epoch=from_epoch,
                 message="Resuming training session",
+                history=history_entries,
+                metrics=last_metrics,
             )
             state_snapshot = training_manager.state.snapshot()
             job_manager.update_result(

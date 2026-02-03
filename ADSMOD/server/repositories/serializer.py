@@ -716,7 +716,11 @@ class ModelSerializer:
 
         checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
-        model = load_model(model_path, custom_objects=custom_objects)
+        model = load_model(
+            model_path,
+            custom_objects=custom_objects,
+            compile=True,
+        )
         configuration, metadata, session = self.load_training_configuration(
             checkpoint_path
         )
