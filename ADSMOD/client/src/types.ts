@@ -190,6 +190,11 @@ export interface CheckpointInfo {
 
 export interface CheckpointFullDetails {
     name: string;
+    epochs_trained?: number | null;
+    final_loss?: number | null;
+    final_accuracy?: number | null;
+    is_compatible?: boolean;
+    created_at?: string;
     configuration: TrainingConfig | null;
     metadata: DatasetFullInfo | null;
     history: Record<string, unknown> | null;

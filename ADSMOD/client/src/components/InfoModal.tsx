@@ -83,7 +83,7 @@ export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, da
 
                 <div className="info-modal-body">
                     {Object.entries(data)
-                        .filter(([key, value]) => value !== null && value !== undefined)
+                        .filter(([, value]) => value !== null && value !== undefined)
                         .map(([key, value]) => (
                             <InfoRow
                                 key={key}

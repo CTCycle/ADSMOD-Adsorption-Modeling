@@ -372,13 +372,6 @@ export const MachineLearningPage: React.FC = () => {
         }
     }, [config, selectedDatasetLabel]);
 
-    const handleResumeTrainingClick = useCallback(() => {
-        if (checkpoints.length > 0) {
-            setResumeConfig(prev => ({ ...prev, checkpoint_name: checkpoints[0].name }));
-        }
-        setShowResumeTrainingWizard(true);
-    }, [checkpoints]);
-
     const handleDatasetSelect = useCallback((label: string) => {
         setSelectedDatasetLabel(label);
         const match = processedDatasets.find((dataset) => dataset.dataset_label === label);
@@ -627,7 +620,6 @@ export const MachineLearningPage: React.FC = () => {
                     onClose={() => setShowNewTrainingWizard(false)}
                     onConfirm={handleConfirmTraining}
                     isLoading={isLoading}
-                    processedDatasets={processedDatasets}
                     selectedDatasetLabel={selectedDatasetLabel || ''}
                 />
             )}
