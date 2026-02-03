@@ -63,7 +63,7 @@ class NISTDatasetBuilder:
 
     # -------------------------------------------------------------------------
     def drop_excluded_columns(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        return dataframe.drop(columns=self.raw_drop_cols, axis=1, errors="ignore")
+        return dataframe.drop(columns=self.raw_drop_cols, errors="ignore")
 
     # -------------------------------------------------------------------------
     def split_by_mixture_complexity(
@@ -211,7 +211,7 @@ class NISTDatasetBuilder:
         else:
             single_dataset = single_component.explode(self.single_explode_cols)
             single_dataset = single_dataset.drop(
-                columns=self.single_drop_cols, axis=1, errors="ignore"
+                columns=self.single_drop_cols, errors="ignore"
             )
             single_dataset = single_dataset.dropna().reset_index(drop=True)
 
@@ -220,7 +220,7 @@ class NISTDatasetBuilder:
         else:
             binary_dataset = binary_mixture.explode(self.binary_explode_cols)
             binary_dataset = binary_dataset.drop(
-                columns=self.binary_drop_cols, axis=1, errors="ignore"
+                columns=self.binary_drop_cols, errors="ignore"
             )
             binary_dataset = binary_dataset.dropna().reset_index(drop=True)
 
