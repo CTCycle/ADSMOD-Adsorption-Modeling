@@ -574,7 +574,9 @@ class NISTDataService:
         }
 
     # -------------------------------------------------------------------------
-    async def enrich_properties(self, target: str, job_id: str | None = None) -> dict[str, int]:
+    async def enrich_properties(
+        self, target: str, job_id: str | None = None
+    ) -> dict[str, int]:
         logger.info("NIST properties enrichment starting (target=%s)", target)
         adsorption_data, guest_data, host_data = await asyncio.to_thread(
             self.serializer.load_adsorption_datasets
@@ -627,7 +629,7 @@ class NISTDataService:
                 "names_matched": 0,
                 "rows_updated": 0,
             }
-        
+
         if job_id:
             job_manager.update_progress(job_id, 10.0)
 

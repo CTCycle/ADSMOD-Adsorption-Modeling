@@ -64,9 +64,7 @@ class TrainingProgressCallback(Callback):
         train_loss = float(logs.get("loss", 0.0))
         accuracy_value = logs.get("MaskedAccuracy", logs.get("accuracy", None))
         train_accuracy = (
-            float(accuracy_value)
-            if isinstance(accuracy_value, (int, float))
-            else None
+            float(accuracy_value) if isinstance(accuracy_value, (int, float)) else None
         )
         masked_r2_value = logs.get("MaskedR2", logs.get("masked_r2", None))
         train_masked_r2 = (

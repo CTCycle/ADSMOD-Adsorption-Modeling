@@ -264,8 +264,6 @@ class DataSerializer:
         return trimmed.drop(columns=drop_columns, errors="ignore")
 
 
-
-
 ###############################################################################
 class TrainingDataSerializer:
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
@@ -333,7 +331,7 @@ class TrainingDataSerializer:
                 filtered_meta = existing_meta[
                     existing_meta["dataset_label"] != dataset_label
                 ]
-                database.save_into_database(filtered_meta, "TRAINING_METADATA") 
+                database.save_into_database(filtered_meta, "TRAINING_METADATA")
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -509,7 +507,7 @@ class TrainingDataSerializer:
             ]
 
         training_data = self.coerce_sequence_columns(training_data)
-        
+
         train_data = training_data[training_data["split"] == "train"]
         val_data = training_data[training_data["split"] == "validation"]
 
@@ -517,7 +515,7 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def list_processed_datasets() -> list[dict[str, Any]]:        
+    def list_processed_datasets() -> list[dict[str, Any]]:
         metadata_df = database.load_from_database("TRAINING_METADATA")
         if metadata_df.empty:
             return []
@@ -541,7 +539,7 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def compute_metadata_hash(metadata: TrainingMetadata) -> str:       
+    def compute_metadata_hash(metadata: TrainingMetadata) -> str:
         if not metadata:
             return ""
 
@@ -686,8 +684,8 @@ class ModelSerializer:
         with open(metadata_path, encoding="utf-8") as f:
             metadata_dict = json.load(f)
             if "dataset_hash" not in metadata_dict:
-                alias_value = (
-                    metadata_dict.get("hashcode") or metadata_dict.get("hash_code")
+                alias_value = metadata_dict.get("hashcode") or metadata_dict.get(
+                    "hash_code"
                 )
                 if alias_value:
                     metadata_dict["dataset_hash"] = alias_value

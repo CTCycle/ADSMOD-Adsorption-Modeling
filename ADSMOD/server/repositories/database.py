@@ -8,7 +8,6 @@ import pandas as pd
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.repositories.postgres import PostgresRepository
-from ADSMOD.server.repositories.schema import Base
 from ADSMOD.server.repositories.sqlite import SQLiteRepository
 
 
@@ -97,7 +96,7 @@ class ADSMODDatabase:
         return self.backend.count_rows(table_name)
 
     # -------------------------------------------------------------------------
-    def get_unique_dataset_names(self) -> list[str]:        
+    def get_unique_dataset_names(self) -> list[str]:
         try:
             df = self.backend.load_from_database("ADSORPTION_DATA")
             if df.empty or "dataset_name" not in df.columns:

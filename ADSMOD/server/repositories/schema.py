@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import (    
+from sqlalchemy import (
     Column,
     Float,
     Integer,

@@ -6,6 +6,7 @@ import torch
 from ADSMOD.server.utils.logger import logger
 from keras.mixed_precision import set_global_policy
 
+
 ###############################################################################
 class DeviceConfig:
     def __init__(self, configuration: dict[str, Any]) -> None:
@@ -32,6 +33,7 @@ class DeviceConfig:
             logger.info("CPU is set as the active device.")
 
         return device
+
 
 ###############################################################################
 class DeviceDataLoader:
