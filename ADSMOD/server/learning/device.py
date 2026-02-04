@@ -13,7 +13,7 @@ class DeviceConfig:
 
     # -------------------------------------------------------------------------
     def set_device(self) -> torch.device:
-        use_gpu = self.configuration.get("use_device_GPU", False)
+        use_gpu = self.configuration.get("use_device_GPU", True)
         device_name = "cuda" if use_gpu else "cpu"
         mixed_precision = self.configuration.get("use_mixed_precision", False)
 

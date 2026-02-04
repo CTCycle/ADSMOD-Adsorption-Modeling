@@ -198,11 +198,6 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                             />
                                             <div className="wizard-toggle-column">
                                                 <Checkbox
-                                                    label="Use GPU"
-                                                    checked={config.use_device_GPU}
-                                                    onChange={(value) => updateConfig('use_device_GPU', value)}
-                                                />
-                                                <Checkbox
                                                     label="Save Checkpoints"
                                                     checked={config.save_checkpoints}
                                                     onChange={(value) => updateConfig('save_checkpoints', value)}
@@ -334,8 +329,6 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                             <strong>{config.batch_size}</strong>
                                             <span>Save checkpoints</span>
                                             <strong>{config.save_checkpoints ? 'Enabled' : 'Disabled'}</strong>
-                                            <span>Use GPU</span>
-                                            <strong>{config.use_device_GPU ? 'Enabled' : 'Disabled'}</strong>
                                             <span>LR scheduler</span>
                                             <strong>{config.use_lr_scheduler ? 'Enabled' : 'Disabled'}</strong>
                                             {config.use_lr_scheduler && (
