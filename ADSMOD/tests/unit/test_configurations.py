@@ -1,11 +1,10 @@
-import pytest
 from ADSMOD.server.utils.constants import CONFIGURATION_FILE
 from ADSMOD.server.configurations import load_configurations
 from ADSMOD.server.configurations.server import (
-    TrainingSettings,
     build_training_settings,
     get_server_settings,
 )
+
 
 def test_json_structure_matches_settings():
     """
@@ -14,14 +13,17 @@ def test_json_structure_matches_settings():
     """
     settings = get_server_settings()
     config_dict = load_configurations(CONFIGURATION_FILE)
-    
+
     training_json = config_dict.get("training", {})
-    
+
     # Assert all keys in JSON training section exist in TrainingSettings
-    # We won't assert exact values because user might change JSON, 
+    # We won't assert exact values because user might change JSON,
     # but we check that the fields are present in the dataclass
     for key in training_json:
-        assert hasattr(settings.training, key), f"TrainingSettings missing field for JSON key: {key}"
+        assert hasattr(settings.training, key), (
+            f"TrainingSettings missing field for JSON key: {key}"
+        )
+
 
 def test_config_values_are_respected():
     """
@@ -40,9 +42,9 @@ def test_config_values_are_respected():
         "polling_interval": 0.0,
         "plot_update_batch_interval": 7,
     }
-    
+
     training_settings = build_training_settings(mock_payload)
-    
+
     assert training_settings.use_jit is True
     assert training_settings.jit_backend == "cudagraphs"
     assert training_settings.use_mixed_precision is True
@@ -53,13 +55,14 @@ def test_config_values_are_respected():
     assert training_settings.polling_interval == 0.0
     assert training_settings.plot_update_batch_interval == 7
 
+
 def test_default_fallbacks():
     """
     Verify that missing values fallback to safe defaults.
     """
     empty_payload = {}
     training_settings = build_training_settings(empty_payload)
-    
+
     # Defaults defined in server.py
     assert training_settings.use_jit is False
     assert training_settings.jit_backend == "inductor"

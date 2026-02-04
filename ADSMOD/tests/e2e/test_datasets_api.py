@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 
 from playwright.sync_api import APIRequestContext
 

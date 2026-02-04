@@ -87,12 +87,8 @@ def resolve_perf_limits(strict_mode: bool) -> dict[str, float]:
                 os.getenv("PERF_TEST_STRICT_TIMEOUT_SECONDS", "40")
             ),
             "max_rss_mb": float(os.getenv("PERF_TEST_STRICT_MAX_RSS_MB", "1500")),
-            "max_growth_mb": float(
-                os.getenv("PERF_TEST_STRICT_MAX_GROWTH_MB", "800")
-            ),
-            "baseline_epoch": float(
-                os.getenv("PERF_TEST_STRICT_BASELINE_EPOCH", "1")
-            ),
+            "max_growth_mb": float(os.getenv("PERF_TEST_STRICT_MAX_GROWTH_MB", "800")),
+            "baseline_epoch": float(os.getenv("PERF_TEST_STRICT_BASELINE_EPOCH", "1")),
             "poll_interval_seconds": float(
                 os.getenv("PERF_TEST_STRICT_POLL_INTERVAL_SECONDS", "0.1")
             ),
@@ -108,9 +104,7 @@ def resolve_perf_limits(strict_mode: bool) -> dict[str, float]:
         "poll_interval_seconds": float(
             os.getenv("PERF_TEST_POLL_INTERVAL_SECONDS", "0.1")
         ),
-        "stop_grace_seconds": float(
-            os.getenv("PERF_TEST_STOP_GRACE_SECONDS", "8")
-        ),
+        "stop_grace_seconds": float(os.getenv("PERF_TEST_STOP_GRACE_SECONDS", "8")),
     }
 
 

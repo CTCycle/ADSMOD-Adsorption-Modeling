@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
 from ADSMOD.server.utils.constants import DOCS_ENDPOINT, ROOT_ENDPOINT
-from ADSMOD.server.utils.variables import env_variables
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.routes.datasets import router as dataset_router
 from ADSMOD.server.routes.fitting import router as fit_router

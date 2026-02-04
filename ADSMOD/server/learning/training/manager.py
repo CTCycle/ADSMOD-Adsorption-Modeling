@@ -45,9 +45,7 @@ class TrainingProcessRunner:
         return False
 
     # ---------------------------------------------------------------------
-    def on_epoch_end(
-        self, epoch: int, total_epochs: int, logs: dict[str, Any]
-    ) -> None:
+    def on_epoch_end(self, epoch: int, total_epochs: int, logs: dict[str, Any]) -> None:
         self.send_training_message(
             self.worker,
             {
@@ -130,15 +128,13 @@ class TrainingProcessRunner:
         dataset_label = self.data_serializer.normalize_dataset_label(
             configuration.get("dataset_label")
         )
-        train_data, validation_data, metadata = (
-            self.data_serializer.load_training_data(dataset_label)
+        train_data, validation_data, metadata = self.data_serializer.load_training_data(
+            dataset_label
         )
         if train_data.empty or validation_data.empty:
             raise ValueError("No training data available. Build the dataset first.")
 
-        selected_model = self.normalize_model_name(
-            configuration.get("selected_model")
-        )
+        selected_model = self.normalize_model_name(configuration.get("selected_model"))
         model_builder, dataloader_builder = MODEL_COMPONENTS.get(
             selected_model, MODEL_COMPONENTS[SCADS_SERIES_MODEL]
         )

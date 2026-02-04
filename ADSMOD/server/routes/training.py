@@ -197,9 +197,7 @@ class TrainingJobRunner:
             return result
         except Exception as exc:  # noqa: BLE001
             if job_manager.should_stop(job_id):
-                training_manager.handle_job_completion(
-                    job_id, "cancelled", None, None
-                )
+                training_manager.handle_job_completion(job_id, "cancelled", None, None)
                 return {}
             training_manager.handle_job_completion(job_id, "failed", None, str(exc))
             raise
@@ -243,9 +241,7 @@ class TrainingJobRunner:
             return result
         except Exception as exc:  # noqa: BLE001
             if job_manager.should_stop(job_id):
-                training_manager.handle_job_completion(
-                    job_id, "cancelled", None, None
-                )
+                training_manager.handle_job_completion(job_id, "cancelled", None, None)
                 return {}
             training_manager.handle_job_completion(job_id, "failed", None, str(exc))
             raise
@@ -640,14 +636,20 @@ class TrainingEndpoint:
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     # -------------------------------------------------------------------------
-    def get_checkpoint_details(self, checkpoint_name: str) -> CheckpointFullDetailsResponse:
+    def get_checkpoint_details(
+        self, checkpoint_name: str
+    ) -> CheckpointFullDetailsResponse:
         try:
             checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint_name)
             if not os.path.isdir(checkpoint_path):
-                raise HTTPException(status_code=404, detail=f"Checkpoint {checkpoint_name} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"Checkpoint {checkpoint_name} not found"
+                )
 
-            configuration, metadata, history = training_manager.model_serializer.load_training_configuration(
-                checkpoint_path
+            configuration, metadata, history = (
+                training_manager.model_serializer.load_training_configuration(
+                    checkpoint_path
+                )
             )
 
             return CheckpointFullDetailsResponse(
@@ -665,12 +667,18 @@ class TrainingEndpoint:
     # -------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint_name: str) -> dict[str, str]:
         try:
-            success = training_manager.model_serializer.delete_checkpoint(checkpoint_name)
+            success = training_manager.model_serializer.delete_checkpoint(
+                checkpoint_name
+            )
             if success:
-                return {"status": "success", "message": f"Checkpoint {checkpoint_name} deleted."}
+                return {
+                    "status": "success",
+                    "message": f"Checkpoint {checkpoint_name} deleted.",
+                }
             else:
                 raise HTTPException(
-                    status_code=400, detail=f"Failed to delete checkpoint {checkpoint_name}."
+                    status_code=400,
+                    detail=f"Failed to delete checkpoint {checkpoint_name}.",
                 )
         except Exception as e:
             logger.error(f"Error deleting checkpoint: {e}")
@@ -694,7 +702,9 @@ class TrainingEndpoint:
             )
             configuration = config.model_dump()
             configuration["dataset_label"] = resolved_label
-            configuration["polling_interval"] = server_settings.training.polling_interval
+            configuration["polling_interval"] = (
+                server_settings.training.polling_interval
+            )
 
             logger.info("Starting training with config: %s", configuration)
             metadata = training_manager.data_serializer.load_training_metadata(
@@ -779,8 +789,10 @@ class TrainingEndpoint:
 
             checkpoint_path = os.path.join(CHECKPOINTS_PATH, request.checkpoint_name)
             try:
-                _, _, session = training_manager.model_serializer.load_training_configuration(
-                    checkpoint_path
+                _, _, session = (
+                    training_manager.model_serializer.load_training_configuration(
+                        checkpoint_path
+                    )
                 )
             except Exception as exc:  # noqa: BLE001
                 raise HTTPException(
@@ -822,7 +834,9 @@ class TrainingEndpoint:
                 {
                     "current_epoch": state_snapshot["current_epoch"],
                     "total_epochs": state_snapshot["total_epochs"],
-                    "progress": (from_epoch / total_epochs * 100.0) if total_epochs else 0.0,
+                    "progress": (from_epoch / total_epochs * 100.0)
+                    if total_epochs
+                    else 0.0,
                     "metrics": state_snapshot["metrics"],
                 },
             )
@@ -865,6 +879,7 @@ class TrainingEndpoint:
         except Exception as e:
             logger.error(f"Error stopping training: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
+
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
         state = training_manager.state.snapshot()

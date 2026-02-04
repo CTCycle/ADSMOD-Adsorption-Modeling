@@ -105,9 +105,7 @@ class NistEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    def start_properties_job(
-        self, request: NISTPropertiesRequest
-    ) -> JobStartResponse:
+    def start_properties_job(self, request: NISTPropertiesRequest) -> JobStartResponse:
         if job_manager.is_job_running(self.JOB_TYPE_PROPERTIES):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

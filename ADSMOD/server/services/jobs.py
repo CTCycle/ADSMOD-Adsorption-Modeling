@@ -252,7 +252,9 @@ class JobManager:
             state.result = merged
 
     # -------------------------------------------------------------------------
-    def supports_argument(self, runner: Callable[..., dict[str, Any]], name: str) -> bool:
+    def supports_argument(
+        self, runner: Callable[..., dict[str, Any]], name: str
+    ) -> bool:
         try:
             signature = inspect.signature(runner)
         except (TypeError, ValueError):
@@ -440,7 +442,10 @@ class JobManager:
                     stop_event.set()
                 if stop_requested_at is None:
                     stop_requested_at = monotonic()
-                elif monotonic() - stop_requested_at > config.process_stop_timeout_seconds:
+                elif (
+                    monotonic() - stop_requested_at
+                    > config.process_stop_timeout_seconds
+                ):
                     logger.warning(
                         "Forcing process shutdown for job %s after timeout", job_id
                     )
@@ -482,7 +487,9 @@ class JobManager:
             self.finalize_job(job_id, "failed", None, error)
         else:
             final_result = (
-                result if result is None or isinstance(result, dict) else {"result": result}
+                result
+                if result is None or isinstance(result, dict)
+                else {"result": result}
             )
             with state.lock:
                 merged = {**(state.result or {}), **(final_result or {})}

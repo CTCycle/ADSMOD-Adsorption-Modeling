@@ -1,4 +1,3 @@
-import pytest
 from ADSMOD.server.repositories.serializer import TrainingDataSerializer
 from ADSMOD.server.schemas.training import TrainingMetadata
 

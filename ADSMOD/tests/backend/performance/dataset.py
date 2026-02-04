@@ -78,9 +78,7 @@ def create_synthetic_training_frame(
         row = {
             "dataset_label": spec.dataset_label,
             "dataset_name": spec.dataset_label,
-            "split": "validation"
-            if index in validation_indices
-            else "train",
+            "split": "validation" if index in validation_indices else "train",
             "temperature": float(rng.uniform(250.0, 500.0)),
             "pressure": json.dumps(pressure_values.tolist()),
             "adsorbed_amount": json.dumps(uptake_values.tolist()),
