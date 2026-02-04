@@ -25,7 +25,7 @@ class TrainingConfigRequest(BaseModel):
 
     # Training settings
     epochs: int = Field(default=50, ge=1, le=500)
-    use_device_GPU: bool = False
+    use_device_GPU: bool = True
     use_mixed_precision: bool = False
 
     # LR scheduler settings

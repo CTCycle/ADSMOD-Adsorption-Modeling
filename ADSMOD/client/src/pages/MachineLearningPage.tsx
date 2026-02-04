@@ -50,7 +50,7 @@ const DEFAULT_CONFIG: TrainingConfig = {
 
     // Training settings
     epochs: 2,
-    use_device_GPU: false,
+    use_device_GPU: true,
     use_mixed_precision: false,
 
     // LR scheduler settings
