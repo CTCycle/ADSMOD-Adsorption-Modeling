@@ -703,7 +703,7 @@ class TrainingEndpoint:
             configuration = config.model_dump()
             configuration["dataset_label"] = resolved_label
             configuration["polling_interval"] = (
-                server_settings.training.polling_interval
+                server_settings.jobs.polling_interval
             )
 
             logger.info("Starting training with config: %s", configuration)
@@ -757,7 +757,7 @@ class TrainingEndpoint:
                 status="started",
                 session_id=job_id,
                 message=f"Training started with {config.epochs} epochs. Session: {job_id}",
-                poll_interval=server_settings.training.polling_interval,
+                poll_interval=server_settings.jobs.polling_interval,
             )
 
         except HTTPException:
@@ -848,7 +848,7 @@ class TrainingEndpoint:
                     f"Resuming training from {request.checkpoint_name} "
                     f"with {request.additional_epochs} epochs. Session: {job_id}"
                 ),
-                poll_interval=server_settings.training.polling_interval,
+                poll_interval=server_settings.jobs.polling_interval,
             )
 
         except HTTPException:
@@ -897,7 +897,7 @@ class TrainingEndpoint:
             metrics=state["metrics"],
             history=state["history"],
             log=state["log"],
-            poll_interval=server_settings.training.polling_interval,
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------

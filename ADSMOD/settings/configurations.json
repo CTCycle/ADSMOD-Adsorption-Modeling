@@ -34,6 +34,9 @@
     "preview_row_limit": 20,
     "best_model_metric": "AICc"
   },
+  "jobs": {
+    "polling_interval": 1.0
+  },
   "training": {
     "use_jit": false,
     "jit_backend": "inductor",
@@ -42,7 +45,6 @@
     "prefetch_factor": 1,
     "pin_memory": true,
     "persistent_workers": false,
-    "polling_interval": 1.0,
     "plot_update_batch_interval": 10
   }
 }
