@@ -1,11 +1,11 @@
 import type { DatasetBuildConfig, DatasetBuildResult, DatasetFullInfo, JobStartResponse, JobStatusResponse, ProcessedDatasetInfo } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
-import { JOB_POLL_INTERVAL, pollJobStatus } from './jobs';
+import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
 
 export async function startTrainingDatasetJob(
     config: DatasetBuildConfig
-): Promise<{ jobId: string | null; error: string | null }> {
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
     try {
         const response = await fetchWithTimeout(
             `${API_BASE_URL}/training/build-dataset`,
@@ -24,7 +24,7 @@ export async function startTrainingDatasetJob(
         }
 
         const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, error: null };
+        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
     } catch (error) {
         if (error instanceof Error) {
             return { jobId: null, error: error.message };
@@ -35,6 +35,7 @@ export async function startTrainingDatasetJob(
 
 export async function pollTrainingDatasetJobUntilComplete(
     jobId: string,
+    pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<DatasetBuildResult> {
     while (true) {
@@ -69,7 +70,9 @@ export async function pollTrainingDatasetJobUntilComplete(
             return { success: false, message: 'Dataset build job was cancelled.' };
         }
 
-        await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL));
+        await new Promise((resolve) =>
+            setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval))
+        );
     }
 }
 
@@ -77,11 +80,11 @@ export async function buildTrainingDataset(
     config: DatasetBuildConfig,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<DatasetBuildResult> {
-    const { jobId, error } = await startTrainingDatasetJob(config);
+    const { jobId, pollInterval, error } = await startTrainingDatasetJob(config);
     if (error || !jobId) {
         return { success: false, message: error || 'Failed to start dataset job.' };
     }
-    return pollTrainingDatasetJobUntilComplete(jobId, onProgress);
+    return pollTrainingDatasetJobUntilComplete(jobId, pollInterval, onProgress);
 }
 
 export async function fetchProcessedDatasets(): Promise<{

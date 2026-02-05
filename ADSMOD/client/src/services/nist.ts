@@ -8,7 +8,7 @@ import type {
 } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
-import { JOB_POLL_INTERVAL, pollJobStatus } from './jobs';
+import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
 
 export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPayload | null; error: string | null }> {
     try {
@@ -41,7 +41,7 @@ export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPaylo
 
 export async function startNistFetchJob(
     payload: NISTFetchRequest
-): Promise<{ jobId: string | null; error: string | null }> {
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
     try {
         const response = await fetchWithTimeout(
             `${API_BASE_URL}/nist/fetch`,
@@ -60,7 +60,7 @@ export async function startNistFetchJob(
         }
 
         const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, error: null };
+        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
     } catch (error) {
         if (error instanceof Error) {
             return { jobId: null, error: error.message };
@@ -71,7 +71,7 @@ export async function startNistFetchJob(
 
 export async function startNistPropertiesJob(
     payload: NISTPropertiesRequest
-): Promise<{ jobId: string | null; error: string | null }> {
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
     try {
         const response = await fetchWithTimeout(
             `${API_BASE_URL}/nist/properties`,
@@ -90,7 +90,7 @@ export async function startNistPropertiesJob(
         }
 
         const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, error: null };
+        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
     } catch (error) {
         if (error instanceof Error) {
             return { jobId: null, error: error.message };
@@ -101,6 +101,7 @@ export async function startNistPropertiesJob(
 
 export async function pollNistJobUntilComplete(
     jobId: string,
+    pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ result: Record<string, unknown> | null; error: string | null }> {
     while (true) {
@@ -125,7 +126,9 @@ export async function pollNistJobUntilComplete(
             return { result: null, error: 'Job was cancelled.' };
         }
 
-        await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL));
+        await new Promise((resolve) =>
+            setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval))
+        );
     }
 }
 
@@ -134,11 +137,11 @@ export async function fetchNistData(
     payload: NISTFetchRequest,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
-    const { jobId, error: startError } = await startNistFetchJob(payload);
+    const { jobId, pollInterval, error: startError } = await startNistFetchJob(payload);
     if (startError || !jobId) {
         return { data: null, error: startError || 'Failed to start job.' };
     }
-    const { result, error } = await pollNistJobUntilComplete(jobId, onProgress);
+    const { result, error } = await pollNistJobUntilComplete(jobId, pollInterval, onProgress);
     return { data: result, error };
 }
 
@@ -147,11 +150,11 @@ export async function fetchNistProperties(
     payload: NISTPropertiesRequest,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
-    const { jobId, error: startError } = await startNistPropertiesJob(payload);
+    const { jobId, pollInterval, error: startError } = await startNistPropertiesJob(payload);
     if (startError || !jobId) {
         return { data: null, error: startError || 'Failed to start job.' };
     }
-    const { result, error } = await pollNistJobUntilComplete(jobId, onProgress);
+    const { result, error } = await pollNistJobUntilComplete(jobId, pollInterval, onProgress);
     return { data: result, error };
 }
 

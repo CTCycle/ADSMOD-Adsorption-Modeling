@@ -1,11 +1,11 @@
 import type { FittingPayload, FittingResponse, JobStartResponse, JobStatusResponse } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
-import { JOB_POLL_INTERVAL, pollJobStatus } from './jobs';
+import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
 
 export async function startFittingJob(
     payload: FittingPayload
-): Promise<{ jobId: string | null; error: string | null }> {
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
     try {
         const response = await fetchWithTimeout(
             `${API_BASE_URL}/fitting/run`,
@@ -24,7 +24,7 @@ export async function startFittingJob(
         }
 
         const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, error: null };
+        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
     } catch (error) {
         if (error instanceof Error) {
             return { jobId: null, error: error.message };
@@ -35,6 +35,7 @@ export async function startFittingJob(
 
 export async function pollFittingJobUntilComplete(
     jobId: string,
+    pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ message: string; data: FittingResponse | null }> {
     while (true) {
@@ -67,7 +68,9 @@ export async function pollFittingJobUntilComplete(
             return { message: '[INFO] Job was cancelled.', data: null };
         }
 
-        await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL));
+        await new Promise((resolve) =>
+            setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval))
+        );
     }
 }
 
@@ -76,9 +79,9 @@ export async function startFitting(
     payload: FittingPayload,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ message: string; data: FittingResponse | null }> {
-    const { jobId, error } = await startFittingJob(payload);
+    const { jobId, pollInterval, error } = await startFittingJob(payload);
     if (error || !jobId) {
         return { message: `[ERROR] ${error || 'Failed to start job.'}`, data: null };
     }
-    return pollFittingJobUntilComplete(jobId, onProgress);
+    return pollFittingJobUntilComplete(jobId, pollInterval, onProgress);
 }
