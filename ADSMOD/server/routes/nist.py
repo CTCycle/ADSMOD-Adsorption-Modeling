@@ -26,6 +26,7 @@ from ADSMOD.server.utils.constants import (
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.services.jobs import job_manager
 from ADSMOD.server.services.data.nistads import NISTDataService
+from ADSMOD.server.configurations import server_settings
 
 router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
 
@@ -102,6 +103,7 @@ class NistEndpoint:
             job_type=self.JOB_TYPE_FETCH,
             status="running",
             message="NIST fetch job started.",
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -132,6 +134,7 @@ class NistEndpoint:
             job_type=self.JOB_TYPE_PROPERTIES,
             status="running",
             message=f"NIST properties enrichment job started for {request.target}.",
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -149,6 +152,7 @@ class NistEndpoint:
             progress=job_status["progress"],
             result=job_status["result"],
             error=job_status["error"],
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -165,6 +169,7 @@ class NistEndpoint:
                     progress=j["progress"],
                     result=j["result"],
                     error=j["error"],
+                    poll_interval=server_settings.jobs.polling_interval,
                 )
                 for j in all_jobs
             ]

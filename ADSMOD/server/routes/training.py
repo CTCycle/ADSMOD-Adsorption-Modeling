@@ -426,6 +426,7 @@ class TrainingEndpoint:
             job_type=self.DATASET_JOB_TYPE,
             status="running",
             message="Dataset build job started.",
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -440,6 +441,7 @@ class TrainingEndpoint:
             progress=job_status["progress"],
             result=job_status["result"],
             error=job_status["error"],
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -454,6 +456,7 @@ class TrainingEndpoint:
                     progress=j["progress"],
                     result=j["result"],
                     error=j["error"],
+                    poll_interval=server_settings.jobs.polling_interval,
                 )
                 for j in all_jobs
             ]

@@ -105,6 +105,7 @@ export interface JobStatusResponse {
     progress: number;
     result?: Record<string, unknown>;
     error?: string;
+    poll_interval?: number;
 }
 
 export type ParameterKey = [string, string, string]; // [model, parameter, bound_type]

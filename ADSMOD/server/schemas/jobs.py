@@ -11,6 +11,7 @@ class JobStartResponse(BaseModel):
     job_type: str
     status: str
     message: str
+    poll_interval: float | None = None
 
 
 ###############################################################################
@@ -21,6 +22,7 @@ class JobStatusResponse(BaseModel):
     progress: float
     result: dict | None = None
     error: str | None = None
+    poll_interval: float | None = None
 
 
 ###############################################################################
