@@ -21,6 +21,12 @@ CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 
 
 ###############################################################################
+FASTAPI_TITLE = "ADSMOD Model Fitting Backend"
+FASTAPI_DESCRIPTION = "FastAPI backend"
+FASTAPI_VERSION = "1.2.0"
+
+
+###############################################################################
 COLUMN_ID = "id"
 COLUMN_EXPERIMENT = "experiment"
 COLUMN_EXPERIMENT_NAME = "experiment name"

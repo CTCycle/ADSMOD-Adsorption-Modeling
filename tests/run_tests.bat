@@ -14,7 +14,7 @@ echo.
 
 REM Store the script directory
 set "SCRIPT_DIR=%~dp0"
-set "PROJECT_ROOT=%SCRIPT_DIR%..\\.."
+set "PROJECT_ROOT=%SCRIPT_DIR%.."
 set "ADSMOD_DIR=%PROJECT_ROOT%\\ADSMOD"
 set "PYTHON_EXE=%PROJECT_ROOT%\\ADSMOD\\resources\\runtimes\\python\\python.exe"
 set "VENV_PYTHON=%PROJECT_ROOT%\\.venv\\Scripts\\python.exe"
@@ -176,7 +176,7 @@ echo ============================================================
 echo.
 
 cd /d "%PROJECT_ROOT%"
-"%PYTHON_CMD%" -m pytest "%ADSMOD_DIR%\\tests" -v --tb=short %*
+"%PYTHON_CMD%" -m pytest "%PROJECT_ROOT%\\tests" -v --tb=short %*
 set "TEST_RESULT=%ERRORLEVEL%"
 
 echo.
