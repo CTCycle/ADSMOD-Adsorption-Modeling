@@ -1,11 +1,6 @@
 {
-  "fastapi": {
-    "title": "ADSMOD Model Fitting Backend",
-    "description": "FastAPI backend",
-    "version": "1.2.0"
-  },
   "database": {
-    "embedded_database": true,
+    "embedded_database": false,
     "engine": "postgres",
     "host": "localhost",
     "port": 5432,
@@ -15,7 +10,7 @@
     "ssl": false,
     "ssl_ca": null,
     "connect_timeout": 30,
-    "insert_batch_size": 1000,
+    "insert_batch_size": 20000,
     "select_page_size": 2000,
     "browser_page_size": 1000
   },
