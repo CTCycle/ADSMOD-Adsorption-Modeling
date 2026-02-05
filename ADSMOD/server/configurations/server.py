@@ -65,6 +65,12 @@ class FittingSettings:
 
 ###############################################################################
 @dataclass(frozen=True)
+class JobSettings:
+    polling_interval: float
+
+
+###############################################################################
+@dataclass(frozen=True)
 class TrainingSettings:
     use_jit: bool
     jit_backend: str
@@ -73,7 +79,6 @@ class TrainingSettings:
     prefetch_factor: int
     pin_memory: bool
     persistent_workers: bool
-    polling_interval: float
     plot_update_batch_interval: int
 
 
@@ -84,6 +89,7 @@ class ServerSettings:
     datasets: DatasetSettings
     nist: NISTSettings
     fitting: FittingSettings
+    jobs: JobSettings
     training: TrainingSettings
 
 
@@ -203,6 +209,13 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
 
 
 # -------------------------------------------------------------------------
+def build_job_settings(payload: dict[str, Any] | Any) -> JobSettings:
+    return JobSettings(
+        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
+    )
+
+
+# -------------------------------------------------------------------------
 def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     return TrainingSettings(
         use_jit=coerce_bool(payload.get("use_jit"), False),
@@ -212,7 +225,6 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
         prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
         pin_memory=coerce_bool(payload.get("pin_memory"), True),
         persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
-        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
         plot_update_batch_interval=coerce_int(
             payload.get("plot_update_batch_interval"), 10, minimum=1
         ),
@@ -225,6 +237,7 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     dataset_payload = ensure_mapping(payload.get("datasets"))
     nist_payload = ensure_mapping(payload.get("nist"))
     fitting_payload = ensure_mapping(payload.get("fitting"))
+    jobs_payload = ensure_mapping(payload.get("jobs"))
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
@@ -232,6 +245,7 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
         datasets=build_dataset_settings(dataset_payload),
         nist=build_nist_settings(nist_payload),
         fitting=build_fitting_settings(fitting_payload),
+        jobs=build_job_settings(jobs_payload),
         training=build_training_settings(training_payload),
     )
 

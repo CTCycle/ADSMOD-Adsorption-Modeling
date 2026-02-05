@@ -9,6 +9,7 @@ from ADSMOD.server.learning.callbacks import WorkerInterrupted
 from ADSMOD.server.learning.device import DeviceConfig
 from ADSMOD.server.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.learning.training.fitting import ModelTraining
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.repositories.serializer import (
     ModelSerializer,
@@ -202,6 +203,7 @@ class TrainingProcessRunner:
             session,
             checkpoint_path,
         ) = self.model_serializer.load_checkpoint(checkpoint)
+        train_config["polling_interval"] = server_settings.jobs.polling_interval
         self.validate_resume_model(model)
 
         dataset_label = self.data_serializer.normalize_dataset_label(
