@@ -150,19 +150,19 @@ class DatasetService:
         dataset_name = dataset_name.strip()
 
         serializer = DataSerializer()
-        dataframe = serializer.load_table("ADSORPTION_DATA")
+        dataframe = serializer.load_table("adsorption_data")
         if dataframe.empty:
             raise ValueError("No datasets found in the database.")
 
-        if "dataset_name" in dataframe.columns:
-            filtered = dataframe[dataframe["dataset_name"] == dataset_name].copy()
+        if "name" in dataframe.columns:
+            filtered = dataframe[dataframe["name"] == dataset_name].copy()
         else:
             filtered = dataframe.copy()
 
         if filtered.empty:
             raise ValueError(f"Dataset '{dataset_name}' was not found.")
 
-        cleaned = filtered.drop(columns=["dataset_name"], errors="ignore")
+        cleaned = filtered.drop(columns=["name"], errors="ignore")
         serializable = cleaned.where(pd.notna(cleaned), None)
         dataset_payload: dict[str, Any] = {
             "dataset_name": dataset_name,
@@ -176,16 +176,16 @@ class DatasetService:
     # -------------------------------------------------------------------------
     def get_dataset_names(self) -> list[str]:
         serializer = DataSerializer()
-        dataframe = serializer.load_table("ADSORPTION_DATA")
-        if dataframe.empty or "dataset_name" not in dataframe.columns:
+        dataframe = serializer.load_table("adsorption_data")
+        if dataframe.empty or "name" not in dataframe.columns:
             return []
-        names = dataframe["dataset_name"].dropna().unique().tolist()
+        names = dataframe["name"].dropna().unique().tolist()
         cleaned = [str(name).strip() for name in names if str(name).strip()]
         return sorted(cleaned)
 
     # -------------------------------------------------------------------------
     def save_to_database(self, payload: dict[str, Any]) -> None:
-        """Persist uploaded dataset to ADSORPTION_DATA table.
+        """Persist uploaded dataset to adsorption_data table.
 
         Keyword arguments:
         payload -- Dataset payload containing records, columns, and dataset_name.
@@ -198,6 +198,6 @@ class DatasetService:
             return
 
         df = pd.DataFrame.from_records(records, columns=columns)
-        df["dataset_name"] = dataset_name
+        df["name"] = dataset_name
         serializer = DataSerializer()
         serializer.save_raw_dataset(df)

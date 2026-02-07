@@ -31,7 +31,8 @@ def map_values(
 class PressureConversion:
     def __init__(self) -> None:
         self.P_COL = "pressure"
-        self.P_UNIT_COL = "pressureUnits"
+        self.P_UNIT_COL = "pressure_units"
+        self.P_UNIT_FALLBACK_COL = "pressureUnits"
         self.conversions: dict[
             str,
             Callable[
@@ -107,8 +108,14 @@ class PressureConversion:
 
     # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        unit_column = None
+        if self.P_UNIT_COL in dataframe.columns:
+            unit_column = self.P_UNIT_COL
+        elif self.P_UNIT_FALLBACK_COL in dataframe.columns:
+            unit_column = self.P_UNIT_FALLBACK_COL
+
         if (
-            self.P_UNIT_COL not in dataframe.columns
+            unit_column is None
             or self.P_COL not in dataframe.columns
         ):
             logger.debug("Pressure conversion skipped (missing pressure columns).")
@@ -116,11 +123,11 @@ class PressureConversion:
 
         dataframe[self.P_COL] = dataframe.apply(
             lambda row: self.conversions.get(
-                self.normalize_unit(row.get(self.P_UNIT_COL)), lambda x: x
+                self.normalize_unit(row.get(unit_column)), lambda x: x
             )(row.get(self.P_COL)),
             axis=1,
         )
-        dataframe.drop(columns=self.P_UNIT_COL, inplace=True)
+        dataframe.drop(columns=unit_column, inplace=True)
 
         return dataframe
 
@@ -130,7 +137,8 @@ class PressureConversion:
 class UptakeConversion:
     def __init__(self) -> None:
         self.Q_COL = "adsorbed_amount"
-        self.Q_UNIT_COL = "adsorptionUnits"
+        self.Q_UNIT_COL = "adsorption_units"
+        self.Q_UNIT_FALLBACK_COL = "adsorptionUnits"
         self.mol_weight = "adsorbate_molecular_weight"
 
         self.weight_units = {
@@ -202,9 +210,7 @@ class UptakeConversion:
     def convert_g_adsorbate_per_100g_adsorbent(
         q_vals: list[int | float] | int | float | None, mol_weight: float
     ) -> list[float] | float | None:
-        return map_values(
-            q_vals, lambda value: (value / 100.0) / float(mol_weight) * 1000.0
-        )
+        return UptakeConversion.convert_wt_percent(q_vals, mol_weight)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -215,15 +221,21 @@ class UptakeConversion:
 
     # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        unit_column = None
+        if self.Q_UNIT_COL in dataframe.columns:
+            unit_column = self.Q_UNIT_COL
+        elif self.Q_UNIT_FALLBACK_COL in dataframe.columns:
+            unit_column = self.Q_UNIT_FALLBACK_COL
+
         if (
-            self.Q_UNIT_COL not in dataframe.columns
+            unit_column is None
             or self.Q_COL not in dataframe.columns
         ):
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 
         def convert_row(row: pd.Series) -> list[float] | float | None:
-            unit = self.normalize_unit(row.get(self.Q_UNIT_COL))
+            unit = self.normalize_unit(row.get(unit_column))
             values = row.get(self.Q_COL)
             converter = self.conversions.get(unit)
             if converter is None:
@@ -236,7 +248,7 @@ class UptakeConversion:
             return converter(values)
 
         dataframe[self.Q_COL] = dataframe.apply(convert_row, axis=1)
-        dataframe.drop(columns=self.Q_UNIT_COL, inplace=True)
+        dataframe.drop(columns=unit_column, inplace=True)
 
         return dataframe
 

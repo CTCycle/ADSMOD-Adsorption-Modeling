@@ -13,7 +13,7 @@ from ADSMOD.server.utils.constants import (
 MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     "LANGMUIR": {
         "prefix": "Langmuir",
-        "table": "ADSORPTION_LANGMUIR",
+        "table": "adsorption_langmuir",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -27,7 +27,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "SIPS": {
         "prefix": "Sips",
-        "table": "ADSORPTION_SIPS",
+        "table": "adsorption_sips",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -43,7 +43,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "FREUNDLICH": {
         "prefix": "Freundlich",
-        "table": "ADSORPTION_FREUNDLICH",
+        "table": "adsorption_freundlich",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -57,7 +57,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "TEMKIN": {
         "prefix": "Temkin",
-        "table": "ADSORPTION_TEMKIN",
+        "table": "adsorption_temkin",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -71,7 +71,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "TOTH": {
         "prefix": "Toth",
-        "table": "ADSORPTION_TOTH",
+        "table": "adsorption_toth",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -87,7 +87,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "DUBININ_RADUSHKEVICH": {
         "prefix": "Dubinin-Radushkevich",
-        "table": "ADSORPTION_DUBININ_RADUSHKEVICH",
+        "table": "adsorption_dubinin_radushkevich",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -101,7 +101,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "DUAL_SITE_LANGMUIR": {
         "prefix": "Dual-Site Langmuir",
-        "table": "ADSORPTION_DUAL_SITE_LANGMUIR",
+        "table": "adsorption_dual_site_langmuir",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -119,7 +119,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "REDLICH_PETERSON": {
         "prefix": "Redlich-Peterson",
-        "table": "ADSORPTION_REDLICH_PETERSON",
+        "table": "adsorption_redlich_peterson",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,
@@ -135,7 +135,7 @@ MODEL_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "JOVANOVIC": {
         "prefix": "Jovanovic",
-        "table": "ADSORPTION_JOVANOVIC",
+        "table": "adsorption_jovanovic",
         "fields": {
             "optimization_method": COLUMN_OPTIMIZATION_METHOD,
             "score": COLUMN_SCORE,

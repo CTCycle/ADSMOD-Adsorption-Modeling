@@ -75,7 +75,13 @@ class FittingEndpoint:
         if missing:
             raise ValueError(f"NIST dataset missing required columns: {missing}")
 
-        cleaned = nist_df.copy()
+        cleaned = nist_df.copy().rename(
+            columns={
+                "name": "filename",
+                "adsorption_units": "adsorptionUnits",
+                "pressure_units": "pressureUnits",
+            }
+        )
         cleaned = cleaned.dropna(subset=required_cols)
         cleaned["filename"] = cleaned["filename"].astype("string").str.strip()
         cleaned["adsorbent_name"] = (
@@ -88,8 +94,15 @@ class FittingEndpoint:
         cleaned = cleaned[cleaned["adsorbent_name"] != ""]
         cleaned = cleaned[cleaned["adsorbate_name"] != ""]
 
-        if not adsorbates_df.empty and "name" in adsorbates_df.columns:
-            weights = adsorbates_df[["name", "adsorbate_molecular_weight"]].copy()
+        if (
+            not adsorbates_df.empty
+            and "name" in adsorbates_df.columns
+            and "molecular_weight" in adsorbates_df.columns
+        ):
+            weights = adsorbates_df[["name", "molecular_weight"]].copy()
+            weights = weights.rename(
+                columns={"molecular_weight": "adsorbate_molecular_weight"}
+            )
             weights["name"] = weights["name"].astype("string").str.strip().str.lower()
             weights = weights.dropna(subset=["name"]).drop_duplicates(
                 subset=["name"], keep="first"

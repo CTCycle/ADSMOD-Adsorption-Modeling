@@ -126,7 +126,6 @@ class NISTDatasetBuilder:
                 str(x[0].get("name", "")).lower() if isinstance(x, list) and x else ""
             )
         )
-        dataframe["composition"] = 1.0
         return dataframe
 
     # -------------------------------------------------------------------------
@@ -214,6 +213,13 @@ class NISTDatasetBuilder:
                 columns=self.single_drop_cols, errors="ignore"
             )
             single_dataset = single_dataset.dropna().reset_index(drop=True)
+            single_dataset = single_dataset.rename(
+                columns={
+                    "filename": "name",
+                    "adsorptionUnits": "adsorption_units",
+                    "pressureUnits": "pressure_units",
+                }
+            )
 
         if binary_mixture.empty:
             binary_dataset = pd.DataFrame()
@@ -223,6 +229,13 @@ class NISTDatasetBuilder:
                 columns=self.binary_drop_cols, errors="ignore"
             )
             binary_dataset = binary_dataset.dropna().reset_index(drop=True)
+            binary_dataset = binary_dataset.rename(
+                columns={
+                    "filename": "name",
+                    "adsorptionUnits": "adsorption_units",
+                    "pressureUnits": "pressure_units",
+                }
+            )
 
         return single_dataset, binary_dataset
 
@@ -258,14 +271,14 @@ class NISTApiClient:
         self.url_guest_index = "https://adsorption.nist.gov/isodb/api/gases.json"
         self.url_host_index = "https://adsorption.nist.gov/matdb/api/materials.json"
         self.extra_guest_columns = [
-            "adsorbate_molecular_weight",
-            "adsorbate_molecular_formula",
-            "adsorbate_SMILE",
+            "molecular_weight",
+            "molecular_formula",
+            "smile_code",
         ]
         self.extra_host_columns = [
-            "adsorbent_molecular_weight",
-            "adsorbent_molecular_formula",
-            "adsorbent_SMILE",
+            "molecular_weight",
+            "molecular_formula",
+            "smile_code",
         ]
 
     # -------------------------------------------------------------------------
@@ -590,7 +603,6 @@ class NISTDataService:
                     data.get("name", pd.Series(dtype=str)),
                 ]
             )
-            prefix = "adsorbate"
         elif target == "host":
             data = host_data.copy()
             name_series = pd.concat(
@@ -599,13 +611,12 @@ class NISTDataService:
                     data.get("name", pd.Series(dtype=str)),
                 ]
             )
-            prefix = "adsorbent"
         else:
             raise ValueError("Target must be 'guest' or 'host'.")
 
-        weight_col = f"{prefix}_molecular_weight"
-        formula_col = f"{prefix}_molecular_formula"
-        smile_col = f"{prefix}_SMILE"
+        weight_col = "molecular_weight"
+        formula_col = "molecular_formula"
+        smile_col = "smile_code"
 
         names = (
             name_series.dropna()

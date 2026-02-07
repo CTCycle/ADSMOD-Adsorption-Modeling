@@ -40,7 +40,7 @@ class TestListTables:
     def test_tables_include_adsorption_data(
         self, api_context: APIRequestContext
     ) -> None:
-        """Verify ADSORPTION_DATA table is in the list."""
+        """Verify adsorption_data table is in the list."""
         # Act
         response = api_context.get("/browser/tables")
 
@@ -48,7 +48,7 @@ class TestListTables:
         assert response.ok
         data = response.json()
         table_names = [t["table_name"] for t in data["tables"]]
-        assert "ADSORPTION_DATA" in table_names
+        assert "adsorption_data" in table_names
 
 
 ###############################################################################
@@ -57,15 +57,15 @@ class TestGetTableData:
 
     # -------------------------------------------------------------------------
     def test_get_table_data_adsorption(self, api_context: APIRequestContext) -> None:
-        """Verify fetching ADSORPTION_DATA table succeeds."""
+        """Verify fetching adsorption_data table succeeds."""
         # Act
-        response = api_context.get("/browser/data/ADSORPTION_DATA")
+        response = api_context.get("/browser/data/adsorption_data")
 
         # Assert
         assert response.ok
         data = response.json()
         assert "table_name" in data
-        assert data["table_name"] == "ADSORPTION_DATA"
+        assert data["table_name"] == "adsorption_data"
         assert "columns" in data
         assert "data" in data
         assert "row_count" in data
@@ -73,14 +73,14 @@ class TestGetTableData:
 
     # -------------------------------------------------------------------------
     def test_get_table_data_langmuir(self, api_context: APIRequestContext) -> None:
-        """Verify fetching ADSORPTION_LANGMUIR table succeeds."""
+        """Verify fetching adsorption_langmuir table succeeds."""
         # Act
-        response = api_context.get("/browser/data/ADSORPTION_LANGMUIR")
+        response = api_context.get("/browser/data/adsorption_langmuir")
 
         # Assert
         assert response.ok
         data = response.json()
-        assert data["table_name"] == "ADSORPTION_LANGMUIR"
+        assert data["table_name"] == "adsorption_langmuir"
 
     # -------------------------------------------------------------------------
     def test_get_invalid_table(self, api_context: APIRequestContext) -> None:

@@ -13,9 +13,7 @@ from ADSMOD.server.utils.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_BEST_MODEL,
-    COLUMN_DATASET_NAME,
     COLUMN_EXPERIMENT,
-    COLUMN_EXPERIMENT_NAME,
     COLUMN_MAX_PRESSURE,
     COLUMN_MAX_UPTAKE,
     COLUMN_MEASUREMENT_COUNT,
@@ -35,29 +33,21 @@ Base = declarative_base()
 
 ###############################################################################
 class AdsorptionData(Base):
-    __tablename__ = "ADSORPTION_DATA"
-    id = Column(Integer, primary_key=True)
-    dataset_name = Column(COLUMN_DATASET_NAME, String)
+    __tablename__ = "adsorption_data"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     experiment = Column(COLUMN_EXPERIMENT, String)
     temperature_K = Column(COLUMN_TEMPERATURE_K, Integer)
     pressure_Pa = Column(COLUMN_PRESSURE_PA, Float)
     uptake_mol_g = Column(COLUMN_UPTAKE_MOL_G, Float)
-    __table_args__ = (
-        UniqueConstraint(
-            COLUMN_DATASET_NAME,
-            COLUMN_EXPERIMENT,
-            COLUMN_TEMPERATURE_K,
-            COLUMN_PRESSURE_PA,
-        ),
-    )
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionProcessedData(Base):
-    __tablename__ = "ADSORPTION_PROCESSED_DATA"
-    id = Column(Integer, primary_key=True)
-    experiment = Column(COLUMN_EXPERIMENT, String)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_processed_data"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     temperature_K = Column(COLUMN_TEMPERATURE_K, Integer)
     pressure_Pa = Column(COLUMN_PRESSURE_PA, JSONSequence)
     uptake_mol_g = Column(COLUMN_UPTAKE_MOL_G, JSONSequence)
@@ -66,14 +56,14 @@ class AdsorptionProcessedData(Base):
     max_pressure = Column(COLUMN_MAX_PRESSURE, Float)
     min_uptake = Column(COLUMN_MIN_UPTAKE, Float)
     max_uptake = Column(COLUMN_MAX_UPTAKE, Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionLangmuirResults(Base):
-    __tablename__ = "ADSORPTION_LANGMUIR"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_langmuir"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -82,14 +72,14 @@ class AdsorptionLangmuirResults(Base):
     k_error = Column("k error", Float)
     qsat = Column("qsat", Float)
     qsat_error = Column("qsat error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionSipsResults(Base):
-    __tablename__ = "ADSORPTION_SIPS"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_sips"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -100,14 +90,14 @@ class AdsorptionSipsResults(Base):
     qsat_error = Column("qsat error", Float)
     exponent = Column("exponent", Float)
     exponent_error = Column("exponent error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionFreundlichResults(Base):
-    __tablename__ = "ADSORPTION_FREUNDLICH"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_freundlich"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -116,14 +106,14 @@ class AdsorptionFreundlichResults(Base):
     k_error = Column("k error", Float)
     exponent = Column("exponent", Float)
     exponent_error = Column("exponent error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionTemkinResults(Base):
-    __tablename__ = "ADSORPTION_TEMKIN"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_temkin"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -132,14 +122,14 @@ class AdsorptionTemkinResults(Base):
     k_error = Column("k error", Float)
     beta = Column("beta", Float)
     beta_error = Column("beta error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionTothResults(Base):
-    __tablename__ = "ADSORPTION_TOTH"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_toth"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -150,14 +140,14 @@ class AdsorptionTothResults(Base):
     qsat_error = Column("qsat error", Float)
     exponent = Column("exponent", Float)
     exponent_error = Column("exponent error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionDubininRadushkevichResults(Base):
-    __tablename__ = "ADSORPTION_DUBININ_RADUSHKEVICH"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_dubinin_radushkevich"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -166,14 +156,14 @@ class AdsorptionDubininRadushkevichResults(Base):
     qsat_error = Column("qsat error", Float)
     beta = Column("beta", Float)
     beta_error = Column("beta error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionDualSiteLangmuirResults(Base):
-    __tablename__ = "ADSORPTION_DUAL_SITE_LANGMUIR"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_dual_site_langmuir"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -186,14 +176,14 @@ class AdsorptionDualSiteLangmuirResults(Base):
     k2_error = Column("k2 error", Float)
     qsat2 = Column("qsat2", Float)
     qsat2_error = Column("qsat2 error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionRedlichPetersonResults(Base):
-    __tablename__ = "ADSORPTION_REDLICH_PETERSON"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_redlich_peterson"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -204,14 +194,14 @@ class AdsorptionRedlichPetersonResults(Base):
     a_error = Column("a error", Float)
     beta = Column("beta", Float)
     beta_error = Column("beta error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionJovanovicResults(Base):
-    __tablename__ = "ADSORPTION_JOVANOVIC"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_jovanovic"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     optimization_method = Column(COLUMN_OPTIMIZATION_METHOD, String)
     score = Column(COLUMN_SCORE, Float)
     aic = Column(COLUMN_AIC, Float)
@@ -220,119 +210,101 @@ class AdsorptionJovanovicResults(Base):
     k_error = Column("k error", Float)
     qsat = Column("qsat", Float)
     qsat_error = Column("qsat error", Float)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class AdsorptionBestFit(Base):
-    __tablename__ = "ADSORPTION_BEST_FIT"
-    id = Column(Integer, primary_key=True)
-    experiment_name = Column(COLUMN_EXPERIMENT_NAME, String)
+    __tablename__ = "adsorption_best_fit"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
     best_model = Column(COLUMN_BEST_MODEL, String)
     worst_model = Column(COLUMN_WORST_MODEL, String)
-    __table_args__ = (UniqueConstraint(COLUMN_EXPERIMENT_NAME),)
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class NistSingleComponentAdsorption(Base):
-    __tablename__ = "NIST_SINGLE_COMPONENT_ADSORPTION"
-    filename = Column(String, primary_key=True)
-    temperature = Column(Float, primary_key=True)
-    adsorptionUnits = Column(String)
-    pressureUnits = Column(String)
-    adsorbent_name = Column(String, primary_key=True)
-    adsorbate_name = Column(String, primary_key=True)
-    pressure = Column(Float, primary_key=True)
+    __tablename__ = "nist_single_component_adsorption"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
+    temperature = Column(Float)
+    adsorption_units = Column("adsorption_units", String)
+    pressure_units = Column("pressure_units", String)
+    adsorbent_name = Column(String)
+    adsorbate_name = Column(String)
+    pressure = Column(Float)
     adsorbed_amount = Column(Float)
-    composition = Column(Float)
-    __table_args__ = (
-        UniqueConstraint(
-            "filename",
-            "temperature",
-            "pressure",
-            "adsorbent_name",
-            "adsorbate_name",
-        ),
-    )
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class NistBinaryMixtureAdsorption(Base):
-    __tablename__ = "NIST_BINARY_MIXTURE_ADSORPTION"
-    filename = Column(String, primary_key=True)
-    temperature = Column(Float, primary_key=True)
-    adsorptionUnits = Column(String)
-    pressureUnits = Column(String)
-    adsorbent_name = Column(String, primary_key=True)
-    compound_1 = Column(String, primary_key=True)
-    compound_2 = Column(String, primary_key=True)
+    __tablename__ = "nist_binary_mixture_adsorption"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column("name", String)
+    temperature = Column(Float)
+    adsorption_units = Column("adsorption_units", String)
+    pressure_units = Column("pressure_units", String)
+    adsorbent_name = Column(String)
+    compound_1 = Column(String)
+    compound_2 = Column(String)
     compound_1_composition = Column(Float)
     compound_2_composition = Column(Float)
-    compound_1_pressure = Column(Float, primary_key=True)
-    compound_2_pressure = Column(Float, primary_key=True)
+    compound_1_pressure = Column(Float)
+    compound_2_pressure = Column(Float)
     compound_1_adsorption = Column(Float)
     compound_2_adsorption = Column(Float)
-    __table_args__ = (
-        UniqueConstraint(
-            "filename",
-            "temperature",
-            "adsorbent_name",
-            "compound_1",
-            "compound_2",
-            "compound_1_pressure",
-            "compound_2_pressure",
-        ),
-    )
+    __table_args__ = (UniqueConstraint("id", "name"),)
 
 
 ###############################################################################
 class Adsorbate(Base):
-    __tablename__ = "ADSORBATES"
+    __tablename__ = "adsorbates"
     InChIKey = Column(String, primary_key=True)
     name = Column(String)
     InChICode = Column(String)
     formula = Column(String)
-    adsorbate_molecular_weight = Column(Float)
-    adsorbate_molecular_formula = Column(String)
-    adsorbate_SMILE = Column(String)
+    molecular_weight = Column(Float)
+    molecular_formula = Column(String)
+    smile_code = Column(String)
     __table_args__ = (UniqueConstraint("InChIKey"),)
 
 
 ###############################################################################
 class Adsorbent(Base):
-    __tablename__ = "ADSORBENTS"
+    __tablename__ = "adsorbents"
     name = Column(String)
     hashkey = Column(String, primary_key=True)
     formula = Column(String)
-    adsorbent_molecular_weight = Column(Float)
-    adsorbent_molecular_formula = Column(String)
-    adsorbent_SMILE = Column(String)
+    molecular_weight = Column(Float)
+    molecular_formula = Column(String)
+    smile_code = Column(String)
     __table_args__ = (UniqueConstraint("hashkey"),)
 
 
 ###############################################################################
 class TrainingDataset(Base):
-    __tablename__ = "TRAINING_DATASET"
-    id = Column(Integer, primary_key=True)
-    dataset_label = Column(String, nullable=False, default="default")
-    dataset_name = Column(String)
+    __tablename__ = "training_dataset"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False, default="default")
+    source_dataset = Column(String)
     split = Column(String)
     temperature = Column(Float)
     pressure = Column(JSONSequence)
     adsorbed_amount = Column(JSONSequence)
     encoded_adsorbent = Column(Integer)
     adsorbate_molecular_weight = Column(Float)
-    adsorbate_encoded_SMILE = Column(JSONSequence)
+    adsorbate_encoded_smile = Column(JSONSequence)
     __table_args__ = (UniqueConstraint("id"),)
 
 
 ###############################################################################
 class TrainingMetadata(Base):
-    __tablename__ = "TRAINING_METADATA"
-    id = Column(Integer, primary_key=True)
+    __tablename__ = "training_metadata"
+    hashcode = Column(String, primary_key=True)
     dataset_label = Column(String, nullable=False, default="default")
     created_at = Column(String)
-    dataset_hash = Column(String)
     sample_size = Column(Float)
     validation_size = Column(Float)
     min_measurements = Column(Integer)
@@ -346,4 +318,4 @@ class TrainingMetadata(Base):
     smile_vocabulary = Column(JSONSequence)
     adsorbent_vocabulary = Column(JSONSequence)
     normalization_stats = Column(JSONSequence)
-    __table_args__ = (UniqueConstraint("dataset_label"),)
+    __table_args__ = (UniqueConstraint("hashcode"),)

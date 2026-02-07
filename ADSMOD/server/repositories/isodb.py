@@ -12,10 +12,10 @@ class NISTDataSerializer:
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         adsorption_data = database.load_from_database(
-            "NIST_SINGLE_COMPONENT_ADSORPTION"
+            "nist_single_component_adsorption"
         )
-        guest_data = database.load_from_database("ADSORBATES")
-        host_data = database.load_from_database("ADSORBENTS")
+        guest_data = database.load_from_database("adsorbates")
+        host_data = database.load_from_database("adsorbents")
 
         return adsorption_data, guest_data, host_data
 
@@ -23,13 +23,13 @@ class NISTDataSerializer:
     def count_nist_rows(self) -> dict[str, int]:
         return {
             "single_component_rows": database.count_rows(
-                "NIST_SINGLE_COMPONENT_ADSORPTION"
+                "nist_single_component_adsorption"
             ),
             "binary_mixture_rows": database.count_rows(
-                "NIST_BINARY_MIXTURE_ADSORPTION"
+                "nist_binary_mixture_adsorption"
             ),
-            "guest_rows": database.count_rows("ADSORBATES"),
-            "host_rows": database.count_rows("ADSORBENTS"),
+            "guest_rows": database.count_rows("adsorbates"),
+            "host_rows": database.count_rows("adsorbents"),
         }
 
     # -------------------------------------------------------------------------
@@ -39,9 +39,9 @@ class NISTDataSerializer:
         host_data: pd.DataFrame | None = None,
     ) -> None:
         if isinstance(guest_data, pd.DataFrame):
-            database.upsert_into_database(guest_data, "ADSORBATES")
+            database.upsert_into_database(guest_data, "adsorbates")
         if isinstance(host_data, pd.DataFrame):
-            database.upsert_into_database(host_data, "ADSORBENTS")
+            database.upsert_into_database(host_data, "adsorbents")
 
     # -------------------------------------------------------------------------
     def save_adsorption_datasets(
@@ -49,9 +49,9 @@ class NISTDataSerializer:
     ) -> None:
         if isinstance(single_component, pd.DataFrame):
             database.upsert_into_database(
-                single_component, "NIST_SINGLE_COMPONENT_ADSORPTION"
+                single_component, "nist_single_component_adsorption"
             )
         if isinstance(binary_mixture, pd.DataFrame):
             database.upsert_into_database(
-                binary_mixture, "NIST_BINARY_MIXTURE_ADSORPTION"
+                binary_mixture, "nist_binary_mixture_adsorption"
             )
