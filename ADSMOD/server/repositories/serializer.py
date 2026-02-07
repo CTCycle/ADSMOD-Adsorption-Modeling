@@ -53,11 +53,33 @@ from ADSMOD.server.utils.logger import logger
 
 ###############################################################################
 class DataSerializer:
-    processed_table = "ADSORPTION_PROCESSED_DATA"
-    best_fit_table = "ADSORPTION_BEST_FIT"
+    raw_table = "adsorption_data"
+    processed_table = "adsorption_processed_data"
+    best_fit_table = "adsorption_best_fit"
+    raw_name_column = "name"
+    fitting_name_column = "name"
+    table_aliases = {
+        "ADSORPTION_DATA": raw_table,
+        "ADSORPTION_PROCESSED_DATA": processed_table,
+        "ADSORPTION_BEST_FIT": best_fit_table,
+        "ADSORPTION_LANGMUIR": "adsorption_langmuir",
+        "ADSORPTION_SIPS": "adsorption_sips",
+        "ADSORPTION_FREUNDLICH": "adsorption_freundlich",
+        "ADSORPTION_TEMKIN": "adsorption_temkin",
+        "ADSORPTION_TOTH": "adsorption_toth",
+        "ADSORPTION_DUBININ_RADUSHKEVICH": "adsorption_dubinin_radushkevich",
+        "ADSORPTION_DUAL_SITE_LANGMUIR": "adsorption_dual_site_langmuir",
+        "ADSORPTION_REDLICH_PETERSON": "adsorption_redlich_peterson",
+        "ADSORPTION_JOVANOVIC": "adsorption_jovanovic",
+        "NIST_SINGLE_COMPONENT_ADSORPTION": "nist_single_component_adsorption",
+        "NIST_BINARY_MIXTURE_ADSORPTION": "nist_binary_mixture_adsorption",
+        "ADSORBATES": "adsorbates",
+        "ADSORBENTS": "adsorbents",
+        "TRAINING_DATASET": "training_dataset",
+        "TRAINING_METADATA": "training_metadata",
+    }
     experiment_columns = [
-        COLUMN_EXPERIMENT,
-        COLUMN_EXPERIMENT_NAME,
+        fitting_name_column,
         COLUMN_TEMPERATURE_K,
         COLUMN_PRESSURE_PA,
         COLUMN_UPTAKE_MOL_G,
@@ -69,23 +91,76 @@ class DataSerializer:
     ]
 
     # -------------------------------------------------------------------------
+    @classmethod
+    def normalize_table_name(cls, table_name: str) -> str:
+        return cls.table_aliases.get(table_name, table_name)
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def fitting_tables(cls) -> set[str]:
+        return {cls.processed_table, cls.best_fit_table}.union(
+            {schema["table"] for schema in MODEL_SCHEMAS.values()}
+        )
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def prepare_for_storage(cls, dataset: pd.DataFrame, table_name: str) -> pd.DataFrame:
+        normalized = cls.normalize_table_name(table_name)
+        storage = dataset.copy()
+        if normalized == cls.raw_table:
+            if (
+                COLUMN_DATASET_NAME in storage.columns
+                and cls.raw_name_column in storage.columns
+            ):
+                storage = storage.drop(columns=[COLUMN_DATASET_NAME], errors="ignore")
+            else:
+                storage = storage.rename(
+                    columns={COLUMN_DATASET_NAME: cls.raw_name_column}
+                )
+        elif normalized in cls.fitting_tables():
+            if (
+                COLUMN_EXPERIMENT_NAME in storage.columns
+                and cls.fitting_name_column in storage.columns
+            ):
+                storage = storage.drop(
+                    columns=[COLUMN_EXPERIMENT_NAME], errors="ignore"
+                )
+            else:
+                storage = storage.rename(
+                    columns={COLUMN_EXPERIMENT_NAME: cls.fitting_name_column}
+                )
+            if normalized == cls.processed_table:
+                storage = storage.drop(columns=[COLUMN_EXPERIMENT], errors="ignore")
+        return storage
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def restore_from_storage(
+        cls, dataset: pd.DataFrame, table_name: str
+    ) -> pd.DataFrame:
+        return dataset.copy()
+
+    # -------------------------------------------------------------------------
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
+        table_name = self.raw_table
+        storage_dataset = self.prepare_for_storage(dataset, table_name)
         try:
-            database.upsert_into_database(dataset, "ADSORPTION_DATA")
+            database.upsert_into_database(storage_dataset, table_name)
             return
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "Upsert failed for ADSORPTION_DATA, falling back to merge: %s",
+                "Upsert failed for %s, falling back to merge: %s",
+                table_name,
                 exc,
             )
 
-        existing = database.load_from_database("ADSORPTION_DATA")
+        existing = database.load_from_database(table_name)
         if existing.empty:
-            database.save_into_database(dataset, "ADSORPTION_DATA")
+            database.save_into_database(storage_dataset, table_name)
             return
 
         key_columns = [
-            COLUMN_DATASET_NAME,
+            self.raw_name_column,
             COLUMN_EXPERIMENT,
             COLUMN_TEMPERATURE_K,
             COLUMN_PRESSURE_PA,
@@ -93,12 +168,12 @@ class DataSerializer:
         available_keys = [
             col
             for col in key_columns
-            if col in dataset.columns and col in existing.columns
+            if col in storage_dataset.columns and col in existing.columns
         ]
-        merged = pd.concat([existing, dataset], ignore_index=True)
+        merged = pd.concat([existing, storage_dataset], ignore_index=True)
         if available_keys:
             merged = merged.drop_duplicates(subset=available_keys, keep="last")
-        database.save_into_database(merged, "ADSORPTION_DATA")
+        database.save_into_database(merged, table_name)
 
     # -------------------------------------------------------------------------
     def delete_raw_dataset(self, dataset_name: str) -> bool:
@@ -106,15 +181,15 @@ class DataSerializer:
         if not dataset_name:
             return False
 
-        existing = database.load_from_database("ADSORPTION_DATA")
-        if existing.empty or COLUMN_DATASET_NAME not in existing.columns:
+        existing = database.load_from_database(self.raw_table)
+        if existing.empty or self.raw_name_column not in existing.columns:
             return False
 
-        filtered = existing[existing[COLUMN_DATASET_NAME] != dataset_name].copy()
+        filtered = existing[existing[self.raw_name_column] != dataset_name].copy()
         if len(filtered) == len(existing):
             return False
 
-        database.save_into_database(filtered, "ADSORPTION_DATA")
+        database.save_into_database(filtered, self.raw_table)
         return True
 
     # -------------------------------------------------------------------------
@@ -124,19 +199,22 @@ class DataSerializer:
         limit: int | None = None,
         offset: int | None = None,
     ) -> pd.DataFrame:
-        return database.load_from_database(table_name, limit=limit, offset=offset)
+        normalized = self.normalize_table_name(table_name)
+        return database.load_from_database(normalized, limit=limit, offset=offset)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
+        normalized = self.normalize_table_name(table_name)
+        storage_dataset = self.prepare_for_storage(dataset, normalized)
         try:
-            database.upsert_into_database(dataset, table_name)
+            database.upsert_into_database(storage_dataset, normalized)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "Upsert failed for %s, falling back to overwrite: %s",
-                table_name,
+                normalized,
                 exc,
             )
-            database.save_into_database(dataset, table_name)
+            database.save_into_database(storage_dataset, normalized)
 
     # -------------------------------------------------------------------------
     def save_processed_dataset(self, dataset: pd.DataFrame) -> None:
@@ -159,13 +237,18 @@ class DataSerializer:
         experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return experiments
-        combined = experiments.copy()
+        combined = experiments.rename(
+            columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME}
+        )
         if COLUMN_EXPERIMENT_NAME not in combined.columns:
             return combined
         for schema in MODEL_SCHEMAS.values():
             model_frame = self.load_table(schema["table"])
             if model_frame.empty:
                 continue
+            model_frame = model_frame.rename(
+                columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME}
+            )
             if COLUMN_EXPERIMENT_NAME not in model_frame.columns:
                 continue
             renamed = self.rename_model_columns(model_frame, schema)
@@ -189,11 +272,15 @@ class DataSerializer:
         best = self.load_table(self.best_fit_table)
         if best.empty:
             return best
+        best = best.rename(columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME})
         if COLUMN_EXPERIMENT_NAME not in best.columns:
             return best
         experiments = self.load_table(self.processed_table)
         if experiments.empty:
             return pd.DataFrame()
+        experiments = experiments.rename(
+            columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME}
+        )
         drop_columns = [COLUMN_ID]
         merged = experiments.merge(
             best.drop(columns=drop_columns, errors="ignore"),
@@ -204,11 +291,10 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def build_experiment_frame(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        if COLUMN_EXPERIMENT not in dataset.columns:
-            raise ValueError("Missing experiment column for fitting results.")
         if COLUMN_EXPERIMENT_NAME not in dataset.columns:
             raise ValueError("Missing experiment name column for fitting results.")
         experiments = dataset.copy()
+        experiments[self.fitting_name_column] = experiments[COLUMN_EXPERIMENT_NAME]
         for column in self.experiment_columns:
             if column not in experiments.columns:
                 experiments[column] = pd.NA
@@ -242,7 +328,7 @@ class DataSerializer:
         if COLUMN_EXPERIMENT_NAME not in dataset.columns:
             raise ValueError("Missing experiment name column for fitting results.")
         model_frame = pd.DataFrame()
-        model_frame[COLUMN_EXPERIMENT_NAME] = dataset.get(COLUMN_EXPERIMENT_NAME)
+        model_frame[self.fitting_name_column] = dataset.get(COLUMN_EXPERIMENT_NAME)
         for field, column in resolved.items():
             target = schema["fields"][field]
             if column is None:
@@ -266,7 +352,39 @@ class DataSerializer:
 
 ###############################################################################
 class TrainingDataSerializer:
+    dataset_table = "training_dataset"
+    metadata_table = "training_metadata"
+    dataset_label_column = "name"
+    dataset_source_column = "source_dataset"
+    metadata_hash_column = "hashcode"
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def prepare_dataset_for_storage(cls, dataset: pd.DataFrame) -> pd.DataFrame:
+        return dataset.copy().rename(
+            columns={
+                "dataset_label": cls.dataset_label_column,
+                "dataset_name": cls.dataset_source_column,
+                "adsorbate_encoded_SMILE": "adsorbate_encoded_smile",
+            }
+        )
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def restore_dataset_from_storage(cls, dataset: pd.DataFrame) -> pd.DataFrame:
+        return dataset.copy().rename(
+            columns={
+                cls.dataset_label_column: "dataset_label",
+                cls.dataset_source_column: "dataset_name",
+                "adsorbate_encoded_smile": "adsorbate_encoded_SMILE",
+            }
+        )
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def prepare_metadata_for_storage(cls, metadata: pd.DataFrame) -> pd.DataFrame:
+        return metadata.copy().rename(columns={"dataset_hash": cls.metadata_hash_column})
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -281,57 +399,66 @@ class TrainingDataSerializer:
         self, dataset: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
         dataset_label = self.normalize_dataset_label(dataset_label)
-        # Load existing data
-        existing = database.load_from_database("TRAINING_DATASET")
+        storage_dataset = self.prepare_dataset_for_storage(dataset)
+        if self.dataset_label_column not in storage_dataset.columns:
+            storage_dataset[self.dataset_label_column] = dataset_label
 
-        # Filter out rows with the same dataset_label
-        if not existing.empty and "dataset_label" in existing.columns:
-            existing = existing[existing["dataset_label"] != dataset_label]
+        existing = database.load_from_database(self.dataset_table)
+        if not existing.empty and self.dataset_label_column in existing.columns:
+            existing = existing[existing[self.dataset_label_column] != dataset_label]
 
-        # Append new dataset
-        combined = pd.concat([existing, dataset], ignore_index=True)
-        database.save_into_database(combined, "TRAINING_DATASET")
+        combined = pd.concat([existing, storage_dataset], ignore_index=True)
+        database.save_into_database(combined, self.dataset_table)
 
     # -------------------------------------------------------------------------
     def save_training_metadata(
         self, metadata: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
         dataset_label = self.normalize_dataset_label(dataset_label)
-        # Load existing metadata
-        existing = database.load_from_database("TRAINING_METADATA")
+        storage_metadata = self.prepare_metadata_for_storage(metadata)
+        if "dataset_label" not in storage_metadata.columns:
+            storage_metadata["dataset_label"] = dataset_label
 
-        # Filter out row with the same dataset_label (upsert logic)
-        if not existing.empty and "dataset_label" in existing.columns:
-            existing = existing[existing["dataset_label"] != dataset_label]
+        existing = database.load_from_database(self.metadata_table)
+        if not existing.empty:
+            metadata_hash = None
+            if self.metadata_hash_column in storage_metadata.columns:
+                hash_values = (
+                    storage_metadata[self.metadata_hash_column]
+                    .dropna()
+                    .astype("string")
+                    .str.strip()
+                )
+                metadata_hash = hash_values.iloc[0] if not hash_values.empty else None
+            if metadata_hash and self.metadata_hash_column in existing.columns:
+                existing = existing[existing[self.metadata_hash_column] != metadata_hash]
+            elif "dataset_label" in existing.columns:
+                existing = existing[existing["dataset_label"] != dataset_label]
 
-        # Append new metadata row
-        combined = pd.concat([existing, metadata], ignore_index=True)
-        database.save_into_database(combined, "TRAINING_METADATA")
+        combined = pd.concat([existing, storage_metadata], ignore_index=True)
+        database.save_into_database(combined, self.metadata_table)
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(self, dataset_label: str | None = None) -> None:
         if dataset_label is None:
-            # Clear all datasets (backward compatibility)
             empty_df = pd.DataFrame()
-            database.save_into_database(empty_df, "TRAINING_DATASET")
-            database.save_into_database(empty_df, "TRAINING_METADATA")
-        else:
-            dataset_label = self.normalize_dataset_label(dataset_label)
-            # Clear only the specified dataset
-            existing_data = database.load_from_database("TRAINING_DATASET")
-            existing_meta = database.load_from_database("TRAINING_METADATA")
+            database.save_into_database(empty_df, self.dataset_table)
+            database.save_into_database(empty_df, self.metadata_table)
+            return
 
-            if not existing_data.empty and "dataset_label" in existing_data.columns:
-                filtered_data = existing_data[
-                    existing_data["dataset_label"] != dataset_label
-                ]
-                database.save_into_database(filtered_data, "TRAINING_DATASET")
+        dataset_label = self.normalize_dataset_label(dataset_label)
+        existing_data = database.load_from_database(self.dataset_table)
+        existing_meta = database.load_from_database(self.metadata_table)
 
-            if not existing_meta.empty and "dataset_label" in existing_meta.columns:
-                filtered_meta = existing_meta[
-                    existing_meta["dataset_label"] != dataset_label
-                ]
-                database.save_into_database(filtered_meta, "TRAINING_METADATA")
+        if not existing_data.empty and self.dataset_label_column in existing_data.columns:
+            filtered_data = existing_data[
+                existing_data[self.dataset_label_column] != dataset_label
+            ]
+            database.save_into_database(filtered_data, self.dataset_table)
+
+        if not existing_meta.empty and "dataset_label" in existing_meta.columns:
+            filtered_meta = existing_meta[existing_meta["dataset_label"] != dataset_label]
+            database.save_into_database(filtered_meta, self.metadata_table)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -411,7 +538,9 @@ class TrainingDataSerializer:
         max_smile_index = max(smile_vocabulary.values()) if smile_vocabulary else 0
         smile_vocab_size = int(max_smile_index) + 1
         normalization_stats = self._parse_json(row.get("normalization_stats"))
-        dataset_hash_value = row.get("dataset_hash")
+        dataset_hash_value = row.get(self.metadata_hash_column)
+        if dataset_hash_value is None:
+            dataset_hash_value = row.get("dataset_hash")
 
         return TrainingMetadata(
             created_at=str(row.get("created_at", "")),
@@ -442,7 +571,7 @@ class TrainingDataSerializer:
         self, dataset_label: str = "default"
     ) -> TrainingMetadata:
         dataset_label = self.normalize_dataset_label(dataset_label)
-        metadata_df = database.load_from_database("TRAINING_METADATA")
+        metadata_df = database.load_from_database(self.metadata_table)
         if metadata_df.empty:
             return TrainingMetadata()
 
@@ -453,7 +582,7 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     def collect_dataset_hashes(self) -> set[str]:
-        metadata_df = database.load_from_database("TRAINING_METADATA")
+        metadata_df = database.load_from_database(self.metadata_table)
         if metadata_df.empty:
             return set()
 
@@ -496,16 +625,16 @@ class TrainingDataSerializer:
         if only_metadata:
             return metadata
 
-        training_data = database.load_from_database("TRAINING_DATASET")
+        training_data = database.load_from_database(self.dataset_table)
         if training_data.empty:
             return training_data, training_data, metadata
 
-        # Filter by dataset_label if column exists
-        if "dataset_label" in training_data.columns:
+        if self.dataset_label_column in training_data.columns:
             training_data = training_data[
-                training_data["dataset_label"] == dataset_label
+                training_data[self.dataset_label_column] == dataset_label
             ]
 
+        training_data = self.restore_dataset_from_storage(training_data)
         training_data = self.coerce_sequence_columns(training_data)
 
         train_data = training_data[training_data["split"] == "train"]
@@ -516,13 +645,15 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     @staticmethod
     def list_processed_datasets() -> list[dict[str, Any]]:
-        metadata_df = database.load_from_database("TRAINING_METADATA")
+        metadata_df = database.load_from_database(TrainingDataSerializer.metadata_table)
         if metadata_df.empty:
             return []
 
         datasets = []
         for _, row in metadata_df.iterrows():
-            dataset_hash_value = row.get("dataset_hash")
+            dataset_hash_value = row.get(TrainingDataSerializer.metadata_hash_column)
+            if dataset_hash_value is None:
+                dataset_hash_value = row.get("dataset_hash")
             datasets.append(
                 {
                     "dataset_label": str(row.get("dataset_label", "default")),
@@ -543,7 +674,6 @@ class TrainingDataSerializer:
         if not metadata:
             return ""
 
-        # specialized serialization for hashing
         payload = {
             "sample_size": metadata.sample_size,
             "validation_size": metadata.validation_size,
@@ -552,19 +682,15 @@ class TrainingDataSerializer:
             "smile_sequence_size": metadata.smile_sequence_size,
             "max_pressure": metadata.max_pressure,
             "max_uptake": metadata.max_uptake,
-            # Sort dictionaries to ensure deterministic hashing
-            # Vocabularies must include both keys and values (indices)
             "smile_vocabulary": sorted(metadata.smile_vocabulary.items())
             if metadata.smile_vocabulary
             else [],
             "adsorbent_vocabulary": sorted(metadata.adsorbent_vocabulary.items())
             if metadata.adsorbent_vocabulary
             else [],
-            # normalization stats
             "normalization_stats": metadata.normalization_stats,
         }
 
-        # Serialize to JSON with sort_keys=True
         serialized = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
@@ -577,12 +703,8 @@ class TrainingDataSerializer:
             logger.warning("Metadata validation failed: missing metadata")
             return False
 
-        # Strict validation: Re-compute hashes for both and compare.
-        # This ensures that even if the stored hash was manipulated or outdated,
-        # the actual content compatibility is verified.
         hash_a = TrainingDataSerializer.compute_metadata_hash(metadata)
         hash_b = TrainingDataSerializer.compute_metadata_hash(target_metadata)
-
         if hash_a != hash_b:
             logger.debug(
                 "Metadata mismatch: Content hash mismatch (%s != %s)",

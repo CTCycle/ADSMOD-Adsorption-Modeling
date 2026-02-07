@@ -15,8 +15,8 @@ class AggregateDatasets:
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.guest_properties = [
             "name",
-            "adsorbate_molecular_weight",
-            "adsorbate_SMILE",
+            "molecular_weight",
+            "smile_code",
         ]
         self.host_properties = ["name"]
         self.configuration = configuration
@@ -32,6 +32,12 @@ class AggregateDatasets:
             how="inner",
             suffixes=("", "guest"),
         ).drop(columns=["name"])
+        merged_data = merged_data.rename(
+            columns={
+                "molecular_weight": "adsorbate_molecular_weight",
+                "smile_code": "adsorbate_SMILE",
+            }
+        )
 
         merged_data = merged_data.merge(
             hosts[self.host_properties],

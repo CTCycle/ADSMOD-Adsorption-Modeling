@@ -84,7 +84,7 @@ def test_collect_dataset_hashes_skips_uncomputable_hash(monkeypatch, caplog) -> 
     )
 
     def load_from_database(table_name: str, limit=None, offset=None):
-        assert table_name == "TRAINING_METADATA"
+        assert table_name == "training_metadata"
         return metadata_df
 
     monkeypatch.setattr(
@@ -123,7 +123,7 @@ def test_collect_dataset_hashes_computes_missing_hash(monkeypatch) -> None:
     )
 
     def load_from_database(table_name: str, limit=None, offset=None):
-        assert table_name == "TRAINING_METADATA"
+        assert table_name == "training_metadata"
         return metadata_df
 
     monkeypatch.setattr(

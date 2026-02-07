@@ -129,7 +129,7 @@ class TestDatasetBuild:
             "max_pressure": 5000.0,
             "max_uptake": 10.0,
             "datasets": [
-                {"source": "nist", "dataset_name": "NIST_SINGLE_COMPONENT_ADSORPTION"}
+                {"source": "nist", "dataset_name": "nist_single_component_adsorption"}
             ],
         }
 
@@ -151,7 +151,7 @@ class TestDatasetBuild:
             "sample_size": 2.0,  # Invalid: > 1.0
             "validation_size": 0.2,
             "datasets": [
-                {"source": "nist", "dataset_name": "NIST_SINGLE_COMPONENT_ADSORPTION"}
+                {"source": "nist", "dataset_name": "nist_single_component_adsorption"}
             ],
         }
 

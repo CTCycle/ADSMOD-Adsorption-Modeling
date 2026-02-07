@@ -10,7 +10,6 @@ import pandas as pd
 
 from ADSMOD.server.repositories.database import database
 from ADSMOD.server.configurations import server_settings
-from ADSMOD.server.utils.constants import COLUMN_DATASET_NAME
 from ADSMOD.server.repositories.isodb import NISTDataSerializer
 from ADSMOD.server.repositories.serializer import DataSerializer
 from ADSMOD.server.services.data.conversion import PQ_units_conversion
@@ -20,6 +19,7 @@ from ADSMOD.server.services.data.nistads import PubChemClient
 ###############################################################################
 class DatasetCompositionService:
     ADSORPTION_UNITS_MOL_G = "mol/g"
+    RAW_DATASET_NAME_COLUMN = "name"
 
     def __init__(self, allow_pubchem_fetch: bool = False) -> None:
         self.serializer = DataSerializer()
@@ -64,21 +64,24 @@ class DatasetCompositionService:
     # -------------------------------------------------------------------------
     def list_sources(self) -> list[dict[str, Any]]:
         sources: list[dict[str, Any]] = []
-        nist_rows = database.count_rows("NIST_SINGLE_COMPONENT_ADSORPTION")
+        nist_rows = database.count_rows("nist_single_component_adsorption")
         if nist_rows > 0:
             sources.append(
                 {
                     "source": "nist",
-                    "dataset_name": "NIST_SINGLE_COMPONENT_ADSORPTION",
+                    "dataset_name": "nist_single_component_adsorption",
                     "display_name": "NIST Single Component",
                     "row_count": nist_rows,
                 }
             )
 
-        adsorption = self.serializer.load_table("ADSORPTION_DATA")
-        if not adsorption.empty and COLUMN_DATASET_NAME in adsorption.columns:
+        adsorption = self.serializer.load_table("adsorption_data")
+        if not adsorption.empty and self.RAW_DATASET_NAME_COLUMN in adsorption.columns:
             name_series = (
-                adsorption[COLUMN_DATASET_NAME].fillna("").astype("string").str.strip()
+                adsorption[self.RAW_DATASET_NAME_COLUMN]
+                .fillna("")
+                .astype("string")
+                .str.strip()
             )
             counts = name_series.value_counts()
             for name, count in counts.items():
@@ -156,11 +159,11 @@ class DatasetCompositionService:
 
     # -------------------------------------------------------------------------
     def standardize_uploaded_dataset(self, dataset_name: str) -> pd.DataFrame:
-        raw = self.serializer.load_table("ADSORPTION_DATA")
-        if raw.empty or COLUMN_DATASET_NAME not in raw.columns:
+        raw = self.serializer.load_table("adsorption_data")
+        if raw.empty or self.RAW_DATASET_NAME_COLUMN not in raw.columns:
             raise ValueError("No uploaded datasets are available.")
 
-        filtered = raw[raw[COLUMN_DATASET_NAME] == dataset_name].copy()
+        filtered = raw[raw[self.RAW_DATASET_NAME_COLUMN] == dataset_name].copy()
         if filtered.empty:
             raise ValueError(f"Uploaded dataset '{dataset_name}' was not found.")
 
@@ -190,7 +193,7 @@ class DatasetCompositionService:
         standardized = self.normalize_measurements(standardized)
         standardized["pressureUnits"] = "pa"
         standardized["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_G
-        standardized[COLUMN_DATASET_NAME] = dataset_name
+        standardized[self.RAW_DATASET_NAME_COLUMN] = dataset_name
         standardized = self.ensure_filename_prefix(
             standardized, self.build_dataset_tag("uploaded", dataset_name)
         )
@@ -202,7 +205,13 @@ class DatasetCompositionService:
     ) -> pd.DataFrame:
         if adsorption.empty:
             return adsorption
-        cleaned = adsorption.copy()
+        cleaned = adsorption.copy().rename(
+            columns={
+                "name": "filename",
+                "adsorption_units": "adsorptionUnits",
+                "pressure_units": "pressureUnits",
+            }
+        )
         if "adsorptionUnits" in cleaned.columns:
             units = cleaned["adsorptionUnits"].astype("string").str.strip().str.lower()
             mol_g_mask = units.isin({self.ADSORPTION_UNITS_MOL_G, "mol per g"})
@@ -324,9 +333,9 @@ class DatasetCompositionService:
             adsorbate_names,
             target="adsorbate",
             key_column="InChIKey",
-            weight_column="adsorbate_molecular_weight",
-            formula_column="adsorbate_molecular_formula",
-            smile_column="adsorbate_SMILE",
+            weight_column="molecular_weight",
+            formula_column="molecular_formula",
+            smile_column="smile_code",
             allow_pubchem_fetch=self.allow_pubchem_fetch,
         )
         host_data = self.enrich_materials(
@@ -334,9 +343,9 @@ class DatasetCompositionService:
             adsorbent_names,
             target="adsorbent",
             key_column="hashkey",
-            weight_column="adsorbent_molecular_weight",
-            formula_column="adsorbent_molecular_formula",
-            smile_column="adsorbent_SMILE",
+            weight_column="molecular_weight",
+            formula_column="molecular_formula",
+            smile_column="smile_code",
             allow_pubchem_fetch=self.allow_pubchem_fetch,
         )
 

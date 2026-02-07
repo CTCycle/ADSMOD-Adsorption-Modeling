@@ -98,10 +98,10 @@ class ADSMODDatabase:
     # -------------------------------------------------------------------------
     def get_unique_dataset_names(self) -> list[str]:
         try:
-            df = self.backend.load_from_database("ADSORPTION_DATA")
-            if df.empty or "dataset_name" not in df.columns:
+            df = self.backend.load_from_database("adsorption_data")
+            if df.empty or "name" not in df.columns:
                 return []
-            names = df["dataset_name"].dropna().unique().tolist()
+            names = df["name"].dropna().unique().tolist()
             return sorted([str(n) for n in names if n])
         except Exception:
             return []
