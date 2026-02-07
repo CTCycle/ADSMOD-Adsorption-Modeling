@@ -8,12 +8,11 @@ ROOT_DIR = abspath(join(__file__, "../../../.."))
 PROJECT_DIR = join(ROOT_DIR, "ADSMOD")
 SETTING_PATH = join(PROJECT_DIR, "settings")
 RESOURCES_PATH = join(PROJECT_DIR, "resources")
-DATA_PATH = join(RESOURCES_PATH, "database")
 LOGS_PATH = join(RESOURCES_PATH, "logs")
 TEMPLATES_PATH = join(RESOURCES_PATH, "templates")
 CHECKPOINTS_PATH = join(RESOURCES_PATH, "checkpoints")
 ENV_FILE_PATH = join(SETTING_PATH, ".env")
-DATABASE_FILENAME = "sqlite.db"
+DATABASE_FILENAME = "database.db"
 
 
 ###############################################################################
