@@ -114,10 +114,7 @@ class PressureConversion:
         elif self.P_UNIT_FALLBACK_COL in dataframe.columns:
             unit_column = self.P_UNIT_FALLBACK_COL
 
-        if (
-            unit_column is None
-            or self.P_COL not in dataframe.columns
-        ):
+        if unit_column is None or self.P_COL not in dataframe.columns:
             logger.debug("Pressure conversion skipped (missing pressure columns).")
             return dataframe
 
@@ -227,10 +224,7 @@ class UptakeConversion:
         elif self.Q_UNIT_FALLBACK_COL in dataframe.columns:
             unit_column = self.Q_UNIT_FALLBACK_COL
 
-        if (
-            unit_column is None
-            or self.Q_COL not in dataframe.columns
-        ):
+        if unit_column is None or self.Q_COL not in dataframe.columns:
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 

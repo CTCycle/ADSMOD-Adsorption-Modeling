@@ -720,9 +720,7 @@ class TrainingEndpoint:
             )
             configuration = config.model_dump()
             configuration["dataset_label"] = resolved_label
-            configuration["polling_interval"] = (
-                server_settings.jobs.polling_interval
-            )
+            configuration["polling_interval"] = server_settings.jobs.polling_interval
 
             logger.info("Starting training with config: %s", configuration)
             metadata = training_manager.data_serializer.load_training_metadata(
