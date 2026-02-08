@@ -24,6 +24,7 @@ set "FRONTEND_DIR=%ADSMOD_DIR%\\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\\dist"
 set "DOTENV=%ADSMOD_DIR%\\settings\\.env"
 set "OPTIONAL_DEPENDENCIES=false"
+set "TEST_RESULT=1"
 
 REM Load OPTIONAL_DEPENDENCIES from .env if present
 if exist "%DOTENV%" (
@@ -138,7 +139,7 @@ if "%FRONTEND_RUNNING%"=="0" (
     )
 
     echo [INFO] Starting frontend server...
-    start "" /B /D "%FRONTEND_DIR%" "%NPM_RUN%" run preview -- --host 127.0.0.1 --port 7861 --strictPort
+    start "" /B /D "%FRONTEND_DIST%" "%PYTHON_CMD%" -m http.server 7861 --bind 127.0.0.1
     set "STARTED_FRONTEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -149,6 +150,7 @@ set "ATTEMPTS=0"
 :wait_loop
 if %ATTEMPTS% geq 30 (
     echo [ERROR] Servers failed to start within 30 seconds.
+    set "TEST_RESULT=1"
     goto cleanup
 )
 

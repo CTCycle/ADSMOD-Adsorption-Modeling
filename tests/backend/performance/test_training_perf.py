@@ -12,12 +12,12 @@ import pytest
 
 from ADSMOD.server.schemas.training import TrainingConfigRequest
 from ADSMOD.server.common.constants import CHECKPOINTS_PATH
-from ADSMOD.tests.backend.performance.dataset import (
+from tests.backend.performance.dataset import (
     SyntheticDatasetSpec,
     clear_synthetic_training_dataset,
     create_and_save_synthetic_training_dataset,
 )
-from ADSMOD.tests.backend.performance.harness import (
+from tests.backend.performance.harness import (
     list_checkpoint_folders,
     remove_checkpoint_folders,
     run_training_with_metrics,

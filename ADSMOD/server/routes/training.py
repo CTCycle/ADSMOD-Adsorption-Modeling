@@ -92,6 +92,35 @@ training_session = TrainingSession()
 
 
 ###############################################################################
+def determine_checkpoint_compatibility(
+    checkpoint_name: str,
+    metadata: TrainingMetadata | None,
+    dataset_hashes: set[str],
+    log_missing_metadata: bool = True,
+) -> bool:
+    if metadata is None:
+        if log_missing_metadata:
+            logger.warning(
+                "Checkpoint %s metadata missing or invalid; marking incompatible.",
+                checkpoint_name,
+            )
+        return False
+
+    checkpoint_hash = metadata.dataset_hash
+    if not checkpoint_hash:
+        logger.warning(
+            "Checkpoint %s metadata missing dataset_hash; marking incompatible.",
+            checkpoint_name,
+        )
+        return False
+
+    if not dataset_hashes:
+        return False
+
+    return checkpoint_hash in dataset_hashes
+
+
+###############################################################################
 class TrainingJobRunner:
     def __init__(self, session: TrainingSession) -> None:
         self.session = session
@@ -271,26 +300,12 @@ class TrainingEndpoint:
         dataset_hashes: set[str],
         log_missing_metadata: bool = True,
     ) -> bool:
-        if metadata is None:
-            if log_missing_metadata:
-                logger.warning(
-                    "Checkpoint %s metadata missing or invalid; marking incompatible.",
-                    checkpoint_name,
-                )
-            return False
-
-        checkpoint_hash = metadata.dataset_hash
-        if not checkpoint_hash:
-            logger.warning(
-                "Checkpoint %s metadata missing dataset_hash; marking incompatible.",
-                checkpoint_name,
-            )
-            return False
-
-        if not dataset_hashes:
-            return False
-
-        return checkpoint_hash in dataset_hashes
+        return determine_checkpoint_compatibility(
+            checkpoint_name=checkpoint_name,
+            metadata=metadata,
+            dataset_hashes=dataset_hashes,
+            log_missing_metadata=log_missing_metadata,
+        )
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
