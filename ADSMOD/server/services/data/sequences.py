@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
 
-from ADSMOD.server.utils.constants import PAD_VALUE
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.constants import PAD_VALUE
+from ADSMOD.server.common.utils.logger import logger
 
 
 ###############################################################################

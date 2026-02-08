@@ -1,4 +1,4 @@
-from ADSMOD.server.utils.constants import CONFIGURATION_FILE
+from ADSMOD.server.common.constants import CONFIGURATION_FILE
 from ADSMOD.server.configurations import load_configurations
 from ADSMOD.server.configurations.server import (
     build_training_settings,

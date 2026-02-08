@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base
 
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_BEST_MODEL,

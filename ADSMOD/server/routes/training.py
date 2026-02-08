@@ -29,8 +29,8 @@ from ADSMOD.server.schemas.training import (
     TrainingStatusResponse,
 )
 from ADSMOD.server.configurations.server import server_settings
-from ADSMOD.server.utils.logger import logger
-from ADSMOD.server.utils.constants import CHECKPOINTS_PATH
+from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.common.constants import CHECKPOINTS_PATH
 from ADSMOD.server.services.jobs import job_manager
 from ADSMOD.server.learning.training.manager import (
     run_training_process,

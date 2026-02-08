@@ -9,7 +9,7 @@ from ADSMOD.server.schemas.browser import (
 )
 from ADSMOD.server.repositories.database import database
 from ADSMOD.server.repositories.serializer import DataSerializer
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     BROWSER_DATA_ENDPOINT,
     BROWSER_ROUTER_PREFIX,
     BROWSER_TABLE_CATEGORIES,
@@ -17,7 +17,7 @@ from ADSMOD.server.utils.constants import (
     BROWSER_TABLES_ENDPOINT,
 )
 
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 serializer = DataSerializer()
 router = APIRouter(prefix=BROWSER_ROUTER_PREFIX, tags=["browser"])

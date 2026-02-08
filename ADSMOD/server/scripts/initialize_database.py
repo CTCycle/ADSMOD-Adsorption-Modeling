@@ -4,8 +4,8 @@ import json
 import time
 
 from ADSMOD.server.repositories.initializer import initialize_database
-from ADSMOD.server.utils.constants import CONFIGURATION_FILE
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.constants import CONFIGURATION_FILE
+from ADSMOD.server.common.utils.logger import logger
 
 
 # -------------------------------------------------------------------------

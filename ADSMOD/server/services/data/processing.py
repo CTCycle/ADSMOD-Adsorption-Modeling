@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from ADSMOD.server.configurations import server_settings
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_BEST_MODEL,
@@ -26,7 +26,7 @@ from ADSMOD.server.utils.constants import (
     COLUMN_WORST_MODEL,
     DEFAULT_DATASET_COLUMN_MAPPING,
 )
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 ###############################################################################

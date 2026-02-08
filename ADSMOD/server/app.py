@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     DOCS_ENDPOINT,
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,

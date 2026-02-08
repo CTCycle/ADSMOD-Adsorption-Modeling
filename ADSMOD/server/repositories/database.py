@@ -6,7 +6,7 @@ from typing import Any, Protocol
 import pandas as pd
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.postgres import PostgresRepository
 from ADSMOD.server.repositories.sqlite import SQLiteRepository
 

@@ -12,7 +12,7 @@ from ADSMOD.server.schemas.jobs import (
     JobStatusResponse,
 )
 from ADSMOD.server.configurations import server_settings
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
     FITTING_JOBS_ENDPOINT,
     FITTING_JOB_STATUS_ENDPOINT,
@@ -20,7 +20,7 @@ from ADSMOD.server.utils.constants import (
     FITTING_ROUTER_PREFIX,
     FITTING_RUN_ENDPOINT,
 )
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.isodb import NISTDataSerializer
 from ADSMOD.server.services.data.conversion import (
     PQ_units_conversion,

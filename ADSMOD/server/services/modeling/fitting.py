@@ -11,7 +11,7 @@ import pandas as pd
 from scipy.optimize import curve_fit, minimize
 
 from ADSMOD.server.configurations import server_settings
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_BEST_MODEL,
@@ -28,7 +28,7 @@ from ADSMOD.server.utils.constants import (
     COLUMN_WORST_MODEL,
     MODEL_PARAMETER_DEFAULTS,
 )
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.serializer import DataSerializer
 from ADSMOD.server.services.modeling.models import AdsorptionModels
 from ADSMOD.server.services.data.processing import (

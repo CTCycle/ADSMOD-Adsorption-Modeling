@@ -11,11 +11,11 @@ import pandas as pd
 import pubchempy as pcp
 
 from ADSMOD.server.configurations import server_settings
-from ADSMOD.server.utils.encoding import (
+from ADSMOD.server.common.utils.encoding import (
     decode_json_response_bytes,
     sanitize_dataframe_strings,
 )
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.isodb import NISTDataSerializer
 from ADSMOD.server.services.jobs import job_manager
 

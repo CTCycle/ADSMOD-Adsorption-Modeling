@@ -3,13 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from ADSMOD.server.schemas.datasets import DatasetLoadResponse, DatasetNamesResponse
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     DATASETS_FETCH_ENDPOINT,
     DATASETS_LOAD_ENDPOINT,
     DATASETS_NAMES_ENDPOINT,
     DATASETS_ROUTER_PREFIX,
 )
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.services.data.datasets import DatasetService
 
 router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["load"])
