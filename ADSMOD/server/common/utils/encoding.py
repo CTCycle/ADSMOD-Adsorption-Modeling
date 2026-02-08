@@ -32,8 +32,7 @@ def normalize_unicode_text(value: str) -> str:
     return "".join(
         character
         for character in normalized
-        if ord(character) >= 32
-        or character in SAFE_CONTROL_CHARACTERS
+        if ord(character) >= 32 or character in SAFE_CONTROL_CHARACTERS
     )
 
 
@@ -42,8 +41,7 @@ def normalize_error_text(value: str) -> str:
     return "".join(
         character
         for character in normalize_unicode_text(value)
-        if ord(character) < 128
-        or character in SAFE_CONTROL_CHARACTERS
+        if ord(character) < 128 or character in SAFE_CONTROL_CHARACTERS
     )
 
 
@@ -72,7 +70,9 @@ def sanitize_dataframe_strings(dataframe: pd.DataFrame) -> pd.DataFrame:
     string_columns = sanitized.select_dtypes(include=["object", "string"]).columns
     for column in string_columns:
         sanitized[column] = sanitized[column].apply(
-            lambda value: normalize_unicode_text(value) if isinstance(value, str) else value
+            lambda value: normalize_unicode_text(value)
+            if isinstance(value, str)
+            else value
         )
     return sanitized
 

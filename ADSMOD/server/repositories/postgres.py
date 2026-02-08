@@ -68,7 +68,9 @@ class PostgresRepository:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _ensure_utf8_client_encoding(dbapi_connection: Any, connection_record: Any) -> None:
+    def _ensure_utf8_client_encoding(
+        dbapi_connection: Any, connection_record: Any
+    ) -> None:
         try:
             with dbapi_connection.cursor() as cursor:
                 cursor.execute("SET client_encoding TO 'UTF8'")
@@ -79,7 +81,9 @@ class PostgresRepository:
     def _ensure_server_utf8(self) -> None:
         try:
             with self.engine.connect() as conn:
-                encoding = conn.execute(sqlalchemy.text("SHOW SERVER_ENCODING")).scalar()
+                encoding = conn.execute(
+                    sqlalchemy.text("SHOW SERVER_ENCODING")
+                ).scalar()
             normalized = str(encoding or "").upper()
             if normalized not in {"UTF8", "UTF-8"}:
                 raise ValueError(

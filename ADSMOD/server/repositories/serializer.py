@@ -104,7 +104,9 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     @classmethod
-    def prepare_for_storage(cls, dataset: pd.DataFrame, table_name: str) -> pd.DataFrame:
+    def prepare_for_storage(
+        cls, dataset: pd.DataFrame, table_name: str
+    ) -> pd.DataFrame:
         normalized = cls.normalize_table_name(table_name)
         storage = dataset.copy()
         if normalized == cls.raw_table:
@@ -384,7 +386,9 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     @classmethod
     def prepare_metadata_for_storage(cls, metadata: pd.DataFrame) -> pd.DataFrame:
-        return metadata.copy().rename(columns={"dataset_hash": cls.metadata_hash_column})
+        return metadata.copy().rename(
+            columns={"dataset_hash": cls.metadata_hash_column}
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -431,7 +435,9 @@ class TrainingDataSerializer:
                 )
                 metadata_hash = hash_values.iloc[0] if not hash_values.empty else None
             if metadata_hash and self.metadata_hash_column in existing.columns:
-                existing = existing[existing[self.metadata_hash_column] != metadata_hash]
+                existing = existing[
+                    existing[self.metadata_hash_column] != metadata_hash
+                ]
             elif "dataset_label" in existing.columns:
                 existing = existing[existing["dataset_label"] != dataset_label]
 
@@ -450,14 +456,19 @@ class TrainingDataSerializer:
         existing_data = database.load_from_database(self.dataset_table)
         existing_meta = database.load_from_database(self.metadata_table)
 
-        if not existing_data.empty and self.dataset_label_column in existing_data.columns:
+        if (
+            not existing_data.empty
+            and self.dataset_label_column in existing_data.columns
+        ):
             filtered_data = existing_data[
                 existing_data[self.dataset_label_column] != dataset_label
             ]
             database.save_into_database(filtered_data, self.dataset_table)
 
         if not existing_meta.empty and "dataset_label" in existing_meta.columns:
-            filtered_meta = existing_meta[existing_meta["dataset_label"] != dataset_label]
+            filtered_meta = existing_meta[
+                existing_meta["dataset_label"] != dataset_label
+            ]
             database.save_into_database(filtered_meta, self.metadata_table)
 
     # -------------------------------------------------------------------------
