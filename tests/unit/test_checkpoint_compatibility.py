@@ -7,7 +7,7 @@ import pandas as pd
 
 from ADSMOD.server.routes.training import determine_checkpoint_compatibility
 from ADSMOD.server.schemas.training import TrainingMetadata
-from ADSMOD.server.repository import serializer as serializer_module
+from ADSMOD.server.repositories import serializer as serializer_module
 from ADSMOD.server.repositories.serializer import TrainingDataSerializer
 
 
