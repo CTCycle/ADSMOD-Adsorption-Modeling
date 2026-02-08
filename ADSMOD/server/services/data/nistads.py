@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 from time import monotonic
 from typing import Any
@@ -10,6 +11,10 @@ import pandas as pd
 import pubchempy as pcp
 
 from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.utils.encoding import (
+    decode_json_response_bytes,
+    sanitize_dataframe_strings,
+)
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.repositories.isodb import NISTDataSerializer
 from ADSMOD.server.services.jobs import job_manager
@@ -60,6 +65,11 @@ class NISTDatasetBuilder:
             "compound_1_data",
             "compound_2_data",
         ]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_string_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+        return sanitize_dataframe_strings(dataframe)
 
     # -------------------------------------------------------------------------
     def drop_excluded_columns(self, dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -220,6 +230,7 @@ class NISTDatasetBuilder:
                     "pressureUnits": "pressure_units",
                 }
             )
+            single_dataset = self.normalize_string_columns(single_dataset)
 
         if binary_mixture.empty:
             binary_dataset = pd.DataFrame()
@@ -236,6 +247,7 @@ class NISTDatasetBuilder:
                     "pressureUnits": "pressure_units",
                 }
             )
+            binary_dataset = self.normalize_string_columns(binary_dataset)
 
         return single_dataset, binary_dataset
 
@@ -293,8 +305,8 @@ class NISTApiClient:
                 logger.warning("Failed to fetch %s: %s", url, exc)
                 return None
             try:
-                return response.json()
-            except ValueError as exc:
+                return decode_json_response_bytes(response.content)
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
                 logger.warning("Invalid JSON from %s: %s", url, exc)
                 return None
 

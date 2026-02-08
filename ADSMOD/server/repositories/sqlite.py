@@ -12,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.utils.constants import RESOURCES_PATH, DATABASE_FILENAME
+from ADSMOD.server.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.utils.logger import logger
 from ADSMOD.server.repositories.schema import Base
 
@@ -47,7 +48,8 @@ class SQLiteRepository:
                     break
             if not unique_cols:
                 raise ValueError(f"No unique constraint found for {table_cls.__name__}")
-            records = df.to_dict(orient="records")
+            sanitized_df = sanitize_dataframe_strings(df)
+            records = sanitized_df.to_dict(orient="records")
             for i in range(0, len(records), self.insert_batch_size):
                 batch = records[i : i + self.insert_batch_size]
                 if not batch:
@@ -105,6 +107,7 @@ class SQLiteRepository:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
+        sanitized_df = sanitize_dataframe_strings(df)
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             table_cls = None
@@ -123,7 +126,7 @@ class SQLiteRepository:
                     table_cls.__table__.create(conn, checkfirst=True)
                 else:
                     conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
-            df.to_sql(table_name, conn, if_exists="append", index=False)
+            sanitized_df.to_sql(table_name, conn, if_exists="append", index=False)
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:

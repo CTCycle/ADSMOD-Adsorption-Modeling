@@ -16,6 +16,7 @@ from typing import Any
 
 from collections.abc import Callable
 
+from ADSMOD.server.utils.encoding import normalize_error_text
 from ADSMOD.server.utils.logger import logger
 
 
@@ -100,7 +101,7 @@ def run_process_runner(
         except Exception:
             result_queue.put({"status": "success", "result": result})
     except Exception as exc:  # noqa: BLE001
-        error_msg = str(exc).split("\n")[0][:200]
+        error_msg = normalize_error_text(str(exc)).split("\n")[0][:200]
         try:
             result_queue.put_nowait({"status": "error", "error": error_msg})
         except Exception:
@@ -419,7 +420,7 @@ class JobManager:
         try:
             process.start()
         except Exception as exc:  # noqa: BLE001
-            error_msg = str(exc).split("\n")[0][:200]
+            error_msg = normalize_error_text(str(exc)).split("\n")[0][:200]
             self.finalize_job(job_id, "failed", None, error_msg)
             logger.error("Failed to start process job %s: %s", job_id, error_msg)
             return
@@ -539,7 +540,7 @@ class JobManager:
                 self.finalize_job(job_id, "completed", merged if merged else None, None)
                 logger.info("Job %s completed successfully", job_id)
         except Exception as exc:  # noqa: BLE001
-            error_msg = str(exc).split("\n")[0][:200]
+            error_msg = normalize_error_text(str(exc)).split("\n")[0][:200]
             self.finalize_job(job_id, "failed", None, error_msg)
             logger.error("Job %s failed: %s", job_id, error_msg)
             logger.debug("Job %s error details", job_id, exc_info=True)
