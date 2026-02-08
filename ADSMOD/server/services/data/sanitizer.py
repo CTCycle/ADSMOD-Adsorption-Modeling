@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 ###############################################################################

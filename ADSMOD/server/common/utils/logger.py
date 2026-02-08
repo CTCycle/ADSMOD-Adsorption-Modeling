@@ -7,7 +7,7 @@ from datetime import datetime
 from os import makedirs
 from os.path import join
 
-from ADSMOD.server.utils.constants import LOGS_PATH
+from ADSMOD.server.common.constants import LOGS_PATH
 
 
 ###############################################################################

@@ -4,8 +4,8 @@ import os
 
 from dotenv import load_dotenv
 
-from ADSMOD.server.utils.constants import ENV_FILE_PATH
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.constants import ENV_FILE_PATH
+from ADSMOD.server.common.utils.logger import logger
 
 
 ###############################################################################

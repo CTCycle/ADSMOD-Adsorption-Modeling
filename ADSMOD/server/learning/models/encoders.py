@@ -5,7 +5,7 @@ from typing import Any
 import keras
 from keras import activations, layers
 
-from ADSMOD.server.utils.constants import PAD_VALUE
+from ADSMOD.server.common.constants import PAD_VALUE
 from ADSMOD.server.learning.models.transformers import AddNorm, FeedForward
 
 

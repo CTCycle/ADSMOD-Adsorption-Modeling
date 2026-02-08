@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_OPTIMIZATION_METHOD,

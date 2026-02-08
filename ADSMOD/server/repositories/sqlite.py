@@ -11,9 +11,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from ADSMOD.server.configurations import DatabaseSettings
-from ADSMOD.server.utils.constants import RESOURCES_PATH, DATABASE_FILENAME
-from ADSMOD.server.utils.encoding import sanitize_dataframe_strings
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.constants import RESOURCES_PATH, DATABASE_FILENAME
+from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.schema import Base
 
 

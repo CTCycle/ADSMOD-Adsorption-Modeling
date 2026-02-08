@@ -14,7 +14,7 @@ from keras.models import load_model
 
 from ADSMOD.server.repositories.database import database
 from ADSMOD.server.schemas.models import MODEL_SCHEMAS
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     CHECKPOINTS_PATH,
     COLUMN_BEST_MODEL,
     COLUMN_DATASET_NAME,
@@ -48,7 +48,7 @@ from ADSMOD.server.learning.models.transformers import (
     TransformerEncoder,
 )
 from ADSMOD.server.learning.training.scheduler import LinearDecayLRScheduler
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 ###############################################################################

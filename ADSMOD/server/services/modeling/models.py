@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from ADSMOD.server.utils.constants import FITTING_MODEL_NAMES
+from ADSMOD.server.common.constants import FITTING_MODEL_NAMES
 
 
 ###############################################################################

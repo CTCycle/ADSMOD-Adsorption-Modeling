@@ -16,8 +16,8 @@ from typing import Any
 
 from collections.abc import Callable
 
-from ADSMOD.server.utils.encoding import normalize_error_text
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.encoding import normalize_error_text
+from ADSMOD.server.common.utils.logger import logger
 
 
 @dataclass

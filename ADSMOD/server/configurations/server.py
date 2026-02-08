@@ -3,21 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ADSMOD.server.utils.types import coerce_str_sequence
+from ADSMOD.server.common.utils.types import coerce_str_sequence
 
 from ADSMOD.server.configurations import (
     ensure_mapping,
     load_configurations,
 )
-from ADSMOD.server.utils.constants import CONFIGURATION_FILE
-from ADSMOD.server.utils.types import (
+from ADSMOD.server.common.constants import CONFIGURATION_FILE
+from ADSMOD.server.common.utils.types import (
     coerce_bool,
     coerce_float,
     coerce_int,
     coerce_str,
     coerce_str_or_none,
 )
-from ADSMOD.server.utils.variables import env_variables
+from ADSMOD.server.common.utils.variables import env_variables
 
 
 # [SERVER SETTINGS]

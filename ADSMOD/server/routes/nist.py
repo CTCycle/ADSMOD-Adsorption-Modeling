@@ -15,7 +15,7 @@ from ADSMOD.server.schemas.nist import (
     NISTPropertiesRequest,
     NISTStatusResponse,
 )
-from ADSMOD.server.utils.constants import (
+from ADSMOD.server.common.constants import (
     NIST_FETCH_ENDPOINT,
     NIST_JOBS_ENDPOINT,
     NIST_JOB_STATUS_ENDPOINT,
@@ -23,7 +23,7 @@ from ADSMOD.server.utils.constants import (
     NIST_ROUTER_PREFIX,
     NIST_STATUS_ENDPOINT,
 )
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.services.jobs import job_manager
 from ADSMOD.server.services.data.nistads import NISTDataService
 from ADSMOD.server.configurations import server_settings

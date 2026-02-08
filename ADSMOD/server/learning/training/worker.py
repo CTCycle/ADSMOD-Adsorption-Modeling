@@ -9,7 +9,7 @@ import signal
 import subprocess
 import time
 
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 ###############################################################################

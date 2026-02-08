@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ADSMOD.server.utils.encoding import (
+from ADSMOD.server.common.utils.encoding import (
     decode_json_response_bytes,
     normalize_unicode_text,
     sanitize_dataframe_strings,

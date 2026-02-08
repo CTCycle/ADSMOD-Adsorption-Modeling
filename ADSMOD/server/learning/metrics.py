@@ -4,7 +4,7 @@ from typing import Any
 
 import keras
 
-from ADSMOD.server.utils.constants import PAD_VALUE
+from ADSMOD.server.common.constants import PAD_VALUE
 
 
 # [LOSS FUNCTION]

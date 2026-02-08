@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 def map_values(

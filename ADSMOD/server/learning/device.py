@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Iterator
 import torch
 
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 from keras.mixed_precision import set_global_policy
 
 

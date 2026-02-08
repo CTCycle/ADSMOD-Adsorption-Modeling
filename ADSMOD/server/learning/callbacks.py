@@ -8,7 +8,7 @@ from typing import Any
 import keras
 from keras.callbacks import Callback
 
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 class WorkerInterrupted(RuntimeError):

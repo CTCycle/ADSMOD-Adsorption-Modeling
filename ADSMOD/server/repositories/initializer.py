@@ -10,7 +10,7 @@ from ADSMOD.server.repositories.postgres import PostgresRepository
 from ADSMOD.server.repositories.schema import Base
 from ADSMOD.server.repositories.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.utils import normalize_postgres_engine
-from ADSMOD.server.utils.logger import logger
+from ADSMOD.server.common.utils.logger import logger
 
 
 # -------------------------------------------------------------------------
