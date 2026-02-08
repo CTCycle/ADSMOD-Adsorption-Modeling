@@ -10,8 +10,8 @@
     "ssl": false,
     "ssl_ca": null,
     "connect_timeout": 30,
-    "insert_batch_size": 20000,    
-    "browse_page_size": 1000
+    "insert_batch_size": 5000,    
+    "browse_page_size": 500
   },
   "datasets": {
     "allowed_extensions": [
