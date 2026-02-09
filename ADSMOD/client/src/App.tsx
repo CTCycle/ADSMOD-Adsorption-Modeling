@@ -29,6 +29,61 @@ const formatFileSize = (bytes: number): string => {
     return `${kb} kb`;
 };
 
+const escapeMarkdownTableCell = (value: unknown): string => {
+    return String(value).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+};
+
+const inferColumnDtype = (values: unknown[]): string => {
+    const firstValue = values.find((value) => value !== null && value !== undefined && !(typeof value === 'number' && Number.isNaN(value)));
+    if (firstValue === undefined) {
+        return 'unknown';
+    }
+    if (typeof firstValue === 'number') {
+        return Number.isInteger(firstValue) ? 'int64' : 'float64';
+    }
+    if (typeof firstValue === 'boolean') {
+        return 'bool';
+    }
+    return 'str';
+};
+
+const buildDatasetSummary = (payload: DatasetPayload): string => {
+    const records = Array.isArray(payload.records) ? payload.records : [];
+    const providedColumns = Array.isArray(payload.columns) ? payload.columns : [];
+    const discoveredColumns = new Set<string>(providedColumns);
+    records.forEach((row) => {
+        Object.keys(row || {}).forEach((key) => discoveredColumns.add(key));
+    });
+    const orderedColumns = Array.from(discoveredColumns);
+
+    let totalMissing = 0;
+    const columnLines = orderedColumns.map((column) => {
+        const values = records.map((row) => row?.[column]);
+        const missing = values.filter(
+            (value) => value === null || value === undefined || (typeof value === 'number' && Number.isNaN(value))
+        ).length;
+        totalMissing += missing;
+        const dtype = inferColumnDtype(values);
+        return `| \`${escapeMarkdownTableCell(column)}\` | \`${escapeMarkdownTableCell(dtype)}\` | ${missing} |`;
+    });
+
+    return [
+        '### Dataset overview',
+        '',
+        '| Metric | Value |',
+        '|---|---:|',
+        `| Rows | ${records.length} |`,
+        `| Columns | ${orderedColumns.length} |`,
+        `| NaN cells | ${totalMissing} |`,
+        '',
+        '### Column details',
+        '',
+        '| Column | Dtype | Missing |',
+        '|---|---|---:|',
+        ...columnLines,
+    ].join('\n');
+};
+
 function App() {
     const [currentPage, setCurrentPage] = useState<PageId>('config');
     const [mountedPages, setMountedPages] = useState<Record<PageId, boolean>>(initialMountedPages);
@@ -112,11 +167,12 @@ function App() {
             setDatasetName(result.dataset.dataset_name);
             const recordCount = Array.isArray(result.dataset.records) ? result.dataset.records.length : 0;
             setDatasetSamples(recordCount);
+            setDatasetStats(buildDatasetSummary(result.dataset));
             setPendingFile(null);
             setPendingFileSize(null);
+        } else {
+            setDatasetStats(result.message);
         }
-
-        setDatasetStats(result.message);
         setIsDatasetUploading(false);
 
         // Refresh available datasets after upload
@@ -164,9 +220,7 @@ function App() {
                     setDatasetName(lookup.dataset.dataset_name);
                     const recordCount = Array.isArray(lookup.dataset.records) ? lookup.dataset.records.length : 0;
                     setDatasetSamples(recordCount);
-                    if (lookup.summary) {
-                        setDatasetStats(lookup.summary);
-                    }
+                    setDatasetStats(buildDatasetSummary(lookup.dataset));
                 } else {
                     fittingDataset = dataset;
                 }
