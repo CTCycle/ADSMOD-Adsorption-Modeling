@@ -2,11 +2,64 @@ from __future__ import annotations
 
 import pandas as pd
 
+from ADSMOD.server.common.constants import COLUMN_ADSORBATE, COLUMN_ADSORBENT
+from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.database.backend import database
 
 
 ###############################################################################
 class NISTDataSerializer:
+    SINGLE_COMPONENT_UNIQUE_COLUMNS = [
+        COLUMN_ADSORBATE,
+        COLUMN_ADSORBENT,
+        "temperature",
+        "pressure",
+        "adsorbed_amount",
+    ]
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def deduplicate_single_component_rows(
+        cls, single_component: pd.DataFrame
+    ) -> pd.DataFrame:
+        if single_component.empty:
+            return single_component
+
+        normalized = single_component.copy()
+        for column in (COLUMN_ADSORBATE, COLUMN_ADSORBENT):
+            if column in normalized.columns:
+                normalized[column] = (
+                    normalized[column].astype("string").str.strip().str.lower()
+                )
+        for column in ("temperature", "pressure", "adsorbed_amount"):
+            if column in normalized.columns:
+                normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
+
+        missing_columns = [
+            column
+            for column in cls.SINGLE_COMPONENT_UNIQUE_COLUMNS
+            if column not in normalized.columns
+        ]
+        if missing_columns:
+            logger.warning(
+                "Skipping NIST single-component deduplication: missing columns %s",
+                missing_columns,
+            )
+            return normalized
+
+        before_count = len(normalized)
+        deduplicated = normalized.drop_duplicates(
+            subset=cls.SINGLE_COMPONENT_UNIQUE_COLUMNS,
+            keep="first",
+        ).reset_index(drop=True)
+        removed_count = before_count - len(deduplicated)
+        if removed_count > 0:
+            logger.info(
+                "Removed %d duplicate NIST single-component rows before upsert",
+                removed_count,
+            )
+        return deduplicated
+
     # -------------------------------------------------------------------------
     def load_adsorption_datasets(
         self,
@@ -46,6 +99,7 @@ class NISTDataSerializer:
         self, single_component: pd.DataFrame, binary_mixture: pd.DataFrame
     ) -> None:
         if isinstance(single_component, pd.DataFrame):
+            single_component = self.deduplicate_single_component_rows(single_component)
             database.upsert_into_database(
                 single_component, "nist_single_component_adsorption"
             )

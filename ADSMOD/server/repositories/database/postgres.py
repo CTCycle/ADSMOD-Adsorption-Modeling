@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import urllib.parse
 from typing import Any
 
@@ -7,13 +8,14 @@ import pandas as pd
 import sqlalchemy
 from sqlalchemy import event
 from sqlalchemy import UniqueConstraint, inspect
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.repositories.schemas.models import Base
+from ADSMOD.server.repositories.schemas.types import JSONSequence
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.logger import logger
 
@@ -111,8 +113,41 @@ class PostgresRepository:
         return sanitize_dataframe_strings(df)
 
     # -------------------------------------------------------------------------
-    def prepare_for_storage(self, df: pd.DataFrame) -> pd.DataFrame:
-        return self.normalize_string_columns(df)
+    @staticmethod
+    def parse_json_column_value(value: Any) -> Any:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        if isinstance(value, (dict, list)):
+            return value
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if not trimmed:
+                return None
+            try:
+                return json.loads(trimmed)
+            except json.JSONDecodeError:
+                return value
+        return value
+
+    # -------------------------------------------------------------------------
+    def prepare_for_storage(
+        self,
+        df: pd.DataFrame,
+        table_cls: Any | None = None,
+    ) -> pd.DataFrame:
+        prepared = self.normalize_string_columns(df)
+        if table_cls is None or prepared.empty:
+            return prepared
+
+        json_columns = [
+            column.name
+            for column in table_cls.__table__.columns
+            if isinstance(column.type, JSONSequence)
+        ]
+        for column in json_columns:
+            if column in prepared.columns:
+                prepared[column] = prepared[column].apply(self.parse_json_column_value)
+        return prepared
 
     # -------------------------------------------------------------------------
     def restore_after_load(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -130,7 +165,7 @@ class PostgresRepository:
                     break
             if not unique_cols:
                 raise ValueError(f"No unique constraint found for {table_cls.__name__}")
-            prepared_df = self.prepare_for_storage(df)
+            prepared_df = self.prepare_for_storage(df, table_cls)
             records = prepared_df.to_dict(orient="records")
             if not records:
                 return
@@ -205,7 +240,6 @@ class PostgresRepository:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        prepared_df = self.prepare_for_storage(df)
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             table_cls = None
@@ -213,6 +247,7 @@ class PostgresRepository:
                 table_cls = self.get_table_class(table_name)
             except ValueError:
                 table_cls = None
+            prepared_df = self.prepare_for_storage(df, table_cls)
 
             if inspector.has_table(table_name):
                 if table_cls is not None:
@@ -229,7 +264,18 @@ class PostgresRepository:
                     conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
             elif table_cls is not None:
                 table_cls.__table__.create(conn, checkfirst=True)
-            prepared_df.to_sql(table_name, conn, if_exists="append", index=False)
+            dtype_overrides: dict[str, Any] = {}
+            if table_cls is not None:
+                for column in table_cls.__table__.columns:
+                    if isinstance(column.type, JSONSequence):
+                        dtype_overrides[column.name] = JSONB()
+            prepared_df.to_sql(
+                table_name,
+                conn,
+                if_exists="append",
+                index=False,
+                dtype=dtype_overrides or None,
+            )
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:

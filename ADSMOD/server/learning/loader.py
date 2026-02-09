@@ -71,7 +71,7 @@ class DataLoaderProcessor:
         }
 
         grouped_data = dataset.groupby(by="filename").agg(aggregate_dict).reset_index()
-        grouped_data.drop(columns=["filename"], inplace=True)
+        grouped_data = grouped_data.drop(columns=["filename"])
 
         return grouped_data
 
@@ -87,10 +87,12 @@ class DataLoaderProcessor:
 
     # -------------------------------------------------------------------------
     def remove_invalid_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
-        data = data[data["temperature"] >= 0]
+        data = data.loc[data["temperature"] >= 0].copy()
         if "pressure" in self.normalization_config:
             max_pressure = self.normalization_config["pressure"]
-            data = data[(data["pressure"] >= 0) & (data["pressure"] <= max_pressure)]
+            data = data.loc[
+                (data["pressure"] >= 0) & (data["pressure"] <= max_pressure)
+            ].copy()
 
         return data
 
