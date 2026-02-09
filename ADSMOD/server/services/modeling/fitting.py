@@ -19,12 +19,10 @@ from ADSMOD.server.common.constants import (
     COLUMN_EXPERIMENT,
     COLUMN_EXPERIMENT_NAME,
     COLUMN_FILENAME,
-    COLUMN_MAX_PRESSURE,
-    COLUMN_MAX_UPTAKE,
-    COLUMN_MEASUREMENT_COUNT,
-    COLUMN_MIN_PRESSURE,
-    COLUMN_MIN_UPTAKE,
+    COLUMN_PRESSURE_PA,
     COLUMN_SCORE,
+    COLUMN_TEMPERATURE_K,
+    COLUMN_UPTAKE_MOL_G,
     COLUMN_WORST_MODEL,
     MODEL_PARAMETER_DEFAULTS,
 )
@@ -804,17 +802,14 @@ class FittingPipeline:
     def trim_fitting_dataset(
         dataset: pd.DataFrame, detected_columns: DatasetColumns
     ) -> pd.DataFrame:
-        drop_columns = [
-            detected_columns.temperature,
-            detected_columns.pressure,
-            detected_columns.uptake,
-            COLUMN_MEASUREMENT_COUNT,
-            COLUMN_MIN_PRESSURE,
-            COLUMN_MAX_PRESSURE,
-            COLUMN_MIN_UPTAKE,
-            COLUMN_MAX_UPTAKE,
-        ]
-        return dataset.drop(columns=drop_columns, errors="ignore")
+        normalized = dataset.rename(
+            columns={
+                detected_columns.temperature: COLUMN_TEMPERATURE_K,
+                detected_columns.pressure: COLUMN_PRESSURE_PA,
+                detected_columns.uptake: COLUMN_UPTAKE_MOL_G,
+            }
+        )
+        return normalized
 
     # -------------------------------------------------------------------------
     @staticmethod

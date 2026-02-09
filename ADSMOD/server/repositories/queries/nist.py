@@ -11,9 +11,7 @@ class NISTDataSerializer:
     def load_adsorption_datasets(
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        adsorption_data = database.load_from_database(
-            "nist_single_component_adsorption"
-        )
+        adsorption_data = database.load_from_database("nist_single_component_adsorption")
         guest_data = database.load_from_database("adsorbates")
         host_data = database.load_from_database("adsorbents")
 

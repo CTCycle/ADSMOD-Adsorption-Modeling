@@ -228,6 +228,8 @@ class NISTDatasetBuilder:
                     "filename": "name",
                     "adsorptionUnits": "adsorption_units",
                     "pressureUnits": "pressure_units",
+                    "adsorbent_name": "adsorbent",
+                    "adsorbate_name": "adsorbate",
                 }
             )
             single_dataset = self.normalize_string_columns(single_dataset)
@@ -609,17 +611,19 @@ class NISTDataService:
 
         if target == "guest":
             data = guest_data.copy()
+            adsorbate_series = adsorption_data.get("adsorbate", pd.Series(dtype=str))
             name_series = pd.concat(
                 [
-                    adsorption_data.get("adsorbate_name", pd.Series(dtype=str)),
+                    adsorbate_series,
                     data.get("name", pd.Series(dtype=str)),
                 ]
             )
         elif target == "host":
             data = host_data.copy()
+            adsorbent_series = adsorption_data.get("adsorbent", pd.Series(dtype=str))
             name_series = pd.concat(
                 [
-                    adsorption_data.get("adsorbent_name", pd.Series(dtype=str)),
+                    adsorbent_series,
                     data.get("name", pd.Series(dtype=str)),
                 ]
             )

@@ -2,17 +2,39 @@ from __future__ import annotations
 
 import io
 import os
+from difflib import get_close_matches
 from typing import Any
 
 import pandas as pd
 
 from ADSMOD.server.configurations import server_settings
-from ADSMOD.server.common.constants import DATASET_FALLBACK_DELIMITERS
+from ADSMOD.server.common.constants import (
+    COLUMN_ADSORBATE,
+    COLUMN_ADSORBENT,
+    DATASET_FALLBACK_DELIMITERS,
+)
 from ADSMOD.server.repositories.serialization.data import DataSerializer
 
 
 ###############################################################################
 class DatasetService:
+    MATERIAL_COLUMN_ALIASES = {
+        COLUMN_ADSORBATE: [
+            COLUMN_ADSORBATE,
+            "adsorbate_name",
+            "adsorbate name",
+            "guest",
+            "gas",
+        ],
+        COLUMN_ADSORBENT: [
+            COLUMN_ADSORBENT,
+            "adsorbent_name",
+            "adsorbent name",
+            "host",
+            "material",
+        ],
+    }
+
     def __init__(self) -> None:
         self.allowed_extensions = set(server_settings.datasets.allowed_extensions)
 
@@ -184,6 +206,53 @@ class DatasetService:
         return sorted(cleaned)
 
     # -------------------------------------------------------------------------
+    def resolve_column_alias(
+        self, columns: list[str], aliases: list[str]
+    ) -> str | None:
+        normalized = {column: str(column).strip().lower() for column in columns}
+        for alias in aliases:
+            alias_normalized = alias.strip().lower()
+            for column, value in normalized.items():
+                if value == alias_normalized:
+                    return column
+        for alias in aliases:
+            alias_normalized = alias.strip().lower()
+            for column, value in normalized.items():
+                if alias_normalized in value:
+                    return column
+        if not aliases:
+            return None
+        close_matches = get_close_matches(
+            aliases[0].strip().lower(),
+            list(normalized.values()),
+            cutoff=0.78,
+        )
+        if not close_matches:
+            return None
+        best_match = close_matches[0]
+        for column, value in normalized.items():
+            if value == best_match:
+                return column
+        return None
+
+    # -------------------------------------------------------------------------
+    def normalize_material_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        normalized = dataset.copy()
+        rename_map: dict[str, str] = {}
+        for target, aliases in self.MATERIAL_COLUMN_ALIASES.items():
+            if target in normalized.columns:
+                continue
+            match = self.resolve_column_alias(list(normalized.columns), aliases)
+            if match is not None and match != target:
+                rename_map[match] = target
+        if rename_map:
+            normalized = normalized.rename(columns=rename_map)
+        for target in self.MATERIAL_COLUMN_ALIASES:
+            if target not in normalized.columns:
+                normalized[target] = ""
+        return normalized
+
+    # -------------------------------------------------------------------------
     def save_to_database(self, payload: dict[str, Any]) -> None:
         """Persist uploaded dataset to adsorption_data table.
 
@@ -198,6 +267,7 @@ class DatasetService:
             return
 
         df = pd.DataFrame.from_records(records, columns=columns)
+        df = self.normalize_material_columns(df)
         df["name"] = dataset_name
         serializer = DataSerializer()
         serializer.save_raw_dataset(df)

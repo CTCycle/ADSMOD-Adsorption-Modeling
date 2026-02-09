@@ -63,18 +63,6 @@ class FittingEndpoint:
         nist_df: pd.DataFrame,
         adsorbates_df: pd.DataFrame,
     ) -> pd.DataFrame:
-        required_cols = [
-            "filename",
-            "adsorbent_name",
-            "adsorbate_name",
-            "temperature",
-            "pressure",
-            "adsorbed_amount",
-        ]
-        missing = [column for column in required_cols if column not in nist_df.columns]
-        if missing:
-            raise ValueError(f"NIST dataset missing required columns: {missing}")
-
         cleaned = nist_df.copy().rename(
             columns={
                 "name": "filename",
@@ -82,17 +70,28 @@ class FittingEndpoint:
                 "pressure_units": "pressureUnits",
             }
         )
+        required_cols = [
+            "filename",
+            "adsorbent",
+            "adsorbate",
+            "temperature",
+            "pressure",
+            "adsorbed_amount",
+        ]
+        missing = [column for column in required_cols if column not in cleaned.columns]
+        if missing:
+            raise ValueError(f"NIST dataset missing required columns: {missing}")
         cleaned = cleaned.dropna(subset=required_cols)
         cleaned["filename"] = cleaned["filename"].astype("string").str.strip()
-        cleaned["adsorbent_name"] = (
-            cleaned["adsorbent_name"].astype("string").str.strip().str.lower()
+        cleaned["adsorbent"] = (
+            cleaned["adsorbent"].astype("string").str.strip().str.lower()
         )
-        cleaned["adsorbate_name"] = (
-            cleaned["adsorbate_name"].astype("string").str.strip().str.lower()
+        cleaned["adsorbate"] = (
+            cleaned["adsorbate"].astype("string").str.strip().str.lower()
         )
         cleaned = cleaned[cleaned["filename"] != ""]
-        cleaned = cleaned[cleaned["adsorbent_name"] != ""]
-        cleaned = cleaned[cleaned["adsorbate_name"] != ""]
+        cleaned = cleaned[cleaned["adsorbent"] != ""]
+        cleaned = cleaned[cleaned["adsorbate"] != ""]
 
         if (
             not adsorbates_df.empty
@@ -108,7 +107,7 @@ class FittingEndpoint:
                 subset=["name"], keep="first"
             )
             cleaned = cleaned.merge(
-                weights, left_on="adsorbate_name", right_on="name", how="left"
+                weights, left_on="adsorbate", right_on="name", how="left"
             )
 
         pressure_converter = PressureConversion()
@@ -164,9 +163,9 @@ class FittingEndpoint:
         converted["experiment"] = (
             converted["filename"].astype("string").str.strip()
             + "_"
-            + converted["adsorbent_name"].astype("string").str.strip()
+            + converted["adsorbent"].astype("string").str.strip()
             + "_"
-            + converted["adsorbate_name"].astype("string").str.strip()
+            + converted["adsorbate"].astype("string").str.strip()
             + "_"
             + converted["temperature"].astype(str)
             + "K"
