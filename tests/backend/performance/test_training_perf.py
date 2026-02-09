@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from ADSMOD.server.schemas.training import TrainingConfigRequest
+from ADSMOD.server.entities.training import TrainingConfigRequest
 from ADSMOD.server.common.constants import CHECKPOINTS_PATH
 from tests.backend.performance.dataset import (
     SyntheticDatasetSpec,

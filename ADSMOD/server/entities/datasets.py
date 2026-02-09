@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from ADSMOD.server.schemas.fitting import DatasetPayload
+from ADSMOD.server.entities.fitting import DatasetPayload
 
 
 ###############################################################################

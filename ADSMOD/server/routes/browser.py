@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from ADSMOD.server.schemas.browser import (
+from ADSMOD.server.entities.browser import (
     TableDataResponse,
     TableInfo,
     TableListResponse,

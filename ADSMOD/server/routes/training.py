@@ -6,12 +6,12 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from ADSMOD.server.schemas.jobs import (
+from ADSMOD.server.entities.jobs import (
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
-from ADSMOD.server.schemas.training import (
+from ADSMOD.server.entities.training import (
     CheckpointDetailInfo,
     CheckpointFullDetailsResponse,
     CheckpointsResponse,

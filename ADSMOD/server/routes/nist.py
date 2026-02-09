@@ -5,12 +5,12 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from ADSMOD.server.schemas.jobs import (
+from ADSMOD.server.entities.jobs import (
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
-from ADSMOD.server.schemas.nist import (
+from ADSMOD.server.entities.nist import (
     NISTFetchRequest,
     NISTPropertiesRequest,
     NISTStatusResponse,
