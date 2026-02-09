@@ -61,8 +61,18 @@ class DataSerializer:
     fitting_name_column = "name"
     processed_key_column = "processed_key"
     material_aliases = {
-        COLUMN_ADSORBATE: [COLUMN_ADSORBATE],
-        COLUMN_ADSORBENT: [COLUMN_ADSORBENT],
+        COLUMN_ADSORBATE: [
+            COLUMN_ADSORBATE,
+            "adsorbates",
+            "adsorbate_name",
+            "adsorbate name",
+        ],
+        COLUMN_ADSORBENT: [
+            COLUMN_ADSORBENT,
+            "adsorbents",
+            "adsorbent_name",
+            "adsorbent name",
+        ],
     }
     table_aliases = {
         "ADSORPTION_DATA": raw_table,
@@ -117,19 +127,24 @@ class DataSerializer:
     @classmethod
     def normalize_material_columns(cls, dataset: pd.DataFrame) -> pd.DataFrame:
         normalized = dataset.copy()
+        stripped_names = {column: str(column).strip() for column in normalized.columns}
+        if any(source != target for source, target in stripped_names.items()):
+            normalized = normalized.rename(columns=stripped_names)
         rename_map: dict[str, str] = {}
         for target, aliases in cls.material_aliases.items():
             if target in normalized.columns:
                 continue
             for alias in aliases:
-                if alias in normalized.columns:
-                    rename_map[alias] = target
+                alias_normalized = alias.strip().lower()
+                for column in normalized.columns:
+                    value = str(column).strip().lower()
+                    if value == alias_normalized:
+                        rename_map[column] = target
+                        break
+                if target in rename_map.values():
                     break
         if rename_map:
             normalized = normalized.rename(columns=rename_map)
-        for target in cls.material_aliases:
-            if target not in normalized.columns:
-                normalized[target] = ""
         return normalized
 
     # -------------------------------------------------------------------------

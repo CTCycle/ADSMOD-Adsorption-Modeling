@@ -9,6 +9,10 @@ import pandas as pd
 
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.common.constants import (
+    COLUMN_EXPERIMENT,
+    COLUMN_TEMPERATURE_K,
+    COLUMN_PRESSURE_PA,
+    COLUMN_UPTAKE_MOL_G,
     COLUMN_ADSORBATE,
     COLUMN_ADSORBENT,
     DATASET_FALLBACK_DELIMITERS,
@@ -18,9 +22,23 @@ from ADSMOD.server.repositories.serialization.data import DataSerializer
 
 ###############################################################################
 class DatasetService:
-    MATERIAL_COLUMN_ALIASES = {
+    ADSORPTION_SCHEMA_COLUMNS = [
+        COLUMN_EXPERIMENT,
+        COLUMN_ADSORBENT,
+        COLUMN_ADSORBATE,
+        COLUMN_TEMPERATURE_K,
+        COLUMN_PRESSURE_PA,
+        COLUMN_UPTAKE_MOL_G,
+    ]
+    ADSORPTION_COLUMN_ALIASES = {
+        COLUMN_EXPERIMENT: [
+            COLUMN_EXPERIMENT,
+            "experiment_name",
+            "experiment name",
+        ],
         COLUMN_ADSORBATE: [
             COLUMN_ADSORBATE,
+            "adsorbates",
             "adsorbate_name",
             "adsorbate name",
             "guest",
@@ -28,10 +46,32 @@ class DatasetService:
         ],
         COLUMN_ADSORBENT: [
             COLUMN_ADSORBENT,
+            "adsorbents",
             "adsorbent_name",
             "adsorbent name",
             "host",
             "material",
+        ],
+        COLUMN_TEMPERATURE_K: [
+            COLUMN_TEMPERATURE_K,
+            "temperature",
+            "temperature_k",
+            "temperature [k]",
+            "temp",
+        ],
+        COLUMN_PRESSURE_PA: [
+            COLUMN_PRESSURE_PA,
+            "pressure",
+            "pressure_pa",
+            "pressure [pa]",
+        ],
+        COLUMN_UPTAKE_MOL_G: [
+            COLUMN_UPTAKE_MOL_G,
+            "uptake",
+            "uptake_mol_g",
+            "uptake [mol/g]",
+            "adsorbed_amount",
+            "adsorbed amount",
         ],
     }
 
@@ -69,7 +109,9 @@ class DatasetService:
             raise ValueError("Uploaded dataset is empty.")
 
         dataframe = self.read_dataframe(payload, filename)
-        serializable = dataframe.where(pd.notna(dataframe), None)
+        normalized = self.normalize_adsorption_columns(dataframe, require_complete=True)
+        serializable_frame = self.select_schema_columns(normalized)
+        serializable = serializable_frame.where(pd.notna(serializable_frame), None)
         dataset_name = self.derive_dataset_name(filename)
         dataset_payload: dict[str, Any] = {
             "dataset_name": dataset_name,
@@ -77,7 +119,7 @@ class DatasetService:
             "records": serializable.to_dict(orient="records"),
             "row_count": int(serializable.shape[0]),
         }
-        summary = self.format_dataset_summary(dataframe)
+        summary = self.format_dataset_summary(serializable_frame)
         return dataset_payload, summary
 
     # -------------------------------------------------------------------------
@@ -184,15 +226,17 @@ class DatasetService:
         if filtered.empty:
             raise ValueError(f"Dataset '{dataset_name}' was not found.")
 
-        cleaned = filtered.drop(columns=["name"], errors="ignore")
-        serializable = cleaned.where(pd.notna(cleaned), None)
+        cleaned = filtered.drop(columns=["name", "id"], errors="ignore")
+        normalized = self.normalize_adsorption_columns(cleaned, require_complete=False)
+        ordered = self.order_dataset_columns(normalized)
+        serializable = ordered.where(pd.notna(ordered), None)
         dataset_payload: dict[str, Any] = {
             "dataset_name": dataset_name,
             "columns": list(serializable.columns),
             "records": serializable.to_dict(orient="records"),
             "row_count": int(serializable.shape[0]),
         }
-        summary = self.format_dataset_summary(cleaned)
+        summary = self.format_dataset_summary(ordered)
         return dataset_payload, summary
 
     # -------------------------------------------------------------------------
@@ -236,10 +280,15 @@ class DatasetService:
         return None
 
     # -------------------------------------------------------------------------
-    def normalize_material_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
+    def normalize_adsorption_columns(
+        self, dataset: pd.DataFrame, require_complete: bool = True
+    ) -> pd.DataFrame:
         normalized = dataset.copy()
+        stripped_names = {column: str(column).strip() for column in normalized.columns}
+        if any(source != target for source, target in stripped_names.items()):
+            normalized = normalized.rename(columns=stripped_names)
         rename_map: dict[str, str] = {}
-        for target, aliases in self.MATERIAL_COLUMN_ALIASES.items():
+        for target, aliases in self.ADSORPTION_COLUMN_ALIASES.items():
             if target in normalized.columns:
                 continue
             match = self.resolve_column_alias(list(normalized.columns), aliases)
@@ -247,10 +296,31 @@ class DatasetService:
                 rename_map[match] = target
         if rename_map:
             normalized = normalized.rename(columns=rename_map)
-        for target in self.MATERIAL_COLUMN_ALIASES:
-            if target not in normalized.columns:
-                normalized[target] = ""
+        missing_columns = [
+            column
+            for column in self.ADSORPTION_SCHEMA_COLUMNS
+            if column not in normalized.columns
+        ]
+        if require_complete and missing_columns:
+            missing = ", ".join(missing_columns)
+            raise ValueError(
+                "Uploaded dataset is missing required columns after normalization: "
+                f"{missing}"
+            )
         return normalized
+
+    # -------------------------------------------------------------------------
+    def select_schema_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        return dataset.loc[:, self.ADSORPTION_SCHEMA_COLUMNS].copy()
+
+    # -------------------------------------------------------------------------
+    def order_dataset_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        preferred = [
+            column for column in self.ADSORPTION_SCHEMA_COLUMNS if column in dataset.columns
+        ]
+        extras = [column for column in dataset.columns if column not in preferred]
+        ordered = [*preferred, *extras]
+        return dataset.loc[:, ordered].copy()
 
     # -------------------------------------------------------------------------
     def save_to_database(self, payload: dict[str, Any]) -> None:
@@ -267,7 +337,8 @@ class DatasetService:
             return
 
         df = pd.DataFrame.from_records(records, columns=columns)
-        df = self.normalize_material_columns(df)
+        df = self.normalize_adsorption_columns(df, require_complete=True)
+        df = self.select_schema_columns(df)
         df["name"] = dataset_name
         serializer = DataSerializer()
         serializer.save_raw_dataset(df)
