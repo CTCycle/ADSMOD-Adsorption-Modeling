@@ -236,7 +236,7 @@ class DatasetBuilder:
 
         tokenization = SMILETokenization(self.configuration)
         logger.info("Tokenizing SMILE sequences for adsorbate species")
-        processed_data, smile_vocab = tokenization.process_SMILE_sequences(
+        processed_data, smile_vocab = tokenization.process_smile_sequences(
             processed_data, reference_vocabulary=reference_smile_vocab
         )
         if processed_data.empty:
