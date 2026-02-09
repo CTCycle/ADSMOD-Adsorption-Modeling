@@ -210,6 +210,8 @@ class DatasetCompositionService:
                 "name": "filename",
                 "adsorption_units": "adsorptionUnits",
                 "pressure_units": "pressureUnits",
+                "adsorbent": "adsorbent_name",
+                "adsorbate": "adsorbate_name",
             }
         )
         if "adsorptionUnits" in cleaned.columns:

@@ -22,6 +22,10 @@ class TrainingRepositoryQueries:
         self.database.save_into_database(dataset, "training_dataset")
 
     # -------------------------------------------------------------------------
+    def upsert_training_dataset(self, dataset: pd.DataFrame) -> None:
+        self.database.upsert_into_database(dataset, "training_dataset")
+
+    # -------------------------------------------------------------------------
     def load_training_metadata(self) -> pd.DataFrame:
         return self.database.load_from_database("training_metadata")
 

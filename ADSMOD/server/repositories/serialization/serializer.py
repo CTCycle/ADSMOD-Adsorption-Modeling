@@ -15,6 +15,8 @@ from ADSMOD.server.repositories.queries.training import TrainingRepositoryQuerie
 from ADSMOD.server.entities.models import MODEL_SCHEMAS
 from ADSMOD.server.common.constants import (
     CHECKPOINTS_PATH,
+    COLUMN_ADSORBATE,
+    COLUMN_ADSORBENT,
     COLUMN_BEST_MODEL,
     COLUMN_DATASET_NAME,
     COLUMN_EXPERIMENT,
@@ -57,6 +59,11 @@ class DataSerializer:
     best_fit_table = "adsorption_best_fit"
     raw_name_column = "name"
     fitting_name_column = "name"
+    processed_key_column = "processed_key"
+    material_aliases = {
+        COLUMN_ADSORBATE: [COLUMN_ADSORBATE],
+        COLUMN_ADSORBENT: [COLUMN_ADSORBENT],
+    }
     table_aliases = {
         "ADSORPTION_DATA": raw_table,
         "ADSORPTION_PROCESSED_DATA": processed_table,
@@ -79,6 +86,8 @@ class DataSerializer:
     }
     experiment_columns = [
         fitting_name_column,
+        COLUMN_ADSORBENT,
+        COLUMN_ADSORBATE,
         COLUMN_TEMPERATURE_K,
         COLUMN_PRESSURE_PA,
         COLUMN_UPTAKE_MOL_G,
@@ -106,12 +115,57 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     @classmethod
+    def normalize_material_columns(cls, dataset: pd.DataFrame) -> pd.DataFrame:
+        normalized = dataset.copy()
+        rename_map: dict[str, str] = {}
+        for target, aliases in cls.material_aliases.items():
+            if target in normalized.columns:
+                continue
+            for alias in aliases:
+                if alias in normalized.columns:
+                    rename_map[alias] = target
+                    break
+        if rename_map:
+            normalized = normalized.rename(columns=rename_map)
+        for target in cls.material_aliases:
+            if target not in normalized.columns:
+                normalized[target] = ""
+        return normalized
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def build_processed_key(cls, row: pd.Series) -> str:
+        payload = {
+            COLUMN_ADSORBENT: row.get(COLUMN_ADSORBENT, ""),
+            COLUMN_ADSORBATE: row.get(COLUMN_ADSORBATE, ""),
+            COLUMN_TEMPERATURE_K: row.get(COLUMN_TEMPERATURE_K),
+            COLUMN_PRESSURE_PA: row.get(COLUMN_PRESSURE_PA),
+            COLUMN_UPTAKE_MOL_G: row.get(COLUMN_UPTAKE_MOL_G),
+        }
+        serialized = json.dumps(payload, sort_keys=True, default=str)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def add_processed_keys(cls, dataset: pd.DataFrame) -> pd.DataFrame:
+        normalized = dataset.copy()
+        if normalized.empty:
+            normalized[cls.processed_key_column] = pd.Series(dtype="string")
+            return normalized
+        normalized[cls.processed_key_column] = normalized.apply(
+            cls.build_processed_key, axis=1
+        )
+        return normalized
+
+    # -------------------------------------------------------------------------
+    @classmethod
     def prepare_for_storage(
         cls, dataset: pd.DataFrame, table_name: str
     ) -> pd.DataFrame:
         normalized = cls.normalize_table_name(table_name)
         storage = dataset.copy()
         if normalized == cls.raw_table:
+            storage = cls.normalize_material_columns(storage)
             if (
                 COLUMN_DATASET_NAME in storage.columns
                 and cls.raw_name_column in storage.columns
@@ -134,7 +188,9 @@ class DataSerializer:
                     columns={COLUMN_EXPERIMENT_NAME: cls.fitting_name_column}
                 )
             if normalized == cls.processed_table:
+                storage = cls.normalize_material_columns(storage)
                 storage = storage.drop(columns=[COLUMN_EXPERIMENT], errors="ignore")
+                storage = cls.add_processed_keys(storage)
         return storage
 
     # -------------------------------------------------------------------------
@@ -148,36 +204,7 @@ class DataSerializer:
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
         table_name = self.raw_table
         storage_dataset = self.prepare_for_storage(dataset, table_name)
-        try:
-            self.queries.upsert_table(storage_dataset, table_name)
-            return
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "Upsert failed for %s, falling back to merge: %s",
-                table_name,
-                exc,
-            )
-
-        existing = self.queries.load_table(table_name)
-        if existing.empty:
-            self.queries.save_table(storage_dataset, table_name)
-            return
-
-        key_columns = [
-            self.raw_name_column,
-            COLUMN_EXPERIMENT,
-            COLUMN_TEMPERATURE_K,
-            COLUMN_PRESSURE_PA,
-        ]
-        available_keys = [
-            col
-            for col in key_columns
-            if col in storage_dataset.columns and col in existing.columns
-        ]
-        merged = pd.concat([existing, storage_dataset], ignore_index=True)
-        if available_keys:
-            merged = merged.drop_duplicates(subset=available_keys, keep="last")
-        self.queries.save_table(merged, table_name)
+        self.queries.upsert_table(storage_dataset, table_name)
 
     # -------------------------------------------------------------------------
     def delete_raw_dataset(self, dataset_name: str) -> bool:
@@ -204,21 +231,14 @@ class DataSerializer:
         offset: int | None = None,
     ) -> pd.DataFrame:
         normalized = self.normalize_table_name(table_name)
-        return self.queries.load_table(normalized, limit=limit, offset=offset)
+        loaded = self.queries.load_table(normalized, limit=limit, offset=offset)
+        return self.restore_from_storage(loaded, normalized)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
         normalized = self.normalize_table_name(table_name)
         storage_dataset = self.prepare_for_storage(dataset, normalized)
-        try:
-            self.queries.upsert_table(storage_dataset, normalized)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "Upsert failed for %s, falling back to overwrite: %s",
-                normalized,
-                exc,
-            )
-            self.queries.save_table(storage_dataset, normalized)
+        self.queries.upsert_table(storage_dataset, normalized)
 
     # -------------------------------------------------------------------------
     def save_processed_dataset(self, dataset: pd.DataFrame) -> None:
@@ -411,13 +431,11 @@ class TrainingDataSerializer:
         storage_dataset = self.prepare_dataset_for_storage(dataset)
         if self.dataset_label_column not in storage_dataset.columns:
             storage_dataset[self.dataset_label_column] = dataset_label
-
         existing = self.queries.load_training_dataset()
         if not existing.empty and self.dataset_label_column in existing.columns:
-            existing = existing[existing[self.dataset_label_column] != dataset_label]
-
-        combined = pd.concat([existing, storage_dataset], ignore_index=True)
-        self.queries.save_training_dataset(combined)
+            retained = existing[existing[self.dataset_label_column] != dataset_label]
+            self.queries.save_training_dataset(retained)
+        self.queries.upsert_training_dataset(storage_dataset)
 
     # -------------------------------------------------------------------------
     def save_training_metadata(
