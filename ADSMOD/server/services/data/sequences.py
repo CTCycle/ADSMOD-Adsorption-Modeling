@@ -195,7 +195,7 @@ class SMILETokenization:
         self.SMILE_padding = configuration.get("smile_sequence_size", 20)
 
     # -------------------------------------------------------------------------
-    def tokenize_SMILE_string(self, SMILE: str | Any) -> list[Any]:
+    def tokenize_smile_string(self, SMILE: str | Any) -> list[Any]:
         tokens = []
         if isinstance(SMILE, str):
             tokens = []
@@ -275,7 +275,7 @@ class SMILETokenization:
         return tokens
 
     # -------------------------------------------------------------------------
-    def encode_SMILE_tokens(
+    def encode_smile_tokens(
         self, data: pd.DataFrame
     ) -> tuple[pd.DataFrame, dict[Any, int]]:
         SMILE_tokens = set(
@@ -292,7 +292,7 @@ class SMILETokenization:
         return data, token_to_id
 
     # -------------------------------------------------------------------------
-    def encode_SMILE_tokens_from_vocab(
+    def encode_smile_tokens_from_vocab(
         self, data: pd.DataFrame, vocabulary: dict[Any, int]
     ) -> tuple[pd.DataFrame, dict[Any, int]]:
         if not vocabulary:
@@ -320,11 +320,11 @@ class SMILETokenization:
         return dataset
 
     # -------------------------------------------------------------------------
-    def process_SMILE_sequences(
+    def process_smile_sequences(
         self, dataset: pd.DataFrame, reference_vocabulary: dict[Any, int] | None = None
     ) -> tuple[pd.DataFrame, dict[Any, int]]:
         dataset["adsorbate_tokenized_SMILE"] = dataset["adsorbate_SMILE"].apply(
-            lambda x: self.tokenize_SMILE_string(x)
+            lambda x: self.tokenize_smile_string(x)
         )
         token_sizes = dataset["adsorbate_tokenized_SMILE"].apply(len)
         valid_mask = token_sizes > 0
@@ -349,11 +349,11 @@ class SMILETokenization:
                 )
                 return pd.DataFrame(), {}
 
-            dataset, smile_vocabulary = self.encode_SMILE_tokens_from_vocab(
+            dataset, smile_vocabulary = self.encode_smile_tokens_from_vocab(
                 dataset, reference_vocabulary
             )
         else:
-            dataset, smile_vocabulary = self.encode_SMILE_tokens(dataset)
+            dataset, smile_vocabulary = self.encode_smile_tokens(dataset)
         dataset = self.SMILE_series_padding(dataset)
 
         return dataset, smile_vocabulary
