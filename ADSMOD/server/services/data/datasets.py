@@ -8,7 +8,7 @@ import pandas as pd
 
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.common.constants import DATASET_FALLBACK_DELIMITERS
-from ADSMOD.server.repositories.serializer import DataSerializer
+from ADSMOD.server.repositories.serialization.data import DataSerializer
 
 
 ###############################################################################

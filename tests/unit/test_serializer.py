@@ -1,4 +1,4 @@
-from ADSMOD.server.repositories.serializer import TrainingDataSerializer
+from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 from ADSMOD.server.entities.training import TrainingMetadata
 
 
