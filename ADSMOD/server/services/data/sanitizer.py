@@ -121,7 +121,7 @@ class DataSanitizer:
 
     # -------------------------------------------------------------------------
     def exclude_OOB_values(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        dataset = dataset[dataset[self.T_TARGET_COL].astype(int) > 0]
+        dataset = dataset.loc[dataset[self.T_TARGET_COL].astype(int) > 0].copy()
         filtered_series = dataset.apply(self.filter_elements_outside_boundaries, axis=1)
         dataset[self.P_TARGET_COL] = filtered_series[self.P_TARGET_COL]
         dataset[self.Q_TARGET_COL] = filtered_series[self.Q_TARGET_COL]
@@ -130,7 +130,7 @@ class DataSanitizer:
 
     # -------------------------------------------------------------------------
     def isolate_processed_features(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        dataset = dataset[self.included_cols]
+        dataset = dataset.loc[:, self.included_cols].copy()
         dataset = dataset.dropna().reset_index(drop=True)
         return dataset
 
@@ -252,7 +252,7 @@ class TrainValidationSplit:
         )
         combo_counts = dataset["combination"].value_counts()
         valid_combinations = combo_counts[combo_counts >= 2].index
-        dataset = dataset[dataset["combination"].isin(valid_combinations)]
+        dataset = dataset.loc[dataset["combination"].isin(valid_combinations)].copy()
 
         return dataset
 

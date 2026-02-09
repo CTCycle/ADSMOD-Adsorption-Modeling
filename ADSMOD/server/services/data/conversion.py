@@ -124,7 +124,7 @@ class PressureConversion:
             )(row.get(self.P_COL)),
             axis=1,
         )
-        dataframe.drop(columns=unit_column, inplace=True)
+        dataframe = dataframe.drop(columns=unit_column)
 
         return dataframe
 
@@ -242,7 +242,7 @@ class UptakeConversion:
             return converter(values)
 
         dataframe[self.Q_COL] = dataframe.apply(convert_row, axis=1)
-        dataframe.drop(columns=unit_column, inplace=True)
+        dataframe = dataframe.drop(columns=unit_column)
 
         return dataframe
 
