@@ -13,7 +13,7 @@ from keras import Model
 from keras.models import load_model
 
 from ADSMOD.server.repositories.database import database
-from ADSMOD.server.schemas.models import MODEL_SCHEMAS
+from ADSMOD.server.entities.models import MODEL_SCHEMAS
 from ADSMOD.server.common.constants import (
     CHECKPOINTS_PATH,
     COLUMN_BEST_MODEL,
@@ -35,7 +35,7 @@ from ADSMOD.server.learning.metrics import (
     MaskedMeanSquaredError,
     MaskedRSquared,
 )
-from ADSMOD.server.schemas.training import TrainingMetadata
+from ADSMOD.server.entities.training import TrainingMetadata
 from ADSMOD.server.learning.models.embeddings import MolecularEmbedding
 from ADSMOD.server.learning.models.encoders import (
     PressureSerierEncoder,

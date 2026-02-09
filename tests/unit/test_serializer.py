@@ -1,5 +1,5 @@
 from ADSMOD.server.repositories.serializer import TrainingDataSerializer
-from ADSMOD.server.schemas.training import TrainingMetadata
+from ADSMOD.server.entities.training import TrainingMetadata
 
 
 # Helper to create a basis metadata object
