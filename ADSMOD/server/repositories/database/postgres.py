@@ -12,8 +12,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from ADSMOD.server.configurations import DatabaseSettings
-from ADSMOD.server.repositories.schema import Base
-from ADSMOD.server.repositories.utils import normalize_postgres_engine
+from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
+from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.logger import logger
 

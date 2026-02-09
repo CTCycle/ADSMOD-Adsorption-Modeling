@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from ADSMOD.server.common.constants import PAD_VALUE
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.repositories.isodb import NISTDataSerializer
+from ADSMOD.server.repositories.queries.nist import NISTDataSerializer
 from ADSMOD.server.services.data.sanitizer import AggregateDatasets
 
 

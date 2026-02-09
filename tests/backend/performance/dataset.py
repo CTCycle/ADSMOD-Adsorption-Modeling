@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ADSMOD.server.entities.training import TrainingMetadata
-from ADSMOD.server.repositories.serializer import TrainingDataSerializer
+from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 
 
 ###############################################################################

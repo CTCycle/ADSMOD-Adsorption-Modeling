@@ -16,7 +16,7 @@ from ADSMOD.server.common.utils.encoding import (
     sanitize_dataframe_strings,
 )
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.repositories.isodb import NISTDataSerializer
+from ADSMOD.server.repositories.queries.nist import NISTDataSerializer
 from ADSMOD.server.services.jobs import job_manager
 
 

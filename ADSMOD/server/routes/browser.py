@@ -8,7 +8,7 @@ from ADSMOD.server.entities.browser import (
     TableListResponse,
 )
 from ADSMOD.server.repositories.database import database
-from ADSMOD.server.repositories.serializer import DataSerializer
+from ADSMOD.server.repositories.serialization.data import DataSerializer
 from ADSMOD.server.common.constants import (
     BROWSER_DATA_ENDPOINT,
     BROWSER_ROUTER_PREFIX,

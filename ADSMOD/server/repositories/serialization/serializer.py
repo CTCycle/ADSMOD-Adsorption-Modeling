@@ -9,10 +9,9 @@ import shutil
 from datetime import datetime
 
 import pandas as pd
-from keras import Model
-from keras.models import load_model
-
-from ADSMOD.server.repositories.database import database
+from ADSMOD.server.repositories.database.backend import database
+from ADSMOD.server.repositories.queries.data import DataRepositoryQueries
+from ADSMOD.server.repositories.queries.training import TrainingRepositoryQueries
 from ADSMOD.server.entities.models import MODEL_SCHEMAS
 from ADSMOD.server.common.constants import (
     CHECKPOINTS_PATH,
@@ -90,6 +89,9 @@ class DataSerializer:
         COLUMN_MAX_UPTAKE,
     ]
 
+    def __init__(self, queries: DataRepositoryQueries | None = None) -> None:
+        self.queries = queries or DataRepositoryQueries()
+
     # -------------------------------------------------------------------------
     @classmethod
     def normalize_table_name(cls, table_name: str) -> str:
@@ -147,7 +149,7 @@ class DataSerializer:
         table_name = self.raw_table
         storage_dataset = self.prepare_for_storage(dataset, table_name)
         try:
-            database.upsert_into_database(storage_dataset, table_name)
+            self.queries.upsert_table(storage_dataset, table_name)
             return
         except Exception as exc:  # noqa: BLE001
             logger.warning(
@@ -156,9 +158,9 @@ class DataSerializer:
                 exc,
             )
 
-        existing = database.load_from_database(table_name)
+        existing = self.queries.load_table(table_name)
         if existing.empty:
-            database.save_into_database(storage_dataset, table_name)
+            self.queries.save_table(storage_dataset, table_name)
             return
 
         key_columns = [
@@ -175,7 +177,7 @@ class DataSerializer:
         merged = pd.concat([existing, storage_dataset], ignore_index=True)
         if available_keys:
             merged = merged.drop_duplicates(subset=available_keys, keep="last")
-        database.save_into_database(merged, table_name)
+        self.queries.save_table(merged, table_name)
 
     # -------------------------------------------------------------------------
     def delete_raw_dataset(self, dataset_name: str) -> bool:
@@ -183,7 +185,7 @@ class DataSerializer:
         if not dataset_name:
             return False
 
-        existing = database.load_from_database(self.raw_table)
+        existing = self.queries.load_table(self.raw_table)
         if existing.empty or self.raw_name_column not in existing.columns:
             return False
 
@@ -191,7 +193,7 @@ class DataSerializer:
         if len(filtered) == len(existing):
             return False
 
-        database.save_into_database(filtered, self.raw_table)
+        self.queries.save_table(filtered, self.raw_table)
         return True
 
     # -------------------------------------------------------------------------
@@ -202,21 +204,21 @@ class DataSerializer:
         offset: int | None = None,
     ) -> pd.DataFrame:
         normalized = self.normalize_table_name(table_name)
-        return database.load_from_database(normalized, limit=limit, offset=offset)
+        return self.queries.load_table(normalized, limit=limit, offset=offset)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
         normalized = self.normalize_table_name(table_name)
         storage_dataset = self.prepare_for_storage(dataset, normalized)
         try:
-            database.upsert_into_database(storage_dataset, normalized)
+            self.queries.upsert_table(storage_dataset, normalized)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "Upsert failed for %s, falling back to overwrite: %s",
                 normalized,
                 exc,
             )
-            database.save_into_database(storage_dataset, normalized)
+            self.queries.save_table(storage_dataset, normalized)
 
     # -------------------------------------------------------------------------
     def save_processed_dataset(self, dataset: pd.DataFrame) -> None:
@@ -361,6 +363,9 @@ class TrainingDataSerializer:
     metadata_hash_column = "hashcode"
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
+    def __init__(self, queries: TrainingRepositoryQueries | None = None) -> None:
+        self.queries = queries or TrainingRepositoryQueries()
+
     # -------------------------------------------------------------------------
     @classmethod
     def prepare_dataset_for_storage(cls, dataset: pd.DataFrame) -> pd.DataFrame:
@@ -407,12 +412,12 @@ class TrainingDataSerializer:
         if self.dataset_label_column not in storage_dataset.columns:
             storage_dataset[self.dataset_label_column] = dataset_label
 
-        existing = database.load_from_database(self.dataset_table)
+        existing = self.queries.load_training_dataset()
         if not existing.empty and self.dataset_label_column in existing.columns:
             existing = existing[existing[self.dataset_label_column] != dataset_label]
 
         combined = pd.concat([existing, storage_dataset], ignore_index=True)
-        database.save_into_database(combined, self.dataset_table)
+        self.queries.save_training_dataset(combined)
 
     # -------------------------------------------------------------------------
     def save_training_metadata(
@@ -423,7 +428,7 @@ class TrainingDataSerializer:
         if "dataset_label" not in storage_metadata.columns:
             storage_metadata["dataset_label"] = dataset_label
 
-        existing = database.load_from_database(self.metadata_table)
+        existing = self.queries.load_training_metadata()
         if not existing.empty:
             metadata_hash = None
             if self.metadata_hash_column in storage_metadata.columns:
@@ -442,19 +447,19 @@ class TrainingDataSerializer:
                 existing = existing[existing["dataset_label"] != dataset_label]
 
         combined = pd.concat([existing, storage_metadata], ignore_index=True)
-        database.save_into_database(combined, self.metadata_table)
+        self.queries.save_training_metadata(combined)
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(self, dataset_label: str | None = None) -> None:
         if dataset_label is None:
             empty_df = pd.DataFrame()
-            database.save_into_database(empty_df, self.dataset_table)
-            database.save_into_database(empty_df, self.metadata_table)
+            self.queries.save_training_dataset(empty_df)
+            self.queries.save_training_metadata(empty_df)
             return
 
         dataset_label = self.normalize_dataset_label(dataset_label)
-        existing_data = database.load_from_database(self.dataset_table)
-        existing_meta = database.load_from_database(self.metadata_table)
+        existing_data = self.queries.load_training_dataset()
+        existing_meta = self.queries.load_training_metadata()
 
         if (
             not existing_data.empty
@@ -463,13 +468,13 @@ class TrainingDataSerializer:
             filtered_data = existing_data[
                 existing_data[self.dataset_label_column] != dataset_label
             ]
-            database.save_into_database(filtered_data, self.dataset_table)
+            self.queries.save_training_dataset(filtered_data)
 
         if not existing_meta.empty and "dataset_label" in existing_meta.columns:
             filtered_meta = existing_meta[
                 existing_meta["dataset_label"] != dataset_label
             ]
-            database.save_into_database(filtered_meta, self.metadata_table)
+            self.queries.save_training_metadata(filtered_meta)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -582,7 +587,7 @@ class TrainingDataSerializer:
         self, dataset_label: str = "default"
     ) -> TrainingMetadata:
         dataset_label = self.normalize_dataset_label(dataset_label)
-        metadata_df = database.load_from_database(self.metadata_table)
+        metadata_df = self.queries.load_training_metadata()
         if metadata_df.empty:
             return TrainingMetadata()
 
@@ -593,7 +598,7 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     def collect_dataset_hashes(self) -> set[str]:
-        metadata_df = database.load_from_database(self.metadata_table)
+        metadata_df = self.queries.load_training_metadata()
         if metadata_df.empty:
             return set()
 
@@ -636,7 +641,7 @@ class TrainingDataSerializer:
         if only_metadata:
             return metadata
 
-        training_data = database.load_from_database(self.dataset_table)
+        training_data = self.queries.load_training_dataset()
         if training_data.empty:
             return training_data, training_data, metadata
 
@@ -656,7 +661,7 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     @staticmethod
     def list_processed_datasets() -> list[dict[str, Any]]:
-        metadata_df = database.load_from_database(TrainingDataSerializer.metadata_table)
+        metadata_df = TrainingRepositoryQueries().load_training_metadata()
         if metadata_df.empty:
             return []
 
@@ -758,7 +763,7 @@ class ModelSerializer:
             return False
 
     # -------------------------------------------------------------------------
-    def save_pretrained_model(self, model: Model, path: str) -> None:
+    def save_pretrained_model(self, model: Any, path: str) -> None:
         model_files_path = os.path.join(path, "saved_model.keras")
         model.save(model_files_path)
         logger.info(
@@ -831,7 +836,9 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def load_checkpoint(
         self, checkpoint: str
-    ) -> tuple[Model | Any, dict, TrainingMetadata, dict, str]:
+    ) -> tuple[Any, dict, TrainingMetadata, dict, str]:
+        from keras.models import load_model
+
         custom_objects = {
             "MaskedMeanSquaredError": MaskedMeanSquaredError,
             "MaskedRSquared": MaskedRSquared,

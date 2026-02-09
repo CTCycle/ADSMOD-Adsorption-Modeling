@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import Column, Integer, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from ADSMOD.server.repositories.types import JSONSequence
+from ADSMOD.server.repositories.schemas.types import JSONSequence
 
 Base = declarative_base()
 

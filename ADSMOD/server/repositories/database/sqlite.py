@@ -14,7 +14,7 @@ from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.common.constants import RESOURCES_PATH, DATABASE_FILENAME
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.repositories.schema import Base
+from ADSMOD.server.repositories.schemas.models import Base
 
 
 ###############################################################################

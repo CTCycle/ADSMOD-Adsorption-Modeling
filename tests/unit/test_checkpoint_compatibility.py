@@ -7,8 +7,8 @@ import pandas as pd
 
 from ADSMOD.server.routes.training import determine_checkpoint_compatibility
 from ADSMOD.server.entities.training import TrainingMetadata
-from ADSMOD.server.repositories import serializer as serializer_module
-from ADSMOD.server.repositories.serializer import TrainingDataSerializer
+from ADSMOD.server.repositories.serialization import serializer as serializer_module
+from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 
 
 def build_metadata(dataset_hash: str | None) -> TrainingMetadata:

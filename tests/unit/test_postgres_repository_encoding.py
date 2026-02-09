@@ -1,5 +1,5 @@
 from ADSMOD.server.configurations.server import DatabaseSettings
-from ADSMOD.server.repositories.postgres import PostgresRepository
+from ADSMOD.server.repositories.database.postgres import PostgresRepository
 
 
 def test_postgres_connect_args_enforce_utf8_client_encoding() -> None:

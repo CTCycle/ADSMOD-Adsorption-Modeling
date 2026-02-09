@@ -11,10 +11,8 @@ from ADSMOD.server.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.learning.training.fitting import ModelTraining
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.repositories.serializer import (
-    ModelSerializer,
-    TrainingDataSerializer,
-)
+from ADSMOD.server.repositories.serialization.model import ModelSerializer
+from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 from ADSMOD.server.learning.loader import (
     SCADSAtomicDataLoader,
     SCADSDataLoader,
@@ -26,7 +24,7 @@ MODEL_COMPONENTS = {
     SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
 }
 
-
+###############################################################################
 class TrainingProcessRunner:
     def __init__(
         self,

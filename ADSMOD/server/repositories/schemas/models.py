@@ -26,7 +26,7 @@ from ADSMOD.server.common.constants import (
     COLUMN_UPTAKE_MOL_G,
     COLUMN_WORST_MODEL,
 )
-from ADSMOD.server.repositories.types import JSONSequence
+from ADSMOD.server.repositories.schemas.types import JSONSequence
 
 Base = declarative_base()
 
