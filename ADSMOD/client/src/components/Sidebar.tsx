@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type PageId = 'config' | 'models' | 'analysis' | 'browser';
+export type PageId = 'config' | 'models' | 'analysis';
 
 interface SidebarProps {
     currentPage: PageId;
@@ -50,18 +50,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                 <span className="sidebar-label">Training</span>
             </button>
 
-            <button
-                className={`sidebar-icon ${currentPage === 'browser' ? 'active' : ''}`}
-                onClick={() => onPageChange('browser')}
-                title="Database Browser"
-            >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <line x1="3" y1="9" x2="21" y2="9" />
-                    <line x1="9" y1="21" x2="9" y2="9" />
-                </svg>
-                <span className="sidebar-label">Browser</span>
-            </button>
         </div>
     );
 };

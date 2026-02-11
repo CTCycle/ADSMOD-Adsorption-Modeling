@@ -110,27 +110,6 @@ export interface JobStatusResponse {
 
 export type ParameterKey = [string, string, string]; // [model, parameter, bound_type]
 
-// Browser API types
-export interface TableInfo {
-    table_name: string;
-    display_name: string;
-}
-
-export interface TableListResponse {
-    status: string;
-    tables: TableInfo[];
-}
-
-export interface TableDataResponse {
-    status: string;
-    table_name: string;
-    display_name: string;
-    row_count: number;
-    column_count: number;
-    columns: string[];
-    data: Record<string, unknown>[];
-}
-
 // Training API types
 export interface TrainingConfig {
     // Dataset settings
