@@ -158,13 +158,17 @@ class PostgresRepository:
         table = table_cls.__table__
         session = self.session()
         try:
-            unique_cols = []
+            unique_cols: list[str] = []
             for uc in table.constraints:
                 if isinstance(uc, UniqueConstraint):
-                    unique_cols = uc.columns.keys()
+                    unique_cols = list(uc.columns.keys())
                     break
             if not unique_cols:
-                raise ValueError(f"No unique constraint found for {table_cls.__name__}")
+                unique_cols = [column.name for column in table.primary_key.columns]
+            if not unique_cols:
+                raise ValueError(
+                    f"No unique or primary key constraint found for {table_cls.__name__}"
+                )
             prepared_df = self.prepare_for_storage(df, table_cls)
             records = prepared_df.to_dict(orient="records")
             if not records:
