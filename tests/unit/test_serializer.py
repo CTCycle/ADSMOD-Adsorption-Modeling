@@ -1,3 +1,5 @@
+import pandas as pd
+
 from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 from ADSMOD.server.entities.training import TrainingMetadata
 
@@ -74,3 +76,49 @@ def test_compute_metadata_hash_determinism():
     hash1 = TrainingDataSerializer.compute_metadata_hash(meta1)
     hash2 = TrainingDataSerializer.compute_metadata_hash(meta2)
     assert hash1 == hash2
+
+
+def test_save_training_dataset_deduplicates_sample_keys():
+    captured: dict[str, pd.DataFrame] = {}
+
+    class StubQueries:
+        def load_training_dataset(self, limit=None):  # noqa: ANN001
+            return pd.DataFrame()
+
+        def save_training_dataset(self, dataset):  # noqa: ANN001
+            captured["saved"] = dataset.copy()
+
+        def upsert_training_dataset(self, dataset):  # noqa: ANN001
+            captured["upsert"] = dataset.copy()
+
+    serializer = TrainingDataSerializer(queries=StubQueries())
+    dataset = pd.DataFrame(
+        [
+            {
+                "dataset_name": "nist_single_component_adsorption",
+                "split": "train",
+                "temperature": 298.15,
+                "pressure": "[1.0,2.0]",
+                "adsorbed_amount": "[0.1,0.2]",
+                "encoded_adsorbent": 1,
+                "adsorbate_molecular_weight": 44.0,
+                "adsorbate_encoded_SMILE": "[1,2,3]",
+            },
+            {
+                "dataset_name": "nist_single_component_adsorption",
+                "split": "train",
+                "temperature": 298.15,
+                "pressure": "[1.0,2.0]",
+                "adsorbed_amount": "[0.1,0.2]",
+                "encoded_adsorbent": 1,
+                "adsorbate_molecular_weight": 44.0,
+                "adsorbate_encoded_SMILE": "[1,2,3]",
+            },
+        ]
+    )
+
+    serializer.save_training_dataset(dataset, dataset_label="small_dataset")
+
+    upserted = captured["upsert"]
+    assert len(upserted) == 1
+    assert upserted["sample_key"].nunique() == 1

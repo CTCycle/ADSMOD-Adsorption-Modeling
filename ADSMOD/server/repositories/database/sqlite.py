@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import UniqueConstraint, inspect
+from sqlalchemy import inspect
 from sqlalchemy import event
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
@@ -15,6 +15,7 @@ from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.common.constants import RESOURCES_PATH, DATABASE_FILENAME
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
 from ADSMOD.server.repositories.schemas.models import Base
 
 
@@ -48,22 +49,21 @@ class SQLiteRepository:
         raise ValueError(f"No table class found for name {table_name}")
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def coerce_missing_values(dataframe: pd.DataFrame) -> pd.DataFrame:
+        if dataframe.empty:
+            return dataframe
+        coerced = dataframe.astype(object)
+        return coerced.where(pd.notna(coerced), None)
+
+    # -------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls) -> None:
         table = table_cls.__table__
         session = self.session_factory()
         try:
-            unique_cols: list[str] = []
-            for uc in table.constraints:
-                if isinstance(uc, UniqueConstraint):
-                    unique_cols = list(uc.columns.keys())
-                    break
-            if not unique_cols:
-                unique_cols = [column.name for column in table.primary_key.columns]
-            if not unique_cols:
-                raise ValueError(
-                    f"No unique or primary key constraint found for {table_cls.__name__}"
-                )
+            unique_cols = resolve_conflict_columns(table)
             sanitized_df = sanitize_dataframe_strings(df)
+            sanitized_df = self.coerce_missing_values(sanitized_df)
             records = sanitized_df.to_dict(orient="records")
             for i in range(0, len(records), self.insert_batch_size):
                 batch = records[i : i + self.insert_batch_size]

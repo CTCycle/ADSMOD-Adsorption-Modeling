@@ -7,13 +7,14 @@ from typing import Any
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import event
-from sqlalchemy import UniqueConstraint, inspect
+from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
+from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.repositories.schemas.types import JSONSequence
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
@@ -130,6 +131,14 @@ class PostgresRepository:
         return value
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def coerce_missing_values(dataframe: pd.DataFrame) -> pd.DataFrame:
+        if dataframe.empty:
+            return dataframe
+        coerced = dataframe.astype(object)
+        return coerced.where(pd.notna(coerced), None)
+
+    # -------------------------------------------------------------------------
     def prepare_for_storage(
         self,
         df: pd.DataFrame,
@@ -147,28 +156,62 @@ class PostgresRepository:
         for column in json_columns:
             if column in prepared.columns:
                 prepared[column] = prepared[column].apply(self.parse_json_column_value)
-        return prepared
+        return self.coerce_missing_values(prepared)
 
     # -------------------------------------------------------------------------
     def restore_after_load(self, df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def build_conflict_key(
+        record: dict[str, Any], conflict_columns: list[str]
+    ) -> tuple[Any, ...] | None:
+        key_values: list[Any] = []
+        for column in conflict_columns:
+            value = record.get(column)
+            if value is None:
+                return None
+            if isinstance(value, float) and pd.isna(value):
+                return None
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value, sort_keys=True, default=str)
+            key_values.append(value)
+        return tuple(key_values)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def deduplicate_conflict_batch(
+        batch: list[dict[str, Any]],
+        conflict_columns: list[str],
+    ) -> tuple[list[dict[str, Any]], int]:
+        deduplicated: list[dict[str, Any]] = []
+        key_to_index: dict[tuple[Any, ...], int] = {}
+        dropped = 0
+
+        for record in batch:
+            conflict_key = PostgresRepository.build_conflict_key(
+                record, conflict_columns
+            )
+            if conflict_key is None:
+                deduplicated.append(record)
+                continue
+            existing_index = key_to_index.get(conflict_key)
+            if existing_index is None:
+                key_to_index[conflict_key] = len(deduplicated)
+                deduplicated.append(record)
+                continue
+            deduplicated[existing_index] = record
+            dropped += 1
+
+        return deduplicated, dropped
+
+    # -------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls) -> None:
         table = table_cls.__table__
         session = self.session()
         try:
-            unique_cols: list[str] = []
-            for uc in table.constraints:
-                if isinstance(uc, UniqueConstraint):
-                    unique_cols = list(uc.columns.keys())
-                    break
-            if not unique_cols:
-                unique_cols = [column.name for column in table.primary_key.columns]
-            if not unique_cols:
-                raise ValueError(
-                    f"No unique or primary key constraint found for {table_cls.__name__}"
-                )
+            unique_cols = resolve_conflict_columns(table)
             prepared_df = self.prepare_for_storage(df, table_cls)
             records = prepared_df.to_dict(orient="records")
             if not records:
@@ -191,6 +234,14 @@ class PostgresRepository:
                 batch = records[i : i + effective_batch_size]
                 if not batch:
                     continue
+                batch, dropped = self.deduplicate_conflict_batch(batch, unique_cols)
+                if dropped > 0:
+                    logger.warning(
+                        "Dropped %d duplicate rows in upsert batch for %s on conflict columns %s.",
+                        dropped,
+                        table.name,
+                        unique_cols,
+                    )
                 stmt = insert(table).values(batch)
                 update_cols = {
                     col: getattr(stmt.excluded, col)  # type: ignore[attr-defined]

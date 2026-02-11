@@ -53,3 +53,42 @@ def test_parse_json_column_value_converts_json_strings_for_jsonb() -> None:
     assert isinstance(parsed, dict)
     assert parsed["T0"] == 1
     assert parsed["T1"] == 2
+
+
+def test_coerce_missing_values_replaces_nan_and_pd_na_with_none() -> None:
+    frame = pd.DataFrame(
+        {
+            "InChIKey": [float("nan"), pd.NA, "ABC123"],
+            "molecular_weight": [16.04, float("nan"), 44.01],
+        }
+    )
+
+    coerced = PostgresRepository.coerce_missing_values(frame)
+    records = coerced.to_dict(orient="records")
+
+    assert records[0]["InChIKey"] is None
+    assert records[1]["InChIKey"] is None
+    assert records[0]["molecular_weight"] == 16.04
+    assert records[1]["molecular_weight"] is None
+
+
+def test_deduplicate_conflict_batch_keeps_last_conflict_record() -> None:
+    batch = [
+        {"sample_key": "A", "value": 1},
+        {"sample_key": "B", "value": 2},
+        {"sample_key": "A", "value": 3},
+        {"sample_key": None, "value": 4},
+        {"sample_key": None, "value": 5},
+    ]
+
+    deduplicated, dropped = PostgresRepository.deduplicate_conflict_batch(
+        batch, ["sample_key"]
+    )
+
+    assert dropped == 1
+    assert len(deduplicated) == 4
+    assert deduplicated[0]["sample_key"] == "A"
+    assert deduplicated[0]["value"] == 3
+    assert deduplicated[1]["sample_key"] == "B"
+    assert deduplicated[2]["sample_key"] is None
+    assert deduplicated[3]["sample_key"] is None
