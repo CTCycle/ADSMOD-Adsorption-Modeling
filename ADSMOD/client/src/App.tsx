@@ -2,9 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Sidebar, PageId } from './components/Sidebar';
 import { ConfigPage } from './pages/ConfigPage';
 import { ModelsPage } from './pages/ModelsPage';
-import { DatabaseBrowserPage, initialDatabaseBrowserState } from './pages/DatabaseBrowserPage';
 import { MachineLearningPage } from './pages/MachineLearningPage';
-import type { DatabaseBrowserState } from './pages/DatabaseBrowserPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
 import { loadDataset, startFitting, fetchDatasetNames, fetchDatasetByName, fetchNistDataForFitting } from './services';
 import type { DatasetPayload, FittingPayload, ModelParameters, ModelConfiguration } from './types';
@@ -21,7 +19,6 @@ const initialMountedPages: Record<PageId, boolean> = {
     config: true,
     models: false,
     analysis: false,
-    browser: false,
 };
 
 const formatFileSize = (bytes: number): string => {
@@ -109,9 +106,6 @@ function App() {
         });
         return initial;
     });
-
-    // Database browser state - lifted for persistence across page navigation
-    const [databaseBrowserState, setDatabaseBrowserState] = useState<DatabaseBrowserState>(initialDatabaseBrowserState);
 
     // Dataset selector state for fitting page
     const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
@@ -339,14 +333,6 @@ function App() {
                         </section>
                     )}
 
-                    {mountedPages.browser && (
-                        <section hidden={currentPage !== 'browser'} aria-hidden={currentPage !== 'browser'}>
-                            <DatabaseBrowserPage
-                                state={databaseBrowserState}
-                                onStateChange={setDatabaseBrowserState}
-                            />
-                        </section>
-                    )}
                 </main>
             </div>
         </div>

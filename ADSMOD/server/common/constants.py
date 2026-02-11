@@ -147,42 +147,5 @@ NIST_PROPERTIES_ENDPOINT = "/properties"
 NIST_STATUS_ENDPOINT = "/status"
 NIST_JOBS_ENDPOINT = "/jobs"
 NIST_JOB_STATUS_ENDPOINT = "/jobs/{job_id}"
-BROWSER_ROUTER_PREFIX = "/browser"
-BROWSER_TABLES_ENDPOINT = "/tables"
-BROWSER_DATA_ENDPOINT = "/data"
 ROOT_ENDPOINT = "/"
 DOCS_ENDPOINT = "/docs"
-
-# Table name to friendly display name mapping for database browser
-BROWSER_TABLE_DISPLAY_NAMES: dict[str, str] = {
-    "datasets": "Datasets",
-    "adsorbates": "Adsorbate Materials",
-    "adsorbents": "Adsorbent Materials",
-    "adsorption_isotherms": "Adsorption Isotherms",
-    "adsorption_isotherm_components": "Isotherm Components",
-    "adsorption_points": "Adsorption Points",
-    "adsorption_point_components": "Point Components",
-    "adsorption_processed_isotherms": "Processed Isotherms",
-    "adsorption_fits": "Adsorption Fits",
-    "adsorption_fit_params": "Fit Parameters",
-    "adsorption_best_fit": "Best Fit Summary",
-    "training_dataset": "Training Data",
-    "training_metadata": "Training Metadata",
-}
-
-# Table categories for dropdown grouping
-BROWSER_TABLE_CATEGORIES: dict[str, str] = {
-    "datasets": "Core Data",
-    "adsorbates": "NIST-A Data",
-    "adsorbents": "NIST-A Data",
-    "adsorption_isotherms": "Core Data",
-    "adsorption_isotherm_components": "Core Data",
-    "adsorption_points": "Core Data",
-    "adsorption_point_components": "Core Data",
-    "adsorption_processed_isotherms": "Model Results",
-    "adsorption_fits": "Model Results",
-    "adsorption_fit_params": "Model Results",
-    "adsorption_best_fit": "Model Results",
-    "training_dataset": "Training Data",
-    "training_metadata": "Training Data",
-}
