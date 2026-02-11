@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     UniqueConstraint,
 )
@@ -120,7 +121,6 @@ class AdsorptionPoint(Base):
 ###############################################################################
 class AdsorptionPointComponent(Base):
     __tablename__ = "adsorption_point_components"
-    id = Column(Integer, primary_key=True, autoincrement=True)
     point_id = Column(Integer, ForeignKey("adsorption_points.id", ondelete="CASCADE"), nullable=False)
     component_id = Column(Integer, ForeignKey("adsorption_isotherm_components.id", ondelete="CASCADE"), nullable=False)
     partial_pressure_pa = Column(Float, nullable=False)
@@ -128,7 +128,7 @@ class AdsorptionPointComponent(Base):
     original_pressure = Column(Float)
     original_uptake = Column(Float)
     __table_args__ = (
-        UniqueConstraint("point_id", "component_id"),
+        PrimaryKeyConstraint("point_id", "component_id"),
         Index("ix_adsorption_point_components_point_id", "point_id"),
         Index("ix_adsorption_point_components_component_id", "component_id"),
     )

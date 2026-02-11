@@ -52,13 +52,17 @@ class SQLiteRepository:
         table = table_cls.__table__
         session = self.session_factory()
         try:
-            unique_cols = []
+            unique_cols: list[str] = []
             for uc in table.constraints:
                 if isinstance(uc, UniqueConstraint):
-                    unique_cols = uc.columns.keys()
+                    unique_cols = list(uc.columns.keys())
                     break
             if not unique_cols:
-                raise ValueError(f"No unique constraint found for {table_cls.__name__}")
+                unique_cols = [column.name for column in table.primary_key.columns]
+            if not unique_cols:
+                raise ValueError(
+                    f"No unique or primary key constraint found for {table_cls.__name__}"
+                )
             sanitized_df = sanitize_dataframe_strings(df)
             records = sanitized_df.to_dict(orient="records")
             for i in range(0, len(records), self.insert_batch_size):

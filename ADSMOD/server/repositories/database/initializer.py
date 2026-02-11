@@ -4,6 +4,7 @@ import urllib.parse
 
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.engine import Engine
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
 from ADSMOD.server.repositories.database.postgres import PostgresRepository
@@ -11,6 +12,12 @@ from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.common.utils.logger import logger
+
+
+# -------------------------------------------------------------------------
+def reset_schema(engine: Engine) -> None:
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
 
 
 # -------------------------------------------------------------------------
@@ -57,7 +64,8 @@ def clone_settings_with_database(
 # -------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
-    logger.info("Initialized SQLite database at %s", repository.db_path)
+    reset_schema(repository.engine)
+    logger.info("Reset and initialized SQLite database at %s", repository.db_path)
 
 
 # -------------------------------------------------------------------------
@@ -96,8 +104,8 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
     normalized_settings = clone_settings_with_database(settings, target_database)
     repository = PostgresRepository(normalized_settings)
-    Base.metadata.create_all(repository.engine)
-    logger.info("Ensured PostgreSQL tables exist in %s", target_database)
+    reset_schema(repository.engine)
+    logger.info("Reset and initialized PostgreSQL tables in %s", target_database)
 
     return target_database
 

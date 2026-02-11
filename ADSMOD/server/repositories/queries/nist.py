@@ -38,7 +38,14 @@ class NISTDataSerializer:
     # -------------------------------------------------------------------------
     @staticmethod
     def _norm(value: object) -> str:
-        return str(value or "").strip().lower()
+        if value is None:
+            return ""
+        try:
+            if pd.isna(value):
+                return ""
+        except TypeError:
+            pass
+        return str(value).strip().lower()
 
     # -------------------------------------------------------------------------
     def _adsorbate_key(self, inchi_key: str | None, name: str) -> str:
