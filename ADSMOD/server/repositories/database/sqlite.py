@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import UniqueConstraint, inspect
+from sqlalchemy import event
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -25,9 +26,19 @@ class SQLiteRepository:
         self.engine: Engine = sqlalchemy.create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
         )
+        event.listen(self.engine, "connect", self._enable_foreign_keys)
         self.session_factory = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
         Base.metadata.create_all(self.engine, checkfirst=True)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _enable_foreign_keys(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+        finally:
+            cursor.close()
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:

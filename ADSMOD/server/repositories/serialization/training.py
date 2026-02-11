@@ -19,6 +19,8 @@ class TrainingDataSerializer:
     dataset_label_column = "name"
     dataset_source_column = "source_dataset"
     metadata_hash_column = "hashcode"
+    sample_key_column = "sample_key"
+    training_hash_column = "training_hashcode"
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     def __init__(self, queries: TrainingRepositoryQueries | None = None) -> None:
@@ -62,6 +64,23 @@ class TrainingDataSerializer:
         return normalized or "default"
 
     # -------------------------------------------------------------------------
+    @classmethod
+    def build_sample_key(cls, row: pd.Series) -> str:
+        payload = {
+            cls.dataset_label_column: row.get(cls.dataset_label_column),
+            cls.dataset_source_column: row.get(cls.dataset_source_column),
+            "split": row.get("split"),
+            "temperature": row.get("temperature"),
+            "pressure": row.get("pressure"),
+            "adsorbed_amount": row.get("adsorbed_amount"),
+            "encoded_adsorbent": row.get("encoded_adsorbent"),
+            "adsorbate_molecular_weight": row.get("adsorbate_molecular_weight"),
+            "adsorbate_encoded_smile": row.get("adsorbate_encoded_smile"),
+        }
+        serialized = json.dumps(payload, sort_keys=True, default=str)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    # -------------------------------------------------------------------------
     def save_training_dataset(
         self, dataset: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
@@ -69,6 +88,11 @@ class TrainingDataSerializer:
         storage_dataset = self.prepare_dataset_for_storage(dataset)
         if self.dataset_label_column not in storage_dataset.columns:
             storage_dataset[self.dataset_label_column] = dataset_label
+        if self.training_hash_column not in storage_dataset.columns:
+            storage_dataset[self.training_hash_column] = pd.NA
+        storage_dataset[self.sample_key_column] = storage_dataset.apply(
+            self.build_sample_key, axis=1
+        )
         existing = self.queries.load_training_dataset()
         if not existing.empty and self.dataset_label_column in existing.columns:
             retained = existing[existing[self.dataset_label_column] != dataset_label]
@@ -104,6 +128,27 @@ class TrainingDataSerializer:
 
         combined = pd.concat([existing, storage_metadata], ignore_index=True)
         self.queries.save_training_metadata(combined)
+        metadata_hash = None
+        if self.metadata_hash_column in storage_metadata.columns:
+            hash_values = (
+                storage_metadata[self.metadata_hash_column]
+                .dropna()
+                .astype("string")
+                .str.strip()
+            )
+            metadata_hash = hash_values.iloc[0] if not hash_values.empty else None
+        if metadata_hash:
+            training_data = self.queries.load_training_dataset()
+            if (
+                not training_data.empty
+                and self.dataset_label_column in training_data.columns
+            ):
+                updated = training_data.copy()
+                updated.loc[
+                    updated[self.dataset_label_column] == dataset_label,
+                    self.training_hash_column,
+                ] = metadata_hash
+                self.queries.save_training_dataset(updated)
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(self, dataset_label: str | None = None) -> None:
