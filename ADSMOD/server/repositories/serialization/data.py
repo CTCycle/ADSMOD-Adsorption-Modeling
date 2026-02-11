@@ -25,9 +25,7 @@ from ADSMOD.server.common.constants import (
     COLUMN_MEASUREMENT_COUNT,
     COLUMN_MIN_PRESSURE,
     COLUMN_MIN_UPTAKE,
-    COLUMN_OPTIMIZATION_METHOD,
     COLUMN_PRESSURE_PA,
-    COLUMN_SCORE,
     COLUMN_TEMPERATURE_K,
     COLUMN_UPTAKE_MOL_G,
     COLUMN_WORST_MODEL,
@@ -148,7 +146,9 @@ class DataSerializer:
             try:
                 parsed = json.loads(stripped)
             except json.JSONDecodeError:
-                parsed = [entry.strip() for entry in stripped.split(",") if entry.strip()]
+                parsed = [
+                    entry.strip() for entry in stripped.split(",") if entry.strip()
+                ]
             return [float(entry) for entry in parsed if not pd.isna(entry)]
         if isinstance(value, Iterable) and not isinstance(value, (bytes, bytearray)):
             values: list[float] = []
@@ -167,9 +167,19 @@ class DataSerializer:
         rename_map: dict[str, str] = {}
         for column in normalized.columns:
             lowered = str(column).strip().lower()
-            if lowered in {"adsorbent", "adsorbents", "adsorbent_name", "adsorbent name"}:
+            if lowered in {
+                "adsorbent",
+                "adsorbents",
+                "adsorbent_name",
+                "adsorbent name",
+            }:
                 rename_map[column] = COLUMN_ADSORBENT
-            elif lowered in {"adsorbate", "adsorbates", "adsorbate_name", "adsorbate name"}:
+            elif lowered in {
+                "adsorbate",
+                "adsorbates",
+                "adsorbate_name",
+                "adsorbate name",
+            }:
                 rename_map[column] = COLUMN_ADSORBATE
         if rename_map:
             normalized = normalized.rename(columns=rename_map)
@@ -195,7 +205,9 @@ class DataSerializer:
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     # -------------------------------------------------------------------------
-    def material_key(self, prefix: str, name: str, external_key: str | None = None) -> str:
+    def material_key(
+        self, prefix: str, name: str, external_key: str | None = None
+    ) -> str:
         external = self.normalize_text(external_key)
         if external:
             return f"{prefix}:{external.lower()}"
@@ -207,7 +219,9 @@ class DataSerializer:
         return f"auto:{digest}"
 
     # -------------------------------------------------------------------------
-    def _ensure_dataset(self, session: Session, dataset_name: str, source: str) -> Dataset:
+    def _ensure_dataset(
+        self, session: Session, dataset_name: str, source: str
+    ) -> Dataset:
         normalized_name = self.normalize_text(dataset_name) or "default"
         dataset = session.execute(
             select(Dataset).where(Dataset.dataset_name == normalized_name)
@@ -400,8 +414,13 @@ class DataSerializer:
             return
 
         normalized = self.normalize_material_columns(dataset)
-        if self.raw_name_column not in normalized.columns and COLUMN_DATASET_NAME in normalized.columns:
-            normalized = normalized.rename(columns={COLUMN_DATASET_NAME: self.raw_name_column})
+        if (
+            self.raw_name_column not in normalized.columns
+            and COLUMN_DATASET_NAME in normalized.columns
+        ):
+            normalized = normalized.rename(
+                columns={COLUMN_DATASET_NAME: self.raw_name_column}
+            )
 
         required = [
             self.raw_name_column,
@@ -420,23 +439,49 @@ class DataSerializer:
         if normalized.empty:
             return
 
-        normalized[COLUMN_ADSORBENT] = normalized[COLUMN_ADSORBENT].astype("string").str.strip().str.lower()
-        normalized[COLUMN_ADSORBATE] = normalized[COLUMN_ADSORBATE].astype("string").str.strip().str.lower()
-        normalized[COLUMN_EXPERIMENT] = normalized[COLUMN_EXPERIMENT].astype("string").str.strip()
-        normalized[self.raw_name_column] = normalized[self.raw_name_column].astype("string").str.strip()
+        normalized[COLUMN_ADSORBENT] = (
+            normalized[COLUMN_ADSORBENT].astype("string").str.strip().str.lower()
+        )
+        normalized[COLUMN_ADSORBATE] = (
+            normalized[COLUMN_ADSORBATE].astype("string").str.strip().str.lower()
+        )
+        normalized[COLUMN_EXPERIMENT] = (
+            normalized[COLUMN_EXPERIMENT].astype("string").str.strip()
+        )
+        normalized[self.raw_name_column] = (
+            normalized[self.raw_name_column].astype("string").str.strip()
+        )
 
         with self.session_factory() as session:
-            dataset_names = [name for name in normalized[self.raw_name_column].dropna().unique().tolist() if str(name).strip()]
+            dataset_names = [
+                name
+                for name in normalized[self.raw_name_column].dropna().unique().tolist()
+                if str(name).strip()
+            ]
             for dataset_name in dataset_names:
-                subset = normalized[normalized[self.raw_name_column] == dataset_name].copy()
-                dataset_entry = self._ensure_dataset(session, str(dataset_name), "uploaded")
+                subset = normalized[
+                    normalized[self.raw_name_column] == dataset_name
+                ].copy()
+                dataset_entry = self._ensure_dataset(
+                    session, str(dataset_name), "uploaded"
+                )
                 self._replace_dataset_isotherms(session, dataset_entry.id)
 
                 grouped = subset.groupby(
-                    [COLUMN_EXPERIMENT, COLUMN_ADSORBENT, COLUMN_ADSORBATE, COLUMN_TEMPERATURE_K],
+                    [
+                        COLUMN_EXPERIMENT,
+                        COLUMN_ADSORBENT,
+                        COLUMN_ADSORBATE,
+                        COLUMN_TEMPERATURE_K,
+                    ],
                     dropna=False,
                 )
-                for (experiment, adsorbent_name, adsorbate_name, temperature), frame in grouped:
+                for (
+                    experiment,
+                    adsorbent_name,
+                    adsorbate_name,
+                    temperature,
+                ), frame in grouped:
                     adsorbent = self._ensure_adsorbent(session, str(adsorbent_name))
                     adsorbate = self._ensure_adsorbate(session, str(adsorbate_name))
                     experiment_name = f"uploaded:{dataset_name}:{experiment}"
@@ -461,12 +506,16 @@ class DataSerializer:
                     )
                     pressure_values = [
                         value
-                        for value in frame[COLUMN_PRESSURE_PA].apply(self.to_float).tolist()
+                        for value in frame[COLUMN_PRESSURE_PA]
+                        .apply(self.to_float)
+                        .tolist()
                         if value is not None
                     ]
                     uptake_values = [
                         value
-                        for value in frame[COLUMN_UPTAKE_MOL_G].apply(self.to_float).tolist()
+                        for value in frame[COLUMN_UPTAKE_MOL_G]
+                        .apply(self.to_float)
+                        .tolist()
                         if value is not None
                     ]
                     self._insert_points_for_single_component(
@@ -522,22 +571,33 @@ class DataSerializer:
                 .join(
                     AdsorptionIsothermComponent,
                     and_(
-                        AdsorptionIsothermComponent.isotherm_id == AdsorptionIsotherm.id,
+                        AdsorptionIsothermComponent.isotherm_id
+                        == AdsorptionIsotherm.id,
                         AdsorptionIsothermComponent.component_index == 1,
                     ),
                 )
-                .join(Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id)
+                .join(
+                    Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id
+                )
                 .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
-                .join(AdsorptionPoint, AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id)
+                .join(
+                    AdsorptionPoint,
+                    AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
+                )
                 .join(
                     AdsorptionPointComponent,
                     and_(
                         AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                        AdsorptionPointComponent.component_id == AdsorptionIsothermComponent.id,
+                        AdsorptionPointComponent.component_id
+                        == AdsorptionIsothermComponent.id,
                     ),
                 )
                 .where(Dataset.source == "uploaded")
-                .order_by(Dataset.dataset_name, AdsorptionIsotherm.source_record_id, AdsorptionPoint.point_index)
+                .order_by(
+                    Dataset.dataset_name,
+                    AdsorptionIsotherm.source_record_id,
+                    AdsorptionPoint.point_index,
+                )
             ).all()
 
         if not rows:
@@ -590,11 +650,14 @@ class DataSerializer:
                 .join(
                     AdsorptionIsothermComponent,
                     and_(
-                        AdsorptionIsothermComponent.isotherm_id == AdsorptionIsotherm.id,
+                        AdsorptionIsothermComponent.isotherm_id
+                        == AdsorptionIsotherm.id,
                         AdsorptionIsothermComponent.component_index == 1,
                     ),
                 )
-                .join(Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id)
+                .join(
+                    Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id
+                )
                 .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
                 .order_by(AdsorptionProcessedIsotherm.id)
             ).all()
@@ -681,7 +744,11 @@ class DataSerializer:
         prepared = self.normalize_material_columns(dataset.copy())
         with self.session_factory() as session:
             default_dataset_name = "fitting_runtime"
-            dataset_name = self.normalize_text(prepared.get(COLUMN_DATASET_NAME, pd.Series([default_dataset_name])).iloc[0])
+            dataset_name = self.normalize_text(
+                prepared.get(
+                    COLUMN_DATASET_NAME, pd.Series([default_dataset_name])
+                ).iloc[0]
+            )
             dataset_entry = self._ensure_dataset(
                 session,
                 dataset_name or default_dataset_name,
@@ -742,7 +809,8 @@ class DataSerializer:
                     select(AdsorptionProcessedIsotherm).where(
                         and_(
                             AdsorptionProcessedIsotherm.isotherm_id == isotherm.id,
-                            AdsorptionProcessedIsotherm.processing_version == self.processing_version,
+                            AdsorptionProcessedIsotherm.processing_version
+                            == self.processing_version,
                         )
                     )
                 ).scalar_one_or_none()
@@ -770,16 +838,24 @@ class DataSerializer:
                     processed.original_pressure_series = pressure_series
                     processed.original_uptake_series = uptake_series
                     processed.measurement_count = len(pressure_series)
-                    processed.min_pressure = min(pressure_series) if pressure_series else None
-                    processed.max_pressure = max(pressure_series) if pressure_series else None
+                    processed.min_pressure = (
+                        min(pressure_series) if pressure_series else None
+                    )
+                    processed.max_pressure = (
+                        max(pressure_series) if pressure_series else None
+                    )
                     processed.min_uptake = min(uptake_series) if uptake_series else None
                     processed.max_uptake = max(uptake_series) if uptake_series else None
 
-                fit_ids = session.execute(
-                    select(AdsorptionFit.id).where(
-                        AdsorptionFit.processed_id == processed.id
+                fit_ids = (
+                    session.execute(
+                        select(AdsorptionFit.id).where(
+                            AdsorptionFit.processed_id == processed.id
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
                 if fit_ids:
                     session.query(AdsorptionFitParam).filter(
                         AdsorptionFitParam.fit_id.in_(fit_ids)
@@ -791,8 +867,12 @@ class DataSerializer:
                 for schema in MODEL_SCHEMAS.values():
                     prefix = schema["prefix"]
                     fields = schema["fields"]
-                    score_column = self._resolve_dataset_column(prefix, fields["score"], prepared.columns)
-                    score_value = self.to_float(row.get(score_column)) if score_column else None
+                    score_column = self._resolve_dataset_column(
+                        prefix, fields["score"], prepared.columns
+                    )
+                    score_value = (
+                        self.to_float(row.get(score_column)) if score_column else None
+                    )
                     if score_value is None:
                         continue
 
@@ -801,12 +881,21 @@ class DataSerializer:
                         fields["optimization_method"],
                         prepared.columns,
                     )
-                    optimization_method = self.normalize_text(
-                        row.get(optimization_column) if optimization_column else "LSS"
-                    ) or "LSS"
+                    optimization_method = (
+                        self.normalize_text(
+                            row.get(optimization_column)
+                            if optimization_column
+                            else "LSS"
+                        )
+                        or "LSS"
+                    )
 
-                    aic_column = self._resolve_dataset_column(prefix, fields["aic"], prepared.columns)
-                    aicc_column = self._resolve_dataset_column(prefix, fields["aicc"], prepared.columns)
+                    aic_column = self._resolve_dataset_column(
+                        prefix, fields["aic"], prepared.columns
+                    )
+                    aicc_column = self._resolve_dataset_column(
+                        prefix, fields["aicc"], prepared.columns
+                    )
 
                     model_key = self.normalize_model_key(prefix)
                     fit = AdsorptionFit(
@@ -815,17 +904,30 @@ class DataSerializer:
                         optimization_method=optimization_method,
                         score=score_value,
                         aic=self.to_float(row.get(aic_column)) if aic_column else None,
-                        aicc=self.to_float(row.get(aicc_column)) if aicc_column else None,
+                        aicc=self.to_float(row.get(aicc_column))
+                        if aicc_column
+                        else None,
                         created_at=self.now_iso(),
                     )
                     session.add(fit)
                     session.flush()
 
                     for field_name, db_name in fields.items():
-                        if field_name in {"optimization_method", "score", "aic", "aicc"}:
+                        if field_name in {
+                            "optimization_method",
+                            "score",
+                            "aic",
+                            "aicc",
+                        }:
                             continue
-                        value_column = self._resolve_dataset_column(prefix, db_name, prepared.columns)
-                        param_value = self.to_float(row.get(value_column)) if value_column else None
+                        value_column = self._resolve_dataset_column(
+                            prefix, db_name, prepared.columns
+                        )
+                        param_value = (
+                            self.to_float(row.get(value_column))
+                            if value_column
+                            else None
+                        )
                         if param_value is None:
                             continue
                         error_column = self._resolve_dataset_column(
@@ -833,7 +935,11 @@ class DataSerializer:
                             f"{db_name} error",
                             prepared.columns,
                         )
-                        param_error = self.to_float(row.get(error_column)) if error_column else None
+                        param_error = (
+                            self.to_float(row.get(error_column))
+                            if error_column
+                            else None
+                        )
                         session.add(
                             AdsorptionFitParam(
                                 fit_id=fit.id,
@@ -876,7 +982,8 @@ class DataSerializer:
                     select(AdsorptionProcessedIsotherm).where(
                         and_(
                             AdsorptionProcessedIsotherm.isotherm_id == isotherm.id,
-                            AdsorptionProcessedIsotherm.processing_version == self.processing_version,
+                            AdsorptionProcessedIsotherm.processing_version
+                            == self.processing_version,
                         )
                     )
                 ).scalar_one_or_none()
@@ -933,7 +1040,9 @@ class DataSerializer:
         if processed.empty:
             return processed
 
-        base = processed.rename(columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME})
+        base = processed.rename(
+            columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME}
+        )
         best_rows = self.queries.load_table("adsorption_best_fit")
         if best_rows.empty:
             return base

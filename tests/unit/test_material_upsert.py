@@ -77,9 +77,13 @@ def test_wrong_conflict_target_can_raise_duplicate_adsorbate_key() -> None:
 
     upsert_adsorbate(engine, first, ["InChIKey"])
     with Session(engine) as session:
-        statement = insert(Adsorbate.__table__).values([second]).on_conflict_do_update(
-            index_elements=["InChIKey"],
-            set_={"formula": "CH4-updated"},
+        statement = (
+            insert(Adsorbate.__table__)
+            .values([second])
+            .on_conflict_do_update(
+                index_elements=["InChIKey"],
+                set_={"formula": "CH4-updated"},
+            )
         )
         with pytest.raises(IntegrityError):
             session.execute(statement)
@@ -111,9 +115,13 @@ def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
     upsert_adsorbate(engine, second, conflict_columns)
 
     with Session(engine) as session:
-        rows = session.execute(
-            select(Adsorbate).where(Adsorbate.adsorbate_key == "name:0002")
-        ).scalars().all()
+        rows = (
+            session.execute(
+                select(Adsorbate).where(Adsorbate.adsorbate_key == "name:0002")
+            )
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].id is not None
         assert rows[0].formula == "C2H6-updated"
@@ -154,9 +162,13 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
             future.result()
 
     with Session(engine) as session:
-        rows = session.execute(
-            select(Adsorbate).where(Adsorbate.adsorbate_key == "name:0003")
-        ).scalars().all()
+        rows = (
+            session.execute(
+                select(Adsorbate).where(Adsorbate.adsorbate_key == "name:0003")
+            )
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].id is not None
         assert rows[0].formula in {"C3H8-a", "C3H8-b"}

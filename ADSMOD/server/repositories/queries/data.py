@@ -26,4 +26,3 @@ class DataRepositoryQueries:
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
         self.database.upsert_into_database(dataset, table_name)
-

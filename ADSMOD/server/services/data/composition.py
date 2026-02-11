@@ -8,7 +8,6 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from ADSMOD.server.repositories.database import database
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.repositories.queries.nist import NISTDataSerializer
 from ADSMOD.server.repositories.serialization.data import DataSerializer

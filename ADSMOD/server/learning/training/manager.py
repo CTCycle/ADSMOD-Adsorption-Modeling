@@ -24,6 +24,7 @@ MODEL_COMPONENTS = {
     SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
 }
 
+
 ###############################################################################
 class TrainingProcessRunner:
     def __init__(

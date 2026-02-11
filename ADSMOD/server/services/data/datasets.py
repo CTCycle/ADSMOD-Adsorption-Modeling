@@ -316,7 +316,9 @@ class DatasetService:
     # -------------------------------------------------------------------------
     def order_dataset_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
         preferred = [
-            column for column in self.ADSORPTION_SCHEMA_COLUMNS if column in dataset.columns
+            column
+            for column in self.ADSORPTION_SCHEMA_COLUMNS
+            if column in dataset.columns
         ]
         extras = [column for column in dataset.columns if column not in preferred]
         ordered = [*preferred, *extras]
