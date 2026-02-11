@@ -21,7 +21,7 @@
     "column_detection_cutoff": 0.6
   },
   "nist": {
-    "parallel_tasks": 20,
+    "parallel_tasks": 40,
     "pubchem_parallel_tasks": 1
   },
   "fitting": {

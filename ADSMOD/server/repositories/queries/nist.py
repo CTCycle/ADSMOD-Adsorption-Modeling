@@ -64,6 +64,52 @@ class NISTDataSerializer:
         return f"name:{digest}"
 
     # -------------------------------------------------------------------------
+    def _load_adsorbate_keys_by_inchi(
+        self, inchi_values: list[str]
+    ) -> dict[str, str]:
+        normalized_values = [self._norm(value) for value in inchi_values if self._norm(value)]
+        if not normalized_values:
+            return {}
+
+        with self.session_factory() as session:
+            rows = session.execute(
+                select(Adsorbate.InChIKey, Adsorbate.adsorbate_key).where(
+                    func.lower(func.trim(Adsorbate.InChIKey)).in_(normalized_values)
+                )
+            ).all()
+
+        mapping: dict[str, str] = {}
+        for inchi_key, adsorbate_key in rows:
+            normalized_inchi = self._norm(inchi_key)
+            normalized_key = self._norm(adsorbate_key)
+            if normalized_inchi and normalized_key:
+                mapping[normalized_inchi] = str(adsorbate_key)
+        return mapping
+
+    # -------------------------------------------------------------------------
+    def _load_adsorbent_keys_by_hash(
+        self, hash_values: list[str]
+    ) -> dict[str, str]:
+        normalized_values = [self._norm(value) for value in hash_values if self._norm(value)]
+        if not normalized_values:
+            return {}
+
+        with self.session_factory() as session:
+            rows = session.execute(
+                select(Adsorbent.hashkey, Adsorbent.adsorbent_key).where(
+                    func.lower(func.trim(Adsorbent.hashkey)).in_(normalized_values)
+                )
+            ).all()
+
+        mapping: dict[str, str] = {}
+        for hash_key, adsorbent_key in rows:
+            normalized_hash = self._norm(hash_key)
+            normalized_key = self._norm(adsorbent_key)
+            if normalized_hash and normalized_key:
+                mapping[normalized_hash] = str(adsorbent_key)
+        return mapping
+
+    # -------------------------------------------------------------------------
     @classmethod
     def deduplicate_single_component_rows(
         cls, single_component: pd.DataFrame
@@ -287,15 +333,51 @@ class NISTDataSerializer:
         guest_data: pd.DataFrame | None = None,
         host_data: pd.DataFrame | None = None,
     ) -> None:
+        invalid_tokens = {"", "nan", "none", "null", "<na>"}
+
         if isinstance(guest_data, pd.DataFrame) and not guest_data.empty:
             guests = guest_data.copy()
             guests["name"] = guests.get("name", pd.Series(dtype="string")).astype("string").str.strip().str.lower()
-            guests["InChIKey"] = guests.get("InChIKey", pd.Series(dtype="string")).astype("string").str.strip()
-            guests["adsorbate_key"] = guests.apply(
+            guests["InChIKey"] = (
+                guests.get("InChIKey", pd.Series(dtype="string"))
+                .astype("string")
+                .str.strip()
+                .str.upper()
+            )
+            invalid_inchi = guests["InChIKey"].fillna("").str.lower().isin(invalid_tokens)
+            guests["InChIKey"] = guests["InChIKey"].mask(invalid_inchi, pd.NA)
+            existing_inchi_keys = self._load_adsorbate_keys_by_inchi(
+                guests["InChIKey"].dropna().astype(str).tolist()
+            )
+            existing_keys = guests.get(
+                "adsorbate_key",
+                pd.Series(pd.NA, index=guests.index, dtype="string"),
+            ).astype("string").str.strip()
+            mapped_keys = guests["InChIKey"].astype("string").apply(
+                lambda value: existing_inchi_keys.get(self._norm(value), pd.NA)
+            )
+            generated_keys = guests.apply(
                 lambda row: self._adsorbate_key(row.get("InChIKey"), row.get("name")),
                 axis=1,
+            ).astype("string")
+            mapped_is_invalid = mapped_keys.astype("string").str.strip().fillna("").str.lower().isin(
+                invalid_tokens
             )
-            expected = {
+            resolved_keys = existing_keys.mask(~mapped_is_invalid, mapped_keys)
+            guests["adsorbate_key"] = resolved_keys.mask(
+                resolved_keys.isna() | (resolved_keys == ""),
+                generated_keys,
+            )
+            normalized_keys = guests["adsorbate_key"].astype("string").str.strip()
+            invalid_text = normalized_keys.fillna("").str.lower().isin(
+                invalid_tokens
+            )
+            guests["adsorbate_key"] = normalized_keys.mask(
+                normalized_keys.isna() | invalid_text,
+                generated_keys,
+            )
+
+            expected = [
                 "adsorbate_key",
                 "InChIKey",
                 "name",
@@ -304,21 +386,71 @@ class NISTDataSerializer:
                 "molecular_weight",
                 "molecular_formula",
                 "smile_code",
-            }
+            ]
             for column in expected:
                 if column not in guests.columns:
                     guests[column] = pd.NA
-            database.upsert_into_database(guests[list(expected)], "adsorbates")
+            guests = guests[expected]
+            guests["adsorbate_key"] = guests["adsorbate_key"].astype("string").str.strip()
+            duplicate_inchi = guests["InChIKey"].notna() & guests["InChIKey"].duplicated(keep="first")
+            duplicate_count = int(duplicate_inchi.sum())
+            if duplicate_count > 0:
+                logger.warning(
+                    "Dropping %d duplicate adsorbate rows by InChIKey before upsert.",
+                    duplicate_count,
+                )
+                guests = guests.loc[~duplicate_inchi].copy()
+            guests = guests.loc[
+                guests["adsorbate_key"].notna() & (guests["adsorbate_key"] != "")
+            ].copy()
+            if guests.empty:
+                logger.warning("Skipping adsorbates upsert: no rows with valid adsorbate_key.")
+            else:
+                database.upsert_into_database(guests, "adsorbates")
 
         if isinstance(host_data, pd.DataFrame) and not host_data.empty:
             hosts = host_data.copy()
             hosts["name"] = hosts.get("name", pd.Series(dtype="string")).astype("string").str.strip().str.lower()
-            hosts["hashkey"] = hosts.get("hashkey", pd.Series(dtype="string")).astype("string").str.strip()
-            hosts["adsorbent_key"] = hosts.apply(
+            hosts["hashkey"] = (
+                hosts.get("hashkey", pd.Series(dtype="string"))
+                .astype("string")
+                .str.strip()
+                .str.lower()
+            )
+            invalid_hash = hosts["hashkey"].fillna("").str.lower().isin(invalid_tokens)
+            hosts["hashkey"] = hosts["hashkey"].mask(invalid_hash, pd.NA)
+            existing_hash_keys = self._load_adsorbent_keys_by_hash(
+                hosts["hashkey"].dropna().astype(str).tolist()
+            )
+            existing_keys = hosts.get(
+                "adsorbent_key",
+                pd.Series(pd.NA, index=hosts.index, dtype="string"),
+            ).astype("string").str.strip()
+            mapped_keys = hosts["hashkey"].astype("string").apply(
+                lambda value: existing_hash_keys.get(self._norm(value), pd.NA)
+            )
+            generated_keys = hosts.apply(
                 lambda row: self._adsorbent_key(row.get("hashkey"), row.get("name")),
                 axis=1,
+            ).astype("string")
+            mapped_is_invalid = mapped_keys.astype("string").str.strip().fillna("").str.lower().isin(
+                invalid_tokens
             )
-            expected = {
+            resolved_keys = existing_keys.mask(~mapped_is_invalid, mapped_keys)
+            hosts["adsorbent_key"] = resolved_keys.mask(
+                resolved_keys.isna() | (resolved_keys == ""),
+                generated_keys,
+            )
+            normalized_keys = hosts["adsorbent_key"].astype("string").str.strip()
+            invalid_text = normalized_keys.fillna("").str.lower().isin(
+                invalid_tokens
+            )
+            hosts["adsorbent_key"] = normalized_keys.mask(
+                normalized_keys.isna() | invalid_text,
+                generated_keys,
+            )
+
+            expected = [
                 "adsorbent_key",
                 "hashkey",
                 "name",
@@ -326,11 +458,27 @@ class NISTDataSerializer:
                 "molecular_weight",
                 "molecular_formula",
                 "smile_code",
-            }
+            ]
             for column in expected:
                 if column not in hosts.columns:
                     hosts[column] = pd.NA
-            database.upsert_into_database(hosts[list(expected)], "adsorbents")
+            hosts = hosts[expected]
+            hosts["adsorbent_key"] = hosts["adsorbent_key"].astype("string").str.strip()
+            duplicate_hash = hosts["hashkey"].notna() & hosts["hashkey"].duplicated(keep="first")
+            duplicate_count = int(duplicate_hash.sum())
+            if duplicate_count > 0:
+                logger.warning(
+                    "Dropping %d duplicate adsorbent rows by hashkey before upsert.",
+                    duplicate_count,
+                )
+                hosts = hosts.loc[~duplicate_hash].copy()
+            hosts = hosts.loc[
+                hosts["adsorbent_key"].notna() & (hosts["adsorbent_key"] != "")
+            ].copy()
+            if hosts.empty:
+                logger.warning("Skipping adsorbents upsert: no rows with valid adsorbent_key.")
+            else:
+                database.upsert_into_database(hosts, "adsorbents")
 
     # -------------------------------------------------------------------------
     def save_adsorption_datasets(

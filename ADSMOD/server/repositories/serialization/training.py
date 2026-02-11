@@ -93,6 +93,16 @@ class TrainingDataSerializer:
         storage_dataset[self.sample_key_column] = storage_dataset.apply(
             self.build_sample_key, axis=1
         )
+        duplicate_mask = storage_dataset[self.sample_key_column].duplicated(
+            keep="last"
+        )
+        duplicate_count = int(duplicate_mask.sum())
+        if duplicate_count > 0:
+            logger.warning(
+                "Dropping %d duplicate training rows by sample_key before upsert.",
+                duplicate_count,
+            )
+            storage_dataset = storage_dataset.loc[~duplicate_mask].copy()
         existing = self.queries.load_training_dataset()
         if not existing.empty and self.dataset_label_column in existing.columns:
             retained = existing[existing[self.dataset_label_column] != dataset_label]

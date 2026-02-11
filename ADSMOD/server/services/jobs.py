@@ -101,7 +101,7 @@ def run_process_runner(
         except Exception:
             result_queue.put({"status": "success", "result": result})
     except Exception as exc:  # noqa: BLE001
-        error_msg = normalize_error_text(str(exc)).split("\n")[0][:200]
+        error_msg = format_error_message(exc)
         try:
             result_queue.put_nowait({"status": "error", "error": error_msg})
         except Exception:
@@ -540,13 +540,40 @@ class JobManager:
                 self.finalize_job(job_id, "completed", merged if merged else None, None)
                 logger.info("Job %s completed successfully", job_id)
         except Exception as exc:  # noqa: BLE001
-            error_msg = normalize_error_text(str(exc)).split("\n")[0][:200]
+            error_msg = format_error_message(exc)
             self.finalize_job(job_id, "failed", None, error_msg)
             logger.error("Job %s failed: %s", job_id, error_msg)
             logger.debug("Job %s error details", job_id, exc_info=True)
         finally:
             with self.lock:
                 self.job_configs.pop(job_id, None)
+
+
+# -------------------------------------------------------------------------
+def format_error_message(exc: Exception) -> str:
+    messages: list[str] = []
+    for candidate in (exc, getattr(exc, "orig", None), getattr(exc, "__cause__", None)):
+        if candidate is None:
+            continue
+        text = normalize_error_text(str(candidate)).strip()
+        if text:
+            messages.append(text)
+    if not messages:
+        return "Unknown error"
+
+    combined = "\n".join(messages)
+    lines = [line.strip() for line in combined.splitlines() if line.strip()]
+    if not lines:
+        return "Unknown error"
+
+    detail_line = next(
+        (line for line in lines if line.lower().startswith("detail:")), None
+    )
+    if detail_line:
+        message = f"{lines[0]} | {detail_line}"
+    else:
+        message = lines[0]
+    return message[:500]
 
 
 ###############################################################################
