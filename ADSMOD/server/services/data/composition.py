@@ -64,7 +64,9 @@ class DatasetCompositionService:
     # -------------------------------------------------------------------------
     def list_sources(self) -> list[dict[str, Any]]:
         sources: list[dict[str, Any]] = []
-        nist_rows = database.count_rows("nist_single_component_adsorption")
+        nist_rows = self.nist_serializer.count_nist_rows().get(
+            "single_component_rows", 0
+        )
         if nist_rows > 0:
             sources.append(
                 {
