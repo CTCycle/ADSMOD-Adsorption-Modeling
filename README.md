@@ -103,16 +103,6 @@ A step-by-step guided workflow for configuring training experiments:
 
 ![Model Training](assets/figures/training_page.png)
 
-#### 4.2.4 Database Browser
-
-A dedicated tool for exploring the local database of collected isotherms and materials.
-- **Table Viewer**: Browse through various database tables, including `isotherms`, `materials`, and `experiments`.
-- **Data Inspection**: View raw data in a tabular format to verify data integrity and content.
-- **Statistics**: Quickly check the total number of rows and columns for any selected table.
-- **Live Refresh**: Update the view to reflect the latest database changes without reloading the page.
-
-![Database Browser](assets/figures/browser_page.png)
-
 
 ## 5. Setup and Maintenance
 Run `ADSMOD/setup_and_maintenance.bat` to access setup and maintenance actions:
