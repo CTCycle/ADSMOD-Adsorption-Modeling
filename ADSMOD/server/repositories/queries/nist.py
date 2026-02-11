@@ -64,10 +64,10 @@ class NISTDataSerializer:
         return f"name:{digest}"
 
     # -------------------------------------------------------------------------
-    def _load_adsorbate_keys_by_inchi(
-        self, inchi_values: list[str]
-    ) -> dict[str, str]:
-        normalized_values = [self._norm(value) for value in inchi_values if self._norm(value)]
+    def _load_adsorbate_keys_by_inchi(self, inchi_values: list[str]) -> dict[str, str]:
+        normalized_values = [
+            self._norm(value) for value in inchi_values if self._norm(value)
+        ]
         if not normalized_values:
             return {}
 
@@ -87,10 +87,10 @@ class NISTDataSerializer:
         return mapping
 
     # -------------------------------------------------------------------------
-    def _load_adsorbent_keys_by_hash(
-        self, hash_values: list[str]
-    ) -> dict[str, str]:
-        normalized_values = [self._norm(value) for value in hash_values if self._norm(value)]
+    def _load_adsorbent_keys_by_hash(self, hash_values: list[str]) -> dict[str, str]:
+        normalized_values = [
+            self._norm(value) for value in hash_values if self._norm(value)
+        ]
         if not normalized_values:
             return {}
 
@@ -178,26 +178,42 @@ class NISTDataSerializer:
                     AdsorptionPointComponent.uptake_mol_g,
                 )
                 .join(Dataset, Dataset.id == AdsorptionIsotherm.dataset_id)
-                .join(component_count, component_count.c.isotherm_id == AdsorptionIsotherm.id)
+                .join(
+                    component_count,
+                    component_count.c.isotherm_id == AdsorptionIsotherm.id,
+                )
                 .join(
                     AdsorptionIsothermComponent,
                     and_(
-                        AdsorptionIsothermComponent.isotherm_id == AdsorptionIsotherm.id,
+                        AdsorptionIsothermComponent.isotherm_id
+                        == AdsorptionIsotherm.id,
                         AdsorptionIsothermComponent.component_index == 1,
                     ),
                 )
-                .join(Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id)
+                .join(
+                    Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id
+                )
                 .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
-                .join(AdsorptionPoint, AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id)
+                .join(
+                    AdsorptionPoint,
+                    AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
+                )
                 .join(
                     AdsorptionPointComponent,
                     and_(
                         AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                        AdsorptionPointComponent.component_id == AdsorptionIsothermComponent.id,
+                        AdsorptionPointComponent.component_id
+                        == AdsorptionIsothermComponent.id,
                     ),
                 )
-                .where(and_(Dataset.source == "nist", component_count.c.component_count == 1))
-                .order_by(AdsorptionIsotherm.source_record_id, AdsorptionPoint.point_index)
+                .where(
+                    and_(
+                        Dataset.source == "nist", component_count.c.component_count == 1
+                    )
+                )
+                .order_by(
+                    AdsorptionIsotherm.source_record_id, AdsorptionPoint.point_index
+                )
             ).all()
 
         if not rows:
@@ -252,19 +268,35 @@ class NISTDataSerializer:
                     AdsorptionPointComponent.uptake_mol_g,
                 )
                 .join(Dataset, Dataset.id == AdsorptionIsotherm.dataset_id)
-                .join(component_count, component_count.c.isotherm_id == AdsorptionIsotherm.id)
-                .join(AdsorptionIsothermComponent, AdsorptionIsothermComponent.isotherm_id == AdsorptionIsotherm.id)
-                .join(Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id)
+                .join(
+                    component_count,
+                    component_count.c.isotherm_id == AdsorptionIsotherm.id,
+                )
+                .join(
+                    AdsorptionIsothermComponent,
+                    AdsorptionIsothermComponent.isotherm_id == AdsorptionIsotherm.id,
+                )
+                .join(
+                    Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id
+                )
                 .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
-                .join(AdsorptionPoint, AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id)
+                .join(
+                    AdsorptionPoint,
+                    AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
+                )
                 .join(
                     AdsorptionPointComponent,
                     and_(
                         AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                        AdsorptionPointComponent.component_id == AdsorptionIsothermComponent.id,
+                        AdsorptionPointComponent.component_id
+                        == AdsorptionIsothermComponent.id,
                     ),
                 )
-                .where(and_(Dataset.source == "nist", component_count.c.component_count == 2))
+                .where(
+                    and_(
+                        Dataset.source == "nist", component_count.c.component_count == 2
+                    )
+                )
                 .order_by(
                     AdsorptionIsotherm.source_record_id,
                     AdsorptionPoint.point_index,
@@ -337,31 +369,48 @@ class NISTDataSerializer:
 
         if isinstance(guest_data, pd.DataFrame) and not guest_data.empty:
             guests = guest_data.copy()
-            guests["name"] = guests.get("name", pd.Series(dtype="string")).astype("string").str.strip().str.lower()
+            guests["name"] = (
+                guests.get("name", pd.Series(dtype="string"))
+                .astype("string")
+                .str.strip()
+                .str.lower()
+            )
             guests["InChIKey"] = (
                 guests.get("InChIKey", pd.Series(dtype="string"))
                 .astype("string")
                 .str.strip()
                 .str.upper()
             )
-            invalid_inchi = guests["InChIKey"].fillna("").str.lower().isin(invalid_tokens)
+            invalid_inchi = (
+                guests["InChIKey"].fillna("").str.lower().isin(invalid_tokens)
+            )
             guests["InChIKey"] = guests["InChIKey"].mask(invalid_inchi, pd.NA)
             existing_inchi_keys = self._load_adsorbate_keys_by_inchi(
                 guests["InChIKey"].dropna().astype(str).tolist()
             )
-            existing_keys = guests.get(
-                "adsorbate_key",
-                pd.Series(pd.NA, index=guests.index, dtype="string"),
-            ).astype("string").str.strip()
-            mapped_keys = guests["InChIKey"].astype("string").apply(
-                lambda value: existing_inchi_keys.get(self._norm(value), pd.NA)
+            existing_keys = (
+                guests.get(
+                    "adsorbate_key",
+                    pd.Series(pd.NA, index=guests.index, dtype="string"),
+                )
+                .astype("string")
+                .str.strip()
+            )
+            mapped_keys = (
+                guests["InChIKey"]
+                .astype("string")
+                .apply(lambda value: existing_inchi_keys.get(self._norm(value), pd.NA))
             )
             generated_keys = guests.apply(
                 lambda row: self._adsorbate_key(row.get("InChIKey"), row.get("name")),
                 axis=1,
             ).astype("string")
-            mapped_is_invalid = mapped_keys.astype("string").str.strip().fillna("").str.lower().isin(
-                invalid_tokens
+            mapped_is_invalid = (
+                mapped_keys.astype("string")
+                .str.strip()
+                .fillna("")
+                .str.lower()
+                .isin(invalid_tokens)
             )
             resolved_keys = existing_keys.mask(~mapped_is_invalid, mapped_keys)
             guests["adsorbate_key"] = resolved_keys.mask(
@@ -369,9 +418,7 @@ class NISTDataSerializer:
                 generated_keys,
             )
             normalized_keys = guests["adsorbate_key"].astype("string").str.strip()
-            invalid_text = normalized_keys.fillna("").str.lower().isin(
-                invalid_tokens
-            )
+            invalid_text = normalized_keys.fillna("").str.lower().isin(invalid_tokens)
             guests["adsorbate_key"] = normalized_keys.mask(
                 normalized_keys.isna() | invalid_text,
                 generated_keys,
@@ -391,8 +438,12 @@ class NISTDataSerializer:
                 if column not in guests.columns:
                     guests[column] = pd.NA
             guests = guests[expected]
-            guests["adsorbate_key"] = guests["adsorbate_key"].astype("string").str.strip()
-            duplicate_inchi = guests["InChIKey"].notna() & guests["InChIKey"].duplicated(keep="first")
+            guests["adsorbate_key"] = (
+                guests["adsorbate_key"].astype("string").str.strip()
+            )
+            duplicate_inchi = guests["InChIKey"].notna() & guests[
+                "InChIKey"
+            ].duplicated(keep="first")
             duplicate_count = int(duplicate_inchi.sum())
             if duplicate_count > 0:
                 logger.warning(
@@ -404,13 +455,20 @@ class NISTDataSerializer:
                 guests["adsorbate_key"].notna() & (guests["adsorbate_key"] != "")
             ].copy()
             if guests.empty:
-                logger.warning("Skipping adsorbates upsert: no rows with valid adsorbate_key.")
+                logger.warning(
+                    "Skipping adsorbates upsert: no rows with valid adsorbate_key."
+                )
             else:
                 database.upsert_into_database(guests, "adsorbates")
 
         if isinstance(host_data, pd.DataFrame) and not host_data.empty:
             hosts = host_data.copy()
-            hosts["name"] = hosts.get("name", pd.Series(dtype="string")).astype("string").str.strip().str.lower()
+            hosts["name"] = (
+                hosts.get("name", pd.Series(dtype="string"))
+                .astype("string")
+                .str.strip()
+                .str.lower()
+            )
             hosts["hashkey"] = (
                 hosts.get("hashkey", pd.Series(dtype="string"))
                 .astype("string")
@@ -422,19 +480,29 @@ class NISTDataSerializer:
             existing_hash_keys = self._load_adsorbent_keys_by_hash(
                 hosts["hashkey"].dropna().astype(str).tolist()
             )
-            existing_keys = hosts.get(
-                "adsorbent_key",
-                pd.Series(pd.NA, index=hosts.index, dtype="string"),
-            ).astype("string").str.strip()
-            mapped_keys = hosts["hashkey"].astype("string").apply(
-                lambda value: existing_hash_keys.get(self._norm(value), pd.NA)
+            existing_keys = (
+                hosts.get(
+                    "adsorbent_key",
+                    pd.Series(pd.NA, index=hosts.index, dtype="string"),
+                )
+                .astype("string")
+                .str.strip()
+            )
+            mapped_keys = (
+                hosts["hashkey"]
+                .astype("string")
+                .apply(lambda value: existing_hash_keys.get(self._norm(value), pd.NA))
             )
             generated_keys = hosts.apply(
                 lambda row: self._adsorbent_key(row.get("hashkey"), row.get("name")),
                 axis=1,
             ).astype("string")
-            mapped_is_invalid = mapped_keys.astype("string").str.strip().fillna("").str.lower().isin(
-                invalid_tokens
+            mapped_is_invalid = (
+                mapped_keys.astype("string")
+                .str.strip()
+                .fillna("")
+                .str.lower()
+                .isin(invalid_tokens)
             )
             resolved_keys = existing_keys.mask(~mapped_is_invalid, mapped_keys)
             hosts["adsorbent_key"] = resolved_keys.mask(
@@ -442,9 +510,7 @@ class NISTDataSerializer:
                 generated_keys,
             )
             normalized_keys = hosts["adsorbent_key"].astype("string").str.strip()
-            invalid_text = normalized_keys.fillna("").str.lower().isin(
-                invalid_tokens
-            )
+            invalid_text = normalized_keys.fillna("").str.lower().isin(invalid_tokens)
             hosts["adsorbent_key"] = normalized_keys.mask(
                 normalized_keys.isna() | invalid_text,
                 generated_keys,
@@ -464,7 +530,9 @@ class NISTDataSerializer:
                     hosts[column] = pd.NA
             hosts = hosts[expected]
             hosts["adsorbent_key"] = hosts["adsorbent_key"].astype("string").str.strip()
-            duplicate_hash = hosts["hashkey"].notna() & hosts["hashkey"].duplicated(keep="first")
+            duplicate_hash = hosts["hashkey"].notna() & hosts["hashkey"].duplicated(
+                keep="first"
+            )
             duplicate_count = int(duplicate_hash.sum())
             if duplicate_count > 0:
                 logger.warning(
@@ -476,7 +544,9 @@ class NISTDataSerializer:
                 hosts["adsorbent_key"].notna() & (hosts["adsorbent_key"] != "")
             ].copy()
             if hosts.empty:
-                logger.warning("Skipping adsorbents upsert: no rows with valid adsorbent_key.")
+                logger.warning(
+                    "Skipping adsorbents upsert: no rows with valid adsorbent_key."
+                )
             else:
                 database.upsert_into_database(hosts, "adsorbents")
 
@@ -502,35 +572,62 @@ class NISTDataSerializer:
                 AdsorptionIsotherm.dataset_id == dataset_entry.id
             ).delete(synchronize_session=False)
 
-            if isinstance(single_component, pd.DataFrame) and not single_component.empty:
+            if (
+                isinstance(single_component, pd.DataFrame)
+                and not single_component.empty
+            ):
                 grouped = single_component.groupby(
-                    ["name", COLUMN_ADSORBENT, COLUMN_ADSORBATE, "temperature", "pressure_units", "adsorption_units"],
+                    [
+                        "name",
+                        COLUMN_ADSORBENT,
+                        COLUMN_ADSORBATE,
+                        "temperature",
+                        "pressure_units",
+                        "adsorption_units",
+                    ],
                     dropna=False,
                 )
-                for (name, adsorbent_name, adsorbate_name, temperature, pressure_units, adsorption_units), frame in grouped:
+                for (
+                    name,
+                    adsorbent_name,
+                    adsorbate_name,
+                    temperature,
+                    pressure_units,
+                    adsorption_units,
+                ), frame in grouped:
                     adsorbent = session.execute(
-                        select(Adsorbent).where(Adsorbent.name == self._norm(adsorbent_name))
+                        select(Adsorbent).where(
+                            Adsorbent.name == self._norm(adsorbent_name)
+                        )
                     ).scalar_one_or_none()
                     if adsorbent is None:
                         adsorbent = Adsorbent(
-                            adsorbent_key=self._adsorbent_key(None, str(adsorbent_name)),
+                            adsorbent_key=self._adsorbent_key(
+                                None, str(adsorbent_name)
+                            ),
                             name=self._norm(adsorbent_name),
                         )
                         session.add(adsorbent)
                         session.flush()
 
                     adsorbate = session.execute(
-                        select(Adsorbate).where(Adsorbate.name == self._norm(adsorbate_name))
+                        select(Adsorbate).where(
+                            Adsorbate.name == self._norm(adsorbate_name)
+                        )
                     ).scalar_one_or_none()
                     if adsorbate is None:
                         adsorbate = Adsorbate(
-                            adsorbate_key=self._adsorbate_key(None, str(adsorbate_name)),
+                            adsorbate_key=self._adsorbate_key(
+                                None, str(adsorbate_name)
+                            ),
                             name=self._norm(adsorbate_name),
                         )
                         session.add(adsorbate)
                         session.flush()
 
-                    experiment_name = f"nist:{name}:{adsorbent.name}:{adsorbate.name}:{temperature}"
+                    experiment_name = (
+                        f"nist:{name}:{adsorbent.name}:{adsorbate.name}:{temperature}"
+                    )
                     isotherm = AdsorptionIsotherm(
                         dataset_id=dataset_entry.id,
                         source_record_id=str(name),
@@ -552,8 +649,12 @@ class NISTDataSerializer:
                     session.add(component)
                     session.flush()
 
-                    for point_index, (_, point) in enumerate(frame.reset_index(drop=True).iterrows()):
-                        point_row = AdsorptionPoint(isotherm_id=isotherm.id, point_index=point_index)
+                    for point_index, (_, point) in enumerate(
+                        frame.reset_index(drop=True).iterrows()
+                    ):
+                        point_row = AdsorptionPoint(
+                            isotherm_id=isotherm.id, point_index=point_index
+                        )
                         session.add(point_row)
                         session.flush()
                         pressure = float(point["pressure"])
@@ -571,23 +672,45 @@ class NISTDataSerializer:
 
             if isinstance(binary_mixture, pd.DataFrame) and not binary_mixture.empty:
                 grouped = binary_mixture.groupby(
-                    ["name", "adsorbent_name", "compound_1", "compound_2", "temperature", "pressure_units", "adsorption_units"],
+                    [
+                        "name",
+                        "adsorbent_name",
+                        "compound_1",
+                        "compound_2",
+                        "temperature",
+                        "pressure_units",
+                        "adsorption_units",
+                    ],
                     dropna=False,
                 )
-                for (name, adsorbent_name, compound_1, compound_2, temperature, pressure_units, adsorption_units), frame in grouped:
+                for (
+                    name,
+                    adsorbent_name,
+                    compound_1,
+                    compound_2,
+                    temperature,
+                    pressure_units,
+                    adsorption_units,
+                ), frame in grouped:
                     adsorbent = session.execute(
-                        select(Adsorbent).where(Adsorbent.name == self._norm(adsorbent_name))
+                        select(Adsorbent).where(
+                            Adsorbent.name == self._norm(adsorbent_name)
+                        )
                     ).scalar_one_or_none()
                     if adsorbent is None:
                         adsorbent = Adsorbent(
-                            adsorbent_key=self._adsorbent_key(None, str(adsorbent_name)),
+                            adsorbent_key=self._adsorbent_key(
+                                None, str(adsorbent_name)
+                            ),
                             name=self._norm(adsorbent_name),
                         )
                         session.add(adsorbent)
                         session.flush()
 
                     guest_1 = session.execute(
-                        select(Adsorbate).where(Adsorbate.name == self._norm(compound_1))
+                        select(Adsorbate).where(
+                            Adsorbate.name == self._norm(compound_1)
+                        )
                     ).scalar_one_or_none()
                     if guest_1 is None:
                         guest_1 = Adsorbate(
@@ -598,7 +721,9 @@ class NISTDataSerializer:
                         session.flush()
 
                     guest_2 = session.execute(
-                        select(Adsorbate).where(Adsorbate.name == self._norm(compound_2))
+                        select(Adsorbate).where(
+                            Adsorbate.name == self._norm(compound_2)
+                        )
                     ).scalar_one_or_none()
                     if guest_2 is None:
                         guest_2 = Adsorbate(
@@ -636,8 +761,12 @@ class NISTDataSerializer:
                     session.add(component_2)
                     session.flush()
 
-                    for point_index, (_, point) in enumerate(frame.reset_index(drop=True).iterrows()):
-                        point_row = AdsorptionPoint(isotherm_id=isotherm.id, point_index=point_index)
+                    for point_index, (_, point) in enumerate(
+                        frame.reset_index(drop=True).iterrows()
+                    ):
+                        point_row = AdsorptionPoint(
+                            isotherm_id=isotherm.id, point_index=point_index
+                        )
                         session.add(point_row)
                         session.flush()
                         p1 = float(point["compound_1_pressure"])

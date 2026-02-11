@@ -73,17 +73,23 @@ class Adsorbent(Base):
 class AdsorptionIsotherm(Base):
     __tablename__ = "adsorption_isotherms"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_id = Column(Integer, ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False)
+    dataset_id = Column(
+        Integer, ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
+    )
     source_record_id = Column(String)
     experiment_name = Column(String, nullable=False)
-    adsorbent_id = Column(Integer, ForeignKey("adsorbents.id", ondelete="RESTRICT"), nullable=False)
+    adsorbent_id = Column(
+        Integer, ForeignKey("adsorbents.id", ondelete="RESTRICT"), nullable=False
+    )
     temperature_k = Column(Float, nullable=False)
     pressure_units = Column(String)
     adsorption_units = Column(String)
     created_at = Column(String, nullable=False)
     __table_args__ = (
         UniqueConstraint("experiment_name"),
-        UniqueConstraint("dataset_id", "source_record_id", "adsorbent_id", "temperature_k"),
+        UniqueConstraint(
+            "dataset_id", "source_record_id", "adsorbent_id", "temperature_k"
+        ),
         Index("ix_adsorption_isotherms_dataset_id", "dataset_id"),
         Index("ix_adsorption_isotherms_adsorbent_id", "adsorbent_id"),
     )
@@ -93,9 +99,15 @@ class AdsorptionIsotherm(Base):
 class AdsorptionIsothermComponent(Base):
     __tablename__ = "adsorption_isotherm_components"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    isotherm_id = Column(Integer, ForeignKey("adsorption_isotherms.id", ondelete="CASCADE"), nullable=False)
+    isotherm_id = Column(
+        Integer,
+        ForeignKey("adsorption_isotherms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     component_index = Column(Integer, nullable=False)
-    adsorbate_id = Column(Integer, ForeignKey("adsorbates.id", ondelete="RESTRICT"), nullable=False)
+    adsorbate_id = Column(
+        Integer, ForeignKey("adsorbates.id", ondelete="RESTRICT"), nullable=False
+    )
     mole_fraction = Column(Float)
     __table_args__ = (
         UniqueConstraint("isotherm_id", "component_index"),
@@ -110,7 +122,11 @@ class AdsorptionIsothermComponent(Base):
 class AdsorptionPoint(Base):
     __tablename__ = "adsorption_points"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    isotherm_id = Column(Integer, ForeignKey("adsorption_isotherms.id", ondelete="CASCADE"), nullable=False)
+    isotherm_id = Column(
+        Integer,
+        ForeignKey("adsorption_isotherms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     point_index = Column(Integer, nullable=False)
     __table_args__ = (
         UniqueConstraint("isotherm_id", "point_index"),
@@ -121,8 +137,14 @@ class AdsorptionPoint(Base):
 ###############################################################################
 class AdsorptionPointComponent(Base):
     __tablename__ = "adsorption_point_components"
-    point_id = Column(Integer, ForeignKey("adsorption_points.id", ondelete="CASCADE"), nullable=False)
-    component_id = Column(Integer, ForeignKey("adsorption_isotherm_components.id", ondelete="CASCADE"), nullable=False)
+    point_id = Column(
+        Integer, ForeignKey("adsorption_points.id", ondelete="CASCADE"), nullable=False
+    )
+    component_id = Column(
+        Integer,
+        ForeignKey("adsorption_isotherm_components.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     partial_pressure_pa = Column(Float, nullable=False)
     uptake_mol_g = Column(Float, nullable=False)
     original_pressure = Column(Float)
@@ -138,7 +160,11 @@ class AdsorptionPointComponent(Base):
 class AdsorptionProcessedIsotherm(Base):
     __tablename__ = "adsorption_processed_isotherms"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    isotherm_id = Column(Integer, ForeignKey("adsorption_isotherms.id", ondelete="CASCADE"), nullable=False)
+    isotherm_id = Column(
+        Integer,
+        ForeignKey("adsorption_isotherms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     processing_version = Column(String, nullable=False, default="v1")
     processed_key = Column(String, nullable=False)
     pressure_pa_series = Column(JSONSequence, nullable=False)
@@ -161,7 +187,11 @@ class AdsorptionProcessedIsotherm(Base):
 class AdsorptionFit(Base):
     __tablename__ = "adsorption_fits"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    processed_id = Column(Integer, ForeignKey("adsorption_processed_isotherms.id", ondelete="CASCADE"), nullable=False)
+    processed_id = Column(
+        Integer,
+        ForeignKey("adsorption_processed_isotherms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     model_name = Column(String, nullable=False)
     optimization_method = Column(String, nullable=False)
     score = Column(Float)
@@ -179,7 +209,9 @@ class AdsorptionFit(Base):
 class AdsorptionFitParam(Base):
     __tablename__ = "adsorption_fit_params"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    fit_id = Column(Integer, ForeignKey("adsorption_fits.id", ondelete="CASCADE"), nullable=False)
+    fit_id = Column(
+        Integer, ForeignKey("adsorption_fits.id", ondelete="CASCADE"), nullable=False
+    )
     param_name = Column(String, nullable=False)
     param_value = Column(Float, nullable=False)
     param_error = Column(Float)
@@ -193,9 +225,15 @@ class AdsorptionFitParam(Base):
 class AdsorptionBestFit(Base):
     __tablename__ = "adsorption_best_fit"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    processed_id = Column(Integer, ForeignKey("adsorption_processed_isotherms.id", ondelete="CASCADE"), nullable=False)
+    processed_id = Column(
+        Integer,
+        ForeignKey("adsorption_processed_isotherms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     best_fit_id = Column(Integer, ForeignKey("adsorption_fits.id", ondelete="SET NULL"))
-    worst_fit_id = Column(Integer, ForeignKey("adsorption_fits.id", ondelete="SET NULL"))
+    worst_fit_id = Column(
+        Integer, ForeignKey("adsorption_fits.id", ondelete="SET NULL")
+    )
     best_model = Column(String)
     worst_model = Column(String)
     __table_args__ = (
@@ -243,7 +281,9 @@ class TrainingDataset(Base):
     encoded_adsorbent = Column(Integer)
     adsorbate_molecular_weight = Column(Float)
     adsorbate_encoded_smile = Column(JSONSequence)
-    training_hashcode = Column(String, ForeignKey("training_metadata.hashcode", ondelete="SET NULL"))
+    training_hashcode = Column(
+        String, ForeignKey("training_metadata.hashcode", ondelete="SET NULL")
+    )
     sample_key = Column(String, nullable=False)
     __table_args__ = (
         UniqueConstraint("sample_key"),

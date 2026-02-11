@@ -160,5 +160,3 @@ class ModelSerializer:
         )
 
         return model, configuration, metadata, session, checkpoint_path
-
-

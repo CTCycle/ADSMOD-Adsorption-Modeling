@@ -93,9 +93,7 @@ class TrainingDataSerializer:
         storage_dataset[self.sample_key_column] = storage_dataset.apply(
             self.build_sample_key, axis=1
         )
-        duplicate_mask = storage_dataset[self.sample_key_column].duplicated(
-            keep="last"
-        )
+        duplicate_mask = storage_dataset[self.sample_key_column].duplicated(keep="last")
         duplicate_count = int(duplicate_mask.sum())
         if duplicate_count > 0:
             logger.warning(
@@ -444,5 +442,3 @@ class TrainingDataSerializer:
 
 
 ###############################################################################
-
-

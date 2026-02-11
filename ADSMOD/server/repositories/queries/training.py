@@ -32,4 +32,3 @@ class TrainingRepositoryQueries:
     # -------------------------------------------------------------------------
     def save_training_metadata(self, metadata: pd.DataFrame) -> None:
         self.database.save_into_database(metadata, "training_metadata")
-
