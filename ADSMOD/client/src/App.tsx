@@ -92,6 +92,7 @@ function App() {
     const [dataset, setDataset] = useState<DatasetPayload | null>(null);
     const [datasetName, setDatasetName] = useState<string | null>(null);
     const [datasetSamples, setDatasetSamples] = useState(0);
+    const [datasetSizeKb, setDatasetSizeKb] = useState<string | null>(null);
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [pendingFileSize, setPendingFileSize] = useState<string | null>(null);
     const [isDatasetUploading, setIsDatasetUploading] = useState(false);
@@ -154,11 +155,13 @@ function App() {
         }
         setIsDatasetUploading(true);
         setDatasetStats('[INFO] Uploading dataset...');
+        const activeFileSize = pendingFileSize || formatFileSize(pendingFile.size);
         const result = await loadDataset(pendingFile);
 
         if (result.dataset) {
             setDataset(result.dataset);
             setDatasetName(result.dataset.dataset_name);
+            setDatasetSizeKb(activeFileSize);
             const recordCount = Array.isArray(result.dataset.records) ? result.dataset.records.length : 0;
             setDatasetSamples(recordCount);
             setDatasetStats(buildDatasetSummary(result.dataset));
@@ -294,6 +297,7 @@ function App() {
                                 datasetStats={datasetStats}
                                 nistStatusMessage={nistStatusMessage}
                                 datasetName={datasetName}
+                                datasetSizeKb={datasetSizeKb}
                                 datasetSamples={datasetSamples}
                                 pendingFileName={pendingFile?.name ?? null}
                                 pendingFileSize={pendingFileSize}

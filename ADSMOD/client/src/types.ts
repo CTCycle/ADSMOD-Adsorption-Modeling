@@ -89,6 +89,52 @@ export interface NISTStatusResponse {
     message?: string;
 }
 
+export type NISTCategoryKey = 'experiments' | 'guest' | 'host';
+
+export interface NISTCategoryFetchRequest {
+    fraction: number;
+}
+
+export interface NISTCategoryRecordStatus {
+    category: NISTCategoryKey;
+    local_count: number;
+    available_count: number;
+    last_update: string | null;
+    server_ok: boolean | null;
+    server_checked_at: string | null;
+    supports_enrichment: boolean;
+}
+
+export interface NISTCategoryStatusResponse {
+    status: string;
+    categories: NISTCategoryRecordStatus[];
+    detail?: string;
+    message?: string;
+}
+
+export interface NISTCategoryPingResponse {
+    status: string;
+    category: NISTCategoryKey;
+    server_ok: boolean;
+    checked_at: string;
+    detail?: string;
+    message?: string;
+}
+
+export interface NISTCategoryOperationResponse {
+    status: string;
+    category: NISTCategoryKey;
+    available_count?: number;
+    local_count?: number;
+    requested_count?: number;
+    fetched_count?: number;
+    names_requested?: number;
+    names_matched?: number;
+    rows_updated?: number;
+    detail?: string;
+    message?: string;
+}
+
 // Background Job types
 export interface JobStartResponse {
     job_id: string;
