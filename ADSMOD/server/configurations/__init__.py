@@ -4,12 +4,14 @@ from ADSMOD.server.configurations.base import (
     ensure_mapping,
     load_configurations,
 )
-from ADSMOD.server.configurations.server import (
+from ADSMOD.server.entities.settings import (
     DatabaseSettings,
     JobSettings,
     NISTSettings,
-    TrainingSettings,
     ServerSettings,
+    TrainingSettings,
+)
+from ADSMOD.server.configurations.server import (
     server_settings,
     get_server_settings,
 )
