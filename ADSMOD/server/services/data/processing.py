@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Any
 
@@ -27,24 +26,7 @@ from ADSMOD.server.common.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
 )
 from ADSMOD.server.common.utils.logger import logger
-
-
-###############################################################################
-@dataclass
-class DatasetColumns:
-    experiment: str = DEFAULT_DATASET_COLUMN_MAPPING["experiment"]
-    temperature: str = DEFAULT_DATASET_COLUMN_MAPPING["temperature"]
-    pressure: str = DEFAULT_DATASET_COLUMN_MAPPING["pressure"]
-    uptake: str = DEFAULT_DATASET_COLUMN_MAPPING["uptake"]
-
-    # -------------------------------------------------------------------------
-    def as_dict(self) -> dict[str, str]:
-        return {
-            "experiment": self.experiment,
-            "temperature": self.temperature,
-            "pressure": self.pressure,
-            "uptake": self.uptake,
-        }
+from ADSMOD.server.entities.datasets import DatasetColumns
 
 
 ###############################################################################

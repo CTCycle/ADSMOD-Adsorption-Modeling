@@ -27,12 +27,12 @@ from ADSMOD.server.common.constants import (
     MODEL_PARAMETER_DEFAULTS,
 )
 from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.entities.datasets import DatasetColumns
 from ADSMOD.server.repositories.serialization.data import DataSerializer
 from ADSMOD.server.services.modeling.models import AdsorptionModels
 from ADSMOD.server.services.data.processing import (
     AdsorptionDataProcessor,
     DatasetAdapter,
-    DatasetColumns,
 )
 
 SUPPORTED_OPTIMIZATION_METHODS: tuple[str, ...] = (
