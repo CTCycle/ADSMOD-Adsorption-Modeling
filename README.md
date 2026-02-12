@@ -127,15 +127,6 @@ The application stores data and artifacts in specific directories, primarily und
 ## 7. Configuration
 Backend configuration is defined in `ADSMOD/settings/configurations.json` and loaded by the API at startup. Runtime overrides and secrets are read from `ADSMOD/settings/.env`. Frontend configuration is read from `ADSMOD/client/.env` during development or build time.
 
-## 8. Pandas 3.0 Migration Notes
-
-- Runtime dependency is pinned to `pandas==3.0.0`.
-- DataFrame mutation paths that filtered then reassigned data were updated to use copy-safe patterns (`.loc[...]` + `.copy()`), aligned with pandas copy-on-write behavior.
-- Unit conversions and grouping flows were updated to avoid `inplace=True` DataFrame drops in runtime paths.
-- String sanitation paths continue to support both object-backed and dedicated string dtypes.
-- PostgreSQL persistence paths now coerce JSON-like strings and explicitly map JSONB column dtypes during `to_sql` writes.
-- Focused unit tests were added in `tests/unit/test_pandas3_compatibility.py` for string dtype handling and copy-on-write-safe assignment behavior.
-
-## 9. License
+## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
