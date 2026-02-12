@@ -44,3 +44,50 @@ class NISTStatusResponse(BaseModel):
     binary_mixture_rows: int
     guest_rows: int
     host_rows: int
+
+
+###############################################################################
+NISTCategory = Literal["experiments", "guest", "host"]
+
+
+###############################################################################
+class NISTCategoryFetchRequest(BaseModel):
+    fraction: float = Field(default=1.0, ge=0.001, le=1.0)
+
+
+###############################################################################
+class NISTCategoryStatus(BaseModel):
+    category: NISTCategory
+    local_count: int
+    available_count: int
+    last_update: str | None = None
+    server_ok: bool | None = None
+    server_checked_at: str | None = None
+    supports_enrichment: bool
+
+
+###############################################################################
+class NISTCategoryStatusResponse(BaseModel):
+    status: str = Field(default="success")
+    categories: list[NISTCategoryStatus]
+
+
+###############################################################################
+class NISTCategoryPingResponse(BaseModel):
+    status: str = Field(default="success")
+    category: NISTCategory
+    server_ok: bool
+    checked_at: str
+
+
+###############################################################################
+class NISTCategoryOperationResponse(BaseModel):
+    status: str = Field(default="success")
+    category: NISTCategory
+    available_count: int | None = None
+    local_count: int | None = None
+    requested_count: int | None = None
+    fetched_count: int | None = None
+    names_requested: int | None = None
+    names_matched: int | None = None
+    rows_updated: int | None = None

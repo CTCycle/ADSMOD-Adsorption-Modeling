@@ -2,6 +2,10 @@ import type {
     DatasetPayload,
     JobStartResponse,
     JobStatusResponse,
+    NISTCategoryFetchRequest,
+    NISTCategoryKey,
+    NISTCategoryPingResponse,
+    NISTCategoryStatusResponse,
     NISTFetchRequest,
     NISTPropertiesRequest,
     NISTStatusResponse,
@@ -9,6 +13,37 @@ import type {
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
 import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
+
+async function startCategoryJob(
+    endpoint: string,
+    payload?: unknown
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}${endpoint}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload || {}),
+            },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { jobId: null, error: message };
+        }
+
+        const result = (await response.json()) as JobStartResponse;
+        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { jobId: null, error: error.message };
+        }
+        return { jobId: null, error: 'An unknown error occurred.' };
+    }
+}
 
 export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPayload | null; error: string | null }> {
     try {
@@ -188,4 +223,89 @@ export async function fetchNistStatus(): Promise<{
         }
         return { data: null, error: 'An unknown error occurred.' };
     }
+}
+
+export async function fetchNistCategoryStatus(): Promise<{
+    data: NISTCategoryStatusResponse | null;
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/nist/categories/status`,
+            { method: 'GET' },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { data: null, error: message };
+        }
+
+        const result = (await response.json()) as NISTCategoryStatusResponse;
+        if (result.status !== 'success') {
+            const detail = result.detail || result.message || 'Failed to load NIST category status.';
+            return { data: result, error: detail };
+        }
+        return { data: result, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: null, error: error.message };
+        }
+        return { data: null, error: 'An unknown error occurred.' };
+    }
+}
+
+export async function pingNistCategoryServer(category: NISTCategoryKey): Promise<{
+    data: NISTCategoryPingResponse | null;
+    error: string | null;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/nist/categories/${category}/ping`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { data: null, error: message };
+        }
+
+        const result = (await response.json()) as NISTCategoryPingResponse;
+        if (result.status !== 'success') {
+            const detail = result.detail || result.message || 'Failed to ping NIST server.';
+            return { data: result, error: detail };
+        }
+        return { data: result, error: null };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { data: null, error: error.message };
+        }
+        return { data: null, error: 'An unknown error occurred.' };
+    }
+}
+
+export async function startNistCategoryIndexJob(
+    category: NISTCategoryKey
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+    return startCategoryJob(`/nist/categories/${category}/index`);
+}
+
+export async function startNistCategoryFetchJob(
+    category: NISTCategoryKey,
+    payload: NISTCategoryFetchRequest
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+    return startCategoryJob(`/nist/categories/${category}/fetch`, payload);
+}
+
+export async function startNistCategoryEnrichJob(
+    category: NISTCategoryKey
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+    return startCategoryJob(`/nist/categories/${category}/enrich`);
 }

@@ -1,12 +1,13 @@
 import React from 'react';
 import { FileUpload } from '../components/UIComponents';
-import { NistCollectCard, NistPropertiesCard, useNistStatus } from '../components/CollectDataCard';
+import { NistCollectionRows } from '../components/NistCollectionRows';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 
 interface ConfigPageProps {
     datasetStats: string;
     nistStatusMessage: string;
     datasetName: string | null;
+    datasetSizeKb: string | null;
     datasetSamples: number;
     pendingFileName: string | null;
     pendingFileSize: string | null;
@@ -20,6 +21,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
     datasetStats,
     nistStatusMessage,
     datasetName,
+    datasetSizeKb,
     datasetSamples,
     pendingFileName,
     pendingFileSize,
@@ -28,11 +30,10 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
     isDatasetUploading,
     onNistStatusUpdate,
 }) => {
-    const nistStatusState = useNistStatus();
     const datasetBadge = datasetName || 'No dataset loaded';
     const sampleBadge = datasetSamples > 0 ? `${datasetSamples} samples` : '0 samples';
-    const pendingLabel = pendingFileName ? `Selected: ${pendingFileName}` : 'No file selected';
-    const pendingSize = pendingFileSize || '-- kb';
+    const datasetDisplayName = datasetName || pendingFileName || 'N.A.';
+    const datasetDisplaySize = datasetSizeKb || pendingFileSize || 'N.A.';
 
     return (
         <div className="config-page">
@@ -54,9 +55,9 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                     </div>
 
                     <div className="config-row-main">
-                        <div className="card split-card">
-                            <div className="split-card-content">
-                                <div className="split-card-left" style={{ height: '100%' }}>
+                        <div className="config-open-split dataset-open-layout">
+                            <div className="dataset-open-left">
+                                <div className="dataset-upload-toolbar">
                                     <FileUpload
                                         label="Load dataset"
                                         accept=".csv,.xls,.xlsx"
@@ -64,27 +65,23 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                                         autoUpload={false}
                                         disabled={isDatasetUploading}
                                     />
-                                    <div className="dataset-inline" style={{ marginTop: '0.75rem' }}>
-                                        <span className="inline-pill">{pendingLabel}</span>
-                                        <span className="inline-separator">|</span>
-                                        <span className="inline-pill">{pendingSize}</span>
-                                    </div>
-                                    <div className="nist-actions" style={{ marginTop: 'auto' }}>
-                                        <button
-                                            className="button primary"
-                                            onClick={onDatasetUpload}
-                                            style={{ justifyContent: 'center' }}
-                                            disabled={!pendingFileName || isDatasetUploading}
-                                        >
-                                            {isDatasetUploading ? 'Uploading...' : 'Upload data'}
-                                        </button>
-                                    </div>
+                                    <button
+                                        className="button primary dataset-upload-button"
+                                        onClick={onDatasetUpload}
+                                        disabled={!pendingFileName || isDatasetUploading}
+                                    >
+                                        {isDatasetUploading ? 'Uploading...' : 'Upload'}
+                                    </button>
                                 </div>
-                                <div className="split-card-right">
-                                    <div className="panel-title split-card-title">Uploaded Data Statistics</div>
-                                    <div className="panel-body stats-scroll markdown-content compact-stats">
-                                        <MarkdownRenderer content={datasetStats} />
-                                    </div>
+                                <div className="dataset-inline dataset-upload-meta">
+                                    <span className="inline-pill">Dataset: {datasetDisplayName}</span>
+                                    <span className="inline-pill">Size: {datasetDisplaySize}</span>
+                                </div>
+                            </div>
+                            <div className="dataset-open-right">
+                                <div className="panel-title split-card-title">Uploaded Data Statistics</div>
+                                <div className="dataset-stats-body stats-scroll markdown-content compact-stats">
+                                    <MarkdownRenderer content={datasetStats} />
                                 </div>
                             </div>
                         </div>
@@ -104,16 +101,17 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                     </div>
 
                     <div className="config-row-main">
-                        <div className="config-row-stack">
-                            <NistCollectCard onStatusUpdate={onNistStatusUpdate} nistStatusState={nistStatusState} />
-                            <NistPropertiesCard onStatusUpdate={onNistStatusUpdate} nistStatusState={nistStatusState} />
-                        </div>
-                        <div className="panel nist-status-panel">
-                            <div className="panel-header">
-                                <div className="panel-title">NIST-A Status Updates</div>
+                        <div className="nist-open-layout">
+                            <div className="nist-open-left">
+                                <NistCollectionRows onStatusUpdate={onNistStatusUpdate} />
                             </div>
-                            <div className="panel-body stats-scroll markdown-content nist-status-body">
-                                <MarkdownRenderer content={nistStatusMessage} />
+                            <div className="panel nist-status-panel nist-open-right">
+                                <div className="panel-header">
+                                    <div className="panel-title">NIST-A Status Updates</div>
+                                </div>
+                                <div className="panel-body stats-scroll markdown-content nist-status-body">
+                                    <MarkdownRenderer content={nistStatusMessage} />
+                                </div>
                             </div>
                         </div>
                     </div>

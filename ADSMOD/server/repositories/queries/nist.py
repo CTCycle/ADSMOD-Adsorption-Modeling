@@ -360,6 +360,54 @@ class NISTDataSerializer:
         }
 
     # -------------------------------------------------------------------------
+    def count_local_records_by_category(self) -> dict[str, int]:
+        with self.session_factory() as session:
+            experiments_count = session.execute(
+                select(func.count(func.distinct(AdsorptionIsotherm.source_record_id)))
+                .join(Dataset, Dataset.id == AdsorptionIsotherm.dataset_id)
+                .where(Dataset.source == "nist")
+            ).scalar()
+        return {
+            "experiments": int(experiments_count or 0),
+            "guest": int(database.count_rows("adsorbates")),
+            "host": int(database.count_rows("adsorbents")),
+        }
+
+    # -------------------------------------------------------------------------
+    def list_nist_experiment_ids(self) -> set[str]:
+        with self.session_factory() as session:
+            rows = session.execute(
+                select(AdsorptionIsotherm.source_record_id)
+                .join(Dataset, Dataset.id == AdsorptionIsotherm.dataset_id)
+                .where(Dataset.source == "nist")
+            ).all()
+        return {
+            str(row[0]).strip().lower()
+            for row in rows
+            if row[0] is not None and str(row[0]).strip()
+        }
+
+    # -------------------------------------------------------------------------
+    def list_adsorbate_inchi_keys(self) -> set[str]:
+        with self.session_factory() as session:
+            rows = session.execute(select(Adsorbate.InChIKey)).all()
+        return {
+            self._norm(row[0])
+            for row in rows
+            if row[0] is not None and self._norm(row[0])
+        }
+
+    # -------------------------------------------------------------------------
+    def list_adsorbent_hash_keys(self) -> set[str]:
+        with self.session_factory() as session:
+            rows = session.execute(select(Adsorbent.hashkey)).all()
+        return {
+            self._norm(row[0])
+            for row in rows
+            if row[0] is not None and self._norm(row[0])
+        }
+
+    # -------------------------------------------------------------------------
     def save_materials_datasets(
         self,
         guest_data: pd.DataFrame | None = None,
@@ -552,7 +600,10 @@ class NISTDataSerializer:
 
     # -------------------------------------------------------------------------
     def save_adsorption_datasets(
-        self, single_component: pd.DataFrame, binary_mixture: pd.DataFrame
+        self,
+        single_component: pd.DataFrame,
+        binary_mixture: pd.DataFrame,
+        replace_existing: bool = True,
     ) -> None:
         single_component = self.deduplicate_single_component_rows(single_component)
         with self.session_factory() as session:
@@ -568,9 +619,22 @@ class NISTDataSerializer:
                 session.add(dataset_entry)
                 session.flush()
 
-            session.query(AdsorptionIsotherm).filter(
-                AdsorptionIsotherm.dataset_id == dataset_entry.id
-            ).delete(synchronize_session=False)
+            existing_source_ids: set[str] = set()
+            if replace_existing:
+                session.query(AdsorptionIsotherm).filter(
+                    AdsorptionIsotherm.dataset_id == dataset_entry.id
+                ).delete(synchronize_session=False)
+            else:
+                rows = session.execute(
+                    select(AdsorptionIsotherm.source_record_id).where(
+                        AdsorptionIsotherm.dataset_id == dataset_entry.id
+                    )
+                ).all()
+                existing_source_ids = {
+                    self._norm(row[0])
+                    for row in rows
+                    if row[0] is not None and self._norm(row[0])
+                }
 
             if (
                 isinstance(single_component, pd.DataFrame)
@@ -595,6 +659,10 @@ class NISTDataSerializer:
                     pressure_units,
                     adsorption_units,
                 ), frame in grouped:
+                    source_record_id = self._norm(name)
+                    if not replace_existing and source_record_id in existing_source_ids:
+                        continue
+
                     adsorbent = session.execute(
                         select(Adsorbent).where(
                             Adsorbent.name == self._norm(adsorbent_name)
@@ -640,6 +708,8 @@ class NISTDataSerializer:
                     )
                     session.add(isotherm)
                     session.flush()
+                    if not replace_existing and source_record_id:
+                        existing_source_ids.add(source_record_id)
 
                     component = AdsorptionIsothermComponent(
                         isotherm_id=isotherm.id,
@@ -692,6 +762,10 @@ class NISTDataSerializer:
                     pressure_units,
                     adsorption_units,
                 ), frame in grouped:
+                    source_record_id = self._norm(name)
+                    if not replace_existing and source_record_id in existing_source_ids:
+                        continue
+
                     adsorbent = session.execute(
                         select(Adsorbent).where(
                             Adsorbent.name == self._norm(adsorbent_name)
@@ -746,6 +820,8 @@ class NISTDataSerializer:
                     )
                     session.add(isotherm)
                     session.flush()
+                    if not replace_existing and source_record_id:
+                        existing_source_ids.add(source_record_id)
 
                     component_1 = AdsorptionIsothermComponent(
                         isotherm_id=isotherm.id,
