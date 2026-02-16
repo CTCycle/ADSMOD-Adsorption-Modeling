@@ -1,36 +1,10 @@
-import type { FittingPayload, FittingResponse, JobStartResponse, JobStatusResponse } from '../types';
-import { API_BASE_URL } from '../constants';
-import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
-import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
+import type { FittingPayload, FittingResponse, JobStatusResponse } from '../types';
+import { pollJobStatus, resolvePollingIntervalMs, startJob } from './jobs';
 
 export async function startFittingJob(
     payload: FittingPayload
 ): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/fitting/run`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            },
-            HTTP_TIMEOUT
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { jobId: null, error: message };
-        }
-
-        const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { jobId: null, error: error.message };
-        }
-        return { jobId: null, error: 'An unknown error occurred.' };
-    }
+    return startJob('/fitting/run', payload);
 }
 
 export async function pollFittingJobUntilComplete(

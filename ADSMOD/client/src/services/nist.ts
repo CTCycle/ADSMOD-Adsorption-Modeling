@@ -1,6 +1,5 @@
 import type {
     DatasetPayload,
-    JobStartResponse,
     JobStatusResponse,
     NISTCategoryFetchRequest,
     NISTCategoryKey,
@@ -12,37 +11,13 @@ import type {
 } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
-import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
+import { pollJobStatus, resolvePollingIntervalMs, startJob } from './jobs';
 
 async function startCategoryJob(
     endpoint: string,
     payload?: unknown
 ): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}${endpoint}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload || {}),
-            },
-            HTTP_TIMEOUT
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { jobId: null, error: message };
-        }
-
-        const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { jobId: null, error: error.message };
-        }
-        return { jobId: null, error: 'An unknown error occurred.' };
-    }
+    return startJob(endpoint, payload || {});
 }
 
 export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPayload | null; error: string | null }> {
@@ -77,61 +52,13 @@ export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPaylo
 export async function startNistFetchJob(
     payload: NISTFetchRequest
 ): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/nist/fetch`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            },
-            HTTP_TIMEOUT
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { jobId: null, error: message };
-        }
-
-        const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { jobId: null, error: error.message };
-        }
-        return { jobId: null, error: 'An unknown error occurred.' };
-    }
+    return startJob('/nist/fetch', payload);
 }
 
 export async function startNistPropertiesJob(
     payload: NISTPropertiesRequest
 ): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/nist/properties`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            },
-            HTTP_TIMEOUT
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { jobId: null, error: message };
-        }
-
-        const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { jobId: null, error: error.message };
-        }
-        return { jobId: null, error: 'An unknown error occurred.' };
-    }
+    return startJob('/nist/properties', payload);
 }
 
 export async function pollNistJobUntilComplete(

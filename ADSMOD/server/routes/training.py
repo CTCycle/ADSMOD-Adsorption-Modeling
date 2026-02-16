@@ -199,17 +199,17 @@ class TrainingJobRunner:
         return {}
 
     # ---------------------------------------------------------------------
-    def run_training_job(
+    def run_process_job(
         self,
-        configuration: dict[str, Any],
         job_id: str,
+        process_kwargs: dict[str, Any],
     ) -> dict[str, Any]:
         worker = ProcessWorker()
         self.session.worker = worker
         try:
             worker.start(
                 target=run_training_process,
-                kwargs={"configuration": configuration},
+                kwargs=process_kwargs,
             )
 
             result = self.monitor_training_process(
@@ -238,48 +238,31 @@ class TrainingJobRunner:
             self.session.finish_session()
 
     # ---------------------------------------------------------------------
+    def run_training_job(
+        self,
+        configuration: dict[str, Any],
+        job_id: str,
+    ) -> dict[str, Any]:
+        return self.run_process_job(
+            job_id=job_id,
+            process_kwargs={"configuration": configuration},
+        )
+
+    # ---------------------------------------------------------------------
     def run_resume_training_job(
         self,
         checkpoint: str,
         additional_epochs: int,
         job_id: str,
     ) -> dict[str, Any]:
-        worker = ProcessWorker()
-        self.session.worker = worker
-        try:
-            worker.start(
-                target=run_training_process,
-                kwargs={
-                    "configuration": None,
-                    "checkpoint": checkpoint,
-                    "additional_epochs": additional_epochs,
-                },
-            )
-
-            result = self.monitor_training_process(
-                job_id,
-                worker,
-                stop_timeout_seconds=5.0,
-            )
-
-            if job_manager.should_stop(job_id):
-                training_manager.handle_job_completion(job_id, "cancelled", None, None)
-                return {}
-
-            training_manager.handle_job_completion(job_id, "completed", result, None)
-            return result
-        except Exception as exc:  # noqa: BLE001
-            if job_manager.should_stop(job_id):
-                training_manager.handle_job_completion(job_id, "cancelled", None, None)
-                return {}
-            training_manager.handle_job_completion(job_id, "failed", None, str(exc))
-            raise
-        finally:
-            if worker.is_alive():
-                worker.terminate()
-                worker.join(timeout=5)
-            worker.cleanup()
-            self.session.finish_session()
+        return self.run_process_job(
+            job_id=job_id,
+            process_kwargs={
+                "configuration": None,
+                "checkpoint": checkpoint,
+                "additional_epochs": additional_epochs,
+            },
+        )
 
 
 training_job_runner = TrainingJobRunner(training_session)
@@ -291,21 +274,6 @@ class TrainingEndpoint:
 
     def __init__(self, router: APIRouter) -> None:
         self.router = router
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def determine_checkpoint_compatibility(
-        checkpoint_name: str,
-        metadata: TrainingMetadata | None,
-        dataset_hashes: set[str],
-        log_missing_metadata: bool = True,
-    ) -> bool:
-        return determine_checkpoint_compatibility(
-            checkpoint_name=checkpoint_name,
-            metadata=metadata,
-            dataset_hashes=dataset_hashes,
-            log_missing_metadata=log_missing_metadata,
-        )
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
@@ -630,7 +598,7 @@ class TrainingEndpoint:
                         exc,
                     )
 
-                is_compatible = self.determine_checkpoint_compatibility(
+                is_compatible = determine_checkpoint_compatibility(
                     checkpoint,
                     metadata,
                     dataset_hashes,
