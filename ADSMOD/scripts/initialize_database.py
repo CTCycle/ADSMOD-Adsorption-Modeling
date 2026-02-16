@@ -1,30 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 import json
 import time
 
+from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.repositories.database.initializer import initialize_database
-from ADSMOD.server.common.constants import CONFIGURATION_FILE
 from ADSMOD.server.common.utils.logger import logger
 
-
-# -------------------------------------------------------------------------
-def load_database_config() -> dict[str, object]:
-    try:
-        with open(CONFIGURATION_FILE, "r", encoding="utf-8") as file:
-            data = json.load(file)
-    except FileNotFoundError:
-        logger.warning("Server configuration not found at %s", CONFIGURATION_FILE)
-        return {}
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(
-            "Unable to read database configuration at %s: %s",
-            CONFIGURATION_FILE,
-            exc,
-        )
-        return {}
-    database_config = data.get("database", {})
-    return database_config if isinstance(database_config, dict) else {}
 
 
 ###############################################################################
@@ -32,7 +15,8 @@ if __name__ == "__main__":
     start = time.perf_counter()
     logger.info("Starting database initialization")
     logger.info(
-        "Current database configuration: %s", json.dumps(load_database_config())
+        "Current database configuration: %s",
+        json.dumps(asdict(server_settings.database), ensure_ascii=False),
     )
     initialize_database()
     elapsed = time.perf_counter() - start
