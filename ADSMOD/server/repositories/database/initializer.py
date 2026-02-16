@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 import urllib.parse
-
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.engine import Engine
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
-from ADSMOD.server.repositories.database.postgres import PostgresRepository
 from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
-from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.common.utils.logger import logger
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {
         "connect_timeout": settings.connect_timeout,
@@ -27,7 +23,7 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
     return connect_args
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     port = settings.port or 5432
     engine_name = normalize_postgres_engine(settings.engine)
@@ -39,32 +35,13 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     )
 
 
-# -------------------------------------------------------------------------
-def clone_settings_with_database(
-    settings: DatabaseSettings, database_name: str
-) -> DatabaseSettings:
-    return DatabaseSettings(
-        embedded_database=False,
-        engine=settings.engine,
-        host=settings.host,
-        port=settings.port,
-        database_name=database_name,
-        username=settings.username,
-        password=settings.password,
-        ssl=settings.ssl,
-        ssl_ca=settings.ssl_ca,
-        connect_timeout=settings.connect_timeout,
-        insert_batch_size=settings.insert_batch_size,
-    )
-
-
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
     logger.info("Reset and initialized SQLite database at %s", repository.db_path)
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
     if not settings.host:
         raise ValueError("Database host is required for PostgreSQL initialization.")
@@ -101,9 +78,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
                 )
             )
             logger.info("Created PostgreSQL database %s", target_database)
-
-    normalized_settings = clone_settings_with_database(settings, target_database)
-    repository = PostgresRepository(normalized_settings)
+        
     logger.info("Reset and initialized PostgreSQL tables in %s", target_database)
 
     return target_database
