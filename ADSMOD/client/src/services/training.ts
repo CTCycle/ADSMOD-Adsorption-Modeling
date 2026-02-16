@@ -10,6 +10,50 @@ import type {
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
 
+async function startTrainingSession(
+    endpoint: string,
+    config: TrainingConfig | ResumeTrainingConfig,
+    defaultMessage: string
+): Promise<{
+    sessionId: string;
+    message: string;
+    status: 'started' | 'error';
+    poll_interval?: number;
+}> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}${endpoint}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config),
+            },
+            HTTP_TIMEOUT
+        );
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const message = extractErrorMessage(response, data);
+            return { sessionId: '', message, status: 'error' };
+        }
+
+        const result = await response.json();
+        const pollInterval =
+            typeof result.poll_interval === 'number' ? result.poll_interval : undefined;
+        return {
+            sessionId: result.session_id || '',
+            message: result.message || defaultMessage,
+            status: 'started',
+            poll_interval: pollInterval,
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { sessionId: '', message: error.message, status: 'error' };
+        }
+        return { sessionId: '', message: 'An unknown error occurred.', status: 'error' };
+    }
+}
+
 export async function fetchTrainingDatasets(): Promise<{
     data: TrainingDatasetInfo;
     error: string | null;
@@ -176,38 +220,7 @@ export async function startTraining(config: TrainingConfig): Promise<{
     status: 'started' | 'error';
     poll_interval?: number;
 }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/training/start`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config),
-            },
-            HTTP_TIMEOUT
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { sessionId: '', message, status: 'error' };
-        }
-
-        const result = await response.json();
-        const pollInterval =
-            typeof result.poll_interval === 'number' ? result.poll_interval : undefined;
-        return {
-            sessionId: result.session_id || '',
-            message: result.message || 'Training started.',
-            status: 'started',
-            poll_interval: pollInterval,
-        };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { sessionId: '', message: error.message, status: 'error' };
-        }
-        return { sessionId: '', message: 'An unknown error occurred.', status: 'error' };
-    }
+    return startTrainingSession('/training/start', config, 'Training started.');
 }
 
 export async function resumeTraining(config: ResumeTrainingConfig): Promise<{
@@ -216,38 +229,7 @@ export async function resumeTraining(config: ResumeTrainingConfig): Promise<{
     status: 'started' | 'error';
     poll_interval?: number;
 }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/training/resume`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config),
-            },
-            HTTP_TIMEOUT
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { sessionId: '', message, status: 'error' };
-        }
-
-        const result = await response.json();
-        const pollInterval =
-            typeof result.poll_interval === 'number' ? result.poll_interval : undefined;
-        return {
-            sessionId: result.session_id || '',
-            message: result.message || 'Training resumed.',
-            status: 'started',
-            poll_interval: pollInterval,
-        };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { sessionId: '', message: error.message, status: 'error' };
-        }
-        return { sessionId: '', message: 'An unknown error occurred.', status: 'error' };
-    }
+    return startTrainingSession('/training/resume', config, 'Training resumed.');
 }
 
 export async function stopTraining(): Promise<{

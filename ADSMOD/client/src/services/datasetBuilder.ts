@@ -1,36 +1,12 @@
-import type { DatasetBuildConfig, DatasetBuildResult, DatasetFullInfo, JobStartResponse, JobStatusResponse, ProcessedDatasetInfo } from '../types';
+import type { DatasetBuildConfig, DatasetBuildResult, DatasetFullInfo, JobStatusResponse, ProcessedDatasetInfo } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
-import { pollJobStatus, resolvePollingIntervalMs } from './jobs';
+import { pollJobStatus, resolvePollingIntervalMs, startJob } from './jobs';
 
 export async function startTrainingDatasetJob(
     config: DatasetBuildConfig
 ): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/training/build-dataset`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config),
-            },
-            HTTP_TIMEOUT * 2
-        );
-
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const message = extractErrorMessage(response, data);
-            return { jobId: null, error: message };
-        }
-
-        const result = (await response.json()) as JobStartResponse;
-        return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
-    } catch (error) {
-        if (error instanceof Error) {
-            return { jobId: null, error: error.message };
-        }
-        return { jobId: null, error: 'An unknown error occurred.' };
-    }
+    return startJob('/training/build-dataset', config, HTTP_TIMEOUT * 2);
 }
 
 export async function pollTrainingDatasetJobUntilComplete(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -89,6 +89,17 @@ class NistEndpoint:
         )
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def run_awaitable_sync(awaitable: Awaitable[dict[str, Any]]) -> dict[str, Any]:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(awaitable)
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
+    # -------------------------------------------------------------------------
     def _run_fetch_sync(
         self,
         experiments_fraction: float,
@@ -96,85 +107,62 @@ class NistEndpoint:
         host_fraction: float,
         job_id: str | None = None,
     ) -> dict:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(
-                self.service.fetch_and_store(
-                    experiments_fraction=experiments_fraction,
-                    guest_fraction=guest_fraction,
-                    host_fraction=host_fraction,
-                    job_id=job_id,
-                )
+        return self.run_awaitable_sync(
+            self.service.fetch_and_store(
+                experiments_fraction=experiments_fraction,
+                guest_fraction=guest_fraction,
+                host_fraction=host_fraction,
+                job_id=job_id,
             )
-        finally:
-            loop.close()
+        )
 
     # -------------------------------------------------------------------------
     def _run_properties_sync(self, target: str, job_id: str | None = None) -> dict:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(
-                self.service.enrich_properties(target=target, job_id=job_id)
-            )
-        finally:
-            loop.close()
+        return self.run_awaitable_sync(
+            self.service.enrich_properties(target=target, job_id=job_id)
+        )
 
     # -------------------------------------------------------------------------
     def _run_category_index_sync(
         self, category: NISTCategory, job_id: str | None = None
     ) -> dict:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            if category == "experiments":
-                return loop.run_until_complete(self.service.fetch_experiments_index(job_id=job_id))
-            if category == "guest":
-                return loop.run_until_complete(self.service.fetch_guest_index(job_id=job_id))
-            return loop.run_until_complete(self.service.fetch_host_index(job_id=job_id))
-        finally:
-            loop.close()
+        if category == "experiments":
+            return self.run_awaitable_sync(
+                self.service.fetch_experiments_index(job_id=job_id)
+            )
+        if category == "guest":
+            return self.run_awaitable_sync(self.service.fetch_guest_index(job_id=job_id))
+        return self.run_awaitable_sync(self.service.fetch_host_index(job_id=job_id))
 
     # -------------------------------------------------------------------------
     def _run_category_fetch_sync(
         self, category: NISTCategory, fraction: float, job_id: str | None = None
     ) -> dict:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            if category == "experiments":
-                return loop.run_until_complete(
-                    self.service.fetch_experiments_records(fraction=fraction, job_id=job_id)
-                )
-            if category == "guest":
-                return loop.run_until_complete(
-                    self.service.fetch_guest_records(fraction=fraction, job_id=job_id)
-                )
-            return loop.run_until_complete(
-                self.service.fetch_host_records(fraction=fraction, job_id=job_id)
+        if category == "experiments":
+            return self.run_awaitable_sync(
+                self.service.fetch_experiments_records(fraction=fraction, job_id=job_id)
             )
-        finally:
-            loop.close()
+        if category == "guest":
+            return self.run_awaitable_sync(
+                self.service.fetch_guest_records(fraction=fraction, job_id=job_id)
+            )
+        return self.run_awaitable_sync(
+            self.service.fetch_host_records(fraction=fraction, job_id=job_id)
+        )
 
     # -------------------------------------------------------------------------
     def _run_category_enrich_sync(
         self, category: NISTCategory, job_id: str | None = None
     ) -> dict:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            if category == "guest":
-                return loop.run_until_complete(
-                    self.service.enrich_guest_properties(job_id=job_id)
-                )
-            if category == "host":
-                return loop.run_until_complete(
-                    self.service.enrich_host_properties(job_id=job_id)
-                )
-            raise ValueError("Enrichment is not supported for experiments.")
-        finally:
-            loop.close()
+        if category == "guest":
+            return self.run_awaitable_sync(
+                self.service.enrich_guest_properties(job_id=job_id)
+            )
+        if category == "host":
+            return self.run_awaitable_sync(
+                self.service.enrich_host_properties(job_id=job_id)
+            )
+        raise ValueError("Enrichment is not supported for experiments.")
 
     # -------------------------------------------------------------------------
     def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
