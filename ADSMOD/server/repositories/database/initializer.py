@@ -15,14 +15,11 @@ from ADSMOD.server.common.utils.logger import logger
 
 
 # -------------------------------------------------------------------------
-def reset_schema(engine: Engine) -> None:
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-
-
-# -------------------------------------------------------------------------
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
-    connect_args: dict[str, str | int] = {"connect_timeout": settings.connect_timeout}
+    connect_args: dict[str, str | int] = {
+        "connect_timeout": settings.connect_timeout,
+        "client_encoding": "utf8",
+    }
     if settings.ssl:
         connect_args["sslmode"] = "require"
         if settings.ssl_ca:
@@ -64,7 +61,6 @@ def clone_settings_with_database(
 # -------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
-    reset_schema(repository.engine)
     logger.info("Reset and initialized SQLite database at %s", repository.db_path)
 
 
@@ -99,12 +95,15 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
         if exists:
             logger.info("PostgreSQL database %s already exists", target_database)
         else:
-            conn.execute(sqlalchemy.text(f'CREATE DATABASE "{safe_database}"'))
+            conn.execute(
+                sqlalchemy.text(
+                    f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\''
+                )
+            )
             logger.info("Created PostgreSQL database %s", target_database)
 
     normalized_settings = clone_settings_with_database(settings, target_database)
     repository = PostgresRepository(normalized_settings)
-    reset_schema(repository.engine)
     logger.info("Reset and initialized PostgreSQL tables in %s", target_database)
 
     return target_database
