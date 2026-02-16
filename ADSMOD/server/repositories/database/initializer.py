@@ -5,9 +5,11 @@ import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
+from ADSMOD.server.repositories.database import PostgresRepository
 from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.repositories.schemas import Base
 
 
 # -----------------------------------------------------------------------------
@@ -34,6 +36,32 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
         f"@{settings.host}:{port}/{database_name}"
     )
 
+# -----------------------------------------------------------------------------
+def clone_settings_with_database(
+    settings: DatabaseSettings, database_name: str
+) -> DatabaseSettings:
+    return DatabaseSettings(
+        embedded_database=False,
+        engine=settings.engine,
+        host=settings.host,
+        port=settings.port,
+        database_name=database_name,
+        username=settings.username,
+        password=settings.password,
+        ssl=settings.ssl,
+        ssl_ca=settings.ssl_ca,
+        connect_timeout=settings.connect_timeout,
+        insert_batch_size=settings.insert_batch_size,
+    )
+
+# -----------------------------------------------------------------------------
+def build_postgres_create_database_sql(
+    database_name: str,
+) -> sqlalchemy.sql.elements.TextClause:
+    safe_database = database_name.replace('"', '""')
+    return sqlalchemy.text(
+        f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0'
+    )
 
 # -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
@@ -51,7 +79,6 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
         raise ValueError("Database name is required for PostgreSQL initialization.")
 
     target_database = settings.database_name
-    safe_database = target_database.replace('"', '""')
     connect_args = build_postgres_connect_args(settings)
 
     admin_url = build_postgres_url(settings, "postgres")
@@ -72,14 +99,13 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
         if exists:
             logger.info("PostgreSQL database %s already exists", target_database)
         else:
-            conn.execute(
-                sqlalchemy.text(
-                    f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\''
-                )
-            )
+            conn.execute(build_postgres_create_database_sql(target_database))
             logger.info("Created PostgreSQL database %s", target_database)
-        
-    logger.info("Reset and initialized PostgreSQL tables in %s", target_database)
+
+    normalized_settings = clone_settings_with_database(settings, target_database)
+    repository = PostgresRepository(normalized_settings)
+    Base.metadata.create_all(repository.engine)
+    logger.info("Ensured PostgreSQL tables exist in %s", target_database)
 
     return target_database
 
