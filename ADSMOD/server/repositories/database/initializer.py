@@ -5,7 +5,7 @@ import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
-from ADSMOD.server.repositories.database import PostgresRepository
+from ADSMOD.server.repositories.database.postgres import PostgresRepository
 from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.common.utils.logger import logger
