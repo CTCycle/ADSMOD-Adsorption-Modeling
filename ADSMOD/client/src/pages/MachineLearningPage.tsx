@@ -15,12 +15,15 @@ import { ResumeTrainingWizard } from '../components/ResumeTrainingWizard';
 import { TrainingSetupRow } from '../components/TrainingSetupRow';
 import { InfoModal } from '../components/InfoModal'; // Import InfoModal
 import type {
+    CheckpointFullDetails,
     TrainingConfig,
     CheckpointInfo,
     TrainingStatus,
     ResumeTrainingConfig,
     TrainingHistoryPoint,
     ProcessedDatasetInfo,
+    DatasetFullInfo,
+    InfoModalData,
 } from '../types';
 import {
     fetchCheckpoints,
@@ -101,6 +104,32 @@ const formatMetricValue = (value: number | undefined, asPercent: boolean): strin
     return safeValue.toFixed(4);
 };
 
+const buildDatasetMetadataModalData = (info: DatasetFullInfo): InfoModalData => ({
+    'Dataset Label': info.dataset_label,
+    'Created At': info.created_at,
+    'Total Samples': info.total_samples,
+    'Train Samples': info.train_samples,
+    'Validation Samples': info.validation_samples,
+    'Sample Fraction': info.sample_size,
+    'Validation Fraction': info.validation_size,
+    'Min Measurements': info.min_measurements,
+    'Max Measurements': info.max_measurements,
+    'SMILES Length': info.smile_sequence_size,
+    'Max Pressure': info.max_pressure,
+    'Max Uptake': info.max_uptake,
+    'SMILES Vocabulary': info.smile_vocabulary_size,
+    'Adsorbents Count': info.adsorbent_vocabulary_size,
+    'Normalization': info.normalization_stats,
+});
+
+const buildCheckpointDetailsModalData = (details: CheckpointFullDetails): InfoModalData => ({
+    'Name': details.name,
+    'Epochs Trained': details.epochs_trained,
+    'Final Loss': details.final_loss?.toFixed(6) ?? 'N/A',
+    'Is Compatible': details.is_compatible ? 'Yes' : 'No',
+    'Created At': details.created_at || 'Unknown',
+});
+
 export const MachineLearningPage: React.FC = () => {
     // Training configuration state
     const [config, setConfig] = useState<TrainingConfig>(DEFAULT_CONFIG);
@@ -136,7 +165,7 @@ export const MachineLearningPage: React.FC = () => {
     // Info Modal State
     const [infoModalOpen, setInfoModalOpen] = useState(false);
     const [infoModalTitle, setInfoModalTitle] = useState('');
-    const [infoModalData, setInfoModalData] = useState<Record<string, any> | null>(null);
+    const [infoModalData, setInfoModalData] = useState<InfoModalData | null>(null);
 
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
@@ -270,25 +299,7 @@ export const MachineLearningPage: React.FC = () => {
 
         if (info && info.available) {
             setInfoModalTitle('Dataset Metadata');
-            // Create a clean object for the modal mapping backend names to display names
-            const displayData: Record<string, any> = {
-                'Dataset Label': info.dataset_label,
-                'Created At': info.created_at,
-                'Total Samples': info.total_samples,
-                'Train Samples': info.train_samples,
-                'Validation Samples': info.validation_samples,
-                'Sample Fraction': info.sample_size,
-                'Validation Fraction': info.validation_size,
-                'Min Measurements': info.min_measurements,
-                'Max Measurements': info.max_measurements,
-                'SMILES Length': info.smile_sequence_size,
-                'Max Pressure': info.max_pressure,
-                'Max Uptake': info.max_uptake,
-                'SMILES Vocabulary': info.smile_vocabulary_size,
-                'Adsorbents Count': info.adsorbent_vocabulary_size,
-                'Normalization': info.normalization_stats,
-            };
-            setInfoModalData(displayData);
+            setInfoModalData(buildDatasetMetadataModalData(info));
             setInfoModalOpen(true);
         } else {
             alert(`Could not fetch details for dataset '${label}'`);
@@ -313,13 +324,7 @@ export const MachineLearningPage: React.FC = () => {
             alert(`Failed to load details: ${error}`);
         } else if (details) {
             setInfoModalTitle('Checkpoint Details');
-            setInfoModalData({
-                'Name': details.name,
-                'Epochs Trained': details.epochs_trained,
-                'Final Loss': details.final_loss?.toFixed(6) ?? 'N/A',
-                'Is Compatible': details.is_compatible ? 'Yes' : 'No',
-                'Created At': details.created_at || 'Unknown',
-            });
+            setInfoModalData(buildCheckpointDetailsModalData(details));
             setInfoModalOpen(true);
         }
     };
@@ -370,7 +375,7 @@ export const MachineLearningPage: React.FC = () => {
             console.error('Failed to start training:', result.message);
             alert(`Failed to start training: ${result.message}`);
         }
-    }, [config, selectedDatasetLabel]);
+    }, [config, selectedDatasetHash, selectedDatasetLabel]);
 
     const handleDatasetSelect = useCallback((label: string) => {
         setSelectedDatasetLabel(label);
