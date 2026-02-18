@@ -51,42 +51,20 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
             {/* 1. New Training Section */}
             <div className="section-container">
                 {/* Section Header */}
-                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', color: 'var(--slate-800)', fontWeight: 600 }}>Available Datasets</h3>
+                <h3 className="split-selection-title">Available Datasets</h3>
 
                 {/* Unified Card */}
-                <div className="training-unified-card" style={{
-                    display: 'flex',
-                    backgroundColor: 'var(--white, #fff)',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '1px solid var(--slate-200, #e2e8f0)',
-                    overflow: 'hidden',
-                    height: '400px' // Fixed total height for consistency
-                }}>
+                <div className="split-selection-card">
 
                     {/* LEFT: Table Area (70%) */}
-                    <div style={{ flex: '0 0 70%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--slate-200)', minWidth: 0 }}>
+                    <div className="split-selection-card-left">
                         {/* Table Controls / Header */}
-                        <div style={{
-                            padding: '12px 16px',
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            borderBottom: '1px solid var(--slate-100)',
-                            backgroundColor: 'var(--slate-50)'
-                        }}>
+                        <div className="split-selection-card-toolbar">
                             {onRefreshDatasets && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onRefreshDatasets(); }}
                                     title="Refresh Datasets"
-                                    style={{
-                                        background: 'white',
-                                        border: '1px solid var(--slate-300)',
-                                        borderRadius: '4px',
-                                        padding: '4px 8px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.9rem',
-                                        color: 'var(--slate-600)'
-                                    }}
+                                    className="split-selection-refresh-button"
                                 >
                                     🔄 Refresh
                                 </button>
@@ -94,7 +72,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                         </div>
 
                         {/* Scrollable Table Container */}
-                        <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                        <div className="split-selection-card-content">
                             <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                                     <tr style={{ color: 'var(--slate-500)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -137,14 +115,14 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onViewDatasetMetadata(ds.dataset_label); }}
                                                             title="View Metadata"
-                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '4px', lineHeight: 1 }}
+                                                            className="icon-action-button"
                                                         >
                                                             ℹ️
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onDeleteDataset(ds.dataset_label); }}
                                                             title="Delete Dataset"
-                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '4px', lineHeight: 1 }}
+                                                            className="icon-action-button"
                                                         >
                                                             🗑️
                                                         </button>
@@ -159,7 +137,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                     </div>
 
                     {/* RIGHT: Action Area (30%) */}
-                    <div style={{ flex: '0 0 30%', backgroundColor: 'var(--slate-50)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                    <div className="split-selection-card-right">
                         <div style={{ marginBottom: '16px', color: 'var(--primary-600)' }}>
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3" />
@@ -209,42 +187,20 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
             {/* 2. Resume Training Section */}
             <div className="section-container">
                 {/* Section Header */}
-                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', color: 'var(--slate-800)', fontWeight: 600 }}>Available Checkpoints</h3>
+                <h3 className="split-selection-title">Available Checkpoints</h3>
 
                 {/* Unified Card */}
-                <div className="training-unified-card" style={{
-                    display: 'flex',
-                    backgroundColor: 'var(--white, #fff)',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    border: '1px solid var(--slate-200, #e2e8f0)',
-                    overflow: 'hidden',
-                    height: '400px'
-                }}>
+                <div className="split-selection-card">
 
                     {/* LEFT: Table Area (70%) */}
-                    <div style={{ flex: '0 0 70%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--slate-200)', minWidth: 0 }}>
+                    <div className="split-selection-card-left">
                         {/* Table Controls */}
-                        <div style={{
-                            padding: '12px 16px',
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            borderBottom: '1px solid var(--slate-100)',
-                            backgroundColor: 'var(--slate-50)'
-                        }}>
+                        <div className="split-selection-card-toolbar">
                             {onRefreshCheckpoints && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onRefreshCheckpoints(); }}
                                     title="Refresh Checkpoints"
-                                    style={{
-                                        background: 'white',
-                                        border: '1px solid var(--slate-300)',
-                                        borderRadius: '4px',
-                                        padding: '4px 8px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.9rem',
-                                        color: 'var(--slate-600)'
-                                    }}
+                                    className="split-selection-refresh-button"
                                 >
                                     🔄 Refresh
                                 </button>
@@ -252,7 +208,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                         </div>
 
                         {/* Scrollable Table Container */}
-                        <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                        <div className="split-selection-card-content">
                             <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                                     <tr style={{ color: 'var(--slate-500)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -295,14 +251,14 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onViewCheckpointDetails(cp.name); }}
                                                             title="View Details"
-                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '4px', lineHeight: 1 }}
+                                                            className="icon-action-button"
                                                         >
                                                             ℹ️
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onDeleteCheckpoint(cp.name); }}
                                                             title="Delete Checkpoint"
-                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', padding: '4px', lineHeight: 1 }}
+                                                            className="icon-action-button"
                                                         >
                                                             🗑️
                                                         </button>
@@ -317,7 +273,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                     </div>
 
                     {/* RIGHT: Action Area (30%) */}
-                    <div style={{ flex: '0 0 30%', backgroundColor: 'var(--slate-50)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                    <div className="split-selection-card-right">
                         <div style={{ fontSize: '2rem', marginBottom: '12px' }}>📂</div>
                         <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: 'var(--slate-800)' }}>Resume Training</h4>
                         <p style={{ margin: '0 0 24px 0', fontSize: '0.85rem', color: 'var(--slate-500)', lineHeight: '1.4' }}>

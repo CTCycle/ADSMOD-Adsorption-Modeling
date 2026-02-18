@@ -1,12 +1,13 @@
 
 import React from 'react';
 import './InfoModal.css';
+import type { InfoModalData, InfoModalValue } from '../types';
 
 interface InfoModalProps {
     isOpen: boolean;
     onClose: () => void;
     title: string;
-    data: Record<string, any> | null;
+    data: InfoModalData | null;
 }
 
 const IconTag = () => (
@@ -29,7 +30,11 @@ const IconMaximize = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
 );
 
-const InfoRow: React.FC<{ label: string; value: any; icon: React.ReactNode }> = ({ label, value, icon }) => {
+const InfoRow: React.FC<{ label: string; value: InfoModalValue; icon: React.ReactNode }> = ({
+    label,
+    value,
+    icon,
+}) => {
     const isObject = typeof value === 'object' && value !== null;
     const isFullWidth = isObject || label.length > 20;
 
@@ -49,7 +54,7 @@ const InfoRow: React.FC<{ label: string; value: any; icon: React.ReactNode }> = 
                 <span className="info-value">
                     {typeof value === 'number' && !Number.isInteger(value)
                         ? value.toLocaleString(undefined, { maximumFractionDigits: 4 })
-                        : String(value)}
+                        : `${value}`}
                 </span>
             )}
         </div>
@@ -58,8 +63,6 @@ const InfoRow: React.FC<{ label: string; value: any; icon: React.ReactNode }> = 
 
 export const InfoModal: React.FC<InfoModalProps> = ({ isOpen, onClose, title, data }) => {
     if (!isOpen || !data) return null;
-
-
 
     const getIcon = (key: string) => {
         const lowerKey = key.toLowerCase();

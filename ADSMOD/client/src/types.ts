@@ -6,6 +6,15 @@ export interface DatasetPayload {
     records: Record<string, unknown>[];
 }
 
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export interface JsonObject {
+    [key: string]: JsonValue;
+}
+
+export type InfoModalValue = JsonValue | undefined;
+export type InfoModalData = Record<string, InfoModalValue>;
+
 export interface ParameterBound {
     min: number;
     max: number;
@@ -223,7 +232,7 @@ export interface CheckpointFullDetails {
     created_at?: string;
     configuration: TrainingConfig | null;
     metadata: DatasetFullInfo | null;
-    history: Record<string, unknown> | null;
+    history: JsonObject | null;
 }
 
 export interface ResumeTrainingConfig {
@@ -303,7 +312,7 @@ export interface DatasetFullInfo {
     validation_samples?: number;
     smile_vocabulary_size?: number;
     adsorbent_vocabulary_size?: number;
-    normalization_stats?: Record<string, any>;
+    normalization_stats?: JsonObject;
 }
 
 export interface ProcessedDatasetInfo {
