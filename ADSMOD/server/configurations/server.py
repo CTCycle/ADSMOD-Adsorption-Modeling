@@ -27,6 +27,10 @@ from ADSMOD.server.entities.settings import (
 )
 from ADSMOD.server.common.utils.variables import env_variables
 
+DEFAULT_PREFETCH_FACTOR = 1
+DEFAULT_PIN_MEMORY = True
+PLOT_UPDATE_BATCH_INTERVAL = 10
+
 # [BUILDER FUNCTIONS]
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
@@ -155,12 +159,10 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
         jit_backend=coerce_str(payload.get("jit_backend"), "inductor"),
         use_mixed_precision=coerce_bool(payload.get("use_mixed_precision"), False),
         dataloader_workers=coerce_int(payload.get("dataloader_workers"), 0, minimum=0),
-        prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
-        pin_memory=coerce_bool(payload.get("pin_memory"), True),
+        prefetch_factor=DEFAULT_PREFETCH_FACTOR,
+        pin_memory=DEFAULT_PIN_MEMORY,
         persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
-        plot_update_batch_interval=coerce_int(
-            payload.get("plot_update_batch_interval"), 10, minimum=1
-        ),
+        plot_update_batch_interval=PLOT_UPDATE_BATCH_INTERVAL,
     )
 
 
