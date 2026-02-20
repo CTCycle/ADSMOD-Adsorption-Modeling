@@ -14,7 +14,7 @@ class TrainingConfigRequest(BaseModel):
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     batch_size: int = Field(default=32, ge=1, le=256)
     shuffle_dataset: bool = True
-    max_buffer_size: int = Field(default=10000, ge=1, le=1_000_000)
+    max_buffer_size: int = Field(default=256, ge=1, le=1_000_000)
     dataset_label: str | None = None
     dataset_hash: str | None = None
 
