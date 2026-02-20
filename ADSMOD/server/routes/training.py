@@ -680,9 +680,6 @@ class TrainingEndpoint:
             )
 
         try:
-            # Force mixed precision setting from server configuration
-            config.use_mixed_precision = server_settings.training.use_mixed_precision
-
             resolved_label = training_manager.data_serializer.normalize_dataset_label(
                 config.dataset_label
             )

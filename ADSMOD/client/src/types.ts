@@ -172,6 +172,7 @@ export interface TrainingConfig {
     validation_size?: number;    // 0.0-1.0 fraction (deprecated)
     batch_size: number;
     shuffle_dataset: boolean;
+    max_buffer_size: number;
     dataset_label?: string;
     dataset_hash?: string | null;
 
@@ -184,8 +185,14 @@ export interface TrainingConfig {
 
     // Training settings
     epochs: number;
+    dataloader_workers: number;
+    prefetch_factor: number;
+    pin_memory: boolean;
     use_device_GPU: boolean;
-    use_mixed_precision?: boolean;
+    device_ID: number;
+    use_mixed_precision: boolean;
+    use_jit: boolean;
+    jit_backend: string;
 
     // LR scheduler settings
     use_lr_scheduler: boolean;

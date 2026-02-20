@@ -14,6 +14,7 @@ class TrainingConfigRequest(BaseModel):
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     batch_size: int = Field(default=32, ge=1, le=256)
     shuffle_dataset: bool = True
+    max_buffer_size: int = Field(default=10000, ge=1, le=1_000_000)
     dataset_label: str | None = None
     dataset_hash: str | None = None
 
@@ -26,8 +27,14 @@ class TrainingConfigRequest(BaseModel):
 
     # Training settings
     epochs: int = Field(default=50, ge=1, le=500)
+    dataloader_workers: int = Field(default=0, ge=0, le=64)
+    prefetch_factor: int = Field(default=1, ge=1, le=32)
+    pin_memory: bool = True
     use_device_GPU: bool = True
+    device_ID: int = Field(default=0, ge=0, le=32)
     use_mixed_precision: bool = False
+    use_jit: bool = False
+    jit_backend: str = "inductor"
 
     # LR scheduler settings
     use_lr_scheduler: bool = True

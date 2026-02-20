@@ -43,6 +43,7 @@ const DEFAULT_CONFIG: TrainingConfig = {
     // Dataset settings
     batch_size: 16,
     shuffle_dataset: true,
+    max_buffer_size: 10000,
 
     // Model settings
     selected_model: 'SCADS Series',
@@ -53,8 +54,14 @@ const DEFAULT_CONFIG: TrainingConfig = {
 
     // Training settings
     epochs: 2,
+    dataloader_workers: 0,
+    prefetch_factor: 1,
+    pin_memory: true,
     use_device_GPU: true,
+    device_ID: 0,
     use_mixed_precision: false,
+    use_jit: false,
+    jit_backend: 'inductor',
 
     // LR scheduler settings
     use_lr_scheduler: false,

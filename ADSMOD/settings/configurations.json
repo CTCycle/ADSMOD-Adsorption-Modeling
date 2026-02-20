@@ -37,13 +37,6 @@
     "polling_interval": 1.0
   },
   "training": {
-    "use_jit": false,
-    "jit_backend": "inductor",
-    "use_mixed_precision": false,
-    "dataloader_workers": 0,
-    "prefetch_factor": 1,
-    "pin_memory": true,
-    "persistent_workers": false,
-    "plot_update_batch_interval": 10
+    "persistent_workers": false
   }
 }

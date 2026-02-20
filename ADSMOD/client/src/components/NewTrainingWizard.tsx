@@ -16,6 +16,8 @@ const getModelType = (value: string): TrainingConfig['selected_model'] => {
     return value === 'SCADS Atomic' ? 'SCADS Atomic' : 'SCADS Series';
 };
 
+const LAST_PAGE_INDEX = 4;
+
 export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     config,
     onConfigChange,
@@ -38,7 +40,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     };
 
     const handleNext = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, 3));
+        setCurrentPage((prev) => Math.min(prev + 1, LAST_PAGE_INDEX));
     };
 
     const handlePrevious = () => {
@@ -61,6 +63,8 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                         <span className={`wizard-dot ${currentPage === 2 ? 'active' : ''}`}>3</span>
                         <span className={`wizard-dot-line ${currentPage > 2 ? 'active' : ''}`} />
                         <span className={`wizard-dot ${currentPage === 3 ? 'active' : ''}`}>4</span>
+                        <span className={`wizard-dot-line ${currentPage > 3 ? 'active' : ''}`} />
+                        <span className={`wizard-dot ${currentPage === 4 ? 'active' : ''}`}>5</span>
                     </div>
                 </div>
 
@@ -76,16 +80,29 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                     Control how the training dataset is shuffled during training.
                                 </p>
                                 <div className="wizard-card-body">
-                                    <div className="wizard-toggle-row">
-                                        <div style={{ flex: 1, minWidth: '140px' }}>
+                                    <div className="wizard-toggle-row wizard-toggle-row-aligned">
+                                        <div className="wizard-toggle-control">
                                             <label>Shuffle Buffered</label>
-                                            <div style={{ height: '42px', display: 'flex', alignItems: 'center' }}>
+                                            <div className="wizard-toggle-switch">
                                                 <Switch
                                                     checked={config.shuffle_dataset}
                                                     onChange={(value) => updateConfig('shuffle_dataset', value)}
                                                 />
                                             </div>
                                         </div>
+                                        {config.shuffle_dataset && (
+                                            <div className="wizard-inline-number-field">
+                                                <NumberInput
+                                                    label="Max Buffer Size"
+                                                    value={config.max_buffer_size}
+                                                    onChange={(value) => updateConfig('max_buffer_size', value)}
+                                                    min={1}
+                                                    max={1000000}
+                                                    step={1}
+                                                    precision={0}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -258,6 +275,113 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                     {
                         currentPage === 3 && (
                             <div className="wizard-page">
+                                <div className="wizard-card">
+                                    <div className="wizard-card-header">
+                                        <span className="wizard-card-icon">🖥️</span>
+                                        <span>Device Controls</span>
+                                    </div>
+                                    <p className="wizard-card-description">
+                                        Configure runtime hardware settings for data loading, GPU usage, precision, and torch compile.
+                                    </p>
+                                    <div className="wizard-card-body">
+                                        <div className="wizard-settings-grid wizard-device-grid">
+                                            <NumberInput
+                                                label="Dataloader Workers"
+                                                value={config.dataloader_workers}
+                                                onChange={(value) => updateConfig('dataloader_workers', value)}
+                                                min={0}
+                                                max={64}
+                                                step={1}
+                                                precision={0}
+                                            />
+                                            <div className="wizard-device-cell">
+                                                <label className="field-label">GPU Selection</label>
+                                                <div className="wizard-device-inline-row">
+                                                    <Checkbox
+                                                        label="Enable GPU"
+                                                        checked={config.use_device_GPU}
+                                                        onChange={(value) => updateConfig('use_device_GPU', value)}
+                                                    />
+                                                    <label className="field-label wizard-inline-label" htmlFor="gpu-device-id">
+                                                        Device ID
+                                                    </label>
+                                                    <input
+                                                        id="gpu-device-id"
+                                                        type="number"
+                                                        value={config.device_ID}
+                                                        onChange={(event) =>
+                                                            updateConfig(
+                                                                'device_ID',
+                                                                Number.parseInt(event.target.value, 10) || 0
+                                                            )
+                                                        }
+                                                        min={0}
+                                                        step={1}
+                                                        disabled={!config.use_device_GPU}
+                                                        className="wizard-inline-input-number"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="wizard-device-cell">
+                                                <label className="field-label">Mixed Precision</label>
+                                                <div className="wizard-device-inline-row">
+                                                    <Checkbox
+                                                        label="Enable Mixed Precision"
+                                                        checked={config.use_mixed_precision}
+                                                        onChange={(value) => updateConfig('use_mixed_precision', value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="wizard-device-cell">
+                                                <label className="field-label">Torch Compile</label>
+                                                <div className="wizard-device-inline-row">
+                                                    <Checkbox
+                                                        label="Enable Torch Compile"
+                                                        checked={config.use_jit}
+                                                        onChange={(value) => updateConfig('use_jit', value)}
+                                                    />
+                                                    <label className="field-label wizard-inline-label" htmlFor="torch-compile-backend">
+                                                        Backend
+                                                    </label>
+                                                    <input
+                                                        id="torch-compile-backend"
+                                                        type="text"
+                                                        value={config.jit_backend}
+                                                        onChange={(event) => updateConfig('jit_backend', event.target.value)}
+                                                        disabled={!config.use_jit}
+                                                        className="wizard-inline-input-text"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <NumberInput
+                                                label="Prefetch Factor"
+                                                value={config.prefetch_factor}
+                                                onChange={(value) => updateConfig('prefetch_factor', value)}
+                                                min={1}
+                                                max={32}
+                                                step={1}
+                                                precision={0}
+                                            />
+                                            <div className="wizard-device-cell">
+                                                <label className="field-label">Memory Transfer</label>
+                                                <div className="wizard-device-inline-row">
+                                                    <Checkbox
+                                                        label="Pin Memory"
+                                                        checked={config.pin_memory}
+                                                        onChange={(value) => updateConfig('pin_memory', value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    {
+                        currentPage === 4 && (
+                            <div className="wizard-page">
                                 <div className="wizard-card" style={{ marginBottom: '1rem', border: '1px solid var(--primary-200)' }}>
                                     <div className="wizard-card-header">
                                         <span className="wizard-card-icon">🏷️</span>
@@ -301,8 +425,12 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                         <div className="wizard-summary-grid">
                                             <span>Shuffle buffered</span>
                                             <strong>{config.shuffle_dataset ? 'Enabled' : 'Disabled'}</strong>
-
-
+                                            {config.shuffle_dataset && (
+                                                <>
+                                                    <span>Max buffer size</span>
+                                                    <strong>{config.max_buffer_size}</strong>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="wizard-summary-section">
@@ -345,6 +473,35 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                             )}
                                         </div>
                                     </div>
+                                    <div className="wizard-summary-section">
+                                        <h5>Device Controls</h5>
+                                        <div className="wizard-summary-grid">
+                                            <span>Dataloader workers</span>
+                                            <strong>{config.dataloader_workers}</strong>
+                                            <span>Prefetch factor</span>
+                                            <strong>{config.prefetch_factor}</strong>
+                                            <span>Pin memory</span>
+                                            <strong>{config.pin_memory ? 'Enabled' : 'Disabled'}</strong>
+                                            <span>GPU</span>
+                                            <strong>{config.use_device_GPU ? 'Enabled' : 'Disabled'}</strong>
+                                            {config.use_device_GPU && (
+                                                <>
+                                                    <span>GPU device ID</span>
+                                                    <strong>{config.device_ID}</strong>
+                                                </>
+                                            )}
+                                            <span>Mixed precision</span>
+                                            <strong>{config.use_mixed_precision ? 'Enabled' : 'Disabled'}</strong>
+                                            <span>Torch compile</span>
+                                            <strong>{config.use_jit ? 'Enabled' : 'Disabled'}</strong>
+                                            {config.use_jit && (
+                                                <>
+                                                    <span>Compile backend</span>
+                                                    <strong>{config.jit_backend}</strong>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )
@@ -360,7 +517,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                             Previous
                         </button>
                     )}
-                    {currentPage < 3 && (
+                    {currentPage < LAST_PAGE_INDEX && (
                         <button
                             className="primary"
                             onClick={handleNext}
@@ -369,7 +526,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                             Next
                         </button>
                     )}
-                    {currentPage === 3 && (
+                    {currentPage === LAST_PAGE_INDEX && (
                         <button className="primary" onClick={onConfirm} disabled={isLoading}>
                             {isLoading ? 'Starting...' : 'Confirm Training'}
                         </button>

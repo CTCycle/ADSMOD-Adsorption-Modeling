@@ -162,6 +162,27 @@
   margin-bottom: 1rem;
 }
 
+.wizard-toggle-row-aligned {
+  align-items: flex-end;
+  margin-bottom: 0;
+}
+
+.wizard-toggle-control {
+  flex: 1;
+  min-width: 140px;
+}
+
+.wizard-toggle-switch {
+  height: 42px;
+  display: flex;
+  align-items: center;
+}
+
+.wizard-inline-number-field {
+  flex: 1;
+  min-width: 180px;
+}
+
 .wizard-toggle-column {
   display: flex;
   flex-direction: column;
@@ -177,6 +198,48 @@
 
 .wizard-settings-grid-tight {
   margin-top: 1rem;
+}
+
+.wizard-device-grid {
+  align-items: start;
+}
+
+.wizard-device-cell {
+  min-width: 0;
+}
+
+.wizard-device-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 42px;
+}
+
+.wizard-inline-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.wizard-inline-input-number,
+.wizard-inline-input-text {
+  width: 130px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--slate-300);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--slate-900);
+  background: #ffffff;
+}
+
+.wizard-inline-input-text {
+  width: 160px;
+}
+
+.wizard-inline-input-number:focus,
+.wizard-inline-input-text:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .wizard-summary {
