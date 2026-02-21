@@ -12,8 +12,54 @@ from playwright.sync_api import APIRequestContext, Page, Playwright
 ###############################################################################
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 FIXTURES_DIR = os.path.join(TESTS_DIR, "fixtures")
-FRONTEND_URL = "http://127.0.0.1:7861"
-BACKEND_URL = "http://127.0.0.1:8000"
+PROJECT_ROOT = os.path.dirname(TESTS_DIR)
+SETTINGS_ENV = os.path.join(PROJECT_ROOT, "ADSMOD", "settings", ".env")
+
+
+# -------------------------------------------------------------------------
+def load_env_values(path: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not os.path.exists(path):
+        return values
+
+    with open(path, "r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or line.startswith(";"):
+                continue
+            key, separator, value = line.partition("=")
+            if not separator:
+                continue
+            cleaned_key = key.strip()
+            cleaned_value = value.strip()
+            if (
+                len(cleaned_value) >= 2
+                and cleaned_value[0] == cleaned_value[-1]
+                and cleaned_value[0] in {'"', "'"}
+            ):
+                cleaned_value = cleaned_value[1:-1]
+            values[cleaned_key] = cleaned_value
+    return values
+
+
+# -------------------------------------------------------------------------
+def resolve_test_urls() -> tuple[str, str]:
+    env_values = load_env_values(SETTINGS_ENV)
+    frontend_host = env_values.get("UI_HOST", "127.0.0.1")
+    frontend_port = env_values.get("UI_PORT", "7861")
+    backend_host = env_values.get("FASTAPI_HOST", "127.0.0.1")
+    backend_port = env_values.get("FASTAPI_PORT", "8000")
+
+    frontend_url = os.getenv(
+        "ADSMOD_TEST_FRONTEND_URL", f"http://{frontend_host}:{frontend_port}"
+    )
+    backend_url = os.getenv(
+        "ADSMOD_TEST_BACKEND_URL", f"http://{backend_host}:{backend_port}"
+    )
+    return frontend_url.rstrip("/"), backend_url.rstrip("/")
+
+
+FRONTEND_URL, BACKEND_URL = resolve_test_urls()
 
 
 ###############################################################################

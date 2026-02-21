@@ -24,15 +24,30 @@ set "FRONTEND_DIR=%ADSMOD_DIR%\\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\\dist"
 set "DOTENV=%ADSMOD_DIR%\\settings\\.env"
 set "OPTIONAL_DEPENDENCIES=false"
+set "FASTAPI_HOST=127.0.0.1"
+set "FASTAPI_PORT=8000"
+set "UI_HOST=127.0.0.1"
+set "UI_PORT=7861"
 set "TEST_RESULT=1"
 
-REM Load OPTIONAL_DEPENDENCIES from .env if present
+REM Load runtime settings from .env if present
 if exist "%DOTENV%" (
     for /f "usebackq tokens=* delims=" %%A in ("%DOTENV%") do (
         set "line=%%A"
         if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
             for /f "tokens=1* delims==" %%K in ("!line!") do (
-                if /i "%%K"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=%%L"
+                set "k=%%K"
+                set "v=%%L"
+                if defined v (
+                    if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
+                    if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
+                )
+
+                if /i "!k!"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=!v!"
+                if /i "!k!"=="FASTAPI_HOST" set "FASTAPI_HOST=!v!"
+                if /i "!k!"=="FASTAPI_PORT" set "FASTAPI_PORT=!v!"
+                if /i "!k!"=="UI_HOST" set "UI_HOST=!v!"
+                if /i "!k!"=="UI_PORT" set "UI_PORT=!v!"
             )
         )
     )
@@ -42,6 +57,14 @@ if defined OPTIONAL_DEPENDENCIES (
     if "!OPTIONAL_DEPENDENCIES:~0,1!"=="\"" set "OPTIONAL_DEPENDENCIES=!OPTIONAL_DEPENDENCIES:~1,-1!"
     if "!OPTIONAL_DEPENDENCIES:~0,1!"=="'" set "OPTIONAL_DEPENDENCIES=!OPTIONAL_DEPENDENCIES:~1,-1!"
 )
+
+set "BACKEND_URL=http://%FASTAPI_HOST%:%FASTAPI_PORT%"
+set "BACKEND_DOCS_URL=%BACKEND_URL%/docs"
+set "FRONTEND_URL=http://%UI_HOST%:%UI_PORT%"
+set "ADSMOD_TEST_FRONTEND_URL=%FRONTEND_URL%"
+set "ADSMOD_TEST_BACKEND_URL=%BACKEND_URL%"
+echo [INFO] Test frontend URL: %ADSMOD_TEST_FRONTEND_URL%
+echo [INFO] Test backend URL: %ADSMOD_TEST_BACKEND_URL%
 
 REM Check for Python (require uv-created .venv)
 if exist "%VENV_PYTHON%" (
@@ -96,10 +119,10 @@ REM Check if servers are already running
 set "BACKEND_RUNNING=0"
 set "FRONTEND_RUNNING=0"
 
-curl -s --max-time 2 http://127.0.0.1:8000/docs >nul 2>&1
+curl -s --max-time 2 "!BACKEND_DOCS_URL!" >nul 2>&1
 if %ERRORLEVEL% equ 0 set "BACKEND_RUNNING=1"
 
-curl -s --max-time 2 http://127.0.0.1:7861 >nul 2>&1
+curl -s --max-time 2 "!FRONTEND_URL!" >nul 2>&1
 if %ERRORLEVEL% equ 0 set "FRONTEND_RUNNING=1"
 
 REM Start servers if not running
@@ -108,7 +131,7 @@ set "STARTED_FRONTEND=0"
 
 if "%BACKEND_RUNNING%"=="0" (
     echo [INFO] Starting backend server...
-    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 8000
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m uvicorn ADSMOD.server.app:app --host !FASTAPI_HOST! --port !FASTAPI_PORT!
     set "STARTED_BACKEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -117,7 +140,11 @@ if "%FRONTEND_RUNNING%"=="0" (
     if not exist "%FRONTEND_DIR%\\node_modules" (
         echo [INFO] Installing frontend dependencies...
         pushd "%FRONTEND_DIR%" >nul
-        call "%NPM_RUN%" install
+        if exist "%FRONTEND_DIR%\\package-lock.json" (
+            call "%NPM_RUN%" ci
+        ) else (
+            call "%NPM_RUN%" install
+        )
         set "npm_ec=%ERRORLEVEL%"
         popd >nul
         if not "%npm_ec%"=="0" (
@@ -139,7 +166,7 @@ if "%FRONTEND_RUNNING%"=="0" (
     )
 
     echo [INFO] Starting frontend server...
-    start "" /B /D "%FRONTEND_DIST%" "%PYTHON_CMD%" -m http.server 7861 --bind 127.0.0.1
+    start "" /B /D "%FRONTEND_DIST%" "%PYTHON_CMD%" -m http.server !UI_PORT! --bind !UI_HOST!
     set "STARTED_FRONTEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -154,14 +181,14 @@ if %ATTEMPTS% geq 30 (
     goto cleanup
 )
 
-curl -s --max-time 2 http://127.0.0.1:8000/docs >nul 2>&1
+curl -s --max-time 2 "!BACKEND_DOCS_URL!" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
     goto wait_loop
 )
 
-curl -s --max-time 2 http://127.0.0.1:7861 >nul 2>&1
+curl -s --max-time 2 "!FRONTEND_URL!" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
@@ -195,14 +222,14 @@ echo.
 REM Cleanup: Stop servers we started
 if "%STARTED_BACKEND%"=="1" (
     echo [INFO] Stopping backend server...
-    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') do (
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :!FASTAPI_PORT! ^| findstr LISTENING') do (
         taskkill /F /PID %%a >nul 2>&1
     )
 )
 
 if "%STARTED_FRONTEND%"=="1" (
     echo [INFO] Stopping frontend server...
-    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :7861 ^| findstr LISTENING') do (
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :!UI_PORT! ^| findstr LISTENING') do (
         taskkill /F /PID %%a >nul 2>&1
     )
 )

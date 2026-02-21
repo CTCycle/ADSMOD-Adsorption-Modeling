@@ -21,8 +21,9 @@ npm run build
 
 ## Configuration
 
-The frontend connects to the FastAPI backend at the URL specified in `.env`:
-- `VITE_API_BASE_URL`: Backend API base URL (default: http://127.0.0.1:8000)
+The frontend connects to the FastAPI backend through the API base path configured via `VITE_API_BASE_URL` (default: `/api`).
+
+Runtime host/port and API proxy values are resolved from `ADSMOD/settings/.env` via `vite.config.ts`.
 
 ## Technology Stack
 
