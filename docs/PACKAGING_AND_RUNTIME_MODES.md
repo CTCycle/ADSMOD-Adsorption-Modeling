@@ -14,6 +14,7 @@ ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
 - `ADSMOD/settings/.env.local.example`: local defaults (loopback host values, embedded DB).
 - `ADSMOD/settings/.env.cloud.example`: cloud defaults (container bind host values, external DB).
 - `ADSMOD/settings/.env`: active profile used by launcher, tests, and Docker runtime env loading.
+- `ADSMOD/settings/configurations.json`: non-runtime defaults only (no database runtime settings).
 
 ## 3. Required Environment Keys
 
