@@ -14,6 +14,7 @@ TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 FIXTURES_DIR = os.path.join(TESTS_DIR, "fixtures")
 PROJECT_ROOT = os.path.dirname(TESTS_DIR)
 SETTINGS_ENV = os.path.join(PROJECT_ROOT, "ADSMOD", "settings", ".env")
+WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
 
 
 # -------------------------------------------------------------------------
@@ -43,11 +44,20 @@ def load_env_values(path: str) -> dict[str, str]:
 
 
 # -------------------------------------------------------------------------
+def normalize_client_host(bind_host: str) -> str:
+    """Convert wildcard bind hosts into a routable client host."""
+    stripped = bind_host.strip()
+    if stripped in WILDCARD_BIND_HOSTS:
+        return "127.0.0.1"
+    return stripped
+
+
+# -------------------------------------------------------------------------
 def resolve_test_urls() -> tuple[str, str]:
     env_values = load_env_values(SETTINGS_ENV)
-    frontend_host = env_values.get("UI_HOST", "127.0.0.1")
+    frontend_host = normalize_client_host(env_values.get("UI_HOST", "127.0.0.1"))
     frontend_port = env_values.get("UI_PORT", "7861")
-    backend_host = env_values.get("FASTAPI_HOST", "127.0.0.1")
+    backend_host = normalize_client_host(env_values.get("FASTAPI_HOST", "127.0.0.1"))
     backend_port = env_values.get("FASTAPI_PORT", "8000")
 
     frontend_url = os.getenv(
