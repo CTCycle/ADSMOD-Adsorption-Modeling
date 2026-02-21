@@ -1,5 +1,4 @@
 # Project-specific generated/runtime artifacts
-assets/docs/**
 ADSMOD/resources/checkpoints/**
 ADSMOD/resources/database/**
 ADSMOD/resources/runtimes/**
