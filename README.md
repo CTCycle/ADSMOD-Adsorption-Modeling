@@ -160,7 +160,7 @@ The application stores data and artifacts in specific directories, primarily und
 
 
 ## 7. Configuration
-Backend configuration defaults are defined in `ADSMOD/settings/configurations.json`.
+Non-runtime backend defaults are defined in `ADSMOD/settings/configurations.json` (`datasets`, `nist`, `fitting`, `jobs`, `training`).
 
 Runtime values are loaded from `ADSMOD/settings/.env` and apply to:
 - backend bind host/port (`FASTAPI_HOST`, `FASTAPI_PORT`)

@@ -30,16 +30,21 @@ from ADSMOD.server.common.utils.variables import env_variables
 DEFAULT_PREFETCH_FACTOR = 1
 DEFAULT_PIN_MEMORY = True
 PLOT_UPDATE_BATCH_INTERVAL = 10
+DEFAULT_DB_EMBEDDED = True
+DEFAULT_DB_ENGINE = "postgres"
+DEFAULT_DB_HOST = "localhost"
+DEFAULT_DB_PORT = 5432
+DEFAULT_DB_NAME = "ADSMOD"
+DEFAULT_DB_USER = "postgres"
+DEFAULT_DB_PASSWORD = "admin"
+DEFAULT_DB_SSL = False
+DEFAULT_DB_CONNECT_TIMEOUT = 30
+DEFAULT_DB_INSERT_BATCH_SIZE = 5000
 
 # [BUILDER FUNCTIONS]
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
-    embedded_value = env_variables.get("DB_EMBEDDED") or payload.get("embedded_database")
-    embedded = coerce_bool(embedded_value, True)
-
-    insert_batch_value = env_variables.get("DB_INSERT_BATCH_SIZE") or payload.get(
-        "insert_batch_size"
-    )
+    embedded = coerce_bool(env_variables.get("DB_EMBEDDED"), DEFAULT_DB_EMBEDDED)
 
     if embedded:
         return DatabaseSettings(
@@ -53,44 +58,55 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
             ssl=False,
             ssl_ca=None,
             connect_timeout=coerce_int(
-                env_variables.get("DB_CONNECT_TIMEOUT")
-                or payload.get("connect_timeout"),
-                10,
+                env_variables.get("DB_CONNECT_TIMEOUT"),
+                DEFAULT_DB_CONNECT_TIMEOUT,
                 minimum=1,
             ),
-            insert_batch_size=coerce_int(insert_batch_value, 1000, minimum=1),
+            insert_batch_size=coerce_int(
+                env_variables.get("DB_INSERT_BATCH_SIZE"),
+                DEFAULT_DB_INSERT_BATCH_SIZE,
+                minimum=1,
+            ),
         )
 
     engine_value = (
         coerce_str_or_none(env_variables.get("DB_ENGINE"))
-        or coerce_str_or_none(payload.get("engine"))
-        or "postgres"
+        or DEFAULT_DB_ENGINE
     )
     normalized_engine = engine_value.lower() if engine_value else None
-
-    host_value = env_variables.get("DB_HOST") or payload.get("host")
-    port_value = env_variables.get("DB_PORT") or payload.get("port")
-    name_value = env_variables.get("DB_NAME") or payload.get("database_name")
-    user_value = env_variables.get("DB_USER") or payload.get("username")
-    password_value = env_variables.get("DB_PASSWORD") or payload.get("password")
-    ssl_value = env_variables.get("DB_SSL") or payload.get("ssl")
-    ssl_ca_value = env_variables.get("DB_SSL_CA") or payload.get("ssl_ca")
-    timeout_value = env_variables.get("DB_CONNECT_TIMEOUT") or payload.get(
-        "connect_timeout"
-    )
 
     return DatabaseSettings(
         embedded_database=False,
         engine=normalized_engine,
-        host=coerce_str_or_none(host_value),
-        port=coerce_int(port_value, 5432, minimum=1, maximum=65535),
-        database_name=coerce_str_or_none(name_value),
-        username=coerce_str_or_none(user_value),
-        password=coerce_str_or_none(password_value),
-        ssl=coerce_bool(ssl_value, False),
-        ssl_ca=coerce_str_or_none(ssl_ca_value),
-        connect_timeout=coerce_int(timeout_value, 10, minimum=1),
-        insert_batch_size=coerce_int(insert_batch_value, 1000, minimum=1),
+        host=coerce_str(
+            env_variables.get("DB_HOST"),
+            DEFAULT_DB_HOST,
+        ),
+        port=coerce_int(
+            env_variables.get("DB_PORT"), DEFAULT_DB_PORT, minimum=1, maximum=65535
+        ),
+        database_name=coerce_str(
+            env_variables.get("DB_NAME"),
+            DEFAULT_DB_NAME,
+        ),
+        username=coerce_str(
+            env_variables.get("DB_USER"),
+            DEFAULT_DB_USER,
+        ),
+        password=coerce_str(
+            env_variables.get("DB_PASSWORD"),
+            DEFAULT_DB_PASSWORD,
+        ),
+        ssl=coerce_bool(env_variables.get("DB_SSL"), DEFAULT_DB_SSL),
+        ssl_ca=coerce_str_or_none(env_variables.get("DB_SSL_CA")),
+        connect_timeout=coerce_int(
+            env_variables.get("DB_CONNECT_TIMEOUT"), DEFAULT_DB_CONNECT_TIMEOUT, minimum=1
+        ),
+        insert_batch_size=coerce_int(
+            env_variables.get("DB_INSERT_BATCH_SIZE"),
+            DEFAULT_DB_INSERT_BATCH_SIZE,
+            minimum=1,
+        ),
     )
 
 
@@ -168,7 +184,6 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
 
 # -------------------------------------------------------------------------
 def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
-    database_payload = ensure_mapping(payload.get("database"))
     dataset_payload = ensure_mapping(payload.get("datasets"))
     nist_payload = ensure_mapping(payload.get("nist"))
     fitting_payload = ensure_mapping(payload.get("fitting"))
@@ -176,7 +191,7 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
-        database=build_database_settings(database_payload),
+        database=build_database_settings({}),
         datasets=build_dataset_settings(dataset_payload),
         nist=build_nist_settings(nist_payload),
         fitting=build_fitting_settings(fitting_payload),
