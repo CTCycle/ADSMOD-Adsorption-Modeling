@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
@@ -17,6 +18,7 @@ from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
 from ADSMOD.server.repositories.schemas.models import Base
+from ADSMOD.server.repositories.schemas.types import JSONSequence
 
 
 ###############################################################################
@@ -57,14 +59,79 @@ class SQLiteRepository:
         return coerced.where(pd.notna(coerced), None)
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def parse_json_column_value(value: Any) -> Any:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        if isinstance(value, (dict, list)):
+            return value
+        if not isinstance(value, str):
+            return value
+
+        parsed: Any = value
+        for _ in range(3):
+            if not isinstance(parsed, str):
+                break
+            trimmed = parsed.strip()
+            if not trimmed:
+                return None
+            try:
+                parsed = json.loads(trimmed)
+            except json.JSONDecodeError:
+                return parsed
+        return parsed
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def get_json_sequence_columns(table_cls: Any | None) -> list[str]:
+        if table_cls is None:
+            return []
+        return [
+            column.name
+            for column in table_cls.__table__.columns
+            if isinstance(column.type, JSONSequence)
+        ]
+
+    # -------------------------------------------------------------------------
+    def prepare_for_storage(
+        self,
+        df: pd.DataFrame,
+        table_cls: Any | None = None,
+    ) -> pd.DataFrame:
+        prepared = sanitize_dataframe_strings(df)
+        if prepared.empty:
+            return prepared
+
+        for column in self.get_json_sequence_columns(table_cls):
+            if column in prepared.columns:
+                prepared[column] = prepared[column].apply(self.parse_json_column_value)
+
+        return self.coerce_missing_values(prepared)
+
+    # -------------------------------------------------------------------------
+    def restore_after_load(
+        self,
+        df: pd.DataFrame,
+        table_cls: Any | None = None,
+    ) -> pd.DataFrame:
+        if df.empty:
+            return df
+
+        restored = df.copy()
+        for column in self.get_json_sequence_columns(table_cls):
+            if column in restored.columns:
+                restored[column] = restored[column].apply(self.parse_json_column_value)
+
+        return restored
+
+    # -------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls) -> None:
         table = table_cls.__table__
         session = self.session_factory()
         try:
             unique_cols = resolve_conflict_columns(table)
-            sanitized_df = sanitize_dataframe_strings(df)
-            sanitized_df = self.coerce_missing_values(sanitized_df)
-            records = sanitized_df.to_dict(orient="records")
+            prepared_df = self.prepare_for_storage(df, table_cls)
+            records = prepared_df.to_dict(orient="records")
             for i in range(0, len(records), self.insert_batch_size):
                 batch = records[i : i + self.insert_batch_size]
                 if not batch:
@@ -90,6 +157,12 @@ class SQLiteRepository:
         limit: int | None = None,
         offset: int | None = None,
     ) -> pd.DataFrame:
+        table_cls = None
+        try:
+            table_cls = self.get_table_class(table_name)
+        except ValueError:
+            table_cls = None
+
         with self.engine.connect() as conn:
             inspector = inspect(conn)
             if not inspector.has_table(table_name):
@@ -118,11 +191,10 @@ class SQLiteRepository:
                 query += f" OFFSET {offset}"
 
             data = pd.read_sql_query(query, conn)
-        return data
+        return self.restore_after_load(data, table_cls)
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        sanitized_df = sanitize_dataframe_strings(df)
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             table_cls = None
@@ -141,7 +213,8 @@ class SQLiteRepository:
                     table_cls.__table__.create(conn, checkfirst=True)
                 else:
                     conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
-            sanitized_df.to_sql(table_name, conn, if_exists="append", index=False)
+            prepared_df = self.prepare_for_storage(df, table_cls)
+            prepared_df.to_sql(table_name, conn, if_exists="append", index=False)
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
