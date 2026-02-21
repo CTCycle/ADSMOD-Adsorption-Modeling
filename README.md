@@ -38,16 +38,32 @@ ADSMOD provides an automated installation and launcher script for Windows users,
 2.  Locate and run the `start_on_windows.bat` script.
 
 **What this script does:**
-- It automatically creates a local Python virtual environment.
-- It installs all necessary dependencies (backend and frontend).
-- It configures the application environment.
-- It launches the application.
+- It downloads portable Python, uv, and Node.js runtimes in `ADSMOD/resources/runtimes` (first run only).
+- It installs backend dependencies from `pyproject.toml` using `uv`.
+- It installs frontend dependencies and builds the frontend bundle.
+- It starts backend and frontend automatically.
 
 **First Run vs. Subsequent Runs:**
 - On the **first run**, the script may take some time to download and install all dependencies.
 - On **subsequent runs**, it will skip installation and immediately launch the application.
 
-### 3.2 Manual Setup (Advanced)
+### 3.2 Cloud (Docker)
+
+Cloud deployment uses Dockerized backend + frontend:
+
+```cmd
+copy /Y ADSMOD\settings\.env.cloud.example ADSMOD\settings\.env
+docker compose --env-file ADSMOD/settings/.env build --no-cache
+docker compose --env-file ADSMOD/settings/.env up -d
+```
+
+Stop cloud containers:
+
+```cmd
+docker compose --env-file ADSMOD/settings/.env down
+```
+
+### 3.3 Manual Setup (Advanced)
 
 If you prefer to set up the application manually or are running on a non-Windows environment, ensure you have Python and Node.js installed. You will need to install the backend dependencies from `pyproject.toml` and the frontend dependencies from the `client` directory, then launch the server and client components respectively.
 
@@ -57,13 +73,32 @@ If you prefer to set up the application manually or are running on a non-Windows
 ### 4.1 Launching the Application
 
 **Windows:**
-Simply double-click `start_on_windows.bat` in the `ADSMOD` folder. This will open a terminal window showing the application logs and typically launch your default web browser to the application's interface (usually `http://localhost:3000` or similar).
+Simply double-click `start_on_windows.bat` in the `ADSMOD` folder. This opens backend/frontend logs and launches the UI at `http://<UI_HOST>:<UI_PORT>` from `ADSMOD/settings/.env`.
 
-### 4.2 Operational Workflow
+**Cloud:**
+After `docker compose up -d`, open `http://<UI_HOST>:<UI_PORT>` using values in `ADSMOD/settings/.env` (for the provided cloud profile, `http://0.0.0.0:8080`).
+
+### 4.2 Mode Switching
+
+Mode switching is configuration-only:
+
+```cmd
+copy /Y ADSMOD\settings\.env.local.example ADSMOD\settings\.env
+```
+
+or
+
+```cmd
+copy /Y ADSMOD\settings\.env.cloud.example ADSMOD\settings\.env
+```
+
+No source code changes are required.
+
+### 4.3 Operational Workflow
 
 The application workflow is divided into four main sections, accessible via the navigation sidebar:
 
-#### 4.2.1 Data Source Configuration
+#### 4.3.1 Data Source Configuration
 
 This section serves as the entry point for managing experimental data. It allows users to either upload their own datasets or fetch data directly from the NIST Adsorption Database.
 - **Load Experimental Data**: Upload local `.csv` or `.xlsx` files containing adsorption data for independent processing.
@@ -72,7 +107,7 @@ This section serves as the entry point for managing experimental data. It allows
 
 ![Data Source Configuration](assets/figures/dataset_page.png)
 
-#### 4.2.2 Models & Fitting
+#### 4.3.2 Models & Fitting
 
 Before training deep learning models, users can analyze individual isotherms using classical theoretical models.
 - **Fitting Configuration**: Select a target dataset (either uploaded or from NIST) and configure the optimizer (e.g., LSS, BFGS) and maximum iterations.
@@ -81,7 +116,7 @@ Before training deep learning models, users can analyze individual isotherms usi
 
 ![Isotherm Fitting](assets/figures/fitting_page.png)
 
-#### 4.2.3 Model Training (Analysis)
+#### 4.3.3 Model Training (Analysis)
 
 This is the core interface for the deep learning pipeline, enabling users to build datasets, train models, and resume experiments.
 
@@ -125,7 +160,19 @@ The application stores data and artifacts in specific directories, primarily und
 
 
 ## 7. Configuration
-Backend configuration is defined in `ADSMOD/settings/configurations.json` and loaded by the API at startup. Runtime overrides and secrets are read from `ADSMOD/settings/.env`. Frontend configuration is read from `ADSMOD/client/.env` during development or build time.
+Backend configuration defaults are defined in `ADSMOD/settings/configurations.json`.
+
+Runtime values are loaded from `ADSMOD/settings/.env` and apply to:
+- backend bind host/port (`FASTAPI_HOST`, `FASTAPI_PORT`)
+- frontend host/port (`UI_HOST`, `UI_PORT`)
+- API base path (`VITE_API_BASE_URL`)
+- database runtime mode (`DB_EMBEDDED`) and external DB connection fields
+
+Use these profile files as templates:
+- `ADSMOD/settings/.env.local.example`
+- `ADSMOD/settings/.env.cloud.example`
+
+For packaging and runtime details, see `docs/PACKAGING_AND_RUNTIME_MODES.md`.
 
 ## 8. License
 

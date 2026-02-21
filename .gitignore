@@ -8,7 +8,6 @@ ADSMOD/resources/logs/**
 ADSMOD/client/node_modules/
 ADSMOD/client/dist/
 ADSMOD/client/dist-ssr/
-ADSMOD/client/package-lock.json
 ADSMOD/client/logs/
 ADSMOD/client/*.local
 

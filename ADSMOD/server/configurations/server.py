@@ -34,7 +34,7 @@ PLOT_UPDATE_BATCH_INTERVAL = 10
 # [BUILDER FUNCTIONS]
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
-    embedded_value = payload.get("embedded_database")
+    embedded_value = env_variables.get("DB_EMBEDDED") or payload.get("embedded_database")
     embedded = coerce_bool(embedded_value, True)
 
     insert_batch_value = env_variables.get("DB_INSERT_BATCH_SIZE") or payload.get(
