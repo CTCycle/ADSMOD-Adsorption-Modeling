@@ -7,6 +7,8 @@ import os
 import shutil
 from datetime import datetime
 
+from keras.models import load_model
+
 from ADSMOD.server.entities.training import TrainingMetadata
 from ADSMOD.server.learning.metrics import (
     MaskedMeanSquaredError,
@@ -133,8 +135,6 @@ class ModelSerializer:
     def load_checkpoint(
         self, checkpoint: str
     ) -> tuple[Any, dict, TrainingMetadata, dict, str]:
-        from keras.models import load_model
-
         custom_objects = {
             "MaskedMeanSquaredError": MaskedMeanSquaredError,
             "MaskedRSquared": MaskedRSquared,

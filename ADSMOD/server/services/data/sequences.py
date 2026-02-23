@@ -292,18 +292,22 @@ class SMILETokenization:
         return data, token_to_id
 
     # -------------------------------------------------------------------------
+    def encode_tokens_from_vocabulary(
+        self, tokens: list[Any], vocabulary: dict[Any, int]
+    ) -> list[int]:
+        return [int(vocabulary[token]) for token in tokens]
+
+    # -------------------------------------------------------------------------
     def encode_smile_tokens_from_vocab(
         self, data: pd.DataFrame, vocabulary: dict[Any, int]
     ) -> tuple[pd.DataFrame, dict[Any, int]]:
         if not vocabulary:
             return pd.DataFrame(), {}
 
-        def encode_tokens(tokens: list[Any]) -> list[int]:
-            return [int(vocabulary[token]) for token in tokens]
-
-        data["adsorbate_encoded_SMILE"] = data["adsorbate_tokenized_SMILE"].apply(
-            encode_tokens
-        )
+        data["adsorbate_encoded_SMILE"] = [
+            self.encode_tokens_from_vocabulary(tokens, vocabulary)
+            for tokens in data["adsorbate_tokenized_SMILE"]
+        ]
 
         return data, vocabulary
 

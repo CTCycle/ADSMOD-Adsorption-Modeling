@@ -7,8 +7,15 @@ import pandas as pd
 
 from ADSMOD.server.routes.training import determine_checkpoint_compatibility
 from ADSMOD.server.entities.training import TrainingMetadata
-from ADSMOD.server.repositories.serialization import serializer as serializer_module
 from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
+
+
+class TrainingMetadataQueries:
+    def __init__(self, metadata_frame: pd.DataFrame) -> None:
+        self.metadata_frame = metadata_frame
+
+    def load_training_metadata(self, limit=None, offset=None):  # noqa: ANN001
+        return self.metadata_frame
 
 
 def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
@@ -59,7 +66,7 @@ def test_checkpoint_compatibility_missing_metadata_logs_warning(caplog) -> None:
     )
 
 
-def test_collect_dataset_hashes_skips_uncomputable_hash(monkeypatch, caplog) -> None:
+def test_collect_dataset_hashes_skips_uncomputable_hash(caplog) -> None:
     metadata_df = pd.DataFrame(
         [
             {
@@ -83,22 +90,14 @@ def test_collect_dataset_hashes_skips_uncomputable_hash(monkeypatch, caplog) -> 
         ]
     )
 
-    def load_from_database(table_name: str, limit=None, offset=None):
-        assert table_name == "training_metadata"
-        return metadata_df
-
-    monkeypatch.setattr(
-        serializer_module.database, "load_from_database", load_from_database
-    )
-
-    serializer = TrainingDataSerializer()
+    serializer = TrainingDataSerializer(queries=TrainingMetadataQueries(metadata_df))
     with caplog.at_level(logging.WARNING, logger="ADSMOD"):
         hashes = serializer.collect_dataset_hashes()
     assert hashes == set()
     assert any("unable to compute hash" in record.message for record in caplog.records)
 
 
-def test_collect_dataset_hashes_computes_missing_hash(monkeypatch) -> None:
+def test_collect_dataset_hashes_computes_missing_hash() -> None:
     metadata_df = pd.DataFrame(
         [
             {
@@ -122,14 +121,6 @@ def test_collect_dataset_hashes_computes_missing_hash(monkeypatch) -> None:
         ]
     )
 
-    def load_from_database(table_name: str, limit=None, offset=None):
-        assert table_name == "training_metadata"
-        return metadata_df
-
-    monkeypatch.setattr(
-        serializer_module.database, "load_from_database", load_from_database
-    )
-
     expected_metadata = TrainingMetadata(
         created_at="2026-01-27T00:00:00",
         dataset_hash=None,
@@ -150,6 +141,6 @@ def test_collect_dataset_hashes_computes_missing_hash(monkeypatch) -> None:
     )
     expected_hash = TrainingDataSerializer.compute_metadata_hash(expected_metadata)
 
-    serializer = TrainingDataSerializer()
+    serializer = TrainingDataSerializer(queries=TrainingMetadataQueries(metadata_df))
     hashes = serializer.collect_dataset_hashes()
     assert hashes == {expected_hash}

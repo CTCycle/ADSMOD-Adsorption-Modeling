@@ -25,6 +25,19 @@ MODEL_COMPONENTS = {
 
 
 ###############################################################################
+def put_worker_result(result_queue: Any | None, payload: dict[str, Any]) -> None:
+    if result_queue is None:
+        return
+    try:
+        result_queue.put(payload, block=False)
+    except Exception:
+        try:
+            result_queue.put(payload)
+        except Exception:
+            return
+
+
+###############################################################################
 class TrainingProcessRunner:
     def __init__(
         self,
@@ -288,20 +301,9 @@ def run_training_process(
     result_queue = getattr(worker, "result_queue", None)
     stop_event = getattr(worker, "stop_event", None)
 
-    def _safe_put(payload: dict[str, Any]) -> None:
-        if result_queue is None:
-            return
-        try:
-            result_queue.put(payload, block=False)
-        except Exception:
-            try:
-                result_queue.put(payload)
-            except Exception:
-                return
-
     try:
         if stop_event is not None and stop_event.is_set():
-            _safe_put({"result": {}})
+            put_worker_result(result_queue, {"result": {}})
             return
 
         runner = TrainingProcessRunner(worker=worker)
@@ -311,7 +313,9 @@ def run_training_process(
                 f"for {additional_epochs} additional epochs."
             )
             runner.resume_training(checkpoint, additional_epochs)
-            _safe_put({"result": {"success": True, "checkpoint": checkpoint}})
+            put_worker_result(
+                result_queue, {"result": {"success": True, "checkpoint": checkpoint}}
+            )
             return
 
         if configuration is None:
@@ -319,11 +323,11 @@ def run_training_process(
 
         runner.log("Starting training session.")
         runner.start_training(configuration)
-        _safe_put({"result": {"success": True}})
+        put_worker_result(result_queue, {"result": {"success": True}})
     except WorkerInterrupted:
-        _safe_put({"result": {}})
+        put_worker_result(result_queue, {"result": {}})
     except Exception as exc:  # noqa: BLE001
-        _safe_put({"error": str(exc)})
+        put_worker_result(result_queue, {"error": str(exc)})
 
 
 ###############################################################################

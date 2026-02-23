@@ -15,6 +15,24 @@ class WorkerInterrupted(RuntimeError):
     """Raised to immediately interrupt training in a worker process."""
 
 
+###############################################################################
+class WorkerProgressMessenger:
+    def __init__(self, worker: Any | None = None) -> None:
+        self.worker = worker
+
+    # -------------------------------------------------------------------------
+    def __call__(self, payload: dict[str, Any]) -> None:
+        if self.worker is None:
+            return
+        sender = getattr(self.worker, "send_message", None)
+        if not callable(sender):
+            return
+        try:
+            sender(payload)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Failed to send training progress message: %s", exc)
+
+
 # [CALLBACK FOR TRAINING PROGRESS]
 ###############################################################################
 class TrainingProgressCallback(Callback):
@@ -216,22 +234,12 @@ def build_training_callbacks(
     on_epoch_end: Callable[[int, int, dict[str, Any]], None] | None = None,
     worker: Any | None = None,
 ) -> list[Callback]:
-    def send_progress_message(payload: dict[str, Any]) -> None:
-        if worker is None:
-            return
-        sender = getattr(worker, "send_message", None)
-        if not callable(sender):
-            return
-        try:
-            sender(payload)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Failed to send training progress message: %s", exc)
-
+    progress_messenger = WorkerProgressMessenger(worker=worker)
     callbacks_list: list[Callback] = [
         TrainingInterruptCallback(worker=worker),
         TrainingProgressCallback(
             total_epochs=total_epochs,
-            progress_callback=send_progress_message,
+            progress_callback=progress_messenger,
             on_epoch_end=on_epoch_end,
             start_epoch=start_epoch,
             polling_interval=configuration.get("polling_interval", 1.0),

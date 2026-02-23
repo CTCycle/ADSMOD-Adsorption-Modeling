@@ -6,16 +6,21 @@ from ADSMOD.server.repositories.database.backend import database
 from ADSMOD.server.repositories.queries.nist import NISTDataSerializer
 
 
+class UpsertCapture:
+    def __init__(self, captured: dict[str, object]) -> None:
+        self.captured = captured
+
+    def __call__(self, df: pd.DataFrame, table_name: str) -> None:
+        self.captured["table_name"] = table_name
+        self.captured["frame"] = df.copy()
+
+
 ###############################################################################
 def test_save_materials_preserves_existing_adsorbate_key(monkeypatch) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
@@ -41,12 +46,8 @@ def test_save_materials_preserves_existing_adsorbate_key(monkeypatch) -> None:
 def test_save_materials_generates_adsorbate_key_when_missing(monkeypatch) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
@@ -69,12 +70,8 @@ def test_save_materials_generates_adsorbate_key_when_missing(monkeypatch) -> Non
 def test_save_materials_preserves_existing_adsorbent_key(monkeypatch) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(serializer, "_load_adsorbent_keys_by_hash", lambda values: {})
 
     host_data = pd.DataFrame(
@@ -100,12 +97,8 @@ def test_save_materials_reuses_existing_db_adsorbate_key_for_inchi(
 ) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(
         serializer,
         "_load_adsorbate_keys_by_inchi",
@@ -134,12 +127,8 @@ def test_save_materials_overrides_payload_key_when_inchi_exists_in_db(
 ) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(
         serializer,
         "_load_adsorbate_keys_by_inchi",
@@ -169,12 +158,8 @@ def test_save_materials_deduplicates_duplicate_inchi_rows_before_upsert(
 ) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
@@ -206,12 +191,8 @@ def test_save_materials_generates_adsorbate_key_when_column_is_missing(
 ) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
@@ -236,12 +217,8 @@ def test_save_materials_generates_adsorbent_key_when_column_is_missing(
 ) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
-
-    def fake_upsert(df: pd.DataFrame, table_name: str) -> None:
-        captured["table_name"] = table_name
-        captured["frame"] = df.copy()
-
-    monkeypatch.setattr(database, "upsert_into_database", fake_upsert)
+    upsert_capture = UpsertCapture(captured)
+    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
     monkeypatch.setattr(serializer, "_load_adsorbent_keys_by_hash", lambda values: {})
 
     host_data = pd.DataFrame(

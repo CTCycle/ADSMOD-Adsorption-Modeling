@@ -70,6 +70,41 @@ PARAMETER_ALIAS_MAP["Sips"].update(
 
 
 ###############################################################################
+class MinimizeObjective:
+    def __init__(
+        self,
+        model: Callable[..., np.ndarray],
+        pressure: np.ndarray,
+        uptake: np.ndarray,
+        lower_bounds: np.ndarray,
+        upper_bounds: np.ndarray,
+        penalty: float,
+    ) -> None:
+        self.model = model
+        self.pressure = pressure
+        self.uptake = uptake
+        self.lower_bounds = lower_bounds
+        self.upper_bounds = upper_bounds
+        self.penalty = penalty
+
+    # -------------------------------------------------------------------------
+    def project(self, params: np.ndarray) -> np.ndarray:
+        return np.clip(params, self.lower_bounds, self.upper_bounds)
+
+    # -------------------------------------------------------------------------
+    def __call__(self, params: np.ndarray) -> float:
+        projected = self.project(params)
+        with np.errstate(all="ignore"):
+            predicted = self.model(self.pressure, *projected)
+        if not np.all(np.isfinite(predicted)):
+            return self.penalty
+        residuals = self.uptake - predicted
+        if not np.all(np.isfinite(residuals)):
+            return self.penalty
+        return float(np.sum(residuals * residuals, dtype=np.float64))
+
+
+###############################################################################
 class ModelSolver:
     def __init__(self) -> None:
         self.collection = AdsorptionModels()
@@ -313,22 +348,16 @@ class ModelSolver:
         initial_guess = np.asarray(initial, dtype=np.float64)
         clipped_initial = np.clip(initial_guess, lower_bounds, upper_bounds)
 
-        def project(params: np.ndarray) -> np.ndarray:
-            return np.clip(params, lower_bounds, upper_bounds)
-
         residual_scale = float(np.sum(uptake * uptake, dtype=np.float64))
         penalty = max(1.0, residual_scale) * 1e6
-
-        def objective(params: np.ndarray) -> float:
-            projected = project(params)
-            with np.errstate(all="ignore"):
-                predicted = model(pressure, *projected)
-            if not np.all(np.isfinite(predicted)):
-                return penalty
-            residuals = uptake - predicted
-            if not np.all(np.isfinite(residuals)):
-                return penalty
-            return float(np.sum(residuals * residuals, dtype=np.float64))
+        objective = MinimizeObjective(
+            model=model,
+            pressure=pressure,
+            uptake=uptake,
+            lower_bounds=lower_bounds,
+            upper_bounds=upper_bounds,
+            penalty=penalty,
+        )
 
         bounds = None
         if method in BOUNDS_COMPATIBLE_METHODS:
@@ -354,7 +383,7 @@ class ModelSolver:
             )
 
         optimal = np.asarray(result.x, dtype=np.float64)
-        optimal = project(optimal)
+        optimal = objective.project(optimal)
         with np.errstate(all="ignore"):
             predicted = model(pressure, *optimal)
         if not np.all(np.isfinite(predicted)):

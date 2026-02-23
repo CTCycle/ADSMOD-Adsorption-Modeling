@@ -17,6 +17,14 @@ from ADSMOD.server.repositories.schemas.models import (
 )
 
 
+def enable_foreign_keys_sqlite(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
+
+
 def test_adsorption_point_component_uses_composite_primary_key() -> None:
     table = AdsorptionPointComponent.__table__
     assert "id" not in table.columns
@@ -71,15 +79,7 @@ def test_sqlite_drop_and_recreate_restarts_identity() -> None:
 
 def test_point_component_enforces_composite_identity_and_cascade() -> None:
     engine = create_engine("sqlite:///:memory:", future=True)
-
-    @event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
-        cursor = dbapi_connection.cursor()
-        try:
-            cursor.execute("PRAGMA foreign_keys=ON")
-        finally:
-            cursor.close()
-
+    event.listen(engine, "connect", enable_foreign_keys_sqlite)
     Base.metadata.create_all(engine)
 
     with Session(engine) as session:

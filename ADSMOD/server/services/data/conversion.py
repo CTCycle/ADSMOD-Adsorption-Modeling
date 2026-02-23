@@ -217,6 +217,22 @@ class UptakeConversion:
         return map_values(q_vals, lambda value: value / 22.414)
 
     # -------------------------------------------------------------------------
+    def convert_uptake_row(
+        self, row: pd.Series, unit_column: str
+    ) -> list[float] | float | None:
+        unit = self.normalize_unit(row.get(unit_column))
+        values = row.get(self.Q_COL)
+        converter = self.conversions.get(unit)
+        if converter is None:
+            return values
+        if unit in self.weight_units:
+            mol_weight = row.get(self.mol_weight)
+            if mol_weight in (None, 0, "") or pd.isna(mol_weight):
+                return values
+            return converter(values, mol_weight)
+        return converter(values)
+
+    # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         unit_column = None
         if self.Q_UNIT_COL in dataframe.columns:
@@ -228,20 +244,9 @@ class UptakeConversion:
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 
-        def convert_row(row: pd.Series) -> list[float] | float | None:
-            unit = self.normalize_unit(row.get(unit_column))
-            values = row.get(self.Q_COL)
-            converter = self.conversions.get(unit)
-            if converter is None:
-                return values
-            if unit in self.weight_units:
-                mol_weight = row.get(self.mol_weight)
-                if mol_weight in (None, 0, "") or pd.isna(mol_weight):
-                    return values
-                return converter(values, mol_weight)
-            return converter(values)
-
-        dataframe[self.Q_COL] = dataframe.apply(convert_row, axis=1)
+        dataframe[self.Q_COL] = [
+            self.convert_uptake_row(row, unit_column) for _, row in dataframe.iterrows()
+        ]
         dataframe = dataframe.drop(columns=unit_column)
 
         return dataframe

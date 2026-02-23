@@ -5,6 +5,35 @@ from sqlalchemy.sql.schema import Table
 
 
 ###############################################################################
+class ConflictCandidateRanker:
+    def __init__(self, table: Table, column_positions: dict[str, int]) -> None:
+        self.table = table
+        self.column_positions = column_positions
+
+    # -------------------------------------------------------------------------
+    def __call__(
+        self, columns: list[str]
+    ) -> tuple[int, int, int, tuple[int, ...], tuple[str, ...]]:
+        lowered = tuple(column.lower() for column in columns)
+        all_not_nullable = all(
+            not self.table.c[column].nullable for column in columns
+        )
+        contains_key_marker = any(
+            column.endswith("_key") or column == "hashcode" for column in lowered
+        )
+        ordered_positions = tuple(
+            self.column_positions.get(column, 10000) for column in columns
+        )
+        return (
+            0 if all_not_nullable else 1,
+            0 if contains_key_marker else 1,
+            len(columns),
+            ordered_positions,
+            lowered,
+        )
+
+
+###############################################################################
 def resolve_conflict_columns(table: Table) -> list[str]:
     unique_constraints = [
         [column.name for column in constraint.columns]
@@ -20,24 +49,5 @@ def resolve_conflict_columns(table: Table) -> list[str]:
     column_positions = {
         column.name: index for index, column in enumerate(table.columns)
     }
-
-    def candidate_rank(
-        columns: list[str],
-    ) -> tuple[int, int, int, tuple[int, ...], tuple[str, ...]]:
-        lowered = tuple(column.lower() for column in columns)
-        all_not_nullable = all(not table.c[column].nullable for column in columns)
-        contains_key_marker = any(
-            column.endswith("_key") or column == "hashcode" for column in lowered
-        )
-        ordered_positions = tuple(
-            column_positions.get(column, 10000) for column in columns
-        )
-        return (
-            0 if all_not_nullable else 1,
-            0 if contains_key_marker else 1,
-            len(columns),
-            ordered_positions,
-            lowered,
-        )
-
-    return list(min(unique_constraints, key=candidate_rank))
+    ranker = ConflictCandidateRanker(table, column_positions)
+    return list(min(unique_constraints, key=ranker))

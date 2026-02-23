@@ -4,6 +4,20 @@ from ADSMOD.server.repositories.serialization.training import TrainingDataSerial
 from ADSMOD.server.entities.training import TrainingMetadata
 
 
+class StubTrainingQueries:
+    def __init__(self, captured: dict[str, pd.DataFrame]) -> None:
+        self.captured = captured
+
+    def load_training_dataset(self, limit=None):  # noqa: ANN001
+        return pd.DataFrame()
+
+    def save_training_dataset(self, dataset):  # noqa: ANN001
+        self.captured["saved"] = dataset.copy()
+
+    def upsert_training_dataset(self, dataset):  # noqa: ANN001
+        self.captured["upsert"] = dataset.copy()
+
+
 # Helper to create a basis metadata object
 def create_basis_metadata(**kwargs):
     defaults = {
@@ -80,18 +94,7 @@ def test_compute_metadata_hash_determinism():
 
 def test_save_training_dataset_deduplicates_sample_keys():
     captured: dict[str, pd.DataFrame] = {}
-
-    class StubQueries:
-        def load_training_dataset(self, limit=None):  # noqa: ANN001
-            return pd.DataFrame()
-
-        def save_training_dataset(self, dataset):  # noqa: ANN001
-            captured["saved"] = dataset.copy()
-
-        def upsert_training_dataset(self, dataset):  # noqa: ANN001
-            captured["upsert"] = dataset.copy()
-
-    serializer = TrainingDataSerializer(queries=StubQueries())
+    serializer = TrainingDataSerializer(queries=StubTrainingQueries(captured))
     dataset = pd.DataFrame(
         [
             {
