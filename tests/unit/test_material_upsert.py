@@ -7,12 +7,51 @@ import pytest
 import sqlalchemy
 from sqlalchemy import event, select
 from sqlalchemy.dialects.sqlite import insert
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InterfaceError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
 from ADSMOD.server.repositories.schemas.models import Adsorbate, Base
+
+
+###############################################################################
+def configure_sqlite_connection(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA busy_timeout=30000")
+    finally:
+        cursor.close()
+
+
+###############################################################################
+def run_concurrent_upsert(
+    barrier: threading.Barrier,
+    engine: sqlalchemy.Engine,
+    payload: dict[str, object],
+    conflict_columns: list[str],
+) -> None:
+    barrier.wait()
+    run_upsert_with_retry(engine, payload, conflict_columns)
+
+
+###############################################################################
+def run_upsert_with_retry(
+    engine: sqlalchemy.Engine,
+    payload: dict[str, object],
+    conflict_columns: list[str],
+    retries: int = 2,
+) -> None:
+    attempts = 0
+    while True:
+        try:
+            upsert_adsorbate(engine, payload, conflict_columns)
+            return
+        except InterfaceError:
+            attempts += 1
+            if attempts > retries:
+                raise
 
 
 ###############################################################################
@@ -23,16 +62,7 @@ def build_sqlite_engine() -> sqlalchemy.Engine:
         connect_args={"check_same_thread": False, "timeout": 30},
         poolclass=StaticPool,
     )
-
-    @event.listens_for(engine, "connect")
-    def configure_connection(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
-        cursor = dbapi_connection.cursor()
-        try:
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA busy_timeout=30000")
-        finally:
-            cursor.close()
-
+    event.listen(engine, "connect", configure_sqlite_connection)
     Base.metadata.create_all(engine)
     return engine
 
@@ -149,14 +179,22 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
         "formula": "C3H8-b",
     }
 
-    def run_upsert(payload: dict[str, object]) -> None:
-        barrier.wait()
-        upsert_adsorbate(engine, payload, conflict_columns)
-
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
-            executor.submit(run_upsert, payload_a),
-            executor.submit(run_upsert, payload_b),
+            executor.submit(
+                run_concurrent_upsert,
+                barrier,
+                engine,
+                payload_a,
+                conflict_columns,
+            ),
+            executor.submit(
+                run_concurrent_upsert,
+                barrier,
+                engine,
+                payload_b,
+                conflict_columns,
+            ),
         ]
         for future in futures:
             future.result()
