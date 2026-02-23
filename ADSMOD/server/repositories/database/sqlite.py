@@ -93,6 +93,17 @@ class SQLiteRepository:
         ]
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def serialize_json_column_value(value: Any) -> Any:
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        if isinstance(value, tuple):
+            value = list(value)
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+        return value
+
+    # -------------------------------------------------------------------------
     def prepare_for_storage(
         self,
         df: pd.DataFrame,
@@ -107,6 +118,24 @@ class SQLiteRepository:
                 prepared[column] = prepared[column].apply(self.parse_json_column_value)
 
         return self.coerce_missing_values(prepared)
+
+    # -------------------------------------------------------------------------
+    def prepare_for_sqlite_save(
+        self,
+        df: pd.DataFrame,
+        table_cls: Any | None = None,
+    ) -> pd.DataFrame:
+        prepared = self.prepare_for_storage(df, table_cls)
+        if prepared.empty:
+            return prepared
+
+        for column in self.get_json_sequence_columns(table_cls):
+            if column in prepared.columns:
+                prepared[column] = prepared[column].apply(
+                    self.serialize_json_column_value
+                )
+
+        return prepared
 
     # -------------------------------------------------------------------------
     def restore_after_load(
@@ -213,7 +242,7 @@ class SQLiteRepository:
                     table_cls.__table__.create(conn, checkfirst=True)
                 else:
                     conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
-            prepared_df = self.prepare_for_storage(df, table_cls)
+            prepared_df = self.prepare_for_sqlite_save(df, table_cls)
             prepared_df.to_sql(table_name, conn, if_exists="append", index=False)
 
     # -------------------------------------------------------------------------
