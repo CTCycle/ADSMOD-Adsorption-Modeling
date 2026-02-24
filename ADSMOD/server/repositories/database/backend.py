@@ -44,7 +44,7 @@ def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
 
 # -------------------------------------------------------------------------
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
-    return PostgresRepository(settings)
+    return PostgresRepository(settings, initialize_schema=False)
 
 
 BACKEND_FACTORIES: dict[str, BackendFactory] = {
