@@ -5,7 +5,7 @@ import logging
 
 import pandas as pd
 
-from ADSMOD.server.routes.training import determine_checkpoint_compatibility
+from ADSMOD.server.services.training import determine_checkpoint_compatibility
 from ADSMOD.server.entities.training import TrainingMetadata
 from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 
