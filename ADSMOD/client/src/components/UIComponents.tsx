@@ -178,21 +178,21 @@ interface ProgressBarProps {
     showPercent?: boolean;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, color = 'var(--primary-color)', showPercent = true }) => {
+export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, color = 'var(--primary-600)', showPercent = true }) => {
     // Clamp value between 0 and 100
     const clampedValue = Math.min(100, Math.max(0, value));
 
     return (
-        <div className="progress-bar-container_wrapper">
+        <div className="inline-progress-bar-container">
             {label && (
-                <div className="progress-bar-header">
+                <div className="inline-progress-bar-header">
                     <span className="progress-bar-label">{label}</span>
                     {showPercent && <span className="progress-bar-percent">{clampedValue.toFixed(0)}%</span>}
                 </div>
             )}
-            <div className="progress-bar-track">
+            <div className="inline-progress-bar-track">
                 <div
-                    className="progress-bar-fill"
+                    className="inline-progress-bar-fill"
                     style={{
                         width: `${clampedValue}%`,
                         backgroundColor: color

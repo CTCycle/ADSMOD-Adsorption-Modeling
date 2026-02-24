@@ -110,7 +110,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
 
     return (
         <div className="models-page">
-            <div className="fitting-config-panel" style={{ marginBottom: '3rem' }}>
+            <div className="fitting-config-panel">
                 <div className="models-header-row">
                     <div className="models-title-block">
                         <h3>Fitting Configuration</h3>
@@ -119,18 +119,17 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
 
                 </div>
 
-                <div className="fitting-main-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 380px) 1fr', gap: '2rem', marginTop: '1.5rem' }}>
+                <div className="fitting-main-layout">
                     <div className="fitting-controls-column">
-                        <div className="fitting-controls-row" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div className="fitting-controls-row">
                             <div className="control-group">
                                 <label className="field-label">Dataset</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div className="fitting-dataset-row">
                                     <select
                                         value={selectedDataset || ''}
                                         onChange={(e) => onDatasetSelect(e.target.value || null)}
-                                        className="select-input"
+                                        className={`select-input fitting-dataset-select ${useNistData ? 'is-disabled' : ''}`}
                                         disabled={useNistData}
-                                        style={useNistData ? { opacity: 0.5, cursor: 'not-allowed', flex: 1 } : { flex: 1 }}
                                     >
                                         <option value="">
                                             {availableDatasets.length === 0 ? 'No datasets available' : 'Select a dataset'}
@@ -141,12 +140,11 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                                             </option>
                                         ))}
                                     </select>
-                                    <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                    <label className="fitting-dataset-checkbox">
                                         <input
                                             type="checkbox"
                                             checked={useNistData}
                                             onChange={(e) => onUseNistDataChange(e.target.checked)}
-                                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                                         />
                                         NIST Data
                                     </label>
@@ -178,59 +176,28 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                                 </select>
                             </div>
                             <div className="control-group">
-                                <button className="primary" onClick={onStartFitting} style={{ width: '100%', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                                <button className="primary fitting-action-primary" onClick={onStartFitting} type="button">
                                     Start Fitting
                                 </button>
-                                <button
-                                    onClick={onResetFittingStatus}
-                                    style={{
-                                        width: '100%',
-                                        justifyContent: 'center',
-                                        padding: '0.6rem',
-                                        background: 'transparent',
-                                        border: '1px solid #cbd5e1',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        color: '#475569',
-                                        fontSize: '0.9rem',
-                                        fontWeight: 500
-                                    }}
-                                >
+                                <button className="secondary fitting-action-secondary" onClick={onResetFittingStatus} type="button">
                                     Reset Log
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ position: 'relative' }}>
-                        <div className="fitting-status-box" style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            position: 'absolute',
-                            inset: 0,
-                            height: '100%'
-                        }}>
-                            <div className="status-label" style={{ marginBottom: '0.5rem', fontWeight: 500, color: 'var(--slate-700)' }}>Fitting Log:</div>
-                            <pre className="status-text" style={{
-                                flex: 1,
-                                minHeight: 0,
-                                background: '#0f172a',
-                                color: '#e2e8f0',
-                                padding: '1rem',
-                                borderRadius: 'var(--radius-md)',
-                                overflowY: 'auto',
-                                overflowX: 'hidden',
-                                fontFamily: 'monospace',
-                                fontSize: '0.9rem'
-                            }}>{fittingStatus || 'Ready to start...'}</pre>
+                    <div className="fitting-status-column">
+                        <div className="fitting-status-box">
+                            <div className="status-label">Fitting Log:</div>
+                            <pre className="status-text">{fittingStatus || 'Ready to start...'}</pre>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <hr className="section-separator" style={{ margin: '3rem 0', opacity: 0.5 }} />
+            <hr className="section-separator" />
 
-            <div className="models-grid-header" style={{ marginBottom: '2rem' }}>
+            <div className="models-grid-header">
                 <h3>Select Adsorption Models</h3>
             </div>
 
