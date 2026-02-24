@@ -23,16 +23,26 @@ from ADSMOD.server.repositories.schemas.types import JSONSequence
 
 ###############################################################################
 class SQLiteRepository:
-    def __init__(self, settings: DatabaseSettings) -> None:
+    def __init__(
+        self,
+        settings: DatabaseSettings,
+        initialize_schema: bool | None = None,
+    ) -> None:
         self.db_path: str | None = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        db_file_exists = os.path.exists(self.db_path)
+        if initialize_schema is None:
+            initialize_schema = not db_file_exists
+
         self.engine: Engine = sqlalchemy.create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
         )
         event.listen(self.engine, "connect", self._enable_foreign_keys)
         self.session_factory = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
-        Base.metadata.create_all(self.engine, checkfirst=True)
+        if initialize_schema:
+            Base.metadata.create_all(self.engine, checkfirst=True)
+            logger.info("Initialized SQLite schema at %s", self.db_path)
 
     # -------------------------------------------------------------------------
     @staticmethod

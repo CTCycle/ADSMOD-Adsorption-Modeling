@@ -25,7 +25,11 @@ from ADSMOD.server.common.utils.logger import logger
 class PostgresRepository:
     MAX_STATEMENT_PARAMETERS = 65535
 
-    def __init__(self, settings: DatabaseSettings) -> None:
+    def __init__(
+        self,
+        settings: DatabaseSettings,
+        initialize_schema: bool = False,
+    ) -> None:
         if not settings.host:
             raise ValueError("Database host must be provided for external database.")
         if not settings.database_name:
@@ -54,7 +58,12 @@ class PostgresRepository:
         self.session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
         self._ensure_server_utf8()
-        Base.metadata.create_all(self.engine, checkfirst=True)
+        if initialize_schema:
+            Base.metadata.create_all(self.engine, checkfirst=True)
+            logger.info(
+                "Initialized PostgreSQL schema for database %s",
+                settings.database_name,
+            )
 
     # -------------------------------------------------------------------------
     @staticmethod

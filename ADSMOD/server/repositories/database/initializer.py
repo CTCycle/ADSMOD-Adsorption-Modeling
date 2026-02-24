@@ -9,7 +9,6 @@ from ADSMOD.server.repositories.database.postgres import PostgresRepository
 from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.repositories.schemas import Base
 
 
 # -----------------------------------------------------------------------------
@@ -65,8 +64,8 @@ def build_postgres_create_database_sql(
 
 # -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
-    repository = SQLiteRepository(settings)
-    logger.info("Reset and initialized SQLite database at %s", repository.db_path)
+    repository = SQLiteRepository(settings, initialize_schema=True)
+    logger.info("Initialized SQLite database schema at %s", repository.db_path)
 
 
 # -----------------------------------------------------------------------------
@@ -103,8 +102,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
             logger.info("Created PostgreSQL database %s", target_database)
 
     normalized_settings = clone_settings_with_database(settings, target_database)
-    repository = PostgresRepository(normalized_settings)
-    Base.metadata.create_all(repository.engine)
+    PostgresRepository(normalized_settings, initialize_schema=True)
     logger.info("Ensured PostgreSQL tables exist in %s", target_database)
 
     return target_database
