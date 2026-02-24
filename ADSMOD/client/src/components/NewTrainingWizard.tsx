@@ -29,6 +29,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     selectedDatasetLabel,
 }) => {
     const [currentPage, setCurrentPage] = useState(0);
+    const dialogTitleId = 'new-training-wizard-title';
 
     // Ensure the dataset label is set in the config on mount
     useEffect(() => {
@@ -52,10 +53,10 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
 
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
             <div className="wizard-modal">
                 <div className="wizard-header">
-                    <h4>New Training Wizard</h4>
+                    <h4 id={dialogTitleId}>New Training Wizard</h4>
                     <p>Configure training settings for dataset: <strong>{selectedDatasetLabel}</strong></p>
                     <div className="wizard-page-indicator">
                         <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>

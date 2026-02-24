@@ -46,7 +46,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
     const isResumeTrainingReady = selectedCheckpointName !== null && !isTraining;
 
     return (
-        <div className="training-setup-container" style={{ display: 'flex', flexDirection: 'column', gap: '40px', marginTop: '20px', paddingBottom: '40px' }}>
+        <div className="training-setup-container">
 
             {/* 1. New Training Section */}
             <div className="section-container">
@@ -65,6 +65,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                     onClick={(e) => { e.stopPropagation(); onRefreshDatasets(); }}
                                     title="Refresh Datasets"
                                     className="split-selection-refresh-button"
+                                    type="button"
                                 >
                                     🔄 Refresh
                                 </button>
@@ -73,19 +74,19 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
 
                         {/* Scrollable Table Container */}
                         <div className="split-selection-card-content">
-                            <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-                                <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                    <tr style={{ color: 'var(--slate-500)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        <th style={{ padding: '12px 16px', textAlign: 'left', width: '40%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Name</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'left', width: '20%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Train</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'left', width: '20%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Val</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'right', width: '20%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Actions</th>
+                            <table className="split-table">
+                                <thead className="split-table-head">
+                                    <tr className="split-table-header-row">
+                                        <th className="split-table-header-cell col-name">Name</th>
+                                        <th className="split-table-header-cell col-train">Train</th>
+                                        <th className="split-table-header-cell col-val">Val</th>
+                                        <th className="split-table-header-cell col-actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {processedDatasets.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'var(--slate-400)' }}>
+                                            <td colSpan={4} className="split-table-empty-cell">
                                                 No datasets available.
                                             </td>
                                         </tr>
@@ -94,28 +95,32 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                             <tr
                                                 key={ds.dataset_label}
                                                 onClick={() => handleDatasetRowClick(ds.dataset_label)}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    backgroundColor: selectedDatasetLabel === ds.dataset_label ? 'var(--primary-50, #eff6ff)' : 'transparent',
-                                                    borderBottom: '1px solid var(--slate-50)',
-                                                    transition: 'background-color 0.1s'
+                                                className={`split-table-row ${selectedDatasetLabel === ds.dataset_label ? 'selected' : ''}`}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        handleDatasetRowClick(ds.dataset_label);
+                                                    }
                                                 }}
                                             >
-                                                <td style={{ padding: '10px 16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '0.9rem', color: 'var(--slate-700)', fontWeight: 500 }}>
+                                                <td className="split-table-cell split-table-cell-strong split-table-cell-ellipsis">
                                                     {ds.dataset_label}
                                                 </td>
-                                                <td style={{ padding: '10px 16px', fontSize: '0.9rem', color: 'var(--slate-600)' }}>
+                                                <td className="split-table-cell">
                                                     {ds.train_samples}
                                                 </td>
-                                                <td style={{ padding: '10px 16px', fontSize: '0.9rem', color: 'var(--slate-600)' }}>
+                                                <td className="split-table-cell">
                                                     {ds.validation_samples}
                                                 </td>
-                                                <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                                <td className="split-table-cell split-table-cell-right">
+                                                    <div className="split-table-actions-wrap">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onViewDatasetMetadata(ds.dataset_label); }}
                                                             title="View Metadata"
                                                             className="icon-action-button"
+                                                            type="button"
                                                         >
                                                             ℹ️
                                                         </button>
@@ -123,6 +128,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                                             onClick={(e) => { e.stopPropagation(); onDeleteDataset(ds.dataset_label); }}
                                                             title="Delete Dataset"
                                                             className="icon-action-button"
+                                                            type="button"
                                                         >
                                                             🗑️
                                                         </button>
@@ -138,7 +144,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
 
                     {/* RIGHT: Action Area (30%) */}
                     <div className="split-selection-card-right">
-                        <div style={{ marginBottom: '16px', color: 'var(--primary-600)' }}>
+                        <div className="split-selection-card-icon-wrap">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3" />
                                 <circle cx="6" cy="6" r="2" />
@@ -151,32 +157,25 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                 <path d="M13.5 14L16 16.5" />
                             </svg>
                         </div>
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: 'var(--slate-800)', fontWeight: 600 }}>Initialize New Training Session</h4>
-                        <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', color: 'var(--slate-500)', lineHeight: '1.5', maxWidth: '80%' }}>
+                        <h4 className="split-selection-card-title">Initialize New Training Session</h4>
+                        <p className="split-selection-card-description split-selection-card-description-wide">
                             Select a dataset from the list to configure the parameters for a new machine learning model training run.
                         </p>
 
                         {selectedDatasetLabel ? (
-                            <div style={{ width: '100%', marginBottom: '16px', padding: '10px', backgroundColor: 'white', borderRadius: '6px', border: '1px solid var(--primary-200)', textAlign: 'left' }}>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--slate-400)', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>Selected</span>
-                                <div style={{ color: 'var(--primary-700)', fontWeight: 500, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedDatasetLabel}</div>
+                            <div className="split-selection-card-selection">
+                                <span className="split-selection-card-selection-label">Selected</span>
+                                <div className="split-selection-card-selection-value">{selectedDatasetLabel}</div>
                             </div>
                         ) : (
-                            <div style={{ width: '100%', height: '58px', marginBottom: '16px' }}></div>
+                            <div className="split-selection-card-selection-placeholder"></div>
                         )}
 
                         <button
-                            className="primary"
+                            className="primary split-selection-card-action-button"
                             onClick={() => selectedDatasetLabel && onNewTrainingClick(selectedDatasetLabel)}
                             disabled={!isNewTrainingReady}
-                            style={{
-                                width: '100%',
-                                padding: '10px',
-                                fontSize: '0.95rem',
-                                borderRadius: '6px',
-                                opacity: isNewTrainingReady ? 1 : 0.6,
-                                cursor: isNewTrainingReady ? 'pointer' : 'not-allowed'
-                            }}
+                            type="button"
                         >
                             Configure Training
                         </button>
@@ -201,6 +200,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                     onClick={(e) => { e.stopPropagation(); onRefreshCheckpoints(); }}
                                     title="Refresh Checkpoints"
                                     className="split-selection-refresh-button"
+                                    type="button"
                                 >
                                     🔄 Refresh
                                 </button>
@@ -209,19 +209,19 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
 
                         {/* Scrollable Table Container */}
                         <div className="split-selection-card-content">
-                            <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-                                <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                    <tr style={{ color: 'var(--slate-500)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        <th style={{ padding: '12px 16px', textAlign: 'left', width: '40%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Name</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'left', width: '20%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Epochs</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'left', width: '20%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Loss</th>
-                                        <th style={{ padding: '12px 16px', textAlign: 'right', width: '20%', fontWeight: 600, borderBottom: '1px solid var(--slate-100)' }}>Actions</th>
+                            <table className="split-table">
+                                <thead className="split-table-head">
+                                    <tr className="split-table-header-row">
+                                        <th className="split-table-header-cell col-name">Name</th>
+                                        <th className="split-table-header-cell col-epochs">Epochs</th>
+                                        <th className="split-table-header-cell col-loss">Loss</th>
+                                        <th className="split-table-header-cell col-actions">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {checkpoints.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'var(--slate-400)' }}>
+                                            <td colSpan={4} className="split-table-empty-cell">
                                                 No checkpoints available.
                                             </td>
                                         </tr>
@@ -230,28 +230,32 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                             <tr
                                                 key={cp.name}
                                                 onClick={() => handleCheckpointRowClick(cp.name)}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    backgroundColor: selectedCheckpointName === cp.name ? 'var(--primary-50, #eff6ff)' : 'transparent',
-                                                    borderBottom: '1px solid var(--slate-50)',
-                                                    transition: 'background-color 0.1s'
+                                                className={`split-table-row ${selectedCheckpointName === cp.name ? 'selected' : ''}`}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        handleCheckpointRowClick(cp.name);
+                                                    }
                                                 }}
                                             >
-                                                <td style={{ padding: '10px 16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '0.9rem', color: 'var(--slate-700)', fontWeight: 500 }}>
+                                                <td className="split-table-cell split-table-cell-strong split-table-cell-ellipsis">
                                                     {cp.name}
                                                 </td>
-                                                <td style={{ padding: '10px 16px', fontSize: '0.9rem', color: 'var(--slate-600)' }}>
+                                                <td className="split-table-cell">
                                                     {cp.epochs_trained ?? '-'}
                                                 </td>
-                                                <td style={{ padding: '10px 16px', fontSize: '0.9rem', color: 'var(--slate-600)' }}>
+                                                <td className="split-table-cell">
                                                     {cp.final_loss?.toFixed(4) ?? '-'}
                                                 </td>
-                                                <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                                <td className="split-table-cell split-table-cell-right">
+                                                    <div className="split-table-actions-wrap">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onViewCheckpointDetails(cp.name); }}
                                                             title="View Details"
                                                             className="icon-action-button"
+                                                            type="button"
                                                         >
                                                             ℹ️
                                                         </button>
@@ -259,6 +263,7 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
                                                             onClick={(e) => { e.stopPropagation(); onDeleteCheckpoint(cp.name); }}
                                                             title="Delete Checkpoint"
                                                             className="icon-action-button"
+                                                            type="button"
                                                         >
                                                             🗑️
                                                         </button>
@@ -274,36 +279,26 @@ export const TrainingSetupRow: React.FC<TrainingSetupRowProps> = ({
 
                     {/* RIGHT: Action Area (30%) */}
                     <div className="split-selection-card-right">
-                        <div style={{ fontSize: '2rem', marginBottom: '12px' }}>📂</div>
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: 'var(--slate-800)' }}>Resume Training</h4>
-                        <p style={{ margin: '0 0 24px 0', fontSize: '0.85rem', color: 'var(--slate-500)', lineHeight: '1.4' }}>
+                        <div className="split-selection-card-emoji-icon">📂</div>
+                        <h4 className="split-selection-card-title">Resume Training</h4>
+                        <p className="split-selection-card-description">
                             Resume a previous training session from a checkpoint.
                         </p>
 
                         {selectedCheckpointName ? (
-                            <div style={{ width: '100%', marginBottom: '16px', padding: '10px', backgroundColor: 'white', borderRadius: '6px', border: '1px solid var(--primary-200)', textAlign: 'left' }}>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--slate-400)', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>Selected</span>
-                                <div style={{ color: 'var(--primary-700)', fontWeight: 500, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedCheckpointName}</div>
+                            <div className="split-selection-card-selection">
+                                <span className="split-selection-card-selection-label">Selected</span>
+                                <div className="split-selection-card-selection-value">{selectedCheckpointName}</div>
                             </div>
                         ) : (
-                            <div style={{ width: '100%', height: '58px', marginBottom: '16px' }}></div>
+                            <div className="split-selection-card-selection-placeholder"></div>
                         )}
 
                         <button
-                            className="secondary"
+                            className="secondary split-selection-card-action-button"
                             onClick={() => selectedCheckpointName && onResumeTrainingClick(selectedCheckpointName)}
                             disabled={!isResumeTrainingReady}
-                            style={{
-                                width: '100%',
-                                padding: '10px',
-                                fontSize: '0.95rem',
-                                borderRadius: '6px',
-                                opacity: isResumeTrainingReady ? 1 : 0.6,
-                                cursor: isResumeTrainingReady ? 'pointer' : 'not-allowed',
-                                border: '1px solid var(--slate-300)',
-                                backgroundColor: 'white',
-                                color: 'var(--slate-700)'
-                            }}
+                            type="button"
                         >
                             Resume Training
                         </button>

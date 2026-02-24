@@ -32,6 +32,7 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
     const [maxPressure, setMaxPressure] = useState(10000);
     const [maxUptake, setMaxUptake] = useState(20);
     const [datasetName, setDatasetName] = useState('');
+    const dialogTitleId = 'dataset-processing-wizard-title';
 
     // Generate default dataset name based on timestamp
     useEffect(() => {
@@ -79,10 +80,10 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
 
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
             <div className="wizard-modal">
                 <div className="wizard-header">
-                    <h4>Dataset Processing Wizard</h4>
+                    <h4 id={dialogTitleId}>Dataset Processing Wizard</h4>
                     <p>Configure processing settings for your selected datasets.</p>
                     <div className="wizard-page-indicator">
                         <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>

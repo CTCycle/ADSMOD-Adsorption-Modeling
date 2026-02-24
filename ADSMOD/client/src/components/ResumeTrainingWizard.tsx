@@ -23,6 +23,7 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
     selectedCheckpointName,
 }) => {
     const [currentPage, setCurrentPage] = useState(0);
+    const dialogTitleId = 'resume-training-wizard-title';
 
     // Ensure the checkpoint name is set in the config on mount
     useEffect(() => {
@@ -53,10 +54,10 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
         : 'Unknown';
 
     return (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
             <div className="wizard-modal">
                 <div className="wizard-header">
-                    <h4>Resume Training Wizard</h4>
+                    <h4 id={dialogTitleId}>Resume Training Wizard</h4>
                     <p>Resuming from checkpoint: <strong>{selectedCheckpointName}</strong></p>
                     <div className="wizard-page-indicator">
                         <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>

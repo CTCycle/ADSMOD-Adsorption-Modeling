@@ -48,7 +48,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                                 This data is stored separately from the NIST-A collection
                                 and can be processed independently for model fitting.
                             </div>
-                            <div className="panel-subtitle" style={{ marginTop: '1rem' }}>
+                            <div className="panel-subtitle panel-subtitle-spaced">
                                 {datasetBadge} | {sampleBadge}
                             </div>
                         </div>
