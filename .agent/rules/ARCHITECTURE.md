@@ -1,0 +1,68 @@
+# ADSMOD Architecture
+
+**ADSMOD** is a local, browser-based tool for adsorption isotherm fitting and training. It combines a Python FastAPI backend with a React/Vite frontend.
+
+---
+
+## 1. Repository Structure
+
+- **`ADSMOD/`**: Main application source.
+  - **`server/`**: Python backend (FastAPI, SQLAlchemy, SciPy, PyTorch/Keras).
+    - `routes/`: API routers (`datasets`, `fitting`, `nist`, `training`).
+    - `services/`: Domain logic (`data/`, `modeling/`, `training.py`, `jobs.py`).
+    - `repositories/`: DB backends, query layer, and serializers.
+    - `learning/`: Training runtime, model definitions, and callbacks.
+  - **`client/`**: React + TypeScript UI.
+    - `src/pages/`: Main pages (`ConfigPage`, `ModelsPage`, `MachineLearningPage`).
+    - `src/services/`: API clients and polling helpers.
+  - **`settings/`**: Runtime environment and static configuration.
+  - **`resources/`**: Database, checkpoints, logs, and portable runtimes.
+  - **`start_on_windows.bat`**: One-click Windows setup + launch.
+- **`tests/`**: End-to-end, unit, server, and backend performance tests.
+
+---
+
+## 2. System Overview
+
+### Processes
+- **Backend**: Uvicorn running FastAPI on `FASTAPI_HOST:FASTAPI_PORT` from `ADSMOD/settings/.env`.
+- **Frontend (local launcher)**: Vite preview server (`npm run preview`) on `UI_HOST:UI_PORT` from `ADSMOD/settings/.env`.
+- **Frontend (Docker)**: Nginx serves static assets and reverse-proxies `/api` to backend.
+- **Communication**: Frontend uses same-origin `/api` proxying, avoiding CORS in normal deployments.
+
+### Backend Layers
+1. **Routes**: Validation and HTTP handling.
+2. **Services**: Business logic (dataset ingestion, NIST workflows, fitting, training orchestration).
+3. **Repositories**: Data persistence through backend abstraction (SQLite or PostgreSQL).
+4. **Learning**: ML-specific logic (model runtime, training loops, checkpoint handling).
+
+---
+
+## 3. Key Subsystems
+
+### 3.1 Data Pipeline
+1. **Ingestion**: Upload CSV/Excel datasets via `/datasets/load` into `adsorption_data`.
+2. **NIST acquisition**: Pull experiments/guest/host datasets via `/nist/...` endpoints.
+3. **Processing**: `DatasetBuilder` and `DatasetCompositionService` prepare curated training datasets.
+4. **Training**: Training jobs consume processed datasets and persist checkpoints with metadata.
+5. **Compatibility**: Resume/selection flows compare checkpoint metadata with available dataset hashes.
+
+### 3.2 Job Management
+Long-running tasks (fitting, NIST ingestion/enrichment, dataset build, training) run through a centralized **JobManager** in `ADSMOD/server/services/jobs.py`. Default execution mode is thread-based, with optional process-based mode for isolation.
+
+> **Detailed Documentation**: See [BACKGROUND_JOBS.md](./BACKGROUND_JOBS.md) for implementation details, threading models, and code patterns.
+
+### 3.3 Persistence
+- **Database modes**: Embedded SQLite (`DB_EMBEDDED=true`) or external PostgreSQL (`DB_EMBEDDED=false`).
+- **Tables**: Raw adsorption data, NIST datasets, processed training data, and fitting outputs.
+- **Metadata**: Dataset and checkpoint metadata are stored for reproducibility and resume safety.
+- **Sequence storage**: Structured list-like fields are persisted through JSON-compatible serialization.
+- **Pagination**: Repository backends support `limit` and `offset` for large-table reads.
+
+---
+
+## 4. Extending ADSMOD
+
+- **New model**: Update backend model logic in `ADSMOD/server/services/modeling/models.py` and frontend configuration in `ADSMOD/client/src/adsorptionModels.ts`.
+- **New API capability**: Add logic under `ADSMOD/server/services/`, expose via a router in `ADSMOD/server/routes/`, and wire it in `ADSMOD/server/app.py`.
+- **New long-running workflow**: Use `job_manager.start_job(...)` from `ADSMOD/server/services/jobs.py`, provide polling endpoints, and keep cancellation cooperative.
