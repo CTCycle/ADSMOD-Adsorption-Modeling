@@ -52,7 +52,6 @@ Thumbs.db
 *.db
 *.sqlite*
 *.exe
-uv.lock
 
 !.gitkeep
 

@@ -4,11 +4,13 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ###############################################################################
 class TrainingConfigRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
     # Dataset settings
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
@@ -51,7 +53,14 @@ class TrainingConfigRequest(BaseModel):
 
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
-    checkpoint_name: str
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    checkpoint_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+    )
     additional_epochs: int = Field(default=10, ge=1, le=100)
 
 
@@ -158,12 +167,16 @@ class TrainingState:
 
 ###############################################################################
 class DatasetSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
     source: Literal["nist", "uploaded"]
-    dataset_name: str = Field(min_length=1)
+    dataset_name: str = Field(min_length=1, max_length=256)
 
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     min_measurements: int = Field(default=1, ge=1, le=100)
@@ -171,9 +184,19 @@ class DatasetBuildRequest(BaseModel):
     smile_sequence_size: int = Field(default=20, ge=5, le=100)
     max_pressure: float = Field(default=10000.0, ge=100.0, le=100000.0)
     max_uptake: float = Field(default=20.0, ge=1.0, le=1000.0)
-    reference_checkpoint: str | None = None
+    reference_checkpoint: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+    )
     datasets: list[DatasetSelection] = Field(default_factory=list, min_length=1)
-    dataset_label: str = Field(default="default", min_length=1, max_length=64)
+    dataset_label: str = Field(
+        default="default",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+    )
 
 
 ###############################################################################

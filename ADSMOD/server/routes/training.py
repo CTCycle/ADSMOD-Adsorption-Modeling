@@ -76,7 +76,10 @@ class TrainingEndpoint:
 
         except Exception as e:
             logger.error(f"Error checking training datasets: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to check training dataset availability.",
+            ) from e
 
     # -------------------------------------------------------------------------
     def get_dataset_sources(self) -> DatasetSourcesResponse:
@@ -86,7 +89,9 @@ class TrainingEndpoint:
             return DatasetSourcesResponse(datasets=datasets)
         except Exception as e:
             logger.error(f"Error listing dataset sources: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to list dataset sources."
+            ) from e
 
     # -------------------------------------------------------------------------
     def delete_dataset_source(self, source: str, dataset_name: str) -> dict[str, str]:
@@ -98,7 +103,9 @@ class TrainingEndpoint:
             return {"status": "error", "message": message}
         except Exception as e:
             logger.error(f"Error deleting dataset source: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to delete dataset source."
+            ) from e
 
     # -------------------------------------------------------------------------
     def run_dataset_build(self, request_data: dict[str, Any]) -> dict[str, Any]:
@@ -107,9 +114,15 @@ class TrainingEndpoint:
 
         reference_metadata = None
         if request.reference_checkpoint:
-            checkpoint_path = os.path.join(
-                CHECKPOINTS_PATH, request.reference_checkpoint
-            )
+            try:
+                checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
+                    request.reference_checkpoint
+                )
+            except ValueError:
+                return {
+                    "success": False,
+                    "message": "Reference checkpoint name is invalid.",
+                }
             if not os.path.isdir(checkpoint_path):
                 return {
                     "success": False,
@@ -242,7 +255,9 @@ class TrainingEndpoint:
             return ProcessedDatasetsResponse(datasets=datasets)
         except Exception as e:
             logger.error(f"Error listing processed datasets: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to list processed datasets."
+            ) from e
 
     # -------------------------------------------------------------------------
     def get_dataset_info(self, dataset_label: str = "default") -> DatasetInfoResponse:
@@ -273,7 +288,9 @@ class TrainingEndpoint:
 
         except Exception as e:
             logger.error(f"Error getting dataset info: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to load dataset info."
+            ) from e
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(
@@ -302,7 +319,9 @@ class TrainingEndpoint:
 
         except Exception as e:
             logger.error(f"Error clearing training dataset: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to clear training dataset."
+            ) from e
 
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
@@ -397,14 +416,18 @@ class TrainingEndpoint:
 
         except Exception as e:
             logger.error(f"Error scanning checkpoints: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to scan checkpoints."
+            ) from e
 
     # -------------------------------------------------------------------------
     def get_checkpoint_details(
         self, checkpoint_name: str
     ) -> CheckpointFullDetailsResponse:
         try:
-            checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint_name)
+            checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
+                checkpoint_name
+            )
             if not os.path.isdir(checkpoint_path):
                 raise HTTPException(
                     status_code=404, detail=f"Checkpoint {checkpoint_name} not found"
@@ -424,9 +447,13 @@ class TrainingEndpoint:
             )
         except HTTPException:
             raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error getting checkpoint details: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to load checkpoint details."
+            ) from e
 
     # -------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint_name: str) -> dict[str, str]:
@@ -446,9 +473,13 @@ class TrainingEndpoint:
                 )
         except HTTPException:
             raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error deleting checkpoint: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to delete checkpoint."
+            ) from e
 
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
@@ -525,7 +556,9 @@ class TrainingEndpoint:
             raise
         except Exception as e:
             logger.error(f"Error starting training: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to start training."
+            ) from e
 
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> TrainingStartResponse:
@@ -548,7 +581,9 @@ class TrainingEndpoint:
                     detail=f"Checkpoint '{request.checkpoint_name}' not found.",
                 )
 
-            checkpoint_path = os.path.join(CHECKPOINTS_PATH, request.checkpoint_name)
+            checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
+                request.checkpoint_name
+            )
             try:
                 _, _, session = (
                     training_manager.model_serializer.load_training_configuration(
@@ -558,7 +593,7 @@ class TrainingEndpoint:
             except Exception as exc:  # noqa: BLE001
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Failed to load checkpoint metadata: {exc}",
+                    detail="Failed to load checkpoint metadata.",
                 ) from exc
 
             from_epoch = 0
@@ -617,9 +652,13 @@ class TrainingEndpoint:
 
         except HTTPException:
             raise
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error resuming training: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to resume training."
+            ) from e
 
     # -------------------------------------------------------------------------
     def stop_training(self) -> dict[str, str]:
@@ -642,7 +681,9 @@ class TrainingEndpoint:
             raise
         except Exception as e:
             logger.error(f"Error stopping training: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise HTTPException(
+                status_code=500, detail="Failed to stop training."
+            ) from e
 
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:

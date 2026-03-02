@@ -56,7 +56,9 @@ Local mode does not require Docker.
 Cloud topology:
 - `backend`: FastAPI/Uvicorn container.
 - `frontend`: Nginx container serving static frontend.
+- `backend` is network-internal in compose (no host port publish by default).
 - `/api` on frontend origin is reverse-proxied to backend (`backend:8000`).
+- API documentation endpoints are not exposed through the frontend gateway in cloud mode.
 
 ## 6. Deterministic Build Notes
 
