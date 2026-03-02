@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from ADSMOD.server.configurations.server import build_database_settings
 
 
@@ -77,8 +79,17 @@ def test_db_settings_do_not_read_json_payload(monkeypatch):
     assert settings.port == 5432
     assert settings.database_name == "ADSMOD"
     assert settings.username == "postgres"
-    assert settings.password == "admin"
+    assert settings.password == ""
     assert settings.ssl is False
     assert settings.ssl_ca is None
     assert settings.connect_timeout == 30
     assert settings.insert_batch_size == 5000
+
+
+# -------------------------------------------------------------------------
+def test_db_settings_reject_insecure_placeholder_password(monkeypatch):
+    monkeypatch.setenv("DB_EMBEDDED", "false")
+    monkeypatch.setenv("DB_PASSWORD", "change_me")
+
+    with pytest.raises(ValueError, match="DB_PASSWORD uses an insecure placeholder"):
+        build_database_settings({})

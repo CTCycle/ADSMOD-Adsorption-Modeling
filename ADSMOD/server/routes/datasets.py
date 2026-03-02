@@ -23,9 +23,26 @@ class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
     async def load_dataset(self, file: UploadFile = File(...)) -> DatasetLoadResponse:
+        max_size = self.service.MAX_UPLOAD_SIZE_BYTES
+        chunk_size = 1024 * 1024
+        payload = bytearray()
         try:
-            payload = await file.read()
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                payload.extend(chunk)
+                if len(payload) > max_size:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=(
+                            "Uploaded dataset exceeds "
+                            f"{max_size // (1024 * 1024)} MB limit."
+                        ),
+                    )
         except Exception as exc:  # noqa: BLE001
+            if isinstance(exc, HTTPException):
+                raise
             logger.warning("Failed to read uploaded dataset: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -34,7 +51,7 @@ class DatasetEndpoint:
 
         try:
             dataset_payload, summary = self.service.load_from_bytes(
-                payload, file.filename
+                bytes(payload), file.filename
             )
         except ValueError as exc:
             logger.warning("Invalid dataset upload: %s", exc)

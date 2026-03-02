@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 from difflib import get_close_matches
 from typing import Any
 
@@ -22,6 +23,10 @@ from ADSMOD.server.repositories.serialization.data import DataSerializer
 
 ###############################################################################
 class DatasetService:
+    MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
+    DATASET_NAME_SANITIZER = re.compile(r"[^A-Za-z0-9_. -]+")
+    MAX_DATASET_NAME_LENGTH = 128
+
     ADSORPTION_SCHEMA_COLUMNS = [
         COLUMN_EXPERIMENT,
         COLUMN_ADSORBENT,
@@ -83,7 +88,11 @@ class DatasetService:
         if isinstance(filename, str):
             base = os.path.splitext(os.path.basename(filename))[0].strip()
             if base:
-                return base
+                normalized = self.DATASET_NAME_SANITIZER.sub("_", base)
+                normalized = normalized.strip(" ._-")
+                normalized = normalized[: self.MAX_DATASET_NAME_LENGTH]
+                if normalized:
+                    return normalized
         return "uploaded_dataset"
 
     # -------------------------------------------------------------------------
@@ -107,6 +116,10 @@ class DatasetService:
         """
         if not payload:
             raise ValueError("Uploaded dataset is empty.")
+        if len(payload) > self.MAX_UPLOAD_SIZE_BYTES:
+            raise ValueError(
+                f"Uploaded dataset exceeds {self.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB limit."
+            )
 
         dataframe = self.read_dataframe(payload, filename)
         normalized = self.normalize_adsorption_columns(dataframe, require_complete=True)

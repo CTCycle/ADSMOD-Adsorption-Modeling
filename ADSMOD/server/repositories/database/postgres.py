@@ -18,6 +18,7 @@ from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.repositories.schemas.types import JSONSequence
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
+from ADSMOD.server.common.utils.security import ensure_safe_sql_identifier
 from ADSMOD.server.common.utils.logger import logger
 
 
@@ -272,6 +273,7 @@ class PostgresRepository:
         limit: int | None = None,
         offset: int | None = None,
     ) -> pd.DataFrame:
+        table_name = ensure_safe_sql_identifier(table_name, "table name")
         with self.engine.connect() as conn:
             inspector = inspect(conn)
             if not inspector.has_table(table_name):
@@ -304,6 +306,7 @@ class PostgresRepository:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
+        table_name = ensure_safe_sql_identifier(table_name, "table name")
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             table_cls = None
@@ -343,11 +346,13 @@ class PostgresRepository:
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
+        table_name = ensure_safe_sql_identifier(table_name, "table name")
         table_cls = self.get_table_class(table_name)
         self.upsert_dataframe(df, table_cls)
 
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
+        table_name = ensure_safe_sql_identifier(table_name, "table name")
         with self.engine.connect() as conn:
             result = conn.execute(
                 sqlalchemy.text(f'SELECT COUNT(*) FROM "{table_name}"')

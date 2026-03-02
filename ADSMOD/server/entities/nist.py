@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ###############################################################################
 class NISTFetchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     experiments_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
     guest_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
     host_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -24,6 +26,8 @@ class NISTFetchResponse(BaseModel):
 
 ###############################################################################
 class NISTPropertiesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     target: Literal["guest", "host"] = Field(default="guest")
 
 
@@ -52,6 +56,8 @@ NISTCategory = Literal["experiments", "guest", "host"]
 
 ###############################################################################
 class NISTCategoryFetchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     fraction: float = Field(default=1.0, ge=0.001, le=1.0)
 
 

@@ -28,12 +28,17 @@ from ADSMOD.server.learning.models.transformers import (
 from ADSMOD.server.learning.training.scheduler import LinearDecayLRScheduler
 from ADSMOD.server.common.constants import CHECKPOINTS_PATH
 from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.common.utils.security import resolve_checkpoint_path
 
 
 ###############################################################################
 class ModelSerializer:
     def __init__(self, model_name: str = "SCADS") -> None:
         self.model_name = model_name
+
+    # -------------------------------------------------------------------------
+    def resolve_checkpoint_path(self, checkpoint_name: str) -> str:
+        return resolve_checkpoint_path(CHECKPOINTS_PATH, checkpoint_name)
 
     # -------------------------------------------------------------------------
     def create_checkpoint_folder(self) -> str:
@@ -49,7 +54,7 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint_name: str) -> bool:
-        checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint_name)
+        checkpoint_path = self.resolve_checkpoint_path(checkpoint_name)
         if not os.path.exists(checkpoint_path):
             return False
         try:
@@ -99,6 +104,10 @@ class ModelSerializer:
             return model_folders
         for entry in os.scandir(CHECKPOINTS_PATH):
             if entry.is_dir():
+                try:
+                    self.resolve_checkpoint_path(entry.name)
+                except ValueError:
+                    continue
                 has_keras = any(
                     f.name.endswith(".keras") and f.is_file()
                     for f in os.scandir(entry.path)
@@ -148,7 +157,7 @@ class ModelSerializer:
             "FeedForward": FeedForward,
         }
 
-        checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint)
+        checkpoint_path = self.resolve_checkpoint_path(checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
         model = load_model(
             model_path,
