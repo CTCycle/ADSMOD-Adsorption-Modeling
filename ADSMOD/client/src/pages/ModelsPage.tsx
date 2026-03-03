@@ -6,6 +6,24 @@ import type { ModelParameters, FittingPayload } from '../types';
 
 type OptimizationMethod = FittingPayload['optimization_method'];
 
+interface OptimizationMethodOption {
+    value: OptimizationMethod;
+    label: string;
+}
+
+const OPTIMIZATION_METHOD_OPTIONS: readonly OptimizationMethodOption[] = [
+    { value: 'LSS', label: 'Least Squares (LSS)' },
+    { value: 'BFGS', label: 'BFGS' },
+    { value: 'L-BFGS-B', label: 'L-BFGS-B' },
+    { value: 'Nelder-Mead', label: 'Nelder-Mead' },
+    { value: 'Powell', label: 'Powell' },
+];
+
+const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
+    const option = OPTIMIZATION_METHOD_OPTIONS.find((candidate) => candidate.value === value);
+    return option?.value ?? null;
+};
+
 interface ModelState {
     enabled: boolean;
     config: ModelParameters;
@@ -76,6 +94,16 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
             onParametersChange(modelName, config);
         },
         [onParametersChange]
+    );
+
+    const handleOptimizationMethodChange = useCallback(
+        (event: React.ChangeEvent<HTMLSelectElement>) => {
+            const nextMethod = parseOptimizationMethod(event.target.value);
+            if (nextMethod) {
+                onOptimizationMethodChange(nextMethod);
+            }
+        },
+        [onOptimizationMethodChange]
     );
 
     // Create a 3x3 grid (9 cells total) using the ADSORPTION_MODELS data
@@ -165,14 +193,14 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                                 <label className="field-label">Optimization method</label>
                                 <select
                                     value={optimizationMethod}
-                                    onChange={(e) => onOptimizationMethodChange(e.target.value as OptimizationMethod)}
+                                    onChange={handleOptimizationMethodChange}
                                     className="select-input"
                                 >
-                                    <option value="LSS">Least Squares (LSS)</option>
-                                    <option value="BFGS">BFGS</option>
-                                    <option value="L-BFGS-B">L-BFGS-B</option>
-                                    <option value="Nelder-Mead">Nelder-Mead</option>
-                                    <option value="Powell">Powell</option>
+                                    {OPTIMIZATION_METHOD_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="control-group">
