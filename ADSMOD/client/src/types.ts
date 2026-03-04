@@ -259,16 +259,25 @@ export interface TrainingStatus {
     current_epoch: number;
     total_epochs: number;
     progress: number;
-    metrics?: Record<string, number>;
+    metrics?: TrainingMetrics;
     history?: TrainingHistoryPoint[];
     log?: string[];
     poll_interval?: number;
 }
 
-export interface TrainingHistoryPoint {
+export type TrainingMetricKey =
+    | 'loss'
+    | 'val_loss'
+    | 'accuracy'
+    | 'val_accuracy'
+    | 'masked_r2'
+    | 'val_masked_r2';
+
+export type TrainingMetrics = Partial<Record<TrainingMetricKey, number>>;
+
+export type TrainingHistoryPoint = {
     epoch: number;
-    [metric: string]: number | undefined;
-}
+} & TrainingMetrics;
 
 export interface DatasetSourceInfo {
     source: 'nist' | 'uploaded';

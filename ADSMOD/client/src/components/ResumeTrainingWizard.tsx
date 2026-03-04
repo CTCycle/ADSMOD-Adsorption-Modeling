@@ -1,6 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { NumberInput } from './UIComponents';
+import { WizardProgressIndicator } from './WizardProgressIndicator';
+import { useWizardPagination } from '../hooks/useWizardPagination';
 import type { CheckpointInfo, ResumeTrainingConfig } from '../types';
 
 interface ResumeTrainingWizardProps {
@@ -22,7 +24,13 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
     isLoading,
     selectedCheckpointName,
 }) => {
-    const [currentPage, setCurrentPage] = useState(0);
+    const {
+        currentPage,
+        isFirstPage,
+        isLastPage,
+        goToNextPage,
+        goToPreviousPage,
+    } = useWizardPagination(1);
     const dialogTitleId = 'resume-training-wizard-title';
 
     // Ensure the checkpoint name is set in the config on mount
@@ -35,16 +43,6 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
     const updateConfig = <K extends keyof ResumeTrainingConfig>(key: K, value: ResumeTrainingConfig[K]) => {
         onConfigChange({ ...config, [key]: value });
     };
-
-    const handleNext = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, 1));
-    };
-
-    const handlePrevious = () => {
-        setCurrentPage((prev) => Math.max(prev - 1, 0));
-    };
-
-
 
     const selectedCheckpoint = checkpoints.find((checkpoint) => checkpoint.name === selectedCheckpointName) || null;
     const compatibilityLabel = selectedCheckpoint
@@ -59,11 +57,7 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
                 <div className="wizard-header">
                     <h4 id={dialogTitleId}>Resume Training Wizard</h4>
                     <p>Resuming from checkpoint: <strong>{selectedCheckpointName}</strong></p>
-                    <div className="wizard-page-indicator">
-                        <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>
-                        <span className={`wizard-dot-line ${currentPage > 0 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 1 ? 'active' : ''}`}>2</span>
-                    </div>
+                    <WizardProgressIndicator currentPage={currentPage} totalPages={2} />
                 </div>
 
                 <div className="wizard-body">
@@ -125,17 +119,17 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
                     <button className="secondary" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </button>
-                    {currentPage > 0 && (
-                        <button className="secondary" onClick={handlePrevious} disabled={isLoading}>
+                    {!isFirstPage && (
+                        <button className="secondary" onClick={goToPreviousPage} disabled={isLoading}>
                             Previous
                         </button>
                     )}
-                    {currentPage < 1 && (
-                        <button className="primary" onClick={handleNext} disabled={isLoading}>
+                    {!isLastPage && (
+                        <button className="primary" onClick={goToNextPage} disabled={isLoading}>
                             Next
                         </button>
                     )}
-                    {currentPage === 1 && (
+                    {isLastPage && (
                         <button className="primary" onClick={onConfirm} disabled={isLoading}>
                             {isLoading ? 'Resuming...' : 'Confirm Resume'}
                         </button>

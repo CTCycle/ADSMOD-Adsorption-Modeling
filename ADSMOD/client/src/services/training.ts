@@ -4,6 +4,9 @@ import type {
     ResumeTrainingConfig,
     TrainingConfig,
     TrainingDatasetInfo,
+    TrainingHistoryPoint,
+    TrainingMetricKey,
+    TrainingMetrics,
     TrainingStatus,
     DatasetSourceInfo,
 } from '../types';
@@ -53,6 +56,60 @@ async function startTrainingSession(
         return { sessionId: '', message: 'An unknown error occurred.', status: 'error' };
     }
 }
+
+const TRAINING_METRIC_KEYS: readonly TrainingMetricKey[] = [
+    'loss',
+    'val_loss',
+    'accuracy',
+    'val_accuracy',
+    'masked_r2',
+    'val_masked_r2',
+];
+
+const toFiniteNumber = (value: unknown): number | undefined => (
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined
+);
+
+const parseTrainingMetrics = (value: unknown): TrainingMetrics => {
+    if (!value || typeof value !== 'object') {
+        return {};
+    }
+
+    const source = value as Record<string, unknown>;
+    const metrics: TrainingMetrics = {};
+    for (const metricKey of TRAINING_METRIC_KEYS) {
+        const metricValue = toFiniteNumber(source[metricKey]);
+        if (metricValue !== undefined) {
+            metrics[metricKey] = metricValue;
+        }
+    }
+    return metrics;
+};
+
+const parseTrainingHistory = (value: unknown): TrainingHistoryPoint[] => {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    const history: TrainingHistoryPoint[] = [];
+    for (const historyEntry of value) {
+        if (!historyEntry || typeof historyEntry !== 'object') {
+            continue;
+        }
+
+        const source = historyEntry as Record<string, unknown>;
+        const epoch = toFiniteNumber(source.epoch);
+        if (epoch === undefined) {
+            continue;
+        }
+
+        history.push({
+            epoch,
+            ...parseTrainingMetrics(source),
+        });
+    }
+    return history;
+};
 
 export async function fetchTrainingDatasets(): Promise<{
     data: TrainingDatasetInfo;
@@ -291,8 +348,8 @@ export async function getTrainingStatus(): Promise<TrainingStatus & { error: str
             current_epoch: result.current_epoch || 0,
             total_epochs: result.total_epochs || 0,
             progress: result.progress || 0,
-            metrics: typeof result.metrics === 'object' && result.metrics !== null ? result.metrics : {},
-            history: Array.isArray(result.history) ? result.history : [],
+            metrics: parseTrainingMetrics(result.metrics),
+            history: parseTrainingHistory(result.history),
             log: Array.isArray(result.log) ? result.log : [],
             poll_interval: typeof result.poll_interval === 'number' ? result.poll_interval : undefined,
             error: null,

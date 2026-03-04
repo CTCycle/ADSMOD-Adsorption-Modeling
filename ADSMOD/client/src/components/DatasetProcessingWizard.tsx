@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NumberInput } from './UIComponents';
+import { WizardProgressIndicator } from './WizardProgressIndicator';
+import { useWizardPagination } from '../hooks/useWizardPagination';
 import type {
     DatasetBuildConfig,
     DatasetSourceInfo,
@@ -20,8 +22,12 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
     onClose,
     onBuildStart,
 }) => {
-    // Wizard page state (0: Settings, 1: Summary + Naming)
-    const [currentPage, setCurrentPage] = useState(0);
+    const {
+        currentPage,
+        isFirstPage,
+        goToNextPage,
+        goToPreviousPage,
+    } = useWizardPagination(1);
 
     // Build configuration state
     const [sampleSize, setSampleSize] = useState(1.0);
@@ -69,27 +75,13 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
         onBuildStart(config);
     };
 
-    const handleNext = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, 1));
-    };
-
-    const handlePrevious = () => {
-        setCurrentPage((prev) => Math.max(prev - 1, 0));
-    };
-
-
-
     return (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4 id={dialogTitleId}>Dataset Processing Wizard</h4>
                     <p>Configure processing settings for your selected datasets.</p>
-                    <div className="wizard-page-indicator">
-                        <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>
-                        <span className={`wizard-dot-line ${currentPage > 0 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 1 ? 'active' : ''}`}>2</span>
-                    </div>
+                    <WizardProgressIndicator currentPage={currentPage} totalPages={2} />
                 </div>
 
                 <div className="wizard-body">
@@ -251,13 +243,13 @@ export const DatasetProcessingWizard: React.FC<DatasetProcessingWizardProps> = (
                     <button className="secondary" onClick={onClose}>
                         Cancel
                     </button>
-                    {currentPage === 0 ? (
-                        <button className="primary" onClick={handleNext}>
+                    {isFirstPage ? (
+                        <button className="primary" onClick={goToNextPage}>
                             Next →
                         </button>
                     ) : (
                         <>
-                            <button className="secondary" onClick={handlePrevious}>
+                            <button className="secondary" onClick={goToPreviousPage}>
                                 ← Previous
                             </button>
                             <button className="primary" onClick={handleBuildDataset}>
