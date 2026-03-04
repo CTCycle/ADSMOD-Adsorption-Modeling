@@ -59,6 +59,16 @@ Long-running tasks (fitting, NIST ingestion/enrichment, dataset build, training)
 - **Sequence storage**: Structured list-like fields are persisted through JSON-compatible serialization.
 - **Pagination**: Repository backends support `limit` and `offset` for large-table reads.
 
+### 3.4 Logging
+- **Application logger**: Backend modules use `ADSMOD.server.common.utils.logger.logger` (logger name: `ADSMOD`).
+- **Level control**: Runtime verbosity is controlled through `logger.level_of_log` (default `DEBUG`).
+- **Handler rules**:
+  - Console handler remains `INFO` with minimal format.
+  - File handler remains `DEBUG` with timestamped detailed format.
+- **Scope filtering**: Output handlers are filtered to the `ADSMOD` logger namespace only.
+- **Framework noise suppression**: `uvicorn`, `uvicorn.error`, `uvicorn.access`, and `fastapi` loggers are forced to `CRITICAL` with propagation disabled.
+- **Launcher behavior**: Windows launcher and test runner start Uvicorn with `--no-access-log --log-level critical` to avoid HTTP/access log spam.
+
 ---
 
 ## 4. Extending ADSMOD
