@@ -43,8 +43,7 @@ interface ModelsPageProps {
     availableDatasets: string[];
     selectedDataset: string | null;
     onDatasetSelect: (name: string | null) => void;
-    useNistData: boolean;
-    onUseNistDataChange: (value: boolean) => void;
+    nistOptionValue: string;
 }
 
 /**
@@ -69,8 +68,7 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     availableDatasets,
     selectedDataset,
     onDatasetSelect,
-    useNistData,
-    onUseNistDataChange,
+    nistOptionValue,
 }) => {
     // Single expanded card strategy: only one card can be expanded at a time
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -156,26 +154,18 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                                     <select
                                         value={selectedDataset || ''}
                                         onChange={(e) => onDatasetSelect(e.target.value || null)}
-                                        className={`select-input fitting-dataset-select ${useNistData ? 'is-disabled' : ''}`}
-                                        disabled={useNistData}
+                                        className="select-input fitting-dataset-select"
                                     >
                                         <option value="">
                                             {availableDatasets.length === 0 ? 'No datasets available' : 'Select a dataset'}
                                         </option>
+                                        <option value={nistOptionValue}>NIST-A Collection</option>
                                         {availableDatasets.map((name) => (
                                             <option key={name} value={name}>
                                                 {name}
                                             </option>
                                         ))}
                                     </select>
-                                    <label className="fitting-dataset-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            checked={useNistData}
-                                            onChange={(e) => onUseNistDataChange(e.target.checked)}
-                                        />
-                                        NIST Data
-                                    </label>
                                 </div>
                             </div>
                             <div className="control-group">
@@ -204,12 +194,14 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                                 </select>
                             </div>
                             <div className="control-group">
-                                <button className="primary fitting-action-primary" onClick={onStartFitting} type="button">
-                                    Start Fitting
-                                </button>
-                                <button className="secondary fitting-action-secondary" onClick={onResetFittingStatus} type="button">
-                                    Reset Log
-                                </button>
+                                <div className="fitting-action-buttons">
+                                    <button className="primary fitting-action-primary" onClick={onStartFitting} type="button">
+                                        Start Fitting
+                                    </button>
+                                    <button className="secondary fitting-action-secondary" onClick={onResetFittingStatus} type="button">
+                                        Reset Log
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
