@@ -219,6 +219,12 @@ pre,
   color: var(--slate-500);
 }
 
+.section-caption-journey {
+  margin-top: 0.65rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
 /* Config Page */
 .config-page {
   max-width: 1600px;
@@ -857,28 +863,21 @@ pre,
   flex: 1;
 }
 
-.fitting-dataset-select.is-disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.fitting-dataset-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  white-space: nowrap;
-  margin-bottom: 0;
+.fitting-action-buttons {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
 }
 
 .fitting-action-primary {
-  width: 100%;
+  flex: 1;
+  width: auto;
   justify-content: center;
-  margin-bottom: 0.75rem;
 }
 
 .fitting-action-secondary {
-  width: 100%;
+  flex: 1;
+  width: auto;
   justify-content: center;
   padding: 0.6rem;
 }
@@ -1562,10 +1561,6 @@ input:checked+.slider:before {
   .fitting-dataset-row {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .fitting-dataset-checkbox {
-    margin-top: -0.25rem;
   }
 }
 

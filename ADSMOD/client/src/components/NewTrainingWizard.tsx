@@ -17,6 +17,7 @@ const getModelType = (value: string): TrainingConfig['selected_model'] => {
 };
 
 const TORCH_COMPILE_BACKENDS = ['inductor', 'cudagraphs', 'aot_eager', 'eager'] as const;
+const GPU_DEVICE_OPTIONS = Array.from({ length: 16 }, (_, index) => index);
 
 const LAST_PAGE_INDEX = 4;
 
@@ -289,6 +290,20 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                     <div className="wizard-card-body">
                                         <div className="wizard-device-layout">
                                             <div className="wizard-device-column wizard-device-column-left">
+                                                <div className="wizard-device-toggle-compact">
+                                                    <Checkbox
+                                                        label="Pin Memory"
+                                                        checked={config.pin_memory}
+                                                        onChange={(value) => updateConfig('pin_memory', value)}
+                                                    />
+                                                </div>
+                                                <div className="wizard-device-toggle-compact">
+                                                    <Checkbox
+                                                        label="Mixed Precision"
+                                                        checked={config.use_mixed_precision}
+                                                        onChange={(value) => updateConfig('use_mixed_precision', value)}
+                                                    />
+                                                </div>
                                                 <div className="wizard-compact-field">
                                                     <label className="field-label" htmlFor="dataloader-workers">
                                                         Dataloader Workers
@@ -331,71 +346,73 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                 </div>
                                             </div>
                                             <div className="wizard-device-column wizard-device-column-right">
-                                                <div className="wizard-device-inline-row">
-                                                    <Checkbox
-                                                        label="Enable GPU"
-                                                        checked={config.use_device_GPU}
-                                                        onChange={(value) => updateConfig('use_device_GPU', value)}
-                                                    />
-                                                    <div className="wizard-device-inline-field">
-                                                        <label className="field-label wizard-inline-label" htmlFor="gpu-device-id">
-                                                            Device
-                                                        </label>
-                                                        <input
-                                                            id="gpu-device-id"
-                                                            type="number"
-                                                            value={config.device_ID}
-                                                            onChange={(event) =>
-                                                                updateConfig(
-                                                                    'device_ID',
-                                                                    Number.parseInt(event.target.value, 10) || 0
-                                                                )
-                                                            }
-                                                            min={0}
-                                                            step={1}
-                                                            disabled={!config.use_device_GPU}
-                                                            className="wizard-inline-input-number"
+                                                <div className="wizard-device-option-card">
+                                                    <h5 className="wizard-device-option-title">Torch Compile</h5>
+                                                    <p className="wizard-device-option-description">
+                                                        Enable `torch.compile` to optimize runtime graph execution.
+                                                    </p>
+                                                    <div className="wizard-device-option-controls">
+                                                        <Checkbox
+                                                            label="Enable Torch Compile"
+                                                            checked={config.use_jit}
+                                                            onChange={(value) => updateConfig('use_jit', value)}
                                                         />
+                                                        <div className="wizard-device-option-dropdown">
+                                                            <label className="field-label wizard-inline-label" htmlFor="torch-compile-backend">
+                                                                Backend
+                                                            </label>
+                                                            <select
+                                                                id="torch-compile-backend"
+                                                                value={config.jit_backend}
+                                                                onChange={(event) => updateConfig('jit_backend', event.target.value)}
+                                                                disabled={!config.use_jit}
+                                                                className="select-input wizard-inline-select"
+                                                            >
+                                                                {TORCH_COMPILE_BACKENDS.map((backend) => (
+                                                                    <option key={backend} value={backend}>
+                                                                        {backend}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="wizard-device-inline-row">
-                                                    <Checkbox
-                                                        label="Enable Torch Compile"
-                                                        checked={config.use_jit}
-                                                        onChange={(value) => updateConfig('use_jit', value)}
-                                                    />
-                                                    <div className="wizard-device-inline-field wizard-device-inline-field-backend">
-                                                        <label className="field-label wizard-inline-label" htmlFor="torch-compile-backend">
-                                                            Backend
-                                                        </label>
-                                                        <select
-                                                            id="torch-compile-backend"
-                                                            value={config.jit_backend}
-                                                            onChange={(event) => updateConfig('jit_backend', event.target.value)}
-                                                            disabled={!config.use_jit}
-                                                            className="select-input wizard-inline-select"
-                                                        >
-                                                            {TORCH_COMPILE_BACKENDS.map((backend) => (
-                                                                <option key={backend} value={backend}>
-                                                                    {backend}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+
+                                                <div className="wizard-device-option-card">
+                                                    <h5 className="wizard-device-option-title">Enable GPU</h5>
+                                                    <p className="wizard-device-option-description">
+                                                        Run training on CUDA and choose the target GPU device index.
+                                                    </p>
+                                                    <div className="wizard-device-option-controls">
+                                                        <Checkbox
+                                                            label="Enable GPU"
+                                                            checked={config.use_device_GPU}
+                                                            onChange={(value) => updateConfig('use_device_GPU', value)}
+                                                        />
+                                                        <div className="wizard-device-option-dropdown">
+                                                            <label className="field-label wizard-inline-label" htmlFor="gpu-device-id">
+                                                                Device
+                                                            </label>
+                                                            <select
+                                                                id="gpu-device-id"
+                                                                value={String(config.device_ID)}
+                                                                onChange={(event) =>
+                                                                    updateConfig(
+                                                                        'device_ID',
+                                                                        Number.parseInt(event.target.value, 10) || 0
+                                                                    )
+                                                                }
+                                                                disabled={!config.use_device_GPU}
+                                                                className="select-input wizard-inline-select"
+                                                            >
+                                                                {GPU_DEVICE_OPTIONS.map((deviceId) => (
+                                                                    <option key={deviceId} value={deviceId}>
+                                                                        {deviceId}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="wizard-device-inline-row">
-                                                    <Checkbox
-                                                        label="Enable Mixed Precision"
-                                                        checked={config.use_mixed_precision}
-                                                        onChange={(value) => updateConfig('use_mixed_precision', value)}
-                                                    />
-                                                </div>
-                                                <div className="wizard-device-inline-row">
-                                                    <Checkbox
-                                                        label="Pin Memory"
-                                                        checked={config.pin_memory}
-                                                        onChange={(value) => updateConfig('pin_memory', value)}
-                                                    />
                                                 </div>
                                             </div>
                                         </div>

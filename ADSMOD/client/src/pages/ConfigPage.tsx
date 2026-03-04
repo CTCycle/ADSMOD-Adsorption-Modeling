@@ -48,6 +48,12 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                                 This data is stored separately from the NIST-A collection
                                 and can be processed independently for model fitting.
                             </div>
+                            <div className="section-caption section-caption-journey">
+                                Start your adsorption modeling workflow here by loading raw experimental isotherm data,
+                                validating dataset size and structure, and preparing a clean baseline for parameter fitting.
+                                After this step, you can move to the fitting page to optimize adsorption models, then continue
+                                to training to build machine learning models on curated datasets.
+                            </div>
                             <div className="panel-subtitle panel-subtitle-spaced">
                                 {datasetBadge} | {sampleBadge}
                             </div>
@@ -96,6 +102,12 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
                             <div className="section-caption">
                                 Fetch NIST-A isotherms and materials into the local database.
                                 Use fractions to sample the catalog.
+                            </div>
+                            <div className="section-caption section-caption-journey">
+                                This stage expands your dataset strategy with NIST adsorption data so you can benchmark
+                                against public reference isotherms, compare behavior across adsorbates and materials, and
+                                improve model reliability. Once data collection is complete, continue to fitting to estimate
+                                model parameters and then launch training to generate predictive adsorption models.
                             </div>
                         </div>
                     </div>

@@ -21,6 +21,8 @@ const initialMountedPages: Record<PageId, boolean> = {
     analysis: false,
 };
 
+const NIST_DATASET_OPTION = '__NIST_A_COLLECTION__';
+
 const formatFileSize = (bytes: number): string => {
     const kb = Math.max(1, Math.round(bytes / 1024));
     return `${kb} kb`;
@@ -111,7 +113,6 @@ function App() {
     // Dataset selector state for fitting page
     const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
     const [selectedDataset, setSelectedDataset] = useState<string | null>(null);
-    const [useNistData, setUseNistData] = useState(false);
 
     // Load available dataset names on mount
     useEffect(() => {
@@ -194,6 +195,7 @@ function App() {
     const handleStartFitting = useCallback(async () => {
         // Determine which dataset to use
         let fittingDataset: DatasetPayload | null = null;
+        const useNistData = selectedDataset === NIST_DATASET_OPTION;
 
         if (useNistData) {
             setFittingStatus('[INFO] Loading NIST single-component data...');
@@ -277,7 +279,7 @@ function App() {
 
         const result = await startFitting(payload);
         setFittingStatus(result.message);
-    }, [dataset, modelStates, maxIterations, optimizationMethod, selectedDataset, useNistData]);
+    }, [dataset, modelStates, maxIterations, optimizationMethod, selectedDataset]);
 
     return (
         <div className="app-container">
@@ -325,8 +327,7 @@ function App() {
                                 availableDatasets={availableDatasets}
                                 selectedDataset={selectedDataset}
                                 onDatasetSelect={setSelectedDataset}
-                                useNistData={useNistData}
-                                onUseNistDataChange={setUseNistData}
+                                nistOptionValue={NIST_DATASET_OPTION}
                             />
                         </section>
                     )}
