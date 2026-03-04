@@ -1,6 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Checkbox, NumberInput, Switch } from './UIComponents';
+import { WizardProgressIndicator } from './WizardProgressIndicator';
+import { useWizardPagination } from '../hooks/useWizardPagination';
 import type { TrainingConfig } from '../types';
 
 interface NewTrainingWizardProps {
@@ -29,7 +31,13 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     isLoading,
     selectedDatasetLabel,
 }) => {
-    const [currentPage, setCurrentPage] = useState(0);
+    const {
+        currentPage,
+        isFirstPage,
+        isLastPage,
+        goToNextPage,
+        goToPreviousPage,
+    } = useWizardPagination(LAST_PAGE_INDEX);
     const dialogTitleId = 'new-training-wizard-title';
 
     // Ensure the dataset label is set in the config on mount
@@ -43,33 +51,13 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
         onConfigChange({ ...config, [key]: value });
     };
 
-    const handleNext = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, LAST_PAGE_INDEX));
-    };
-
-    const handlePrevious = () => {
-        setCurrentPage((prev) => Math.max(prev - 1, 0));
-    };
-
-
-
     return (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
             <div className="wizard-modal">
                 <div className="wizard-header">
                     <h4 id={dialogTitleId}>New Training Wizard</h4>
                     <p>Configure training settings for dataset: <strong>{selectedDatasetLabel}</strong></p>
-                    <div className="wizard-page-indicator">
-                        <span className={`wizard-dot ${currentPage === 0 ? 'active' : ''}`}>1</span>
-                        <span className={`wizard-dot-line ${currentPage > 0 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 1 ? 'active' : ''}`}>2</span>
-                        <span className={`wizard-dot-line ${currentPage > 1 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 2 ? 'active' : ''}`}>3</span>
-                        <span className={`wizard-dot-line ${currentPage > 2 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 3 ? 'active' : ''}`}>4</span>
-                        <span className={`wizard-dot-line ${currentPage > 3 ? 'active' : ''}`} />
-                        <span className={`wizard-dot ${currentPage === 4 ? 'active' : ''}`}>5</span>
-                    </div>
+                    <WizardProgressIndicator currentPage={currentPage} totalPages={LAST_PAGE_INDEX + 1} />
                 </div>
 
                 <div className="wizard-body">
@@ -555,21 +543,21 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                     <button className="secondary" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </button>
-                    {currentPage > 0 && (
-                        <button className="secondary" onClick={handlePrevious} disabled={isLoading}>
+                    {!isFirstPage && (
+                        <button className="secondary" onClick={goToPreviousPage} disabled={isLoading}>
                             Previous
                         </button>
                     )}
-                    {currentPage < LAST_PAGE_INDEX && (
+                    {!isLastPage && (
                         <button
                             className="primary"
-                            onClick={handleNext}
+                            onClick={goToNextPage}
                             disabled={isLoading}
                         >
                             Next
                         </button>
                     )}
-                    {currentPage === LAST_PAGE_INDEX && (
+                    {isLastPage && (
                         <button className="primary" onClick={onConfirm} disabled={isLoading}>
                             {isLoading ? 'Starting...' : 'Confirm Training'}
                         </button>

@@ -13,6 +13,7 @@ import type {
     TrainingStatus,
     ResumeTrainingConfig,
     TrainingHistoryPoint,
+    TrainingMetrics,
     ProcessedDatasetInfo,
     DatasetFullInfo,
     InfoModalData,
@@ -169,6 +170,7 @@ export const MachineLearningPage: React.FC = () => {
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
     const pollIntervalSecondsRef = useRef<number | null>(null);
+    const wasTrainingRef = useRef(false);
     const logContainerRef = useRef<HTMLPreElement>(null);
 
     // Load initial data
@@ -236,6 +238,9 @@ export const MachineLearningPage: React.FC = () => {
             return;
         }
 
+        const wasTraining = wasTrainingRef.current;
+        wasTrainingRef.current = status.is_training;
+
         // Merge logs to avoid full overwrite if needed, but for now full replace is fine as backend sends window
         setTrainingStatus({
             is_training: status.is_training,
@@ -259,7 +264,7 @@ export const MachineLearningPage: React.FC = () => {
         }
 
         // Refresh checkpoints if training just finished
-        if (!status.is_training && trainingStatus.is_training) {
+        if (!status.is_training && wasTraining) {
             loadCheckpoints();
         }
     };
@@ -339,7 +344,7 @@ export const MachineLearningPage: React.FC = () => {
     };
 
     // Derived metrics for UI
-    const metrics: Record<string, number> = trainingStatus.metrics || {};
+    const metrics: TrainingMetrics = trainingStatus.metrics || {};
     const history: TrainingHistoryPoint[] = trainingStatus.history || [];
     const hasAccuracyMetric = history.some((entry) =>
         typeof entry.accuracy === 'number' || typeof entry.val_accuracy === 'number'
@@ -420,7 +425,7 @@ export const MachineLearningPage: React.FC = () => {
                 <p className="ml-subtitle">Configure and monitor your training sessions</p>
             </div>
 
-            <DatasetBuilderCard onDatasetBuilt={() => { loadProcessedDatasets(); }} />
+            <DatasetBuilderCard onDatasetBuilt={loadProcessedDatasets} />
 
             <TrainingSetupRow
                 onNewTrainingClick={handleNewTrainingClick}

@@ -9,11 +9,11 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
-import type { TrainingHistoryPoint } from '../../../types';
+import type { TrainingHistoryPoint, TrainingMetricKey } from '../../../types';
 
 interface TrainingChartLineConfig {
     color: string;
-    dataKey: string;
+    dataKey: TrainingMetricKey;
     name: string;
 }
 
