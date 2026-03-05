@@ -19,7 +19,7 @@ class TrainingRepositoryQueries:
 
     # -------------------------------------------------------------------------
     def save_training_dataset(self, dataset: pd.DataFrame) -> None:
-        self.database.save_into_database(dataset, "training_dataset")
+        self.database.upsert_into_database(dataset, "training_dataset")
 
     # -------------------------------------------------------------------------
     def upsert_training_dataset(self, dataset: pd.DataFrame) -> None:
@@ -31,4 +31,4 @@ class TrainingRepositoryQueries:
 
     # -------------------------------------------------------------------------
     def save_training_metadata(self, metadata: pd.DataFrame) -> None:
-        self.database.save_into_database(metadata, "training_metadata")
+        self.database.upsert_into_database(metadata, "training_metadata")

@@ -118,7 +118,7 @@ class DatasetCompositionService:
         removed = self.serializer.delete_raw_dataset(dataset_name)
         if not removed:
             return False, f"Dataset '{dataset_name}' was not found."
-        return True, f"Dataset '{dataset_name}' deleted."
+        return True, f"Dataset '{dataset_name}' archived."
 
     # -------------------------------------------------------------------------
     def compose_datasets(
