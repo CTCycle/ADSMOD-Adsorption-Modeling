@@ -478,12 +478,13 @@ pre,
 }
 
 .nist-category-row-actions {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: repeat(4, 2rem);
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.38rem;
+  justify-content: end;
+  column-gap: 0.38rem;
   width: 196px;
-  align-self: stretch;
+  align-self: center;
   padding-left: 0.75rem;
   border-left: 1px solid var(--slate-200);
 }
@@ -502,6 +503,11 @@ pre,
 .nist-icon-button svg {
   width: 1rem;
   height: 1rem;
+}
+
+.nist-icon-button-placeholder {
+  width: 2rem;
+  height: 2rem;
 }
 
 .nist-icon-button:hover:not(:disabled) {
@@ -1663,8 +1669,8 @@ input:checked+.slider:before {
   .nist-row-progress {
     grid-column: auto;
   }
-}
 
+}
 @media (max-width: 700px) {
   .dataset-upload-toolbar {
     align-items: stretch;

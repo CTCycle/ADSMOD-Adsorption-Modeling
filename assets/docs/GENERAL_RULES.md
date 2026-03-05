@@ -32,10 +32,9 @@ If changes materially affect behavior, architecture, or usage, update the releva
 
 ## EXECUTION RULES
 - Use PowerShell by default for terminal commands in this repository.
+- Use local machine runtimes for Node/npm commands.
+- For npm commands, prefer: `& "C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -Command "cmd /c npm <command>"`.
 - Use `cmd /c` only when invoking `.bat` scripts or CMD-specific syntax.
 
 ## FILE CHANGE NOTICE
 - Any significant change requires updating `assets/docs` and informing the user.
-
-
-
