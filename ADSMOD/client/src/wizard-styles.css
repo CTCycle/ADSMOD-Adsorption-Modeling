@@ -224,10 +224,14 @@
 }
 
 .wizard-device-toggle-compact {
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--slate-200);
-  border-radius: var(--radius-sm);
-  background: #ffffff;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.wizard-device-toggle-compact-spaced {
+  margin-bottom: 0.35rem;
 }
 
 .wizard-device-toggle-compact .checkbox-container label {

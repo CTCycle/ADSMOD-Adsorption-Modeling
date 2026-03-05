@@ -273,7 +273,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                         <span>Device Controls</span>
                                     </div>
                                     <p className="wizard-card-description">
-                                        Configure runtime hardware settings for data loading, GPU usage, precision, and torch compile.
+                                        Configure data loading and runtime acceleration options.
                                     </p>
                                     <div className="wizard-card-body">
                                         <div className="wizard-device-layout">
@@ -285,7 +285,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                         onChange={(value) => updateConfig('pin_memory', value)}
                                                     />
                                                 </div>
-                                                <div className="wizard-device-toggle-compact">
+                                                <div className="wizard-device-toggle-compact wizard-device-toggle-compact-spaced">
                                                     <Checkbox
                                                         label="Mixed Precision"
                                                         checked={config.use_mixed_precision}
@@ -341,7 +341,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                     </p>
                                                     <div className="wizard-device-option-controls">
                                                         <Checkbox
-                                                            label="Enable Torch Compile"
+                                                            label="Torch Compile"
                                                             checked={config.use_jit}
                                                             onChange={(value) => updateConfig('use_jit', value)}
                                                         />
@@ -569,3 +569,4 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
 };
 
 export default NewTrainingWizard;
+

@@ -440,6 +440,9 @@ export const NistCollectionRows: React.FC<NistCollectionRowsProps> = ({
                             <EnrichIcon />
                         </button>
                     )}
+                    {!status.supports_enrichment && (
+                        <span className="nist-icon-button-placeholder" aria-hidden="true" />
+                    )}
                 </div>
 
                 {operation.running && (

@@ -4,6 +4,13 @@ This is the React + TypeScript frontend for ADSMOD.
 
 ## Development
 
+Use your machine local Node.js/npm runtime for all npm commands.
+
+Example (PowerShell, no profile):
+```powershell
+& "C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -Command "cmd /c npm run build"
+```
+
 Install dependencies:
 ```bash
 npm install
