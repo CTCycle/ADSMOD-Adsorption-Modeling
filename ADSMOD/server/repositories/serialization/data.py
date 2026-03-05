@@ -369,6 +369,104 @@ class DataSerializer:
         return component
 
     # -------------------------------------------------------------------------
+    def _ensure_isotherm(
+        self,
+        session: Session,
+        dataset_id: int,
+        source_record_id: str,
+        experiment_name: str,
+        adsorbent_id: int,
+        temperature_k: float,
+        pressure_units: str = "pa",
+        adsorption_units: str = "mol/g",
+    ) -> AdsorptionIsotherm:
+        isotherm = session.execute(
+            select(AdsorptionIsotherm).where(
+                AdsorptionIsotherm.experiment_name == experiment_name
+            )
+        ).scalar_one_or_none()
+        if isotherm is None:
+            isotherm = AdsorptionIsotherm(
+                dataset_id=dataset_id,
+                source_record_id=source_record_id,
+                experiment_name=experiment_name,
+                adsorbent_id=adsorbent_id,
+                temperature_k=temperature_k,
+                pressure_units=pressure_units,
+                adsorption_units=adsorption_units,
+                created_at=self.now_iso(),
+            )
+            session.add(isotherm)
+            session.flush()
+            return isotherm
+
+        isotherm.dataset_id = dataset_id
+        isotherm.source_record_id = source_record_id
+        isotherm.adsorbent_id = adsorbent_id
+        isotherm.temperature_k = temperature_k
+        isotherm.pressure_units = pressure_units
+        isotherm.adsorption_units = adsorption_units
+        return isotherm
+
+    # -------------------------------------------------------------------------
+    def _ensure_point(
+        self,
+        session: Session,
+        isotherm_id: int,
+        point_index: int,
+    ) -> AdsorptionPoint:
+        point = session.execute(
+            select(AdsorptionPoint).where(
+                and_(
+                    AdsorptionPoint.isotherm_id == isotherm_id,
+                    AdsorptionPoint.point_index == point_index,
+                )
+            )
+        ).scalar_one_or_none()
+        if point is None:
+            point = AdsorptionPoint(isotherm_id=isotherm_id, point_index=point_index)
+            session.add(point)
+            session.flush()
+        return point
+
+    # -------------------------------------------------------------------------
+    def _upsert_point_component(
+        self,
+        session: Session,
+        point_id: int,
+        component_id: int,
+        partial_pressure_pa: float,
+        uptake_mol_g: float,
+        original_pressure: float | None,
+        original_uptake: float | None,
+    ) -> None:
+        component = session.execute(
+            select(AdsorptionPointComponent).where(
+                and_(
+                    AdsorptionPointComponent.point_id == point_id,
+                    AdsorptionPointComponent.component_id == component_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if component is None:
+            session.add(
+                AdsorptionPointComponent(
+                    point_id=point_id,
+                    component_id=component_id,
+                    partial_pressure_pa=partial_pressure_pa,
+                    uptake_mol_g=uptake_mol_g,
+                    original_pressure=original_pressure,
+                    original_uptake=original_uptake,
+                )
+            )
+            return
+
+        component.partial_pressure_pa = partial_pressure_pa
+        component.uptake_mol_g = uptake_mol_g
+        component.original_pressure = original_pressure
+        component.original_uptake = original_uptake
+
+    # -------------------------------------------------------------------------
     def _insert_points_for_single_component(
         self,
         session: Session,
@@ -382,31 +480,22 @@ class DataSerializer:
         for idx, (pressure_pa, uptake_mol_g) in enumerate(
             zip(pressure_values, uptake_values, strict=False)
         ):
-            point = AdsorptionPoint(isotherm_id=isotherm_id, point_index=idx)
-            session.add(point)
-            session.flush()
+            point = self._ensure_point(session, isotherm_id=isotherm_id, point_index=idx)
             original_pressure = None
             original_uptake = None
             if original_pressure_values and idx < len(original_pressure_values):
                 original_pressure = original_pressure_values[idx]
             if original_uptake_values and idx < len(original_uptake_values):
                 original_uptake = original_uptake_values[idx]
-            session.add(
-                AdsorptionPointComponent(
-                    point_id=point.id,
-                    component_id=component_id,
-                    partial_pressure_pa=pressure_pa,
-                    uptake_mol_g=uptake_mol_g,
-                    original_pressure=original_pressure,
-                    original_uptake=original_uptake,
-                )
+            self._upsert_point_component(
+                session,
+                point_id=point.id,
+                component_id=component_id,
+                partial_pressure_pa=pressure_pa,
+                uptake_mol_g=uptake_mol_g,
+                original_pressure=original_pressure,
+                original_uptake=original_uptake,
             )
-
-    # -------------------------------------------------------------------------
-    def _replace_dataset_isotherms(self, session: Session, dataset_id: int) -> None:
-        session.query(AdsorptionIsotherm).filter(
-            AdsorptionIsotherm.dataset_id == dataset_id
-        ).delete(synchronize_session=False)
 
     # -------------------------------------------------------------------------
     def save_raw_dataset(self, dataset: pd.DataFrame) -> None:
@@ -465,8 +554,6 @@ class DataSerializer:
                 dataset_entry = self._ensure_dataset(
                     session, str(dataset_name), "uploaded"
                 )
-                self._replace_dataset_isotherms(session, dataset_entry.id)
-
                 grouped = subset.groupby(
                     [
                         COLUMN_EXPERIMENT,
@@ -485,7 +572,8 @@ class DataSerializer:
                     adsorbent = self._ensure_adsorbent(session, str(adsorbent_name))
                     adsorbate = self._ensure_adsorbate(session, str(adsorbate_name))
                     experiment_name = f"uploaded:{dataset_name}:{experiment}"
-                    isotherm = AdsorptionIsotherm(
+                    isotherm = self._ensure_isotherm(
+                        session,
                         dataset_id=dataset_entry.id,
                         source_record_id=str(experiment),
                         experiment_name=experiment_name,
@@ -493,10 +581,7 @@ class DataSerializer:
                         temperature_k=self.to_float(temperature) or 0.0,
                         pressure_units="pa",
                         adsorption_units="mol/g",
-                        created_at=self.now_iso(),
                     )
-                    session.add(isotherm)
-                    session.flush()
 
                     component = self._ensure_isotherm_component(
                         session,
@@ -547,7 +632,9 @@ class DataSerializer:
             ).scalar_one_or_none()
             if target is None:
                 return False
-            session.delete(target)
+
+            archived_name = f"archived::{normalized_name}::{self.now_iso()}"
+            target.dataset_name = archived_name
             session.commit()
             return True
 
@@ -592,7 +679,12 @@ class DataSerializer:
                         == AdsorptionIsothermComponent.id,
                     ),
                 )
-                .where(Dataset.source == "uploaded")
+                .where(
+                    and_(
+                        Dataset.source == "uploaded",
+                        ~Dataset.dataset_name.like("archived::%"),
+                    )
+                )
                 .order_by(
                     Dataset.dataset_name,
                     AdsorptionIsotherm.source_record_id,
@@ -847,23 +939,6 @@ class DataSerializer:
                     processed.min_uptake = min(uptake_series) if uptake_series else None
                     processed.max_uptake = max(uptake_series) if uptake_series else None
 
-                fit_ids = (
-                    session.execute(
-                        select(AdsorptionFit.id).where(
-                            AdsorptionFit.processed_id == processed.id
-                        )
-                    )
-                    .scalars()
-                    .all()
-                )
-                if fit_ids:
-                    session.query(AdsorptionFitParam).filter(
-                        AdsorptionFitParam.fit_id.in_(fit_ids)
-                    ).delete(synchronize_session=False)
-                session.query(AdsorptionFit).filter(
-                    AdsorptionFit.processed_id == processed.id
-                ).delete(synchronize_session=False)
-
                 for schema in MODEL_SCHEMAS.values():
                     prefix = schema["prefix"]
                     fields = schema["fields"]
@@ -898,19 +973,39 @@ class DataSerializer:
                     )
 
                     model_key = self.normalize_model_key(prefix)
-                    fit = AdsorptionFit(
-                        processed_id=processed.id,
-                        model_name=model_key,
-                        optimization_method=optimization_method,
-                        score=score_value,
-                        aic=self.to_float(row.get(aic_column)) if aic_column else None,
-                        aicc=self.to_float(row.get(aicc_column))
-                        if aicc_column
-                        else None,
-                        created_at=self.now_iso(),
-                    )
-                    session.add(fit)
-                    session.flush()
+                    fit = session.execute(
+                        select(AdsorptionFit).where(
+                            and_(
+                                AdsorptionFit.processed_id == processed.id,
+                                AdsorptionFit.model_name == model_key,
+                                AdsorptionFit.optimization_method
+                                == optimization_method,
+                            )
+                        )
+                    ).scalar_one_or_none()
+                    if fit is None:
+                        fit = AdsorptionFit(
+                            processed_id=processed.id,
+                            model_name=model_key,
+                            optimization_method=optimization_method,
+                            score=score_value,
+                            aic=self.to_float(row.get(aic_column))
+                            if aic_column
+                            else None,
+                            aicc=self.to_float(row.get(aicc_column))
+                            if aicc_column
+                            else None,
+                            created_at=self.now_iso(),
+                        )
+                        session.add(fit)
+                        session.flush()
+                    else:
+                        fit.score = score_value
+                        fit.aic = self.to_float(row.get(aic_column)) if aic_column else None
+                        fit.aicc = (
+                            self.to_float(row.get(aicc_column)) if aicc_column else None
+                        )
+                        fit.created_at = self.now_iso()
 
                     for field_name, db_name in fields.items():
                         if field_name in {
@@ -940,14 +1035,26 @@ class DataSerializer:
                             if error_column
                             else None
                         )
-                        session.add(
-                            AdsorptionFitParam(
-                                fit_id=fit.id,
-                                param_name=db_name,
-                                param_value=param_value,
-                                param_error=param_error,
+                        fit_param = session.execute(
+                            select(AdsorptionFitParam).where(
+                                and_(
+                                    AdsorptionFitParam.fit_id == fit.id,
+                                    AdsorptionFitParam.param_name == db_name,
+                                )
                             )
-                        )
+                        ).scalar_one_or_none()
+                        if fit_param is None:
+                            session.add(
+                                AdsorptionFitParam(
+                                    fit_id=fit.id,
+                                    param_name=db_name,
+                                    param_value=param_value,
+                                    param_error=param_error,
+                                )
+                            )
+                        else:
+                            fit_param.param_value = param_value
+                            fit_param.param_error = param_error
 
             session.commit()
 
@@ -1063,3 +1170,4 @@ class DataSerializer:
 
 
 ###############################################################################
+

@@ -25,9 +25,6 @@ class DatabaseBackend(Protocol):
     ) -> pd.DataFrame: ...
 
     # -------------------------------------------------------------------------
-    def save_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
-
-    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
     # -------------------------------------------------------------------------
@@ -82,10 +79,6 @@ class ADSMODDatabase:
         offset: int | None = None,
     ) -> pd.DataFrame:
         return self.backend.load_from_database(table_name, limit=limit, offset=offset)
-
-    # -------------------------------------------------------------------------
-    def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        self.backend.save_into_database(df, table_name)
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:

@@ -619,22 +619,20 @@ class NISTDataSerializer:
                 session.add(dataset_entry)
                 session.flush()
 
-            existing_source_ids: set[str] = set()
-            if replace_existing:
-                session.query(AdsorptionIsotherm).filter(
+            rows = session.execute(
+                select(AdsorptionIsotherm.source_record_id).where(
                     AdsorptionIsotherm.dataset_id == dataset_entry.id
-                ).delete(synchronize_session=False)
-            else:
-                rows = session.execute(
-                    select(AdsorptionIsotherm.source_record_id).where(
-                        AdsorptionIsotherm.dataset_id == dataset_entry.id
-                    )
-                ).all()
-                existing_source_ids = {
-                    self._norm(row[0])
-                    for row in rows
-                    if row[0] is not None and self._norm(row[0])
-                }
+                )
+            ).all()
+            existing_source_ids: set[str] = {
+                self._norm(row[0])
+                for row in rows
+                if row[0] is not None and self._norm(row[0])
+            }
+            if replace_existing:
+                logger.warning(
+                    "replace_existing=True ignored: destructive replacement is disabled."
+                )
 
             if (
                 isinstance(single_component, pd.DataFrame)
@@ -660,7 +658,7 @@ class NISTDataSerializer:
                     adsorption_units,
                 ), frame in grouped:
                     source_record_id = self._norm(name)
-                    if not replace_existing and source_record_id in existing_source_ids:
+                    if source_record_id in existing_source_ids:
                         continue
 
                     adsorbent = session.execute(
@@ -708,7 +706,7 @@ class NISTDataSerializer:
                     )
                     session.add(isotherm)
                     session.flush()
-                    if not replace_existing and source_record_id:
+                    if source_record_id:
                         existing_source_ids.add(source_record_id)
 
                     component = AdsorptionIsothermComponent(
@@ -763,7 +761,7 @@ class NISTDataSerializer:
                     adsorption_units,
                 ), frame in grouped:
                     source_record_id = self._norm(name)
-                    if not replace_existing and source_record_id in existing_source_ids:
+                    if source_record_id in existing_source_ids:
                         continue
 
                     adsorbent = session.execute(
@@ -820,7 +818,7 @@ class NISTDataSerializer:
                     )
                     session.add(isotherm)
                     session.flush()
-                    if not replace_existing and source_record_id:
+                    if source_record_id:
                         existing_source_ids.add(source_record_id)
 
                     component_1 = AdsorptionIsothermComponent(

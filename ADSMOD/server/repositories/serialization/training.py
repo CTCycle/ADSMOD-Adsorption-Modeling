@@ -81,6 +81,54 @@ class TrainingDataSerializer:
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def build_archived_label(dataset_label: str) -> str:
+        timestamp = pd.Timestamp.utcnow().strftime("%Y%m%d%H%M%S%f")
+        return f"archived::{dataset_label}::{timestamp}"
+
+    # -------------------------------------------------------------------------
+    def archive_training_dataset_rows(self, dataset_label: str | None = None) -> None:
+        existing_data = self.queries.load_training_dataset()
+        if existing_data.empty or self.dataset_label_column not in existing_data.columns:
+            return
+
+        archived_data = existing_data.copy()
+        if dataset_label is None:
+            mask = archived_data[self.dataset_label_column].notna()
+            label_seed = "all"
+        else:
+            mask = archived_data[self.dataset_label_column] == dataset_label
+            label_seed = dataset_label
+        if not bool(mask.any()):
+            return
+
+        archived_data.loc[mask, self.dataset_label_column] = self.build_archived_label(
+            self.normalize_dataset_label(label_seed)
+        )
+        self.queries.upsert_training_dataset(archived_data)
+
+    # -------------------------------------------------------------------------
+    def archive_training_metadata_rows(self, dataset_label: str | None = None) -> None:
+        existing_meta = self.queries.load_training_metadata()
+        if existing_meta.empty or "dataset_label" not in existing_meta.columns:
+            return
+
+        archived_meta = existing_meta.copy()
+        if dataset_label is None:
+            mask = archived_meta["dataset_label"].notna()
+            label_seed = "all"
+        else:
+            mask = archived_meta["dataset_label"] == dataset_label
+            label_seed = dataset_label
+        if not bool(mask.any()):
+            return
+
+        archived_meta.loc[mask, "dataset_label"] = self.build_archived_label(
+            self.normalize_dataset_label(label_seed)
+        )
+        self.queries.save_training_metadata(archived_meta)
+
+    # -------------------------------------------------------------------------
     def save_training_dataset(
         self, dataset: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
@@ -101,10 +149,8 @@ class TrainingDataSerializer:
                 duplicate_count,
             )
             storage_dataset = storage_dataset.loc[~duplicate_mask].copy()
-        existing = self.queries.load_training_dataset()
-        if not existing.empty and self.dataset_label_column in existing.columns:
-            retained = existing[existing[self.dataset_label_column] != dataset_label]
-            self.queries.save_training_dataset(retained)
+
+        self.archive_training_dataset_rows(dataset_label)
         self.queries.upsert_training_dataset(storage_dataset)
 
     # -------------------------------------------------------------------------
@@ -116,26 +162,9 @@ class TrainingDataSerializer:
         if "dataset_label" not in storage_metadata.columns:
             storage_metadata["dataset_label"] = dataset_label
 
-        existing = self.queries.load_training_metadata()
-        if not existing.empty:
-            metadata_hash = None
-            if self.metadata_hash_column in storage_metadata.columns:
-                hash_values = (
-                    storage_metadata[self.metadata_hash_column]
-                    .dropna()
-                    .astype("string")
-                    .str.strip()
-                )
-                metadata_hash = hash_values.iloc[0] if not hash_values.empty else None
-            if metadata_hash and self.metadata_hash_column in existing.columns:
-                existing = existing[
-                    existing[self.metadata_hash_column] != metadata_hash
-                ]
-            elif "dataset_label" in existing.columns:
-                existing = existing[existing["dataset_label"] != dataset_label]
+        self.archive_training_metadata_rows(dataset_label)
+        self.queries.save_training_metadata(storage_metadata)
 
-        combined = pd.concat([existing, storage_metadata], ignore_index=True)
-        self.queries.save_training_metadata(combined)
         metadata_hash = None
         if self.metadata_hash_column in storage_metadata.columns:
             hash_values = (
@@ -156,34 +185,18 @@ class TrainingDataSerializer:
                     updated[self.dataset_label_column] == dataset_label,
                     self.training_hash_column,
                 ] = metadata_hash
-                self.queries.save_training_dataset(updated)
+                self.queries.upsert_training_dataset(updated)
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(self, dataset_label: str | None = None) -> None:
         if dataset_label is None:
-            empty_df = pd.DataFrame()
-            self.queries.save_training_dataset(empty_df)
-            self.queries.save_training_metadata(empty_df)
+            self.archive_training_dataset_rows(None)
+            self.archive_training_metadata_rows(None)
             return
 
         dataset_label = self.normalize_dataset_label(dataset_label)
-        existing_data = self.queries.load_training_dataset()
-        existing_meta = self.queries.load_training_metadata()
-
-        if (
-            not existing_data.empty
-            and self.dataset_label_column in existing_data.columns
-        ):
-            filtered_data = existing_data[
-                existing_data[self.dataset_label_column] != dataset_label
-            ]
-            self.queries.save_training_dataset(filtered_data)
-
-        if not existing_meta.empty and "dataset_label" in existing_meta.columns:
-            filtered_meta = existing_meta[
-                existing_meta["dataset_label"] != dataset_label
-            ]
-            self.queries.save_training_metadata(filtered_meta)
+        self.archive_training_dataset_rows(dataset_label)
+        self.archive_training_metadata_rows(dataset_label)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -442,3 +455,4 @@ class TrainingDataSerializer:
 
 
 ###############################################################################
+
