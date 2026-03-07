@@ -44,20 +44,56 @@ export const MODEL_PARAMETER_DEFAULTS: Record<string, Record<string, [number, nu
     },
 };
 
-function normalizeApiBaseUrl(rawValue: string): string {
+const API_BASE_FALLBACK = '/api';
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+
+function normalizePathApiBase(rawValue: string): string {
     const trimmed = rawValue.trim();
     if (!trimmed) {
-        return '/api';
+        return API_BASE_FALLBACK;
     }
-    if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('//')) {
-        return '/api';
-    }
+
     const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
     if (!/^\/[A-Za-z0-9/_-]*$/.test(withLeadingSlash)) {
-        return '/api';
+        return API_BASE_FALLBACK;
     }
-    return withLeadingSlash.replace(/\/+$/, '') || '/api';
+
+    return withLeadingSlash.replace(/\/+$/, '') || API_BASE_FALLBACK;
+}
+
+function normalizeDesktopApiOrigin(rawValue: string): string | null {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    try {
+        const parsed = new URL(trimmed);
+        const protocol = parsed.protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') {
+            return null;
+        }
+        if (!LOOPBACK_HOSTS.has(parsed.hostname.toLowerCase())) {
+            return null;
+        }
+
+        return parsed.href.replace(/\/+$/, '');
+    } catch {
+        return null;
+    }
+}
+
+export function resolveApiBaseUrl(rawValue: string): string {
+    return normalizeDesktopApiOrigin(rawValue) || normalizePathApiBase(rawValue);
 }
 
 const apiBaseEnv = import.meta.env.VITE_API_BASE_URL || '';
-export const API_BASE_URL = normalizeApiBaseUrl(apiBaseEnv);
+
+export let API_BASE_URL = resolveApiBaseUrl(apiBaseEnv);
+
+export function setApiBaseUrl(rawValue: string | null | undefined): void {
+    if (!rawValue) {
+        return;
+    }
+    API_BASE_URL = resolveApiBaseUrl(rawValue);
+}

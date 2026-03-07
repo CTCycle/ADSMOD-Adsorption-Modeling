@@ -1,0 +1,17 @@
+[package]
+name = "adsmod-desktop"
+version = "2.0.0"
+description = "ADSMOD Desktop App"
+authors = ["ADSMOD"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

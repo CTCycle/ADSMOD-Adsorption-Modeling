@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ADSMOD",
+  "version": "2.0.0",
+  "identifier": "com.adsmod.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --host 127.0.0.1 --port 7861",
+    "devUrl": "http://127.0.0.1:7861",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "withGlobalTauri": true
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ADSMOD Adsorption Modeling",
+        "label": "main",
+        "width": 1400,
+        "height": 900,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": [
+        "default"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "msi"
+    ],
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "externalBin": [
+      "binaries/adsmod_backend"
+    ]
+  }
+}

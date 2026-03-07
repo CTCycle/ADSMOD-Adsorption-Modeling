@@ -12,6 +12,7 @@ from ADSMOD.server.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
+    HEALTH_ENDPOINT,
     ROOT_ENDPOINT,
 )
 from ADSMOD.server.routes.datasets import router as dataset_router
@@ -37,3 +38,9 @@ app.include_router(nist_router)
 @app.get(ROOT_ENDPOINT)
 def redirect_to_docs() -> RedirectResponse:
     return RedirectResponse(url=DOCS_ENDPOINT)
+
+
+# -------------------------------------------------------------------------
+@app.get(HEALTH_ENDPOINT)
+def health() -> dict[str, str]:
+    return {"status": "ok"}

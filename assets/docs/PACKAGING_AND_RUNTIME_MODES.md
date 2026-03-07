@@ -65,3 +65,20 @@ Cloud topology:
 - Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `ADSMOD/client/package-lock.json` and installed with `npm ci`.
 - Docker base images are pinned to explicit tags in `docker/backend.Dockerfile` and `docker/frontend.Dockerfile`.
+
+## 7. Desktop Mode (Tauri)
+
+Desktop packaged mode is Windows-first and uses a native Tauri shell:
+- Frontend loads from bundled static assets (`frontendDist`).
+- Backend starts as a sidecar executable (`externalBin`).
+- Tauri waits for backend `/health` before UI usage.
+- Tauri exposes `get_runtime_config` with backend API origin to frontend.
+
+Runtime writable paths are redirected with `ADSMOD_BASE_DIR` under app-data:
+- `...\runtime\settings\...`
+- `...\runtime\resources\database.db`
+- `...\runtime\resources\logs\...`
+- `...\runtime\resources\checkpoints\...`
+
+Desktop build command (from `ADSMOD/client`):
+- `npm run build:desktop`

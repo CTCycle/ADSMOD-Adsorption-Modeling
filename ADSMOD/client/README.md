@@ -38,3 +38,17 @@ Runtime host/port and API proxy values are resolved from `ADSMOD/settings/.env` 
 - **TypeScript** - Type-safe development
 - **Vite** - Fast build tool and dev server
 - **CSS3** - Modern styling with custom design system
+
+## Desktop (Tauri)
+
+Run desktop development shell:
+```bash
+npm run tauri:dev
+```
+
+Build Windows desktop package (frontend + backend sidecar + tauri bundle):
+```bash
+npm run build:desktop
+```
+
+Desktop frontend receives runtime backend origin from Tauri (`get_runtime_config`) and can call an absolute localhost API origin. Web/cloud mode continues to use `/api` path routing.

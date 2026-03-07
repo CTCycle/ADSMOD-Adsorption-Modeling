@@ -1,23 +1,58 @@
 from __future__ import annotations
 
+import os
+import shutil
 from os.path import abspath, join
 
 # [PATHS]
 ###############################################################################
 ROOT_DIR = abspath(join(__file__, "../../../.."))
 PROJECT_DIR = join(ROOT_DIR, "ADSMOD")
-SETTING_PATH = join(PROJECT_DIR, "settings")
-RESOURCES_PATH = join(PROJECT_DIR, "resources")
+DEFAULT_RUNTIME_ROOT = PROJECT_DIR
+ADSMOD_BASE_DIR_ENV = "ADSMOD_BASE_DIR"
+PACKAGE_SETTINGS_PATH = join(PROJECT_DIR, "settings")
+RUNTIME_ROOT = abspath(os.getenv(ADSMOD_BASE_DIR_ENV, "").strip() or DEFAULT_RUNTIME_ROOT)
+SETTING_PATH = join(RUNTIME_ROOT, "settings")
+RESOURCES_PATH = join(RUNTIME_ROOT, "resources")
 LOGS_PATH = join(RESOURCES_PATH, "logs")
 TEMPLATES_PATH = join(RESOURCES_PATH, "templates")
 CHECKPOINTS_PATH = join(RESOURCES_PATH, "checkpoints")
 ENV_FILE_PATH = join(SETTING_PATH, ".env")
 DATABASE_FILENAME = "database.db"
+DEFAULT_CONFIGURATION_FILE = join(PACKAGE_SETTINGS_PATH, "configurations.json")
+DEFAULT_ENV_TEMPLATE_FILE = join(PACKAGE_SETTINGS_PATH, ".env.local.example")
 
 
 ###############################################################################
 CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 
+
+###############################################################################
+def _ensure_runtime_layout() -> None:
+    os.makedirs(SETTING_PATH, exist_ok=True)
+    os.makedirs(RESOURCES_PATH, exist_ok=True)
+    os.makedirs(LOGS_PATH, exist_ok=True)
+    os.makedirs(TEMPLATES_PATH, exist_ok=True)
+    os.makedirs(CHECKPOINTS_PATH, exist_ok=True)
+
+    uses_external_runtime_root = RUNTIME_ROOT != DEFAULT_RUNTIME_ROOT
+
+    if (
+        uses_external_runtime_root
+        and not os.path.exists(CONFIGURATION_FILE)
+        and os.path.exists(DEFAULT_CONFIGURATION_FILE)
+    ):
+        shutil.copyfile(DEFAULT_CONFIGURATION_FILE, CONFIGURATION_FILE)
+
+    if (
+        uses_external_runtime_root
+        and not os.path.exists(ENV_FILE_PATH)
+        and os.path.exists(DEFAULT_ENV_TEMPLATE_FILE)
+    ):
+        shutil.copyfile(DEFAULT_ENV_TEMPLATE_FILE, ENV_FILE_PATH)
+
+
+_ensure_runtime_layout()
 
 ###############################################################################
 FASTAPI_TITLE = "ADSMOD Model Fitting Backend"
@@ -154,3 +189,4 @@ NIST_JOBS_ENDPOINT = "/jobs"
 NIST_JOB_STATUS_ENDPOINT = "/jobs/{job_id}"
 ROOT_ENDPOINT = "/"
 DOCS_ENDPOINT = "/docs"
+HEALTH_ENDPOINT = "/health"

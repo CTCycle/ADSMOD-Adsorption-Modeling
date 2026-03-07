@@ -63,7 +63,27 @@ Stop cloud containers:
 docker compose --env-file ADSMOD/settings/.env down
 ```
 
-### 3.3 Manual Setup (Advanced)
+### 3.3 Desktop (Tauri, Windows-first)
+
+For production desktop packaging, use the native Tauri shell from `ADSMOD/client`.
+
+```cmd
+cd ADSMOD\client
+npm run build:desktop
+```
+
+This flow performs three deterministic steps:
+- Build frontend static assets (`npm run build`).
+- Build backend sidecar executable (`uv run python ../scripts/build_backend_sidecar.py`).
+- Build the Tauri installer (`tauri build`).
+
+Desktop runtime behavior:
+- Frontend is served from bundled `frontendDist` assets.
+- Backend is started as a managed sidecar process.
+- Runtime writes (database/logs/checkpoints/settings) are redirected under app-data using `ADSMOD_BASE_DIR` injected by Tauri.
+- No `vite preview` and no browser auto-open are used in packaged mode.
+
+### 3.4 Manual Setup (Advanced)
 
 If you prefer to set up the application manually or are running on a non-Windows environment, ensure you have Python and Node.js installed. You will need to install the backend dependencies from `pyproject.toml` and the frontend dependencies from the `client` directory, then launch the server and client components respectively.
 
@@ -72,8 +92,11 @@ If you prefer to set up the application manually or are running on a non-Windows
 
 ### 4.1 Launching the Application
 
-**Windows:**
+**Windows (legacy launcher):**
 Simply double-click `start_on_windows.bat` in the `ADSMOD` folder. This opens backend/frontend logs and launches the UI at `http://<UI_HOST>:<UI_PORT>` from `ADSMOD/settings/.env`.
+
+**Windows Desktop (Tauri packaged app):**
+Launch the installed ADSMOD desktop app from the Start Menu/desktop shortcut. The UI runs in the native window, and the backend sidecar lifecycle is managed automatically.
 
 **Cloud:**
 After `docker compose up -d`, open `http://<UI_HOST>:<UI_PORT>` using values in `ADSMOD/settings/.env` (for the provided cloud profile, `http://0.0.0.0:8080`).
@@ -150,6 +173,11 @@ Run `ADSMOD/setup_and_maintenance.bat` to access setup and maintenance actions:
 ## 6. Resources
 
 The application stores data and artifacts in specific directories, primarily under `ADSMOD/resources`.
+Desktop packaged builds use OS app-data for mutable runtime files:
+- `%LOCALAPPDATA%\com.adsmod.desktop\runtime\resources\database.db`
+- `%LOCALAPPDATA%\com.adsmod.desktop\runtime\resources\logs\...`
+- `%LOCALAPPDATA%\com.adsmod.desktop\runtime\resources\checkpoints\...`
+- `%LOCALAPPDATA%\com.adsmod.desktop\runtime\settings\...`
 
 - **checkpoints**: Stores trained model weights, training history, and model configuration files.
 - **database**: Contains the local SQLite database storing metadata, cached API responses, and experiment indexes.
@@ -177,3 +205,8 @@ For packaging and runtime details, see `docs/PACKAGING_AND_RUNTIME_MODES.md`.
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
+
+Desktop runtime contract:
+- `get_runtime_config` (Tauri command) returns `apiOrigin` for frontend API calls.
+- `ADSMOD_BASE_DIR` is injected by Tauri so backend mutable paths resolve under user app-data.
+- In desktop mode, frontend can use an absolute localhost API origin (for example `http://127.0.0.1:50123`).

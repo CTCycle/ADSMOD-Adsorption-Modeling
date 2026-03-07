@@ -55,3 +55,7 @@ Thumbs.db
 
 !.gitkeep
 
+ADSMOD/client/src-tauri/target/
+ADSMOD/client/src-tauri/gen/
+ADSMOD/client/src-tauri/binaries/*.exe
+ADSMOD/client/src-tauri/binaries/*.msi
