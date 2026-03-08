@@ -59,16 +59,13 @@ class TestSidebarNavigation:
 
     # -------------------------------------------------------------------------
     def test_navigate_to_browser_page(self, page: Page, base_url: str) -> None:
-        """Verify navigation to the Database Browser page."""
-        # Arrange
+        """Verify legacy Database Browser navigation is no longer exposed."""
+        # Arrange & Act
         page.goto(base_url)
 
-        # Act
-        page.get_by_title("Database Browser").click()
-
         # Assert
-        browser_section = page.locator("section:not([hidden]) .browser-page")
-        expect(browser_section).to_be_visible()
+        browser_nav = page.get_by_title("Database Browser")
+        expect(browser_nav).to_have_count(0)
 
     # -------------------------------------------------------------------------
     def test_navigate_to_analysis_page(self, page: Page, base_url: str) -> None:
@@ -155,17 +152,14 @@ class TestModelsPage:
 
 ###############################################################################
 class TestDatabaseBrowserPage:
-    """Tests for the Database Browser page elements."""
+    """Tests for legacy Database Browser page removal."""
 
     # -------------------------------------------------------------------------
     def test_table_dropdown_visible(self, page: Page, base_url: str) -> None:
-        """Verify the table selection dropdown is visible."""
-        # Arrange
+        """Verify Database Browser entry is no longer present in the sidebar."""
+        # Arrange & Act
         page.goto(base_url)
 
-        # Act
-        page.get_by_title("Database Browser").click()
-
         # Assert
-        dropdown = page.locator("select").first
-        expect(dropdown).to_be_visible()
+        browser_nav = page.get_by_title("Database Browser")
+        expect(browser_nav).to_have_count(0)

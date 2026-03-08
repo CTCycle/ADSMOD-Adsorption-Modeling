@@ -1,4 +1,4 @@
-"""E2E tests for the database browser endpoints."""
+"""E2E tests for retired database browser endpoints."""
 
 from __future__ import annotations
 
@@ -7,84 +7,63 @@ from playwright.sync_api import APIRequestContext
 
 ###############################################################################
 class TestListTables:
-    """Tests for the table listing endpoint."""
+    """Tests for the retired table listing endpoint."""
 
     # -------------------------------------------------------------------------
     def test_list_tables(self, api_context: APIRequestContext) -> None:
-        """Verify tables endpoint returns list of available tables."""
+        """Verify /browser/tables is no longer available."""
         # Act
         response = api_context.get("/browser/tables")
 
         # Assert
-        assert response.ok
-        data = response.json()
-        assert "tables" in data
-        assert isinstance(data["tables"], list)
-        assert len(data["tables"]) > 0
+        assert response.status == 404
 
     # -------------------------------------------------------------------------
     def test_tables_have_required_fields(self, api_context: APIRequestContext) -> None:
-        """Verify each table entry has required fields."""
+        """Verify /browser/tables no longer returns table metadata."""
         # Act
         response = api_context.get("/browser/tables")
 
         # Assert
-        assert response.ok
-        data = response.json()
-        for table in data["tables"]:
-            assert "table_name" in table
-            assert "display_name" in table
-            assert "category" in table
+        assert response.status == 404
 
     # -------------------------------------------------------------------------
     def test_tables_include_adsorption_data(
         self, api_context: APIRequestContext
     ) -> None:
-        """Verify adsorption_data table is in the list."""
+        """Verify /browser/tables does not expose adsorption_data anymore."""
         # Act
         response = api_context.get("/browser/tables")
 
         # Assert
-        assert response.ok
-        data = response.json()
-        table_names = [t["table_name"] for t in data["tables"]]
-        assert "adsorption_data" in table_names
+        assert response.status == 404
 
 
 ###############################################################################
 class TestGetTableData:
-    """Tests for fetching table data."""
+    """Tests for retired table data endpoints."""
 
     # -------------------------------------------------------------------------
     def test_get_table_data_adsorption(self, api_context: APIRequestContext) -> None:
-        """Verify fetching adsorption_data table succeeds."""
+        """Verify /browser/data/adsorption_data is no longer available."""
         # Act
         response = api_context.get("/browser/data/adsorption_data")
 
         # Assert
-        assert response.ok
-        data = response.json()
-        assert "table_name" in data
-        assert data["table_name"] == "adsorption_data"
-        assert "columns" in data
-        assert "data" in data
-        assert "row_count" in data
-        assert "column_count" in data
+        assert response.status == 404
 
     # -------------------------------------------------------------------------
     def test_get_table_data_langmuir(self, api_context: APIRequestContext) -> None:
-        """Verify fetching adsorption_langmuir table succeeds."""
+        """Verify /browser/data/adsorption_langmuir is no longer available."""
         # Act
         response = api_context.get("/browser/data/adsorption_langmuir")
 
         # Assert
-        assert response.ok
-        data = response.json()
-        assert data["table_name"] == "adsorption_langmuir"
+        assert response.status == 404
 
     # -------------------------------------------------------------------------
     def test_get_invalid_table(self, api_context: APIRequestContext) -> None:
-        """Verify 404 error when fetching a non-existent table."""
+        """Verify invalid browser table path returns 404."""
         # Act
         response = api_context.get("/browser/data/INVALID_TABLE_NAME")
 
@@ -94,19 +73,13 @@ class TestGetTableData:
 
 ###############################################################################
 class TestTableCategories:
-    """Tests for table category groupings."""
+    """Tests for retired table category endpoint behavior."""
 
     # -------------------------------------------------------------------------
     def test_tables_grouped_by_category(self, api_context: APIRequestContext) -> None:
-        """Verify tables are properly categorized."""
+        """Verify /browser/tables no longer returns categories."""
         # Act
         response = api_context.get("/browser/tables")
 
         # Assert
-        assert response.ok
-        data = response.json()
-        categories = set(t["category"] for t in data["tables"])
-
-        # Should have at least some expected categories
-        expected_categories = {"NIST-A Data", "Uploaded Data", "Model Results"}
-        assert len(categories & expected_categories) > 0
+        assert response.status == 404

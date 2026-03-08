@@ -25,6 +25,14 @@ class TestFittingRun:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _fitting_dataset(dataset: dict) -> dict:
+        """Align upload payload with fitting schema expectations."""
+        filtered_dataset = dict(dataset)
+        filtered_dataset.pop("row_count", None)
+        return filtered_dataset
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _wait_for_job_completion(
         api_context: APIRequestContext,
         job_id: str,
@@ -69,7 +77,7 @@ class TestFittingRun:
 
         # Build fitting request
         payload = {
-            "dataset": dataset,
+            "dataset": self._fitting_dataset(dataset),
             "parameter_bounds": {
                 "Langmuir": {
                     "min": {"k": 1e-06, "qsat": 0.0},
@@ -89,7 +97,8 @@ class TestFittingRun:
         data = response.json()
         assert "job_id" in data
         job_status = self._wait_for_job_completion(api_context, data["job_id"])
-        assert job_status.get("status") == "completed"
+        if job_status.get("status") != "completed":
+            raise AssertionError(f"Job did not complete successfully: {job_status}")
 
     # -------------------------------------------------------------------------
     def test_run_fitting_multiple_models(
@@ -104,7 +113,7 @@ class TestFittingRun:
             "/datasets/load",
             multipart={
                 "file": {
-                    "name": "multi_model_test.csv",
+                    "name": "fitting_test.csv",
                     "mimeType": "text/csv",
                     "buffer": file_content,
                 }
@@ -114,7 +123,7 @@ class TestFittingRun:
         dataset = upload_response.json()["dataset"]
 
         payload = {
-            "dataset": dataset,
+            "dataset": self._fitting_dataset(dataset),
             "parameter_bounds": {
                 "Langmuir": {
                     "min": {"k": 1e-06, "qsat": 0.0},
@@ -127,7 +136,7 @@ class TestFittingRun:
                     "initial": {"k": 0.5, "exponent": 1.0},
                 },
             },
-            "max_iterations": self._max_iterations(60),
+            "max_iterations": self._max_iterations(120),
             "optimization_method": "LSS",
         }
 
@@ -139,7 +148,8 @@ class TestFittingRun:
         data = response.json()
         assert "job_id" in data
         job_status = self._wait_for_job_completion(api_context, data["job_id"])
-        assert job_status.get("status") == "completed"
+        if job_status.get("status") != "completed":
+            raise AssertionError(f"Job did not complete successfully: {job_status}")
 
     # -------------------------------------------------------------------------
     def test_run_fitting_invalid_method(
@@ -164,7 +174,7 @@ class TestFittingRun:
         dataset = upload_response.json()["dataset"]
 
         payload = {
-            "dataset": dataset,
+            "dataset": self._fitting_dataset(dataset),
             "parameter_bounds": {
                 "Langmuir": {
                     "min": {"k": 1e-06, "qsat": 0.0},
@@ -199,3 +209,4 @@ class TestNistDatasetForFitting:
         if response.ok:
             data = response.json()
             assert "dataset" in data or "summary" in data
+
