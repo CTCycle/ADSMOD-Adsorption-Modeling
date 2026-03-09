@@ -134,7 +134,8 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
         if (success) {
             await loadDatasetSources();
         } else {
-            alert(`Failed to delete dataset: ${message}`);
+            setStatusTone('error');
+            setStatusMessage(`ERROR: Failed to delete dataset: ${message}`);
         }
     };
 

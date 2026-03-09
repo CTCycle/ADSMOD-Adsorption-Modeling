@@ -43,8 +43,14 @@ export const useTrainingActionRunner = ({
                     onSuccess?.(result);
                     return;
                 }
-                console.error(`Failed to ${actionLabel}:`, result.message);
-                alert(`Failed to ${actionLabel}: ${result.message}`);
+
+                const message = result.message || `Failed to ${actionLabel}.`;
+                console.error(`Failed to ${actionLabel}:`, message);
+                appendLog(`[ERROR] Failed to ${actionLabel}: ${message}`);
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+                console.error(`Unexpected error while trying to ${actionLabel}:`, error);
+                appendLog(`[ERROR] Failed to ${actionLabel}: ${message}`);
             } finally {
                 setLoading(false);
             }
