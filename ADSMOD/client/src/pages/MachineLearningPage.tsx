@@ -167,6 +167,12 @@ export const MachineLearningPage: React.FC = () => {
     const [infoModalTitle, setInfoModalTitle] = useState('');
     const [infoModalData, setInfoModalData] = useState<InfoModalData | null>(null);
 
+    const openErrorModal = useCallback((title: string, message: string) => {
+        setInfoModalTitle(title);
+        setInfoModalData({ Message: message });
+        setInfoModalOpen(true);
+    }, []);
+
     // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
     const pollIntervalSecondsRef = useRef<number | null>(null);
@@ -291,7 +297,7 @@ export const MachineLearningPage: React.FC = () => {
             if (success) {
                 loadProcessedDatasets();
             } else {
-                alert(`Failed to delete dataset: ${message}`);
+                openErrorModal('Delete Dataset Failed', message || 'Failed to delete dataset.');
             }
         }
     };
@@ -306,7 +312,7 @@ export const MachineLearningPage: React.FC = () => {
             setInfoModalData(buildDatasetMetadataModalData(info));
             setInfoModalOpen(true);
         } else {
-            alert(`Could not fetch details for dataset '${label}'`);
+            openErrorModal('Dataset Metadata', `Could not fetch details for dataset '${label}'.`);
         }
     };
 
@@ -316,7 +322,7 @@ export const MachineLearningPage: React.FC = () => {
             if (success) {
                 loadCheckpoints();
             } else {
-                alert(`Failed to delete checkpoint: ${error}`);
+                openErrorModal('Delete Checkpoint Failed', error || 'Failed to delete checkpoint.');
             }
         }
     };
@@ -324,8 +330,7 @@ export const MachineLearningPage: React.FC = () => {
     const handleViewCheckpointDetails = async (name: string) => {
         const { details, error } = await fetchCheckpointDetails(name);
         if (error) {
-            // Error falls back to alert or could use a toast
-            alert(`Failed to load details: ${error}`);
+            openErrorModal('Checkpoint Details', error);
         } else if (details) {
             setInfoModalTitle('Checkpoint Details');
             setInfoModalData(buildCheckpointDetailsModalData(details));
@@ -593,3 +598,6 @@ export const MachineLearningPage: React.FC = () => {
 };
 
 export default MachineLearningPage;
+
+
+
