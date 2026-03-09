@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ADSMOD Desktop",
+  "version": "2.0.0",
+  "identifier": "com.adsmod.desktop",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "about:blank"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "ADSMOD Desktop",
+        "url": "about:blank",
+        "width": 1440,
+        "height": 920,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "r/pyproject.toml": "pyproject.toml",
+      "r/uv.lock": "uv.lock",
+      "r/server": "ADSMOD/server",
+      "r/scripts": "ADSMOD/scripts",
+      "r/settings": "ADSMOD/settings",
+      "r/client/dist": "ADSMOD/client/dist",
+      "r/resources/checkpoints": "ADSMOD/resources/checkpoints",
+      "r/resources/database.db": "ADSMOD/resources/database.db",
+      "r/resources/runtimes/python": "ADSMOD/resources/runtimes/python",
+      "r/resources/runtimes/uv": "ADSMOD/resources/runtimes/uv"
+    }
+  }
+}

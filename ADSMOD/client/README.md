@@ -38,3 +38,18 @@ Runtime host/port and API proxy values are resolved from `ADSMOD/settings/.env` 
 - **TypeScript** - Type-safe development
 - **Vite** - Fast build tool and dev server
 - **CSS3** - Modern styling with custom design system
+
+## Desktop Packaging (Tauri)
+
+From the repo root, use:
+
+```cmd
+copy /Y ADSMOD\settings\.env.local.tauri.example ADSMOD\settings\.env
+ADSMOD\start_on_windows.bat
+ADSMOD\build_with_tauri.bat
+```
+
+Desktop artifacts are exported to:
+
+- `release/windows/installers`
+- `release/windows/portable`

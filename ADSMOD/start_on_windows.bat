@@ -40,6 +40,7 @@ set "pyproject=%root_folder%pyproject.toml"
 set "UVICORN_MODULE=ADSMOD.server.app:app"
 set "FRONTEND_DIR=%project_folder%client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
+set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
 
 set "DOTENV=%settings_dir%\.env"
 set "TMPDL=%TEMP%\app_dl.ps1"
@@ -128,17 +129,25 @@ if not exist "%node_exe%" (
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPDL%" "%nodejs_zip_url%" "%nodejs_zip_path%" || goto error
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPEXP%" "%nodejs_zip_path%" "%nodejs_dir%" || goto error
   del /q "%nodejs_zip_path%" >nul 2>&1
+)
 
-  for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFINDNODE%" "%nodejs_dir%"') do set "found_node=%%F"
-  if not defined found_node (
-    echo [FATAL] node.exe not found after extraction.
-    goto error
-  )
+set "node_archive_dir=%nodejs_dir%\node-v%nodejs_version%-win-x64"
+if exist "%node_archive_dir%\node.exe" (
+  call :promote_node_runtime "%node_archive_dir%"
+  if errorlevel 1 goto error
+)
 
-  if /i not "%found_node%"=="%node_exe%" (
-    for %%D in ("!found_node!") do set "node_parent=%%~dpD"
-    xcopy /s /e /i /q "!node_parent!*" "%nodejs_dir%" >nul
-  )
+for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFINDNODE%" "%nodejs_dir%"') do set "found_node=%%F"
+if not defined found_node (
+  echo [FATAL] node.exe not found after extraction.
+  goto error
+)
+
+if /i not "!found_node!"=="%node_exe%" (
+  for %%D in ("!found_node!") do set "node_parent=%%~dpD"
+  if "!node_parent:~-1!"=="\" set "node_parent=!node_parent:~0,-1!"
+  call :promote_node_runtime "!node_parent!"
+  if errorlevel 1 goto error
 )
 
 if exist "%node_exe%" (
@@ -159,7 +168,7 @@ REM ============================================================================
 set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
-set "UI_PORT=7861"
+set "UI_PORT=8001"
 set "RELOAD=false"
 set "OPTIONAL_DEPENDENCIES=false"
 
@@ -167,12 +176,13 @@ if exist "%DOTENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
     set "line=%%L"
     if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
-      for /f "tokens=1* delims==" %%K in ("!line!") do (
-        set "k=%%K"
-        set "v=%%L"
+      for /f "tokens=1,* delims==" %%A in ("!line!") do (
+        set "k=%%A"
+        set "v=%%B"
         if defined v (
-          if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
-          if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
+          for /f "tokens=* delims= " %%Q in ("!v!") do set "v=%%Q"
+          set "v=!v:"=!"
+          if "!v:~0,1!"=="'" if "!v:~-1!"=="'" set "v=!v:~1,-1!"
         )
         set "!k!=!v!"
       )
@@ -244,7 +254,7 @@ start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MO
 if not exist "%FRONTEND_DIR%\node_modules" (
   echo [STEP] Installing frontend dependencies...
   pushd "%FRONTEND_DIR%" >nul
-  if exist "%FRONTEND_DIR%\package-lock.json" (
+  if exist "%FRONTEND_LOCKFILE%" (
     call "%NPM_CMD%" ci
   ) else (
     call "%NPM_CMD%" install
@@ -252,7 +262,7 @@ if not exist "%FRONTEND_DIR%\node_modules" (
   set "npm_ec=!ERRORLEVEL!"
   popd >nul
   if not "!npm_ec!"=="0" (
-    echo [FATAL] npm install failed with code !npm_ec!.
+    echo [FATAL] Frontend dependency install failed with code !npm_ec!.
     goto error
   )
 )
@@ -272,7 +282,7 @@ if not exist "%FRONTEND_DIST%" (
 )
 
 REM ============================================================================
-REM Wait for backend to allow it to initialize
+REM Wait for backend
 REM ============================================================================
 echo [WAIT] Waiting for backend to be ready on port !FASTAPI_PORT!...
 for /L %%i in (1,1,20) do (
@@ -292,6 +302,22 @@ popd >nul
 start "" "%UI_URL%"
 echo [SUCCESS] Backend and frontend correctly launched
 goto cleanup
+
+:promote_node_runtime
+set "node_source_dir=%~1"
+if not defined node_source_dir exit /b 1
+for %%D in ("%~1") do set "node_source_dir=%%~fD"
+if /i "!node_source_dir!"=="%nodejs_dir%" exit /b 0
+
+robocopy "!node_source_dir!" "%nodejs_dir%" /MOVE /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NC /NS >nul
+set "node_move_ec=!ERRORLEVEL!"
+if !node_move_ec! geq 8 (
+  echo [FATAL] Failed to flatten portable Node.js runtime from "!node_source_dir!".
+  exit /b !node_move_ec!
+)
+
+if exist "!node_source_dir!" rd /s /q "!node_source_dir!" >nul 2>&1
+exit /b 0
 
 REM ============================================================================
 REM Cleanup temp helpers
