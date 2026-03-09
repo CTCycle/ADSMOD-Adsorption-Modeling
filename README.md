@@ -94,11 +94,36 @@ copy /Y ADSMOD\settings\.env.cloud.example ADSMOD\settings\.env
 
 No source code changes are required.
 
-### 4.3 Operational Workflow
+### 4.3 Desktop Packaging (Windows Tauri)
+
+Prepare the desktop runtime profile:
+
+```cmd
+copy /Y ADSMOD\settings\.env.local.tauri.example ADSMOD\settings\.env
+```
+
+Ensure portable runtimes are present (run at least once):
+
+```cmd
+ADSMOD\start_on_windows.bat
+```
+
+Build desktop artifacts:
+
+```cmd
+ADSMOD\build_with_tauri.bat
+```
+
+The exported user-facing output is created under:
+
+- `release/windows/installers`
+- `release/windows/portable`
+
+### 4.4 Operational Workflow
 
 The application workflow is divided into four main sections, accessible via the navigation sidebar:
 
-#### 4.3.1 Data Source Configuration
+#### 4.4.1 Data Source Configuration
 
 This section serves as the entry point for managing experimental data. It allows users to either upload their own datasets or fetch data directly from the NIST Adsorption Database.
 - **Load Experimental Data**: Upload local `.csv` or `.xlsx` files containing adsorption data for independent processing.
@@ -107,7 +132,7 @@ This section serves as the entry point for managing experimental data. It allows
 
 ![Data Source Configuration](assets/figures/dataset_page.png)
 
-#### 4.3.2 Models & Fitting
+#### 4.4.2 Models & Fitting
 
 Before training deep learning models, users can analyze individual isotherms using classical theoretical models.
 - **Fitting Configuration**: Select a target dataset (either uploaded or from NIST) and configure the optimizer (e.g., LSS, BFGS) and maximum iterations.
@@ -116,7 +141,7 @@ Before training deep learning models, users can analyze individual isotherms usi
 
 ![Isotherm Fitting](assets/figures/fitting_page.png)
 
-#### 4.3.3 Model Training (Analysis)
+#### 4.4.3 Model Training (Analysis)
 
 This is the core interface for the deep learning pipeline, enabling users to build datasets, train models, and resume experiments.
 
@@ -138,13 +163,13 @@ A step-by-step guided workflow for configuring training experiments:
 
 ![Model Training](assets/figures/training_page.png)
 
-
 ## 5. Setup and Maintenance
 Run `ADSMOD/setup_and_maintenance.bat` to access setup and maintenance actions:
 
 - **Remove logs** - clear `.log` files under `ADSMOD/resources/logs`.
 - **Uninstall app** - remove local runtimes and build artifacts (uv, embedded Python, portable Node.js, `node_modules`, `dist`, `.venv`, `uv.lock`) while preserving folder scaffolding.
 - **Initialize database** - create or reset the project database schema.
+- **Clean desktop build artifacts** - remove `ADSMOD/client/src-tauri/target/release` and `release/windows` only.
 
 
 ## 6. Resources
@@ -171,9 +196,11 @@ Runtime values are loaded from `ADSMOD/settings/.env` and apply to:
 Use these profile files as templates:
 - `ADSMOD/settings/.env.local.example`
 - `ADSMOD/settings/.env.cloud.example`
+- `ADSMOD/settings/.env.local.tauri.example`
 
-For packaging and runtime details, see `docs/PACKAGING_AND_RUNTIME_MODES.md`.
+Desktop packaging is implemented through `ADSMOD/build_with_tauri.bat` and `ADSMOD/client/scripts/export-windows-artifacts.ps1`.
 
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
+
