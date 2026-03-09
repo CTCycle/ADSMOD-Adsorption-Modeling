@@ -1,19 +1,20 @@
 [CmdletBinding()]
 param(
-  [string]$OutputRelativePath = "..\..\release\windows"
+  [string]$ClientRelativePath = "..\..\..\ADSMOD\client",
+  [string]$OutputRelativePath = "..\windows"
 )
 
 $ErrorActionPreference = "Stop"
 
-$clientDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$clientDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $ClientRelativePath))
 $releaseDir = Join-Path $clientDir "src-tauri\target\release"
 $bundleDir = Join-Path $releaseDir "bundle"
-$outputDir = [System.IO.Path]::GetFullPath((Join-Path $clientDir $OutputRelativePath))
+$outputDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $OutputRelativePath))
 $installersDir = Join-Path $outputDir "installers"
 $portableDir = Join-Path $outputDir "portable"
 
 if (-not (Test-Path $bundleDir)) {
-  throw "Bundle directory not found. Run 'npm run tauri:build' first. Missing: $bundleDir"
+  throw "Bundle directory not found. Run 'release\\tauri\\build_with_tauri.bat' first. Missing: $bundleDir"
 }
 
 if (Test-Path $outputDir) {

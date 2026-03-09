@@ -111,7 +111,7 @@ ADSMOD\start_on_windows.bat
 Build desktop artifacts:
 
 ```cmd
-ADSMOD\build_with_tauri.bat
+release\tauri\build_with_tauri.bat
 ```
 
 The exported user-facing output is created under:
@@ -198,9 +198,8 @@ Use these profile files as templates:
 - `ADSMOD/settings/.env.cloud.example`
 - `ADSMOD/settings/.env.local.tauri.example`
 
-Desktop packaging is implemented through `ADSMOD/build_with_tauri.bat` and `ADSMOD/client/scripts/export-windows-artifacts.ps1`.
+Desktop packaging is implemented through `release/tauri/build_with_tauri.bat` and `release/tauri/scripts/export-windows-artifacts.ps1`.
 
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
-

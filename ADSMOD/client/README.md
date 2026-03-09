@@ -46,7 +46,7 @@ From the repo root, use:
 ```cmd
 copy /Y ADSMOD\settings\.env.local.tauri.example ADSMOD\settings\.env
 ADSMOD\start_on_windows.bat
-ADSMOD\build_with_tauri.bat
+release\tauri\build_with_tauri.bat
 ```
 
 Desktop artifacts are exported to:

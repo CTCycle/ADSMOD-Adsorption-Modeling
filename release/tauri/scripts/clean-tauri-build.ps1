@@ -1,12 +1,15 @@
 [CmdletBinding()]
-param()
+param(
+  [string]$ClientRelativePath = "..\..\..\ADSMOD\client",
+  [string]$OutputRelativePath = "..\windows"
+)
 
 $ErrorActionPreference = "Stop"
 
-$clientDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$clientDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $ClientRelativePath))
 $pathsToRemove = @(
   (Join-Path $clientDir "src-tauri\target\release"),
-  [System.IO.Path]::GetFullPath((Join-Path $clientDir "..\..\release\windows"))
+  [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $OutputRelativePath))
 )
 
 foreach ($path in $pathsToRemove) {
