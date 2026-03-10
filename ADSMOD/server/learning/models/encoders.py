@@ -190,20 +190,20 @@ class QDecoder(keras.layers.Layer):
 
     # -------------------------------------------------------------------------
     def call(
-        self, P_logits, pressure, state, mask=None, training: bool | None = None
+        self, p_logits, pressure, state, mask=None, training: bool | None = None
     ) -> Any:
         mask = self.compute_mask(pressure) if mask is None else mask
-        layer = P_logits * mask if mask is not None else P_logits
+        layer = p_logits * mask if mask is not None else p_logits
 
         state = self.state_dense(state)
         state = activations.relu(state)
-        T_scale = keras.ops.expand_dims(keras.ops.exp(-state), axis=1)
+        t_scale = keras.ops.expand_dims(keras.ops.exp(-state), axis=1)
 
         for dense, bn in zip(self.dense, self.batch_norm):
             layer = dense(layer)
             layer = bn(layer, training=training)
             layer = activations.relu(layer)
-            layer = layer * T_scale
+            layer = layer * t_scale
 
         output = self.Q_output(layer)
         output = activations.relu(output)

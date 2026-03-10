@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 ###############################################################################
 class DatasetPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
     dataset_name: str = Field(..., min_length=1, max_length=256)
     columns: list[str] = Field(default_factory=list, max_length=256)
     records: list[dict[str, Any]] = Field(default_factory=list)
@@ -17,7 +16,6 @@ class DatasetPayload(BaseModel):
 ###############################################################################
 class ModelParameterConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     min: dict[str, float] = Field(default_factory=dict)
     max: dict[str, float] = Field(default_factory=dict)
     initial: dict[str, float] = Field(default_factory=dict)
@@ -26,7 +24,6 @@ class ModelParameterConfig(BaseModel):
 ###############################################################################
 class FittingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     max_iterations: int = Field(..., ge=1)
     optimization_method: Literal[
         "LSS",

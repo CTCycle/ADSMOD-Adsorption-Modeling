@@ -70,7 +70,7 @@ class TrainingProgressCallback(Callback):
         self.last_update_time = current_time
         logs = logs or {}
 
-        steps_per_epoch = int(self.params.get("steps", 1) or 1)
+        steps_per_epoch = int(self.params.get("steps", 1) if self.params else 1)
         epoch_progress = (batch + 1) / steps_per_epoch
         total_epochs_to_run = max(1, self.total_epochs - self.start_epoch)
         completed_epochs = self.current_epoch_index - self.start_epoch
@@ -168,13 +168,13 @@ class StopTrainingCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_batch_end(self, batch, logs: dict | None = None) -> None:
-        if self.should_stop is not None and self.should_stop():
+        if self.should_stop is not None and self.should_stop() and self.model is not None:
             logger.info("Stop requested; halting training after batch %s", batch)
             self.model.stop_training = True
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
-        if self.should_stop is not None and self.should_stop():
+        if self.should_stop is not None and self.should_stop() and self.model is not None:
             logger.info("Stop requested; halting training after epoch %s", epoch + 1)
             self.model.stop_training = True
 
@@ -218,8 +218,9 @@ class PeriodicCheckpointCallback(Callback):
         filename = f"model_checkpoint_E{epoch + 1:02d}.keras"
         target_path = os.path.join(self.checkpoint_dir, filename)
         try:
-            self.model.save(target_path)
-            logger.info("Saved checkpoint %s", target_path)
+            if self.model is not None:
+                self.model.save(target_path)
+                logger.info("Saved checkpoint %s", target_path)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to save checkpoint: %s", exc)
 

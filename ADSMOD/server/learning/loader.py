@@ -34,7 +34,7 @@ class TorchDictDataset(Dataset):
         return self.length
 
     # -------------------------------------------------------------------------
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> dict[str, Any] | tuple[dict[str, Any], Any]:
         inputs = {key: value[idx] for key, value in self.inputs.items()}
         if self.outputs is None:
             return inputs
@@ -92,7 +92,7 @@ class DataLoaderProcessor:
             max_pressure = self.normalization_config["pressure"]
             data = data.loc[
                 (data["pressure"] >= 0) & (data["pressure"] <= max_pressure)
-            ].copy()
+            ]
 
         return data
 
@@ -117,7 +117,7 @@ class DataLoaderProcessor:
         return data
 
     # -------------------------------------------------------------------------
-    def encode_SMILE_from_vocabulary(self, smile: str) -> list[Any]:
+    def encode_smile_from_vocabulary(self, smile: str) -> list[Any]:
         encoded_tokens = []
         i = 0
         sorted_tokens = sorted(self.smile_vocab.keys(), key=len, reverse=True)
@@ -142,7 +142,7 @@ class DataLoaderProcessor:
     # -------------------------------------------------------------------------
     def encode_from_references(self, data: pd.DataFrame) -> pd.DataFrame:
         data["adsorbate_encoded_SMILE"] = data["adsorbate_SMILE"].apply(
-            lambda x: self.encode_SMILE_from_vocabulary(x)
+            lambda x: self.encode_smile_from_vocabulary(x)
         )
         data["encoded_adsorbent"] = (
             data["adsorbent_name"].str.lower().map(self.adsorbent_vocab)

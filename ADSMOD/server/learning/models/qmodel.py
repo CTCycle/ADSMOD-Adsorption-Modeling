@@ -73,7 +73,7 @@ class SCADSModel:
         self.pressure_encoder = PressureSerierEncoder(
             self.embedding_dims, self.dropout_rate, self.num_heads, self.seed
         )
-        self.Qdecoder = QDecoder(self.embedding_dims, self.dropout_rate, self.seed)
+        self.q_decoder = QDecoder(self.embedding_dims, self.dropout_rate, self.seed)
 
         self.state_input = layers.Input(shape=(), name="state_input")
         self.chemo_input = layers.Input(shape=(), name="chemo_input")
@@ -132,7 +132,7 @@ class SCADSModel:
             self.pressure_input, encoder_output, smile_mask, training=False
         )
 
-        output = self.Qdecoder(encoded_pressure, self.pressure_input, encoded_states)
+        output = self.q_decoder(encoded_pressure, self.pressure_input, encoded_states)
 
         model = Model(
             inputs=[

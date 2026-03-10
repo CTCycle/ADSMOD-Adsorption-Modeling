@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 import torch
 
-from ADSMOD.server.common.utils.logger import logger
 from keras.mixed_precision import set_global_policy
+
+from ADSMOD.server.common.utils.logger import logger
+
 
 
 ###############################################################################
@@ -41,6 +44,7 @@ class DeviceDataLoader:
         self.dataloader = dataloader
         self.device = device
 
+    # -------------------------------------------------------------------------
     def __iter__(self) -> Iterator[Any]:
         for batch in self.dataloader:
             batch = self._to_device(batch)
@@ -49,9 +53,11 @@ class DeviceDataLoader:
             else:
                 yield batch
 
+    # -------------------------------------------------------------------------
     def __len__(self) -> int:
         return len(self.dataloader)
 
+    # -------------------------------------------------------------------------
     def _to_device(self, data: Any) -> Any:
         if isinstance(data, torch.Tensor):
             return data.to(self.device, non_blocking=True)
