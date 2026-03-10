@@ -54,7 +54,6 @@ class TrainingConfigRequest(BaseModel):
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
     checkpoint_name: str = Field(
         ...,
         min_length=1,
@@ -84,8 +83,8 @@ class CheckpointDetailInfo(BaseModel):
 ###############################################################################
 class CheckpointFullDetailsResponse(BaseModel):
     name: str
-    configuration: dict[str, Any] | None
-    metadata: TrainingMetadata | None
+    configuration: dict[str, Any] | None = None
+    metadata: TrainingMetadata | None = None
     history: dict[str, Any] | None = None
 
 
@@ -175,8 +174,7 @@ class DatasetSelection(BaseModel):
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True) 
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     min_measurements: int = Field(default=1, ge=1, le=100)
@@ -285,11 +283,6 @@ class TrainingMetadata(BaseModel):
 
     # Computed/Derived fields that might be stored
     smile_vocabulary_size: int = 0
-    adsorbent_vocabulary_size: int = 0
-
-    # Legacy/Frontend fields (optional, can be aliases)
-    SMILE_sequence_size: int | None = None
-    SMILE_vocabulary: dict[str, int] | None = None
-    SMILE_vocabulary_size: int | None = None
-
+    adsorbent_vocabulary_size: int = 0   
+    
     model_config = {"populate_by_name": True, "extra": "ignore"}

@@ -45,7 +45,7 @@ DEFAULT_DB_INSERT_BATCH_SIZE = 5000
 
 # [BUILDER FUNCTIONS]
 ###############################################################################
-def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
+def build_database_settings() -> DatabaseSettings:
     embedded = coerce_bool(env_variables.get("DB_EMBEDDED"), DEFAULT_DB_EMBEDDED)
 
     if embedded:
@@ -200,7 +200,7 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
-        database=build_database_settings({}),
+        database=build_database_settings(),
         datasets=build_dataset_settings(dataset_payload),
         nist=build_nist_settings(nist_payload),
         fitting=build_fitting_settings(fitting_payload),
@@ -211,7 +211,6 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
 
 # [SERVER CONFIGURATION LOADER]
 ###############################################################################
-# -------------------------------------------------------------------------
 def get_server_settings(config_path: str | None = None) -> ServerSettings:
     path = config_path or CONFIGURATION_FILE
     payload = load_configurations(path)
