@@ -128,7 +128,7 @@ class DataSerializer:
             return None
         try:
             parsed = float(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         if pd.isna(parsed):
             return None
@@ -480,7 +480,9 @@ class DataSerializer:
         for idx, (pressure_pa, uptake_mol_g) in enumerate(
             zip(pressure_values, uptake_values, strict=False)
         ):
-            point = self._ensure_point(session, isotherm_id=isotherm_id, point_index=idx)
+            point = self._ensure_point(
+                session, isotherm_id=isotherm_id, point_index=idx
+            )
             original_pressure = None
             original_uptake = None
             if original_pressure_values and idx < len(original_pressure_values):
@@ -1001,7 +1003,9 @@ class DataSerializer:
                         session.flush()
                     else:
                         fit.score = score_value
-                        fit.aic = self.to_float(row.get(aic_column)) if aic_column else None
+                        fit.aic = (
+                            self.to_float(row.get(aic_column)) if aic_column else None
+                        )
                         fit.aicc = (
                             self.to_float(row.get(aicc_column)) if aicc_column else None
                         )
@@ -1170,4 +1174,3 @@ class DataSerializer:
 
 
 ###############################################################################
-

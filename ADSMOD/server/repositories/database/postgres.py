@@ -303,6 +303,7 @@ class PostgresRepository:
 
             data = pd.read_sql_query(query, conn)
         return self.restore_after_load(data)
+
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         table_name = ensure_safe_sql_identifier(table_name, "table name")
@@ -318,5 +319,3 @@ class PostgresRepository:
             )
             value = result.scalar() or 0
         return int(value)
-
-

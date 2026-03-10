@@ -9,7 +9,6 @@ from ADSMOD.server.repositories.database.initializer import initialize_database
 from ADSMOD.server.common.utils.logger import logger
 
 
-
 ###############################################################################
 if __name__ == "__main__":
     start = time.perf_counter()

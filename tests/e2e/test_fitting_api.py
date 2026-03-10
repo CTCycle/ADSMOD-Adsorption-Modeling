@@ -209,4 +209,3 @@ class TestNistDatasetForFitting:
         if response.ok:
             data = response.json()
             assert "dataset" in data or "summary" in data
-

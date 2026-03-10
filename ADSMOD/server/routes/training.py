@@ -115,8 +115,10 @@ class TrainingEndpoint:
         reference_metadata = None
         if request.reference_checkpoint:
             try:
-                checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
-                    request.reference_checkpoint
+                checkpoint_path = (
+                    training_manager.model_serializer.resolve_checkpoint_path(
+                        request.reference_checkpoint
+                    )
                 )
             except ValueError:
                 return {

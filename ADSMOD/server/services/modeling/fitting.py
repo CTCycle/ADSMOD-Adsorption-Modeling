@@ -799,9 +799,9 @@ class FittingPipeline:
                 .any()
             ):
                 converted[column] = converted[column].apply(
-                    lambda value: json.dumps(value)
-                    if isinstance(value, (list, tuple))
-                    else value
+                    lambda value: (
+                        json.dumps(value) if isinstance(value, (list, tuple)) else value
+                    )
                 )
         return converted
 

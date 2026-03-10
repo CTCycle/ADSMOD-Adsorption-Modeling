@@ -696,9 +696,13 @@ class NISTDataService:
     ) -> tuple[pd.DataFrame, str]:
         api_client = NISTApiClient(server_settings.nist.parallel_tasks)
         if category == "experiments":
-            return await api_client.fetch_experiments_index(client), api_client.exp_identifier
+            return await api_client.fetch_experiments_index(
+                client
+            ), api_client.exp_identifier
         if category == "guest":
-            return await api_client.fetch_guest_index(client), api_client.guest_identifier
+            return await api_client.fetch_guest_index(
+                client
+            ), api_client.guest_identifier
         return await api_client.fetch_host_index(client), api_client.host_identifier
 
     # -------------------------------------------------------------------------
@@ -821,7 +825,9 @@ class NISTDataService:
 
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            index, identifier_column = await self.load_index_for_category(category, client)
+            index, identifier_column = await self.load_index_for_category(
+                category, client
+            )
             requested_identifiers, available_count = self.ordered_identifiers(
                 index=index,
                 identifier_column=identifier_column,
@@ -855,8 +861,10 @@ class NISTDataService:
             binary_mixture_rows = 0
 
             if category == "experiments":
-                experiments_data = await api_client.fetch_experiments_data_by_identifiers(
-                    client, identifiers_to_fetch
+                experiments_data = (
+                    await api_client.fetch_experiments_data_by_identifiers(
+                        client, identifiers_to_fetch
+                    )
                 )
                 fetched_count = int(len(experiments_data))
                 if job_id:
@@ -1167,7 +1175,9 @@ class NISTDataService:
         return await self.enrich_properties(target=category, job_id=job_id)
 
     # -------------------------------------------------------------------------
-    async def enrich_guest_properties(self, job_id: str | None = None) -> dict[str, Any]:
+    async def enrich_guest_properties(
+        self, job_id: str | None = None
+    ) -> dict[str, Any]:
         return await self.enrich_category_records("guest", job_id=job_id)
 
     # -------------------------------------------------------------------------
