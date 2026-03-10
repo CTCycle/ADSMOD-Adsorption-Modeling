@@ -42,6 +42,7 @@ DEFAULT_DB_SSL = False
 DEFAULT_DB_CONNECT_TIMEOUT = 30
 DEFAULT_DB_INSERT_BATCH_SIZE = 5000
 
+
 # [BUILDER FUNCTIONS]
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
@@ -71,8 +72,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         )
 
     engine_value = (
-        coerce_str_or_none(env_variables.get("DB_ENGINE"))
-        or DEFAULT_DB_ENGINE
+        coerce_str_or_none(env_variables.get("DB_ENGINE")) or DEFAULT_DB_ENGINE
     )
     normalized_engine = engine_value.lower() if engine_value else None
     password = coerce_str(
@@ -107,7 +107,9 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         ssl=coerce_bool(env_variables.get("DB_SSL"), DEFAULT_DB_SSL),
         ssl_ca=coerce_str_or_none(env_variables.get("DB_SSL_CA")),
         connect_timeout=coerce_int(
-            env_variables.get("DB_CONNECT_TIMEOUT"), DEFAULT_DB_CONNECT_TIMEOUT, minimum=1
+            env_variables.get("DB_CONNECT_TIMEOUT"),
+            DEFAULT_DB_CONNECT_TIMEOUT,
+            minimum=1,
         ),
         insert_batch_size=coerce_int(
             env_variables.get("DB_INSERT_BATCH_SIZE"),

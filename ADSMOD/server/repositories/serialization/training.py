@@ -89,7 +89,10 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     def archive_training_dataset_rows(self, dataset_label: str | None = None) -> None:
         existing_data = self.queries.load_training_dataset()
-        if existing_data.empty or self.dataset_label_column not in existing_data.columns:
+        if (
+            existing_data.empty
+            or self.dataset_label_column not in existing_data.columns
+        ):
             return
 
         archived_data = existing_data.copy()
@@ -455,4 +458,3 @@ class TrainingDataSerializer:
 
 
 ###############################################################################
-

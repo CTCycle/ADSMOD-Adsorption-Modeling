@@ -15,9 +15,7 @@ class ConflictCandidateRanker:
         self, columns: list[str]
     ) -> tuple[int, int, int, tuple[int, ...], tuple[str, ...]]:
         lowered = tuple(column.lower() for column in columns)
-        all_not_nullable = all(
-            not self.table.c[column].nullable for column in columns
-        )
+        all_not_nullable = all(not self.table.c[column].nullable for column in columns)
         contains_key_marker = any(
             column.endswith("_key") or column == "hashcode" for column in lowered
         )

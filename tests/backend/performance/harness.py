@@ -73,7 +73,7 @@ def run_training_with_metrics(
                     first_rss = rss
                 if rss > peak_rss:
                     peak_rss = rss
-            except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+            except psutil.NoSuchProcess, psutil.AccessDenied, OSError:
                 process = None
 
         message = worker.poll(timeout=0.0)
@@ -88,7 +88,7 @@ def run_training_with_metrics(
                 if process is not None:
                     try:
                         base_rss = int(process.memory_info().rss)
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                    except psutil.NoSuchProcess, psutil.AccessDenied, OSError:
                         base_rss = 0
 
         if not worker.is_alive():

@@ -131,7 +131,9 @@ class NistEndpoint:
                 self.service.fetch_experiments_index(job_id=job_id)
             )
         if category == "guest":
-            return self.run_awaitable_sync(self.service.fetch_guest_index(job_id=job_id))
+            return self.run_awaitable_sync(
+                self.service.fetch_guest_index(job_id=job_id)
+            )
         return self.run_awaitable_sync(self.service.fetch_host_index(job_id=job_id))
 
     # -------------------------------------------------------------------------
@@ -195,7 +197,9 @@ class NistEndpoint:
         return response
 
     # -------------------------------------------------------------------------
-    async def ping_category_server(self, category: NISTCategory) -> NISTCategoryPingResponse:
+    async def ping_category_server(
+        self, category: NISTCategory
+    ) -> NISTCategoryPingResponse:
         try:
             if category == "experiments":
                 result = await self.service.ping_experiments_server()

@@ -35,6 +35,7 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
         f"@{settings.host}:{port}/{database_name}"
     )
 
+
 # -----------------------------------------------------------------------------
 def clone_settings_with_database(
     settings: DatabaseSettings, database_name: str
@@ -53,14 +54,16 @@ def clone_settings_with_database(
         insert_batch_size=settings.insert_batch_size,
     )
 
+
 # -----------------------------------------------------------------------------
 def build_postgres_create_database_sql(
     database_name: str,
 ) -> sqlalchemy.sql.elements.TextClause:
     safe_database = database_name.replace('"', '""')
     return sqlalchemy.text(
-        f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0'
+        f"CREATE DATABASE \"{safe_database}\" WITH ENCODING 'UTF8' TEMPLATE template0"
     )
+
 
 # -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
