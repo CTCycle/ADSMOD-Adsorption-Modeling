@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$ClientRelativePath = "..\..\..\ADSMOD\client",
-  [string]$OutputRelativePath = "..\windows"
+  [string]$OutputRelativePath = "..\..\windows"
 )
 
 $ErrorActionPreference = "Stop"

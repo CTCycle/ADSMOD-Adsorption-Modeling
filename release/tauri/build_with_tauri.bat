@@ -86,12 +86,18 @@ if errorlevel 1 (
   goto build_error
 )
 
+echo [CHECK] Refreshing short Tauri bundle sources...
+call :prepare_bundle_sources || (
+  popd >nul
+  goto build_error
+)
+
 echo [STEP 2/2] Building Tauri application
 if exist "%release_export_dir%" (
   echo [INFO] Removing previous exported release folder: "%release_export_dir%"
 )
-echo [CMD] "%npm_cmd%" run tauri:build:release
-call "%npm_cmd%" run tauri:build:release
+echo [CMD] powershell -NoProfile -ExecutionPolicy Bypass -Command "& '%npm_cmd%' run tauri:build:release"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& '%npm_cmd%' run tauri:build:release"
 if errorlevel 1 (
   popd >nul
   echo [FATAL] Tauri build failed.
