@@ -1,0 +1,83 @@
+{
+  "base_url": "http://127.0.0.1:8001",
+  "generated_at": "2026-03-11T12:31:17Z",
+  "viewport": {
+    "width": 1440,
+    "height": 1100
+  },
+  "captures": [
+    {
+      "page_title": "Landing / Source",
+      "route_or_url": "/ (source tab)",
+      "output_filenames": [
+        "home.png"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "notes": "No login required. Full-page screenshot. Cropped to remove bottom whitespace."
+    },
+    {
+      "page_title": "Fitting Configuration",
+      "route_or_url": "/ (fitting tab)",
+      "output_filenames": [
+        "fitting.png"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 1695
+      },
+      "notes": "Settings-focused page. Full-page screenshot. Cropped to remove bottom whitespace."
+    },
+    {
+      "page_title": "Training - Data Processing",
+      "route_or_url": "/ (training tab, processing view)",
+      "output_filenames": [
+        "training-data-processing.png"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "notes": "No login required. Full-page screenshot. Cropped to remove bottom whitespace."
+    },
+    {
+      "page_title": "Training - Datasets List",
+      "route_or_url": "/ (training tab, datasets view)",
+      "output_filenames": [
+        "training-datasets.png"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "notes": "List-style view. Full-page screenshot. Cropped to remove bottom whitespace."
+    },
+    {
+      "page_title": "Training - Checkpoints",
+      "route_or_url": "/ (training tab, checkpoints view)",
+      "output_filenames": [
+        "training-checkpoints.png"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "notes": "List/detail entry point for checkpoint inspection. Full-page screenshot. Cropped to remove bottom whitespace."
+    },
+    {
+      "page_title": "Training Dashboard",
+      "route_or_url": "/ (training tab, dashboard view)",
+      "output_filenames": [
+        "dashboard.png"
+      ],
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "notes": "Dashboard page. Full-page screenshot. Cropped to remove bottom whitespace."
+    }
+  ],
+  "failures": []
+}

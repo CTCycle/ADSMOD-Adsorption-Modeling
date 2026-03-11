@@ -121,7 +121,7 @@ The exported user-facing output is created under:
 
 ### 4.4 Operational Workflow
 
-The application workflow is divided into four main sections, accessible via the navigation sidebar:
+The application workflow is organized into three top navigation tabs: `source`, `fitting`, and `training`.
 
 #### 4.4.1 Data Source Configuration
 
@@ -130,7 +130,9 @@ This section serves as the entry point for managing experimental data. It allows
 - **NIST-A Collection**: Automatically fetch isotherms and material metadata from the NIST database.
 - **Status Monitoring**: Track the progress of data fetching and enrichment tasks in real-time with granular progress bars.
 
-![Data Source Configuration](assets/figures/dataset_page.png)
+<img src="assets/figures/home.png" alt="Source Page - Data Source Configuration" width="1000" />
+
+*Source tab: upload local datasets, review sample/size metadata, and run NIST-A collection tools.*
 
 #### 4.4.2 Models & Fitting
 
@@ -139,7 +141,9 @@ Before training deep learning models, users can analyze individual isotherms usi
 - **Model Selection**: Choose from 9 available adsorption models (including Langmuir, Freundlich, Sips) to fit to the experimental data.
 - **Execution & Logging**: Run the fitting process and view detailed execution logs to monitor convergence and errors.
 
-![Isotherm Fitting](assets/figures/fitting_page.png)
+<img src="assets/figures/fitting.png" alt="Fitting Page - Models and Optimization" width="1000" />
+
+*Fitting tab: choose adsorption models, configure optimization, and inspect fitting logs.*
 
 #### 4.4.3 Model Training (Analysis)
 
@@ -161,7 +165,21 @@ A step-by-step guided workflow for configuring training experiments:
 - **Checkpoint Selection**: Browse saved checkpoints from previous runs.
 - **Seamless Continuation**: Resume optimization exactly where it left off, with the option to adjust learning parameters.
 
-![Model Training](assets/figures/training_page.png)
+*Train Datasets view: pick a processed dataset and launch a training setup.*
+
+<img src="assets/figures/training-datasets.png" alt="Training - Train Datasets View" width="1000" />
+
+*Data Processing view: compose and manage machine-learning-ready datasets.*
+
+<img src="assets/figures/training-data-processing.png" alt="Training - Data Processing View" width="1000" />
+
+*Checkpoints view: review saved checkpoints and resume previous experiments.*
+
+<img src="assets/figures/training-checkpoints.png" alt="Training - Checkpoints View" width="1000" />
+
+*Training Dashboard view: track run progress and monitor key training metrics.*
+
+<img src="assets/figures/dashboard.png" alt="Training - Dashboard View" width="1000" />
 
 ## 5. Setup and Maintenance
 Run `ADSMOD/setup_and_maintenance.bat` to access setup and maintenance actions:
@@ -203,3 +221,7 @@ Desktop packaging is implemented through `release/tauri/build_with_tauri.bat` an
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
+
+
+
+

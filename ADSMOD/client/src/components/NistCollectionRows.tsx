@@ -380,6 +380,9 @@ export const NistCollectionRows: React.FC<NistCollectionRowsProps> = ({
                         {status.local_count} / {status.available_count}
                     </span>
                     <span className="nist-row-updated">{formatCompactDateTime(status.last_update)}</span>
+                </div>
+
+                <div className="nist-category-row-controls">
                     <div className="nist-row-fraction-wrap">
                         <label htmlFor={`fraction-${category}`}>Fraction</label>
                         <input
@@ -399,50 +402,50 @@ export const NistCollectionRows: React.FC<NistCollectionRowsProps> = ({
                             disabled={operation.running}
                         />
                     </div>
-                </div>
 
-                <div className="nist-category-row-actions">
-                    <button
-                        className={`nist-icon-button ${serverStateClass}`}
-                        title="Server Status"
-                        aria-label={`Server status for ${CATEGORY_LABELS[category]}`}
-                        onClick={() => void handlePing(category)}
-                        disabled={operation.running}
-                    >
-                        <PingIcon />
-                    </button>
-                    <button
-                        className="nist-icon-button"
-                        title="Update Index"
-                        aria-label={`Update index for ${CATEGORY_LABELS[category]}`}
-                        onClick={() => handleUpdateIndex(category)}
-                        disabled={operation.running}
-                    >
-                        <IndexIcon />
-                    </button>
-                    <button
-                        className="nist-icon-button"
-                        title="Get Records"
-                        aria-label={`Get records for ${CATEGORY_LABELS[category]}`}
-                        onClick={() => handleFetchRecords(category)}
-                        disabled={operation.running}
-                    >
-                        <DownloadIcon />
-                    </button>
-                    {status.supports_enrichment && (
+                    <div className="nist-category-row-actions">
                         <button
-                            className="nist-icon-button"
-                            title="Enrich Molecular Properties"
-                            aria-label={`Enrich properties for ${CATEGORY_LABELS[category]}`}
-                            onClick={() => handleEnrich(category)}
+                            className={`nist-icon-button ${serverStateClass}`}
+                            title="Server Status"
+                            aria-label={`Server status for ${CATEGORY_LABELS[category]}`}
+                            onClick={() => void handlePing(category)}
                             disabled={operation.running}
                         >
-                            <EnrichIcon />
+                            <PingIcon />
                         </button>
-                    )}
-                    {!status.supports_enrichment && (
-                        <span className="nist-icon-button-placeholder" aria-hidden="true" />
-                    )}
+                        <button
+                            className="nist-icon-button"
+                            title="Update Index"
+                            aria-label={`Update index for ${CATEGORY_LABELS[category]}`}
+                            onClick={() => handleUpdateIndex(category)}
+                            disabled={operation.running}
+                        >
+                            <IndexIcon />
+                        </button>
+                        <button
+                            className="nist-icon-button"
+                            title="Get Records"
+                            aria-label={`Get records for ${CATEGORY_LABELS[category]}`}
+                            onClick={() => handleFetchRecords(category)}
+                            disabled={operation.running}
+                        >
+                            <DownloadIcon />
+                        </button>
+                        {status.supports_enrichment && (
+                            <button
+                                className="nist-icon-button"
+                                title="Enrich Molecular Properties"
+                                aria-label={`Enrich properties for ${CATEGORY_LABELS[category]}`}
+                                onClick={() => handleEnrich(category)}
+                                disabled={operation.running}
+                            >
+                                <EnrichIcon />
+                            </button>
+                        )}
+                        {!status.supports_enrichment && (
+                            <span className="nist-icon-button-placeholder" aria-hidden="true" />
+                        )}
+                    </div>
                 </div>
 
                 {operation.running && (
@@ -477,3 +480,4 @@ export const NistCollectionRows: React.FC<NistCollectionRowsProps> = ({
         </div>
     );
 };
+
