@@ -16,20 +16,19 @@ import type {
 
 interface DatasetBuilderCardProps {
     onDatasetBuilt?: () => void;
+    showSectionHeading?: boolean;
 }
 
 const buildDatasetKey = (dataset: DatasetSourceInfo): string =>
     `${dataset.source}:${dataset.dataset_name}`;
 
-export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatasetBuilt }) => {
-    // Dataset sources and selection state
+export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({
+    onDatasetBuilt,
+    showSectionHeading = true,
+}) => {
     const [datasetSources, setDatasetSources] = useState<DatasetSourceInfo[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-
-    // Wizard visibility
     const [isWizardOpen, setIsWizardOpen] = useState(false);
-
-    // UI state
     const [isBuilding, setIsBuilding] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [statusTone, setStatusTone] = useState<'info' | 'success' | 'error'>('info');
@@ -41,7 +40,6 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
         [datasetSources, selectedKeys]
     );
 
-    // Load initial dataset info and sources
     useEffect(() => {
         loadDatasetInfo();
         loadDatasetSources();
@@ -53,7 +51,6 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
     };
 
     const loadDatasetSources = async () => {
-        // Clear selection on refresh
         setSelectedKeys(new Set());
         setStatusMessage(null);
 
@@ -139,13 +136,13 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
         }
     };
 
-
     return (
         <div className="section-container">
             <SplitSelectionCard
                 title="Dataset Processing"
                 subtitle="Compose training-ready data from your available sources."
                 onRefresh={loadDatasetSources}
+                hideHeader={!showSectionHeading}
                 leftContent={(
                     <div className="dataset-table dataset-table-flat">
                         <div className="dataset-table-header dataset-table-header-sticky">
@@ -206,16 +203,19 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                 )}
                 rightContent={(
                     <>
-                        <div className="split-selection-card-icon-wrap">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-                                <path d="M12 12v9" />
-                                <path d="m8 17 4 4 4-4" />
-                            </svg>
+                        <div className="split-selection-card-header-row">
+                            <div className="split-selection-card-icon-wrap">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                                    <path d="M12 12v9" />
+                                    <path d="m8 17 4 4 4-4" />
+                                </svg>
+                            </div>
+                            <h4 className="split-selection-card-title">Build Training Dataset</h4>
                         </div>
-                        <h4 className="split-selection-card-title">Training Pipeline</h4>
+
                         <p className="split-selection-card-description">
-                            Select datasets to build a unified training source.
+                            Merge uploaded and NIST adsorption data into a machine-learning-ready dataset.
                             {datasetInfo?.available && (
                                 <span className="split-selection-card-ready-note">
                                     Ready: {datasetInfo.train_samples}T / {datasetInfo.validation_samples}V
@@ -241,7 +241,7 @@ export const DatasetBuilderCard: React.FC<DatasetBuilderCardProps> = ({ onDatase
                                 disabled={selectedDatasets.length === 0 || isBuilding}
                                 type="button"
                             >
-                                {isBuilding ? 'Building...' : 'Configure Processing'}
+                                {isBuilding ? 'Building...' : 'Configure Dataset Build'}
                             </button>
                             <button
                                 className="secondary split-selection-card-action-button"

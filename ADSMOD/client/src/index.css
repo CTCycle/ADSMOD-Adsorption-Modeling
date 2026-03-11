@@ -2975,3 +2975,788 @@ input:checked+.slider:before {
     scroll-behavior: auto !important;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* 2026 UI revamp: top tabs, source 2-column, fitting 4-column, training views */
+/* -------------------------------------------------------------------------- */
+
+.app-header {
+  padding: 1rem 1.75rem;
+}
+
+.header-content {
+  gap: 1.5rem;
+}
+
+.header-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex: 0 0 auto;
+}
+
+.header-brand h1 {
+  font-size: 1.9rem;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.header-tabs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.header-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--slate-200);
+  background: #ffffff;
+  color: var(--slate-600);
+  padding: 0.52rem 0.8rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.header-tab:hover {
+  border-color: var(--primary-300);
+  color: var(--primary-700);
+  background: var(--primary-50);
+}
+
+.header-tab.active {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.header-tab-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.app-main {
+  padding: 1.2rem 1.6rem 1.8rem;
+}
+
+.source-page {
+  max-width: 1780px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.source-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  align-items: stretch;
+}
+
+.source-column {
+  display: grid;
+  grid-template-rows: auto auto minmax(180px, 1fr);
+  border: 1px solid var(--slate-200);
+  background: #f7f9fd;
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.source-column-row {
+  padding: 1rem 1.1rem;
+  min-width: 0;
+}
+
+.source-column-row + .source-column-row {
+  border-top: 1px solid var(--slate-200);
+}
+
+.source-column-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.source-column-header .section-title {
+  margin-bottom: 0.2rem;
+}
+
+.source-inline-labels {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.source-column-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.source-column-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.source-markdown-scroll {
+  min-height: 180px;
+  max-height: 360px;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+}
+
+.models-page {
+  max-width: 1880px;
+}
+
+.fitting-main-layout {
+  grid-template-columns: minmax(340px, 1fr) minmax(420px, 640px);
+  justify-content: space-between;
+  gap: 1.4rem;
+}
+
+.fitting-status-column {
+  min-height: 300px;
+  max-width: 640px;
+  width: 100%;
+}
+
+.fitting-status-box {
+  position: static;
+}
+
+.status-text {
+  min-height: 280px;
+  max-height: 380px;
+}
+
+.models-grid {
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.training-workspace {
+  max-width: 1880px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.training-view-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: #ecf2fb;
+  border: 1px solid #d4e2f9;
+  border-radius: 12px;
+  padding: 0.7rem;
+  position: sticky;
+  top: 0.75rem;
+}
+
+.training-view-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #35506d;
+  padding: 0.6rem 0.65rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.training-view-tab:hover {
+  background: #f5f8ff;
+  border-color: #c4d8f8;
+}
+
+.training-view-tab.active {
+  background: #ffffff;
+  border-color: #aec9f3;
+  color: #1f3f63;
+}
+
+.training-view-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+}
+
+.training-view-tab-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.training-view-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.training-view-description {
+  border-bottom: 1px solid var(--slate-200);
+  padding: 0.1rem 0 0.7rem;
+}
+
+.training-view-description h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.35rem;
+  color: var(--slate-900);
+}
+
+.training-view-description p {
+  margin: 0;
+  color: var(--slate-600);
+  font-size: 0.92rem;
+}
+
+.training-view-widget {
+  min-width: 0;
+}
+
+.training-view-widget .section-container,
+.training-view-widget .training-setup-container {
+  margin-top: 0;
+  padding-bottom: 0;
+}
+
+.split-selection-card {
+  height: auto;
+  min-height: 360px;
+}
+
+.split-selection-card-right {
+  flex: 0 0 34%;
+  min-width: 260px;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 0.65rem;
+}
+
+.split-selection-card-selection,
+.split-selection-card-selection-placeholder {
+  width: 100%;
+}
+
+.split-selection-card-selection-value {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.split-selection-card-action-button {
+  width: 100%;
+  min-height: 40px;
+  white-space: normal;
+  padding: 0.55rem 0.7rem;
+}
+
+.split-table-header-cell.col-name {
+  width: 44%;
+}
+
+.split-table-header-cell.col-actions {
+  width: 16%;
+}
+
+.training-dashboard {
+  box-shadow: none;
+}
+
+@media (max-width: 1320px) {
+  .models-grid {
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 1180px) {
+  .source-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .training-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .training-view-toolbar {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .training-view-tab {
+    width: auto;
+    flex: 1 1 220px;
+  }
+
+  .split-selection-card {
+    flex-direction: column;
+  }
+
+  .split-selection-card-left {
+    border-right: none;
+    border-bottom: 1px solid var(--slate-200);
+  }
+
+  .split-selection-card-right {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 1080px) {
+  .fitting-main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .fitting-status-column {
+    max-width: none;
+  }
+
+  .models-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .app-header {
+    padding: 0.9rem 0.95rem;
+  }
+
+  .header-brand h1 {
+    font-size: 1.35rem;
+  }
+
+  .header-tabs {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .header-tab {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .app-main {
+    padding: 0.9rem 0.8rem 1rem;
+  }
+
+  .models-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* UI polish follow-up: NIST controls, compact brand wordmark, training toolbar */
+/* -------------------------------------------------------------------------- */
+
+.brand-wordmark {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #213a63;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nist-category-row {
+  grid-template-columns: 1fr;
+  row-gap: 0.55rem;
+}
+
+.nist-category-row-main {
+  grid-template-columns: 12px minmax(180px, 1fr) 128px 132px;
+}
+
+.nist-category-row-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.nist-row-fraction-wrap {
+  width: auto;
+  grid-template-columns: auto 90px;
+  justify-content: end;
+}
+
+.nist-row-fraction-wrap input {
+  min-width: 0;
+}
+
+.nist-category-row-actions {
+  width: auto;
+  padding-left: 0.65rem;
+  column-gap: 0.35rem;
+}
+
+.training-view-description {
+  padding: 0.2rem 0 0.7rem;
+}
+
+.training-view-description h2 {
+  display: none;
+}
+
+.training-view-description p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.training-view-tab {
+  min-height: 42px;
+}
+
+.training-view-tab-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  min-width: 1.35rem;
+}
+
+.training-view-tab svg {
+  display: block;
+}
+
+@media (max-width: 1360px) {
+  .nist-category-row-main {
+    grid-template-columns: 12px minmax(140px, 1fr) 112px;
+  }
+
+  .nist-row-updated {
+    display: none;
+  }
+
+  .nist-category-row-controls {
+    justify-content: flex-start;
+  }
+
+  .nist-category-row-actions {
+    border-left: none;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .brand-wordmark {
+    font-size: 1.08rem;
+    letter-spacing: 0.12em;
+  }
+
+  .nist-category-row-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .nist-row-fraction-wrap {
+    width: 100%;
+    grid-template-columns: auto 1fr;
+    justify-content: start;
+  }
+
+  .nist-category-row-actions {
+    justify-content: start;
+  }
+}
+
+/* Ensure compact wordmark overrides generic header h1 rules */
+.header-brand .brand-wordmark {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #213a63;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  .header-brand .brand-wordmark {
+    font-size: 1.08rem;
+    letter-spacing: 0.12em;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* NIST compact single-row layout */
+/* -------------------------------------------------------------------------- */
+
+.nist-category-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  row-gap: 0;
+  column-gap: 0.55rem;
+}
+
+.nist-category-row-main {
+  grid-template-columns: 10px minmax(160px, 1fr) 124px 56px;
+  gap: 0.45rem;
+}
+
+.nist-row-name {
+  font-size: 0.83rem;
+}
+
+.nist-row-count {
+  font-size: 0.8rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.nist-row-updated {
+  font-size: 0.76rem;
+}
+
+.nist-category-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.nist-row-fraction-wrap {
+  grid-template-columns: auto 74px;
+  gap: 0.25rem;
+  width: auto;
+  border-right: 1px solid var(--slate-200);
+  padding-right: 0.45rem;
+}
+
+.nist-row-fraction-wrap label {
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+.nist-row-fraction-wrap input {
+  height: 1.85rem;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.nist-category-row-actions {
+  width: auto;
+  padding-left: 0;
+  border-left: none;
+  grid-template-columns: repeat(4, 1.85rem);
+  column-gap: 0.3rem;
+}
+
+.nist-icon-button,
+.nist-icon-button-placeholder {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.nist-row-progress {
+  grid-column: 1 / -1;
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 1480px) {
+  .nist-row-updated {
+    display: none;
+  }
+
+  .nist-category-row-main {
+    grid-template-columns: 10px minmax(140px, 1fr) 110px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .nist-category-row {
+    grid-template-columns: 1fr;
+    row-gap: 0.4rem;
+  }
+
+  .nist-category-row-controls {
+    justify-content: flex-start;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Training toolbar alignment and view heading structure */
+/* -------------------------------------------------------------------------- */
+
+.training-view-tab {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.6rem;
+  min-height: 42px;
+  text-align: left;
+}
+
+.training-view-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  min-width: 1.35rem;
+}
+
+.training-view-tab-label {
+  display: block;
+  line-height: 1.2;
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.training-view-description {
+  padding: 0.1rem 0 0.7rem;
+}
+
+.training-view-description h2 {
+  display: block;
+  margin: 0 0 0.25rem;
+  font-size: 1.55rem;
+  color: var(--slate-900);
+  font-weight: 700;
+}
+
+.training-view-description p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--slate-600);
+}
+
+@media (max-width: 1180px) {
+  .training-view-tab {
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Training preview card layout + overflow hardening */
+/* -------------------------------------------------------------------------- */
+
+.split-selection-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 36%);
+  width: 100%;
+  overflow: hidden;
+}
+
+.split-selection-card-left {
+  min-width: 0;
+}
+
+.split-selection-card-right {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 20px;
+  gap: 0.55rem;
+}
+
+.split-selection-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.split-selection-card-header-row .split-selection-card-icon-wrap {
+  margin: 0;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.split-selection-card-header-row .split-selection-card-title {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.25;
+}
+
+.split-selection-card-description {
+  margin: 0 0 0.9rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.split-selection-card-description-wide {
+  max-width: 100%;
+}
+
+.split-selection-card-actions {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.split-selection-card-action-button,
+.split-selection-card-right button.primary,
+.split-selection-card-right button.secondary {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1180px) {
+  .split-selection-card {
+    grid-template-columns: 1fr;
+  }
+
+  .split-selection-card-left {
+    border-right: none;
+    border-bottom: 1px solid var(--slate-200);
+  }
+}
+
+/* Push single-action buttons closer to card bottom in training subsections */
+.split-selection-card-right {
+  display: flex;
+  flex-direction: column;
+}
+
+.split-selection-card-actions-single {
+  margin-top: auto;
+  padding-bottom: 0.1rem;
+}
+
+.split-selection-card-actions-single .split-selection-card-action-button {
+  margin-bottom: 0;
+}

@@ -76,3 +76,14 @@ Long-running tasks (fitting, NIST ingestion/enrichment, dataset build, training)
 - **New model**: Update backend model logic in `ADSMOD/server/services/modeling/models.py` and frontend configuration in `ADSMOD/client/src/adsorptionModels.ts`.
 - **New API capability**: Add logic under `ADSMOD/server/services/`, expose via a router in `ADSMOD/server/routes/`, and wire it in `ADSMOD/server/app.py`.
 - **New long-running workflow**: Use `job_manager.start_job(...)` from `ADSMOD/server/services/jobs.py`, provide polling endpoints, and keep cancellation cooperative.
+
+### 3.5 Frontend Navigation and Layout (2026 refresh)
+- Global navigation is tab-based in the top header (`source`, `fitting`, `training`) and is wired in `ADSMOD/client/src/App.tsx` + `src/components/Sidebar.tsx`.
+- `ConfigPage` (`source`) uses a two-column structure, each column organized as: description row, widget row, and markdown/log row.
+- `ModelsPage` (`fitting`) uses a wider fitting panel and a 4-column model grid on large viewports, degrading responsively on smaller screens.
+- `MachineLearningPage` (`training`) owns a page-local left toolbar with four internal views:
+  - `Data Processing` (dataset composition widget)
+  - `Training datasets` (dataset selection/manage widget)
+  - `checkpoints` (resume/manage widget)
+  - `Training dashboard` (metrics/charts/log widget)
+- Archived training dataset labels (`archived::...`) are filtered from the frontend dataset list view to avoid showing non-actionable historical entries.

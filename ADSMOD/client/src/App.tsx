@@ -16,9 +16,9 @@ interface ModelState {
 type OptimizationMethod = FittingPayload['optimization_method'];
 
 const initialMountedPages: Record<PageId, boolean> = {
-    config: true,
-    models: false,
-    analysis: false,
+    source: true,
+    fitting: false,
+    training: false,
 };
 
 const NIST_DATASET_OPTION = '__NIST_A_COLLECTION__';
@@ -84,7 +84,7 @@ const buildDatasetSummary = (payload: DatasetPayload): string => {
 };
 
 function App() {
-    const [currentPage, setCurrentPage] = useState<PageId>('config');
+    const [currentPage, setCurrentPage] = useState<PageId>('source');
     const [mountedPages, setMountedPages] = useState<Record<PageId, boolean>>(initialMountedPages);
     const [maxIterations, setMaxIterations] = useState(10000);
     const [optimizationMethod, setOptimizationMethod] = useState<OptimizationMethod>('LSS');
@@ -182,7 +182,7 @@ function App() {
                 setSelectedDataset(result.dataset.dataset_name);
             }
         }
-    }, [pendingFile]);
+    }, [pendingFile, pendingFileSize]);
 
     const handleNistStatusUpdate = useCallback((message: string) => {
         setNistStatusMessage(message);
@@ -285,63 +285,63 @@ function App() {
         <div className="app-container">
             <header className="app-header">
                 <div className="header-content">
-                    <h1>ADSMOD Adsorption Modeling</h1>
+                    <div className="header-brand">
+                        <img className="brand-logo" src="/favicon.png" alt="ADSMOD logo" />
+                        <h1 className="brand-wordmark">ADSMOD</h1>
+                    </div>
+                    <Sidebar currentPage={currentPage} onPageChange={handlePageChange} />
                 </div>
             </header>
 
-            <div className="app-layout">
-                <Sidebar currentPage={currentPage} onPageChange={handlePageChange} />
+            <main className="app-main">
+                {mountedPages.source && (
+                    <section hidden={currentPage !== 'source'} aria-hidden={currentPage !== 'source'}>
+                        <ConfigPage
+                            datasetStats={datasetStats}
+                            nistStatusMessage={nistStatusMessage}
+                            datasetName={datasetName}
+                            datasetSizeKb={datasetSizeKb}
+                            datasetSamples={datasetSamples}
+                            pendingFileName={pendingFile?.name ?? null}
+                            pendingFileSize={pendingFileSize}
+                            onDatasetPreload={handleDatasetPreload}
+                            onDatasetUpload={handleDatasetUpload}
+                            isDatasetUploading={isDatasetUploading}
+                            onNistStatusUpdate={handleNistStatusUpdate}
+                        />
+                    </section>
+                )}
 
-                <main className="app-main">
-                    {mountedPages.config && (
-                        <section hidden={currentPage !== 'config'} aria-hidden={currentPage !== 'config'}>
-                            <ConfigPage
-                                datasetStats={datasetStats}
-                                nistStatusMessage={nistStatusMessage}
-                                datasetName={datasetName}
-                                datasetSizeKb={datasetSizeKb}
-                                datasetSamples={datasetSamples}
-                                pendingFileName={pendingFile?.name ?? null}
-                                pendingFileSize={pendingFileSize}
-                                onDatasetPreload={handleDatasetPreload}
-                                onDatasetUpload={handleDatasetUpload}
-                                isDatasetUploading={isDatasetUploading}
-                                onNistStatusUpdate={handleNistStatusUpdate}
-                            />
-                        </section>
-                    )}
+                {mountedPages.fitting && (
+                    <section hidden={currentPage !== 'fitting'} aria-hidden={currentPage !== 'fitting'}>
+                        <ModelsPage
+                            modelStates={modelStates}
+                            onParametersChange={handleParametersChange}
+                            onToggle={handleModelToggle}
+                            maxIterations={maxIterations}
+                            onMaxIterationsChange={setMaxIterations}
+                            optimizationMethod={optimizationMethod}
+                            onOptimizationMethodChange={setOptimizationMethod}
+                            fittingStatus={fittingStatus}
+                            onStartFitting={handleStartFitting}
+                            onResetFittingStatus={handleResetFittingStatus}
+                            availableDatasets={availableDatasets}
+                            selectedDataset={selectedDataset}
+                            onDatasetSelect={setSelectedDataset}
+                            nistOptionValue={NIST_DATASET_OPTION}
+                        />
+                    </section>
+                )}
 
-                    {mountedPages.models && (
-                        <section hidden={currentPage !== 'models'} aria-hidden={currentPage !== 'models'}>
-                            <ModelsPage
-                                modelStates={modelStates}
-                                onParametersChange={handleParametersChange}
-                                onToggle={handleModelToggle}
-                                maxIterations={maxIterations}
-                                onMaxIterationsChange={setMaxIterations}
-                                optimizationMethod={optimizationMethod}
-                                onOptimizationMethodChange={setOptimizationMethod}
-                                fittingStatus={fittingStatus}
-                                onStartFitting={handleStartFitting}
-                                onResetFittingStatus={handleResetFittingStatus}
-                                availableDatasets={availableDatasets}
-                                selectedDataset={selectedDataset}
-                                onDatasetSelect={setSelectedDataset}
-                                nistOptionValue={NIST_DATASET_OPTION}
-                            />
-                        </section>
-                    )}
-
-                    {mountedPages.analysis && (
-                        <section hidden={currentPage !== 'analysis'} aria-hidden={currentPage !== 'analysis'}>
-                            <MachineLearningPage />
-                        </section>
-                    )}
-
-                </main>
-            </div>
+                {mountedPages.training && (
+                    <section hidden={currentPage !== 'training'} aria-hidden={currentPage !== 'training'}>
+                        <MachineLearningPage />
+                    </section>
+                )}
+            </main>
         </div>
     );
 }
 
 export default App;
+

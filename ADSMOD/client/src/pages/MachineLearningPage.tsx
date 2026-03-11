@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { DatasetBuilderCard } from '../components/DatasetBuilderCard';
 import { NewTrainingWizard } from '../components/NewTrainingWizard';
 import { ResumeTrainingWizard } from '../components/ResumeTrainingWizard';
 import { TrainingSetupRow } from '../components/TrainingSetupRow';
-import { InfoModal } from '../components/InfoModal'; // Import InfoModal
+import { InfoModal } from '../components/InfoModal';
 import { TrainingHistoryChartPanel } from '../features/training/components/TrainingHistoryChartPanel';
 import { useTrainingActionRunner } from '../features/training/hooks/useTrainingActionRunner';
 import type {
@@ -25,27 +25,24 @@ import {
     stopTraining,
     getTrainingStatus,
     fetchProcessedDatasets,
-    deleteDataset, // Import deleteDataset
-    getTrainingDatasetInfo, // Import getTrainingDatasetInfo if needed for view metadata
-    deleteCheckpoint, // Import deleteCheckpoint
+    deleteDataset,
+    getTrainingDatasetInfo,
+    deleteCheckpoint,
     fetchCheckpointDetails,
 } from '../services';
 
+const ARCHIVED_DATASET_PREFIX = 'archived::';
+
 // Default training configuration based on legacy app
 const DEFAULT_CONFIG: TrainingConfig = {
-    // Dataset settings
     batch_size: 16,
     shuffle_dataset: true,
     max_buffer_size: 256,
-
-    // Model settings
     selected_model: 'SCADS Series',
     dropout_rate: 0.1,
     num_attention_heads: 2,
     num_encoders: 2,
     molecular_embedding_size: 64,
-
-    // Training settings
     epochs: 2,
     dataloader_workers: 0,
     prefetch_factor: 1,
@@ -55,21 +52,16 @@ const DEFAULT_CONFIG: TrainingConfig = {
     use_mixed_precision: false,
     use_jit: false,
     jit_backend: 'inductor',
-
-    // LR scheduler settings
     use_lr_scheduler: false,
     initial_lr: 1e-4,
     target_lr: 1e-5,
     constant_steps: 5,
     decay_steps: 10,
-
-    // Callbacks
     save_checkpoints: false,
     checkpoints_frequency: 5,
     custom_name: '',
 };
 
-// Metric Card Component
 interface MetricCardProps {
     label: string;
     value: string;
@@ -86,9 +78,9 @@ const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon, color = 'va
 
 const CHART_COLORS = {
     loss: '#f59e0b',
-    valLoss: '#2563eb', // Blue for high contrast against Orange
+    valLoss: '#2563eb',
     metric: '#16a34a',
-    valMetric: '#9333ea', // Purple for high contrast against Green
+    valMetric: '#9333ea',
 };
 
 const formatLossValue = (value: number | undefined): string => {
@@ -123,21 +115,96 @@ const buildDatasetMetadataModalData = (info: DatasetFullInfo): InfoModalData => 
 });
 
 const buildCheckpointDetailsModalData = (details: CheckpointFullDetails): InfoModalData => ({
-    'Name': details.name,
+    Name: details.name,
     'Epochs Trained': details.epochs_trained,
     'Final Loss': details.final_loss?.toFixed(6) ?? 'N/A',
     'Is Compatible': details.is_compatible ? 'Yes' : 'No',
     'Created At': details.created_at || 'Unknown',
 });
 
+type TrainingViewId = 'processing' | 'datasets' | 'checkpoints' | 'dashboard';
+
+interface TrainingViewSpec {
+    id: TrainingViewId;
+    label: string;
+    description: string;
+    icon: React.ReactNode;
+}
+
+const TRAINING_VIEWS: readonly TrainingViewSpec[] = [
+    {
+        id: 'processing',
+        label: 'Data Processing',
+        description: 'Prepare adsorption datasets for model training.',
+        icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+        ),
+    },
+    {
+        id: 'datasets',
+        label: 'Train datasets',
+        description: 'Choose a processed dataset and configure a new training run.',
+        icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="6" rx="1" />
+                <rect x="3" y="14" width="18" height="6" rx="1" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
+                <line x1="7" y1="17" x2="7.01" y2="17" />
+            </svg>
+        ),
+    },
+    {
+        id: 'checkpoints',
+        label: 'Checkpoints',
+        description: 'Review saved checkpoints and resume a training run.',
+        icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <path d="M8 9h8" />
+                <path d="M8 13h8" />
+                <path d="M8 17h5" />
+            </svg>
+        ),
+    },
+    {
+        id: 'dashboard',
+        label: 'Training Dashboard',
+        description: 'Track training progress, metrics, and logs in real time.',
+        icon: (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3v18h18" />
+                <path d="M19 9l-5 5-4-4-3 3" />
+            </svg>
+        ),
+    },
+];
+
+const sanitizeProcessedDatasets = (datasets: ProcessedDatasetInfo[]): ProcessedDatasetInfo[] => {
+    const uniqueByLabel = new Map<string, ProcessedDatasetInfo>();
+
+    datasets.forEach((dataset) => {
+        const label = String(dataset.dataset_label || '').trim();
+        if (!label || label.startsWith(ARCHIVED_DATASET_PREFIX)) {
+            return;
+        }
+        if (!uniqueByLabel.has(label)) {
+            uniqueByLabel.set(label, dataset);
+        }
+    });
+
+    return Array.from(uniqueByLabel.values());
+};
+
 export const MachineLearningPage: React.FC = () => {
-    // Training configuration state
+    const [activeView, setActiveView] = useState<TrainingViewId>('processing');
+
     const [config, setConfig] = useState<TrainingConfig>(DEFAULT_CONFIG);
-
-
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
 
-    // Training state
     const [trainingStatus, setTrainingStatus] = useState<TrainingStatus>({
         is_training: false,
         current_epoch: 0,
@@ -148,7 +215,6 @@ export const MachineLearningPage: React.FC = () => {
         log: [],
     });
 
-    // UI state
     const [isLoading, setIsLoading] = useState(false);
     const [showNewTrainingWizard, setShowNewTrainingWizard] = useState(false);
     const [showResumeTrainingWizard, setShowResumeTrainingWizard] = useState(false);
@@ -157,12 +223,10 @@ export const MachineLearningPage: React.FC = () => {
         additional_epochs: 10,
     });
 
-    // Processed datasets for training wizard
     const [processedDatasets, setProcessedDatasets] = useState<ProcessedDatasetInfo[]>([]);
     const [selectedDatasetLabel, setSelectedDatasetLabel] = useState<string | null>(null);
     const [selectedDatasetHash, setSelectedDatasetHash] = useState<string | null>(null);
 
-    // Info Modal State
     const [infoModalOpen, setInfoModalOpen] = useState(false);
     const [infoModalTitle, setInfoModalTitle] = useState('');
     const [infoModalData, setInfoModalData] = useState<InfoModalData | null>(null);
@@ -173,42 +237,32 @@ export const MachineLearningPage: React.FC = () => {
         setInfoModalOpen(true);
     }, []);
 
-    // Polling ref
     const pollIntervalRef = useRef<number | null>(null);
     const pollIntervalSecondsRef = useRef<number | null>(null);
     const wasTrainingRef = useRef(false);
     const logContainerRef = useRef<HTMLPreElement>(null);
 
-    // Load initial data
     useEffect(() => {
         loadCheckpoints();
         loadProcessedDatasets();
-        // Initial status check to catch up if page is refreshed
         checkStatus();
         return () => stopPolling();
     }, []);
 
-    // Auto-scroll logs
     useEffect(() => {
         if (logContainerRef.current) {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [trainingStatus.log]);
 
-    // Poll status when training is active
     useEffect(() => {
         if (trainingStatus.is_training) {
-             // We don't want to restart polling aggressively here if already running
-             // checkStatus handles regular updates. 
-             // But if we just loaded the page and is_training=true, we default to 1s
-             // until next checkStatus updates us? 
-             // Actually, useEffect on is_training is good for initial load state restoration
-             if (!pollIntervalRef.current) {
-                 const intervalSeconds = trainingStatus.poll_interval
-                     ?? pollIntervalSecondsRef.current
-                     ?? 1.0;
-                 startPolling(intervalSeconds);
-             }
+            if (!pollIntervalRef.current) {
+                const intervalSeconds = trainingStatus.poll_interval
+                    ?? pollIntervalSecondsRef.current
+                    ?? 1.0;
+                startPolling(intervalSeconds);
+            }
         } else {
             stopPolling();
         }
@@ -247,7 +301,6 @@ export const MachineLearningPage: React.FC = () => {
         const wasTraining = wasTrainingRef.current;
         wasTrainingRef.current = status.is_training;
 
-        // Merge logs to avoid full overwrite if needed, but for now full replace is fine as backend sends window
         setTrainingStatus({
             is_training: status.is_training,
             current_epoch: status.current_epoch,
@@ -259,7 +312,6 @@ export const MachineLearningPage: React.FC = () => {
             poll_interval: status.poll_interval,
         });
 
-        // Update polling interval if backend changed it
         const nextInterval = normalizePollingInterval(status.poll_interval);
         if (nextInterval !== null && pollIntervalSecondsRef.current !== nextInterval) {
             if (status.is_training) {
@@ -269,13 +321,10 @@ export const MachineLearningPage: React.FC = () => {
             }
         }
 
-        // Refresh checkpoints if training just finished
         if (!status.is_training && wasTraining) {
             loadCheckpoints();
         }
     };
-
-
 
     const loadCheckpoints = async () => {
         const result = await fetchCheckpoints();
@@ -287,7 +336,7 @@ export const MachineLearningPage: React.FC = () => {
     const loadProcessedDatasets = async () => {
         const { datasets, error } = await fetchProcessedDatasets();
         if (!error) {
-            setProcessedDatasets(datasets);
+            setProcessedDatasets(sanitizeProcessedDatasets(datasets));
         }
     };
 
@@ -348,7 +397,6 @@ export const MachineLearningPage: React.FC = () => {
         setShowResumeTrainingWizard(true);
     };
 
-    // Derived metrics for UI
     const metrics: TrainingMetrics = trainingStatus.metrics || {};
     const history: TrainingHistoryPoint[] = trainingStatus.history || [];
     const hasAccuracyMetric = history.some((entry) =>
@@ -373,9 +421,7 @@ export const MachineLearningPage: React.FC = () => {
         appendLog: appendTrainingLog,
     });
 
-    // Handlers for training actions
     const handleConfirmTraining = useCallback(async () => {
-        // Include the selected dataset label in the configuration
         const trainingConfig = {
             ...config,
             dataset_label: selectedDatasetLabel || undefined,
@@ -388,7 +434,8 @@ export const MachineLearningPage: React.FC = () => {
             onSuccess: (result) => {
                 setShowNewTrainingWizard(false);
                 startPolling(result.poll_interval ?? 1.0);
-                checkStatus(); // Immediately check status to update UI
+                checkStatus();
+                setActiveView('dashboard');
             },
         });
     }, [checkStatus, config, runTrainingAction, selectedDatasetHash, selectedDatasetLabel, startPolling]);
@@ -407,7 +454,8 @@ export const MachineLearningPage: React.FC = () => {
             onSuccess: (result) => {
                 setShowResumeTrainingWizard(false);
                 startPolling(result.poll_interval ?? 1.0);
-                checkStatus(); // Immediately check status to update UI
+                checkStatus();
+                setActiveView('dashboard');
             },
         });
     }, [checkStatus, resumeConfig, runTrainingAction, startPolling]);
@@ -418,151 +466,212 @@ export const MachineLearningPage: React.FC = () => {
             successStatus: 'stopped',
             actionLabel: 'stop training',
             onSuccess: () => {
-                checkStatus(); // Immediately check status to update UI
+                checkStatus();
             },
         });
     }, [checkStatus, runTrainingAction]);
 
+    const activeSpec = useMemo(
+        () => TRAINING_VIEWS.find((view) => view.id === activeView) || TRAINING_VIEWS[0],
+        [activeView]
+    );
+
+    const dashboardWidget = (
+        <div className="training-dashboard">
+            <div className="dashboard-header">
+                <div className="dashboard-title">
+                    <span className="dashboard-icon">*</span>
+                    <span>Training Dashboard</span>
+                </div>
+                <span className={`training-status-badge ${trainingStatus.is_training ? 'active' : 'idle'}`}>
+                    {trainingStatus.is_training ? 'Training in Progress' : 'Idle'}
+                </span>
+            </div>
+
+            <div className="metrics-row">
+                <MetricCard
+                    label="EPOCH"
+                    value={`${trainingStatus.current_epoch} / ${trainingStatus.total_epochs || config.epochs}`}
+                    color="var(--slate-800)"
+                />
+                <MetricCard
+                    label="TRAIN LOSS"
+                    icon="v"
+                    value={formatLossValue(metrics.loss)}
+                    color={CHART_COLORS.loss}
+                />
+                <MetricCard
+                    label="VAL LOSS"
+                    icon="v"
+                    value={formatLossValue(metrics.val_loss)}
+                    color={CHART_COLORS.valLoss}
+                />
+                <MetricCard
+                    label={`TRAIN ${metricLabel}`}
+                    icon="o"
+                    value={formatMetricValue(metrics[metricKey], metricAsPercent)}
+                    color={CHART_COLORS.metric}
+                />
+                <MetricCard
+                    label={`VAL ${metricLabel}`}
+                    icon="o"
+                    value={formatMetricValue(metrics[valMetricKey], metricAsPercent)}
+                    color={CHART_COLORS.valMetric}
+                />
+            </div>
+
+            <div className="dashboard-progress">
+                <div className="progress-label">
+                    <span>% Progress: {Math.round(trainingStatus.progress)}%</span>
+                </div>
+                <div className="progress-bar-wrapper">
+                    <div className="progress-bar-container">
+                        <div
+                            className="progress-bar-fill"
+                            style={{ width: `${trainingStatus.progress}%` }}
+                        />
+                    </div>
+                    <button
+                        className="stop-btn"
+                        onClick={handleStopTraining}
+                        disabled={!trainingStatus.is_training || isLoading}
+                        type="button"
+                    >
+                        Stop Training
+                    </button>
+                </div>
+            </div>
+
+            <div className="charts-container">
+                <TrainingHistoryChartPanel
+                    title="LOSS"
+                    hasHistory={hasHistory}
+                    history={history}
+                    primaryLine={{
+                        dataKey: 'loss',
+                        color: CHART_COLORS.loss,
+                        name: 'Train Loss',
+                    }}
+                    secondaryLine={{
+                        dataKey: 'val_loss',
+                        color: CHART_COLORS.valLoss,
+                        name: 'Val Loss',
+                    }}
+                    placeholderHint="Loss metrics will appear once training starts."
+                />
+                <TrainingHistoryChartPanel
+                    title={metricTitle}
+                    hasHistory={hasHistory}
+                    history={history}
+                    primaryLine={{
+                        dataKey: metricKey,
+                        color: CHART_COLORS.metric,
+                        name: `Train ${metricLabel}`,
+                    }}
+                    secondaryLine={{
+                        dataKey: valMetricKey,
+                        color: CHART_COLORS.valMetric,
+                        name: `Val ${metricLabel}`,
+                    }}
+                    placeholderHint="Validation metrics will appear once training starts."
+                    yAxisDomain={metricAsPercent ? [0, 1] : ['auto', 'auto']}
+                />
+            </div>
+
+            <div className="log-panel">
+                <div className="log-header">
+                    <span>Training Log</span>
+                    <button
+                        className="ghost-button"
+                        onClick={() => setTrainingStatus(prev => ({ ...prev, log: ['Ready to start training...'] }))}
+                        type="button"
+                    >
+                        Clear
+                    </button>
+                </div>
+                <pre className="training-log-light" ref={logContainerRef}>
+                    {(trainingStatus.log || []).join('\n')}
+                </pre>
+            </div>
+        </div>
+    );
+
+    const renderActiveWidget = () => {
+        if (activeView === 'processing') {
+            return <DatasetBuilderCard onDatasetBuilt={loadProcessedDatasets} showSectionHeading={false} />;
+        }
+        if (activeView === 'datasets') {
+            return (
+                <TrainingSetupRow
+                    onNewTrainingClick={handleNewTrainingClick}
+                    onResumeTrainingClick={handleResumeTrainingClickWithSelection}
+                    datasetAvailable={processedDatasets.length > 0}
+                    checkpointsAvailable={checkpoints.length > 0}
+                    processedDatasets={processedDatasets}
+                    checkpoints={checkpoints}
+                    isTraining={trainingStatus.is_training}
+                    onDeleteDataset={handleDeleteDataset}
+                    onViewDatasetMetadata={handleViewDatasetMetadata}
+                    onDeleteCheckpoint={handleDeleteCheckpoint}
+                    onViewCheckpointDetails={handleViewCheckpointDetails}
+                    onRefreshDatasets={loadProcessedDatasets}
+                    onRefreshCheckpoints={loadCheckpoints}
+                    viewMode="datasets"
+                    showSectionHeading={false}
+                />
+            );
+        }
+        if (activeView === 'checkpoints') {
+            return (
+                <TrainingSetupRow
+                    onNewTrainingClick={handleNewTrainingClick}
+                    onResumeTrainingClick={handleResumeTrainingClickWithSelection}
+                    datasetAvailable={processedDatasets.length > 0}
+                    checkpointsAvailable={checkpoints.length > 0}
+                    processedDatasets={processedDatasets}
+                    checkpoints={checkpoints}
+                    isTraining={trainingStatus.is_training}
+                    onDeleteDataset={handleDeleteDataset}
+                    onViewDatasetMetadata={handleViewDatasetMetadata}
+                    onDeleteCheckpoint={handleDeleteCheckpoint}
+                    onViewCheckpointDetails={handleViewCheckpointDetails}
+                    onRefreshDatasets={loadProcessedDatasets}
+                    onRefreshCheckpoints={loadCheckpoints}
+                    viewMode="checkpoints"
+                    showSectionHeading={false}
+                />
+            );
+        }
+
+        return dashboardWidget;
+    };
+
     return (
-        <div className="ml-page">
-            <div className="ml-header">
-                <h2>SCADS Model Training</h2>
-                <p className="ml-subtitle">Configure and monitor your training sessions</p>
-            </div>
+        <div className="ml-page training-workspace">
+            <aside className="training-view-toolbar" aria-label="Training views">
+                {TRAINING_VIEWS.map((view) => (
+                    <button
+                        key={view.id}
+                        type="button"
+                        className={`training-view-tab ${activeView === view.id ? 'active' : ''}`}
+                        onClick={() => setActiveView(view.id)}
+                        title={view.label}
+                    >
+                        <span className="training-view-tab-icon" aria-hidden="true">{view.icon}</span>
+                        <span className="training-view-tab-label">{view.label}</span>
+                    </button>
+                ))}
+            </aside>
 
-            <DatasetBuilderCard onDatasetBuilt={loadProcessedDatasets} />
-
-            <TrainingSetupRow
-                onNewTrainingClick={handleNewTrainingClick}
-                onResumeTrainingClick={handleResumeTrainingClickWithSelection}
-                datasetAvailable={processedDatasets.length > 0}
-                checkpointsAvailable={checkpoints.length > 0}
-                processedDatasets={processedDatasets}
-                checkpoints={checkpoints}
-                isTraining={trainingStatus.is_training}
-                onDeleteDataset={handleDeleteDataset}
-                onViewDatasetMetadata={handleViewDatasetMetadata}
-                onDeleteCheckpoint={handleDeleteCheckpoint}
-                onViewCheckpointDetails={handleViewCheckpointDetails}
-                onRefreshDatasets={loadProcessedDatasets}
-                onRefreshCheckpoints={loadCheckpoints}
-            />
-
-            <div className="training-dashboard">
-                <div className="dashboard-header">
-                    <div className="dashboard-title">
-                        <span className="dashboard-icon">✨</span>
-                        <span>Training Dashboard</span>
-                    </div>
-                    <span className={`training-status-badge ${trainingStatus.is_training ? 'active' : 'idle'}`}>
-                        {trainingStatus.is_training ? '● Training in Progress' : '○ Idle'}
-                    </span>
+            <section className="training-view-panel">
+                <div className="training-view-description">
+                    <h2>{activeSpec.label}</h2>
+                    <p>{activeSpec.description}</p>
                 </div>
-
-                <div className="metrics-row">
-                    <MetricCard
-                        label="EPOCH"
-                        value={`${trainingStatus.current_epoch} / ${trainingStatus.total_epochs || config.epochs}`}
-                        color="var(--slate-800)"
-                    />
-                    <MetricCard
-                        label="TRAIN LOSS"
-                        icon="↘"
-                        value={formatLossValue(metrics.loss)}
-                        color={CHART_COLORS.loss}
-                    />
-                    <MetricCard
-                        label="VAL LOSS"
-                        icon="↘"
-                        value={formatLossValue(metrics.val_loss)}
-                        color={CHART_COLORS.valLoss}
-                    />
-                    <MetricCard
-                        label={`TRAIN ${metricLabel}`}
-                        icon="◉"
-                        value={formatMetricValue(metrics[metricKey], metricAsPercent)}
-                        color={CHART_COLORS.metric}
-                    />
-                    <MetricCard
-                        label={`VAL ${metricLabel}`}
-                        icon="◉"
-                        value={formatMetricValue(metrics[valMetricKey], metricAsPercent)}
-                        color={CHART_COLORS.valMetric}
-                    />
+                <div className="training-view-widget">
+                    {renderActiveWidget()}
                 </div>
-
-                <div className="dashboard-progress">
-                    <div className="progress-label">
-                        <span>% Progress: {Math.round(trainingStatus.progress)}%</span>
-                    </div>
-                    <div className="progress-bar-wrapper">
-                        <div className="progress-bar-container">
-                            <div
-                                className="progress-bar-fill"
-                                style={{ width: `${trainingStatus.progress}%` }}
-                            />
-                        </div>
-                        <button
-                            className="stop-btn"
-                            onClick={handleStopTraining}
-                            disabled={!trainingStatus.is_training || isLoading}
-                        >
-                            ⏹ Stop Training
-                        </button>
-                    </div>
-                </div>
-
-                <div className="charts-container">
-                    <TrainingHistoryChartPanel
-                        title="LOSS"
-                        hasHistory={hasHistory}
-                        history={history}
-                        primaryLine={{
-                            dataKey: 'loss',
-                            color: CHART_COLORS.loss,
-                            name: 'Train Loss',
-                        }}
-                        secondaryLine={{
-                            dataKey: 'val_loss',
-                            color: CHART_COLORS.valLoss,
-                            name: 'Val Loss',
-                        }}
-                        placeholderHint="Loss metrics will appear once training starts."
-                    />
-                    <TrainingHistoryChartPanel
-                        title={metricTitle}
-                        hasHistory={hasHistory}
-                        history={history}
-                        primaryLine={{
-                            dataKey: metricKey,
-                            color: CHART_COLORS.metric,
-                            name: `Train ${metricLabel}`,
-                        }}
-                        secondaryLine={{
-                            dataKey: valMetricKey,
-                            color: CHART_COLORS.valMetric,
-                            name: `Val ${metricLabel}`,
-                        }}
-                        placeholderHint="Validation metrics will appear once training starts."
-                        yAxisDomain={metricAsPercent ? [0, 1] : ['auto', 'auto']}
-                    />
-                </div>
-
-                <div className="log-panel">
-                    <div className="log-header">
-                        <span>Training Log</span>
-                        <button
-                            className="ghost-button"
-                            onClick={() => setTrainingStatus(prev => ({ ...prev, log: ['Ready to start training...'] }))}
-                        >
-                            Clear
-                        </button>
-                    </div>
-                    <pre className="training-log-light" ref={logContainerRef}>
-                        {(trainingStatus.log || []).join('\n')}
-                    </pre>
-                </div>
-            </div>
+            </section>
 
             {showNewTrainingWizard && (
                 <NewTrainingWizard
@@ -583,7 +692,7 @@ export const MachineLearningPage: React.FC = () => {
                     onClose={() => setShowResumeTrainingWizard(false)}
                     onConfirm={handleConfirmResume}
                     isLoading={isLoading}
-                    selectedCheckpointName={resumeConfig.checkpoint_name} // Pass selected checkpoint
+                    selectedCheckpointName={resumeConfig.checkpoint_name}
                 />
             )}
 
@@ -598,6 +707,8 @@ export const MachineLearningPage: React.FC = () => {
 };
 
 export default MachineLearningPage;
+
+
 
 
 

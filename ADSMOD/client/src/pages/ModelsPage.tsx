@@ -46,14 +46,6 @@ interface ModelsPageProps {
     nistOptionValue: string;
 }
 
-/**
- * ModelsPage (ModelsPanel): Container component that manages fitting configuration and 9 adsorption model cards.
- * 
- * New Structure:
- * 1. Fitting Panel: Max iterations, Method, Start/Reset buttons, Logs.
- * 2. Separator
- * 3. Models Grid: 3x3 grid of model cards.
- */
 export const ModelsPage: React.FC<ModelsPageProps> = ({
     modelStates,
     onParametersChange,
@@ -70,15 +62,12 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
     onDatasetSelect,
     nistOptionValue,
 }) => {
-    // Single expanded card strategy: only one card can be expanded at a time
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
-    // Handle card expand/collapse toggle
     const handleCardToggle = useCallback((modelId: string) => {
         setExpandedId((prev) => (prev === modelId ? null : modelId));
     }, []);
 
-    // Handle model enabled/disabled toggle
     const handleEnabledChange = useCallback(
         (modelName: string, enabled: boolean) => {
             onToggle(modelName, enabled);
@@ -86,7 +75,6 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
         [onToggle]
     );
 
-    // Handle configuration change
     const handleConfigChange = useCallback(
         (modelName: string, config: ModelParameters) => {
             onParametersChange(modelName, config);
@@ -104,34 +92,26 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
         [onOptimizationMethodChange]
     );
 
-    // Create a 3x3 grid (9 cells total) using the ADSORPTION_MODELS data
     const gridCells = useMemo(() => {
-        return Array(9)
-            .fill(null)
-            .map((_, index) => {
-                const model = ADSORPTION_MODELS[index];
-                if (!model) {
-                    return <div key={`empty-${index}`} className="model-grid-card empty" />;
-                }
+        return ADSORPTION_MODELS.map((model) => {
+            const state = modelStates[model.name] || {
+                enabled: true,
+                config: {},
+            };
 
-                const state = modelStates[model.name] || {
-                    enabled: true,
-                    config: {},
-                };
-
-                return (
-                    <ModelCard
-                        key={model.id}
-                        model={model}
-                        isExpanded={expandedId === model.id}
-                        isEnabled={state.enabled}
-                        currentConfig={state.config}
-                        onToggle={handleCardToggle}
-                        onEnabledChange={handleEnabledChange}
-                        onConfigChange={handleConfigChange}
-                    />
-                );
-            });
+            return (
+                <ModelCard
+                    key={model.id}
+                    model={model}
+                    isExpanded={expandedId === model.id}
+                    isEnabled={state.enabled}
+                    currentConfig={state.config}
+                    onToggle={handleCardToggle}
+                    onEnabledChange={handleEnabledChange}
+                    onConfigChange={handleConfigChange}
+                />
+            );
+        });
     }, [expandedId, modelStates, handleCardToggle, handleEnabledChange, handleConfigChange]);
 
     return (
@@ -142,7 +122,6 @@ export const ModelsPage: React.FC<ModelsPageProps> = ({
                         <h3>Fitting Configuration</h3>
                         <p>Configure the optimizer and run the fit.</p>
                     </div>
-
                 </div>
 
                 <div className="fitting-main-layout">
