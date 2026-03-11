@@ -267,6 +267,21 @@ class PostgresRepository:
             session.close()
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def normalize_pagination_value(
+        value: int | None, field_name: str
+    ) -> int | None:
+        if value is None:
+            return None
+        try:
+            candidate = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid {field_name} value.") from exc
+        if candidate < 0:
+            raise ValueError(f"{field_name} must be >= 0.")
+        return candidate
+
+    # -------------------------------------------------------------------------
     def load_from_database(
         self,
         table_name: str,
@@ -274,6 +289,8 @@ class PostgresRepository:
         offset: int | None = None,
     ) -> pd.DataFrame:
         table_name = ensure_safe_sql_identifier(table_name, "table name")
+        safe_limit = self.normalize_pagination_value(limit, "limit")
+        safe_offset = self.normalize_pagination_value(offset, "offset")
         with self.engine.connect() as conn:
             inspector = inspect(conn)
             if not inspector.has_table(table_name):
@@ -296,12 +313,20 @@ class PostgresRepository:
                     f'"{column}"' for column in primary_key_columns
                 )
                 query += f" ORDER BY {ordered_columns}"
-            if limit is not None:
-                query += f" LIMIT {limit}"
-            if offset is not None:
-                query += f" OFFSET {offset}"
 
-            data = pd.read_sql_query(query, conn)
+            query_params: dict[str, int] = {}
+            if safe_limit is not None:
+                query += " LIMIT :limit"
+                query_params["limit"] = safe_limit
+            if safe_offset is not None:
+                query += " OFFSET :offset"
+                query_params["offset"] = safe_offset
+
+            data = pd.read_sql_query(
+                sqlalchemy.text(query),
+                conn,
+                params=query_params,
+            )
         return self.restore_after_load(data)
 
     # -------------------------------------------------------------------------

@@ -16,7 +16,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=5)\" || exit 1"
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)\" || exit 1"
         ]
       interval: 15s
       timeout: 5s

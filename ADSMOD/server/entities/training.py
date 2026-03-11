@@ -17,8 +17,16 @@ class TrainingConfigRequest(BaseModel):
     batch_size: int = Field(default=32, ge=1, le=256)
     shuffle_dataset: bool = True
     max_buffer_size: int = Field(default=256, ge=1, le=1_000_000)
-    dataset_label: str | None = None
-    dataset_hash: str | None = None
+    dataset_label: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+    )
+    dataset_hash: str | None = Field(
+        default=None,
+        pattern=r"^[A-Fa-f0-9]{64}$",
+    )
 
     # Model settings
     selected_model: str = "SCADS Series"
@@ -36,7 +44,12 @@ class TrainingConfigRequest(BaseModel):
     device_ID: int = Field(default=0, ge=0, le=32)
     use_mixed_precision: bool = False
     use_jit: bool = False
-    jit_backend: str = "inductor"
+    jit_backend: str = Field(
+        default="inductor",
+        min_length=1,
+        max_length=32,
+        pattern=r"^[A-Za-z0-9_.-]+$",
+    )
 
     # LR scheduler settings
     use_lr_scheduler: bool = True
@@ -48,7 +61,12 @@ class TrainingConfigRequest(BaseModel):
     # Callbacks
     save_checkpoints: bool = True
     checkpoints_frequency: int = Field(default=5, ge=1, le=50)
-    custom_name: str | None = None
+    custom_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+    )
 
 
 ###############################################################################
@@ -169,12 +187,16 @@ class DatasetSelection(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     source: Literal["nist", "uploaded"]
-    dataset_name: str = Field(min_length=1, max_length=256)
+    dataset_name: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9_. -]+$",
+    )
 
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True) 
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     min_measurements: int = Field(default=1, ge=1, le=100)
@@ -222,7 +244,12 @@ class DatasetBuildResponse(BaseModel):
 ###############################################################################
 class DatasetInfoResponse(BaseModel):
     available: bool
-    dataset_label: str | None = None
+    dataset_label: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+    )
     created_at: str | None = None
     sample_size: float | None = None
     validation_size: float | None = None
@@ -242,7 +269,10 @@ class DatasetInfoResponse(BaseModel):
 ###############################################################################
 class ProcessedDatasetInfo(BaseModel):
     dataset_label: str
-    dataset_hash: str | None = None
+    dataset_hash: str | None = Field(
+        default=None,
+        pattern=r"^[A-Fa-f0-9]{64}$",
+    )
     train_samples: int
     validation_samples: int
     created_at: str | None = None
@@ -279,7 +309,10 @@ class TrainingMetadata(BaseModel):
     normalization: dict[str, list[float] | float | dict] = Field(default_factory=dict)
 
     # Integrity Check
-    dataset_hash: str | None = None
+    dataset_hash: str | None = Field(
+        default=None,
+        pattern=r"^[A-Fa-f0-9]{64}$",
+    )
 
     # Computed/Derived fields that might be stored
     smile_vocabulary_size: int = 0

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path, Query
 
 from ADSMOD.server.entities.jobs import (
     JobListResponse,
@@ -94,7 +94,16 @@ class TrainingEndpoint:
             ) from e
 
     # -------------------------------------------------------------------------
-    def delete_dataset_source(self, source: str, dataset_name: str) -> dict[str, str]:
+    def delete_dataset_source(
+        self,
+        source: str = Query(..., pattern=r"^(nist|uploaded)$"),
+        dataset_name: str = Query(
+            ...,
+            min_length=1,
+            max_length=128,
+            pattern=r"^[A-Za-z0-9_. -]+$",
+        ),
+    ) -> dict[str, str]:
         try:
             composer = DatasetCompositionService()
             success, message = composer.delete_source(source, dataset_name)
@@ -262,7 +271,15 @@ class TrainingEndpoint:
             ) from e
 
     # -------------------------------------------------------------------------
-    def get_dataset_info(self, dataset_label: str = "default") -> DatasetInfoResponse:
+    def get_dataset_info(
+        self,
+        dataset_label: str = Query(
+            "default",
+            min_length=1,
+            max_length=64,
+            pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+        ),
+    ) -> DatasetInfoResponse:
         try:
             resolved_label = training_manager.data_serializer.normalize_dataset_label(
                 dataset_label
@@ -296,7 +313,13 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(
-        self, dataset_label: str | None = None
+        self,
+        dataset_label: str | None = Query(
+            default=None,
+            min_length=1,
+            max_length=64,
+            pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+        ),
     ) -> dict[str, str]:
         try:
             resolved_label = (
@@ -424,7 +447,13 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_checkpoint_details(
-        self, checkpoint_name: str
+        self,
+        checkpoint_name: str = Path(
+            ...,
+            min_length=1,
+            max_length=128,
+            pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+        ),
     ) -> CheckpointFullDetailsResponse:
         try:
             checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
@@ -458,7 +487,15 @@ class TrainingEndpoint:
             ) from e
 
     # -------------------------------------------------------------------------
-    def delete_checkpoint(self, checkpoint_name: str) -> dict[str, str]:
+    def delete_checkpoint(
+        self,
+        checkpoint_name: str = Path(
+            ...,
+            min_length=1,
+            max_length=128,
+            pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+        ),
+    ) -> dict[str, str]:
         try:
             success = training_manager.model_serializer.delete_checkpoint(
                 checkpoint_name

@@ -2,15 +2,63 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+MAX_DATASET_COLUMNS = 256
+MAX_DATASET_RECORDS = 200_000
+MAX_DATASET_RECORD_COLUMNS = 256
+MAX_COLUMN_NAME_LENGTH = 128
+MAX_DATASET_NAME_LENGTH = 128
+MAX_FITTING_ITERATIONS = 1_000_000
 
 
 ###############################################################################
 class DatasetPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    dataset_name: str = Field(..., min_length=1, max_length=256)
-    columns: list[str] = Field(default_factory=list, max_length=256)
-    records: list[dict[str, Any]] = Field(default_factory=list)
+    dataset_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_DATASET_NAME_LENGTH,
+        pattern=r"^[A-Za-z0-9_. -]+$",
+    )
+    columns: list[str] = Field(default_factory=list, max_length=MAX_DATASET_COLUMNS)
+    records: list[dict[str, Any]] = Field(
+        default_factory=list,
+        max_length=MAX_DATASET_RECORDS,
+    )
+
+    # -------------------------------------------------------------------------
+    @field_validator("columns")
+    @classmethod
+    def validate_columns(cls, values: list[str]) -> list[str]:
+        for column in values:
+            if not isinstance(column, str) or not column.strip():
+                raise ValueError("Dataset columns must be non-empty strings.")
+            if len(column.strip()) > MAX_COLUMN_NAME_LENGTH:
+                raise ValueError(
+                    f"Dataset column names must be <= {MAX_COLUMN_NAME_LENGTH} characters."
+                )
+        return values
+
+    # -------------------------------------------------------------------------
+    @field_validator("records")
+    @classmethod
+    def validate_records(cls, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        for record in records:
+            if len(record) > MAX_DATASET_RECORD_COLUMNS:
+                raise ValueError(
+                    f"Dataset records cannot contain more than {MAX_DATASET_RECORD_COLUMNS} columns."
+                )
+            for key in record:
+                key_text = str(key).strip()
+                if not key_text:
+                    raise ValueError("Dataset record keys must be non-empty strings.")
+                if len(key_text) > MAX_COLUMN_NAME_LENGTH:
+                    raise ValueError(
+                        f"Dataset record keys must be <= {MAX_COLUMN_NAME_LENGTH} characters."
+                    )
+        return records
 
 
 ###############################################################################
@@ -24,7 +72,7 @@ class ModelParameterConfig(BaseModel):
 ###############################################################################
 class FittingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    max_iterations: int = Field(..., ge=1)
+    max_iterations: int = Field(..., ge=1, le=MAX_FITTING_ITERATIONS)
     optimization_method: Literal[
         "LSS",
         "BFGS",
@@ -32,7 +80,7 @@ class FittingRequest(BaseModel):
         "Nelder-Mead",
         "Powell",
     ] = Field(default="LSS")
-    parameter_bounds: dict[str, ModelParameterConfig]
+    parameter_bounds: dict[str, ModelParameterConfig] = Field(default_factory=dict, max_length=32)
     dataset: DatasetPayload
 
 

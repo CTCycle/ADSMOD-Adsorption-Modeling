@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Path, UploadFile, status
 
 from ADSMOD.server.entities.datasets import DatasetLoadResponse, DatasetNamesResponse
 from ADSMOD.server.common.constants import (
@@ -48,6 +48,8 @@ class DatasetEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Unable to read uploaded dataset.",
             ) from exc
+        finally:
+            await file.close()
 
         try:
             dataset_payload, summary = self.service.load_from_bytes(
@@ -78,7 +80,15 @@ class DatasetEndpoint:
             return DatasetNamesResponse(names=[])
 
     # -------------------------------------------------------------------------
-    def get_dataset_by_name(self, dataset_name: str) -> DatasetLoadResponse:
+    def get_dataset_by_name(
+        self,
+        dataset_name: str = Path(
+            ...,
+            min_length=1,
+            max_length=128,
+            pattern=r"^[A-Za-z0-9_. -]+$",
+        ),
+    ) -> DatasetLoadResponse:
         try:
             dataset_payload, summary = self.service.load_from_database(dataset_name)
             return DatasetLoadResponse(summary=summary, dataset=dataset_payload)
