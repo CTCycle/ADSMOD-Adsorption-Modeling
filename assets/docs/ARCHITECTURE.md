@@ -27,8 +27,8 @@
 ### Processes
 - **Backend**: Uvicorn running FastAPI on `FASTAPI_HOST:FASTAPI_PORT` from `ADSMOD/settings/.env`.
 - **Frontend (local launcher)**: Vite preview server (`npm run preview`) on `UI_HOST:UI_PORT` from `ADSMOD/settings/.env`.
-- **Frontend (Docker)**: Nginx serves static assets and reverse-proxies `/api` to backend.
-- **Communication**: Frontend uses same-origin `/api` proxying, avoiding CORS in normal deployments.
+- **Frontend (packaged desktop mode)**: FastAPI serves static SPA assets from `client/dist` when Tauri mode is enabled.
+- **Communication**: Frontend uses same-origin `/api` proxying in both local webapp and packaged desktop modes, avoiding CORS configuration overhead.
 
 ### Backend Layers
 1. **Routes**: Validation and HTTP handling.
@@ -87,3 +87,4 @@ Long-running tasks (fitting, NIST ingestion/enrichment, dataset build, training)
   - `checkpoints` (resume/manage widget)
   - `Training dashboard` (metrics/charts/log widget)
 - Archived training dataset labels (`archived::...`) are filtered from the frontend dataset list view to avoid showing non-actionable historical entries.
+

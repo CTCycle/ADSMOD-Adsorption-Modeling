@@ -21,11 +21,11 @@ def test_db_embedded_env_override_enabled(monkeypatch):
 def test_db_embedded_env_override_disabled_uses_external_values(monkeypatch):
     monkeypatch.setenv("DB_EMBEDDED", "false")
     monkeypatch.setenv("DB_ENGINE", "postgres")
-    monkeypatch.setenv("DB_HOST", "cloud-db.example.com")
+    monkeypatch.setenv("DB_HOST", "external-db.example.com")
     monkeypatch.setenv("DB_PORT", "6543")
-    monkeypatch.setenv("DB_NAME", "cloud_adsmod")
-    monkeypatch.setenv("DB_USER", "cloud_user")
-    monkeypatch.setenv("DB_PASSWORD", "cloud_password")
+    monkeypatch.setenv("DB_NAME", "external_adsmod")
+    monkeypatch.setenv("DB_USER", "external_user")
+    monkeypatch.setenv("DB_PASSWORD", "external_password")
     monkeypatch.setenv("DB_SSL", "true")
     monkeypatch.setenv("DB_CONNECT_TIMEOUT", "45")
     monkeypatch.setenv("DB_INSERT_BATCH_SIZE", "6000")
@@ -34,11 +34,11 @@ def test_db_embedded_env_override_disabled_uses_external_values(monkeypatch):
 
     assert settings.embedded_database is False
     assert settings.engine == "postgres"
-    assert settings.host == "cloud-db.example.com"
+    assert settings.host == "external-db.example.com"
     assert settings.port == 6543
-    assert settings.database_name == "cloud_adsmod"
-    assert settings.username == "cloud_user"
-    assert settings.password == "cloud_password"
+    assert settings.database_name == "external_adsmod"
+    assert settings.username == "external_user"
+    assert settings.password == "external_password"
     assert settings.ssl is True
     assert settings.connect_timeout == 45
     assert settings.insert_batch_size == 6000
@@ -93,3 +93,4 @@ def test_db_settings_reject_insecure_placeholder_password(monkeypatch):
 
     with pytest.raises(ValueError, match="DB_PASSWORD uses an insecure placeholder"):
         build_database_settings({})
+
