@@ -1,7 +1,7 @@
 # Project-specific generated/runtime artifacts
 ADSMOD/resources/checkpoints/**
-ADSMOD/resources/runtimes/**
-ADSMOD/resources/runtimes/uv_cache/**
+runtimes/**
+runtimes/uv_cache/**
 ADSMOD/resources/logs/**
 ADSMOD/client/node_modules/
 ADSMOD/client/dist/

@@ -38,7 +38,7 @@ ADSMOD provides an automated installation and launcher script for Windows users,
 2.  Locate and run the `start_on_windows.bat` script.
 
 **What this script does:**
-- It downloads portable Python, uv, and Node.js runtimes in `ADSMOD/resources/runtimes` (first run only).
+- It downloads portable Python, uv, and Node.js runtimes in `runtimes/` (first run only).
 - It installs backend dependencies from `pyproject.toml` using `uv`.
 - It installs frontend dependencies and builds the frontend bundle.
 - It starts backend and frontend automatically.
@@ -176,12 +176,12 @@ Run `ADSMOD/setup_and_maintenance.bat` to access setup and maintenance actions:
 
 ## 6. Resources
 
-The application stores data and artifacts in specific directories, primarily under `ADSMOD/resources`.
+The application stores data and artifacts in specific directories:
 
 - **checkpoints**: Stores trained model weights, training history, and model configuration files.
 - **database**: Contains the local SQLite database storing metadata, cached API responses, and experiment indexes.
 - **logs**: Application logs for debugging and monitoring background processes.
-- **runtimes:** portable Python/uv/Node.js downloaded by the Windows launcher.
+- **runtimes:** portable Python/uv/Node.js downloaded by the Windows launcher (repository root `runtimes/`).
 - **templates:** starter assets such as the `.env` scaffold
 
 

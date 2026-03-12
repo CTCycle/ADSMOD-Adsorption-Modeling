@@ -41,8 +41,8 @@
       "r/client/dist": "ADSMOD/client/dist",
       "r/resources/checkpoints": "ADSMOD/resources/checkpoints",
       "r/resources/database.db": "ADSMOD/resources/database.db",
-      "r/resources/runtimes/python": "ADSMOD/resources/runtimes/python",
-      "r/resources/runtimes/uv": "ADSMOD/resources/runtimes/uv"
+      "r/runtimes/python": "runtimes/python",
+      "r/runtimes/uv": "runtimes/uv"
     }
   }
 }
