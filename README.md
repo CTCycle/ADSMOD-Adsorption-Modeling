@@ -47,23 +47,7 @@ ADSMOD provides an automated installation and launcher script for Windows users,
 - On the **first run**, the script may take some time to download and install all dependencies.
 - On **subsequent runs**, it will skip installation and immediately launch the application.
 
-### 3.2 Cloud (Docker)
-
-Cloud deployment uses Dockerized backend + frontend:
-
-```cmd
-copy /Y ADSMOD\settings\.env.cloud.example ADSMOD\settings\.env
-docker compose --env-file ADSMOD/settings/.env build --no-cache
-docker compose --env-file ADSMOD/settings/.env up -d
-```
-
-Stop cloud containers:
-
-```cmd
-docker compose --env-file ADSMOD/settings/.env down
-```
-
-### 3.3 Manual Setup (Advanced)
+### 3.2 Manual Setup (Advanced)
 
 If you prefer to set up the application manually or are running on a non-Windows environment, ensure you have Python and Node.js installed. You will need to install the backend dependencies from `pyproject.toml` and the frontend dependencies from the `client` directory, then launch the server and client components respectively.
 
@@ -75,12 +59,12 @@ If you prefer to set up the application manually or are running on a non-Windows
 **Windows:**
 Simply double-click `start_on_windows.bat` in the `ADSMOD` folder. This opens backend/frontend logs and launches the UI at `http://<UI_HOST>:<UI_PORT>` from `ADSMOD/settings/.env`.
 
-**Cloud:**
-After `docker compose up -d`, open `http://<UI_HOST>:<UI_PORT>` using values in `ADSMOD/settings/.env` (for the provided cloud profile, `http://0.0.0.0:8080`).
+**Windows (Packaged Tauri App):**
+Build with `release\tauri\build_with_tauri.bat`, then launch the generated app from `release/windows/installers` or `release/windows/portable`.
 
 ### 4.2 Mode Switching
 
-Mode switching is configuration-only:
+Runtime profile switching is configuration-only:
 
 ```cmd
 copy /Y ADSMOD\settings\.env.local.example ADSMOD\settings\.env
@@ -89,7 +73,7 @@ copy /Y ADSMOD\settings\.env.local.example ADSMOD\settings\.env
 or
 
 ```cmd
-copy /Y ADSMOD\settings\.env.cloud.example ADSMOD\settings\.env
+copy /Y ADSMOD\settings\.env.local.tauri.example ADSMOD\settings\.env
 ```
 
 No source code changes are required.
@@ -213,7 +197,6 @@ Runtime values are loaded from `ADSMOD/settings/.env` and apply to:
 
 Use these profile files as templates:
 - `ADSMOD/settings/.env.local.example`
-- `ADSMOD/settings/.env.cloud.example`
 - `ADSMOD/settings/.env.local.tauri.example`
 
 Desktop packaging is implemented through `release/tauri/build_with_tauri.bat` and `release/tauri/scripts/export-windows-artifacts.ps1`.
@@ -221,7 +204,4 @@ Desktop packaging is implemented through `release/tauri/build_with_tauri.bat` an
 ## 8. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
-
-
-
 

@@ -24,7 +24,7 @@ from ADSMOD.server.routes.nist import router as nist_router
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
-def cloud_mode_enabled() -> bool:
+def public_host_mode_enabled() -> bool:
     host = os.getenv("FASTAPI_HOST", "").strip().lower()
     if not host:
         return False
@@ -32,7 +32,7 @@ def cloud_mode_enabled() -> bool:
 
 
 def direct_api_enabled() -> bool:
-    return not cloud_mode_enabled()
+    return not public_host_mode_enabled()
 
 
 def tauri_mode_enabled() -> bool:
@@ -60,7 +60,7 @@ def resolve_spa_file_path(client_dist_path: str, requested_path: str) -> str | N
     return candidate
 
 
-CLOUD_MODE = cloud_mode_enabled()
+PUBLIC_HOST_MODE = public_host_mode_enabled()
 
 
 ###############################################################################
@@ -68,9 +68,9 @@ app = FastAPI(
     title=FASTAPI_TITLE,
     version=FASTAPI_VERSION,
     description=FASTAPI_DESCRIPTION,
-    docs_url=None if CLOUD_MODE else "/docs",
-    redoc_url=None if CLOUD_MODE else "/redoc",
-    openapi_url=None if CLOUD_MODE else "/openapi.json",
+    docs_url=None if PUBLIC_HOST_MODE else "/docs",
+    redoc_url=None if PUBLIC_HOST_MODE else "/redoc",
+    openapi_url=None if PUBLIC_HOST_MODE else "/openapi.json",
 )
 
 routers = [
@@ -122,3 +122,4 @@ else:
         @app.get("/", include_in_schema=False)
         def service_root() -> dict[str, str]:
             return {"status": "ok"}
+

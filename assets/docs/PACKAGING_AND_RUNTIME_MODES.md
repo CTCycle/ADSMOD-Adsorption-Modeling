@@ -4,16 +4,17 @@
 
 ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
 
-- Local mode: run directly on host without Docker.
-- Cloud mode: run with Docker (`backend` + `frontend`).
-- Mode switching: replace values in `ADSMOD/settings/.env` only.
-- No business-logic branching is required for runtime mode changes.
+- Supported runtime paths are local-only:
+  - Local webapp mode via `ADSMOD/start_on_windows.bat`
+  - Packaged desktop mode via Windows Tauri artifacts
+- Mode switching is configuration-only: replace values in `ADSMOD/settings/.env`.
+- Only local deployment paths are supported.
 
 ## 2. Runtime Profiles
 
-- `ADSMOD/settings/.env.local.example`: local defaults (loopback host values, embedded DB).
-- `ADSMOD/settings/.env.cloud.example`: cloud defaults (container bind host values, external DB).
-- `ADSMOD/settings/.env`: active profile used by launcher, tests, and Docker runtime env loading.
+- `ADSMOD/settings/.env.local.example`: local webapp defaults (loopback host values, embedded DB).
+- `ADSMOD/settings/.env.local.tauri.example`: desktop packaging/runtime defaults.
+- `ADSMOD/settings/.env`: active profile used by launcher, tests, and packaged runtime startup.
 - `ADSMOD/settings/configurations.json`: non-runtime defaults only (no database runtime settings).
 
 ## 3. Required Environment Keys
@@ -21,7 +22,7 @@ ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
 | Key | Purpose |
 |---|---|
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port. |
-| `UI_HOST`, `UI_PORT` | Frontend bind host/port (local) and host-published UI port (cloud compose env interpolation). |
+| `UI_HOST`, `UI_PORT` | Frontend host/port used by local webapp launcher mode. |
 | `VITE_API_BASE_URL` | Frontend API base path. Must stay `/api` for same-origin proxying. |
 | `RELOAD` | Enables backend reload in local development when `true`. |
 | `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in local launcher flow. |
@@ -31,7 +32,7 @@ ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
 | `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB connection and write-batching runtime settings. |
 | `MPLBACKEND`, `KERAS_BACKEND` | Runtime backend settings for plotting and ML stack. |
 
-## 4. Local Mode (Default)
+## 4. Local Webapp Mode (Default)
 
 1. Copy local profile values into active env:
    - `copy /Y ADSMOD\settings\.env.local.example ADSMOD\settings\.env`
@@ -40,28 +41,22 @@ ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
 3. Run tests (optional):
    - `tests\run_tests.bat`
 
-Local mode does not require Docker.
+## 5. Packaged Desktop Mode (Windows Tauri)
 
-## 5. Cloud Mode (Docker)
+1. Copy desktop profile values into active env:
+   - `copy /Y ADSMOD\settings\.env.local.tauri.example ADSMOD\settings\.env`
+2. Ensure portable runtimes are present at least once:
+   - `ADSMOD\start_on_windows.bat`
+3. Build desktop artifacts:
+   - `release\tauri\build_with_tauri.bat`
 
-1. Copy cloud profile values into active env:
-   - `copy /Y ADSMOD\settings\.env.cloud.example ADSMOD\settings\.env`
-2. Build images (determinism check):
-   - `docker compose --env-file ADSMOD/settings/.env build --no-cache`
-3. Start containers:
-   - `docker compose --env-file ADSMOD/settings/.env up -d`
-4. Stop containers:
-   - `docker compose --env-file ADSMOD/settings/.env down`
-
-Cloud topology:
-- `backend`: FastAPI/Uvicorn container.
-- `frontend`: Nginx container serving static frontend.
-- `backend` is network-internal in compose (no host port publish by default).
-- `/api` on frontend origin is reverse-proxied to backend (`backend:8000`).
-- API documentation endpoints are not exposed through the frontend gateway in cloud mode.
+Exported artifacts are generated in:
+- `release/windows/installers`
+- `release/windows/portable`
 
 ## 6. Deterministic Build Notes
 
 - Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `ADSMOD/client/package-lock.json` and installed with `npm ci`.
-- Docker base images are pinned to explicit tags in `docker/backend.Dockerfile` and `docker/frontend.Dockerfile`.
+- Desktop packaging pipeline is implemented under `release/tauri/`.
+
