@@ -39,7 +39,7 @@ ADSMOD provides an automated installation and launcher script for Windows users,
 
 **What this script does:**
 - It downloads portable Python, uv, and Node.js runtimes in `runtimes/` (first run only).
-- It installs backend dependencies from `pyproject.toml` using `uv`.
+- It installs backend dependencies from `pyproject.toml` using `uv` with virtualenv at `runtimes/.venv` and runtime lockfile source at `runtimes/uv.lock`.
 - It installs frontend dependencies and builds the frontend bundle.
 - It starts backend and frontend automatically.
 
@@ -91,6 +91,10 @@ Ensure portable runtimes are present (run at least once):
 ```cmd
 ADSMOD\start_on_windows.bat
 ```
+
+Ensure Rust tooling is installed for desktop packaging:
+- `cargo` must be available.
+- A default Rust toolchain must be configured (recommended: `stable-x86_64-pc-windows-msvc`).
 
 Build desktop artifacts:
 
@@ -169,7 +173,7 @@ A step-by-step guided workflow for configuring training experiments:
 Run `ADSMOD/setup_and_maintenance.bat` to access setup and maintenance actions:
 
 - **Remove logs** - clear `.log` files under `ADSMOD/resources/logs`.
-- **Uninstall app** - remove local runtimes and build artifacts (uv, embedded Python, portable Node.js, `node_modules`, `dist`, `.venv`, `uv.lock`) while preserving folder scaffolding.
+- **Uninstall app** - remove local runtimes and build artifacts (uv, embedded Python, portable Node.js, `node_modules`, `dist`, `runtimes/.venv`, `runtimes/uv.lock`) while preserving folder scaffolding.
 - **Initialize database** - create or reset the project database schema.
 - **Clean desktop build artifacts** - remove `ADSMOD/client/src-tauri/target/release` and `release/windows` only.
 
@@ -182,6 +186,8 @@ The application stores data and artifacts in specific directories:
 - **database**: Contains the local SQLite database storing metadata, cached API responses, and experiment indexes.
 - **logs**: Application logs for debugging and monitoring background processes.
 - **runtimes:** portable Python/uv/Node.js downloaded by the Windows launcher (repository root `runtimes/`).
+- **runtime venv:** backend virtual environment at `runtimes/.venv`.
+- **runtime lockfile:** backend lockfile at `runtimes/uv.lock`.
 - **templates:** starter assets such as the `.env` scaffold
 
 

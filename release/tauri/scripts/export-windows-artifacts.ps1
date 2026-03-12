@@ -47,15 +47,35 @@ if (Test-Path $msiDir) {
 $portableExeCandidates = Get-ChildItem -Path $releaseDir -Filter "*.exe" -File |
   Where-Object { $_.Name -notmatch "(?i)(setup|installer|uninstall|updater)" }
 
+if ($portableExeCandidates.Count -eq 0) {
+  throw "Portable app executable not found under release directory: $releaseDir"
+}
+
 foreach ($file in $portableExeCandidates) {
   Copy-Item -Path $file.FullName -Destination $portableDir -Force
 }
 
+$requiredPortableEntries = @(
+  "ADSMOD",
+  "runtimes",
+  "pyproject.toml",
+  "uv.lock"
+)
+
+foreach ($entry in $requiredPortableEntries) {
+  $requiredPath = Join-Path $releaseDir $entry
+  if (-not (Test-Path $requiredPath)) {
+    throw "Required portable payload entry not found: $requiredPath"
+  }
+}
+
 $portableResourceEntries = @(
   "ADSMOD",
+  "runtimes",
   "pyproject.toml",
   "uv.lock",
-  "_up_"
+  "_up_",
+  "resources"
 )
 
 foreach ($entry in $portableResourceEntries) {
@@ -63,6 +83,18 @@ foreach ($entry in $portableResourceEntries) {
   if (Test-Path $sourcePath) {
     $destinationPath = Join-Path $portableDir $entry
     Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
+  }
+}
+
+$requiredRuntimePayload = @(
+  "runtimes\\uv\\uv.exe",
+  "runtimes\\python\\python.exe"
+)
+
+foreach ($relativePath in $requiredRuntimePayload) {
+  $payloadPath = Join-Path $portableDir $relativePath
+  if (-not (Test-Path $payloadPath)) {
+    throw "Required portable runtime file is missing after export: $payloadPath"
   }
 }
 

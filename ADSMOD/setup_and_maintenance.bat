@@ -16,13 +16,13 @@ set "env_marker=%python_dir%\.is_installed"
 set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
-set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
+set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
 
 set "pyproject=%root_folder%pyproject.toml"
 set "update_script=%project_folder%tools\update_project.py"
 set "log_path=%project_folder%resources\logs"
-set "uv_lock=%root_folder%uv.lock"
-set "venv_dir=%root_folder%.venv"
+set "uv_lock=%runtimes_dir%\uv.lock"
+set "venv_dir=%runtimes_dir%\.venv"
 set "client_dir=%project_folder%client"
 set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
@@ -80,7 +80,8 @@ goto :setup_menu
 :uninstall
 echo --------------------------------------------------------------------------
 echo This operation will remove uv artifacts, caches, local Python files in
-echo runtimes, the portable Node.js installation, and the .venv
+echo runtimes, the portable Node.js installation, runtime lockfile, and
+echo runtimes\.venv
 echo directory. The embedded Python folder will be cleaned but the folder
 echo structure will be preserved.
 echo.
@@ -94,7 +95,7 @@ if exist "%uv_lock%" (
   del /q "%uv_lock%"
   echo [INFO] Removed "%uv_lock%".
 ) else (
-  echo [INFO] No uv.lock file found to remove.
+  echo [INFO] No runtime uv.lock file found to remove at "%uv_lock%".
 )
 if exist "%uv_dir%" (
   rd /s /q "%uv_dir%"
@@ -118,7 +119,7 @@ if exist "%venv_dir%" (
   rd /s /q "%venv_dir%"
   echo [INFO] Removed virtual environment "%venv_dir%".
 ) else (
-  echo [INFO] No .venv directory found to remove.
+  echo [INFO] No runtime virtual environment found to remove at "%venv_dir%".
 )
 if exist "%client_dir%\node_modules" (
   rd /s /q "%client_dir%\node_modules"
