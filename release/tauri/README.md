@@ -38,7 +38,7 @@ npm run tauri:clean
 
 ## Build flow
 
-`release\tauri\build_with_tauri.bat` is the only supported packaging entrypoint. It validates the embedded Python, `uv`, and portable Node.js runtimes, creates the short staging tree at `ADSMOD\client\src-tauri\r`, copies `pyproject.toml`, `uv.lock`, and `ADSMOD\resources\database.db`, junctions the shipped runtime directories, installs frontend dependencies with the repo-local Node runtime, runs `npm run tauri:build:release`, then cleans the staging tree and exports public artifacts to `release\windows`.
+`release\tauri\build_with_tauri.bat` is the only supported packaging entrypoint. It validates the embedded Python, `uv`, and portable Node.js runtimes, creates the short staging tree at `ADSMOD\client\src-tauri\r`, copies `pyproject.toml`, `uv.lock`, and `ADSMOD\resources\database.db`, junctions the shipped runtime directories from root `runtimes\`, installs frontend dependencies with the repo-local Node runtime, runs `npm run tauri:build:release`, then cleans the staging tree and exports public artifacts to `release\windows`.
 
 Node.js is build-time only and is not bundled into the shipped desktop payload.
 
@@ -58,9 +58,9 @@ The explicit Tauri resource map reconstructs this runtime layout:
     resources/
       checkpoints/
       database.db
-      runtimes/
-        python/
-        uv/
+  runtimes/
+    python/
+    uv/
 ```
 
 The Rust launcher resolves a valid workspace by looking for both `pyproject.toml` and `ADSMOD/server/app.py`.
@@ -78,4 +78,4 @@ The FastAPI app serves the packaged SPA from `ADSMOD\client\dist`, exposes API r
 - `release\windows\installers`
 - `release\windows\portable`
 
-The portable export contains the desktop executable plus `ADSMOD`, `pyproject.toml`, `uv.lock`, and `_up_` when present. Keep the portable payload together.
+The portable export contains the desktop executable plus `ADSMOD`, `runtimes`, `pyproject.toml`, `uv.lock`, and `_up_` when present. Keep the portable payload together.

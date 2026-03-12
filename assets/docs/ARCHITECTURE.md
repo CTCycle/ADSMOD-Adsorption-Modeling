@@ -16,7 +16,8 @@
     - `src/pages/`: Main pages (`ConfigPage`, `ModelsPage`, `MachineLearningPage`).
     - `src/services/`: API clients and polling helpers.
   - **`settings/`**: Runtime environment and static configuration.
-  - **`resources/`**: Database, checkpoints, logs, and portable runtimes.
+  - **`resources/`**: Data-only folder (database, checkpoints, logs).
+  - **`runtimes/`**: Portable Python/uv/Node.js managed by launcher scripts.
   - **`start_on_windows.bat`**: One-click Windows setup + launch.
 - **`tests/`**: End-to-end, unit, server, and backend performance tests.
 
