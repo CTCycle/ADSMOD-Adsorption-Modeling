@@ -40,7 +40,7 @@ tests\run_tests.bat
 ```
 
 The runner will:
-1. Validate runtime prerequisites from the existing `.venv`.
+1. Validate runtime prerequisites from the existing `runtimes/.venv`.
 2. Start backend if it is not already running.
 3. Build and serve frontend if needed.
 4. Execute `pytest tests`.
@@ -48,7 +48,7 @@ The runner will:
 
 ## Prerequisites
 
-- Python 3.14+ environment available in `.venv`.
+- Python 3.14+ environment available in `runtimes/.venv`.
 - Optional test dependencies installed when required:
   - `pytest`
   - `pytest-playwright`
@@ -56,7 +56,7 @@ The runner will:
 - Playwright browsers installed:
 
 ```cmd
-.\.venv\Scripts\python.exe -m playwright install
+.\runtimes\.venv\Scripts\python.exe -m playwright install
 ```
 
 > [!TIP]
@@ -69,7 +69,7 @@ The runner will:
 2. Run tests:
 
 ```cmd
-.\.venv\Scripts\python.exe -m pytest tests -v
+.\runtimes\.venv\Scripts\python.exe -m pytest tests -v
 ```
 
 ## URL and Environment Resolution
@@ -155,6 +155,6 @@ Use only active router prefixes:
 ## Troubleshooting
 
 - **Connection refused**: Ensure backend/frontend URLs match `ADSMOD/settings/.env`.
-- **Missing Playwright**: run `.\.venv\Scripts\python.exe -m playwright install`.
+- **Missing Playwright**: run `.\runtimes\.venv\Scripts\python.exe -m playwright install`.
 - **Missing pytest deps**: enable optional dependencies and rerun launcher.
 - **Port conflicts**: free the configured `FASTAPI_PORT`/`UI_PORT` or update `.env`.

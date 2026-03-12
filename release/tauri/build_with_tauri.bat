@@ -11,6 +11,7 @@ set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
 set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
 set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
+set "runtime_uv_lock=%repo_root%\runtimes\uv.lock"
 set "runtime_node_dir=%repo_root%\runtimes\nodejs"
 set "node_cmd=%runtime_node_dir%\node.exe"
 set "npm_cmd=%runtime_node_dir%\npm.cmd"
@@ -25,7 +26,7 @@ call :require_file "%runtime_uv_exe%" "embedded uv runtime" || goto build_error
 call :require_file "%node_cmd%" "embedded Node.js runtime" || goto build_error
 call :require_file "%npm_cmd%" "embedded npm runtime" || goto build_error
 call :require_file "%repo_root%\pyproject.toml" "repo pyproject.toml" || goto build_error
-call :require_file "%repo_root%\uv.lock" "repo uv.lock" || goto build_error
+call :require_file "%runtime_uv_lock%" "runtime uv.lock at runtimes\\uv.lock" || goto build_error
 call :require_file "%runtime_database_file%" "embedded sqlite database" || goto build_error
 
 echo [CHECK] Preparing short Tauri bundle sources...
@@ -43,6 +44,7 @@ if not defined cargo_cmd (
   echo [FATAL] Rust/Cargo not found. Install Rust first: https://rustup.rs/
   goto build_error
 )
+call :check_rust_toolchain "%cargo_cmd%" || goto build_error
 for /f "delims=" %%V in ('"%cargo_cmd%" --version 2^>nul') do set "cargo_version=%%V"
 echo [INFO] Cargo command: %cargo_cmd%
 if defined cargo_version echo [INFO] !cargo_version!
@@ -148,9 +150,9 @@ if errorlevel 1 (
   echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
   exit /b 1
 )
-copy /y "%repo_root%\uv.lock" "%bundle_source_dir%\uv.lock" >nul
+copy /y "%runtime_uv_lock%" "%bundle_source_dir%\uv.lock" >nul
 if errorlevel 1 (
-  echo [FATAL] Failed to stage uv.lock for Tauri bundling.
+  echo [FATAL] Failed to stage runtime uv.lock from "%runtime_uv_lock%" for Tauri bundling.
   exit /b 1
 )
 copy /y "%runtime_database_file%" "%bundle_source_dir%\resources\database.db" >nul
@@ -168,6 +170,61 @@ call :make_junction "%bundle_source_dir%\client\dist" "%client_dir%\dist" || exi
 call :make_junction "%bundle_source_dir%\resources\checkpoints" "%project_folder%resources\checkpoints" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\python" "%repo_root%\runtimes\python" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\uv" "%repo_root%\runtimes\uv" || exit /b 1
+exit /b 0
+
+:check_rust_toolchain
+set "cargo_probe="
+for /f "usebackq delims=" %%V in (`"%~1" --version 2^>^&1`) do (
+  if not defined cargo_probe set "cargo_probe=%%V"
+)
+if not defined cargo_probe set "cargo_probe=unknown cargo probe output"
+"%~1" --version >nul 2>&1
+if errorlevel 1 (
+  echo [WARN] Cargo version probe failed: !cargo_probe!
+  echo(!cargo_probe!| findstr /I /C:"rustup could not choose a version of cargo to run" /C:"no default toolchain configured" >nul
+  if not errorlevel 1 (
+    echo [FATAL] Cargo was found but no default Rust toolchain is configured.
+    echo         Run:
+    echo           rustup toolchain install stable-x86_64-pc-windows-msvc
+    echo           rustup default stable-x86_64-pc-windows-msvc
+    echo           rustup show active-toolchain
+    exit /b 1
+  )
+  echo [FATAL] Cargo is installed but not runnable.
+  echo         Details: !cargo_probe!
+  exit /b 1
+)
+
+set "rustup_cmd="
+set "active_toolchain="
+if exist "%USERPROFILE%\.cargo\bin\rustup.exe" set "rustup_cmd=%USERPROFILE%\.cargo\bin\rustup.exe"
+if not defined rustup_cmd (
+  rustup --version >nul 2>&1
+  if not errorlevel 1 set "rustup_cmd=rustup"
+)
+if not defined rustup_cmd (
+  echo [WARN] rustup was not found; skipping explicit default-toolchain validation.
+  exit /b 0
+)
+for /f "delims=" %%V in ('"%rustup_cmd%" show active-toolchain 2^>nul') do set "active_toolchain=%%V"
+if not defined active_toolchain (
+  echo [FATAL] Cargo was found but no active Rust toolchain is configured.
+  echo         Run:
+  echo           rustup toolchain install stable-x86_64-pc-windows-msvc
+  echo           rustup default stable-x86_64-pc-windows-msvc
+  echo           rustup show active-toolchain
+  exit /b 1
+)
+echo !active_toolchain! | findstr /I /C:"no default toolchain" >nul
+if not errorlevel 1 (
+  echo [FATAL] Cargo was found but no default Rust toolchain is configured.
+  echo         Run:
+  echo           rustup toolchain install stable-x86_64-pc-windows-msvc
+  echo           rustup default stable-x86_64-pc-windows-msvc
+  echo           rustup show active-toolchain
+  exit /b 1
+)
+echo [INFO] Rust active toolchain: !active_toolchain!
 exit /b 0
 
 :make_junction

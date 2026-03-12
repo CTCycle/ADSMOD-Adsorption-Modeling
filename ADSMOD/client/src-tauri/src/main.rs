@@ -165,12 +165,42 @@ fn is_workspace_root(candidate: &Path) -> bool {
         && candidate.join("ADSMOD").join("server").join("app.py").is_file()
 }
 
-fn has_workspace_venv(candidate: &Path) -> bool {
+fn workspace_venv_python(candidate: &Path) -> PathBuf {
     candidate
+        .join("runtimes")
         .join(".venv")
         .join("Scripts")
         .join("python.exe")
-        .is_file()
+}
+
+fn has_workspace_venv(candidate: &Path) -> bool {
+    workspace_venv_python(candidate).is_file()
+}
+
+fn resolve_existing_runtime_file(
+    label: &str,
+    mut candidates: Vec<PathBuf>,
+) -> Result<PathBuf, String> {
+    let mut seen: HashSet<PathBuf> = HashSet::new();
+    candidates.retain(|candidate| seen.insert(candidate.clone()));
+
+    for candidate in &candidates {
+        if candidate.is_file() {
+            return Ok(candidate.clone());
+        }
+    }
+
+    let checked_paths = if candidates.is_empty() {
+        String::from("  (no candidates)")
+    } else {
+        candidates
+            .iter()
+            .map(|candidate| format!("  - {}", candidate.display()))
+            .collect::<Vec<String>>()
+            .join("\n")
+    };
+
+    Err(format!("{label} not found. Checked paths:\n{checked_paths}"))
 }
 
 fn push_with_ancestors(base: &Path, candidates: &mut Vec<PathBuf>) {
@@ -249,7 +279,8 @@ fn resolve_runtime_root(
     }
 
     Err(format!(
-        "Cannot access writable runtime directory at {}.",
+        "Cannot access a writable runtime directory. Checked workspace root ({}) and per-user runtime root ({}).",
+        workspace_root.display(),
         runtime_root.display()
     ))
 }
@@ -312,27 +343,24 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         let project_dir = workspace_root.join("ADSMOD");
         let env_path = project_dir.join("settings").join(".env");
         let backend_config = resolve_backend_launch_config(&env_path);
-        let uv_exe = workspace_root
-            .join("runtimes")
-            .join("uv")
-            .join("uv.exe");
-        let python_exe = workspace_root
-            .join("runtimes")
-            .join("python")
-            .join("python.exe");
-        let venv_dir = runtime_root.join(".venv");
-        let venv_python_exe = venv_dir.join("Scripts").join("python.exe");
-        let uv_cache_dir = runtime_root.join(".uv-cache");
+        let runtime_payload_root = workspace_root.join("runtimes");
+        let uv_candidates = vec![runtime_payload_root.join("uv").join("uv.exe")];
+        let python_candidates = vec![runtime_payload_root.join("python").join("python.exe")];
 
-        if !uv_exe.is_file() {
-            return Err(format!("Bundled uv runtime not found at {}", uv_exe.display()));
-        }
-        if !python_exe.is_file() {
-            return Err(format!(
-                "Bundled python runtime not found at {}",
-                python_exe.display()
-            ));
-        }
+        let uv_exe = resolve_existing_runtime_file("Bundled uv runtime", uv_candidates)?;
+        let python_exe =
+            resolve_existing_runtime_file("Bundled python runtime", python_candidates)?;
+        let runtime_state_root = runtime_root.join("runtimes");
+        let venv_dir = runtime_state_root.join(".venv");
+        let venv_python_exe = venv_dir.join("Scripts").join("python.exe");
+        let uv_cache_dir = runtime_state_root.join(".uv-cache");
+
+        fs::create_dir_all(&runtime_state_root).map_err(|error| {
+            format!(
+                "Cannot initialize runtime state directory at {}: {error}",
+                runtime_state_root.display()
+            )
+        })?;
 
         let python_exe_str = python_exe.to_string_lossy().to_string();
         let uv_cache_dir_str = uv_cache_dir.to_string_lossy().to_string();

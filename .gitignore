@@ -1,7 +1,7 @@
 # Project-specific generated/runtime artifacts
 ADSMOD/resources/checkpoints/**
 runtimes/**
-runtimes/uv_cache/**
+runtimes/.uv-cache/**
 ADSMOD/resources/logs/**
 ADSMOD/client/node_modules/
 ADSMOD/client/dist/
@@ -13,7 +13,7 @@ ADSMOD/client/*.local
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
+runtimes/.venv/
 venv/
 .pytest_cache/
 .mypy_cache/

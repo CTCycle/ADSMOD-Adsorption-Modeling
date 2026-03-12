@@ -16,7 +16,11 @@ set "env_marker=%python_dir%\.is_installed"
 set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
-set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
+set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
+set "venv_dir=%runtimes_dir%\.venv"
+set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
+set "runtime_uv_lock=%root_folder%runtimes\uv.lock"
+set "uv_lock_file=%root_folder%uv.lock"
 
 set "py_version=3.14.2"
 set "python_zip_filename=python-%py_version%-embed-amd64.zip"
@@ -48,7 +52,6 @@ set "TMPEXP=%TEMP%\app_expand.ps1"
 set "TMPTXT=%TEMP%\app_txt.ps1"
 set "TMPFIND=%TEMP%\app_find_uv.ps1"
 set "TMPVER=%TEMP%\app_pyver.ps1"
-set "TMPFINDNODE=%TEMP%\app_find_node.ps1"
 
 set "UV_LINK_MODE=copy"
 
@@ -73,7 +76,6 @@ echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -Destin
 echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0] > "%TMPTXT%"
 echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName > "%TMPFIND%"
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
-echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'node.exe' ^| Select-Object -First 1).FullName > "%TMPFINDNODE%"
 
 REM ============================================================================
 REM == Step 1: Ensure Python (embeddable)
@@ -137,19 +139,6 @@ if exist "%node_archive_dir%\node.exe" (
   if errorlevel 1 goto error
 )
 
-for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFINDNODE%" "%nodejs_dir%"') do set "found_node=%%F"
-if not defined found_node (
-  echo [FATAL] node.exe not found after extraction.
-  goto error
-)
-
-if /i not "!found_node!"=="%node_exe%" (
-  for %%D in ("!found_node!") do set "node_parent=%%~dpD"
-  if "!node_parent:~-1!"=="\" set "node_parent=!node_parent:~0,-1!"
-  call :promote_node_runtime "!node_parent!"
-  if errorlevel 1 goto error
-)
-
 if exist "%node_exe%" (
   for /f "delims=" %%V in ('"%node_exe%" --version') do echo [OK] Node.js ready: %%V
   set "NPM_CMD=%npm_cmd%"
@@ -157,7 +146,8 @@ if exist "%node_exe%" (
   set "PATH=%nodejs_dir%;%PATH%"
 
 ) else (
-  echo [FATAL] node.exe not found at expected location.
+  echo [FATAL] node.exe not found in "%nodejs_dir%".
+  echo [INFO] Expected file: "%node_exe%"
   goto error
 )
 
@@ -215,6 +205,17 @@ if not exist "%pyproject%" (
 )
 
 pushd "%root_folder%" >nul
+if exist "%runtime_uv_lock%" (
+  echo [INFO] Using runtime lockfile from "%runtime_uv_lock%".
+  copy /y "%runtime_uv_lock%" "%uv_lock_file%" >nul
+  if errorlevel 1 (
+    echo [WARN] Failed to copy runtime lockfile to "%uv_lock_file%". Continuing with existing root lockfile.
+  ) else (
+    echo [INFO] Runtime lockfile staged at "%uv_lock_file%".
+  )
+) else (
+  echo [INFO] Runtime lockfile not found at "%runtime_uv_lock%". uv sync will use the current root lockfile state.
+)
 set "uv_extras_flag="
 if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
 "%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
@@ -223,6 +224,18 @@ if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
   "%uv_exe%" sync %uv_extras_flag%
   set "sync_ec=%ERRORLEVEL%"
+)
+if "%sync_ec%"=="0" (
+  if exist "%uv_lock_file%" (
+    copy /y "%uv_lock_file%" "%runtime_uv_lock%" >nul
+    if errorlevel 1 (
+      echo [WARN] uv sync succeeded but failed to update runtime lockfile at "%runtime_uv_lock%".
+    ) else (
+      echo [INFO] Updated runtime lockfile at "%runtime_uv_lock%".
+    )
+  ) else (
+    echo [WARN] uv sync succeeded but "%uv_lock_file%" is missing, so runtime lockfile was not updated.
+  )
 )
 popd >nul
 if not "%sync_ec%"=="0" (
@@ -323,7 +336,7 @@ REM ============================================================================
 REM Cleanup temp helpers
 REM ============================================================================
 :cleanup
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPFINDNODE%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
 endlocal & exit /b 0
 
 REM ============================================================================
@@ -333,7 +346,7 @@ REM ============================================================================
 echo.
 echo !!! An error occurred during execution. !!!
 pause
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPFINDNODE%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
 endlocal & exit /b 1
 
 :kill_port

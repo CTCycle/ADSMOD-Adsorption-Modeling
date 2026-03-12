@@ -50,13 +50,17 @@ ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
 3. Build desktop artifacts:
    - `release\tauri\build_with_tauri.bat`
 
+Rust packaging prerequisite:
+- `cargo` available in `PATH`.
+- default toolchain configured (recommended: `stable-x86_64-pc-windows-msvc`).
+
 Exported artifacts are generated in:
 - `release/windows/installers`
 - `release/windows/portable`
 
 ## 6. Deterministic Build Notes
 
-- Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
+- Backend dependency graph is lockfile-backed via `runtimes/uv.lock` (staged as `uv.lock` during sync/bundle) and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `ADSMOD/client/package-lock.json` and installed with `npm ci`.
 - Desktop packaging pipeline is implemented under `release/tauri/`.
 
