@@ -59,6 +59,7 @@ Long-running tasks (fitting, NIST ingestion/enrichment, dataset build, training)
 - **Metadata**: Dataset and checkpoint metadata are stored for reproducibility and resume safety.
 - **Sequence storage**: Structured list-like fields are persisted through JSON-compatible serialization.
 - **Pagination**: Repository backends support `limit` and `offset` for large-table reads.
+- **Query centralization**: SQL/ORM query construction is centralized under `ADSMOD/server/repositories/queries/`; services, routes, and non-query repository modules consume those query helpers.
 
 ### 3.4 Logging
 - **Application logger**: Backend modules use `ADSMOD.server.common.utils.logger.logger` (logger name: `ADSMOD`).

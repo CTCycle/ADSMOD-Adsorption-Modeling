@@ -8,7 +8,6 @@ import hashlib
 import json
 
 import pandas as pd
-from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from ADSMOD.server.entities.models import MODEL_SCHEMAS
@@ -223,9 +222,7 @@ class DataSerializer:
         self, session: Session, dataset_name: str, source: str
     ) -> Dataset:
         normalized_name = self.normalize_text(dataset_name) or "default"
-        dataset = session.execute(
-            select(Dataset).where(Dataset.dataset_name == normalized_name)
-        ).scalar_one_or_none()
+        dataset = self.queries.get_dataset_by_name(session, normalized_name)
         if dataset is None:
             dataset = Dataset(
                 dataset_name=normalized_name,
@@ -253,13 +250,11 @@ class DataSerializer:
         normalized_name = self.normalize_lower(name)
         normalized_inchi = self.normalize_text(inchi_key)
         if normalized_inchi:
-            query = select(Adsorbate).where(Adsorbate.InChIKey == normalized_inchi)
             key = self.material_key("inchi", normalized_name, normalized_inchi)
+            adsorbate = self.queries.get_adsorbate_by_inchi(session, normalized_inchi)
         else:
             key = self.material_key("inchi", normalized_name, None)
-            query = select(Adsorbate).where(Adsorbate.adsorbate_key == key)
-
-        adsorbate = session.execute(query).scalar_one_or_none()
+            adsorbate = self.queries.get_adsorbate_by_key(session, key)
         if adsorbate is None:
             adsorbate = Adsorbate(
                 adsorbate_key=key,
@@ -304,12 +299,10 @@ class DataSerializer:
         normalized_hash = self.normalize_text(hashkey)
         if normalized_hash:
             key = self.material_key("host", normalized_name, normalized_hash)
-            query = select(Adsorbent).where(Adsorbent.hashkey == normalized_hash)
+            adsorbent = self.queries.get_adsorbent_by_hash(session, normalized_hash)
         else:
             key = self.material_key("host", normalized_name, None)
-            query = select(Adsorbent).where(Adsorbent.adsorbent_key == key)
-
-        adsorbent = session.execute(query).scalar_one_or_none()
+            adsorbent = self.queries.get_adsorbent_by_key(session, key)
         if adsorbent is None:
             adsorbent = Adsorbent(
                 adsorbent_key=key,
@@ -345,14 +338,9 @@ class DataSerializer:
         adsorbate_id: int,
         mole_fraction: float | None = None,
     ) -> AdsorptionIsothermComponent:
-        component = session.execute(
-            select(AdsorptionIsothermComponent).where(
-                and_(
-                    AdsorptionIsothermComponent.isotherm_id == isotherm_id,
-                    AdsorptionIsothermComponent.component_index == component_index,
-                )
-            )
-        ).scalar_one_or_none()
+        component = self.queries.get_isotherm_component(
+            session, isotherm_id, component_index
+        )
         if component is None:
             component = AdsorptionIsothermComponent(
                 isotherm_id=isotherm_id,
@@ -380,11 +368,9 @@ class DataSerializer:
         pressure_units: str = "pa",
         adsorption_units: str = "mol/g",
     ) -> AdsorptionIsotherm:
-        isotherm = session.execute(
-            select(AdsorptionIsotherm).where(
-                AdsorptionIsotherm.experiment_name == experiment_name
-            )
-        ).scalar_one_or_none()
+        isotherm = self.queries.get_isotherm_by_experiment_name(
+            session, experiment_name
+        )
         if isotherm is None:
             isotherm = AdsorptionIsotherm(
                 dataset_id=dataset_id,
@@ -415,14 +401,7 @@ class DataSerializer:
         isotherm_id: int,
         point_index: int,
     ) -> AdsorptionPoint:
-        point = session.execute(
-            select(AdsorptionPoint).where(
-                and_(
-                    AdsorptionPoint.isotherm_id == isotherm_id,
-                    AdsorptionPoint.point_index == point_index,
-                )
-            )
-        ).scalar_one_or_none()
+        point = self.queries.get_point(session, isotherm_id, point_index)
         if point is None:
             point = AdsorptionPoint(isotherm_id=isotherm_id, point_index=point_index)
             session.add(point)
@@ -440,14 +419,7 @@ class DataSerializer:
         original_pressure: float | None,
         original_uptake: float | None,
     ) -> None:
-        component = session.execute(
-            select(AdsorptionPointComponent).where(
-                and_(
-                    AdsorptionPointComponent.point_id == point_id,
-                    AdsorptionPointComponent.component_id == component_id,
-                )
-            )
-        ).scalar_one_or_none()
+        component = self.queries.get_point_component(session, point_id, component_id)
         if component is None:
             session.add(
                 AdsorptionPointComponent(
@@ -624,14 +596,7 @@ class DataSerializer:
             return False
 
         with self.session_factory() as session:
-            target = session.execute(
-                select(Dataset).where(
-                    and_(
-                        Dataset.dataset_name == normalized_name,
-                        Dataset.source == "uploaded",
-                    )
-                )
-            ).scalar_one_or_none()
+            target = self.queries.get_uploaded_dataset_by_name(session, normalized_name)
             if target is None:
                 return False
 
@@ -643,56 +608,7 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def _load_uploaded_raw(self) -> pd.DataFrame:
         with self.session_factory() as session:
-            rows = session.execute(
-                select(
-                    Dataset.dataset_name,
-                    AdsorptionIsotherm.source_record_id,
-                    Adsorbent.name,
-                    Adsorbate.name,
-                    AdsorptionIsotherm.temperature_k,
-                    AdsorptionPoint.point_index,
-                    AdsorptionPointComponent.original_pressure,
-                    AdsorptionPointComponent.original_uptake,
-                    AdsorptionPointComponent.partial_pressure_pa,
-                    AdsorptionPointComponent.uptake_mol_g,
-                )
-                .join(AdsorptionIsotherm, AdsorptionIsotherm.dataset_id == Dataset.id)
-                .join(
-                    AdsorptionIsothermComponent,
-                    and_(
-                        AdsorptionIsothermComponent.isotherm_id
-                        == AdsorptionIsotherm.id,
-                        AdsorptionIsothermComponent.component_index == 1,
-                    ),
-                )
-                .join(
-                    Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id
-                )
-                .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
-                .join(
-                    AdsorptionPoint,
-                    AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
-                )
-                .join(
-                    AdsorptionPointComponent,
-                    and_(
-                        AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                        AdsorptionPointComponent.component_id
-                        == AdsorptionIsothermComponent.id,
-                    ),
-                )
-                .where(
-                    and_(
-                        Dataset.source == "uploaded",
-                        ~Dataset.dataset_name.like("archived::%"),
-                    )
-                )
-                .order_by(
-                    Dataset.dataset_name,
-                    AdsorptionIsotherm.source_record_id,
-                    AdsorptionPoint.point_index,
-                )
-            ).all()
+            rows = self.queries.load_uploaded_raw_rows(session)
 
         if not rows:
             return pd.DataFrame()
@@ -721,40 +637,7 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def _load_processed_compat(self) -> pd.DataFrame:
         with self.session_factory() as session:
-            rows = session.execute(
-                select(
-                    AdsorptionProcessedIsotherm.id,
-                    AdsorptionIsotherm.experiment_name,
-                    Adsorbent.name,
-                    Adsorbate.name,
-                    AdsorptionIsotherm.temperature_k,
-                    AdsorptionProcessedIsotherm.pressure_pa_series,
-                    AdsorptionProcessedIsotherm.uptake_mol_g_series,
-                    AdsorptionProcessedIsotherm.measurement_count,
-                    AdsorptionProcessedIsotherm.min_pressure,
-                    AdsorptionProcessedIsotherm.max_pressure,
-                    AdsorptionProcessedIsotherm.min_uptake,
-                    AdsorptionProcessedIsotherm.max_uptake,
-                    AdsorptionProcessedIsotherm.processed_key,
-                )
-                .join(
-                    AdsorptionIsotherm,
-                    AdsorptionIsotherm.id == AdsorptionProcessedIsotherm.isotherm_id,
-                )
-                .join(
-                    AdsorptionIsothermComponent,
-                    and_(
-                        AdsorptionIsothermComponent.isotherm_id
-                        == AdsorptionIsotherm.id,
-                        AdsorptionIsothermComponent.component_index == 1,
-                    ),
-                )
-                .join(
-                    Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id
-                )
-                .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
-                .order_by(AdsorptionProcessedIsotherm.id)
-            ).all()
+            rows = self.queries.load_processed_compat_rows(session)
 
         if not rows:
             return pd.DataFrame()
@@ -863,11 +746,9 @@ class DataSerializer:
                 adsorbent = self._ensure_adsorbent(session, adsorbent_name)
                 adsorbate = self._ensure_adsorbate(session, adsorbate_name)
 
-                isotherm = session.execute(
-                    select(AdsorptionIsotherm).where(
-                        AdsorptionIsotherm.experiment_name == experiment_name
-                    )
-                ).scalar_one_or_none()
+                isotherm = self.queries.get_isotherm_by_experiment_name(
+                    session, experiment_name
+                )
                 if isotherm is None:
                     isotherm = AdsorptionIsotherm(
                         dataset_id=dataset_entry.id,
@@ -899,15 +780,11 @@ class DataSerializer:
                     pressure_series,
                     uptake_series,
                 )
-                processed = session.execute(
-                    select(AdsorptionProcessedIsotherm).where(
-                        and_(
-                            AdsorptionProcessedIsotherm.isotherm_id == isotherm.id,
-                            AdsorptionProcessedIsotherm.processing_version
-                            == self.processing_version,
-                        )
-                    )
-                ).scalar_one_or_none()
+                processed = self.queries.get_processed_by_isotherm_and_version(
+                    session,
+                    isotherm.id,
+                    self.processing_version,
+                )
                 if processed is None:
                     processed = AdsorptionProcessedIsotherm(
                         isotherm_id=isotherm.id,
@@ -975,16 +852,12 @@ class DataSerializer:
                     )
 
                     model_key = self.normalize_model_key(prefix)
-                    fit = session.execute(
-                        select(AdsorptionFit).where(
-                            and_(
-                                AdsorptionFit.processed_id == processed.id,
-                                AdsorptionFit.model_name == model_key,
-                                AdsorptionFit.optimization_method
-                                == optimization_method,
-                            )
-                        )
-                    ).scalar_one_or_none()
+                    fit = self.queries.get_fit_by_processed_model_method(
+                        session,
+                        processed.id,
+                        model_key,
+                        optimization_method,
+                    )
                     if fit is None:
                         fit = AdsorptionFit(
                             processed_id=processed.id,
@@ -1039,14 +912,11 @@ class DataSerializer:
                             if error_column
                             else None
                         )
-                        fit_param = session.execute(
-                            select(AdsorptionFitParam).where(
-                                and_(
-                                    AdsorptionFitParam.fit_id == fit.id,
-                                    AdsorptionFitParam.param_name == db_name,
-                                )
-                            )
-                        ).scalar_one_or_none()
+                        fit_param = self.queries.get_fit_param(
+                            session,
+                            fit.id,
+                            db_name,
+                        )
                         if fit_param is None:
                             session.add(
                                 AdsorptionFitParam(
@@ -1081,51 +951,38 @@ class DataSerializer:
                 if not experiment_name:
                     continue
 
-                isotherm = session.execute(
-                    select(AdsorptionIsotherm).where(
-                        AdsorptionIsotherm.experiment_name == experiment_name
-                    )
-                ).scalar_one_or_none()
+                isotherm = self.queries.get_isotherm_by_experiment_name(
+                    session, experiment_name
+                )
                 if isotherm is None:
                     continue
 
-                processed = session.execute(
-                    select(AdsorptionProcessedIsotherm).where(
-                        and_(
-                            AdsorptionProcessedIsotherm.isotherm_id == isotherm.id,
-                            AdsorptionProcessedIsotherm.processing_version
-                            == self.processing_version,
-                        )
-                    )
-                ).scalar_one_or_none()
+                processed = self.queries.get_processed_by_isotherm_and_version(
+                    session,
+                    isotherm.id,
+                    self.processing_version,
+                )
                 if processed is None:
                     continue
 
                 best_model = self.normalize_model_key(row.get(COLUMN_BEST_MODEL))
                 worst_model = self.normalize_model_key(row.get(COLUMN_WORST_MODEL))
 
-                best_fit = session.execute(
-                    select(AdsorptionFit).where(
-                        and_(
-                            AdsorptionFit.processed_id == processed.id,
-                            AdsorptionFit.model_name == best_model,
-                        )
-                    )
-                ).scalar_one_or_none()
-                worst_fit = session.execute(
-                    select(AdsorptionFit).where(
-                        and_(
-                            AdsorptionFit.processed_id == processed.id,
-                            AdsorptionFit.model_name == worst_model,
-                        )
-                    )
-                ).scalar_one_or_none()
+                best_fit = self.queries.get_fit_by_processed_and_model(
+                    session,
+                    processed.id,
+                    best_model,
+                )
+                worst_fit = self.queries.get_fit_by_processed_and_model(
+                    session,
+                    processed.id,
+                    worst_model,
+                )
 
-                existing = session.execute(
-                    select(AdsorptionBestFit).where(
-                        AdsorptionBestFit.processed_id == processed.id
-                    )
-                ).scalar_one_or_none()
+                existing = self.queries.get_best_fit_by_processed(
+                    session,
+                    processed.id,
+                )
                 if existing is None:
                     session.add(
                         AdsorptionBestFit(
