@@ -15,6 +15,12 @@ from sqlalchemy.orm import sessionmaker
 from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
+from ADSMOD.server.repositories.queries.database import (
+    build_postgres_server_encoding_sql,
+    build_table_count_sql,
+    build_table_select_sql,
+    postgres_set_client_encoding_sql,
+)
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.repositories.schemas.types import JSONSequence
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
@@ -86,7 +92,7 @@ class PostgresRepository:
     ) -> None:
         try:
             with dbapi_connection.cursor() as cursor:
-                cursor.execute("SET client_encoding TO 'UTF8'")
+                cursor.execute(postgres_set_client_encoding_sql())
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to enforce UTF-8 client encoding: %s", exc)
 
@@ -94,9 +100,7 @@ class PostgresRepository:
     def _ensure_server_utf8(self) -> None:
         try:
             with self.engine.connect() as conn:
-                encoding = conn.execute(
-                    sqlalchemy.text("SHOW SERVER_ENCODING")
-                ).scalar()
+                encoding = conn.execute(build_postgres_server_encoding_sql()).scalar()
             normalized = str(encoding or "").upper()
             if normalized not in {"UTF8", "UTF-8"}:
                 raise ValueError(
@@ -297,7 +301,6 @@ class PostgresRepository:
                 logger.warning("Table %s does not exist", table_name)
                 return pd.DataFrame()
 
-            query = f'SELECT * FROM "{table_name}"'
             primary_key_columns = []
             try:
                 primary_key = inspector.get_pk_constraint(table_name)
@@ -308,22 +311,15 @@ class PostgresRepository:
                     table_name,
                     exc,
                 )
-            if primary_key_columns:
-                ordered_columns = ", ".join(
-                    f'"{column}"' for column in primary_key_columns
-                )
-                query += f" ORDER BY {ordered_columns}"
-
-            query_params: dict[str, int] = {}
-            if safe_limit is not None:
-                query += " LIMIT :limit"
-                query_params["limit"] = safe_limit
-            if safe_offset is not None:
-                query += " OFFSET :offset"
-                query_params["offset"] = safe_offset
+            query, query_params = build_table_select_sql(
+                table_name,
+                primary_key_columns,
+                limit=safe_limit,
+                offset=safe_offset,
+            )
 
             data = pd.read_sql_query(
-                sqlalchemy.text(query),
+                query,
                 conn,
                 params=query_params,
             )
@@ -339,8 +335,6 @@ class PostgresRepository:
     def count_rows(self, table_name: str) -> int:
         table_name = ensure_safe_sql_identifier(table_name, "table name")
         with self.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(f'SELECT COUNT(*) FROM "{table_name}"')
-            )
+            result = conn.execute(build_table_count_sql(table_name))
             value = result.scalar() or 0
         return int(value)

@@ -8,6 +8,10 @@ from ADSMOD.server.configurations import DatabaseSettings, server_settings
 from ADSMOD.server.repositories.database.postgres import PostgresRepository
 from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
 from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
+from ADSMOD.server.repositories.queries.database import (
+    build_postgres_create_database_sql,
+    build_postgres_database_exists_sql,
+)
 from ADSMOD.server.common.utils.logger import logger
 
 
@@ -56,16 +60,6 @@ def clone_settings_with_database(
 
 
 # -----------------------------------------------------------------------------
-def build_postgres_create_database_sql(
-    database_name: str,
-) -> sqlalchemy.sql.elements.TextClause:
-    safe_database = database_name.replace('"', '""')
-    return sqlalchemy.text(
-        f"CREATE DATABASE \"{safe_database}\" WITH ENCODING 'UTF8' TEMPLATE template0"
-    )
-
-
-# -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings, initialize_schema=True)
     logger.info("Initialized SQLite database schema at %s", repository.db_path)
@@ -95,7 +89,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
     with admin_engine.connect() as conn:
         exists = conn.execute(
-            sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname=:name"),
+            build_postgres_database_exists_sql(),
             {"name": target_database},
         ).scalar()
         if exists:

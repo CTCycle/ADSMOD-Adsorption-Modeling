@@ -18,6 +18,11 @@ from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.security import ensure_safe_sql_identifier
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
+from ADSMOD.server.repositories.queries.database import (
+    build_table_count_sql,
+    build_table_select_sql,
+    sqlite_enable_foreign_keys_sql,
+)
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.repositories.schemas.types import JSONSequence
 
@@ -50,7 +55,7 @@ class SQLiteRepository:
     def _enable_foreign_keys(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute(sqlite_enable_foreign_keys_sql())
         finally:
             cursor.close()
 
@@ -227,7 +232,6 @@ class SQLiteRepository:
                 logger.warning("Table %s does not exist", table_name)
                 return pd.DataFrame()
 
-            query = f'SELECT * FROM "{table_name}"'
             primary_key_columns = []
             try:
                 primary_key = inspector.get_pk_constraint(table_name)
@@ -238,22 +242,15 @@ class SQLiteRepository:
                     table_name,
                     exc,
                 )
-            if primary_key_columns:
-                ordered_columns = ", ".join(
-                    f'"{column}"' for column in primary_key_columns
-                )
-                query += f" ORDER BY {ordered_columns}"
-
-            query_params: dict[str, int] = {}
-            if safe_limit is not None:
-                query += " LIMIT :limit"
-                query_params["limit"] = safe_limit
-            if safe_offset is not None:
-                query += " OFFSET :offset"
-                query_params["offset"] = safe_offset
+            query, query_params = build_table_select_sql(
+                table_name,
+                primary_key_columns,
+                limit=safe_limit,
+                offset=safe_offset,
+            )
 
             data = pd.read_sql_query(
-                sqlalchemy.text(query),
+                query,
                 conn,
                 params=query_params,
             )
@@ -269,8 +266,6 @@ class SQLiteRepository:
     def count_rows(self, table_name: str) -> int:
         table_name = ensure_safe_sql_identifier(table_name, "table name")
         with self.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(f'SELECT COUNT(*) FROM "{table_name}"')
-            )
+            result = conn.execute(build_table_count_sql(table_name))
             value = result.scalar() or 0
         return int(value)
