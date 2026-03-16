@@ -119,7 +119,7 @@ def build_database_settings() -> DatabaseSettings:
     )
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     return DatasetSettings(
         allowed_extensions=coerce_str_sequence(
@@ -131,7 +131,7 @@ def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     )
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
     return NISTSettings(
         parallel_tasks=coerce_int(payload.get("parallel_tasks"), 20, minimum=1),
@@ -141,7 +141,7 @@ def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
     )
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
     default_iterations = coerce_int(
         payload.get("default_max_iterations"), 1000, minimum=1
@@ -170,14 +170,14 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
     )
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_job_settings(payload: dict[str, Any] | Any) -> JobSettings:
     return JobSettings(
         polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
     )
 
 
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     return TrainingSettings(
         use_jit=coerce_bool(payload.get("use_jit"), False),

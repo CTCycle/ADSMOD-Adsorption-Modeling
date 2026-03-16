@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+NISTCategory = Literal["experiments", "guest", "host"]
 
 ###############################################################################
 class NISTFetchRequest(BaseModel):
@@ -46,10 +47,6 @@ class NISTStatusResponse(BaseModel):
     binary_mixture_rows: int
     guest_rows: int
     host_rows: int
-
-
-###############################################################################
-NISTCategory = Literal["experiments", "guest", "host"]
 
 
 ###############################################################################
