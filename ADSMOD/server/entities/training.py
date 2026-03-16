@@ -8,8 +8,22 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 ###############################################################################
+# Shared Pydantic config
+STRICT_STRIPPED_CONFIG = ConfigDict(extra="forbid", str_strip_whitespace=True)
+METADATA_MODEL_CONFIG = ConfigDict(populate_by_name=True, extra="ignore")
+
+# Shared regex patterns
+REGEX_HEX_SHA256 = r"^[A-Fa-f0-9]{64}$"
+REGEX_LABEL = r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$"
+REGEX_NAME = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+REGEX_LONG_NAME = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+REGEX_BACKEND = r"^[A-Za-z0-9_.-]+$"
+REGEX_DATASET_NAME = r"^[A-Za-z0-9_. -]+$"
+
+
+###############################################################################
 class TrainingConfigRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = STRICT_STRIPPED_CONFIG
 
     # Dataset settings
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
@@ -21,11 +35,11 @@ class TrainingConfigRequest(BaseModel):
         default=None,
         min_length=1,
         max_length=64,
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+        pattern=REGEX_LABEL,
     )
     dataset_hash: str | None = Field(
         default=None,
-        pattern=r"^[A-Fa-f0-9]{64}$",
+        pattern=REGEX_HEX_SHA256,
     )
 
     # Model settings
@@ -48,7 +62,7 @@ class TrainingConfigRequest(BaseModel):
         default="inductor",
         min_length=1,
         max_length=32,
-        pattern=r"^[A-Za-z0-9_.-]+$",
+        pattern=REGEX_BACKEND,
     )
 
     # LR scheduler settings
@@ -65,18 +79,19 @@ class TrainingConfigRequest(BaseModel):
         default=None,
         min_length=1,
         max_length=64,
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+        pattern=REGEX_NAME,
     )
 
 
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = STRICT_STRIPPED_CONFIG
+
     checkpoint_name: str = Field(
         ...,
         min_length=1,
         max_length=128,
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+        pattern=REGEX_LONG_NAME,
     )
     additional_epochs: int = Field(default=10, ge=1, le=100)
 
@@ -184,19 +199,20 @@ class TrainingState:
 
 ###############################################################################
 class DatasetSelection(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = STRICT_STRIPPED_CONFIG
 
     source: Literal["nist", "uploaded"]
     dataset_name: str = Field(
         min_length=1,
         max_length=128,
-        pattern=r"^[A-Za-z0-9_. -]+$",
+        pattern=REGEX_DATASET_NAME,
     )
 
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = STRICT_STRIPPED_CONFIG
+
     sample_size: float = Field(default=1.0, ge=0.01, le=1.0)
     validation_size: float = Field(default=0.2, ge=0.05, le=0.5)
     min_measurements: int = Field(default=1, ge=1, le=100)
@@ -208,14 +224,14 @@ class DatasetBuildRequest(BaseModel):
         default=None,
         min_length=1,
         max_length=128,
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+        pattern=REGEX_LONG_NAME,
     )
     datasets: list[DatasetSelection] = Field(default_factory=list, min_length=1)
     dataset_label: str = Field(
         default="default",
         min_length=1,
         max_length=64,
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+        pattern=REGEX_LABEL,
     )
 
 
@@ -248,7 +264,7 @@ class DatasetInfoResponse(BaseModel):
         default=None,
         min_length=1,
         max_length=64,
-        pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+        pattern=REGEX_LABEL,
     )
     created_at: str | None = None
     sample_size: float | None = None
@@ -271,7 +287,7 @@ class ProcessedDatasetInfo(BaseModel):
     dataset_label: str
     dataset_hash: str | None = Field(
         default=None,
-        pattern=r"^[A-Fa-f0-9]{64}$",
+        pattern=REGEX_HEX_SHA256,
     )
     train_samples: int
     validation_samples: int
@@ -285,6 +301,8 @@ class ProcessedDatasetsResponse(BaseModel):
 
 ###############################################################################
 class TrainingMetadata(BaseModel):
+    model_config = METADATA_MODEL_CONFIG
+
     created_at: str | None = None
     sample_size: float = 1.0
     validation_size: float = 0.2
@@ -302,20 +320,19 @@ class TrainingMetadata(BaseModel):
     adsorbent_vocabulary: dict[str, int] = Field(default_factory=dict)
 
     # Statistics
-    normalization_stats: dict[str, list[float] | float | dict] = Field(
+    normalization_stats: dict[str, list[float] | float | dict[str, Any]] = Field(
         default_factory=dict
     )
-    # Also support 'normalization' key logic via this field or separate
-    normalization: dict[str, list[float] | float | dict] = Field(default_factory=dict)
-
-    # Integrity Check
-    dataset_hash: str | None = Field(
-        default=None,
-        pattern=r"^[A-Fa-f0-9]{64}$",
+    normalization: dict[str, list[float] | float | dict[str, Any]] = Field(
+        default_factory=dict
     )
 
-    # Computed/Derived fields that might be stored
+    # Integrity check
+    dataset_hash: str | None = Field(
+        default=None,
+        pattern=REGEX_HEX_SHA256,
+    )
+
+    # Computed or derived fields
     smile_vocabulary_size: int = 0
-    adsorbent_vocabulary_size: int = 0   
-    
-    model_config = {"populate_by_name": True, "extra": "ignore"}
+    adsorbent_vocabulary_size: int = 0
