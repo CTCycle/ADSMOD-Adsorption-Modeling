@@ -188,11 +188,7 @@ if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
 echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
 set "UI_URL=http://!UI_HOST!:!UI_PORT!"
 set "RELOAD_FLAG="
-set "RELOAD_DIR_ARGS="
-if /i "!RELOAD!"=="true" (
-  set "RELOAD_FLAG=--reload"
-  set "RELOAD_DIR_ARGS=--reload-dir ""%project_folder%server"" --reload-dir ""%settings_dir%"" --reload-exclude ""%FRONTEND_DIR%\node_modules\*"" --reload-exclude ""%FRONTEND_DIST%\*"""
-)
+if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
 
 REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
 set "PYTHONHOME=%python_dir%"
@@ -242,6 +238,14 @@ if "%sync_ec%"=="0" (
   )
 )
 popd >nul
+if exist "%uv_lock_file%" (
+  del /q "%uv_lock_file%" >nul 2>&1
+  if exist "%uv_lock_file%" (
+    echo [WARN] Could not remove temporary root lockfile "%uv_lock_file%".
+  ) else (
+    echo [INFO] Removed temporary root lockfile "%uv_lock_file%".
+  )
+)
 if not "%sync_ec%"=="0" (
   echo [FATAL] uv sync failed with code %sync_ec%.
   goto error
@@ -296,7 +300,7 @@ if not exist "%python_exe%" (
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
 call :kill_port !FASTAPI_PORT!
-start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! !RELOAD_DIR_ARGS! --log-level info
+start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
 
 REM ============================================================================
 REM Wait for backend
@@ -340,6 +344,7 @@ REM ============================================================================
 REM Cleanup temp helpers
 REM ============================================================================
 :cleanup
+if exist "%uv_lock_file%" del /q "%uv_lock_file%" >nul 2>&1
 del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
 endlocal & exit /b 0
 
