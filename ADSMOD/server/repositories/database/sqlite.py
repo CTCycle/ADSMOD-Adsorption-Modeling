@@ -22,6 +22,8 @@ from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.repositories.schemas.types import JSONSequence
 
+TABLE_NAME_LABEL = "table name"
+
 
 ###############################################################################
 class SQLiteRepository:
@@ -213,7 +215,7 @@ class SQLiteRepository:
         limit: int | None = None,
         offset: int | None = None,
     ) -> pd.DataFrame:
-        table_name = ensure_safe_sql_identifier(table_name, "table name")
+        table_name = ensure_safe_sql_identifier(table_name, TABLE_NAME_LABEL)
         safe_limit = self.normalize_pagination_value(limit, "limit")
         safe_offset = self.normalize_pagination_value(offset, "offset")
         try:
@@ -244,13 +246,13 @@ class SQLiteRepository:
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        table_name = ensure_safe_sql_identifier(table_name, "table name")
+        table_name = ensure_safe_sql_identifier(table_name, TABLE_NAME_LABEL)
         table_cls = self.get_table_class(table_name)
         self.upsert_dataframe(df, table_cls)
 
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
-        table_name = ensure_safe_sql_identifier(table_name, "table name")
+        table_name = ensure_safe_sql_identifier(table_name, TABLE_NAME_LABEL)
         try:
             table_cls = self.get_table_class(table_name)
         except ValueError:
