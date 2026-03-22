@@ -6,12 +6,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ADSMOD.server.configurations import DatabaseSettings, server_settings
 from ADSMOD.server.repositories.database.postgres import PostgresRepository
-from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
-from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
-from ADSMOD.server.repositories.queries.database import (
+from ADSMOD.server.repositories.database.sql import (
     build_postgres_create_database_sql,
     build_postgres_database_exists_sql,
 )
+from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
+from ADSMOD.server.repositories.database.utils import normalize_postgres_engine
 from ADSMOD.server.common.utils.logger import logger
 
 

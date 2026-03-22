@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import inspect
+from sqlalchemy import func, select
 from sqlalchemy import event
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
@@ -17,12 +17,8 @@ from ADSMOD.server.common.constants import RESOURCES_PATH, DATABASE_FILENAME
 from ADSMOD.server.common.utils.encoding import sanitize_dataframe_strings
 from ADSMOD.server.common.utils.security import ensure_safe_sql_identifier
 from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.repositories.database.sql import sqlite_enable_foreign_keys_sql
 from ADSMOD.server.repositories.database.upsert import resolve_conflict_columns
-from ADSMOD.server.repositories.queries.database import (
-    build_table_count_sql,
-    build_table_select_sql,
-    sqlite_enable_foreign_keys_sql,
-)
 from ADSMOD.server.repositories.schemas.models import Base
 from ADSMOD.server.repositories.schemas.types import JSONSequence
 
@@ -220,40 +216,30 @@ class SQLiteRepository:
         table_name = ensure_safe_sql_identifier(table_name, "table name")
         safe_limit = self.normalize_pagination_value(limit, "limit")
         safe_offset = self.normalize_pagination_value(offset, "offset")
-        table_cls = None
         try:
             table_cls = self.get_table_class(table_name)
         except ValueError:
-            table_cls = None
+            logger.warning("Table %s does not map to an ORM model.", table_name)
+            return pd.DataFrame()
 
-        with self.engine.connect() as conn:
-            inspector = inspect(conn)
-            if not inspector.has_table(table_name):
-                logger.warning("Table %s does not exist", table_name)
-                return pd.DataFrame()
-
-            primary_key_columns = []
-            try:
-                primary_key = inspector.get_pk_constraint(table_name)
-                primary_key_columns = primary_key.get("constrained_columns") or []
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Failed to resolve primary key columns for %s: %s",
-                    table_name,
-                    exc,
-                )
-            query, query_params = build_table_select_sql(
-                table_name,
-                primary_key_columns,
-                limit=safe_limit,
-                offset=safe_offset,
+        statement = select(table_cls)
+        primary_key_columns = [column.name for column in table_cls.__table__.primary_key]
+        if primary_key_columns:
+            statement = statement.order_by(
+                *(getattr(table_cls, column) for column in primary_key_columns)
             )
+        if safe_offset is not None:
+            statement = statement.offset(safe_offset)
+        if safe_limit is not None:
+            statement = statement.limit(safe_limit)
 
-            data = pd.read_sql_query(
-                query,
-                conn,
-                params=query_params,
-            )
+        column_names = [column.name for column in table_cls.__table__.columns]
+        with self.session_factory() as session:
+            rows = session.execute(statement).scalars().all()
+        data = pd.DataFrame.from_records(
+            [{column: getattr(row, column) for column in column_names} for row in rows],
+            columns=column_names,
+        )
         return self.restore_after_load(data, table_cls)
 
     # -------------------------------------------------------------------------
@@ -265,7 +251,13 @@ class SQLiteRepository:
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
         table_name = ensure_safe_sql_identifier(table_name, "table name")
-        with self.engine.connect() as conn:
-            result = conn.execute(build_table_count_sql(table_name))
-            value = result.scalar() or 0
+        try:
+            table_cls = self.get_table_class(table_name)
+        except ValueError:
+            logger.warning("Table %s does not map to an ORM model.", table_name)
+            return 0
+
+        with self.session_factory() as session:
+            statement = select(func.count()).select_from(table_cls)
+            value = session.execute(statement).scalar_one()
         return int(value)
