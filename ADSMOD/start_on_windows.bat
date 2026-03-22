@@ -188,7 +188,11 @@ if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
 echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
 set "UI_URL=http://!UI_HOST!:!UI_PORT!"
 set "RELOAD_FLAG="
-if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
+set "RELOAD_DIR_ARGS="
+if /i "!RELOAD!"=="true" (
+  set "RELOAD_FLAG=--reload"
+  set "RELOAD_DIR_ARGS=--reload-dir ""%project_folder%server"" --reload-dir ""%settings_dir%"" --reload-exclude ""%FRONTEND_DIR%\node_modules\*"" --reload-exclude ""%FRONTEND_DIST%\*"""
+)
 
 REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
 set "PYTHONHOME=%python_dir%"
@@ -252,18 +256,6 @@ REM ============================================================================
 echo [STEP 5/5] Pruning uv cache
 if exist "%UV_CACHE_DIR%" rd /s /q "%UV_CACHE_DIR%" || echo [WARN] Could not delete cache dir quickly.
 
-REM ============================================================================
-REM Start backend and frontend
-REM ============================================================================
-if not exist "%python_exe%" (
-  echo [FATAL] python.exe not found at "%python_exe%"
-  goto error
-)
-
-echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
-call :kill_port !FASTAPI_PORT!
-start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
-
 if not exist "%FRONTEND_DIR%\node_modules" (
   echo [STEP] Installing frontend dependencies...
   pushd "%FRONTEND_DIR%" >nul
@@ -293,6 +285,18 @@ if not exist "%FRONTEND_DIST%" (
 ) else (
   echo [INFO] Frontend build already present at "%FRONTEND_DIST%".
 )
+
+REM ============================================================================
+REM Start backend and frontend
+REM ============================================================================
+if not exist "%python_exe%" (
+  echo [FATAL] python.exe not found at "%python_exe%"
+  goto error
+)
+
+echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
+call :kill_port !FASTAPI_PORT!
+start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! !RELOAD_DIR_ARGS! --log-level info
 
 REM ============================================================================
 REM Wait for backend
