@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 import pandas as pd
 
@@ -36,12 +36,12 @@ BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
 
 # -------------------------------------------------------------------------
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
-    return SQLiteRepository(settings)
+    return cast(DatabaseBackend, SQLiteRepository(settings))
 
 
 # -------------------------------------------------------------------------
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
-    return PostgresRepository(settings, initialize_schema=False)
+    return cast(DatabaseBackend, PostgresRepository(settings, initialize_schema=False))
 
 
 BACKEND_FACTORIES: dict[str, BackendFactory] = {
