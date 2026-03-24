@@ -1,7 +1,7 @@
 import pandas as pd
 
 from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
-from ADSMOD.server.entities.training import TrainingMetadata
+from ADSMOD.server.domain.training import TrainingMetadata
 
 
 class StubTrainingQueries:
