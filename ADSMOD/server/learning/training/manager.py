@@ -9,7 +9,7 @@ from ADSMOD.server.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ADSMOD.server.learning.training.fitting import ModelTraining
 from ADSMOD.server.configurations import server_settings
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.entities.training import TrainingState
+from ADSMOD.server.domain.training import TrainingState
 from ADSMOD.server.repositories.serialization.model import ModelSerializer
 from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 from ADSMOD.server.learning.loader import (

@@ -7,12 +7,12 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from ADSMOD.server.entities.jobs import (
+from ADSMOD.server.domain.jobs import (
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
-from ADSMOD.server.entities.nist import (
+from ADSMOD.server.domain.nist import (
     NISTCategory,
     NISTCategoryFetchRequest,
     NISTCategoryPingResponse,

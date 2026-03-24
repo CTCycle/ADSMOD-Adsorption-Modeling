@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, HTTPException, Path, UploadFile, status
 
-from ADSMOD.server.entities.datasets import DatasetLoadResponse, DatasetNamesResponse
+from ADSMOD.server.domain.datasets import DatasetLoadResponse, DatasetNamesResponse
 from ADSMOD.server.common.constants import (
     DATASETS_FETCH_ENDPOINT,
     DATASETS_LOAD_ENDPOINT,

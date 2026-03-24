@@ -10,7 +10,7 @@ import json
 import pandas as pd
 from sqlalchemy.orm import Session, sessionmaker
 
-from ADSMOD.server.entities.models import MODEL_SCHEMAS
+from ADSMOD.server.domain.models import MODEL_SCHEMAS
 from ADSMOD.server.common.constants import (
     COLUMN_ADSORBATE,
     COLUMN_ADSORBENT,
