@@ -16,7 +16,7 @@ from ADSMOD.server.common.utils.types import (
     coerce_str,
     coerce_str_or_none,
 )
-from ADSMOD.server.entities.settings import (
+from ADSMOD.server.domain.settings import (
     DatabaseSettings,
     DatasetSettings,
     FittingSettings,

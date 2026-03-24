@@ -9,7 +9,7 @@ from datetime import datetime
 
 from keras.models import load_model
 
-from ADSMOD.server.entities.training import TrainingMetadata
+from ADSMOD.server.domain.training import TrainingMetadata
 from ADSMOD.server.learning.metrics import (
     MaskedMeanSquaredError,
     MaskedRSquared,

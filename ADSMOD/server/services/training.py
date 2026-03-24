@@ -5,7 +5,7 @@ from typing import Any
 
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.configurations.server import server_settings
-from ADSMOD.server.entities.training import TrainingMetadata
+from ADSMOD.server.domain.training import TrainingMetadata
 from ADSMOD.server.learning.training.manager import (
     run_training_process,
     training_manager,

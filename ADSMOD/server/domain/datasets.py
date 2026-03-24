@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from ADSMOD.server.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
-from ADSMOD.server.entities.fitting import DatasetPayload
+from ADSMOD.server.domain.fitting import DatasetPayload
 
 
 ###############################################################################

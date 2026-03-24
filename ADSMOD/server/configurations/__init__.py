@@ -4,7 +4,7 @@ from ADSMOD.server.configurations.base import (
     ensure_mapping,
     load_configurations,
 )
-from ADSMOD.server.entities.settings import (
+from ADSMOD.server.domain.settings import (
     DatabaseSettings,
     JobSettings,
     NISTSettings,

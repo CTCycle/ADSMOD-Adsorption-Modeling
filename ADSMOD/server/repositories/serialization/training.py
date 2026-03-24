@@ -7,7 +7,7 @@ import json
 
 import pandas as pd
 
-from ADSMOD.server.entities.training import TrainingMetadata
+from ADSMOD.server.domain.training import TrainingMetadata
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.queries.training import TrainingRepositoryQueries
 

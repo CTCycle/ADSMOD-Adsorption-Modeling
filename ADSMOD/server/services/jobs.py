@@ -17,7 +17,7 @@ from collections.abc import Callable
 
 from ADSMOD.server.common.utils.encoding import normalize_error_text
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.entities.jobs import (
+from ADSMOD.server.domain.jobs import (
     JobExecutionConfig,
     JobState,
     ProcessJobState,

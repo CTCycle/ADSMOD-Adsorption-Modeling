@@ -26,7 +26,7 @@ from ADSMOD.server.common.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
 )
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.entities.datasets import DatasetColumns
+from ADSMOD.server.domain.datasets import DatasetColumns
 
 
 ###############################################################################

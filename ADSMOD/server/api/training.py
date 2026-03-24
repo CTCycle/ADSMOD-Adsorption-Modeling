@@ -5,12 +5,12 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from ADSMOD.server.entities.jobs import (
+from ADSMOD.server.domain.jobs import (
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
-from ADSMOD.server.entities.training import (
+from ADSMOD.server.domain.training import (
     CheckpointDetailInfo,
     CheckpointFullDetailsResponse,
     CheckpointsResponse,

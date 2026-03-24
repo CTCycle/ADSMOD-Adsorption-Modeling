@@ -5,8 +5,8 @@ from typing import Any
 import pandas as pd
 from fastapi import APIRouter, HTTPException, status
 
-from ADSMOD.server.entities.fitting import FittingRequest
-from ADSMOD.server.entities.jobs import (
+from ADSMOD.server.domain.fitting import FittingRequest
+from ADSMOD.server.domain.jobs import (
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
