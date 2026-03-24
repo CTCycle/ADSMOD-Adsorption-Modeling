@@ -5,8 +5,8 @@ import pytest
 from pydantic import ValidationError
 
 from ADSMOD.server.app import public_host_mode_enabled, resolve_spa_file_path
-from ADSMOD.server.entities.fitting import DatasetPayload
-from ADSMOD.server.entities.training import TrainingConfigRequest
+from ADSMOD.server.domain.fitting import DatasetPayload
+from ADSMOD.server.domain.training import TrainingConfigRequest
 
 
 def test_resolve_spa_file_path_rejects_traversal() -> None:

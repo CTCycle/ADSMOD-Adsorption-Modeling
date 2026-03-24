@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from ADSMOD.server.entities.training import TrainingMetadata
+from ADSMOD.server.domain.training import TrainingMetadata
 from ADSMOD.server.repositories.serialization.training import TrainingDataSerializer
 
 
