@@ -81,7 +81,9 @@ pre,
   border-bottom: 1px solid var(--slate-200);
   padding: 1.5rem 2rem;
   box-shadow: 0 6px 24px -22px rgba(0, 0, 0, 0.25);
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 120;
 }
 
 .app-header h1 {
@@ -3759,4 +3761,11 @@ input:checked+.slider:before {
 
 .split-selection-card-actions-single .split-selection-card-action-button {
   margin-bottom: 0;
+}
+
+/* Keep top chrome fixed while page content scrolls */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
 }
