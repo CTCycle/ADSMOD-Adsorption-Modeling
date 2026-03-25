@@ -77,7 +77,7 @@ Long-running tasks (fitting, NIST ingestion/enrichment, dataset build, training)
 ## 4. Extending ADSMOD
 
 - **New model**: Update backend model logic in `ADSMOD/server/services/modeling/models.py` and frontend configuration in `ADSMOD/client/src/adsorptionModels.ts`.
-- **New API capability**: Add logic under `ADSMOD/server/services/`, expose via a router in `ADSMOD/server/routes/`, and wire it in `ADSMOD/server/app.py`.
+- **New API capability**: Add logic under `ADSMOD/server/services/`, expose via a router in `ADSMOD/server/api/`, and wire it in `ADSMOD/server/app.py`.
 - **New long-running workflow**: Use `job_manager.start_job(...)` from `ADSMOD/server/services/jobs.py`, provide polling endpoints, and keep cancellation cooperative.
 
 ### 3.5 Frontend Navigation and Layout (2026 refresh)
