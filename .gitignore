@@ -1,13 +1,12 @@
 # Project-specific generated/runtime artifacts
 ADSMOD/resources/checkpoints/**
-runtimes/**
-runtimes/.uv-cache/**
 ADSMOD/resources/logs/**
 ADSMOD/client/node_modules/
 ADSMOD/client/dist/
 ADSMOD/client/dist-ssr/
 ADSMOD/client/logs/
 ADSMOD/client/*.local
+runtimes/**
 
 # Python
 __pycache__/
@@ -42,10 +41,8 @@ yarn.lock
 .DS_Store
 Thumbs.db
 
-# Agents
-.agent/skills/**
-
 # Misc
+Cargo.toml
 *.lock
 *.log
 *.db
