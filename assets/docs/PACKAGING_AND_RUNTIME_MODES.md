@@ -1,66 +1,71 @@
 # ADSMOD Packaging and Runtime Modes
 
-## 1. Strategy
+## 1. Runtime Strategy
 
-ADSMOD uses one active runtime file: `ADSMOD/settings/.env`.
+Single active runtime profile:
+- `ADSMOD/settings/.env`
 
-- Supported runtime paths are local-only:
-  - Local webapp mode via `ADSMOD/start_on_windows.bat`
-  - Packaged desktop mode via Windows Tauri artifacts
-- Mode switching is configuration-only: replace values in `ADSMOD/settings/.env`.
-- Only local deployment paths are supported.
+Supported modes:
+- local webapp mode (launcher flow),
+- packaged desktop mode (Windows Tauri artifacts).
+
+Switching mode is configuration-driven by choosing the `.env` profile values.
 
 ## 2. Runtime Profiles
 
-- `ADSMOD/settings/.env.local.example`: local webapp defaults (loopback host values, embedded DB).
-- `ADSMOD/settings/.env.local.tauri.example`: desktop packaging/runtime defaults.
-- `ADSMOD/settings/.env`: active profile used by launcher, tests, and packaged runtime startup.
-- `ADSMOD/settings/configurations.json`: non-runtime defaults only (no database runtime settings).
+- `ADSMOD/settings/.env.local.example`: local webapp defaults.
+- `ADSMOD/settings/.env.local.tauri.example`: desktop packaging defaults.
+- `ADSMOD/settings/.env`: active runtime file used by launcher/tests/runtime startup.
+- `ADSMOD/settings/configurations.json`: application defaults (not a runtime profile switch).
 
-## 3. Required Environment Keys
+## 3. Local Runtime Assets
+
+- Python runtime: `runtimes/python`.
+- Virtual environment: `runtimes/.venv`.
+- uv runtime/cache/lock: `runtimes/uv`, `runtimes/.uv-cache`, `runtimes/uv.lock`.
+- Node runtime: `runtimes/nodejs`.
+
+## 4. Common Environment Keys
 
 | Key | Purpose |
 |---|---|
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port. |
-| `UI_HOST`, `UI_PORT` | Frontend host/port used by local webapp launcher mode. |
-| `VITE_API_BASE_URL` | Frontend API base path. Must stay `/api` for same-origin proxying. |
-| `RELOAD` | Enables backend reload in local development when `true`. |
-| `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in local launcher flow. |
-| `DB_EMBEDDED` | `true` uses SQLite; `false` uses external DB settings. |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB connection settings used when `DB_EMBEDDED=false`. |
-| `DB_SSL`, `DB_SSL_CA` | External DB TLS settings. |
-| `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB connection and write-batching runtime settings. |
-| `MPLBACKEND`, `KERAS_BACKEND` | Runtime backend settings for plotting and ML stack. |
+| `UI_HOST`, `UI_PORT` | Frontend host/port in launcher and test flows. |
+| `VITE_API_BASE_URL` | Frontend API base path (`/api` expected for same-origin mode). |
+| `RELOAD` | Backend reload toggle in local development. |
+| `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in launcher flow. |
+| `DB_EMBEDDED` | SQLite when `true`, external DB when `false`. |
+| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB settings. |
+| `DB_SSL`, `DB_SSL_CA`, `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB security/performance settings. |
+| `MPLBACKEND`, `KERAS_BACKEND` | Scientific/ML backend runtime behavior. |
 
-## 4. Local Webapp Mode (Default)
+## 5. Local Webapp Mode
 
-1. Copy local profile values into active env:
+1. Apply local profile:
    - `copy /Y ADSMOD\settings\.env.local.example ADSMOD\settings\.env`
-2. Start application:
+2. Bootstrap and run:
    - `ADSMOD\start_on_windows.bat`
-3. Run tests (optional):
+3. Optional tests:
    - `tests\run_tests.bat`
 
-## 5. Packaged Desktop Mode (Windows Tauri)
+## 6. Desktop Packaging Mode (Windows Tauri)
 
-1. Copy desktop profile values into active env:
+1. Apply tauri profile:
    - `copy /Y ADSMOD\settings\.env.local.tauri.example ADSMOD\settings\.env`
-2. Ensure portable runtimes are present at least once:
+2. Ensure runtimes/deps are prepared at least once:
    - `ADSMOD\start_on_windows.bat`
-3. Build desktop artifacts:
+3. Build/export desktop artifacts:
    - `release\tauri\build_with_tauri.bat`
 
-Rust packaging prerequisite:
-- `cargo` available in `PATH`.
-- default toolchain configured (recommended: `stable-x86_64-pc-windows-msvc`).
+Prerequisite:
+- Rust `cargo` on `PATH` with a configured toolchain.
 
-Exported artifacts are generated in:
+Expected output directories:
 - `release/windows/installers`
 - `release/windows/portable`
 
-## 6. Deterministic Build Notes
+## 7. Determinism Notes
 
-- Backend dependency graph is lockfile-backed via `runtimes/uv.lock` (staged as `uv.lock` during sync/bundle) and installed with `uv sync --frozen`.
-- Frontend dependency graph is lockfile-backed via `ADSMOD/client/package-lock.json` and installed with `npm ci`.
-- Desktop packaging pipeline is implemented under `release/tauri/`.
+- Python dependencies are synchronized through `uv` using lockfile flow (`runtimes/uv.lock` staged to project `uv.lock` during launcher sync).
+- Frontend dependencies are lockfile-backed (`ADSMOD/client/package-lock.json`) with `npm ci` when lockfile exists.
 

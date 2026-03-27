@@ -1,171 +1,84 @@
 # README Writing Guidelines
 
-This document defines the **required structure, scope, and writing standards** for producing a proper README file.  
-Its purpose is to ensure clarity, consistency, and usability across projects, especially for applications involving backend and frontend components or machine learning workflows.
+Use this template to write or update README files in this repository.
 
-A proper README explains **what the project does, how to install it, and how to use it**, without exposing internal code details or overwhelming the reader.
+Goal: produce user-facing documentation that is accurate, concise, and aligned with current project behavior.
 
-If a section does not fit in the observed project, skip it completely and adapt section numbering accordingly.
+## Required Structure
 
----
+Keep this section order. Omit sections that do not apply, then renumber.
 
 ## 1. Project Overview
 
-This section provides a concise but comprehensive description of the project.
-
-It must clearly explain:
-- The purpose of the software.
-- The problem it aims to solve.
-- The general mechanism or method used.
-- The high-level architecture of the system.
-
-If the project includes both backend and frontend components, briefly describe their roles and how they interact.  
-Do not describe internal code elements such as functions, classes, or modules.
-
-The reader should understand **what the system does and how it is organized**, without reading the source code.
-
----
+- Describe what ADSMOD does and who it is for.
+- Explain high-level backend/frontend interaction without code internals.
+- Avoid implementation details (classes/functions/module internals).
 
 ## 2. Model and Dataset (Optional)
 
-This section is required only for machine learning projects.
+Use for ML-related README sections only.
 
-Describe at a high level:
-- The type of model or algorithm used.
-- The learning paradigm, such as supervised learning or reinforcement learning.
-- The nature and origin of the dataset used for training or evaluation.
-
-Do not include architectural details, hyperparameters, or implementation specifics.  
-If datasets are user-provided, synthetic, or externally sourced, state this clearly.
-
-If model or dataset details are uncertain, this must be explicitly acknowledged.
-
----
+- Describe model category at a high level.
+- Describe dataset origin and nature (uploaded, generated, external).
+- State uncertainty explicitly when details are unknown.
 
 ## 3. Installation
 
-This section explains how to install and prepare the application for use.
+Provide minimal reproducible setup instructions.
 
-Instructions must be:
-- Minimal
-- Reproducible
-- Focused on outcomes rather than internal mechanics
+### 3.1 Windows
 
-Avoid documenting every internal setup step unless strictly necessary.
+- Prefer launcher-based setup (`ADSMOD\start_on_windows.bat`) when applicable.
+- Explain first-run vs subsequent-run behavior at a high level.
+- Clarify portability/local side effects.
 
-### 3.1 Windows (One Click Setup)
+### 3.2 macOS / Linux (if supported)
 
-If the project provides an automated Windows setup:
-- State clearly that the setup is automated.
-- List, in order, what the launcher performs at a high level.
-- Explain first-run behavior versus subsequent runs.
-- Specify whether the installation is portable or modifies the host system.
-
-Do not describe script internals.
-
-### 3.2 macOS / Linux (Manual Setup)
-
-If manual setup is required:
-- List prerequisites explicitly.
-- Provide numbered installation steps.
-- Separate backend and frontend setup if applicable.
-- Mention optional components only when relevant.
-
-Terminal commands may be shown in fenced blocks, but should remain concise.
-
----
+- List prerequisites and manual steps.
+- Separate backend/frontend startup if needed.
 
 ## 4. How to Use
 
-This section explains how users interact with the application after installation.
+Document operational workflow:
+- load data,
+- run fitting/training tasks,
+- inspect outputs and status.
 
-### 4.1 Windows
-
-Describe:
-- How to launch the application.
-- The URL or interface where the application becomes available.
-
-### 4.2 macOS / Linux
-
-Provide:
-- Separate commands for backend and frontend if applicable.
-- The local URLs for the UI, backend API, and documentation if exposed.
-
-### 4.3 Using the Application
-
-Describe the **operational workflow**, not the internal logic.
-
-Examples of acceptable topics:
-- Loading or preparing data.
-- Running training, analysis, or processing tasks.
-- Executing inference or simulations.
-- Reviewing outputs, logs, or stored results.
-
-If the application includes a UI, include linked screenshots from the project’s assets directory, each accompanied by a short functional description.
-
----
+For UI workflows, include screenshots when available from project assets.
 
 ## 5. Setup and Maintenance
 
-Describe any maintenance or utility scripts provided with the project.
-
-List available actions in bullet form, each with a short explanation, such as:
-- Clearing logs.
-- Resetting application state.
-- Reinitializing databases.
-- Removing local installations.
-
-Focus on **what each action does**, not how it is implemented.
-
----
+List operational scripts/utilities and what they do (not internals), such as:
+- test runner,
+- environment bootstrap,
+- cleanup/reset actions.
 
 ## 6. Resources
 
-Explain the purpose of the project’s resource or data directory.
-
-For each subdirectory:
-- Begin with the directory name followed by a colon.
-- Describe what it contains.
-- Explain how it is used by the application.
-
-If templates or sample files exist, note their location and intended use.
-
----
+Document `ADSMOD/resources` usage:
+- what each relevant subfolder stores,
+- how runtime uses it.
 
 ## 7. Configuration
 
-Describe where configuration files are located and how they are applied.
+Describe active configuration files:
+- `ADSMOD/settings/.env`,
+- template profiles in `ADSMOD/settings/`,
+- any related configuration JSON used by the app.
 
-If both backend and frontend configurations exist:
-- Describe them separately.
-- Clarify how configuration is loaded, for example via environment variables or configuration files.
-
-Include a configuration table with the following format:
+Include a variable table:
 
 | Variable | Description |
-|----------|-------------|
-| VARIABLE_NAME | Purpose, definition location, and default value |
-
-Each row must specify:
-- The variable name.
-- Its function.
-- Where it is defined.
-- Its default behavior or value.
-
----
+|---|---|
+| `VARIABLE_NAME` | Purpose, where defined, and default behavior/value |
 
 ## 8. License
 
-State the license type clearly and refer to the LICENSE file for full terms.
+State the license and point to `LICENSE`.
 
----
+## Writing Rules
 
-## Final Notes
-
-A proper README:
-- Is written for users, not developers.
-- Explains functionality and workflow, not code.
-- Is factual and avoids speculative claims.
-- Is structured, readable, and skimmable.
-
-Any README written using these guidelines must follow this structure exactly.
+- Write for users/operators first.
+- Keep statements factual and verifiable from the current repository.
+- Do not document stale endpoints, scripts, or unsupported modes.
+- Keep language skimmable with short paragraphs and focused lists.

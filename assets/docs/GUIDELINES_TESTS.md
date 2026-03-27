@@ -1,37 +1,14 @@
-# HOW TO TEST
+# Testing Guidelines (ADSMOD)
 
-This document describes the testing strategy and execution workflow for the current ADSMOD webapp.
+## 1. Test Stack and Scope
 
-## Overview
+Primary test execution is Python + pytest, including:
+- `tests/e2e` (Playwright/API flow tests),
+- `tests/unit`,
+- `tests/server`,
+- `tests/backend/performance`.
 
-ADSMOD tests are Python-based and currently include:
-- End-to-end tests (Playwright + pytest) for UI/API flows.
-- Unit and server tests for backend logic and persistence behavior.
-- Backend performance checks for heavier training/data paths.
-
-## Test Suite Structure
-
-```text
-tests/
-|-- run_tests.bat
-|-- conftest.py
-|-- fixtures/
-|   `-- sample_adsorption.csv
-|-- e2e/
-|   |-- test_app_flow.py
-|   |-- test_datasets_api.py
-|   |-- test_fitting_api.py
-|   |-- test_nist_api.py
-|   `-- test_training_api.py
-|-- unit/
-|   `-- ...
-|-- server/
-|   `-- ...
-`-- backend/
-    `-- performance/
-```
-
-## Quick Start (Windows)
+## 2. Canonical Windows Runner
 
 Run:
 
@@ -39,122 +16,65 @@ Run:
 tests\run_tests.bat
 ```
 
-The runner will:
-1. Validate runtime prerequisites from the existing `runtimes/.venv`.
-2. Start backend if it is not already running.
-3. Build and serve frontend if needed.
-4. Execute `pytest tests`.
-5. Stop only the servers it started.
+The runner:
+1. uses `runtimes/.venv`,
+2. validates required test dependencies (when enabled),
+3. starts backend/frontend only if not already running,
+4. runs `pytest tests`,
+5. stops only processes it started.
 
-## Prerequisites
+## 3. Prerequisites
 
-- Python 3.14+ environment available in `runtimes/.venv`.
-- Optional test dependencies installed when required:
-  - `pytest`
-  - `pytest-playwright`
-  - `psutil`
-- Playwright browsers installed:
+- Existing environment: `runtimes/.venv`.
+- Optional test extras installed when needed:
+  - `pytest`,
+  - `pytest-playwright`,
+  - `psutil`.
+- Playwright browsers:
 
 ```cmd
 .\runtimes\.venv\Scripts\python.exe -m playwright install
 ```
 
-> [!TIP]
-> For Windows setup, run `ADSMOD\start_on_windows.bat` with `OPTIONAL_DEPENDENCIES=true` in `ADSMOD/settings/.env`.
+To provision optional deps through launcher flow, set `OPTIONAL_DEPENDENCIES=true` in `ADSMOD/settings/.env` and run `ADSMOD\start_on_windows.bat`.
 
-## Manual Run
-
-1. Start application services (or run them separately):
-   - `ADSMOD\start_on_windows.bat`
-2. Run tests:
+## 4. Manual Test Command
 
 ```cmd
 .\runtimes\.venv\Scripts\python.exe -m pytest tests -v
 ```
 
-## URL and Environment Resolution
+## 5. URL and Environment Resolution
 
-`tests/conftest.py` resolves URLs from:
-- `ADSMOD/settings/.env` (`FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`)
-- Optional overrides:
-  - `ADSMOD_TEST_FRONTEND_URL`
-  - `ADSMOD_TEST_BACKEND_URL`
+Tests resolve URLs from:
+- `ADSMOD/settings/.env` keys (`FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`),
+- optional overrides:
+  - `ADSMOD_TEST_FRONTEND_URL`,
+  - `ADSMOD_TEST_BACKEND_URL`.
 
-Wildcard bind hosts (`0.0.0.0`, `::`) are normalized to `127.0.0.1` for client requests.
+Wildcard bind hosts (`0.0.0.0`, `::`, `[::]`) are normalized to `127.0.0.1` for client requests.
 
-## Fixtures
+## 6. API Surface for E2E Coverage
 
-| Fixture | Scope | Description |
-|---|---|---|
-| `base_url` | session | Frontend URL |
-| `api_base_url` | session | Backend base URL |
-| `api_context` | session | Playwright `APIRequestContext` |
-| `page` | function | Fresh browser page |
-| `sample_csv_path` | session | CSV fixture path |
+Preferred E2E calls should target `/api/...` paths used by the frontend:
 
-## API Endpoints for New E2E Coverage
+- `/api/datasets/*`
+- `/api/fitting/*`
+- `/api/nist/*`
+- `/api/training/*`
 
-Use only active router prefixes:
-- `/datasets`
-- `/fitting`
-- `/nist`
-- `/training`
+If tests intentionally hit direct (non-`/api`) routes, keep rationale explicit.
 
-### Dataset endpoints
-- `POST /datasets/load`
-- `GET /datasets/names`
-- `GET /datasets/by-name/{dataset_name}`
+## 7. Test Quality Expectations
 
-### Fitting endpoints
-- `POST /fitting/run`
-- `GET /fitting/nist-dataset`
-- `GET /fitting/jobs`
-- `GET /fitting/jobs/{job_id}`
-- `DELETE /fitting/jobs/{job_id}`
+- Use Arrange-Act-Assert.
+- Keep tests deterministic and isolated.
+- Cover success, edge, and failure behavior for changed code paths.
+- Minimize heavy payloads for NIST/training tests to keep runtime practical.
 
-### NIST endpoints
-- `GET /nist/status`
-- `POST /nist/fetch`
-- `POST /nist/properties`
-- `GET /nist/categories/status`
-- `POST /nist/categories/{category}/ping`
-- `POST /nist/categories/{category}/index`
-- `POST /nist/categories/{category}/fetch`
-- `POST /nist/categories/{category}/enrich`
-- `GET /nist/jobs`
-- `GET /nist/jobs/{job_id}`
-- `DELETE /nist/jobs/{job_id}`
+## 8. Troubleshooting
 
-### Training endpoints
-- `GET /training/datasets`
-- `GET /training/dataset-sources`
-- `DELETE /training/dataset-source`
-- `POST /training/build-dataset`
-- `GET /training/processed-datasets`
-- `GET /training/dataset-info`
-- `DELETE /training/dataset`
-- `GET /training/jobs`
-- `GET /training/jobs/{job_id}`
-- `DELETE /training/jobs/{job_id}`
-- `GET /training/checkpoints`
-- `GET /training/checkpoints/{checkpoint_name}`
-- `DELETE /training/checkpoints/{checkpoint_name}`
-- `POST /training/start`
-- `POST /training/resume`
-- `POST /training/stop`
-- `GET /training/status`
-
-## Important Notes
-
-- Avoid adding new tests for `/browser/...` endpoints unless backend routes are restored and wired in `ADSMOD/server/app.py`.
-- Keep tests isolated and deterministic:
-  - Use Arrange-Act-Assert.
-  - Avoid depending on mutable external services unless explicitly marked.
-  - Use minimal payloads for NIST/training tests to limit runtime.
-
-## Troubleshooting
-
-- **Connection refused**: Ensure backend/frontend URLs match `ADSMOD/settings/.env`.
-- **Missing Playwright**: run `.\runtimes\.venv\Scripts\python.exe -m playwright install`.
-- **Missing pytest deps**: enable optional dependencies and rerun launcher.
-- **Port conflicts**: free the configured `FASTAPI_PORT`/`UI_PORT` or update `.env`.
+- Connection issues: verify `ADSMOD/settings/.env` host/port values.
+- Missing Playwright browser: run the install command above.
+- Missing test packages: ensure optional dependencies are installed in `runtimes/.venv`.
+- Port collisions: free configured ports or adjust `.env`.
