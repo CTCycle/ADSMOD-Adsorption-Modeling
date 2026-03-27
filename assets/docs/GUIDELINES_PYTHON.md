@@ -1,206 +1,61 @@
-# Engineering and Python Standards
+# Python Guidelines (ADSMOD)
 
-Mandatory standards for Python 3.14+ projects, covering backend services, FastAPI apps, and ML pipelines.
+Repository baseline for Python backend, services, and tests.
 
----
+## 1. Runtime Baseline
 
-## 1. Python version and scope
+- Target version: Python `>=3.14` (from `pyproject.toml`).
+- Use the repository environment at `runtimes/.venv` when present.
+- Keep imports and dependencies consistent with launcher/runtime flows.
 
-- Target Python 3.14+
-- Applies to:
-  - Core libraries and services
-  - FastAPI backends
-  - ML and data pipelines
-  - Tests, unless stated otherwise
+## 2. Typing and API Contracts
 
----
+- Type all public functions and non-trivial internal helpers.
+- Prefer modern annotations:
+  - built-in generics (`list`, `dict`, `tuple`),
+  - union operator (`A | B`).
+- Prefer `collections.abc` for protocol-like types (`Callable`, etc.).
+- Keep FastAPI contracts schema-driven with Pydantic models from `server/domain`.
 
-## 2. Typing and correctness
+## 3. Project Structure Expectations
 
-### 2.1 Type rules
+- API handlers in `ADSMOD/server/api`.
+- Business logic in `ADSMOD/server/services`.
+- Data access in `ADSMOD/server/repositories` and `repositories/queries`.
+- Training runtime logic in `ADSMOD/server/learning`.
 
-1. Use PEP 695 type parameters when applicable
-2. Use built-in generics:
-   - `list`, `dict`, `tuple`
-   - Do not use `List`, `Dict`, `Tuple`
-3. Use `|` unions, not `Optional` or `Union`
-   - Example: `str | None`
-4. Type hint:
-   - All public APIs
-   - Non-trivial internal logic
-5. Import `Callable` from `collections.abc` only
+Do not move business logic into route modules unless trivial.
 
-### 2.2 Enforcement
+## 4. Job and Async Rules
 
-- Static typing is mandatory but not a test replacement
-- Enforce with mypy in CI
+- Long-running operations must run via `job_manager` (`server/services/jobs.py`).
+- Keep cancellation cooperative for jobs.
+- Use `async` endpoints only where awaited operations are actually non-blocking.
+- Avoid CPU-heavy work directly inside request handlers.
 
----
+## 5. Code Style Rules
 
-## 3. Imports
+- Follow existing codebase style in touched files.
+- Keep comments concise and factual.
+- Keep modules focused; avoid broad refactors during feature/bug tasks.
+- Use separators/docstring patterns only when already established in nearby code.
 
-1. Imports must be top-level only
-2. No conditional imports
-3. Always use `collections.abc.Callable`
-4. Use Keras 3.x directly, do not import TensorFlow via Keras
+## 6. Error Handling and Logging
 
----
+- Raise `HTTPException` with clear, user-safe messages at API boundaries.
+- Log detailed failures via `ADSMOD.server.common.utils.logger`.
+- Normalize/shorten propagated error text for job responses where appropriate.
 
-## 4. Code style and formatting
+## 7. Validation and Security
 
-### 4.1 Tooling
+- Validate incoming payloads with Pydantic and constrained query/path params.
+- Treat uploaded/remote data as untrusted.
+- Keep file/path operations constrained to expected directories and validated names.
 
-- Style: PEP 8
-- Formatter: Black or Ruff formatter
-- Linter: Ruff
-- Tests: pytest
+## 8. Testing Expectations
 
-### 4.2 Explicit rules
-
-1. Use `os` for paths, not `pathlib`
-2. Use `glob` only when justified
-3. No leading underscores on variables, methods, or attributes
-4. Use `self.name`, never `self._name`
-5. Module filenames must be single words
-
----
-
-## 5. Comments, docstrings, separators
-
-### 5.1 Comments
-
-- Minimal, factual, and necessary only
-
-### 5.2 Docstrings
-
-- Written only when explicitly requested
-- Required sections:
-  1. Summary
-  2. Arguments
-  3. Returns
-
-### 5.3 Separators
-
-- Classes: 79 `#`
-- Functions and methods: `#` + 77 `-`
-- No separator above `__init__`
-
----
-
-## 6. Code structure and design
-
-### 6.1 Principles
-
-1. Single Responsibility Principle everywhere
-2. Group related logic into cohesive modules
-3. No nested class or function definitions
-4. Separate logic from execution
-5. Avoid over-abstraction
-6. Prefer dependency injection or inversion of control
-
-### 6.2 Object creation
-
-- Use Factory, Builder, or Prototype when construction is complex
-
----
-
-## 7. Architecture by system type
-
-### 7.1 Frontend and UI
-
-- MVC or MVVM
-- Clear separation of rendering, state, and logic
-- Thin controllers and views
-
-### 7.2 Backend services
-
-- Service Layer + Repository
-- Business logic in services or domain classes
-- Data access only via repositories or gateways
-
-### 7.3 ML and data pipelines
-
-- Pipeline, Factory, or Builder patterns
-- Preprocessing, training, evaluation must be:
-  - modular
-  - reproducible
-  - versioned
-
-### 7.4 Event-driven systems
-
-- Observer, Mediator, or Pub/Sub patterns
-
-### 7.5 Plugins and configuration
-
-- Strategy, Command, or Decorator patterns
-
-### 7.6 Distributed systems
-
-- CQRS, Saga, or Event Sourcing
-- Use only when complexity justifies it
-
----
-
-## 8. Testing
-
-### 8.1 General rules
-
-1. Arrange–Act–Assert
-2. Readable and isolated tests
-3. Mock dependencies for unit tests
-4. Cover normal, edge, and failure cases
-
-### 8.2 Test types
-
-- Unit
-- Integration
-- Contract
-- End-to-end
-
----
-
-## 9. FastAPI standards
-
-### 9.1 Application structure
-
-1. Split endpoints into routers
-2. Compose routers in the app
-3. Keep modules cohesive and scalable
-
-### 9.2 Dependency injection
-
-- Centralize auth, authorization, DB sessions, and request-scoped resources
-
-### 9.3 Validation and schemas
-
-- Use Pydantic models and type hints
-- Avoid manual validation
-- Let schemas drive OpenAPI generation
-
-### 9.4 Async usage
-
-1. Use `async` only with fully non-blocking stacks
-2. Never block inside async endpoints
-3. Use async-compatible libraries if async is chosen
-4. Prefer sync endpoints when async adds no value
-
-### 9.5 Background work
-
-1. Do not run CPU-heavy tasks in request handlers
-2. Use ADSMOD `JobManager` (`ADSMOD.server.services.jobs`) for long-running jobs
-3. Use FastAPI `BackgroundTasks` only for lightweight post-response tasks
-
-### 9.6 Testing FastAPI apps
-
-1. Override dependencies in tests
-2. Use consistent app initialization
-3. Isolate shared state to avoid flaky tests
-
----
-
-## 10. Tooling summary
-
-- Formatter: Black or Ruff formatter
-- Linter: Ruff
-- Type checker: mypy
-- Test runner: pytest
+- Follow Arrange-Act-Assert.
+- Add/update tests for behavior changes in:
+  - `tests/unit` for isolated logic,
+  - `tests/server` or `tests/e2e` for API behavior.
+- Prefer deterministic tests; avoid hidden external dependencies.

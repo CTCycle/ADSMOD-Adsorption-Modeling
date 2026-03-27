@@ -1,52 +1,50 @@
-## TypeScript Guidelines (ADSMOD Webapp)
+# TypeScript Guidelines (ADSMOD)
 
-Project stack baseline:
-- React 18 + TypeScript 5
-- Vite 6 build/runtime configuration
-- Strict compiler settings from `ADSMOD/client/tsconfig.json`
+Project baseline:
+- React 18,
+- TypeScript 5,
+- Vite 6,
+- strict compiler mode from `ADSMOD/client/tsconfig.json`.
 
-## 1. Type Safety Rules
+## 1. Type Safety
 
-- Keep `strict` mode enabled.
-- Prefer `unknown` over `any` for external/untrusted values.
-- Narrow values explicitly before use (type guards, `typeof`, `in`, discriminated unions).
-- Type all exported functions, component props, and service layer responses.
-- Use `type`/`interface` definitions in `src/types.ts` for shared API contracts.
+- Keep strict TypeScript settings enabled.
+- Prefer `unknown` over `any` for untrusted/external values.
+- Type exported functions, component props, and service return contracts.
+- Keep shared API/domain contracts in `client/src/types.ts`.
 
-## 2. React and State Management
+## 2. Frontend Structure
 
-- Keep components presentational when possible; move API and transformation logic to `src/services/`.
-- Use `useCallback`/`useMemo` only where there is clear rerender or dependency benefit.
-- Keep page-level orchestration in `src/pages/` and shared UI in `src/components/`.
-- Avoid implicit `any` in event handlers and callback props.
+- Keep page orchestration in `client/src/pages`.
+- Keep reusable UI in `client/src/components`.
+- Keep API and polling logic in `client/src/services`.
+- Avoid scattering backend calls directly across presentation components.
 
-## 3. API and Networking
+## 3. API Integration Rules
 
-- Route all HTTP calls through service modules in `src/services/`.
-- Use the shared HTTP helpers (`fetchWithTimeout`, error extraction) to keep behavior consistent.
-- Treat backend responses as untrusted: validate required fields before rendering.
-- Keep frontend URLs relative to `API_BASE_URL` (`/api` proxy path).
+- Frontend requests should target `/api/...` endpoints (same-origin model).
+- Reuse shared service helpers for request timeouts and error normalization.
+- Treat backend payloads as untrusted and validate required fields before rendering.
 
-## 4. Error Handling and UX
+## 4. State and UX Behavior
 
-- Never swallow errors silently; return structured `{ data, error }` style results from services.
-- Show actionable, user-facing status messages for async operations (start/progress/success/failure).
-- Keep job polling logic centralized in service helpers rather than scattered across components.
+- Keep asynchronous status explicit (starting, running, success, failure).
+- Do not swallow exceptions silently; surface actionable user messages.
+- Keep job status polling centralized in service utilities.
 
-## 5. Security
+## 5. Security and Rendering
 
-- Do not trust client inputs; backend remains source of truth.
-- Avoid injecting unsanitized HTML.
-- Validate and encode user-provided strings before rendering in markdown/table contexts.
+- Do not inject unsanitized HTML.
+- Escape or sanitize user-provided values rendered in markdown/table contexts.
+- Keep backend as the source of truth for validation and enforcement.
 
-## 6. Tooling and Quality Gates
+## 6. Quality Gates
 
-- Keep `npm run build` green (`tsc && vite build`).
-- Keep lint script green when lint config is present (`npm run lint`).
-- Prefer small, focused modules and clear naming over abstractions.
+- Build must pass: `npm run build` (`tsc && vite build`).
+- Run lint only when lint configuration is present and maintained in the repo.
+- Prefer small, focused updates aligned with current component/service patterns.
 
-## 7. Testing Guidance
+## 7. Testing Alignment
 
-- Frontend end-to-end behavior is primarily validated through Python Playwright tests in `tests/e2e`.
-- When adding frontend behavior, update/add E2E coverage for user-visible flows.
-- Keep unit-style logic isolated in service/helper functions so it is easy to test.
+- User-facing frontend behavior is primarily validated through Python Playwright E2E tests in `tests/e2e`.
+- For frontend behavior changes, update E2E coverage for the impacted flow.
