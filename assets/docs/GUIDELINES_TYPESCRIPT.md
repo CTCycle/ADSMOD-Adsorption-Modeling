@@ -1,5 +1,7 @@
 # TypeScript Guidelines (ADSMOD)
 
+Last updated: 2026-04-08
+
 Project baseline:
 - React 18,
 - TypeScript 5,
@@ -17,6 +19,7 @@ Project baseline:
 
 - Keep page orchestration in `client/src/pages`.
 - Keep reusable UI in `client/src/components`.
+- Keep feature-specific state/logic in `client/src/features`.
 - Keep API and polling logic in `client/src/services`.
 - Avoid scattering backend calls directly across presentation components.
 

@@ -1,5 +1,7 @@
 # Testing Guidelines (ADSMOD)
 
+Last updated: 2026-04-08
+
 ## 1. Test Stack and Scope
 
 Primary test execution is Python + pytest, including:

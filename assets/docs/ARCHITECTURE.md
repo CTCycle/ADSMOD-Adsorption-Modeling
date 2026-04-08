@@ -1,6 +1,8 @@
 # ADSMOD Architecture
 
-ADSMOD is a local adsorption-modeling application with:
+Last updated: 2026-04-08
+
+ADSMOD is a local adsorption-modeling application composed of:
 - a Python FastAPI backend (`ADSMOD/server`),
 - a React + TypeScript frontend (`ADSMOD/client`),
 - launcher-managed local runtimes (`runtimes`).
@@ -8,18 +10,20 @@ ADSMOD is a local adsorption-modeling application with:
 ## 1. Repository Structure
 
 - `ADSMOD/`: application code.
-  - `server/`: backend API, domain, services, repositories, learning runtime.
-    - `api/`: route registration (`datasets`, `fitting`, `nist`, `training`, `entrypoint`).
-    - `services/`: orchestration and business logic.
-    - `repositories/queries/`: centralized query helpers.
-    - `learning/`: model training runtime.
+  - `server/`: backend API, domain models, services, repositories, training runtime.
+    - `api/`: route modules (`datasets`, `entrypoint`, `fitting`, `nist`, `training`).
+    - `services/`: orchestration (`jobs.py`, `training.py`).
+    - `repositories/`: persistence and query helpers.
+    - `learning/`: model training runtime components.
   - `client/`: frontend app.
     - `src/pages/`: top-level pages (`ConfigPage`, `ModelsPage`, `MachineLearningPage`).
     - `src/components/`: shared UI and workflow widgets.
+    - `src/features/training/`: training-related feature modules.
     - `src/services/`: API and polling helpers.
-  - `settings/`: active and template environment profiles.
-  - `resources/`: runtime data (DB, checkpoints, logs, templates).
+  - `settings/`: runtime configuration (`.env`, `configurations.json`).
+  - `resources/`: runtime data (database, checkpoints, logs, templates).
   - `start_on_windows.bat`: runtime bootstrap + launch flow.
+  - `setup_and_maintenance.bat`: maintenance actions.
 - `tests/`: `e2e`, `unit`, `server`, and `backend/performance` suites.
 - `runtimes/`: local Python, uv, Node.js, and `.venv`.
 - `release/`: Tauri build/export scripts and Windows artifacts.
@@ -28,58 +32,58 @@ ADSMOD is a local adsorption-modeling application with:
 
 - Backend process: Uvicorn serving `ADSMOD.server.app:app`.
 - Frontend process:
-  - launcher mode: `vite preview`,
-  - test-runner mode: static `python -m http.server` from `client/dist`.
+  - launcher mode: built frontend served locally,
+  - test mode: static server from `client/dist`.
 - API exposure:
-  - direct routers (for local/docs usage),
-  - mirrored `/api/...` prefixed routes for same-origin frontend calls.
+  - health and optional direct routers,
+  - mirrored `/api/...` routes for same-origin frontend calls.
 
 ## 3. Backend Layering
 
-1. API layer (`server/api`): request/response models and route handlers.
-2. Service layer (`server/services`): orchestration and domain workflows.
-3. Repository layer (`server/repositories`): persistence and query execution.
-4. Learning/runtime layer (`server/learning`): training state/process handling.
+1. API layer (`server/api`): request/response schemas and route handlers.
+2. Service layer (`server/services`): orchestration and workflows.
+3. Repository layer (`server/repositories`): data access.
+4. Learning/runtime layer (`server/learning`): training and checkpoint runtime behavior.
 
 ## 4. Key Subsystems
 
 ### 4.1 Data ingestion and preparation
-- Uploaded datasets are loaded via `/datasets/load`.
-- NIST data is fetched/enriched through `/nist/...`.
-- Training dataset composition/build is managed by dataset composition + builder services.
+- Uploaded datasets are loaded via dataset API routes.
+- NIST data fetch/index/enrich flows are exposed by NIST routes.
+- Training dataset composition/build is managed through training services and jobs.
 
 ### 4.2 Fitting and training
-- Fitting jobs run through centralized job tracking.
-- Training supports fresh start and checkpoint resume flows.
-- Checkpoint compatibility is validated against dataset metadata/hashes.
+- Fitting runs as background jobs with status polling.
+- Training supports fresh runs and resume-from-checkpoint flows.
+- Checkpoint compatibility is validated against runtime metadata.
 
 ### 4.3 Job orchestration
-- Centralized in `ADSMOD/server/services/jobs.py` (`job_manager` singleton).
+- Centralized in `ADSMOD/server/services/jobs.py` (`job_manager`).
 - Supports cooperative cancellation and status polling.
-- See `assets/docs/BACKGROUND_JOBS.md` for endpoint and implementation details.
+- See `assets/docs/BACKGROUND_JOBS.md` for details.
 
 ### 4.4 Persistence and configuration
-- `DB_EMBEDDED=true`: SQLite in local resources.
-- `DB_EMBEDDED=false`: external PostgreSQL via env settings.
-- Runtime behavior is controlled from `ADSMOD/settings/.env`.
+- Runtime/process behavior is controlled from `ADSMOD/settings/.env`.
+- Database behavior is controlled from `ADSMOD/settings/configurations.json` under `database`:
+  - `embedded_database=true`: local SQLite.
+  - `embedded_database=false`: external PostgreSQL.
 
 ## 5. Frontend Navigation Model
 
 - Top-level sections: `source`, `fitting`, `training`.
 - Pages are mounted from `client/src/App.tsx` and switched via `Sidebar`.
-- Page responsibilities:
-  - `ConfigPage`: dataset loading and NIST status/actions.
-  - `ModelsPage`: model selection, bounds, and fit execution.
-  - `MachineLearningPage`: dataset build, dataset management, checkpoints, and training dashboard.
+- Responsibilities:
+  - `ConfigPage`: dataset loading and NIST actions/status.
+  - `ModelsPage`: model selection and fit execution.
+  - `MachineLearningPage`: dataset build, checkpoint management, and training dashboard.
 
 ## 6. Extension Points
 
 - New API capability:
   - add service logic under `server/services`,
   - expose via a router under `server/api`,
-  - include in `server/app.py`.
+  - include the router in `server/app.py`.
 - New long-running workflow:
-  - run it through `job_manager.start_job(...)`,
-  - expose start/status/cancel endpoints,
+  - execute through `job_manager.start_job(...)`,
+  - expose start/status/cancel routes,
   - keep cancellation cooperative.
-
