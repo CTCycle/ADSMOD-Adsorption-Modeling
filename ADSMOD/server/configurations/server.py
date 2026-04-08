@@ -25,7 +25,6 @@ from ADSMOD.server.domain.settings import (
     ServerSettings,
     TrainingSettings,
 )
-from ADSMOD.server.common.utils.variables import env_variables
 
 DEFAULT_PREFETCH_FACTOR = 1
 DEFAULT_PIN_MEMORY = True
@@ -45,8 +44,18 @@ DEFAULT_DB_INSERT_BATCH_SIZE = 5000
 
 # [BUILDER FUNCTIONS]
 ###############################################################################
-def build_database_settings() -> DatabaseSettings:
-    embedded = coerce_bool(env_variables.get("DB_EMBEDDED"), DEFAULT_DB_EMBEDDED)
+def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
+    embedded = coerce_bool(payload.get("embedded_database"), DEFAULT_DB_EMBEDDED)
+    connect_timeout = coerce_int(
+        payload.get("connect_timeout"),
+        DEFAULT_DB_CONNECT_TIMEOUT,
+        minimum=1,
+    )
+    insert_batch_size = coerce_int(
+        payload.get("insert_batch_size"),
+        DEFAULT_DB_INSERT_BATCH_SIZE,
+        minimum=1,
+    )
 
     if embedded:
         return DatabaseSettings(
@@ -59,63 +68,42 @@ def build_database_settings() -> DatabaseSettings:
             password=None,
             ssl=False,
             ssl_ca=None,
-            connect_timeout=coerce_int(
-                env_variables.get("DB_CONNECT_TIMEOUT"),
-                DEFAULT_DB_CONNECT_TIMEOUT,
-                minimum=1,
-            ),
-            insert_batch_size=coerce_int(
-                env_variables.get("DB_INSERT_BATCH_SIZE"),
-                DEFAULT_DB_INSERT_BATCH_SIZE,
-                minimum=1,
-            ),
+            connect_timeout=connect_timeout,
+            insert_batch_size=insert_batch_size,
         )
 
-    engine_value = (
-        coerce_str_or_none(env_variables.get("DB_ENGINE")) or DEFAULT_DB_ENGINE
-    )
+    engine_value = coerce_str_or_none(payload.get("engine")) or DEFAULT_DB_ENGINE
     normalized_engine = engine_value.lower() if engine_value else None
-    password = coerce_str(
-        env_variables.get("DB_PASSWORD"),
-        DEFAULT_DB_PASSWORD,
-    )
+    password = coerce_str(payload.get("password"), DEFAULT_DB_PASSWORD)
     if password.strip().lower() in DISALLOWED_DB_PASSWORDS:
         raise ValueError(
             "DB_PASSWORD uses an insecure placeholder. "
-            "Set a strong value in ADSMOD/settings/.env."
+            "Set a strong value in ADSMOD/settings/configurations.json."
         )
 
     return DatabaseSettings(
         embedded_database=False,
         engine=normalized_engine,
         host=coerce_str(
-            env_variables.get("DB_HOST"),
+            payload.get("host"),
             DEFAULT_DB_HOST,
         ),
         port=coerce_int(
-            env_variables.get("DB_PORT"), DEFAULT_DB_PORT, minimum=1, maximum=65535
+            payload.get("port"), DEFAULT_DB_PORT, minimum=1, maximum=65535
         ),
         database_name=coerce_str(
-            env_variables.get("DB_NAME"),
+            payload.get("database_name"),
             DEFAULT_DB_NAME,
         ),
         username=coerce_str(
-            env_variables.get("DB_USER"),
+            payload.get("username"),
             DEFAULT_DB_USER,
         ),
         password=password,
-        ssl=coerce_bool(env_variables.get("DB_SSL"), DEFAULT_DB_SSL),
-        ssl_ca=coerce_str_or_none(env_variables.get("DB_SSL_CA")),
-        connect_timeout=coerce_int(
-            env_variables.get("DB_CONNECT_TIMEOUT"),
-            DEFAULT_DB_CONNECT_TIMEOUT,
-            minimum=1,
-        ),
-        insert_batch_size=coerce_int(
-            env_variables.get("DB_INSERT_BATCH_SIZE"),
-            DEFAULT_DB_INSERT_BATCH_SIZE,
-            minimum=1,
-        ),
+        ssl=coerce_bool(payload.get("ssl"), DEFAULT_DB_SSL),
+        ssl_ca=coerce_str_or_none(payload.get("ssl_ca")),
+        connect_timeout=connect_timeout,
+        insert_batch_size=insert_batch_size,
     )
 
 
@@ -193,6 +181,7 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
 
 # -------------------------------------------------------------------------
 def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
+    database_payload = ensure_mapping(payload.get("database"))
     dataset_payload = ensure_mapping(payload.get("datasets"))
     nist_payload = ensure_mapping(payload.get("nist"))
     fitting_payload = ensure_mapping(payload.get("fitting"))
@@ -200,7 +189,7 @@ def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
-        database=build_database_settings(),
+        database=build_database_settings(database_payload),
         datasets=build_dataset_settings(dataset_payload),
         nist=build_nist_settings(nist_payload),
         fitting=build_fitting_settings(fitting_payload),

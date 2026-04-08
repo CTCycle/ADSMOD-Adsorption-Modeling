@@ -1,5 +1,7 @@
 # Python Guidelines (ADSMOD)
 
+Last updated: 2026-04-08
+
 Repository baseline for Python backend, services, and tests.
 
 ## 1. Runtime Baseline

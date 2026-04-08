@@ -1,5 +1,7 @@
 # Background Job Management
 
+Last updated: 2026-04-08
+
 ADSMOD runs long operations in background workers to avoid blocking API requests.
 
 ## 1. Core Runtime
