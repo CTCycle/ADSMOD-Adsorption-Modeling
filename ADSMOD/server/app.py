@@ -15,6 +15,7 @@ from ADSMOD.server.common.utils.variables import env_variables  # noqa: F401
 from ADSMOD.server.configurations.runtime import (
     direct_api_enabled,
     public_host_mode_enabled,
+    resolve_spa_file_path,
 )
 from ADSMOD.server.api.datasets import router as dataset_router
 from ADSMOD.server.api.entrypoint import health_router, register_root_routes
