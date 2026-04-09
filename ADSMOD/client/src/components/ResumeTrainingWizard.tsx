@@ -1,8 +1,10 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { NumberInput } from './UIComponents';
 import { WizardProgressIndicator } from './WizardProgressIndicator';
+import { WizardNavigationFooter } from './WizardNavigationFooter';
 import { useWizardPagination } from '../hooks/useWizardPagination';
+import { useSyncRequiredConfigField } from '../hooks/useSyncRequiredConfigField';
 import type { CheckpointInfo, ResumeTrainingConfig } from '../types';
 
 interface ResumeTrainingWizardProps {
@@ -33,12 +35,7 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
     } = useWizardPagination(1);
     const dialogTitleId = 'resume-training-wizard-title';
 
-    // Ensure the checkpoint name is set in the config on mount
-    useEffect(() => {
-        if (config.checkpoint_name !== selectedCheckpointName) {
-            onConfigChange({ ...config, checkpoint_name: selectedCheckpointName });
-        }
-    }, [selectedCheckpointName, config, onConfigChange]);
+    useSyncRequiredConfigField(config, 'checkpoint_name', selectedCheckpointName, onConfigChange);
 
     const updateConfig = <K extends keyof ResumeTrainingConfig>(key: K, value: ResumeTrainingConfig[K]) => {
         onConfigChange({ ...config, [key]: value });
@@ -115,26 +112,17 @@ export const ResumeTrainingWizard: React.FC<ResumeTrainingWizardProps> = ({
                     )}
                 </div>
 
-                <div className="wizard-footer">
-                    <button className="secondary" onClick={onClose} disabled={isLoading}>
-                        Cancel
-                    </button>
-                    {!isFirstPage && (
-                        <button className="secondary" onClick={goToPreviousPage} disabled={isLoading}>
-                            Previous
-                        </button>
-                    )}
-                    {!isLastPage && (
-                        <button className="primary" onClick={goToNextPage} disabled={isLoading}>
-                            Next
-                        </button>
-                    )}
-                    {isLastPage && (
-                        <button className="primary" onClick={onConfirm} disabled={isLoading}>
-                            {isLoading ? 'Resuming...' : 'Confirm Resume'}
-                        </button>
-                    )}
-                </div>
+                <WizardNavigationFooter
+                    isLoading={isLoading}
+                    isFirstPage={isFirstPage}
+                    isLastPage={isLastPage}
+                    onClose={onClose}
+                    onNext={goToNextPage}
+                    onPrevious={goToPreviousPage}
+                    onConfirm={onConfirm}
+                    confirmIdleLabel="Confirm Resume"
+                    confirmLoadingLabel="Resuming..."
+                />
             </div>
         </div>
     );

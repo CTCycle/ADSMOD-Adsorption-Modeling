@@ -36,10 +36,10 @@ DEFAULT_DB_PORT = 5432
 DEFAULT_DB_NAME = "ADSMOD"
 DEFAULT_DB_USER = "postgres"
 DEFAULT_DB_PASSWORD = ""
-DISALLOWED_DB_PASSWORDS = {"admin", "change_me"}
 DEFAULT_DB_SSL = False
 DEFAULT_DB_CONNECT_TIMEOUT = 30
 DEFAULT_DB_INSERT_BATCH_SIZE = 5000
+INSECURE_DB_PASSWORD_PLACEHOLDERS = frozenset({"", "password", "changeme", "your_password"})
 
 
 # [BUILDER FUNCTIONS]
@@ -75,11 +75,8 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
     engine_value = coerce_str_or_none(payload.get("engine")) or DEFAULT_DB_ENGINE
     normalized_engine = engine_value.lower() if engine_value else None
     password = coerce_str(payload.get("password"), DEFAULT_DB_PASSWORD)
-    if password.strip().lower() in DISALLOWED_DB_PASSWORDS:
-        raise ValueError(
-            "DB_PASSWORD uses an insecure placeholder. "
-            "Set a strong value in ADSMOD/settings/configurations.json."
-        )
+    if password.strip().lower() in INSECURE_DB_PASSWORD_PLACEHOLDERS:
+        raise ValueError("DB_PASSWORD uses an insecure placeholder")
 
     return DatabaseSettings(
         embedded_database=False,

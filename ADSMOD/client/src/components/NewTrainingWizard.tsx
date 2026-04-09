@@ -1,9 +1,11 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Checkbox, NumberInput, Switch } from './UIComponents';
 import { WizardProgressIndicator } from './WizardProgressIndicator';
+import { WizardNavigationFooter } from './WizardNavigationFooter';
 import { useWizardPagination } from '../hooks/useWizardPagination';
-import type { TrainingConfig } from '../types';
+import { useSyncRequiredConfigField } from '../hooks/useSyncRequiredConfigField';
+import type { TorchCompileBackend, TrainingConfig } from '../types';
 
 interface NewTrainingWizardProps {
     config: TrainingConfig;
@@ -18,10 +20,22 @@ const getModelType = (value: string): TrainingConfig['selected_model'] => {
     return value === 'SCADS Atomic' ? 'SCADS Atomic' : 'SCADS Series';
 };
 
-const TORCH_COMPILE_BACKENDS = ['inductor', 'cudagraphs', 'aot_eager', 'eager'] as const;
+const TORCH_COMPILE_BACKENDS: readonly TorchCompileBackend[] = ['inductor', 'cudagraphs', 'aot_eager', 'eager'];
 const GPU_DEVICE_OPTIONS = Array.from({ length: 16 }, (_, index) => index);
 
 const LAST_PAGE_INDEX = 4;
+
+const parseTorchCompileBackend = (value: string): TorchCompileBackend => {
+    switch (value) {
+        case 'inductor':
+        case 'cudagraphs':
+        case 'aot_eager':
+        case 'eager':
+            return value;
+        default:
+            return 'inductor';
+    }
+};
 
 export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     config,
@@ -40,12 +54,7 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
     } = useWizardPagination(LAST_PAGE_INDEX);
     const dialogTitleId = 'new-training-wizard-title';
 
-    // Ensure the dataset label is set in the config on mount
-    useEffect(() => {
-        if (config.dataset_label !== selectedDatasetLabel) {
-            onConfigChange({ ...config, dataset_label: selectedDatasetLabel });
-        }
-    }, [selectedDatasetLabel, config, onConfigChange]);
+    useSyncRequiredConfigField(config, 'dataset_label', selectedDatasetLabel, onConfigChange);
 
     const updateConfig = <K extends keyof TrainingConfig>(key: K, value: TrainingConfig[K]) => {
         onConfigChange({ ...config, [key]: value });
@@ -352,7 +361,9 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                                                             <select
                                                                 id="torch-compile-backend"
                                                                 value={config.jit_backend}
-                                                                onChange={(event) => updateConfig('jit_backend', event.target.value)}
+                                                                onChange={(event) =>
+                                                                    updateConfig('jit_backend', parseTorchCompileBackend(event.target.value))
+                                                                }
                                                                 disabled={!config.use_jit}
                                                                 className="select-input wizard-inline-select"
                                                             >
@@ -539,32 +550,19 @@ export const NewTrainingWizard: React.FC<NewTrainingWizardProps> = ({
                     }
                 </div >
 
-                <div className="wizard-footer">
-                    <button className="secondary" onClick={onClose} disabled={isLoading}>
-                        Cancel
-                    </button>
-                    {!isFirstPage && (
-                        <button className="secondary" onClick={goToPreviousPage} disabled={isLoading}>
-                            Previous
-                        </button>
-                    )}
-                    {!isLastPage && (
-                        <button
-                            className="primary"
-                            onClick={goToNextPage}
-                            disabled={isLoading}
-                        >
-                            Next
-                        </button>
-                    )}
-                    {isLastPage && (
-                        <button className="primary" onClick={onConfirm} disabled={isLoading}>
-                            {isLoading ? 'Starting...' : 'Confirm Training'}
-                        </button>
-                    )}
-                </div>
-            </div >
-        </div >
+                <WizardNavigationFooter
+                    isLoading={isLoading}
+                    isFirstPage={isFirstPage}
+                    isLastPage={isLastPage}
+                    onClose={onClose}
+                    onNext={goToNextPage}
+                    onPrevious={goToPreviousPage}
+                    onConfirm={onConfirm}
+                    confirmIdleLabel="Confirm Training"
+                    confirmLoadingLabel="Starting..."
+                />
+            </div>
+        </div>
     );
 };
 
