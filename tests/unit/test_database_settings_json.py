@@ -93,6 +93,6 @@ def test_db_settings_reject_insecure_placeholder_password() -> None:
         build_database_settings(
             {
                 "embedded_database": False,
-                "password": "change_me",
+                "password": "",
             }
         )

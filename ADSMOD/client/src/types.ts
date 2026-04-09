@@ -166,6 +166,8 @@ export interface JobStatusResponse {
 export type ParameterKey = [string, string, string]; // [model, parameter, bound_type]
 
 // Training API types
+export type TorchCompileBackend = 'inductor' | 'cudagraphs' | 'aot_eager' | 'eager';
+
 export interface TrainingConfig {
     // Dataset settings
     sample_size?: number;        // 0.0-1.0 fraction (deprecated)
@@ -192,7 +194,7 @@ export interface TrainingConfig {
     device_ID: number;
     use_mixed_precision: boolean;
     use_jit: boolean;
-    jit_backend: string;
+    jit_backend: TorchCompileBackend;
 
     // LR scheduler settings
     use_lr_scheduler: boolean;
