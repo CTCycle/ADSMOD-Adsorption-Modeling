@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import os
 
+from ADSMOD.server.configurations.bootstrap import ensure_environment_loaded
+
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 ###############################################################################
 def public_host_mode_enabled() -> bool:
+    ensure_environment_loaded()
     host = os.getenv("FASTAPI_HOST", "").strip().lower()
     if not host:
         return False
@@ -20,6 +23,7 @@ def direct_api_enabled() -> bool:
 
 # -----------------------------------------------------------------------------
 def tauri_mode_enabled() -> bool:
+    ensure_environment_loaded()
     value = os.getenv("ADSMOD_TAURI_MODE", "false").strip().lower()
     return value in {"1", "true", "yes", "on"}
 

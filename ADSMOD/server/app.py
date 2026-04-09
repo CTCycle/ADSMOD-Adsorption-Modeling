@@ -11,7 +11,6 @@ from ADSMOD.server.common.constants import (
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from ADSMOD.server.common.utils.variables import env_variables  # noqa: F401
 from ADSMOD.server.configurations.runtime import (
     direct_api_enabled,
     public_host_mode_enabled,

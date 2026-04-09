@@ -13,8 +13,8 @@ def ensure_mapping(value: Any) -> dict[str, Any]:
     return {}
 
 
-# -------------------------------------------------------------------------
-def load_configurations(path: str) -> dict[str, Any]:
+# -----------------------------------------------------------------------------
+def load_configuration(path: str) -> dict[str, Any]:
     if not os.path.exists(path):
         raise RuntimeError(f"Configuration file not found: {path}")
     try:
@@ -25,3 +25,5 @@ def load_configurations(path: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError("Configuration must be a JSON object.")
     return data
+
+

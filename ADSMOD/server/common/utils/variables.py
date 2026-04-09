@@ -13,7 +13,7 @@ class EnvironmentVariables:
     def __init__(self) -> None:
         self.env_path = ENV_FILE_PATH
         if os.path.exists(self.env_path):
-            load_dotenv(self.env_path)
+            load_dotenv(self.env_path, override=True)
         else:
             logger.info(
                 "Environment file not found at %s; default values will be used",
