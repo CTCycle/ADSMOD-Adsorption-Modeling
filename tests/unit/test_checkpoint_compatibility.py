@@ -30,16 +30,20 @@ def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
 
 
 def test_checkpoint_compatibility_single_dataset_match() -> None:
-    metadata = build_metadata("hash-one")
+    hash_one = "1" * 64
+    metadata = build_metadata(hash_one)
     assert (
-        determine_checkpoint_compatibility("checkpoint-a", metadata, {"hash-one"})
+        determine_checkpoint_compatibility("checkpoint-a", metadata, {hash_one})
         is True
     )
 
 
 def test_checkpoint_compatibility_multiple_datasets_one_matches() -> None:
-    metadata = build_metadata("hash-two")
-    dataset_hashes = {"hash-one", "hash-two", "hash-three"}
+    hash_one = "1" * 64
+    hash_two = "2" * 64
+    hash_three = "3" * 64
+    metadata = build_metadata(hash_two)
+    dataset_hashes = {hash_one, hash_two, hash_three}
     assert (
         determine_checkpoint_compatibility("checkpoint-b", metadata, dataset_hashes)
         is True
@@ -47,8 +51,11 @@ def test_checkpoint_compatibility_multiple_datasets_one_matches() -> None:
 
 
 def test_checkpoint_compatibility_multiple_datasets_none_match() -> None:
-    metadata = build_metadata("hash-four")
-    dataset_hashes = {"hash-one", "hash-two"}
+    hash_one = "1" * 64
+    hash_two = "2" * 64
+    hash_four = "4" * 64
+    metadata = build_metadata(hash_four)
+    dataset_hashes = {hash_one, hash_two}
     assert (
         determine_checkpoint_compatibility("checkpoint-c", metadata, dataset_hashes)
         is False

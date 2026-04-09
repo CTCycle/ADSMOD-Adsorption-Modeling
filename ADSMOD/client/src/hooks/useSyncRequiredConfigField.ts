@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 export const useSyncRequiredConfigField = <
-    TConfig extends Record<string, unknown>,
+    TConfig extends object,
     TKey extends keyof TConfig,
 >(
     config: TConfig,
