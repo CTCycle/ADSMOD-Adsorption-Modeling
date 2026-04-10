@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal enableextensions enabledelayedexpansion
 
 REM ============================================================================
 REM == Configuration
@@ -52,6 +52,8 @@ set "TMPEXP=%TEMP%\app_expand.ps1"
 set "TMPTXT=%TEMP%\app_txt.ps1"
 set "TMPFIND=%TEMP%\app_find_uv.ps1"
 set "TMPVER=%TEMP%\app_pyver.ps1"
+set "TMPPIDPATH=%TEMP%\app_pid_path.ps1"
+set "TMPHEALTH=%TEMP%\app_health.ps1"
 
 set "UV_LINK_MODE=copy"
 
@@ -76,6 +78,8 @@ echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -Destin
 echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0] > "%TMPTXT%"
 echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName > "%TMPFIND%"
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
+echo $ErrorActionPreference='Stop'; try { (Get-Process -Id $args[0]).Path } catch { '' } > "%TMPPIDPATH%"
+echo $ErrorActionPreference='Stop'; try { $u=$args[0]; $r=Invoke-WebRequest -UseBasicParsing -Uri $u -TimeoutSec 2; if($r.StatusCode -ge 200 -and $r.StatusCode -lt 300){ 'ok' } } catch { '' } > "%TMPHEALTH%"
 
 REM ============================================================================
 REM == Step 1: Ensure Python (embeddable)
@@ -299,19 +303,69 @@ if not exist "%python_exe%" (
 )
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
-call :kill_port !FASTAPI_PORT!
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
+  set "pid_path="
+  for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
+  if not defined pid_path (
+    echo [WARN] Could not resolve process path for PID %%P on port !FASTAPI_PORT!. Skipping forced termination.
+  ) else (
+    echo !pid_path! | findstr /I /C:"%root_folder%" >nul
+    if !errorlevel! equ 0 (
+      echo [INFO] Releasing backend port !FASTAPI_PORT! from owned process PID %%P.
+      taskkill /PID %%P /F >nul 2>&1
+    ) else (
+      echo [WARN] Port !FASTAPI_PORT! is occupied by external PID %%P: !pid_path!
+      echo [WARN] Not terminating external process automatically.
+    )
+  )
+)
+set "backend_port_free="
+for /L %%i in (1,1,20) do (
+  netstat -ano | findstr /R /C:":!FASTAPI_PORT! .*LISTENING" >nul
+  if !errorlevel! neq 0 (
+    set "backend_port_free=1"
+    goto :backend_port_released
+  )
+  timeout /t 1 /nobreak >nul
+)
+:backend_port_released
+if not defined backend_port_free (
+  echo [FATAL] backend port !FASTAPI_PORT! is still occupied after 20 seconds.
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
+    set "pid_path="
+    for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
+    if defined pid_path (
+      echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: !pid_path!
+    ) else (
+      echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: [unknown]
+    )
+  )
+  goto error
+)
 start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
 
 REM ============================================================================
 REM Wait for backend
 REM ============================================================================
-echo [WAIT] Waiting for backend to be ready on port !FASTAPI_PORT!...
-for /L %%i in (1,1,20) do (
-  netstat -ano | findstr ":!FASTAPI_PORT!" | findstr "LISTENING" >nul
-  if !errorlevel! equ 0 goto :backend_ready_check
+echo [WAIT] Waiting for backend health endpoint to be ready on port !FASTAPI_PORT!...
+set "HEALTH_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!/api/health"
+for /L %%i in (1,1,30) do (
+  for /f "delims=" %%H in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPHEALTH%" "!HEALTH_URL!"') do set "health_ok=%%H"
+  if /i "!health_ok!"=="ok" goto :backend_ready_check
+  set "health_ok="
   timeout /t 1 /nobreak >nul
 )
-echo [WARN] Timed out waiting for backend. Proceeding to launch frontend...
+echo [FATAL] Backend did not become healthy at "!HEALTH_URL!" within timeout.
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
+  set "pid_path="
+  for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
+  if defined pid_path (
+    echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: !pid_path!
+  ) else (
+    echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: [unknown]
+  )
+)
+goto error
 :backend_ready_check
 
 echo [RUN] Launching frontend
@@ -345,7 +399,7 @@ REM Cleanup temp helpers
 REM ============================================================================
 :cleanup
 if exist "%uv_lock_file%" del /q "%uv_lock_file%" >nul 2>&1
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
 endlocal & exit /b 0
 
 REM ============================================================================
@@ -355,7 +409,7 @@ REM ============================================================================
 echo.
 echo !!! An error occurred during execution. !!!
 pause
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
 endlocal & exit /b 1
 
 :kill_port
