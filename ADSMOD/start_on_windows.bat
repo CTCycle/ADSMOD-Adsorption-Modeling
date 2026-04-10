@@ -326,7 +326,7 @@ for /L %%i in (1,1,20) do (
     set "backend_port_free=1"
     goto :backend_port_released
   )
-  timeout /t 1 /nobreak >nul
+  timeout /t 1 /nobreak >nul 2>&1
 )
 :backend_port_released
 if not defined backend_port_free (
@@ -353,7 +353,7 @@ for /L %%i in (1,1,30) do (
   for /f "delims=" %%H in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPHEALTH%" "!HEALTH_URL!"') do set "health_ok=%%H"
   if /i "!health_ok!"=="ok" goto :backend_ready_check
   set "health_ok="
-  timeout /t 1 /nobreak >nul
+  timeout /t 1 /nobreak >nul 2>&1
 )
 echo [FATAL] Backend did not become healthy at "!HEALTH_URL!" within timeout.
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
@@ -370,7 +370,36 @@ goto error
 
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul
-call :kill_port !UI_PORT!
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!UI_PORT! .*LISTENING"') do (
+  set "pid_path="
+  for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
+  if not defined pid_path (
+    echo [WARN] Could not resolve process path for PID %%P on port !UI_PORT!. Skipping forced termination.
+  ) else (
+    echo !pid_path! | findstr /I /C:"%root_folder%" >nul
+    if !errorlevel! equ 0 (
+      echo [INFO] Releasing frontend port !UI_PORT! from owned process PID %%P.
+      taskkill /PID %%P /F >nul 2>&1
+    ) else (
+      echo [WARN] Port !UI_PORT! is occupied by external PID %%P: !pid_path!
+      echo [WARN] Not terminating external process automatically.
+    )
+  )
+)
+set "frontend_port_free="
+for /L %%i in (1,1,20) do (
+  netstat -ano | findstr /R /C:":!UI_PORT! .*LISTENING" >nul
+  if !errorlevel! neq 0 (
+    set "frontend_port_free=1"
+    goto :frontend_port_released
+  )
+  timeout /t 1 /nobreak >nul 2>&1
+)
+:frontend_port_released
+if not defined frontend_port_free (
+  echo [FATAL] frontend port !UI_PORT! is still occupied after 20 seconds.
+  goto error
+)
 start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! --strictPort
 popd >nul
 
@@ -408,7 +437,6 @@ REM ============================================================================
 :error
 echo.
 echo !!! An error occurred during execution. !!!
-pause
 del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPPIDPATH%" "%TMPHEALTH%" >nul 2>&1
 endlocal & exit /b 1
 
