@@ -4,6 +4,8 @@ import json
 import os
 from typing import Any
 
+from ADSMOD.server.common.constants import CONFIGURATION_FILE
+
 
 # [UTILITY FUNCTIONS]
 ###############################################################################
@@ -25,5 +27,11 @@ def load_configuration(path: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError("Configuration must be a JSON object.")
     return data
+
+
+# -----------------------------------------------------------------------------
+def load_configuration_data(path: str | None = None) -> dict[str, Any]:
+    resolved_path = path or CONFIGURATION_FILE
+    return load_configuration(resolved_path)
 
 
