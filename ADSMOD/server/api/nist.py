@@ -37,7 +37,7 @@ from ADSMOD.server.common.constants import (
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.services.jobs import job_manager
 from ADSMOD.server.services.data.nistads import NISTDataService
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 
 router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
 
@@ -85,7 +85,7 @@ class NistEndpoint:
             job_type=job_type,
             status="running",
             message=message,
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -293,7 +293,7 @@ class NistEndpoint:
             progress=job_status["progress"],
             result=job_status["result"],
             error=job_status["error"],
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -312,7 +312,7 @@ class NistEndpoint:
                     progress=j["progress"],
                     result=j["result"],
                     error=j["error"],
-                    poll_interval=server_settings.jobs.polling_interval,
+                    poll_interval=get_server_settings().jobs.polling_interval,
                 )
                 for j in all_jobs
             ]
@@ -432,3 +432,4 @@ class NistEndpoint:
 nist_service = NISTDataService()
 nist_endpoint = NistEndpoint(router=router, service=nist_service)
 nist_endpoint.add_routes()
+

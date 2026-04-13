@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.repositories.queries.nist import NISTDataSerializer
 from ADSMOD.server.repositories.serialization.data import DataSerializer
 from ADSMOD.server.services.data.conversion import PQ_units_conversion
@@ -453,7 +453,7 @@ class DatasetCompositionService:
 
     # -------------------------------------------------------------------------
     def fetch_pubchem_properties(self, names: list[str]) -> list[dict[str, Any]]:
-        pubchem = PubChemClient(server_settings.nist.pubchem_parallel_tasks)
+        pubchem = PubChemClient(get_server_settings().nist.pubchem_parallel_tasks)
         return asyncio.run(self.fetch_properties_async(pubchem, names))
 
     # -------------------------------------------------------------------------
@@ -511,3 +511,4 @@ class DatasetCompositionService:
         key_base = f"{target}:{name}"
         digest = hashlib.sha1(key_base.encode("utf-8")).hexdigest()
         return f"local_{digest[:24]}"
+

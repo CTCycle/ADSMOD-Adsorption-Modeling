@@ -11,7 +11,7 @@ from ADSMOD.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
 )
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.constants import (
     DEFAULT_DATASET_COLUMN_MAPPING,
     FITTING_JOBS_ENDPOINT,
@@ -224,7 +224,7 @@ class FittingEndpoint:
             job_type=self.JOB_TYPE,
             status="running",
             message="Fitting job started.",
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -242,7 +242,7 @@ class FittingEndpoint:
             progress=job_status["progress"],
             result=job_status["result"],
             error=job_status["error"],
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -257,7 +257,7 @@ class FittingEndpoint:
                     progress=j["progress"],
                     result=j["result"],
                     error=j["error"],
-                    poll_interval=server_settings.jobs.polling_interval,
+                    poll_interval=get_server_settings().jobs.polling_interval,
                 )
                 for j in all_jobs
             ]
@@ -383,3 +383,4 @@ class FittingEndpoint:
 pipeline = FittingPipeline()
 fitting_endpoint = FittingEndpoint(router=router, pipeline=pipeline)
 fitting_endpoint.add_routes()
+

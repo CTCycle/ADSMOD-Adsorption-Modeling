@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
@@ -73,7 +73,7 @@ class AdsorptionDataProcessor:
         Return value:
         None.
         """
-        cutoff = server_settings.datasets.column_detection_cutoff
+        cutoff = get_server_settings().datasets.column_detection_cutoff
         for attr, pattern in DEFAULT_DATASET_COLUMN_MAPPING.items():
             matched_cols = [
                 column
@@ -325,3 +325,4 @@ class DatasetAdapter:
                 unique.append(metric)
                 seen.add(metric)
         return unique
+

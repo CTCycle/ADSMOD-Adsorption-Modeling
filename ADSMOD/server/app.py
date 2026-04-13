@@ -11,7 +11,7 @@ from ADSMOD.server.common.constants import (
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from ADSMOD.server.configurations.runtime import (
+from ADSMOD.server.configurations.startup import (
     direct_api_enabled,
     public_host_mode_enabled,
     resolve_spa_file_path,
@@ -51,4 +51,5 @@ for router in routers:
         app.include_router(router, prefix="/api", include_in_schema=False)
 
 register_root_routes(app)
+
 

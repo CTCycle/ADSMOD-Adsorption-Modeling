@@ -6,7 +6,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from ADSMOD.server.configurations.runtime import (
+from ADSMOD.server.configurations.startup import (
     direct_api_enabled,
     get_client_dist_path,
     packaged_client_available,
@@ -78,3 +78,4 @@ def register_root_routes(app: FastAPI) -> None:
         return
 
     app.add_api_route("/", service_root, methods=["GET"], include_in_schema=False)
+

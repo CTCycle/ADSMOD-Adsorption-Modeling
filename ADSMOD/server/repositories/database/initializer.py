@@ -4,7 +4,7 @@ import urllib.parse
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
-from ADSMOD.server.configurations import DatabaseSettings, server_settings
+from ADSMOD.server.configurations import DatabaseSettings, get_server_settings
 from ADSMOD.server.repositories.database.postgres import PostgresRepository
 from ADSMOD.server.repositories.database.sql import (
     build_postgres_create_database_sql,
@@ -107,7 +107,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
 # -------------------------------------------------------------------------
 def run_database_initialization() -> None:
-    settings = server_settings.database
+    settings = get_server_settings().database
     if settings.embedded_database:
         initialize_sqlite_database(settings)
         return
@@ -134,3 +134,4 @@ def initialize_database() -> None:
     except Exception as exc:
         logger.exception("Unexpected error during database initialization.")
         raise SystemExit(1) from exc
+

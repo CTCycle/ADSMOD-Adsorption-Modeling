@@ -27,7 +27,7 @@ from ADSMOD.server.domain.training import (
     TrainingStartResponse,
     TrainingStatusResponse,
 )
-from ADSMOD.server.configurations.server import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.common.constants import CHECKPOINTS_PATH
 from ADSMOD.server.services.jobs import job_manager
@@ -211,7 +211,7 @@ class TrainingEndpoint:
             job_type=self.DATASET_JOB_TYPE,
             status="running",
             message="Dataset build job started.",
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -226,7 +226,7 @@ class TrainingEndpoint:
             progress=job_status["progress"],
             result=job_status["result"],
             error=job_status["error"],
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -241,7 +241,7 @@ class TrainingEndpoint:
                     progress=j["progress"],
                     result=j["result"],
                     error=j["error"],
-                    poll_interval=server_settings.jobs.polling_interval,
+                    poll_interval=get_server_settings().jobs.polling_interval,
                 )
                 for j in all_jobs
             ]
@@ -535,7 +535,7 @@ class TrainingEndpoint:
             )
             configuration = config.model_dump()
             configuration["dataset_label"] = resolved_label
-            configuration["polling_interval"] = server_settings.jobs.polling_interval
+            configuration["polling_interval"] = get_server_settings().jobs.polling_interval
 
             logger.info("Starting training with config: %s", configuration)
             metadata = training_manager.data_serializer.load_training_metadata(
@@ -588,7 +588,7 @@ class TrainingEndpoint:
                 status="started",
                 session_id=job_id,
                 message=f"Training started with {config.epochs} epochs. Session: {job_id}",
-                poll_interval=server_settings.jobs.polling_interval,
+                poll_interval=get_server_settings().jobs.polling_interval,
             )
 
         except HTTPException:
@@ -686,7 +686,7 @@ class TrainingEndpoint:
                     f"Resuming training from {request.checkpoint_name} "
                     f"with {request.additional_epochs} epochs. Session: {job_id}"
                 ),
-                poll_interval=server_settings.jobs.polling_interval,
+                poll_interval=get_server_settings().jobs.polling_interval,
             )
 
         except HTTPException:
@@ -741,7 +741,7 @@ class TrainingEndpoint:
             metrics=state["metrics"],
             history=state["history"],
             log=state["log"],
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -848,3 +848,4 @@ class TrainingEndpoint:
 ###############################################################################
 training_endpoint = TrainingEndpoint(router=router)
 training_endpoint.add_routes()
+
