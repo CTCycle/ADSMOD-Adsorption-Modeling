@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 from ADSMOD.server.common.utils.logger import logger
-from ADSMOD.server.configurations.server import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.domain.training import TrainingMetadata
 from ADSMOD.server.learning.training.manager import (
     run_training_process,
@@ -13,10 +13,11 @@ from ADSMOD.server.learning.training.manager import (
 from ADSMOD.server.learning.training.worker import ProcessWorker
 from ADSMOD.server.services.jobs import job_manager
 
-TRAINING_PROCESS_STOP_TIMEOUT_SECONDS = max(
-    5.0,
-    float(server_settings.jobs.polling_interval),
-)
+def get_training_process_stop_timeout_seconds() -> float:
+    return max(
+        5.0,
+        float(get_server_settings().jobs.polling_interval),
+    )
 
 
 ###############################################################################
@@ -185,7 +186,7 @@ class TrainingJobRunner:
             result = self.monitor_training_process(
                 job_id,
                 worker,
-                stop_timeout_seconds=TRAINING_PROCESS_STOP_TIMEOUT_SECONDS,
+                stop_timeout_seconds=get_training_process_stop_timeout_seconds(),
             )
 
             if job_manager.should_stop(job_id):
@@ -211,3 +212,4 @@ class TrainingJobRunner:
 ###############################################################################
 training_session = TrainingSession()
 training_job_runner = TrainingJobRunner(training_session)
+

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 
-from ADSMOD.server.configurations.bootstrap import ensure_environment_loaded
+from ADSMOD.server.configurations.environment import load_environment
 
-ensure_environment_loaded()
+load_environment()
 
 # Force Keras 3 to use the Torch backend unless explicitly overridden.
 os.environ.setdefault("KERAS_BACKEND", "torch")
+

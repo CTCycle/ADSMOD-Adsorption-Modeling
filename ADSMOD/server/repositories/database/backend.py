@@ -5,7 +5,7 @@ from typing import Any, Protocol, cast
 
 import pandas as pd
 
-from ADSMOD.server.configurations import DatabaseSettings, server_settings
+from ADSMOD.server.configurations import DatabaseSettings, get_server_settings
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.repositories.database.postgres import PostgresRepository
 from ADSMOD.server.repositories.database.sqlite import SQLiteRepository
@@ -53,7 +53,7 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
 ###############################################################################
 class ADSMODDatabase:
     def __init__(self) -> None:
-        self.settings = server_settings.database
+        self.settings = get_server_settings().database
         self.backend = self._build_backend(self.settings.embedded_database)
 
     # -------------------------------------------------------------------------
@@ -101,3 +101,4 @@ class ADSMODDatabase:
 
 
 database = ADSMODDatabase()
+

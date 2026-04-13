@@ -1,8 +1,23 @@
 from __future__ import annotations
 
-from ADSMOD.server.configurations.bootstrap import ensure_environment_loaded
-from ADSMOD.server.configurations.base import ensure_mapping, load_configuration_data
-from ADSMOD.server.configurations.server import (
+from ADSMOD.server.configurations.environment import (
+    load_environment,
+    reset_environment_for_tests,
+)
+from ADSMOD.server.configurations.management import ConfigurationManager
+from ADSMOD.server.configurations.startup import (
+    build_configuration_runtime,
+    direct_api_enabled,
+    get_app_settings,
+    get_client_dist_path,
+    get_server_settings,
+    load_configuration_data,
+    packaged_client_available,
+    public_host_mode_enabled,
+    resolve_spa_file_path,
+    tauri_mode_enabled,
+)
+from ADSMOD.server.domain.settings import (
     AppSettings,
     DatabaseSettings,
     DatasetSettings,
@@ -18,23 +33,22 @@ from ADSMOD.server.configurations.server import (
     build_nist_settings,
     build_server_settings,
     build_training_settings,
-    get_app_settings,
-    get_server_settings,
-    reload_settings_for_tests,
-    server_settings,
 )
 
-
-ensure_environment_loaded()
-
-# Backward-compatible alias used by existing tests/imports.
-load_configurations = load_configuration_data
-
 __all__ = [
-    "ensure_environment_loaded",
-    "ensure_mapping",
+    "load_environment",
+    "reset_environment_for_tests",
+    "ConfigurationManager",
+    "build_configuration_runtime",
     "load_configuration_data",
-    "load_configurations",
+    "get_app_settings",
+    "get_server_settings",
+    "public_host_mode_enabled",
+    "direct_api_enabled",
+    "tauri_mode_enabled",
+    "get_client_dist_path",
+    "packaged_client_available",
+    "resolve_spa_file_path",
     "AppSettings",
     "DatabaseSettings",
     "DatasetSettings",
@@ -50,8 +64,6 @@ __all__ = [
     "build_nist_settings",
     "build_server_settings",
     "build_training_settings",
-    "get_app_settings",
-    "get_server_settings",
-    "reload_settings_for_tests",
-    "server_settings",
 ]
+
+

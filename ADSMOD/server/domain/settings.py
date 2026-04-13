@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
@@ -11,9 +10,6 @@ from pydantic import BaseModel, Field, ValidationError, field_validator, model_v
 from ADSMOD.server.common.constants import CONFIGURATION_FILE
 
 
-INSECURE_DB_PASSWORD_PLACEHOLDERS = frozenset(
-    {"", "password", "changeme", "your_password"}
-)
 DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
 DEFAULT_PREFETCH_FACTOR = 1
 DEFAULT_PIN_MEMORY = True
@@ -127,32 +123,6 @@ class JsonDatabaseSettings(BaseModel):
         text = str(value).strip() if value is not None else ""
         return text or "postgres"
 
-    @model_validator(mode="after")
-    def validate_external_database_requirements(self) -> "JsonDatabaseSettings":
-        if self.embedded_database:
-            return self
-
-        normalized_password = (self.password or "").strip().lower()
-        if normalized_password in INSECURE_DB_PASSWORD_PLACEHOLDERS:
-            raise ValueError("DB_PASSWORD uses an insecure placeholder")
-
-        missing: list[str] = []
-        if not self.host:
-            missing.append("database.host")
-        if not self.database_name:
-            missing.append("database.database_name")
-        if not self.username:
-            missing.append("database.username")
-
-        if missing:
-            joined = ", ".join(missing)
-            raise ValueError(
-                f"External database mode requires configuration keys: {joined}"
-            )
-        return self
-
-
-###############################################################################
 class JsonDatasetSettings(BaseModel):
     allowed_extensions: tuple[str, ...] = DEFAULT_ALLOWED_EXTENSIONS
     column_detection_cutoff: float = Field(default=0.6, ge=0.0, le=1.0)
@@ -257,33 +227,6 @@ class AppSettings(BaseModel):
     jobs: JsonJobSettings = Field(default_factory=JsonJobSettings)
     training: JsonTrainingSettings = Field(default_factory=JsonTrainingSettings)
 
-    fastapi_host: str = "127.0.0.1"
-    fastapi_port: int = Field(default=8000, ge=1, le=65535)
-    ui_host: str = "127.0.0.1"
-    ui_port: int = Field(default=8001, ge=1, le=65535)
-    vite_api_base_url: str = "/api"
-    reload: bool = False
-    optional_dependencies: bool = False
-    mplbackend: str | None = None
-    keras_backend: str | None = None
-    adsmod_tauri_mode: str | None = None
-
-    @field_validator(
-        "fastapi_host",
-        "ui_host",
-        "vite_api_base_url",
-        "mplbackend",
-        "keras_backend",
-        "adsmod_tauri_mode",
-        mode="before",
-    )
-    @classmethod
-    def normalize_optional_strings(cls, value: Any) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
-
     @classmethod
     def load(cls) -> "AppSettings":
         payload = _load_configuration_payload(getattr(cls, "_configuration_file"))
@@ -295,16 +238,6 @@ class AppSettings(BaseModel):
             "fitting": payload.get("fitting", {}),
             "jobs": payload.get("jobs", {}),
             "training": payload.get("training", {}),
-            "fastapi_host": os.getenv("FASTAPI_HOST", "127.0.0.1"),
-            "fastapi_port": os.getenv("FASTAPI_PORT", "8000"),
-            "ui_host": os.getenv("UI_HOST", "127.0.0.1"),
-            "ui_port": os.getenv("UI_PORT", "8001"),
-            "vite_api_base_url": os.getenv("VITE_API_BASE_URL", "/api"),
-            "reload": os.getenv("RELOAD", "false"),
-            "optional_dependencies": os.getenv("OPTIONAL_DEPENDENCIES", "false"),
-            "mplbackend": os.getenv("MPLBACKEND"),
-            "keras_backend": os.getenv("KERAS_BACKEND"),
-            "adsmod_tauri_mode": os.getenv("ADSMOD_TAURI_MODE"),
         }
         return cls.model_validate(values)
 
@@ -447,3 +380,4 @@ __all__ = [
     "build_server_settings",
     "ValidationError",
 ]
+

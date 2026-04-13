@@ -1,4 +1,4 @@
-from ADSMOD.server.configurations.server import DatabaseSettings
+from ADSMOD.server.configurations import DatabaseSettings
 from ADSMOD.server.repositories.database.postgres import PostgresRepository
 
 
@@ -19,3 +19,4 @@ def test_postgres_connect_args_enforce_utf8_client_encoding() -> None:
     connect_args = PostgresRepository.build_connect_args(settings)
     assert connect_args["client_encoding"] == "utf8"
     assert connect_args["connect_timeout"] == 30
+

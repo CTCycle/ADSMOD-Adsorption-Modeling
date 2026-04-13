@@ -13,7 +13,7 @@ import httpx
 import pandas as pd
 import pubchempy as pcp
 
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.utils.encoding import (
     decode_json_response_bytes,
     sanitize_dataframe_strings,
@@ -694,7 +694,7 @@ class NISTDataService:
         category: Literal["experiments", "guest", "host"],
         client: httpx.AsyncClient,
     ) -> tuple[pd.DataFrame, str]:
-        api_client = NISTApiClient(server_settings.nist.parallel_tasks)
+        api_client = NISTApiClient(get_server_settings().nist.parallel_tasks)
         if category == "experiments":
             return await api_client.fetch_experiments_index(
                 client
@@ -752,7 +752,7 @@ class NISTDataService:
     async def ping_server(
         self, category: Literal["experiments", "guest", "host"]
     ) -> dict[str, Any]:
-        api_client = NISTApiClient(server_settings.nist.parallel_tasks)
+        api_client = NISTApiClient(get_server_settings().nist.parallel_tasks)
         url_by_category = {
             "experiments": api_client.url_isotherms,
             "guest": api_client.url_guest_index,
@@ -818,7 +818,7 @@ class NISTDataService:
     ) -> dict[str, Any]:
         normalized_fraction = self.clamp_fraction(fraction)
         start_time = monotonic()
-        api_client = NISTApiClient(server_settings.nist.parallel_tasks)
+        api_client = NISTApiClient(get_server_settings().nist.parallel_tasks)
 
         if job_id:
             job_manager.update_progress(job_id, 5.0)
@@ -1068,7 +1068,7 @@ class NISTDataService:
             if column not in data.columns:
                 data[column] = pd.NA
 
-        pubchem = PubChemClient(server_settings.nist.pubchem_parallel_tasks)
+        pubchem = PubChemClient(get_server_settings().nist.pubchem_parallel_tasks)
         properties = await pubchem.fetch_properties_for_names(names)
 
         if job_id:
@@ -1213,3 +1213,4 @@ class NISTDataService:
             "data_available": data_available,
             **counts,
         }
+

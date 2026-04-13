@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit, minimize
 
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
@@ -164,7 +164,7 @@ class ModelSolver:
         """
         results: dict[str, dict[str, Any]] = {}
         evaluations = max(1, int(max_iterations))
-        fitting_settings = server_settings.fitting
+        fitting_settings = get_server_settings().fitting
         sample_size = int(uptake.shape[0])
         normalized_method = self.normalize_method(optimization_method)
         for model_name, model_config in configuration.items():
@@ -599,7 +599,7 @@ class FittingPipeline:
         storage_dataset = self.trim_fitting_dataset(combined, detected_columns)
         self.serializer.save_fitting_results(storage_dataset)
 
-        ranking_metric = server_settings.fitting.best_model_metric
+        ranking_metric = get_server_settings().fitting.best_model_metric
         normalized_metric = self.adapter.normalize_metric(ranking_metric)
         best_frame = self.adapter.compute_best_models(
             storage_dataset, normalized_metric
@@ -757,12 +757,12 @@ class FittingPipeline:
             for parameter in parameters:
                 lower = float(
                     normalized_entry["min"].get(
-                        parameter, server_settings.fitting.parameter_min_default
+                        parameter, get_server_settings().fitting.parameter_min_default
                     )
                 )
                 upper = float(
                     normalized_entry["max"].get(
-                        parameter, server_settings.fitting.parameter_max_default
+                        parameter, get_server_settings().fitting.parameter_max_default
                     )
                 )
                 if upper < lower:
@@ -822,7 +822,7 @@ class FittingPipeline:
             ]
         )
         trimmed = dataset.loc[:, dict.fromkeys(preview_columns).keys()]
-        limited = trimmed.head(server_settings.fitting.preview_row_limit)
+        limited = trimmed.head(get_server_settings().fitting.preview_row_limit)
         limited = limited.replace({np.nan: None})
         return limited.to_dict(orient="records")
 
@@ -869,3 +869,4 @@ class FittingPipeline:
             for parameter, value in overrides.items():
                 backend_param = alias_map.get(parameter, parameter)
                 target[bound_type][backend_param] = float(value)
+

@@ -8,7 +8,7 @@ from typing import Any
 
 import pandas as pd
 
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.constants import (
     COLUMN_EXPERIMENT,
     COLUMN_TEMPERATURE_K,
@@ -81,7 +81,7 @@ class DatasetService:
     }
 
     def __init__(self) -> None:
-        self.allowed_extensions = set(server_settings.datasets.allowed_extensions)
+        self.allowed_extensions = set(get_server_settings().datasets.allowed_extensions)
 
     # -------------------------------------------------------------------------
     def derive_dataset_name(self, filename: str | None) -> str:
@@ -357,3 +357,4 @@ class DatasetService:
         df["name"] = dataset_name
         serializer = DataSerializer()
         serializer.save_raw_dataset(df)
+

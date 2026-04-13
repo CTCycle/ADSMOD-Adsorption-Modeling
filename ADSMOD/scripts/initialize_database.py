@@ -4,7 +4,7 @@ from dataclasses import asdict
 import json
 import time
 
-from ADSMOD.server.configurations import server_settings
+from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.repositories.database.initializer import initialize_database
 from ADSMOD.server.common.utils.logger import logger
 
@@ -15,8 +15,9 @@ if __name__ == "__main__":
     logger.info("Starting database initialization")
     logger.info(
         "Current database configuration: %s",
-        json.dumps(asdict(server_settings.database), ensure_ascii=False),
+        json.dumps(asdict(get_server_settings().database), ensure_ascii=False),
     )
     initialize_database()
     elapsed = time.perf_counter() - start
     logger.info("Database initialization completed in %.2f seconds", elapsed)
+

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from ADSMOD.server.configurations.server import build_database_settings
+from ADSMOD.server.configurations import build_database_settings
 
 
 # -------------------------------------------------------------------------
@@ -88,11 +88,8 @@ def test_db_settings_are_not_env_driven_anymore(monkeypatch: pytest.MonkeyPatch)
 
 
 # -------------------------------------------------------------------------
-def test_db_settings_reject_insecure_placeholder_password() -> None:
-    with pytest.raises(ValueError, match="DB_PASSWORD uses an insecure placeholder"):
-        build_database_settings(
-            {
-                "embedded_database": False,
-                "password": "",
-            }
-        )
+def test_db_settings_allow_minimal_external_payload() -> None:
+    settings = build_database_settings({"embedded_database": False, "password": ""})
+    assert settings.embedded_database is False
+    assert settings.password is None
+

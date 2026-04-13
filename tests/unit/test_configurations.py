@@ -1,8 +1,8 @@
 from ADSMOD.server.common.constants import CONFIGURATION_FILE
-from ADSMOD.server.configurations import load_configurations
-from ADSMOD.server.configurations.server import (
+from ADSMOD.server.configurations import (
     build_training_settings,
     get_server_settings,
+    load_configuration_data,
 )
 
 
@@ -12,7 +12,7 @@ def test_json_structure_matches_settings():
     are correctly loaded into the TrainingSettings dataclass.
     """
     settings = get_server_settings()
-    config_dict = load_configurations(CONFIGURATION_FILE)
+    config_dict = load_configuration_data(CONFIGURATION_FILE)
 
     training_json = config_dict.get("training", {})
 
@@ -71,3 +71,4 @@ def test_default_fallbacks():
     assert training_settings.pin_memory is True
     assert training_settings.persistent_workers is False
     assert training_settings.plot_update_batch_interval == 10
+
