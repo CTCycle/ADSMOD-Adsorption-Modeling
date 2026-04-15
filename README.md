@@ -70,9 +70,10 @@ Both local web mode and packaged Tauri mode use the same runtime file:
 
 Adjust host/port and runtime backend values in that file when needed.
 
-### 4.3 Operational Workflow
+### 4.3 Operational Workflow and UI Snapshots
 
 The application workflow is organized into three top navigation tabs: `source`, `fitting`, and `training`.
+The snapshots below were captured from the current `develop` build and are intended to show representative product states without duplication.
 
 #### 4.3.1 Data Source Configuration
 
