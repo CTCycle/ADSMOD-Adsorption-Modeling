@@ -25,7 +25,6 @@ def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
         smile_vocabulary={"C": 1},
         adsorbent_vocabulary={"MOF": 1},
         normalization_stats={"pressure_mean": 5.0},
-        normalization={"pressure_mean": 5.0},
     )
 
 
@@ -78,7 +77,7 @@ def test_collect_dataset_hashes_skips_uncomputable_hash(caplog) -> None:
         [
             {
                 "dataset_label": "default",
-                "dataset_hash": None,
+                "hashcode": None,
                 "total_samples": 0,
                 "train_samples": 0,
                 "validation_samples": 0,
@@ -109,7 +108,7 @@ def test_collect_dataset_hashes_computes_missing_hash() -> None:
         [
             {
                 "dataset_label": "alpha",
-                "dataset_hash": None,
+                "hashcode": None,
                 "total_samples": 100,
                 "train_samples": 80,
                 "validation_samples": 20,
@@ -144,7 +143,6 @@ def test_collect_dataset_hashes_computes_missing_hash() -> None:
         smile_vocabulary={"C": 1, "O": 2},
         adsorbent_vocabulary={"MOF": 1},
         normalization_stats={"pressure_mean": 5.0},
-        normalization={"pressure_mean": 5.0},
     )
     expected_hash = TrainingDataSerializer.compute_metadata_hash(expected_metadata)
 

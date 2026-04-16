@@ -228,11 +228,7 @@ class DatasetBuilder:
         smile_vocab = {}
         reference_smile_vocab = None
         if reference_metadata is not None:
-            reference_smile_vocab = (
-                reference_metadata.smile_vocabulary
-                or reference_metadata.SMILE_vocabulary
-                or {}
-            )
+            reference_smile_vocab = reference_metadata.smile_vocabulary or {}
 
         tokenization = SMILETokenization(self.configuration)
         logger.info("Tokenizing SMILE sequences for adsorbate species")
@@ -346,17 +342,11 @@ class DatasetBuilder:
             smile_vocabulary=smile_vocab,
             adsorbent_vocabulary=adsorbent_vocab,
             normalization_stats=statistics or {},
-            normalization=statistics or {},
         )
 
         # Compute hash using the centralized logic in serializer
         dataset_hash = TrainingDataSerializer.compute_metadata_hash(metadata)
         metadata.dataset_hash = dataset_hash
-
-        # Convert to DataFrame for compatibility with existing save method if needed
-        # Or preferably use the serializer's method directly if it accepts the object
-        # Looking at serializer.py logic, save_training_metadata(metadata: pd.DataFrame)
-        # So we convert to DataFrame as before, but with the correct hash.
 
         metadata_df = pd.DataFrame(
             [

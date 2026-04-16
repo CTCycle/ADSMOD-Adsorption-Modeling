@@ -323,9 +323,6 @@ class TrainingMetadata(BaseModel):
     normalization_stats: dict[str, list[float] | float | dict[str, Any]] = Field(
         default_factory=dict
     )
-    normalization: dict[str, list[float] | float | dict[str, Any]] = Field(
-        default_factory=dict
-    )
 
     # Integrity check
     dataset_hash: str | None = Field(

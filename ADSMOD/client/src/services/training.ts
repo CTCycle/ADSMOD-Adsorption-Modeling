@@ -196,15 +196,6 @@ export async function fetchCheckpoints(): Promise<{
         const result = await response.json();
         const rawCheckpoints = Array.isArray(result.checkpoints) ? result.checkpoints : [];
         const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint: unknown) => {
-            if (typeof checkpoint === 'string') {
-                return {
-                    name: checkpoint,
-                    epochs_trained: null,
-                    final_loss: null,
-                    final_accuracy: null,
-                    is_compatible: false,
-                };
-            }
             const record = checkpoint as Partial<CheckpointInfo>;
             return {
                 name: record.name || 'Unknown checkpoint',

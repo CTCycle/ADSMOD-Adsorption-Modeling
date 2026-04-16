@@ -38,8 +38,11 @@ def load_configuration_data(path: str | None = None) -> dict[str, Any]:
 
 ###############################################################################
 def public_host_mode_enabled() -> bool:
-    load_environment()
-    host = os.getenv("FASTAPI_HOST", "").strip().lower()
+    host = os.getenv("FASTAPI_HOST")
+    if host is None:
+        load_environment()
+        host = os.getenv("FASTAPI_HOST", "")
+    host = host.strip().lower()
     if not host:
         return False
     return host not in LOOPBACK_HOSTS
