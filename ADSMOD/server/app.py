@@ -12,7 +12,6 @@ from ADSMOD.server.common.constants import (
     FASTAPI_VERSION,
 )
 from ADSMOD.server.configurations.startup import (
-    direct_api_enabled,
     public_host_mode_enabled,
     resolve_spa_file_path,
 )
@@ -45,7 +44,7 @@ routers = [
 ]
 
 for router in routers:
-    if router is health_router or direct_api_enabled():
+    if router is health_router:
         app.include_router(router)
     if router is not health_router:
         app.include_router(router, prefix="/api", include_in_schema=False)

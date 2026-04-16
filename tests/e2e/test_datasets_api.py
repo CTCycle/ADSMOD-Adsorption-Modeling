@@ -21,7 +21,7 @@ class TestDatasetUpload:
 
         # Act
         response = api_context.post(
-            "/datasets/load",
+            "/api/datasets/load",
             multipart={
                 "file": {
                     "name": "test_adsorption.csv",
@@ -50,7 +50,7 @@ class TestDatasetUpload:
 
         # Act
         response = api_context.post(
-            "/datasets/load",
+            "/api/datasets/load",
             multipart={
                 "file": {
                     "name": "columns_test.csv",
@@ -76,7 +76,7 @@ class TestDatasetNames:
     def test_get_dataset_names(self, api_context: APIRequestContext) -> None:
         """Verify dataset names endpoint returns a list."""
         # Act
-        response = api_context.get("/datasets/names")
+        response = api_context.get("/api/datasets/names")
 
         # Assert
         assert response.ok
@@ -99,7 +99,7 @@ class TestDatasetByName:
             file_content = f.read()
 
         upload_response = api_context.post(
-            "/datasets/load",
+            "/api/datasets/load",
             multipart={
                 "file": {
                     "name": "fetch_test.csv",
@@ -111,7 +111,7 @@ class TestDatasetByName:
         assert upload_response.ok
 
         # Act
-        response = api_context.get("/datasets/by-name/fetch_test")
+        response = api_context.get("/api/datasets/by-name/fetch_test")
 
         # Assert
         assert response.ok
@@ -123,7 +123,7 @@ class TestDatasetByName:
     def test_get_nonexistent_dataset(self, api_context: APIRequestContext) -> None:
         """Verify 400 error when fetching a non-existent dataset."""
         # Act
-        response = api_context.get("/datasets/by-name/nonexistent_dataset_xyz")
+        response = api_context.get("/api/datasets/by-name/nonexistent_dataset_xyz")
 
         # Assert
         assert response.status == 400

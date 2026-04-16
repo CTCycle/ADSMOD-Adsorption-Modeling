@@ -635,9 +635,9 @@ class DataSerializer:
         return pd.DataFrame.from_records(records)
 
     # -------------------------------------------------------------------------
-    def _load_processed_compat(self) -> pd.DataFrame:
+    def _load_processed_isotherms(self) -> pd.DataFrame:
         with self.session_factory() as session:
-            rows = self.queries.load_processed_compat_rows(session)
+            rows = self.queries.load_processed_rows(session)
 
         if not rows:
             return pd.DataFrame()
@@ -683,7 +683,7 @@ class DataSerializer:
             return frame.reset_index(drop=True)
 
         if normalized == self.processed_table:
-            frame = self._load_processed_compat()
+            frame = self._load_processed_isotherms()
             if frame.empty:
                 return frame
             if offset:
@@ -934,7 +934,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_fitting_results(self) -> pd.DataFrame:
-        return self._load_processed_compat().rename(
+        return self._load_processed_isotherms().rename(
             columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME}
         )
 
@@ -1004,7 +1004,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_best_fit(self) -> pd.DataFrame:
-        processed = self._load_processed_compat()
+        processed = self._load_processed_isotherms()
         if processed.empty:
             return processed
 

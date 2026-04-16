@@ -280,8 +280,6 @@ class TrainingDataSerializer:
         smile_vocab_size = int(max_smile_index) + 1
         normalization_stats = self._parse_json(row.get("normalization_stats"))
         dataset_hash_value = row.get(self.metadata_hash_column)
-        if dataset_hash_value is None:
-            dataset_hash_value = row.get("dataset_hash")
 
         return TrainingMetadata(
             created_at=str(row.get("created_at", "")),
@@ -299,12 +297,8 @@ class TrainingDataSerializer:
             smile_vocabulary=smile_vocabulary,
             adsorbent_vocabulary=adsorbent_vocabulary,
             normalization_stats=normalization_stats,
-            normalization=normalization_stats,
             smile_vocabulary_size=smile_vocab_size,
             adsorbent_vocabulary_size=len(adsorbent_vocabulary),
-            SMILE_sequence_size=int(row.get("smile_sequence_size", 20)),
-            SMILE_vocabulary=smile_vocabulary,
-            SMILE_vocabulary_size=smile_vocab_size,
         )
 
     # -------------------------------------------------------------------------
@@ -393,8 +387,6 @@ class TrainingDataSerializer:
         datasets = []
         for _, row in metadata_df.iterrows():
             dataset_hash_value = row.get(TrainingDataSerializer.metadata_hash_column)
-            if dataset_hash_value is None:
-                dataset_hash_value = row.get("dataset_hash")
             datasets.append(
                 {
                     "dataset_label": str(row.get("dataset_label", "default")),
