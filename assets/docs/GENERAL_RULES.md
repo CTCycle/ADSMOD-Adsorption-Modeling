@@ -45,6 +45,7 @@ Then read only the minimum additional docs needed:
 - Prefer small, verifiable increments: implement, wire, validate.
 - Follow existing project conventions for architecture and file organization.
 - Keep behavior deterministic and testable.
+- Do not introduce global variables (`global` state in Python, `globalThis`/module-level mutable singleton state in TypeScript/JavaScript). Prefer explicit dependency injection or instance/local state.
 
 ## 5. Documentation Maintenance
 
