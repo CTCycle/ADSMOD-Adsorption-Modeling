@@ -358,7 +358,8 @@ echo [FATAL] Backend did not become ready at !BACKEND_BASE_URL! (checked /api/he
 goto error
 :backend_ready_check
 
-echo [RUN] Launching frontendpushd "%FRONTEND_DIR%" >nul
+echo [RUN] Launching frontend
+pushd "%FRONTEND_DIR%" >nul
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!UI_PORT! .*LISTENING"') do (
   set "pid_path="
   for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
