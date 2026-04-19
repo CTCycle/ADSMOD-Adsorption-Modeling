@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from typing import ClassVar
 
 from pydantic import ValidationError
 
@@ -19,9 +18,8 @@ class ConfigurationManager:
 
     # -------------------------------------------------------------------------
     def load(self) -> AppSettings:
-        settings_cls = self._build_path_scoped_settings_class(self.config_path)
         try:
-            self.settings = settings_cls.load()
+            self.settings = self._load_settings_from_path(self.config_path)
         except ValidationError as exc:
             raise RuntimeError(f"Invalid application settings: {exc}") from exc
         return self.settings
@@ -61,11 +59,17 @@ class ConfigurationManager:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _build_path_scoped_settings_class(config_path: str) -> type[AppSettings]:
-        class PathScopedAppSettings(AppSettings):
-            _configuration_file: ClassVar[str] = config_path
-
-        return PathScopedAppSettings
+    def _load_settings_from_path(config_path: str) -> AppSettings:
+        payload = ConfigurationManager.load_configuration_data(config_path)
+        values: dict[str, Any] = {
+            "database": payload.get("database", {}),
+            "datasets": payload.get("datasets", {}),
+            "nist": payload.get("nist", {}),
+            "fitting": payload.get("fitting", {}),
+            "jobs": payload.get("jobs", {}),
+            "training": payload.get("training", {}),
+        }
+        return AppSettings.model_validate(values)
 
     # -------------------------------------------------------------------------
     @staticmethod

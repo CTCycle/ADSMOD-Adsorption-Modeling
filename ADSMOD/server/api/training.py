@@ -6,9 +6,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Path, Query
 
 from ADSMOD.server.domain.jobs import (
+    JobCancelResponse,
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
+    StatusMessageResponse,
 )
 from ADSMOD.server.domain.training import (
     CheckpointDetailInfo,
@@ -30,6 +32,7 @@ from ADSMOD.server.domain.training import (
 from ADSMOD.server.configurations import get_server_settings
 from ADSMOD.server.common.utils.logger import logger
 from ADSMOD.server.common.constants import CHECKPOINTS_PATH
+from ADSMOD.server.services.job_responses import JobResponseFactory
 from ADSMOD.server.services.jobs import job_manager
 from ADSMOD.server.learning.training.manager import training_manager
 from ADSMOD.server.services.data.builder import (
@@ -103,13 +106,13 @@ class TrainingEndpoint:
             max_length=128,
             pattern=r"^[A-Za-z0-9_. -]+$",
         ),
-    ) -> dict[str, str]:
+    ) -> StatusMessageResponse:
         try:
             composer = DatasetCompositionService()
             success, message = composer.delete_source(source, dataset_name)
             if success:
-                return {"status": "success", "message": message}
-            return {"status": "error", "message": message}
+                return StatusMessageResponse(status="success", message=message)
+            return StatusMessageResponse(status="error", message=message)
         except Exception as e:
             logger.error(f"Error deleting dataset source: {e}")
             raise HTTPException(
@@ -206,10 +209,9 @@ class TrainingEndpoint:
             runner=self.run_dataset_build,
             args=(request.model_dump(),),
         )
-        return JobStartResponse(
+        return JobResponseFactory.start(
             job_id=job_id,
             job_type=self.DATASET_JOB_TYPE,
-            status="running",
             message="Dataset build job started.",
             poll_interval=get_server_settings().jobs.polling_interval,
         )
@@ -219,43 +221,28 @@ class TrainingEndpoint:
         job_status = job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(status_code=404, detail=f"Job {job_id} not found.")
-        return JobStatusResponse(
-            job_id=job_status["job_id"],
-            job_type=job_status["job_type"],
-            status=job_status["status"],
-            progress=job_status["progress"],
-            result=job_status["result"],
-            error=job_status["error"],
+        return JobResponseFactory.status(
+            job_status=job_status,
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
     def list_dataset_jobs(self) -> JobListResponse:
         all_jobs = job_manager.list_jobs(self.DATASET_JOB_TYPE)
-        return JobListResponse(
-            jobs=[
-                JobStatusResponse(
-                    job_id=j["job_id"],
-                    job_type=j["job_type"],
-                    status=j["status"],
-                    progress=j["progress"],
-                    result=j["result"],
-                    error=j["error"],
-                    poll_interval=get_server_settings().jobs.polling_interval,
-                )
-                for j in all_jobs
-            ]
+        return JobResponseFactory.list(
+            job_statuses=all_jobs,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
-    def cancel_dataset_job(self, job_id: str) -> dict[str, str]:
+    def cancel_dataset_job(self, job_id: str) -> JobCancelResponse:
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
                 status_code=400,
                 detail=f"Job {job_id} cannot be cancelled.",
             )
-        return {"status": "cancelled", "job_id": job_id}
+        return JobResponseFactory.cancelled(job_id)
 
     # -------------------------------------------------------------------------
     def get_processed_datasets(self) -> ProcessedDatasetsResponse:
@@ -320,7 +307,7 @@ class TrainingEndpoint:
             max_length=64,
             pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
         ),
-    ) -> dict[str, str]:
+    ) -> StatusMessageResponse:
         try:
             resolved_label = (
                 training_manager.data_serializer.normalize_dataset_label(dataset_label)
@@ -335,12 +322,11 @@ class TrainingEndpoint:
                     if resolved_label
                     else "All training datasets cleared."
                 )
-                return {"status": "success", "message": msg}
-            else:
-                return {
-                    "status": "error",
-                    "message": "Failed to clear training dataset.",
-                }
+                return StatusMessageResponse(status="success", message=msg)
+            return StatusMessageResponse(
+                status="error",
+                message="Failed to clear training dataset.",
+            )
 
         except Exception as e:
             logger.error(f"Error clearing training dataset: {e}")
@@ -495,21 +481,20 @@ class TrainingEndpoint:
             max_length=128,
             pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
         ),
-    ) -> dict[str, str]:
+    ) -> StatusMessageResponse:
         try:
             success = training_manager.model_serializer.delete_checkpoint(
                 checkpoint_name
             )
             if success:
-                return {
-                    "status": "success",
-                    "message": f"Checkpoint {checkpoint_name} deleted.",
-                }
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Failed to delete checkpoint {checkpoint_name}.",
+                return StatusMessageResponse(
+                    status="success",
+                    message=f"Checkpoint {checkpoint_name} deleted.",
                 )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to delete checkpoint {checkpoint_name}.",
+            )
         except HTTPException:
             raise
         except ValueError as e:
@@ -700,10 +685,13 @@ class TrainingEndpoint:
             ) from e
 
     # -------------------------------------------------------------------------
-    def stop_training(self) -> dict[str, str]:
+    def stop_training(self) -> StatusMessageResponse:
         state = training_manager.state.snapshot()
         if not state["is_training"]:
-            return {"status": "stopped", "message": "No training session is running."}
+            return StatusMessageResponse(
+                status="stopped",
+                message="No training session is running.",
+            )
 
         try:
             logger.info("Stop requested for current training session")
@@ -714,7 +702,10 @@ class TrainingEndpoint:
             if training_session.current_job_id:
                 job_manager.cancel_job(training_session.current_job_id)
 
-            return {"status": "stopped", "message": "Training stop requested."}
+            return StatusMessageResponse(
+                status="stopped",
+                message="Training stop requested.",
+            )
 
         except HTTPException:
             raise
@@ -762,6 +753,7 @@ class TrainingEndpoint:
             "/dataset-source",
             self.delete_dataset_source,
             methods=["DELETE"],
+            response_model=StatusMessageResponse,
         )
         self.router.add_api_route(
             "/build-dataset",
@@ -785,6 +777,7 @@ class TrainingEndpoint:
             "/dataset",
             self.clear_training_dataset,
             methods=["DELETE"],
+            response_model=StatusMessageResponse,
         )
         self.router.add_api_route(
             "/jobs",
@@ -802,6 +795,7 @@ class TrainingEndpoint:
             "/jobs/{job_id}",
             self.cancel_dataset_job,
             methods=["DELETE"],
+            response_model=JobCancelResponse,
         )
         self.router.add_api_route(
             "/checkpoints",
@@ -819,6 +813,7 @@ class TrainingEndpoint:
             "/checkpoints/{checkpoint_name}",
             self.delete_checkpoint,
             methods=["DELETE"],
+            response_model=StatusMessageResponse,
         )
         self.router.add_api_route(
             "/start",
@@ -836,6 +831,7 @@ class TrainingEndpoint:
             "/stop",
             self.stop_training,
             methods=["POST"],
+            response_model=StatusMessageResponse,
         )
         self.router.add_api_route(
             "/status",

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import warnings
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 from fastapi import FastAPI
 
 from ADSMOD.server.common.constants import (
@@ -20,6 +18,8 @@ from ADSMOD.server.api.entrypoint import health_router, register_root_routes
 from ADSMOD.server.api.fitting import router as fit_router
 from ADSMOD.server.api.nist import router as nist_router
 from ADSMOD.server.api.training import router as training_router
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 PUBLIC_HOST_MODE = public_host_mode_enabled()
@@ -50,5 +50,12 @@ for router in routers:
         app.include_router(router, prefix="/api", include_in_schema=False)
 
 register_root_routes(app)
+
+__all__ = [
+    "app",
+    "PUBLIC_HOST_MODE",
+    "public_host_mode_enabled",
+    "resolve_spa_file_path",
+]
 
 

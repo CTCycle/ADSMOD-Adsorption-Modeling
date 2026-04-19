@@ -1,6 +1,6 @@
 # ADSMOD Architecture
 
-Last updated: 2026-04-08
+Last updated: 2026-04-20
 
 ADSMOD is a local adsorption-modeling application composed of:
 - a Python FastAPI backend (`ADSMOD/server`),
@@ -12,8 +12,11 @@ ADSMOD is a local adsorption-modeling application composed of:
 - `ADSMOD/`: application code.
   - `server/`: backend API, domain models, services, repositories, training runtime.
     - `api/`: route modules (`datasets`, `entrypoint`, `fitting`, `nist`, `training`).
-    - `services/`: orchestration (`jobs.py`, `training.py`).
+    - `services/`: orchestration (`jobs.py`, `job_responses.py`, `training.py`), plus fitting/NIST data services.
     - `repositories/`: persistence and query helpers.
+      - `serialization/normalization.py`: shared serialization normalization/conversion helpers.
+      - `serialization/data.py`: repository serializer and persistence wiring.
+    - `services/data/`: NIST clients/builders (`nistads.py`) and service orchestration (`nist_service.py`).
     - `learning/`: model training runtime components.
   - `client/`: frontend app.
     - `src/pages/`: top-level pages (`ConfigPage`, `ModelsPage`, `MachineLearningPage`).
@@ -54,6 +57,7 @@ ADSMOD is a local adsorption-modeling application composed of:
 
 ### 4.2 Fitting and training
 - Fitting runs as background jobs with status polling.
+- Fitting NIST dataset preparation is executed in service-layer code (`server/services/modeling/nist_dataset.py`).
 - Training supports fresh runs and resume-from-checkpoint flows.
 - Checkpoint compatibility is validated against runtime metadata.
 
