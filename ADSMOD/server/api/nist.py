@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 
 from ADSMOD.server.domain.jobs import (
+    JobCancelResponse,
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
@@ -35,8 +36,9 @@ from ADSMOD.server.common.constants import (
     NIST_STATUS_ENDPOINT,
 )
 from ADSMOD.server.common.utils.logger import logger
+from ADSMOD.server.services.data.nist_service import NISTDataService
+from ADSMOD.server.services.job_responses import JobResponseFactory
 from ADSMOD.server.services.jobs import job_manager
-from ADSMOD.server.services.data.nistads import NISTDataService
 from ADSMOD.server.configurations import get_server_settings
 
 router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
@@ -80,10 +82,9 @@ class NistEndpoint:
             args=args,
             job_id=job_id,
         )
-        return JobStartResponse(
+        return JobResponseFactory.start(
             job_id=job_id,
             job_type=job_type,
-            status="running",
             message=message,
             poll_interval=get_server_settings().jobs.polling_interval,
         )
@@ -286,13 +287,8 @@ class NistEndpoint:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Job {job_id} not found.",
             )
-        return JobStatusResponse(
-            job_id=job_status["job_id"],
-            job_type=job_status["job_type"],
-            status=job_status["status"],
-            progress=job_status["progress"],
-            result=job_status["result"],
-            error=job_status["error"],
+        return JobResponseFactory.status(
+            job_status=job_status,
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
@@ -303,30 +299,20 @@ class NistEndpoint:
             for job in job_manager.list_jobs()
             if str(job.get("job_type", "")).startswith("nist_")
         ]
-        return JobListResponse(
-            jobs=[
-                JobStatusResponse(
-                    job_id=j["job_id"],
-                    job_type=j["job_type"],
-                    status=j["status"],
-                    progress=j["progress"],
-                    result=j["result"],
-                    error=j["error"],
-                    poll_interval=get_server_settings().jobs.polling_interval,
-                )
-                for j in all_jobs
-            ]
+        return JobResponseFactory.list(
+            job_statuses=all_jobs,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
-    def cancel_job(self, job_id: str) -> dict:
+    def cancel_job(self, job_id: str) -> JobCancelResponse:
         success = job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Job {job_id} cannot be cancelled (not found or already completed).",
             )
-        return {"status": "cancelled", "job_id": job_id}
+        return JobResponseFactory.cancelled(job_id)
 
     # -------------------------------------------------------------------------
     async def fetch_nist_status(self) -> NISTStatusResponse:
@@ -424,6 +410,7 @@ class NistEndpoint:
             NIST_JOB_STATUS_ENDPOINT,
             self.cancel_job,
             methods=["DELETE"],
+            response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
 

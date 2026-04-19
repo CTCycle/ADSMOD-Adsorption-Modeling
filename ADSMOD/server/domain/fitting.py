@@ -92,3 +92,17 @@ class FittingResponse(BaseModel):
     models: list[str]
     best_model_saved: bool
     best_model_preview: list[dict[str, Any]] | None = None
+
+
+###############################################################################
+class NISTFittingDatasetPayload(BaseModel):
+    dataset_name: str
+    columns: list[str]
+    records: list[dict[str, Any]]
+    row_count: int
+
+
+###############################################################################
+class NISTFittingDatasetResponse(BaseModel):
+    status: str = Field(default="success")
+    dataset: NISTFittingDatasetPayload
