@@ -180,6 +180,23 @@ class TestClearDataset:
 
 
 ###############################################################################
+class TestDatasetSources:
+    """Tests for dataset source management endpoints."""
+
+    # -------------------------------------------------------------------------
+    def test_delete_dataset_source_response_shape(
+        self, api_context: APIRequestContext
+    ) -> None:
+        response = api_context.delete(
+            "/api/training/dataset-source?source=uploaded&dataset_name=missing-dataset"
+        )
+        assert response.ok
+        payload = response.json()
+        assert payload.get("status") in {"success", "error"}
+        assert isinstance(payload.get("message"), str)
+
+
+###############################################################################
 class TestTrainingLifecycle:
     """Tests for training start/resume/stop behavior."""
 
