@@ -12,7 +12,8 @@ ADSMOD is a local adsorption-modeling application composed of:
 - `ADSMOD/`: application code.
   - `server/`: backend API, domain models, services, repositories, training runtime.
     - `api/`: route modules (`datasets`, `entrypoint`, `fitting`, `nist`, `training`).
-    - `services/`: orchestration (`jobs.py`, `job_responses.py`, `training.py`), plus fitting/NIST data services.
+    - `services/`: orchestration (`jobs.py`, `job_responses.py`, `fitting.py`, `training.py`), plus data/modeling services.
+      - `services/modeling/nist_dataset.py`: fitting NIST dataset preparation and normalization.
     - `repositories/`: persistence and query helpers.
       - `serialization/normalization.py`: shared serialization normalization/conversion helpers.
       - `serialization/data.py`: repository serializer and persistence wiring.
@@ -48,6 +49,11 @@ ADSMOD is a local adsorption-modeling application composed of:
 3. Repository layer (`server/repositories`): data access.
 4. Learning/runtime layer (`server/learning`): training and checkpoint runtime behavior.
 
+`server/api/fitting.py` and `server/api/training.py` are intentionally thin route modules:
+- they validate request/response contracts,
+- delegate business logic to `server/services`,
+- translate service exceptions into HTTP errors.
+
 ## 4. Key Subsystems
 
 ### 4.1 Data ingestion and preparation
@@ -57,9 +63,11 @@ ADSMOD is a local adsorption-modeling application composed of:
 
 ### 4.2 Fitting and training
 - Fitting runs as background jobs with status polling.
-- Fitting NIST dataset preparation is executed in service-layer code (`server/services/modeling/nist_dataset.py`).
+- Fitting route orchestration is owned by `server/services/fitting.py`.
+- Fitting NIST dataset preparation is executed in `server/services/modeling/nist_dataset.py`.
 - Training supports fresh runs and resume-from-checkpoint flows.
 - Checkpoint compatibility is validated against runtime metadata.
+- Training runtime internals remain under `server/learning`, while route-facing orchestration is owned by `server/services/training.py`.
 
 ### 4.3 Job orchestration
 - Centralized in `ADSMOD/server/services/jobs.py` (`job_manager`).

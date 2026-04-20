@@ -208,4 +208,20 @@ class TestNistDatasetForFitting:
         assert response.status in (200, 400)
         if response.ok:
             data = response.json()
-            assert "dataset" in data or "summary" in data
+            assert data.get("status") == "success"
+            assert "dataset" in data
+            dataset = data["dataset"]
+            assert "dataset_name" in dataset
+            assert "columns" in dataset
+            assert "records" in dataset
+            assert "row_count" in dataset
+
+
+###############################################################################
+class TestFittingJobs:
+    """Tests for fitting job polling and cancellation payloads."""
+
+    # -------------------------------------------------------------------------
+    def test_cancel_unknown_job_returns_error(self, api_context: APIRequestContext) -> None:
+        response = api_context.delete("/api/fitting/jobs/unknown-job")
+        assert response.status == 400

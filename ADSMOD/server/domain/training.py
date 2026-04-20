@@ -249,6 +249,18 @@ class DatasetSourcesResponse(BaseModel):
 
 
 ###############################################################################
+class OperationStatusResponse(BaseModel):
+    status: str
+    message: str
+
+
+###############################################################################
+class DatasetSourceDeleteResponse(BaseModel):
+    status: str
+    message: str
+
+
+###############################################################################
 class DatasetBuildResponse(BaseModel):
     success: bool
     message: str
