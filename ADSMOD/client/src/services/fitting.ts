@@ -47,15 +47,3 @@ export async function pollFittingJobUntilComplete(
         );
     }
 }
-
-// Legacy startFitting that uses job polling internally
-export async function startFitting(
-    payload: FittingPayload,
-    onProgress?: (status: JobStatusResponse) => void
-): Promise<{ message: string; data: FittingResponse | null }> {
-    const { jobId, pollInterval, error } = await startFittingJob(payload);
-    if (error || !jobId) {
-        return { message: `[ERROR] ${error || 'Failed to start job.'}`, data: null };
-    }
-    return pollFittingJobUntilComplete(jobId, pollInterval, onProgress);
-}

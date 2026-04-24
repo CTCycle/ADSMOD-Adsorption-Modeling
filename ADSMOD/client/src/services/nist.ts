@@ -94,32 +94,6 @@ export async function pollNistJobUntilComplete(
     }
 }
 
-// Legacy fetchNistData that uses job polling internally
-export async function fetchNistData(
-    payload: NISTFetchRequest,
-    onProgress?: (status: JobStatusResponse) => void
-): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
-    const { jobId, pollInterval, error: startError } = await startNistFetchJob(payload);
-    if (startError || !jobId) {
-        return { data: null, error: startError || 'Failed to start job.' };
-    }
-    const { result, error } = await pollNistJobUntilComplete(jobId, pollInterval, onProgress);
-    return { data: result, error };
-}
-
-// Legacy fetchNistProperties that uses job polling internally
-export async function fetchNistProperties(
-    payload: NISTPropertiesRequest,
-    onProgress?: (status: JobStatusResponse) => void
-): Promise<{ data: Record<string, unknown> | null; error: string | null }> {
-    const { jobId, pollInterval, error: startError } = await startNistPropertiesJob(payload);
-    if (startError || !jobId) {
-        return { data: null, error: startError || 'Failed to start job.' };
-    }
-    const { result, error } = await pollNistJobUntilComplete(jobId, pollInterval, onProgress);
-    return { data: result, error };
-}
-
 export async function fetchNistStatus(): Promise<{
     data: NISTStatusResponse | null;
     error: string | null;

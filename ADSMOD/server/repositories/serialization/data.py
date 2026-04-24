@@ -62,23 +62,7 @@ class DataSerializer:
     processed_key_column = "processed_key"
     processing_version = "v1"
 
-    table_aliases = {
-        "ADSORPTION_DATA": raw_table,
-        "ADSORPTION_PROCESSED_DATA": processed_table,
-        "ADSORPTION_BEST_FIT": best_fit_table,
-        "ADSORPTION_FITS": "adsorption_fits",
-        "ADSORPTION_FIT_PARAMS": "adsorption_fit_params",
-        "ADSORPTION_ISOTHERMS": "adsorption_isotherms",
-        "ADSORPTION_POINTS": "adsorption_points",
-        "ADSORPTION_POINT_COMPONENTS": "adsorption_point_components",
-        "ADSORPTION_ISOTHERM_COMPONENTS": "adsorption_isotherm_components",
-        "ADSORPTION_PROCESSED_ISOTHERMS": "adsorption_processed_isotherms",
-        "DATASETS": "datasets",
-        "ADSORBATES": "adsorbates",
-        "ADSORBENTS": "adsorbents",
-        "TRAINING_DATASET": "training_dataset",
-        "TRAINING_METADATA": "training_metadata",
-    }
+    table_aliases: dict[str, str] = {}
 
     def __init__(self, queries: DataRepositoryQueries | None = None) -> None:
         self.queries = queries or DataRepositoryQueries()
