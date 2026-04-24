@@ -53,7 +53,7 @@ def test_json_sequence_none(session):
     assert retrieved.sequence is None
 
 
-def test_string_payload_raises_without_legacy_fallback(session):
+def test_string_payload_raises_for_json_sequence(session):
     """Verify string payloads are rejected for JSON sequence columns."""
     session.execute(TestModel.__table__.insert().values(sequence="1.1, 2.2, 3.3"))
     session.commit()

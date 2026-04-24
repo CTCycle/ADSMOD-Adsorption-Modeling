@@ -16,17 +16,16 @@ class UpsertCapture:
 
 
 ###############################################################################
-def test_save_materials_preserves_existing_adsorbate_key(monkeypatch) -> None:
+def test_save_materials_derives_adsorbate_key_from_inchi(monkeypatch) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
         [
             {
-                "adsorbate_key": "inchi:ABCDEF1234567890ABCDEF12",
+                "adsorbate_key": "name:stale-key-123",
                 "InChIKey": "ABCDEF1234567890ABCDEF12",
                 "name": "Methane",
                 "molecular_weight": 16.04,
@@ -38,7 +37,7 @@ def test_save_materials_preserves_existing_adsorbate_key(monkeypatch) -> None:
     assert captured["table_name"] == "adsorbates"
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
-    assert frame.iloc[0]["adsorbate_key"] == "inchi:ABCDEF1234567890ABCDEF12"
+    assert frame.iloc[0]["adsorbate_key"] == "inchi:abcdef1234567890abcdef12"
     assert frame.iloc[0]["InChIKey"] == "ABCDEF1234567890ABCDEF12"
 
 
@@ -48,7 +47,6 @@ def test_save_materials_generates_adsorbate_key_when_missing(monkeypatch) -> Non
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
         [
@@ -67,12 +65,11 @@ def test_save_materials_generates_adsorbate_key_when_missing(monkeypatch) -> Non
 
 
 ###############################################################################
-def test_save_materials_preserves_existing_adsorbent_key(monkeypatch) -> None:
+def test_save_materials_derives_adsorbent_key_from_hash(monkeypatch) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(serializer, "_load_adsorbent_keys_by_hash", lambda values: {})
 
     host_data = pd.DataFrame(
         [
@@ -88,52 +85,17 @@ def test_save_materials_preserves_existing_adsorbent_key(monkeypatch) -> None:
     assert captured["table_name"] == "adsorbents"
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
-    assert frame.iloc[0]["adsorbent_key"] == "host:HostHash001"
+    assert frame.iloc[0]["adsorbent_key"] == "host:hosthash001"
 
 
 ###############################################################################
-def test_save_materials_reuses_existing_db_adsorbate_key_for_inchi(
+def test_save_materials_overrides_payload_key_with_deterministic_inchi_key(
     monkeypatch,
 ) -> None:
     serializer = NISTDataSerializer()
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(
-        serializer,
-        "_load_adsorbate_keys_by_inchi",
-        lambda values: {"abcdef1234567890abcdef12": "legacy:ads-key-001"},
-    )
-
-    guest_data = pd.DataFrame(
-        [
-            {
-                "adsorbate_key": pd.NA,
-                "InChIKey": "ABCDEF1234567890ABCDEF12",
-                "name": "Ethane",
-            }
-        ]
-    )
-    serializer.save_materials_datasets(guest_data=guest_data, host_data=None)
-
-    frame = captured["frame"]
-    assert isinstance(frame, pd.DataFrame)
-    assert frame.iloc[0]["adsorbate_key"] == "legacy:ads-key-001"
-
-
-###############################################################################
-def test_save_materials_overrides_payload_key_when_inchi_exists_in_db(
-    monkeypatch,
-) -> None:
-    serializer = NISTDataSerializer()
-    captured: dict[str, object] = {}
-    upsert_capture = UpsertCapture(captured)
-    monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(
-        serializer,
-        "_load_adsorbate_keys_by_inchi",
-        lambda values: {"abcdef1234567890abcdef12": "legacy:ads-key-001"},
-    )
 
     guest_data = pd.DataFrame(
         [
@@ -149,7 +111,7 @@ def test_save_materials_overrides_payload_key_when_inchi_exists_in_db(
     assert captured["table_name"] == "adsorbates"
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
-    assert frame.iloc[0]["adsorbate_key"] == "legacy:ads-key-001"
+    assert frame.iloc[0]["adsorbate_key"] == "inchi:abcdef1234567890abcdef12"
 
 
 ###############################################################################
@@ -160,7 +122,6 @@ def test_save_materials_deduplicates_duplicate_inchi_rows_before_upsert(
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
         [
@@ -193,7 +154,6 @@ def test_save_materials_generates_adsorbate_key_when_column_is_missing(
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(serializer, "_load_adsorbate_keys_by_inchi", lambda values: {})
 
     guest_data = pd.DataFrame(
         [
@@ -219,7 +179,6 @@ def test_save_materials_generates_adsorbent_key_when_column_is_missing(
     captured: dict[str, object] = {}
     upsert_capture = UpsertCapture(captured)
     monkeypatch.setattr(database, "upsert_into_database", upsert_capture)
-    monkeypatch.setattr(serializer, "_load_adsorbent_keys_by_hash", lambda values: {})
 
     host_data = pd.DataFrame(
         [
