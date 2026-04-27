@@ -1,125 +1,94 @@
 # ADSMOD User Manual
 
-Last updated: 2026-04-08
+Last updated: 2026-04-24
 
-This manual explains how to use ADSMOD for dataset ingestion, fitting, and model training.
+## 1. Start the Application
 
-## 1. Getting Started
+### Windows launcher (recommended)
 
-### 1.1 Start the application (Windows launcher)
+CMD:
 
-1. Open the repository folder.
-2. Run `ADSMOD\start_on_windows.bat`.
-3. Wait for backend/frontend startup.
-4. Open the UI URL shown by the launcher (typically `http://127.0.0.1:<UI_PORT>`).
+```cmd
+ADSMOD\start_on_windows.bat
+```
 
-### 1.2 Runtime and ports
+PowerShell:
 
-- Runtime host/port values are configured in `ADSMOD/settings/.env`.
-- Changes to `.env` apply to local web mode and packaged desktop mode.
+```powershell
+.\ADSMOD\start_on_windows.bat
+```
+
+The launcher prepares runtimes/dependencies, starts backend and frontend, and opens the UI URL from `ADSMOD/settings/.env`.
 
 ## 2. Main Navigation
 
-The application has three main tabs:
+The app has three top-level sections:
 
-- `source`: dataset upload and NIST data collection.
-- `fitting`: adsorption model fitting.
-- `training`: dataset processing, training runs, and checkpoints.
+- `source`: load local datasets and run NIST collection.
+- `fitting`: configure optimization and run adsorption model fitting.
+- `training`: process datasets, manage checkpoints, and run/resume training.
 
-## 3. User Journeys
+## 3. Core Workflows
 
-### 3.1 Journey A: Upload and fit a local dataset
+### A. Upload and fit a local dataset
 
-1. Go to `source`.
-2. Select a local `.csv` or `.xlsx` file.
-3. Upload and confirm dataset summary.
-4. Move to `fitting`.
-5. Select the uploaded dataset.
-6. Enable desired fitting models.
-7. Set optimizer and max iterations.
-8. Start fitting and monitor status/log output.
+1. Open `source`.
+2. Upload `.csv`, `.xls`, or `.xlsx`.
+3. Confirm dataset stats.
+4. Open `fitting`.
+5. Select dataset, model set, optimizer, and iterations.
+6. Start fitting and monitor logs.
 
-### 3.2 Journey B: Build from NIST and run fitting
+### B. Use NIST data for fitting
 
-1. Go to `source`.
-2. Trigger NIST collection/index/fetch/enrich actions as needed.
-3. Confirm status/progress completion.
-4. Go to `fitting`.
-5. Select NIST-based dataset option.
-6. Start fitting and review generated outputs.
+1. Open `source`.
+2. Run NIST category actions (ping/index/fetch/enrich) as needed.
+3. Confirm status updates.
+4. Open `fitting`.
+5. Select `NIST-A Collection`.
+6. Start fitting and monitor job status.
 
-### 3.3 Journey C: Build training dataset and start training
+### C. Build training data and run training
 
-1. Go to `training`.
-2. Create or select a processed dataset configuration.
-3. Run dataset build and wait for completion.
-4. Start a new training run with desired settings.
-5. Monitor progress and metrics from the dashboard.
+1. Open `training`.
+2. In `Data Processing`, build processed dataset(s).
+3. In `Train datasets`, start a new training run.
+4. Use `Training Dashboard` to monitor progress, metrics, and logs.
 
-### 3.4 Journey D: Resume training from a checkpoint
+### D. Resume from checkpoint
 
-1. Go to `training`.
-2. Open the checkpoints view.
-3. Select a compatible checkpoint.
-4. Resume training.
-5. Monitor status and verify metric continuity.
+1. Open `training` -> `Checkpoints`.
+2. Select checkpoint.
+3. Resume training with additional epochs.
+4. Validate resumed metrics on dashboard.
 
-## 4. Primary Commands
+## 4. Common Commands
 
-### 4.1 Launcher and maintenance
+### Launch and maintenance
 
 - Start app: `ADSMOD\start_on_windows.bat`
 - Maintenance menu: `ADSMOD\setup_and_maintenance.bat`
 
-### 4.2 Tests
+### Tests
 
-- Full test runner: `tests\run_tests.bat`
+- Full runner: `tests\run_tests.bat`
 - Direct pytest: `.\runtimes\.venv\Scripts\python.exe -m pytest tests -v`
 
-### 4.3 Frontend workflow (from `ADSMOD/client`)
+### Frontend dev (from `ADSMOD/client`)
 
-- Install deps: `npm install`
-- Run dev server: `npm run dev`
-- Build: `npm run build`
+- `npm install`
+- `npm run dev`
+- `npm run build`
 
-### 4.4 Desktop packaging
+### Desktop packaging
 
-- Prepare runtimes: `ADSMOD\start_on_windows.bat`
-- Build Tauri artifacts: `release\tauri\build_with_tauri.bat`
+- `release\tauri\build_with_tauri.bat`
 
-## 5. Usage Patterns
+## 5. Troubleshooting
 
-### 5.1 Recommended operating pattern
-
-1. Set host/port/runtime values in `ADSMOD/settings/.env`.
-2. Use launcher-managed runtimes (`runtimes/`) instead of global tooling.
-3. Work in short runs: ingest -> validate -> fit/train -> review outputs.
-4. Use checkpoints for long training sessions to avoid losing progress.
-
-### 5.2 Job monitoring pattern
-
-- Start long-running actions from UI controls.
-- Poll status through UI progress areas.
-- Cancel jobs when a run is misconfigured or no longer needed.
-- Relaunch with corrected settings.
-
-## 6. Key Features
-
-- Local dataset upload (`.csv`, `.xlsx`).
-- NIST-A data collection and enrichment.
-- Multi-model adsorption fitting workflows.
-- Training dataset composition and processing.
-- Training start/resume with checkpoint support.
-- Dashboard-style progress and status tracking.
-- Windows launcher and desktop packaging support.
-
-## 7. Troubleshooting
-
-- Application does not start:
-  - rerun `ADSMOD\start_on_windows.bat` and review console output.
-- UI cannot reach backend:
-  - verify `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT` in `.env`.
-- Tests fail due to missing optional dependencies:
-  - set `OPTIONAL_DEPENDENCIES=true`, run launcher again, then rerun tests.
-- Desktop packaging fails:
-  - ensure Rust `cargo` and an active toolchain are installed.
+- Backend/UI unreachable:
+  - Check `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT` in `ADSMOD/settings/.env`.
+- Missing test dependencies:
+  - Set `OPTIONAL_DEPENDENCIES=true` in `.env`, rerun launcher, then rerun tests.
+- Packaging failure:
+  - Ensure Rust/Cargo toolchain is installed and active.

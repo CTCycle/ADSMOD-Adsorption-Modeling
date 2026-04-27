@@ -13,7 +13,7 @@ class TestNistStatus:
     def test_get_nist_status(self, api_context: APIRequestContext) -> None:
         """Verify NIST status endpoint returns expected structure."""
         # Act
-        response = api_context.get("/nist/status")
+        response = api_context.get("/api/nist/status")
 
         # Assert
         assert response.ok
@@ -24,7 +24,7 @@ class TestNistStatus:
     def test_nist_status_includes_counts(self, api_context: APIRequestContext) -> None:
         """Verify NIST status includes row count information."""
         # Act
-        response = api_context.get("/nist/status")
+        response = api_context.get("/api/nist/status")
 
         # Assert
         assert response.ok
@@ -54,7 +54,7 @@ class TestNistFetch:
         }
 
         # Act
-        response = api_context.post("/nist/fetch", data=payload)
+        response = api_context.post("/api/nist/fetch", data=payload)
 
         # Assert
         # May succeed or fail depending on network/NIST API availability
@@ -77,7 +77,7 @@ class TestNistFetch:
         }
 
         # Act
-        response = api_context.post("/nist/fetch", data=payload)
+        response = api_context.post("/api/nist/fetch", data=payload)
 
         # Assert
         assert response.status == 422  # Pydantic validation error
@@ -94,7 +94,7 @@ class TestNistProperties:
         payload = {"target": "guest"}
 
         # Act
-        response = api_context.post("/nist/properties", data=payload)
+        response = api_context.post("/api/nist/properties", data=payload)
 
         # Assert
         # May succeed or return 400 if no data available
@@ -111,7 +111,7 @@ class TestNistProperties:
         payload = {"target": "host"}
 
         # Act
-        response = api_context.post("/nist/properties", data=payload)
+        response = api_context.post("/api/nist/properties", data=payload)
 
         # Assert
         assert response.status in (200, 400, 500)
@@ -129,7 +129,7 @@ class TestNistProperties:
         payload = {"target": "invalid"}
 
         # Act
-        response = api_context.post("/nist/properties", data=payload)
+        response = api_context.post("/api/nist/properties", data=payload)
 
         # Assert
         assert response.status == 422  # Pydantic validation error

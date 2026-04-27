@@ -4,7 +4,14 @@ import { ConfigPage } from './pages/ConfigPage';
 import { ModelsPage } from './pages/ModelsPage';
 import { MachineLearningPage } from './pages/MachineLearningPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
-import { loadDataset, startFitting, fetchDatasetNames, fetchDatasetByName, fetchNistDataForFitting } from './services';
+import {
+    loadDataset,
+    startFittingJob,
+    pollFittingJobUntilComplete,
+    fetchDatasetNames,
+    fetchDatasetByName,
+    fetchNistDataForFitting,
+} from './services';
 import type { DatasetPayload, FittingPayload, ModelParameters, ModelConfiguration } from './types';
 import './index.css';
 
@@ -277,7 +284,13 @@ function App() {
             dataset: fittingDataset,
         };
 
-        const result = await startFitting(payload);
+        const { jobId, pollInterval, error } = await startFittingJob(payload);
+        if (error || !jobId) {
+            setFittingStatus(`[ERROR] ${error || 'Failed to start job.'}`);
+            return;
+        }
+
+        const result = await pollFittingJobUntilComplete(jobId, pollInterval);
         setFittingStatus(result.message);
     }, [dataset, modelStates, maxIterations, optimizationMethod, selectedDataset]);
 

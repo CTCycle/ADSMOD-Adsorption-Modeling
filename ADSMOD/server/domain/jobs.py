@@ -93,3 +93,15 @@ class JobStatusResponse(BaseModel):
 ###############################################################################
 class JobListResponse(BaseModel):
     jobs: list[JobStatusResponse]
+
+
+###############################################################################
+class JobCancelResponse(BaseModel):
+    status: str
+    job_id: str
+
+
+###############################################################################
+class StatusMessageResponse(BaseModel):
+    status: str
+    message: str

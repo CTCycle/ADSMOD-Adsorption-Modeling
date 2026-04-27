@@ -45,19 +45,11 @@ class TorchDictDataset(Dataset):
 ###############################################################################
 class DataLoaderProcessor:
     def __init__(self, configuration: dict[str, Any], metadata: dict) -> None:
-        self.normalization_config = metadata.get("normalization") or metadata.get(
-            "normalization_stats", {}
-        )
+        self.normalization_config = metadata.get("normalization_stats", {})
         self.series_length = metadata.get("max_measurements", 30)
-        self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
-            "SMILE_sequence_size", 30
-        )
-        self.smile_vocab = metadata.get("smile_vocabulary") or metadata.get(
-            "SMILE_vocabulary", {}
-        )
-        self.adsorbent_vocab = metadata.get("adsorbent_vocabulary") or metadata.get(
-            "adsorbent_vocabulary", {}
-        )
+        self.smile_length = metadata.get("smile_sequence_size", 30)
+        self.smile_vocab = metadata.get("smile_vocabulary", {})
+        self.adsorbent_vocab = metadata.get("adsorbent_vocabulary", {})
         self.serializer = NISTDataSerializer()
         self.configuration = configuration
 
@@ -331,9 +323,7 @@ class SCADSAtomicDataLoader:
         self.configuration = configuration
         self.shuffle = shuffle
         self.output = "adsorbed_amount"
-        self.smile_length = metadata.get("smile_sequence_size") or metadata.get(
-            "SMILE_sequence_size", 20
-        )
+        self.smile_length = metadata.get("smile_sequence_size", 20)
 
     # -------------------------------------------------------------------------
     def expand_to_single_measurements(self, data: pd.DataFrame) -> pd.DataFrame:

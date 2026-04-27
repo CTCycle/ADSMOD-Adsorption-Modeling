@@ -41,7 +41,7 @@ class TestFittingRun:
     ) -> dict:
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
-            status_response = api_context.get(f"/fitting/jobs/{job_id}")
+            status_response = api_context.get(f"/api/fitting/jobs/{job_id}")
             if not status_response.ok:
                 raise AssertionError(
                     f"Failed to fetch job status: {status_response.text()}"
@@ -63,7 +63,7 @@ class TestFittingRun:
             file_content = f.read()
 
         upload_response = api_context.post(
-            "/datasets/load",
+            "/api/datasets/load",
             multipart={
                 "file": {
                     "name": "fitting_test.csv",
@@ -90,7 +90,7 @@ class TestFittingRun:
         }
 
         # Act
-        response = api_context.post("/fitting/run", data=payload)
+        response = api_context.post("/api/fitting/run", data=payload)
 
         # Assert
         assert response.ok, f"Fitting failed: {response.text()}"
@@ -110,7 +110,7 @@ class TestFittingRun:
             file_content = f.read()
 
         upload_response = api_context.post(
-            "/datasets/load",
+            "/api/datasets/load",
             multipart={
                 "file": {
                     "name": "fitting_test.csv",
@@ -141,7 +141,7 @@ class TestFittingRun:
         }
 
         # Act
-        response = api_context.post("/fitting/run", data=payload)
+        response = api_context.post("/api/fitting/run", data=payload)
 
         # Assert
         assert response.ok
@@ -161,7 +161,7 @@ class TestFittingRun:
             file_content = f.read()
 
         upload_response = api_context.post(
-            "/datasets/load",
+            "/api/datasets/load",
             multipart={
                 "file": {
                     "name": "invalid_method_test.csv",
@@ -187,7 +187,7 @@ class TestFittingRun:
         }
 
         # Act
-        response = api_context.post("/fitting/run", data=payload)
+        response = api_context.post("/api/fitting/run", data=payload)
 
         # Assert
         assert response.status == 422  # Pydantic validation error
@@ -201,11 +201,27 @@ class TestNistDatasetForFitting:
     def test_get_nist_dataset_for_fitting(self, api_context: APIRequestContext) -> None:
         """Verify NIST dataset endpoint returns data when available."""
         # Act
-        response = api_context.get("/fitting/nist-dataset")
+        response = api_context.get("/api/fitting/nist-dataset")
 
         # Assert
         # May return 200 with data or 400 if no NIST data available
         assert response.status in (200, 400)
         if response.ok:
             data = response.json()
-            assert "dataset" in data or "summary" in data
+            assert data.get("status") == "success"
+            assert "dataset" in data
+            dataset = data["dataset"]
+            assert "dataset_name" in dataset
+            assert "columns" in dataset
+            assert "records" in dataset
+            assert "row_count" in dataset
+
+
+###############################################################################
+class TestFittingJobs:
+    """Tests for fitting job polling and cancellation payloads."""
+
+    # -------------------------------------------------------------------------
+    def test_cancel_unknown_job_returns_error(self, api_context: APIRequestContext) -> None:
+        response = api_context.delete("/api/fitting/jobs/unknown-job")
+        assert response.status == 400

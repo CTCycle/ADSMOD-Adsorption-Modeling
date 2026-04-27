@@ -202,7 +202,7 @@ class DataRepositoryQueries:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def load_processed_compat_rows(session: Session) -> list[Any]:
+    def load_processed_rows(session: Session) -> list[Any]:
         return session.execute(
             select(
                 AdsorptionProcessedIsotherm.id,

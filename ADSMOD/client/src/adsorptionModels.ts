@@ -129,7 +129,7 @@ export const ADSORPTION_MODELS: AdsorptionModel[] = [
     },
 ];
 
-// Mapping from model id to display name for backward compatibility
+// Mapping from model id to display name
 export const MODEL_ID_TO_NAME: Record<string, string> = {
     langmuir: 'Langmuir',
     freundlich: 'Freundlich',
