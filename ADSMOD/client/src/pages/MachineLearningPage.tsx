@@ -33,7 +33,7 @@ import {
 
 const ARCHIVED_DATASET_PREFIX = 'archived::';
 
-// Default training configuration based on legacy app
+// Default training configuration
 const DEFAULT_CONFIG: TrainingConfig = {
     batch_size: 16,
     shuffle_dataset: true,

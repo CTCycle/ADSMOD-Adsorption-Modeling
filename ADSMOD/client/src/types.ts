@@ -170,8 +170,8 @@ export type TorchCompileBackend = 'inductor' | 'cudagraphs' | 'aot_eager' | 'eag
 
 export interface TrainingConfig {
     // Dataset settings
-    sample_size?: number;        // 0.0-1.0 fraction (deprecated)
-    validation_size?: number;    // 0.0-1.0 fraction (deprecated)
+    sample_size?: number;
+    validation_size?: number;
     batch_size: number;
     shuffle_dataset: boolean;
     max_buffer_size: number;

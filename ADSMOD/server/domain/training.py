@@ -249,6 +249,18 @@ class DatasetSourcesResponse(BaseModel):
 
 
 ###############################################################################
+class OperationStatusResponse(BaseModel):
+    status: str
+    message: str
+
+
+###############################################################################
+class DatasetSourceDeleteResponse(BaseModel):
+    status: str
+    message: str
+
+
+###############################################################################
 class DatasetBuildResponse(BaseModel):
     success: bool
     message: str
@@ -321,9 +333,6 @@ class TrainingMetadata(BaseModel):
 
     # Statistics
     normalization_stats: dict[str, list[float] | float | dict[str, Any]] = Field(
-        default_factory=dict
-    )
-    normalization: dict[str, list[float] | float | dict[str, Any]] = Field(
         default_factory=dict
     )
 

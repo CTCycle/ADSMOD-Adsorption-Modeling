@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime, timezone
 from typing import Any
 
 import hashlib
-import json
 
 import pandas as pd
 from sqlalchemy.orm import Session, sessionmaker
@@ -31,6 +29,14 @@ from ADSMOD.server.common.constants import (
 )
 from ADSMOD.server.repositories.database.backend import database
 from ADSMOD.server.repositories.queries.data import DataRepositoryQueries
+from ADSMOD.server.repositories.serialization.normalization import (
+    build_processed_key_from_values,
+    normalize_lower,
+    normalize_model_key,
+    normalize_text,
+    to_float,
+    to_float_list,
+)
 from ADSMOD.server.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
@@ -56,23 +62,7 @@ class DataSerializer:
     processed_key_column = "processed_key"
     processing_version = "v1"
 
-    table_aliases = {
-        "ADSORPTION_DATA": raw_table,
-        "ADSORPTION_PROCESSED_DATA": processed_table,
-        "ADSORPTION_BEST_FIT": best_fit_table,
-        "ADSORPTION_FITS": "adsorption_fits",
-        "ADSORPTION_FIT_PARAMS": "adsorption_fit_params",
-        "ADSORPTION_ISOTHERMS": "adsorption_isotherms",
-        "ADSORPTION_POINTS": "adsorption_points",
-        "ADSORPTION_POINT_COMPONENTS": "adsorption_point_components",
-        "ADSORPTION_ISOTHERM_COMPONENTS": "adsorption_isotherm_components",
-        "ADSORPTION_PROCESSED_ISOTHERMS": "adsorption_processed_isotherms",
-        "DATASETS": "datasets",
-        "ADSORBATES": "adsorbates",
-        "ADSORBENTS": "adsorbents",
-        "TRAINING_DATASET": "training_dataset",
-        "TRAINING_METADATA": "training_metadata",
-    }
+    table_aliases: dict[str, str] = {}
 
     def __init__(self, queries: DataRepositoryQueries | None = None) -> None:
         self.queries = queries or DataRepositoryQueries()
@@ -94,71 +84,12 @@ class DataSerializer:
         return datetime.now(timezone.utc).isoformat()
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def normalize_text(value: Any) -> str:
-        if value is None:
-            return ""
-        return str(value).strip()
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def normalize_lower(value: Any) -> str:
-        return DataSerializer.normalize_text(value).lower()
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def normalize_model_key(model_name: Any) -> str:
-        return (
-            str(model_name)
-            .replace("\u2013", "-")
-            .replace("\u2014", "-")
-            .replace("-", "_")
-            .replace(" ", "_")
-            .upper()
-            .strip("_")
-        )
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def to_float(value: Any) -> float | None:
-        if value is None:
-            return None
-        if isinstance(value, str) and value.strip() == "":
-            return None
-        try:
-            parsed = float(value)
-        except TypeError, ValueError:
-            return None
-        if pd.isna(parsed):
-            return None
-        return parsed
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def to_float_list(value: Any) -> list[float]:
-        if value is None:
-            return []
-        if isinstance(value, str):
-            stripped = value.strip()
-            if not stripped:
-                return []
-            try:
-                parsed = json.loads(stripped)
-            except json.JSONDecodeError:
-                parsed = [
-                    entry.strip() for entry in stripped.split(",") if entry.strip()
-                ]
-            return [float(entry) for entry in parsed if not pd.isna(entry)]
-        if isinstance(value, Iterable) and not isinstance(value, (bytes, bytearray)):
-            values: list[float] = []
-            for entry in value:
-                parsed = DataSerializer.to_float(entry)
-                if parsed is None:
-                    continue
-                values.append(parsed)
-            return values
-        parsed = DataSerializer.to_float(value)
-        return [parsed] if parsed is not None else []
+    normalize_text = staticmethod(normalize_text)
+    normalize_lower = staticmethod(normalize_lower)
+    normalize_model_key = staticmethod(normalize_model_key)
+    to_float = staticmethod(to_float)
+    to_float_list = staticmethod(to_float_list)
+    build_processed_key_from_values = staticmethod(build_processed_key_from_values)
 
     # -------------------------------------------------------------------------
     def normalize_material_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
@@ -183,25 +114,6 @@ class DataSerializer:
         if rename_map:
             normalized = normalized.rename(columns=rename_map)
         return normalized
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def build_processed_key_from_values(
-        adsorbent: str,
-        adsorbate: str,
-        temperature_k: float | None,
-        pressure_series: list[float],
-        uptake_series: list[float],
-    ) -> str:
-        payload = {
-            COLUMN_ADSORBENT: adsorbent,
-            COLUMN_ADSORBATE: adsorbate,
-            COLUMN_TEMPERATURE_K: temperature_k,
-            COLUMN_PRESSURE_PA: pressure_series,
-            COLUMN_UPTAKE_MOL_G: uptake_series,
-        }
-        serialized = json.dumps(payload, sort_keys=True, default=str)
-        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     # -------------------------------------------------------------------------
     def material_key(
@@ -635,9 +547,9 @@ class DataSerializer:
         return pd.DataFrame.from_records(records)
 
     # -------------------------------------------------------------------------
-    def _load_processed_compat(self) -> pd.DataFrame:
+    def _load_processed_isotherms(self) -> pd.DataFrame:
         with self.session_factory() as session:
-            rows = self.queries.load_processed_compat_rows(session)
+            rows = self.queries.load_processed_rows(session)
 
         if not rows:
             return pd.DataFrame()
@@ -683,7 +595,7 @@ class DataSerializer:
             return frame.reset_index(drop=True)
 
         if normalized == self.processed_table:
-            frame = self._load_processed_compat()
+            frame = self._load_processed_isotherms()
             if frame.empty:
                 return frame
             if offset:
@@ -934,7 +846,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_fitting_results(self) -> pd.DataFrame:
-        return self._load_processed_compat().rename(
+        return self._load_processed_isotherms().rename(
             columns={self.fitting_name_column: COLUMN_EXPERIMENT_NAME}
         )
 
@@ -1004,7 +916,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_best_fit(self) -> pd.DataFrame:
-        processed = self._load_processed_compat()
+        processed = self._load_processed_isotherms()
         if processed.empty:
             return processed
 

@@ -53,21 +53,10 @@ def test_json_sequence_none(session):
     assert retrieved.sequence is None
 
 
-def test_legacy_string_fallback(session):
-    """Verify that a manually inserted legacy CSV string is read as a list."""
-    # Bypass ORM to insert raw string
+def test_string_payload_raises_for_json_sequence(session):
+    """Verify string payloads are rejected for JSON sequence columns."""
     session.execute(TestModel.__table__.insert().values(sequence="1.1, 2.2, 3.3"))
     session.commit()
 
-    retrieved = session.query(TestModel).first()
-    assert retrieved.sequence == [1.1, 2.2, 3.3]
-
-
-def test_mixed_legacy_string(session):
-    """Verify comma-separated string trimming."""
-    session.execute(TestModel.__table__.insert().values(sequence=" 10 , 20 ,30 "))
-    session.commit()
-
-    # The fallback path normalizes numeric strings into floats.
-    retrieved = session.query(TestModel).first()
-    assert retrieved.sequence == [10.0, 20.0, 30.0]
+    with pytest.raises(ValueError, match="Invalid JSONSequence payload"):
+        _ = session.query(TestModel).first()

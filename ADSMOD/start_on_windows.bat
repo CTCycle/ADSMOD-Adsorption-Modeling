@@ -347,24 +347,14 @@ start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %
 REM ============================================================================
 REM Wait for backend
 REM ============================================================================
-echo [WAIT] Waiting for backend health endpoint to be ready on port !FASTAPI_PORT!...
-set "HEALTH_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!/api/health"
-for /L %%i in (1,1,30) do (
-  for /f "delims=" %%H in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPHEALTH%" "!HEALTH_URL!"') do set "health_ok=%%H"
-  if /i "!health_ok!"=="ok" goto :backend_ready_check
-  set "health_ok="
+set "BACKEND_BASE_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!"
+echo [WAIT] Waiting for backend readiness at !BACKEND_BASE_URL!...
+for /L %%i in (1,1,60) do (
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$base='!BACKEND_BASE_URL!'; $paths=@('/api/health','/health','/docs','/'); foreach ($p in $paths) { try { $r = Invoke-WebRequest -UseBasicParsing -Uri ($base + $p) -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300) { exit 0 } } catch {} }; exit 1" >nul 2>&1
+  if !errorlevel! equ 0 goto :backend_ready_check
   timeout /t 1 /nobreak >nul 2>&1
 )
-echo [FATAL] Backend did not become healthy at "!HEALTH_URL!" within timeout.
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
-  set "pid_path="
-  for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
-  if defined pid_path (
-    echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: !pid_path!
-  ) else (
-    echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: [unknown]
-  )
-)
+echo [FATAL] Backend did not become ready at !BACKEND_BASE_URL! (checked /api/health, /health, /docs, /).
 goto error
 :backend_ready_check
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Unicode safety helpers for ingestion, persistence, and logging.
 
 Policy:
@@ -7,6 +5,8 @@ Policy:
 - Preserve visible Unicode characters (scientific symbols, Greek letters, diacritics).
 - Explicitly normalize only problematic invisible/control characters.
 """
+
+from __future__ import annotations
 
 import json
 from typing import Any
