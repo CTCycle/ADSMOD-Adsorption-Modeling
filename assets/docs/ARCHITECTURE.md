@@ -1,6 +1,6 @@
 # ADSMOD Architecture
 
-Last updated: 2026-04-24
+Last updated: 2026-04-27
 
 ## 1. System Overview
 
@@ -28,6 +28,7 @@ Generated folders (`__pycache__`, `node_modules`, `dist`, Tauri `target`) are ex
 |  |  |  |  |- InfoModal.css
 |  |  |  |  |- InfoModal.tsx
 |  |  |  |  |- MarkdownRenderer.tsx
+|  |  |  |  |- MetricCard.tsx
 |  |  |  |  |- ModelCard.tsx
 |  |  |  |  |- ModelConfigForm.tsx
 |  |  |  |  |- NewTrainingWizard.tsx
@@ -40,6 +41,7 @@ Generated folders (`__pycache__`, `node_modules`, `dist`, Tauri `target`) are ex
 |  |  |  |  |- WizardProgressIndicator.tsx
 |  |  |  |- features/training/
 |  |  |  |- hooks/
+|  |  |  |  |- useTrainingStatusPolling.ts
 |  |  |  |- pages/
 |  |  |  |  |- ConfigPage.tsx
 |  |  |  |  |- MachineLearningPage.tsx

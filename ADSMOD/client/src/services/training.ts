@@ -9,9 +9,43 @@ import type {
     TrainingMetrics,
     TrainingStatus,
     DatasetSourceInfo,
+    DatasetFullInfo,
 } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
+
+type UnknownRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): UnknownRecord | null => (
+    value !== null && typeof value === 'object' ? (value as UnknownRecord) : null
+);
+
+const getString = (record: UnknownRecord | null, key: string): string | undefined => {
+    const value = record?.[key];
+    return typeof value === 'string' ? value : undefined;
+};
+
+const getNumber = (record: UnknownRecord | null, key: string): number | undefined => {
+    const value = record?.[key];
+    return typeof value === 'number' ? value : undefined;
+};
+
+const getBoolean = (record: UnknownRecord | null, key: string): boolean | undefined => {
+    const value = record?.[key];
+    return typeof value === 'boolean' ? value : undefined;
+};
+
+const parseCheckpointFullDetails = (record: UnknownRecord): CheckpointFullDetails => ({
+    name: getString(record, 'name') ?? 'Unknown checkpoint',
+    epochs_trained: getNumber(record, 'epochs_trained') ?? null,
+    final_loss: getNumber(record, 'final_loss') ?? null,
+    final_accuracy: getNumber(record, 'final_accuracy') ?? null,
+    is_compatible: getBoolean(record, 'is_compatible'),
+    created_at: getString(record, 'created_at'),
+    configuration: asRecord(record.configuration) ? (record.configuration as TrainingConfig) : null,
+    metadata: asRecord(record.metadata) ? (record.metadata as DatasetFullInfo) : null,
+    history: asRecord(record.history) as unknown as CheckpointFullDetails['history'],
+});
 
 async function startTrainingSession(
     endpoint: string,
@@ -40,12 +74,11 @@ async function startTrainingSession(
             return { sessionId: '', message, status: 'error' };
         }
 
-        const result = await response.json();
-        const pollInterval =
-            typeof result.poll_interval === 'number' ? result.poll_interval : undefined;
+        const result = asRecord(await response.json().catch(() => null));
+        const pollInterval = getNumber(result, 'poll_interval');
         return {
-            sessionId: result.session_id || '',
-            message: result.message || defaultMessage,
+            sessionId: getString(result, 'session_id') ?? '',
+            message: getString(result, 'message') ?? defaultMessage,
             status: 'started',
             poll_interval: pollInterval,
         };
@@ -128,13 +161,13 @@ export async function fetchTrainingDatasets(): Promise<{
             return { data: { available: false }, error: message };
         }
 
-        const result = await response.json();
+        const result = asRecord(await response.json().catch(() => null));
         return {
             data: {
-                available: result.available || false,
-                name: result.name,
-                train_samples: result.train_samples,
-                validation_samples: result.validation_samples,
+                available: getBoolean(result, 'available') ?? false,
+                name: getString(result, 'name'),
+                train_samples: getNumber(result, 'train_samples'),
+                validation_samples: getNumber(result, 'validation_samples'),
             },
             error: null,
         };
@@ -163,9 +196,34 @@ export async function fetchDatasetSources(): Promise<{
             return { datasets: [], error: message };
         }
 
-        const result = await response.json();
+        const result = asRecord(await response.json().catch(() => null));
+        const rawDatasets = Array.isArray(result?.datasets) ? result.datasets : [];
+        const datasets: DatasetSourceInfo[] = rawDatasets
+            .map((dataset): DatasetSourceInfo | null => {
+                const datasetRecord = asRecord(dataset);
+                const source = getString(datasetRecord, 'source');
+                if (source !== 'nist' && source !== 'uploaded') {
+                    return null;
+                }
+
+                const datasetName = getString(datasetRecord, 'dataset_name');
+                const displayName = getString(datasetRecord, 'display_name');
+                const rowCount = getNumber(datasetRecord, 'row_count');
+                if (!datasetName || !displayName || rowCount === undefined) {
+                    return null;
+                }
+
+                return {
+                    source,
+                    dataset_name: datasetName,
+                    display_name: displayName,
+                    row_count: rowCount,
+                };
+            })
+            .filter((dataset): dataset is DatasetSourceInfo => dataset !== null);
+
         return {
-            datasets: result.datasets || [],
+            datasets,
             error: null,
         };
     } catch (error) {
@@ -193,16 +251,16 @@ export async function fetchCheckpoints(): Promise<{
             return { checkpoints: [], error: message };
         }
 
-        const result = await response.json();
-        const rawCheckpoints = Array.isArray(result.checkpoints) ? result.checkpoints : [];
-        const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint: unknown) => {
-            const record = checkpoint as Partial<CheckpointInfo>;
+        const result = asRecord(await response.json().catch(() => null));
+        const rawCheckpoints = Array.isArray(result?.checkpoints) ? result.checkpoints : [];
+        const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint) => {
+            const record = asRecord(checkpoint);
             return {
-                name: record.name || 'Unknown checkpoint',
-                epochs_trained: record.epochs_trained ?? null,
-                final_loss: record.final_loss ?? null,
-                final_accuracy: record.final_accuracy ?? null,
-                is_compatible: record.is_compatible ?? false,
+                name: getString(record, 'name') ?? 'Unknown checkpoint',
+                epochs_trained: getNumber(record, 'epochs_trained') ?? null,
+                final_loss: getNumber(record, 'final_loss') ?? null,
+                final_accuracy: getNumber(record, 'final_accuracy') ?? null,
+                is_compatible: getBoolean(record, 'is_compatible') ?? false,
             };
         });
         return { checkpoints, error: null };
@@ -226,8 +284,14 @@ export async function fetchCheckpointDetails(
         if (!response.ok) {
             throw new Error(`Failed to fetch checkpoint details: ${response.statusText}`);
         }
-        const data = await response.json();
-        return { details: data, error: null };
+        const data = asRecord(await response.json().catch(() => null));
+        if (!data) {
+            return {
+                details: null,
+                error: 'Invalid checkpoint details response.',
+            };
+        }
+        return { details: parseCheckpointFullDetails(data), error: null };
     } catch (error) {
         console.error('Error fetching checkpoint details:', error);
         return {
@@ -297,9 +361,9 @@ export async function stopTraining(): Promise<{
             return { message, status: 'error' };
         }
 
-        const result = await response.json();
+        const result = asRecord(await response.json().catch(() => null));
         return {
-            message: result.message || 'Training stopped.',
+            message: getString(result, 'message') ?? 'Training stopped.',
             status: 'stopped',
         };
     } catch (error) {
@@ -333,16 +397,18 @@ export async function getTrainingStatus(): Promise<TrainingStatus & { error: str
             };
         }
 
-        const result = await response.json();
+        const result = asRecord(await response.json().catch(() => null));
         return {
-            is_training: result.is_training || false,
-            current_epoch: result.current_epoch || 0,
-            total_epochs: result.total_epochs || 0,
-            progress: result.progress || 0,
-            metrics: parseTrainingMetrics(result.metrics),
-            history: parseTrainingHistory(result.history),
-            log: Array.isArray(result.log) ? result.log : [],
-            poll_interval: typeof result.poll_interval === 'number' ? result.poll_interval : undefined,
+            is_training: getBoolean(result, 'is_training') ?? false,
+            current_epoch: getNumber(result, 'current_epoch') ?? 0,
+            total_epochs: getNumber(result, 'total_epochs') ?? 0,
+            progress: getNumber(result, 'progress') ?? 0,
+            metrics: parseTrainingMetrics(result?.metrics),
+            history: parseTrainingHistory(result?.history),
+            log: Array.isArray(result?.log)
+                ? result.log.filter((entry): entry is string => typeof entry === 'string')
+                : [],
+            poll_interval: getNumber(result, 'poll_interval'),
             error: null,
         };
     } catch (error) {
