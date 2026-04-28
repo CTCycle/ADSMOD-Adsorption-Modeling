@@ -4,13 +4,14 @@ import { NewTrainingWizard } from '../components/NewTrainingWizard';
 import { ResumeTrainingWizard } from '../components/ResumeTrainingWizard';
 import { TrainingSetupRow } from '../components/TrainingSetupRow';
 import { InfoModal } from '../components/InfoModal';
+import { MetricCard } from '../components/MetricCard';
 import { TrainingHistoryChartPanel } from '../features/training/components/TrainingHistoryChartPanel';
 import { useTrainingActionRunner } from '../features/training/hooks/useTrainingActionRunner';
+import { useTrainingStatusPolling } from '../hooks/useTrainingStatusPolling';
 import type {
     CheckpointFullDetails,
     TrainingConfig,
     CheckpointInfo,
-    TrainingStatus,
     ResumeTrainingConfig,
     TrainingHistoryPoint,
     TrainingMetrics,
@@ -23,7 +24,6 @@ import {
     startTraining,
     resumeTraining,
     stopTraining,
-    getTrainingStatus,
     fetchProcessedDatasets,
     deleteDataset,
     getTrainingDatasetInfo,
@@ -61,20 +61,6 @@ const DEFAULT_CONFIG: TrainingConfig = {
     checkpoints_frequency: 5,
     custom_name: '',
 };
-
-interface MetricCardProps {
-    label: string;
-    value: string;
-    icon?: string;
-    color?: string;
-}
-
-const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon, color = 'var(--primary-600)' }) => (
-    <div className="metric-card">
-        <div className="metric-label">{icon && <span className="metric-icon">{icon}</span>}{label}</div>
-        <div className="metric-value" style={{ color }}>{value}</div>
-    </div>
-);
 
 const CHART_COLORS = {
     loss: '#f59e0b',
@@ -205,16 +191,6 @@ export const MachineLearningPage: React.FC = () => {
     const [config, setConfig] = useState<TrainingConfig>(DEFAULT_CONFIG);
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
 
-    const [trainingStatus, setTrainingStatus] = useState<TrainingStatus>({
-        is_training: false,
-        current_epoch: 0,
-        total_epochs: 0,
-        progress: 0,
-        metrics: {},
-        history: [],
-        log: [],
-    });
-
     const [isLoading, setIsLoading] = useState(false);
     const [showNewTrainingWizard, setShowNewTrainingWizard] = useState(false);
     const [showResumeTrainingWizard, setShowResumeTrainingWizard] = useState(false);
@@ -237,16 +213,24 @@ export const MachineLearningPage: React.FC = () => {
         setInfoModalOpen(true);
     }, []);
 
-    const pollIntervalRef = useRef<number | null>(null);
-    const pollIntervalSecondsRef = useRef<number | null>(null);
-    const wasTrainingRef = useRef(false);
+    const {
+        trainingStatus,
+        checkStatus,
+        startPolling,
+        appendTrainingLog,
+        clearTrainingLog,
+    } = useTrainingStatusPolling({
+        onTrainingEnded: () => {
+            void loadCheckpoints();
+        },
+    });
+
     const logContainerRef = useRef<HTMLPreElement>(null);
 
     useEffect(() => {
-        loadCheckpoints();
-        loadProcessedDatasets();
-        checkStatus();
-        return () => stopPolling();
+        void loadCheckpoints();
+        void loadProcessedDatasets();
+        void checkStatus();
     }, []);
 
     useEffect(() => {
@@ -254,77 +238,6 @@ export const MachineLearningPage: React.FC = () => {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [trainingStatus.log]);
-
-    useEffect(() => {
-        if (trainingStatus.is_training) {
-            if (!pollIntervalRef.current) {
-                const intervalSeconds = trainingStatus.poll_interval
-                    ?? pollIntervalSecondsRef.current
-                    ?? 1.0;
-                startPolling(intervalSeconds);
-            }
-        } else {
-            stopPolling();
-        }
-    }, [trainingStatus.is_training]);
-
-    const normalizePollingInterval = (intervalSeconds: number | null | undefined) => {
-        if (typeof intervalSeconds !== 'number' || Number.isNaN(intervalSeconds)) {
-            return null;
-        }
-        return intervalSeconds < 0 ? 0 : intervalSeconds;
-    };
-
-    const startPolling = (intervalSeconds: number = 1.0) => {
-        const normalizedInterval = normalizePollingInterval(intervalSeconds) ?? 1.0;
-        if (pollIntervalRef.current) {
-            window.clearInterval(pollIntervalRef.current);
-        }
-        pollIntervalSecondsRef.current = normalizedInterval;
-        pollIntervalRef.current = window.setInterval(checkStatus, normalizedInterval * 1000);
-    };
-
-    const stopPolling = () => {
-        if (pollIntervalRef.current) {
-            window.clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-        }
-    };
-
-    const checkStatus = async () => {
-        const status = await getTrainingStatus();
-        if (status.error) {
-            console.error('Failed to poll status:', status.error);
-            return;
-        }
-
-        const wasTraining = wasTrainingRef.current;
-        wasTrainingRef.current = status.is_training;
-
-        setTrainingStatus({
-            is_training: status.is_training,
-            current_epoch: status.current_epoch,
-            total_epochs: status.total_epochs,
-            progress: status.progress,
-            metrics: status.metrics || {},
-            history: status.history || [],
-            log: status.log || [],
-            poll_interval: status.poll_interval,
-        });
-
-        const nextInterval = normalizePollingInterval(status.poll_interval);
-        if (nextInterval !== null && pollIntervalSecondsRef.current !== nextInterval) {
-            if (status.is_training) {
-                startPolling(nextInterval);
-            } else {
-                pollIntervalSecondsRef.current = nextInterval;
-            }
-        }
-
-        if (!status.is_training && wasTraining) {
-            loadCheckpoints();
-        }
-    };
 
     const loadCheckpoints = async () => {
         const result = await fetchCheckpoints();
@@ -408,13 +321,6 @@ export const MachineLearningPage: React.FC = () => {
     const metricTitle = hasAccuracyMetric ? 'ACCURACY' : 'R2 SCORE';
     const metricAsPercent = hasAccuracyMetric;
     const hasHistory = history.length > 0;
-
-    const appendTrainingLog = useCallback((message: string) => {
-        setTrainingStatus((prev) => ({
-            ...prev,
-            log: [...(prev.log || []), message],
-        }));
-    }, []);
 
     const { runTrainingAction } = useTrainingActionRunner({
         setLoading: setIsLoading,
@@ -583,7 +489,7 @@ export const MachineLearningPage: React.FC = () => {
                     <span>Training Log</span>
                     <button
                         className="ghost-button"
-                        onClick={() => setTrainingStatus(prev => ({ ...prev, log: ['Ready to start training...'] }))}
+                        onClick={clearTrainingLog}
                         type="button"
                     >
                         Clear
@@ -707,8 +613,3 @@ export const MachineLearningPage: React.FC = () => {
 };
 
 export default MachineLearningPage;
-
-
-
-
-

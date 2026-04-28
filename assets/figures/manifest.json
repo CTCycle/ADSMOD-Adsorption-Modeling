@@ -1,9 +1,9 @@
 {
-  "base_url": "http://127.0.0.1:8001",
-  "generated_at": "2026-03-11T12:31:17Z",
+  "base_url": "http://127.0.0.1:9580",
+  "generated_at": "2026-04-28T07:18:45Z",
   "viewport": {
     "width": 1440,
-    "height": 1100
+    "height": 900
   },
   "captures": [
     {
@@ -14,9 +14,9 @@
       ],
       "viewport": {
         "width": 1440,
-        "height": 1100
+        "height": 900
       },
-      "notes": "No login required. Full-page screenshot. Cropped to remove bottom whitespace."
+      "notes": "No login required. Viewport screenshot."
     },
     {
       "page_title": "Fitting Configuration",
@@ -26,9 +26,9 @@
       ],
       "viewport": {
         "width": 1440,
-        "height": 1695
+        "height": 900
       },
-      "notes": "Settings-focused page. Full-page screenshot. Cropped to remove bottom whitespace."
+      "notes": "Settings-focused page. Viewport screenshot."
     },
     {
       "page_title": "Training - Data Processing",
@@ -38,9 +38,9 @@
       ],
       "viewport": {
         "width": 1440,
-        "height": 1100
+        "height": 900
       },
-      "notes": "No login required. Full-page screenshot. Cropped to remove bottom whitespace."
+      "notes": "No login required. Viewport screenshot."
     },
     {
       "page_title": "Training - Datasets List",
@@ -50,9 +50,9 @@
       ],
       "viewport": {
         "width": 1440,
-        "height": 1100
+        "height": 900
       },
-      "notes": "List-style view. Full-page screenshot. Cropped to remove bottom whitespace."
+      "notes": "List-style view. Viewport screenshot."
     },
     {
       "page_title": "Training - Checkpoints",
@@ -62,9 +62,9 @@
       ],
       "viewport": {
         "width": 1440,
-        "height": 1100
+        "height": 900
       },
-      "notes": "List/detail entry point for checkpoint inspection. Full-page screenshot. Cropped to remove bottom whitespace."
+      "notes": "List/detail entry point for checkpoint inspection. Viewport screenshot."
     },
     {
       "page_title": "Training Dashboard",
@@ -74,9 +74,9 @@
       ],
       "viewport": {
         "width": 1440,
-        "height": 1100
+        "height": 900
       },
-      "notes": "Dashboard page. Full-page screenshot. Cropped to remove bottom whitespace."
+      "notes": "Dashboard page. Viewport screenshot."
     }
   ],
   "failures": []

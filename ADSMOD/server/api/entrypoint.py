@@ -12,14 +12,19 @@ from ADSMOD.server.configurations.startup import (
     packaged_client_available,
     resolve_spa_file_path,
 )
+from ADSMOD.server.domain.bootstrap import ServiceStatusResponse
 
 health_router = APIRouter()
 
 
 ###############################################################################
-@health_router.get("/api/health", include_in_schema=False)
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+@health_router.get(
+    "/api/health",
+    include_in_schema=False,
+    response_model=ServiceStatusResponse,
+)
+def health_check() -> ServiceStatusResponse:
+    return ServiceStatusResponse(status="ok")
 
 
 # -----------------------------------------------------------------------------
@@ -28,8 +33,8 @@ def redirect_to_docs() -> RedirectResponse:
 
 
 # -----------------------------------------------------------------------------
-def service_root() -> dict[str, str]:
-    return {"status": "ok"}
+def service_root() -> ServiceStatusResponse:
+    return ServiceStatusResponse(status="ok")
 
 
 # -----------------------------------------------------------------------------
@@ -77,5 +82,11 @@ def register_root_routes(app: FastAPI) -> None:
         app.add_api_route("/", redirect_to_docs, methods=["GET"])
         return
 
-    app.add_api_route("/", service_root, methods=["GET"], include_in_schema=False)
+    app.add_api_route(
+        "/",
+        service_root,
+        methods=["GET"],
+        include_in_schema=False,
+        response_model=ServiceStatusResponse,
+    )
 
