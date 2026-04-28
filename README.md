@@ -1,9 +1,9 @@
 # ADSMOD Adsorption Modeling
-[![Release](https://img.shields.io/github/v/release/CTCycle/NISTCOLLECT-adsorption-data-collection?display_name=tag)](https://github.com/CTCycle/NISTCOLLECT-adsorption-data-collection/releases)
+[![Release](https://img.shields.io/github/v/release/CTCycle/ADSMOD-Adsorption-Modeling?display_name=tag)](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/releases)
 [![Python](https://img.shields.io/badge/Python-%3E%3D3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.12.0-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/CTCycle/NISTCOLLECT-adsorption-data-collection/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/NISTCOLLECT-adsorption-data-collection/actions/workflows/ci.yml)
+[![CI](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml)
 
 ## 1. Project Overview
 
@@ -78,7 +78,7 @@ Adjust host/port and runtime backend values in that file when needed.
 ### 4.3 Operational Workflow and UI Snapshots
 
 The application workflow is organized into three top navigation tabs: `source`, `fitting`, and `training`.
-The snapshots below were captured from the current `develop` build and are intended to show representative product states without duplication.
+The snapshots below were captured from the current `develop` build (`v2.2.0` release preparation) and are intended to show representative product states without duplication.
 
 #### 4.3.1 Data Source Configuration
 

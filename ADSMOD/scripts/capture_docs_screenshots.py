@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,10 +12,9 @@ from playwright.sync_api import Error, Page, TimeoutError, sync_playwright
 ROOT_DIR = Path(__file__).resolve().parents[2]
 FIGURES_DIR = ROOT_DIR / "assets" / "figures"
 MANIFEST_PATH = FIGURES_DIR / "manifest.json"
-BASE_URL = "http://127.0.0.1:8001"
-VIEWPORT = {"width": 1440, "height": 2200}
+BASE_URL = "http://127.0.0.1:9580"
+VIEWPORT = {"width": 1440, "height": 900}
 MAX_RETRIES = 3
-LONG_PAGE_SEGMENT_THRESHOLD = 3400
 
 
 @dataclass(slots=True)
@@ -121,45 +119,11 @@ def click_with_retry(action: Callable[[], None], label: str, retries: int = MAX_
     raise RuntimeError(f"Failed action '{label}': {last_error}") from last_error
 
 
-def get_page_height(page: Page) -> int:
-    return int(
-        page.evaluate(
-            """
-            () => Math.max(
-              document.body?.scrollHeight || 0,
-              document.documentElement?.scrollHeight || 0
-            )
-            """
-        )
-    )
-
-
 def take_screenshot_with_segments(page: Page, output_name: str) -> tuple[list[str], str]:
-    stem = Path(output_name).stem
-    suffix = Path(output_name).suffix or ".png"
-    output_files = [output_name]
-    notes = "Full-page screenshot."
-
-    page.screenshot(path=str(FIGURES_DIR / output_name), full_page=True)
-    page_height = get_page_height(page)
-
-    if page_height > LONG_PAGE_SEGMENT_THRESHOLD:
-        segment_count = min(3, max(2, math.ceil(page_height / VIEWPORT["height"])))
-        step = max(1, int((page_height - VIEWPORT["height"]) / max(1, segment_count - 1)))
-        for idx in range(segment_count):
-            scroll_y = max(0, min(page_height - VIEWPORT["height"], idx * step))
-            page.evaluate("(y) => window.scrollTo(0, y)", scroll_y)
-            page.wait_for_timeout(350)
-            part_name = f"{stem}-part{idx + 1}{suffix}"
-            page.screenshot(path=str(FIGURES_DIR / part_name), full_page=False)
-            output_files.append(part_name)
-        notes = (
-            "Full-page screenshot plus segmented captures due to long scrollable page."
-        )
-        page.evaluate("() => window.scrollTo(0, 0)")
-        page.wait_for_timeout(250)
-
-    return output_files, notes
+    page.evaluate("() => window.scrollTo(0, 0)")
+    page.wait_for_timeout(250)
+    page.screenshot(path=str(FIGURES_DIR / output_name), full_page=False)
+    return [output_name], "Viewport screenshot."
 
 
 def maybe_capture_scrolled_container(
