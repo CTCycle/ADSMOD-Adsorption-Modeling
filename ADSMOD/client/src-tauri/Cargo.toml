@@ -1,6 +1,6 @@
 [package]
 name = "adsmod-desktop"
-version = "2.0.1"
+version = "2.2.0"
 description = "ADSMOD desktop shell"
 authors = ["ADSMOD"]
 edition = "2021"
