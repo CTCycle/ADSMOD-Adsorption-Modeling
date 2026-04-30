@@ -212,7 +212,7 @@ if not exist "%pyproject%" (
 
 pushd "%root_folder%app\server" >nul
 set "uv_extras_flag="
-if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
+if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras --extra test"
 "%uv_exe%" sync %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
 popd >nul
@@ -381,3 +381,4 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
   taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
+
