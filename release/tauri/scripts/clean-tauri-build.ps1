@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string]$ClientRelativePath = "..\..\..\ADSMOD\client",
+  [string]$ClientRelativePath = "..\..\..\app\\client",
   [string]$OutputRelativePath = "..\..\windows"
 )
 
