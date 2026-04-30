@@ -3,19 +3,19 @@ setlocal enabledelayedexpansion
 
 set "script_dir=%~dp0"
 for %%I in ("%script_dir%..\..") do set "repo_root=%%~fI"
-set "project_folder=%repo_root%\ADSMOD\"
-set "client_dir=%project_folder%client"
+set "app_folder=%repo_root%\app\"
+set "client_dir=%app_folder%client"
 set "tauri_dir=%client_dir%\src-tauri"
 set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
 set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
 set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
-set "runtime_uv_lock=%repo_root%\runtimes\uv.lock"
+set "runtime_uv_lock=%repo_root%\app\\server\\uv.lock"
 set "runtime_node_dir=%repo_root%\runtimes\nodejs"
 set "node_cmd=%runtime_node_dir%\node.exe"
 set "npm_cmd=%runtime_node_dir%\npm.cmd"
-set "runtime_database_file=%project_folder%resources\database.db"
+set "runtime_database_file=%app_folder%resources\database.db"
 
 
 echo [TAURI] Release build helper
@@ -25,8 +25,8 @@ call :require_file "%runtime_python_exe%" "embedded Python runtime" || goto buil
 call :require_file "%runtime_uv_exe%" "embedded uv runtime" || goto build_error
 call :require_file "%node_cmd%" "embedded Node.js runtime" || goto build_error
 call :require_file "%npm_cmd%" "embedded npm runtime" || goto build_error
-call :require_file "%repo_root%\pyproject.toml" "repo pyproject.toml" || goto build_error
-call :require_file "%runtime_uv_lock%" "runtime uv.lock at runtimes\\uv.lock" || goto build_error
+call :require_file "%repo_root%\\app\\server\\pyproject.toml" "repo pyproject.toml" || goto build_error
+call :require_file "%runtime_uv_lock%" "backend uv.lock at app\\server\\uv.lock" || goto build_error
 call :require_file "%runtime_database_file%" "embedded sqlite database" || goto build_error
 
 echo [CHECK] Preparing short Tauri bundle sources...
@@ -130,7 +130,7 @@ if exist "%~1" (
   exit /b 0
 )
 echo [FATAL] Missing %~2 at "%~1"
-echo         Run ADSMOD\start_on_windows.bat first to install the portable runtimes.
+echo         Run start_on_windows.bat first to install the portable runtimes.
 exit /b 1
 
 :prepare_bundle_sources
@@ -145,7 +145,7 @@ md "%bundle_source_dir%\resources" >nul 2>&1
 md "%bundle_source_dir%\client" >nul 2>&1
 md "%bundle_source_dir%\runtimes" >nul 2>&1
 
-copy /y "%repo_root%\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
+copy /y "%repo_root%\\app\\server\\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
 if errorlevel 1 (
   echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
   exit /b 1
@@ -157,17 +157,17 @@ if errorlevel 1 (
 )
 copy /y "%runtime_database_file%" "%bundle_source_dir%\resources\database.db" >nul
 if errorlevel 1 (
-  echo [FATAL] Failed to stage ADSMOD/resources/database.db for Tauri bundling.
+  echo [FATAL] Failed to stage app/resources/database.db for Tauri bundling.
   exit /b 1
 )
 
 if not exist "%client_dir%\dist" md "%client_dir%\dist" >nul 2>&1
 
-call :make_junction "%bundle_source_dir%\server" "%project_folder%server" || exit /b 1
-call :make_junction "%bundle_source_dir%\scripts" "%project_folder%scripts" || exit /b 1
-call :make_junction "%bundle_source_dir%\settings" "%project_folder%settings" || exit /b 1
+call :make_junction "%bundle_source_dir%\server" "%app_folder%server" || exit /b 1
+call :make_junction "%bundle_source_dir%\scripts" "%app_folder%scripts" || exit /b 1
+call :make_junction "%bundle_source_dir%\settings" "%repo_root%\settings" || exit /b 1
 call :make_junction "%bundle_source_dir%\client\dist" "%client_dir%\dist" || exit /b 1
-call :make_junction "%bundle_source_dir%\resources\checkpoints" "%project_folder%resources\checkpoints" || exit /b 1
+call :make_junction "%bundle_source_dir%\resources\checkpoints" "%app_folder%resources\checkpoints" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\python" "%repo_root%\runtimes\python" || exit /b 1
 call :make_junction "%bundle_source_dir%\runtimes\uv" "%repo_root%\runtimes\uv" || exit /b 1
 exit /b 0
