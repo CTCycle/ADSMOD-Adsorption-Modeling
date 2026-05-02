@@ -43,8 +43,6 @@ class FittingNISTDatasetService:
         cleaned = nist_df.copy().rename(
             columns={
                 "name": "filename",
-                "adsorption_units": "adsorptionUnits",
-                "pressure_units": "pressureUnits",
             }
         )
         required_cols = [
@@ -92,26 +90,26 @@ class FittingNISTDatasetService:
         uptake_converter = UptakeConversion()
         valid_mask = pd.Series(True, index=cleaned.index)
 
-        if "pressureUnits" in cleaned.columns:
-            cleaned["pressureUnits"] = self.normalize_unit_series(
-                cleaned["pressureUnits"]
+        if "pressure_units" in cleaned.columns:
+            cleaned["pressure_units"] = self.normalize_unit_series(
+                cleaned["pressure_units"]
             )
-            valid_mask &= cleaned["pressureUnits"].isin(
+            valid_mask &= cleaned["pressure_units"].isin(
                 pressure_converter.conversions.keys()
             )
 
-        if "adsorptionUnits" in cleaned.columns:
-            cleaned["adsorptionUnits"] = self.normalize_unit_series(
-                cleaned["adsorptionUnits"]
+        if "adsorption_units" in cleaned.columns:
+            cleaned["adsorption_units"] = self.normalize_unit_series(
+                cleaned["adsorption_units"]
             )
-            valid_mask &= cleaned["adsorptionUnits"].isin(
+            valid_mask &= cleaned["adsorption_units"].isin(
                 uptake_converter.conversions.keys()
             )
             if "adsorbate_molecular_weight" in cleaned.columns:
                 mol_weight = pd.to_numeric(
                     cleaned["adsorbate_molecular_weight"], errors="coerce"
                 )
-                requires_weight = cleaned["adsorptionUnits"].isin(
+                requires_weight = cleaned["adsorption_units"].isin(
                     uptake_converter.weight_units
                 )
                 valid_mask &= ~requires_weight | mol_weight.notna()

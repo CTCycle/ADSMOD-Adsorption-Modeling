@@ -1,7 +1,7 @@
 {
     "name": "adsmod-client",
     "private": true,
-    "version": "2.2.0",
+    "version": "2.3.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -11,8 +11,9 @@
         "tauri:dev": "tauri dev --config src-tauri/tauri.conf.json",
         "tauri:icon": "tauri icon public/favicon.png && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-tauri-icons.ps1",
         "tauri:build": "tauri build --config src-tauri/tauri.conf.json",
+        "tauri:build:msi": "tauri build --bundles msi --config src-tauri/tauri.conf.json",
         "tauri:export:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/export-windows-artifacts.ps1",
-        "tauri:build:release": "npm run tauri:build && npm run tauri:export:windows",
+        "tauri:build:release": "npm run tauri:build:msi && npm run tauri:export:windows",
         "tauri:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/clean-tauri-build.ps1"
     },
     "dependencies": {

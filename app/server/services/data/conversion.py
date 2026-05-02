@@ -32,7 +32,6 @@ class PressureConversion:
     def __init__(self) -> None:
         self.P_COL = "pressure"
         self.P_UNIT_COL = "pressure_units"
-        self.P_UNIT_FALLBACK_COL = "pressureUnits"
         self.conversions: dict[
             str,
             Callable[
@@ -111,8 +110,6 @@ class PressureConversion:
         unit_column = None
         if self.P_UNIT_COL in dataframe.columns:
             unit_column = self.P_UNIT_COL
-        elif self.P_UNIT_FALLBACK_COL in dataframe.columns:
-            unit_column = self.P_UNIT_FALLBACK_COL
 
         if unit_column is None or self.P_COL not in dataframe.columns:
             logger.debug("Pressure conversion skipped (missing pressure columns).")
@@ -135,7 +132,6 @@ class UptakeConversion:
     def __init__(self) -> None:
         self.Q_COL = "adsorbed_amount"
         self.Q_UNIT_COL = "adsorption_units"
-        self.Q_UNIT_FALLBACK_COL = "adsorptionUnits"
         self.mol_weight = "adsorbate_molecular_weight"
 
         self.weight_units = {
@@ -237,8 +233,6 @@ class UptakeConversion:
         unit_column = None
         if self.Q_UNIT_COL in dataframe.columns:
             unit_column = self.Q_UNIT_COL
-        elif self.Q_UNIT_FALLBACK_COL in dataframe.columns:
-            unit_column = self.Q_UNIT_FALLBACK_COL
 
         if unit_column is None or self.Q_COL not in dataframe.columns:
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
