@@ -37,7 +37,7 @@ set "node_exe=%nodejs_dir%\node.exe"
 set "npm_cmd=%nodejs_dir%\npm.cmd"
 set "env_marker_node=%nodejs_dir%\.is_installed"
 
-set "pyproject=%root_folder%app\\server\\pyproject.toml"
+set "pyproject=%root_folder%app\server\pyproject.toml"
 set "UVICORN_MODULE=app.server.app:app"
 set "FRONTEND_DIR=%root_folder%app\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
@@ -212,7 +212,7 @@ if not exist "%pyproject%" (
 
 pushd "%root_folder%app\server" >nul
 set "uv_extras_flag="
-if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras --extra test"
+if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
 "%uv_exe%" sync %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
 popd >nul
@@ -381,4 +381,5 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
   taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
+
 
