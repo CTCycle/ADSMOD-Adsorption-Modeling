@@ -1,18 +1,18 @@
 # Project-specific generated/runtime artifacts
-ADSMOD/resources/checkpoints/**
-ADSMOD/resources/logs/**
-ADSMOD/client/node_modules/
-ADSMOD/client/dist/
-ADSMOD/client/dist-ssr/
-ADSMOD/client/logs/
-ADSMOD/client/*.local
+app/resources/checkpoints/**
+app/resources/logs/**
+app/client/node_modules/
+app/client/dist/
+app/client/dist-ssr/
+app/client/logs/
+app/client/*.local
 runtimes/**
 
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-runtimes/.venv/
+app/server/.venv/
 venv/
 .pytest_cache/
 .mypy_cache/
@@ -51,6 +51,6 @@ Cargo.toml
 
 !.gitkeep
 
-ADSMOD/client/src-tauri/r/
-ADSMOD/client/src-tauri/target/
+app/client/src-tauri/r/
+app/client/src-tauri/target/
 release/windows/
