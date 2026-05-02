@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-  [string]$ClientRelativePath = "..\..\..\ADSMOD\client",
+  [string]$ClientRelativePath = "..\..\..\app\\client",
   [string]$OutputRelativePath = "..\..\windows"
 )
 
@@ -56,7 +56,8 @@ foreach ($file in $portableExeCandidates) {
 }
 
 $requiredPortableEntries = @(
-  "ADSMOD",
+  "app",
+  "settings",
   "runtimes",
   "pyproject.toml",
   "uv.lock"
@@ -70,7 +71,8 @@ foreach ($entry in $requiredPortableEntries) {
 }
 
 $portableResourceEntries = @(
-  "ADSMOD",
+  "app",
+  "settings",
   "runtimes",
   "pyproject.toml",
   "uv.lock",

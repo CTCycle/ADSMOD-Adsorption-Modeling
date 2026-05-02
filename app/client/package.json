@@ -1,0 +1,40 @@
+{
+    "name": "adsmod-client",
+    "private": true,
+    "version": "2.3.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc && vite build",
+        "preview": "vite preview",
+        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+        "tauri:dev": "tauri dev --config src-tauri/tauri.conf.json",
+        "tauri:icon": "tauri icon public/favicon.png && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-tauri-icons.ps1",
+        "tauri:build": "tauri build --config src-tauri/tauri.conf.json",
+        "tauri:build:msi": "tauri build --bundles msi --config src-tauri/tauri.conf.json",
+        "tauri:export:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/export-windows-artifacts.ps1",
+        "tauri:build:release": "npm run tauri:build:msi && npm run tauri:export:windows",
+        "tauri:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/clean-tauri-build.ps1"
+    },
+    "dependencies": {
+        "katex": "^0.16.25",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-markdown": "^10.1.0",
+        "recharts": "^3.7.0",
+        "remark-gfm": "^4.0.1"
+    },
+    "devDependencies": {
+        "@tauri-apps/cli": "^2.0.0",
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
+        "@typescript-eslint/eslint-plugin": "^8.15.0",
+        "@typescript-eslint/parser": "^8.15.0",
+        "@vitejs/plugin-react": "^4.3.4",
+        "eslint": "^9.15.0",
+        "eslint-plugin-react-hooks": "^5.0.0",
+        "eslint-plugin-react-refresh": "^0.4.14",
+        "typescript": "^5.7.2",
+        "vite": "^6.0.1"
+    }
+}
