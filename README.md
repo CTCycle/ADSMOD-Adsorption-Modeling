@@ -78,7 +78,7 @@ Adjust host/port and runtime backend values in that file when needed.
 ### 4.3 Operational Workflow and UI Snapshots
 
 The application workflow is organized into three top navigation tabs: `source`, `fitting`, and `training`.
-The snapshots below were captured from the current `develop` build (`v2.2.0` release preparation) and are intended to show representative product states without duplication.
+The snapshots below were captured from the current `develop` build (`v2.3.0` release preparation) and are intended to show representative product states without duplication.
 
 #### 4.3.1 Data Source Configuration
 
@@ -111,10 +111,6 @@ The snapshots below were captured from the current `develop` build (`v2.2.0` rel
 *Train Datasets view: pick a processed dataset and launch a training setup.*
 
 <img src="assets/figures/training-datasets.png" alt="Training - Train Datasets View" width="1000" />
-
-*Data Processing view: compose and manage machine-learning-ready datasets.*
-
-<img src="assets/figures/training-data-processing.png" alt="Training - Data Processing View" width="1000" />
 
 *Checkpoints view: review saved checkpoints and resume previous experiments.*
 

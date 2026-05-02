@@ -192,8 +192,8 @@ class DatasetCompositionService:
                 )
 
         standardized = self.normalize_measurements(standardized)
-        standardized["pressureUnits"] = "pa"
-        standardized["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_G
+        standardized["pressure_units"] = "pa"
+        standardized["adsorption_units"] = self.ADSORPTION_UNITS_MOL_G
         standardized[self.RAW_DATASET_NAME_COLUMN] = dataset_name
         standardized = self.ensure_filename_prefix(
             standardized, self.build_dataset_tag("uploaded", dataset_name)
@@ -209,14 +209,12 @@ class DatasetCompositionService:
         cleaned = adsorption.copy().rename(
             columns={
                 "name": "filename",
-                "adsorption_units": "adsorptionUnits",
-                "pressure_units": "pressureUnits",
                 "adsorbent": "adsorbent_name",
                 "adsorbate": "adsorbate_name",
             }
         )
-        if "adsorptionUnits" in cleaned.columns:
-            units = cleaned["adsorptionUnits"].astype("string").str.strip().str.lower()
+        if "adsorption_units" in cleaned.columns:
+            units = cleaned["adsorption_units"].astype("string").str.strip().str.lower()
             mol_g_mask = units.isin({self.ADSORPTION_UNITS_MOL_G, "mol per g"})
         else:
             mol_g_mask = pd.Series(True, index=cleaned.index)
@@ -231,8 +229,8 @@ class DatasetCompositionService:
             cleaned.loc[~mol_g_mask, "adsorbed_amount"] = (
                 cleaned.loc[~mol_g_mask, "adsorbed_amount"] / 1000.0
             )
-        cleaned["pressureUnits"] = "pa"
-        cleaned["adsorptionUnits"] = self.ADSORPTION_UNITS_MOL_G
+        cleaned["pressure_units"] = "pa"
+        cleaned["adsorption_units"] = self.ADSORPTION_UNITS_MOL_G
         cleaned = self.normalize_measurements(cleaned)
         cleaned = self.ensure_filename_prefix(
             cleaned, self.build_dataset_tag("nist", dataset_name)
