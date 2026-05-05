@@ -42,6 +42,7 @@ set "UVICORN_MODULE=app.server.app:app"
 set "FRONTEND_DIR=%root_folder%app\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
+set "FRONTEND_STRICT_PORT=--strictPort"
 
 set "DOTENV=%settings_dir%\.env"
 set "TMPDL=%TEMP%\app_dl.ps1"
@@ -197,9 +198,9 @@ set "RELOAD_FLAG="
 if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
 
 REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
-set "PYTHONHOME=%python_dir%"
+set "PYTHONHOME="
 set "PYTHONPATH="
-set "PYTHONNOUSERSITE=1"
+set "PYTHONNOUSERSITE="
 
 REM ============================================================================
 REM == Step 4: Install deps via uv
@@ -299,7 +300,11 @@ if not defined backend_port_free (
   )
   goto error
 )
-start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+if not exist "%venv_dir%\Scripts\python.exe" (
+  echo [FATAL] virtual environment python not found at "%venv_dir%\Scripts\python.exe"
+  goto error
+)
+start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%app" --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
 
 REM ============================================================================
 REM Wait for backend
@@ -335,7 +340,7 @@ if not defined frontend_port_free (
   echo [FATAL] frontend port !UI_PORT! is still occupied after 20 seconds.
   goto error
 )
-start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! --strictPort
+start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! !FRONTEND_STRICT_PORT!
 popd >nul
 
 start "" "%UI_URL%"
@@ -381,5 +386,3 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
   taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
-
-
