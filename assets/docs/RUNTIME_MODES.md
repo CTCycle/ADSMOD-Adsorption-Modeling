@@ -58,13 +58,13 @@ What it does:
 CMD:
 
 ```cmd
-runtimes\.venv\Scripts\python.exe -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 8000
+runtimes\.venv\Scripts\python.exe -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 6045
 ```
 
 PowerShell:
 
 ```powershell
-.\runtimes\.venv\Scripts\python.exe -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 8000
+.\runtimes\.venv\Scripts\python.exe -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 6045
 ```
 
 ### Frontend development server
