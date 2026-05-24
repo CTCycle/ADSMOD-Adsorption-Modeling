@@ -10,8 +10,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.server.domain.training import TrainingConfigRequest
-from app.server.common.constants import CHECKPOINTS_PATH
+from ml_service.domain.training import TrainingConfigRequest
+from shared.common.constants import CHECKPOINTS_PATH
 from app.tests.backend.performance.dataset import (
     SyntheticDatasetSpec,
     clear_synthetic_training_dataset,
@@ -231,3 +231,4 @@ def test_training_pipeline_performance(scenario: TrainingScenario) -> None:
         if created_checkpoints:
             remove_checkpoint_folders(CHECKPOINTS_PATH, created_checkpoints)
         clear_synthetic_training_dataset(dataset_label)
+

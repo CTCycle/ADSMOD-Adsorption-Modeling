@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.server.domain.fitting import FittingRequest
-from app.server.services.fitting import FittingService
+from core_service.domain.fitting import FittingRequest
+from core_service.services.fitting import FittingService
 
 
 def build_request() -> FittingRequest:
@@ -34,8 +34,8 @@ def test_start_fitting_job_returns_job_start_response(monkeypatch: pytest.Monkey
     service = FittingService()
     payload = build_request()
 
-    monkeypatch.setattr("app.server.services.fitting.job_manager.is_job_running", lambda _job_type: False)
-    monkeypatch.setattr("app.server.services.fitting.job_manager.start_job", lambda **_kwargs: "fit12345")
+    monkeypatch.setattr("core_service.services.fitting.job_manager.is_job_running", lambda _job_type: False)
+    monkeypatch.setattr("core_service.services.fitting.job_manager.start_job", lambda **_kwargs: "fit12345")
 
     response = service.start_fitting_job(payload)
     assert response.job_id == "fit12345"
@@ -45,7 +45,7 @@ def test_start_fitting_job_returns_job_start_response(monkeypatch: pytest.Monkey
 
 def test_cancel_job_returns_modeled_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
-    monkeypatch.setattr("app.server.services.fitting.job_manager.cancel_job", lambda _job_id: True)
+    monkeypatch.setattr("core_service.services.fitting.job_manager.cancel_job", lambda _job_id: True)
 
     response = service.cancel_job("fit12345")
     assert response.status == "cancelled"
@@ -54,7 +54,8 @@ def test_cancel_job_returns_modeled_payload(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_cancel_job_raises_when_not_cancellable(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
-    monkeypatch.setattr("app.server.services.fitting.job_manager.cancel_job", lambda _job_id: False)
+    monkeypatch.setattr("core_service.services.fitting.job_manager.cancel_job", lambda _job_id: False)
 
     with pytest.raises(ValueError, match="cannot be cancelled"):
         service.cancel_job("fit12345")
+

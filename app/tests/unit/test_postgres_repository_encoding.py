@@ -1,5 +1,5 @@
-from app.server.configurations import DatabaseSettings
-from app.server.repositories.database.postgres import PostgresRepository
+from shared.schemas.settings import DatabaseSettings
+from shared.repositories.database.postgres import PostgresRepository
 
 
 def test_postgres_connect_args_enforce_utf8_client_encoding() -> None:
@@ -19,4 +19,5 @@ def test_postgres_connect_args_enforce_utf8_client_encoding() -> None:
     connect_args = PostgresRepository.build_connect_args(settings)
     assert connect_args["client_encoding"] == "utf8"
     assert connect_args["connect_timeout"] == 30
+
 

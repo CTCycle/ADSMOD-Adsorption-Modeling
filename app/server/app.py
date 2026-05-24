@@ -1,61 +1,23 @@
 from __future__ import annotations
 
-import warnings
+import os
 
-from fastapi import FastAPI
+from core_service.app import app
+from core_service.configurations import resolve_spa_file_path
 
-from app.server.common.constants import (
-    FASTAPI_DESCRIPTION,
-    FASTAPI_TITLE,
-    FASTAPI_VERSION,
-)
-from app.server.configurations.startup import (
-    public_host_mode_enabled,
-    resolve_spa_file_path,
-)
-from app.server.api.datasets import router as dataset_router
-from app.server.api.entrypoint import health_router, register_root_routes
-from app.server.api.fitting import router as fit_router
-from app.server.api.nist import router as nist_router
-from app.server.api.training import router as training_router
+# TODO: Remove this compatibility shim after all runtime scripts and package paths use core_service.app:app directly.
 
-warnings.filterwarnings("ignore", category=FutureWarning)
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
-PUBLIC_HOST_MODE = public_host_mode_enabled()
+def public_host_mode_enabled() -> bool:
+    """Compatibility behavior for legacy tests and callers using FASTAPI_HOST."""
+    host = (os.getenv("FASTAPI_HOST") or "").strip().lower()
+    if not host:
+        host = (os.getenv("CORE_SERVICE_HOST") or "").strip().lower()
+    if not host:
+        return False
+    return host not in LOOPBACK_HOSTS
 
 
-###############################################################################
-app = FastAPI(
-    title=FASTAPI_TITLE,
-    version=FASTAPI_VERSION,
-    description=FASTAPI_DESCRIPTION,
-    docs_url=None if PUBLIC_HOST_MODE else "/docs",
-    redoc_url=None if PUBLIC_HOST_MODE else "/redoc",
-    openapi_url=None if PUBLIC_HOST_MODE else "/openapi.json",
-)
-
-routers = [
-    health_router,
-    dataset_router,
-    fit_router,
-    training_router,
-    nist_router,
-]
-
-for router in routers:
-    if router is health_router:
-        app.include_router(router)
-    if router is not health_router:
-        app.include_router(router, prefix="/api", include_in_schema=False)
-
-register_root_routes(app)
-
-__all__ = [
-    "app",
-    "PUBLIC_HOST_MODE",
-    "public_host_mode_enabled",
-    "resolve_spa_file_path",
-]
-
-
+__all__ = ["app", "public_host_mode_enabled", "resolve_spa_file_path"]

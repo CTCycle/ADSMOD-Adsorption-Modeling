@@ -7,8 +7,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from app.server.domain.training import TrainingMetadata
-from app.server.repositories.serialization.training import TrainingDataSerializer
+from ml_service.domain.training import TrainingMetadata
+from ml_service.learning.serialization.training import TrainingDataSerializer
 
 
 ###############################################################################
@@ -161,3 +161,5 @@ def create_and_save_synthetic_training_dataset(
 def clear_synthetic_training_dataset(dataset_label: str) -> None:
     serializer = TrainingDataSerializer()
     serializer.clear_training_dataset(dataset_label)
+
+

@@ -24,7 +24,7 @@ set "tauri_clean_script=%repo_root%\release\tauri\scripts\clean-tauri-build.ps1"
 set "pyproject=%server_dir%\pyproject.toml"
 set "frontend_dist=%client_dir%\dist"
 set "frontend_lockfile=%client_dir%\package-lock.json"
-set "uv_cache_dir=%runtimes_dir%\.uv-cache"
+set "uv_cache_dir=%server_dir%\.uv-cache"
 set "dotenv=%settings_dir%\.env"
 set "PYTHONPATH=%app_dir%"
 
@@ -85,7 +85,7 @@ if not exist "%nodejs_dir%" md "%nodejs_dir%" >nul 2>&1
 
 echo $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri $args[0] -OutFile $args[1] > "%TMPDL%"
 echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force > "%TMPEXP%"
-echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0] > "%TMPTXT%"
+echo $ErrorActionPreference='Stop'; $p=$args[0]; if(Test-Path -LiteralPath $p){ $content=Get-Content -LiteralPath $p -Raw; if($content -match '#import site'){ try { $item=Get-Item -LiteralPath $p; if($item.Attributes -band [IO.FileAttributes]::ReadOnly){ attrib -r $p }; $content=$content -replace '#import site','import site'; Set-Content -LiteralPath $p -Value $content -Force } catch { Write-Host '[WARN] Unable to update python ._pth file; continuing with existing content.' } } } > "%TMPTXT%"
 echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName > "%TMPFIND%"
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
 
@@ -163,13 +163,11 @@ if not exist "%pyproject%" (
   echo [FATAL] Missing pyproject: "%pyproject%"
   goto install_error
 )
-set "uv_extras_flag="
-if /i "%OPTIONAL_DEPENDENCIES%"=="true" set "uv_extras_flag=--all-extras"
 pushd "%server_dir%" >nul
-"%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
+"%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
-  "%uv_exe%" sync %uv_extras_flag%
+  "%uv_exe%" sync --all-packages --group dev
   set "sync_ec=%ERRORLEVEL%"
 )
 popd >nul

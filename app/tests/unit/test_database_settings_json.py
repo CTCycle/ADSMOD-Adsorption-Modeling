@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.server.configurations import build_database_settings
+from shared.schemas.settings import build_database_settings
 
 
 # -------------------------------------------------------------------------
@@ -92,4 +92,5 @@ def test_db_settings_allow_minimal_external_payload() -> None:
     settings = build_database_settings({"embedded_database": False, "password": ""})
     assert settings.embedded_database is False
     assert settings.password is None
+
 

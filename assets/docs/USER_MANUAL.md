@@ -1,6 +1,6 @@
 # ADSMOD User Manual
 
-Last updated: 2026-04-24
+Last updated: 2026-05-24
 
 ## 1. Start the Application
 
@@ -72,7 +72,7 @@ The app has three top-level sections:
 ### Tests
 
 - Full runner: `tests\run_tests.bat`
-- Direct pytest: `.\runtimes\.venv\Scripts\python.exe -m pytest tests -v`
+- Direct pytest: `.\app\server\.venv\Scripts\python.exe -m pytest app\tests -v`
 
 ### Frontend dev (from `ADSMOD/client`)
 

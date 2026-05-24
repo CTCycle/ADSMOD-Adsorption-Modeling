@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from app.server.repositories.database.postgres import PostgresRepository
-from app.server.repositories.database.sqlite import SQLiteRepository
-from app.server.repositories.schemas.models import TrainingDataset
+from shared.repositories.database.postgres import PostgresRepository
+from shared.repositories.database.sqlite import SQLiteRepository
+from shared.repositories.schemas.models import TrainingDataset
 
 
 def test_sqlite_prepare_for_storage_parses_json_sequence_strings() -> None:
@@ -84,3 +84,4 @@ def test_sqlite_and_postgres_json_value_parsing_match_for_sequences() -> None:
 
     assert sqlite_value == postgres_value
     assert sqlite_value == [6.0, 4.0, 5.0]
+

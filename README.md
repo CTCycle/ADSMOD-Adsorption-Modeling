@@ -9,6 +9,14 @@
 
 ADSMOD is a comprehensive web application designed for the collection, management, and modeling of adsorption data. This project represents the evolution and unification of two predecessor projects: **ADSORFIT** and **NISTADS Adsorption Modeling** (the former name of this repository).
 
+### Stage 1 backend split
+
+- Stage 1 separates the backend into:
+- `app/server/core_service` (non-ML API workflows)
+- `app/server/ml_service` (training/ML workflows)
+- `app/server/shared` (shared persistence and repository layer)
+- Stage 1 does not split frontend runtime yet; frontend split and launcher menu split are later stages.
+
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
 - **Enrich** material data with chemical properties fetched from PubChem.
@@ -53,9 +61,16 @@ ADSMOD provides an automated installation and launcher script for Windows users.
 
 If you prefer manual setup or are running outside the launcher workflow:
 1. Install Python and Node.js.
-2. Install backend dependencies from the app/server.
+2. Run `uv sync --all-packages --group dev` from `app/server`.
 3. Install frontend dependencies in `app/client`.
 4. Launch backend and frontend processes.
+
+### Backend startup commands (Stage 1)
+
+```cmd
+app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
+app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 6046
+```
 
 ## 4. How to Use
 

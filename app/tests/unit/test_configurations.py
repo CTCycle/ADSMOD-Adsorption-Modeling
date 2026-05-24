@@ -1,8 +1,11 @@
-from app.server.common.constants import CONFIGURATION_FILE
-from app.server.configurations import (
-    build_training_settings,
+import json
+
+from shared.common.constants import CONFIGURATION_FILE
+from core_service.configurations import (
     get_server_settings,
-    load_configuration_data,
+)
+from shared.schemas.settings import (
+    build_training_settings,
 )
 
 
@@ -12,7 +15,8 @@ def test_json_structure_matches_settings():
     are correctly loaded into the TrainingSettings dataclass.
     """
     settings = get_server_settings()
-    config_dict = load_configuration_data(CONFIGURATION_FILE)
+    with open(CONFIGURATION_FILE, "r", encoding="utf-8") as handle:
+        config_dict = json.load(handle)
 
     training_json = config_dict.get("training", {})
 
@@ -71,4 +75,5 @@ def test_default_fallbacks():
     assert training_settings.pin_memory is True
     assert training_settings.persistent_workers is False
     assert training_settings.plot_update_batch_interval == 10
+
 

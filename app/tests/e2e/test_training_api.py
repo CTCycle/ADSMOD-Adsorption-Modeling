@@ -13,10 +13,10 @@ class TestTrainingDatasets:
     """Tests for training dataset availability endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_get_training_datasets(self, api_context: APIRequestContext) -> None:
+    def test_get_training_datasets(self, ml_api_context: APIRequestContext) -> None:
         """Verify training datasets endpoint returns expected structure."""
         # Act
-        response = api_context.get("/api/training/datasets")
+        response = ml_api_context.get("/api/training/datasets")
 
         # Assert
         assert response.ok
@@ -24,10 +24,12 @@ class TestTrainingDatasets:
         assert "available" in data
 
     # -------------------------------------------------------------------------
-    def test_training_datasets_structure(self, api_context: APIRequestContext) -> None:
+    def test_training_datasets_structure(
+        self, ml_api_context: APIRequestContext
+    ) -> None:
         """Verify training datasets response structure."""
         # Act
-        response = api_context.get("/api/training/datasets")
+        response = ml_api_context.get("/api/training/datasets")
 
         # Assert
         assert response.ok
@@ -42,10 +44,10 @@ class TestCheckpoints:
     """Tests for the checkpoints listing endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_get_checkpoints(self, api_context: APIRequestContext) -> None:
+    def test_get_checkpoints(self, ml_api_context: APIRequestContext) -> None:
         """Verify checkpoints endpoint returns a list."""
         # Act
-        response = api_context.get("/api/training/checkpoints")
+        response = ml_api_context.get("/api/training/checkpoints")
 
         # Assert
         assert response.ok
@@ -59,10 +61,10 @@ class TestTrainingStatus:
     """Tests for the training status endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_get_training_status(self, api_context: APIRequestContext) -> None:
+    def test_get_training_status(self, ml_api_context: APIRequestContext) -> None:
         """Verify training status endpoint returns expected fields."""
         # Act
-        response = api_context.get("/api/training/status")
+        response = ml_api_context.get("/api/training/status")
 
         # Assert
         assert response.ok
@@ -70,10 +72,10 @@ class TestTrainingStatus:
         assert "is_training" in data
 
     # -------------------------------------------------------------------------
-    def test_training_status_fields(self, api_context: APIRequestContext) -> None:
+    def test_training_status_fields(self, ml_api_context: APIRequestContext) -> None:
         """Verify training status includes progress information."""
         # Act
-        response = api_context.get("/api/training/status")
+        response = ml_api_context.get("/api/training/status")
 
         # Assert
         assert response.ok
@@ -88,10 +90,10 @@ class TestDatasetInfo:
     """Tests for the dataset info endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_get_dataset_info(self, api_context: APIRequestContext) -> None:
+    def test_get_dataset_info(self, ml_api_context: APIRequestContext) -> None:
         """Verify dataset info endpoint returns expected structure."""
         # Act
-        response = api_context.get("/api/training/dataset-info")
+        response = ml_api_context.get("/api/training/dataset-info")
 
         # Assert
         assert response.ok
@@ -105,10 +107,10 @@ class TestDatasetBuild:
 
     # -------------------------------------------------------------------------
     def test_build_dataset_request_structure(
-        self, api_context: APIRequestContext
+        self, ml_api_context: APIRequestContext
     ) -> None:
         """Verify dataset build endpoint accepts valid request."""
-        nist_status = api_context.get("/api/nist/status")
+        nist_status = ml_api_context.get("/api/nist/status")
         if nist_status.ok:
             status_payload = nist_status.json()
             if status_payload.get("data_available"):
@@ -134,7 +136,7 @@ class TestDatasetBuild:
         }
 
         # Act
-        response = api_context.post("/api/training/build-dataset", data=payload)
+        response = ml_api_context.post("/api/training/build-dataset", data=payload)
 
         # Assert
         # May succeed or fail based on available data
@@ -144,7 +146,9 @@ class TestDatasetBuild:
             assert "job_id" in data
 
     # -------------------------------------------------------------------------
-    def test_build_dataset_invalid_params(self, api_context: APIRequestContext) -> None:
+    def test_build_dataset_invalid_params(
+        self, ml_api_context: APIRequestContext
+    ) -> None:
         """Verify dataset build with invalid params returns error."""
         # Arrange
         payload = {
@@ -156,7 +160,7 @@ class TestDatasetBuild:
         }
 
         # Act
-        response = api_context.post("/api/training/build-dataset", data=payload)
+        response = ml_api_context.post("/api/training/build-dataset", data=payload)
 
         # Assert
         assert response.status == 422  # Pydantic validation error
@@ -167,10 +171,10 @@ class TestClearDataset:
     """Tests for the clear dataset endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_clear_training_dataset(self, api_context: APIRequestContext) -> None:
+    def test_clear_training_dataset(self, ml_api_context: APIRequestContext) -> None:
         """Verify clear dataset endpoint responds."""
         # Act
-        response = api_context.delete("/api/training/dataset")
+        response = ml_api_context.delete("/api/training/dataset")
 
         # Assert
         assert response.ok
@@ -185,9 +189,9 @@ class TestDatasetSources:
 
     # -------------------------------------------------------------------------
     def test_delete_dataset_source_response_shape(
-        self, api_context: APIRequestContext
+        self, ml_api_context: APIRequestContext
     ) -> None:
-        response = api_context.delete(
+        response = ml_api_context.delete(
             "/api/training/dataset-source?source=uploaded&dataset_name=missing-dataset"
         )
         assert response.ok
@@ -202,11 +206,11 @@ class TestTrainingLifecycle:
 
     # -------------------------------------------------------------------------
     def test_start_training_when_dataset_missing(
-        self, api_context: APIRequestContext
+        self, ml_api_context: APIRequestContext
     ) -> None:
         """Verify start training fails when no dataset is available."""
         # Arrange
-        dataset_response = api_context.get("/api/training/datasets")
+        dataset_response = ml_api_context.get("/api/training/datasets")
         assert dataset_response.ok
         if dataset_response.json().get("available"):
             pytest.skip("Training dataset exists; avoid starting a real session.")
@@ -214,18 +218,18 @@ class TestTrainingLifecycle:
         payload = {"epochs": 1}
 
         # Act
-        response = api_context.post("/api/training/start", data=payload)
+        response = ml_api_context.post("/api/training/start", data=payload)
 
         # Assert
         assert response.status == 400
 
     # -------------------------------------------------------------------------
     def test_resume_training_with_missing_checkpoint(
-        self, api_context: APIRequestContext
+        self, ml_api_context: APIRequestContext
     ) -> None:
         """Verify resume training fails for a missing checkpoint."""
         # Arrange
-        checkpoints_response = api_context.get("/api/training/checkpoints")
+        checkpoints_response = ml_api_context.get("/api/training/checkpoints")
         assert checkpoints_response.ok
         if checkpoints_response.json().get("checkpoints"):
             pytest.skip("Checkpoints exist; avoid resuming a real session.")
@@ -233,16 +237,16 @@ class TestTrainingLifecycle:
         payload = {"checkpoint_name": "missing-checkpoint", "additional_epochs": 1}
 
         # Act
-        response = api_context.post("/api/training/resume", data=payload)
+        response = ml_api_context.post("/api/training/resume", data=payload)
 
         # Assert
         assert response.status == 404
 
     # -------------------------------------------------------------------------
-    def test_stop_training_when_idle(self, api_context: APIRequestContext) -> None:
+    def test_stop_training_when_idle(self, ml_api_context: APIRequestContext) -> None:
         """Verify stop training succeeds when no session is active."""
         # Act
-        response = api_context.post("/api/training/stop")
+        response = ml_api_context.post("/api/training/stop")
 
         # Assert
         assert response.ok

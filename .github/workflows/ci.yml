@@ -22,3 +22,12 @@ jobs:
         run: |
           python --version
           python -c "print('ci sanity ok')"
+      - name: Backend import validation
+        run: |
+          cd app/server
+          uv sync --all-packages --group dev
+          python -c "from core_service.app import app as core_app; from ml_service.app import app as ml_app; print(core_app.title, ml_app.title)"
+          export KERAS_BACKEND=torch
+          export MPLBACKEND=Agg
+          python -m scripts.generate_openapi --app core_service.app:app --output ../shared/core_openapi.json
+          python -m scripts.generate_openapi --app ml_service.app:app --output ../shared/ml_openapi.json

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from app.server.configurations.management import ConfigurationManager
-from app.server.domain.settings import ServerSettings
+from core_service.configurations.management import ConfigurationManager
+from core_service.domain.settings import ServerSettings
 
 
 def write_config(path: str, payload: dict[str, object]) -> None:
@@ -74,4 +74,5 @@ def test_manager_to_server_settings(tmp_path) -> None:
 
     assert isinstance(server_settings, ServerSettings)
     assert server_settings.datasets.column_detection_cutoff == 0.65
+
 
