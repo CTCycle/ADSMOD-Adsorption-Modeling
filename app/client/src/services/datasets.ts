@@ -2,6 +2,14 @@ import type { DatasetPayload, DatasetResponse } from '../types';
 import { API_BASE_URL } from '../constants';
 import { fetchWithTimeout, extractErrorMessage, HTTP_TIMEOUT } from './http';
 
+function normalizeDatasetPayload(dataset: DatasetPayload): DatasetPayload {
+    return {
+        dataset_name: dataset.dataset_name,
+        columns: Array.isArray(dataset.columns) ? dataset.columns : [],
+        records: Array.isArray(dataset.records) ? dataset.records : [],
+    };
+}
+
 export async function loadDataset(file: File): Promise<{ dataset: DatasetPayload | null; message: string }> {
     const formData = new FormData();
     formData.append('file', file);
@@ -34,7 +42,7 @@ export async function loadDataset(file: File): Promise<{ dataset: DatasetPayload
         }
 
         const summary = data.summary || '[INFO] Dataset loaded successfully.';
-        return { dataset: data.dataset, message: summary };
+        return { dataset: normalizeDatasetPayload(data.dataset), message: summary };
     } catch (error) {
         if (error instanceof Error) {
             return { dataset: null, message: `[ERROR] Failed to reach ADSMOD backend: ${error.message}` };
@@ -91,7 +99,11 @@ export async function fetchDatasetByName(datasetName: string): Promise<{
             return { dataset: null, summary: null, error: detail };
         }
 
-        return { dataset: data.dataset || null, summary: data.summary || null, error: null };
+        return {
+            dataset: data.dataset ? normalizeDatasetPayload(data.dataset) : null,
+            summary: data.summary || null,
+            error: null,
+        };
     } catch (error) {
         if (error instanceof Error) {
             return { dataset: null, summary: null, error: error.message };
