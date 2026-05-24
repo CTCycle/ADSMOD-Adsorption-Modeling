@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import os
 
+os.environ.setdefault("KERAS_BACKEND", "torch")
+os.environ.setdefault("MPLBACKEND", "Agg")
+
 import pytest
 from playwright.sync_api import APIRequestContext, Page, Playwright
 
@@ -54,12 +57,14 @@ def normalize_client_host(bind_host: str) -> str:
 
 
 # -------------------------------------------------------------------------
-def resolve_test_urls() -> tuple[str, str]:
+def resolve_test_urls() -> tuple[str, str, str]:
     env_values = load_env_values(SETTINGS_ENV)
     frontend_host = normalize_client_host(env_values.get("UI_HOST", "127.0.0.1"))
     frontend_port = env_values.get("UI_PORT", "7861")
     backend_host = normalize_client_host(env_values.get("FASTAPI_HOST", "127.0.0.1"))
     backend_port = env_values.get("FASTAPI_PORT", "8000")
+    ml_host = normalize_client_host(env_values.get("ML_SERVICE_HOST", "127.0.0.1"))
+    ml_port = env_values.get("ML_SERVICE_PORT", "6046")
 
     frontend_url = os.getenv(
         "ADSMOD_TEST_FRONTEND_URL", f"http://{frontend_host}:{frontend_port}"
@@ -67,10 +72,13 @@ def resolve_test_urls() -> tuple[str, str]:
     backend_url = os.getenv(
         "ADSMOD_TEST_BACKEND_URL", f"http://{backend_host}:{backend_port}"
     )
-    return frontend_url.rstrip("/"), backend_url.rstrip("/")
+    ml_backend_url = os.getenv(
+        "ADSMOD_TEST_ML_BACKEND_URL", f"http://{ml_host}:{ml_port}"
+    )
+    return frontend_url.rstrip("/"), backend_url.rstrip("/"), ml_backend_url.rstrip("/")
 
 
-FRONTEND_URL, BACKEND_URL = resolve_test_urls()
+FRONTEND_URL, BACKEND_URL, ML_BACKEND_URL = resolve_test_urls()
 
 
 ###############################################################################
@@ -92,6 +100,22 @@ def api_base_url() -> str:
 def api_context(playwright: Playwright, api_base_url: str) -> APIRequestContext:
     """Create a Playwright API request context for backend calls."""
     context = playwright.request.new_context(base_url=api_base_url)
+    yield context
+    context.dispose()
+
+
+# -----------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+def ml_api_base_url() -> str:
+    """Return the ML backend API base URL."""
+    return ML_BACKEND_URL
+
+
+# -----------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+def ml_api_context(playwright: Playwright, ml_api_base_url: str) -> APIRequestContext:
+    """Create a Playwright API request context for ML backend calls."""
+    context = playwright.request.new_context(base_url=ml_api_base_url)
     yield context
     context.dispose()
 

@@ -5,9 +5,9 @@ import logging
 
 import pandas as pd
 
-from app.server.services.training import determine_checkpoint_compatibility
-from app.server.domain.training import TrainingMetadata
-from app.server.repositories.serialization.training import TrainingDataSerializer
+from ml_service.services.training import determine_checkpoint_compatibility
+from ml_service.domain.training import TrainingMetadata
+from ml_service.learning.serialization.training import TrainingDataSerializer
 
 
 class TrainingMetadataQueries:
@@ -149,3 +149,5 @@ def test_collect_dataset_hashes_computes_missing_hash() -> None:
     serializer = TrainingDataSerializer(queries=TrainingMetadataQueries(metadata_df))
     hashes = serializer.collect_dataset_hashes()
     assert hashes == {expected_hash}
+
+

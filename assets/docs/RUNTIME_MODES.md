@@ -1,19 +1,29 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-04-24
+Last updated: 2026-05-24
 
 ## 1. Supported Modes
 
 ### Local web app mode (primary)
 
-- Backend: Uvicorn serving `ADSMOD.server.app:app`.
+- Backend: Uvicorn serving `core_service.app:app` (and `ml_service.app:app` for training APIs).
 - Frontend: Vite preview (built `client/dist`) or Vite dev server.
 - Canonical launcher: `ADSMOD/start_on_windows.bat`.
 
-### API-only backend mode
+### Core service mode (API-only)
 
-- Backend only via Uvicorn (no frontend process required).
+- Core backend via `core_service.app:app` (no frontend process required).
 - Root behavior depends on host mode in backend startup logic.
+
+### ML service mode (API-only)
+
+- ML backend via `ml_service.app:app`.
+- Exposes `/api/training/*` routes for dataset build and training management.
+
+### Both backend services mode
+
+- Core service and ML service run together.
+- This is the target for future Stage 3 launcher menu updates.
 
 ### Test execution mode
 
@@ -49,7 +59,7 @@ PowerShell:
 What it does:
 
 - Ensures portable runtimes (`runtimes/python`, `runtimes/uv`, `runtimes/nodejs`).
-- Syncs Python deps with `uv` into `runtimes/.venv`.
+- Syncs backend workspace deps with `uv` into `app/server/.venv`.
 - Installs frontend deps, builds `client/dist` when missing.
 - Starts backend and frontend on configured host/ports.
 
@@ -58,13 +68,13 @@ What it does:
 CMD:
 
 ```cmd
-runtimes\.venv\Scripts\python.exe -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 6045
+app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
 ```
 
 PowerShell:
 
 ```powershell
-.\runtimes\.venv\Scripts\python.exe -m uvicorn ADSMOD.server.app:app --host 127.0.0.1 --port 6045
+.\app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
 ```
 
 ### Frontend development server
@@ -117,9 +127,10 @@ Primary runtime env file: `ADSMOD/settings/.env`
 
 Current keys used by launcher/runtime:
 
-- `FASTAPI_HOST`, `FASTAPI_PORT`
+- `CORE_SERVICE_HOST`, `CORE_SERVICE_PORT`, `CORE_SERVICE_RELOAD`
+- `ML_SERVICE_HOST`, `ML_SERVICE_PORT`, `ML_SERVICE_RELOAD`
+- `FASTAPI_HOST`, `FASTAPI_PORT` (temporary compatibility keys)
 - `UI_HOST`, `UI_PORT`
-- `RELOAD`
 - `OPTIONAL_DEPENDENCIES`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
@@ -135,6 +146,7 @@ Static application settings file: `ADSMOD/settings/configurations.json`
 
 - Local launcher mode:
   - Uses `.env` host/port values.
+  - Core backend startup uses `CORE_SERVICE_*` values (with compatibility fallback to `FASTAPI_*`).
   - Runs backend and frontend as separate processes.
 - API-only mode:
   - No frontend process required.
@@ -166,4 +178,5 @@ Static application settings file: `ADSMOD/settings/configurations.json`
 
 - Desktop packaging builds and exports Windows artifacts under `release/windows`.
 - Tauri bundle includes staged runtime resources (server code, scripts, settings, dist assets, runtime binaries).
-- Portable runtime lock state is maintained in `runtimes/uv.lock`.
+- Backend workspace lock state is maintained in `app/server/uv.lock`.
+

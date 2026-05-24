@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
-from app.server.learning.device import DeviceDataLoader
+from ml_service.learning.device import DeviceDataLoader
 
 
 class MockDataset(Dataset):
@@ -38,3 +38,4 @@ def test_device_data_loader():
 
 if __name__ == "__main__":
     test_device_data_loader()
+

@@ -8,8 +8,8 @@ from typing import Any
 
 import psutil
 
-from app.server.learning.training.manager import run_training_process
-from app.server.learning.training.worker import ProcessWorker
+from ml_service.learning.training.manager import run_training_process
+from ml_service.learning.training.worker import ProcessWorker
 
 
 ###############################################################################
@@ -137,3 +137,4 @@ def run_training_with_metrics(
         result_payload=result_payload,
         exit_code=exit_code,
     )
+

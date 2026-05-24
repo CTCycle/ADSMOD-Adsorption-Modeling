@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateTable
 
-from app.server.repositories.schemas.models import (
+from shared.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
     AdsorptionIsotherm,
@@ -145,3 +145,4 @@ def test_point_component_enforces_composite_identity_and_cascade() -> None:
 
         count = session.execute(select(AdsorptionPointComponent)).scalars().all()
         assert count == []
+

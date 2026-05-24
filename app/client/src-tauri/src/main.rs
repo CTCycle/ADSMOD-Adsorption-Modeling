@@ -449,7 +449,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         configure_background_command(&mut child_command);
         child_command.arg("-m").arg("uvicorn");
         child_command
-            .arg("app.server.app:app")
+            .arg("core_service.app:app")
             .arg("--host")
             .arg(&backend_host)
             .arg("--port")
@@ -574,3 +574,4 @@ fn main() {
         _ => {}
     });
 }
+

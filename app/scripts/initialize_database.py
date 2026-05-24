@@ -4,9 +4,9 @@ from dataclasses import asdict
 import json
 import time
 
-from app.server.configurations import get_server_settings
-from app.server.repositories.database.initializer import initialize_database
-from app.server.common.utils.logger import logger
+from shared.common.settings import get_server_settings
+from shared.repositories.database.initializer import initialize_database
+from shared.common.utils.logger import logger
 
 
 ###############################################################################

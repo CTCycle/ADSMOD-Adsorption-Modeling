@@ -1,230 +1,130 @@
 # ADSMOD Architecture
 
-Last updated: 2026-04-27
+Last updated: 2026-05-24
 
 ## 1. System Overview
 
 ADSMOD is a Windows-first local application with:
 
-- Backend: FastAPI (`ADSMOD/server`), served by Uvicorn.
-- Frontend: React 18 + TypeScript + Vite (`ADSMOD/client`).
-- Optional desktop shell: Tauri (`ADSMOD/client/src-tauri` and `release/tauri`).
-- Runtime/toolchain bootstrap: portable Python, uv, Node.js under `runtimes/`.
+- Backend split services under `app/server`:
+  - `core_service`: non-ML API workflows (health, datasets, fitting, NIST).
+  - `ml_service`: ML API workflows (training datasets, checkpoints, training lifecycle).
+  - `shared`: persistence, repositories, schemas, and common backend utilities.
+- Frontend: React + TypeScript + Vite under `app/client`.
+- Optional desktop shell: Tauri under `app/client/src-tauri` and `release/tauri`.
+- Runtime/toolchain bootstrap binaries under `runtimes/`.
 
-## 2. Directory and File Structure
+## 2. Backend Boundary Rules
 
-Generated folders (`__pycache__`, `node_modules`, `dist`, Tauri `target`) are excluded below.
+Dependency direction:
+
+- `core_service -> shared`
+- `ml_service -> shared`
+- `shared -> no service package`
+
+Prohibited imports:
+
+- `core_service` must not import `ml_service`.
+- `shared` must not import `core_service` or `ml_service`.
+- `core_service` must not import ML-heavy dependencies (`torch`, `keras`, `scikit-learn`).
+
+## 3. Backend Package Layout
 
 ```text
-.
-|- ADSMOD/
-|  |- client/
-|  |  |- src/
-|  |  |  |- components/
-|  |  |  |  |- ControlsPanel.tsx
-|  |  |  |  |- DatasetBuilderCard.tsx
-|  |  |  |  |- DatasetProcessingWizard.tsx
-|  |  |  |  |- EquationRenderer.tsx
-|  |  |  |  |- InfoModal.css
-|  |  |  |  |- InfoModal.tsx
-|  |  |  |  |- MarkdownRenderer.tsx
-|  |  |  |  |- MetricCard.tsx
-|  |  |  |  |- ModelCard.tsx
-|  |  |  |  |- ModelConfigForm.tsx
-|  |  |  |  |- NewTrainingWizard.tsx
-|  |  |  |  |- NistCollectionRows.tsx
-|  |  |  |  |- ResumeTrainingWizard.tsx
-|  |  |  |  |- Sidebar.tsx
-|  |  |  |  |- TrainingSetupRow.tsx
-|  |  |  |  |- UIComponents.tsx
-|  |  |  |  |- WizardNavigationFooter.tsx
-|  |  |  |  |- WizardProgressIndicator.tsx
-|  |  |  |- features/training/
-|  |  |  |- hooks/
-|  |  |  |  |- useTrainingStatusPolling.ts
-|  |  |  |- pages/
-|  |  |  |  |- ConfigPage.tsx
-|  |  |  |  |- MachineLearningPage.tsx
-|  |  |  |  |- ModelsPage.tsx
-|  |  |  |- services/
-|  |  |  |  |- datasetBuilder.ts
-|  |  |  |  |- datasets.ts
-|  |  |  |  |- fitting.ts
-|  |  |  |  |- http.ts
-|  |  |  |  |- index.ts
-|  |  |  |  |- jobs.ts
-|  |  |  |  |- nist.ts
-|  |  |  |  |- training.ts
-|  |  |  |- adsorptionModels.ts
-|  |  |  |- App.tsx
-|  |  |  |- constants.ts
-|  |  |  |- index.css
-|  |  |  |- main.tsx
-|  |  |  |- types.ts
-|  |  |  |- vite-env.d.ts
-|  |  |  |- wizard-styles.css
-|  |  |- src-tauri/
-|  |  |  |- src/main.rs
-|  |  |  |- tauri.conf.json
-|  |  |- package.json
-|  |  |- vite.config.ts
-|  |- resources/
-|  |- scripts/
-|  |- server/
-|  |  |- api/
-|  |  |  |- datasets.py
-|  |  |  |- entrypoint.py
-|  |  |  |- fitting.py
-|  |  |  |- nist.py
-|  |  |  |- training.py
-|  |  |- common/
-|  |  |  |- constants.py
-|  |  |  |- utils/
-|  |  |- configurations/
-|  |  |  |- environment.py
-|  |  |  |- management.py
-|  |  |  |- startup.py
-|  |  |- domain/
-|  |  |- learning/
-|  |  |  |- inference/
-|  |  |  |- models/
-|  |  |  |- training/
-|  |  |- repositories/
-|  |  |  |- database/
-|  |  |  |- queries/
-|  |  |  |- schemas/
-|  |  |  |- serialization/
-|  |  |- services/
-|  |  |  |- data/
-|  |  |  |- modeling/
-|  |  |  |- fitting.py
-|  |  |  |- job_responses.py
-|  |  |  |- jobs.py
-|  |  |  |- training.py
-|  |  |- app.py
-|  |- settings/
-|  |  |- .env
-|  |  |- configurations.json
-|  |- setup_and_maintenance.bat
-|  |- start_on_windows.bat
-|- assets/docs/
-|- release/tauri/
-|  |- build_with_tauri.bat
-|  |- scripts/
-|  |  |- clean-tauri-build.ps1
-|  |  |- export-windows-artifacts.ps1
-|- runtimes/
-|  |- .venv/
-|  |- nodejs/
-|  |- python/
-|  |- uv/
-|  |- uv.lock
-|- tests/
-|  |- backend/
-|  |- e2e/
-|  |- fixtures/
-|  |- server/
-|  |- unit/
-|  |- conftest.py
-|  |- run_tests.bat
-|- pyproject.toml
+app/server/
+  pyproject.toml
+  uv.lock
+
+  core_service/
+    pyproject.toml
+    core_service/
+      app.py
+      api/
+      configurations/
+      domain/
+      services/
+      common/
+
+  ml_service/
+    pyproject.toml
+    ml_service/
+      app.py
+      api/
+      configurations/
+      domain/
+      services/
+      learning/
+      common/
+
+  shared/
+    pyproject.toml
+    shared/
+      repositories/
+      persistence/
+      models/
+      schemas/
+      common/
 ```
 
-## 3. Application Entry Points
+## 4. Service Entry Points
 
-- Backend ASGI app: `ADSMOD/server/app.py` (`app = FastAPI(...)`).
-- Backend runtime command: `python -m uvicorn ADSMOD.server.app:app`.
-- Frontend entry: `ADSMOD/client/src/main.tsx`.
-- Frontend shell: `ADSMOD/client/src/App.tsx`.
-- Windows launcher: `ADSMOD/start_on_windows.bat`.
-- Desktop runtime entry: `ADSMOD/client/src-tauri/src/main.rs`.
-- Test orchestrator: `tests/run_tests.bat`.
+- Core ASGI app: `core_service.app:app`
+- ML ASGI app: `ml_service.app:app`
+- Compatibility shim: `app/server/app.py` re-exports `core_service.app:app` for temporary legacy references only.
 
-## 4. Backend Layering and Module Responsibilities
+## 5. Runtime and Environment Model
 
-### Layered flow
+- Shared backend environment: `app/server/.venv`
+- Shared backend lockfile: `app/server/uv.lock`
+- Root backend workspace definition: `app/server/pyproject.toml`
+- Workspace members: `shared`, `core_service`, `ml_service`
 
-`endpoint (api/*) -> service (services/*) -> repository/serializer (repositories/*) -> persistence/runtime`
+## 6. API Boundary
 
-### Key modules
+Core service must expose non-ML routes only:
 
-- `server/api/*`: HTTP contract and exception translation.
-- `server/services/fitting.py`: fitting job orchestration.
-- `server/services/training.py`: dataset build and training lifecycle orchestration.
-- `server/services/data/nist_service.py`: async NIST and PubChem workflows.
-- `server/services/jobs.py`: cross-cutting job manager (thread/process execution, status, cancel).
-- `server/repositories/database/*`: SQLite/PostgreSQL backends and initialization.
-- `server/repositories/schemas/models.py`: SQLAlchemy schema and constraints.
-- `server/learning/*`: training runtime internals (model, worker, scheduler, metrics).
+- health/root routes
+- dataset upload/read (non-training-only)
+- fitting routes
+- NIST/source collection routes
 
-## 5. API Endpoints
+Core service must not expose `/api/training/*`.
 
-All functional routes are mounted under `/api` in `server/app.py`.
+ML service owns training workflows:
 
-| Method | Endpoint | Responsibility |
-|---|---|---|
-| GET | `/api/health` | Health probe |
-| POST | `/api/datasets/load` | Upload and load dataset file |
-| GET | `/api/datasets/names` | List dataset names |
-| GET | `/api/datasets/by-name/{dataset_name}` | Fetch dataset payload by name |
-| POST | `/api/fitting/run` | Start fitting background job |
-| GET | `/api/fitting/nist-dataset` | Build/load NIST dataset for fitting |
-| GET | `/api/fitting/jobs` | List fitting jobs |
-| GET | `/api/fitting/jobs/{job_id}` | Get fitting job status |
-| DELETE | `/api/fitting/jobs/{job_id}` | Cancel fitting job |
-| POST | `/api/nist/fetch` | Start combined NIST fetch job |
-| POST | `/api/nist/properties` | Start NIST properties enrichment job |
-| GET | `/api/nist/status` | Aggregated NIST data status |
-| GET | `/api/nist/categories/status` | Per-category NIST status |
-| POST | `/api/nist/categories/{category}/ping` | Ping category upstream endpoint |
-| POST | `/api/nist/categories/{category}/index` | Fetch category index |
-| POST | `/api/nist/categories/{category}/fetch` | Fetch category records by fraction |
-| POST | `/api/nist/categories/{category}/enrich` | Enrich guest/host properties |
-| GET | `/api/nist/jobs` | List NIST jobs |
-| GET | `/api/nist/jobs/{job_id}` | Get NIST job status |
-| DELETE | `/api/nist/jobs/{job_id}` | Cancel NIST job |
-| GET | `/api/training/datasets` | Training dataset availability summary |
-| GET | `/api/training/dataset-sources` | List training dataset sources |
-| DELETE | `/api/training/dataset-source` | Delete dataset source |
-| POST | `/api/training/build-dataset` | Start dataset build job |
-| GET | `/api/training/processed-datasets` | List processed datasets |
-| GET | `/api/training/dataset-info` | Read processed dataset metadata |
-| DELETE | `/api/training/dataset` | Clear one/all processed datasets |
-| GET | `/api/training/jobs` | List training dataset-build jobs |
-| GET | `/api/training/jobs/{job_id}` | Get dataset-build job status |
-| DELETE | `/api/training/jobs/{job_id}` | Cancel dataset-build job |
-| GET | `/api/training/checkpoints` | List checkpoints |
-| GET | `/api/training/checkpoints/{checkpoint_name}` | Checkpoint details |
-| DELETE | `/api/training/checkpoints/{checkpoint_name}` | Delete checkpoint |
-| POST | `/api/training/start` | Start training session |
-| POST | `/api/training/resume` | Resume from checkpoint |
-| POST | `/api/training/stop` | Request training stop |
-| GET | `/api/training/status` | Poll training state and metrics |
+- `/api/training/datasets`
+- `/api/training/dataset-sources`
+- `/api/training/dataset-source`
+- `/api/training/build-dataset`
+- `/api/training/processed-datasets`
+- `/api/training/dataset-info`
+- `/api/training/dataset`
+- `/api/training/jobs`
+- `/api/training/jobs/{job_id}`
+- `/api/training/checkpoints`
+- `/api/training/checkpoints/{checkpoint_name}`
+- `/api/training/start`
+- `/api/training/resume`
+- `/api/training/stop`
+- `/api/training/status`
 
-## 6. Data Persistence
+## 7. Persistence Layer Ownership
 
-- Primary default: embedded SQLite at `ADSMOD/resources/database.db`.
-- Optional external DB: PostgreSQL when `embedded_database=false` in `ADSMOD/settings/configurations.json`.
-- ORM: SQLAlchemy schema in `server/repositories/schemas/models.py`.
-- Checkpoints: filesystem under `ADSMOD/resources/checkpoints`.
-- Runtime config:
-  - process/env: `ADSMOD/settings/.env`
-  - application/database/job defaults: `ADSMOD/settings/configurations.json`
+Persistence and data access shared by services live in `app/server/shared/shared`:
 
-## 7. Async vs Sync Behavior
+- database backend/session utilities
+- repository queries
+- ORM schemas/models
+- shared persistence-safe serializers/utilities
 
-- FastAPI includes both sync and async handlers.
-- NIST workflows are async (`httpx` calls) in `NISTDataService`, then executed in background jobs (thread mode) through sync wrappers in `api/nist.py`.
-- Fitting jobs run as synchronous compute tasks inside the job manager thread runner.
-- Training runs in a separate process (`ProcessWorker`) and reports progress back to in-memory state and job status.
-- Cancellation model is cooperative first (`stop_event` / `should_stop`), with forced process termination after timeout for process jobs.
+ML-specific model/checkpoint serialization remains under `ml_service`.
 
-## 8. Frontend Architecture
+## 8. CI/Validation Expectations
 
-- Main shell (`App.tsx`) hosts three top-level pages:
-  - `source` -> `ConfigPage`
-  - `fitting` -> `ModelsPage`
-  - `training` -> `MachineLearningPage`
-- API integration is centralized in `client/src/services/*`.
-- API base path is normalized to local path-only values (`VITE_API_BASE_URL`, default `/api`) in `client/src/constants.ts`.
-- UI state for long-running operations is poll-driven (`jobs.ts`, `training.ts`, `nist.ts`, `fitting.ts`).
+Stage 1 validation requires:
+
+- `uv sync --all-packages --group dev` in `app/server`
+- imports for both `core_service.app` and `ml_service.app`
+- dependency boundary checks for `core_service` and `shared`
+- route separation checks for training endpoints
+- backend tests and generated OpenAPI artifacts for both services

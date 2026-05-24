@@ -15,7 +15,7 @@ set "env_marker=%python_dir%\.is_installed"
 set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
-set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
+set "UV_CACHE_DIR=%root_folder%app\server\.uv-cache"
 set "venv_dir=%root_folder%app\server\.venv"
 set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
 
@@ -38,7 +38,7 @@ set "npm_cmd=%nodejs_dir%\npm.cmd"
 set "env_marker_node=%nodejs_dir%\.is_installed"
 
 set "pyproject=%root_folder%app\server\pyproject.toml"
-set "UVICORN_MODULE=app.server.app:app"
+set "UVICORN_MODULE=core_service.app:app"
 set "FRONTEND_DIR=%root_folder%app\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
@@ -73,7 +73,7 @@ REM == Prepare helper PowerShell scripts
 REM ============================================================================
 echo $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri $args[0] -OutFile $args[1] > "%TMPDL%"
 echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force > "%TMPEXP%"
-echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0] > "%TMPTXT%"
+echo $ErrorActionPreference='Stop'; $p=$args[0]; if(Test-Path -LiteralPath $p){ $content=Get-Content -LiteralPath $p -Raw; if($content -match '#import site'){ try { $item=Get-Item -LiteralPath $p; if($item.Attributes -band [IO.FileAttributes]::ReadOnly){ attrib -r $p }; $content=$content -replace '#import site','import site'; Set-Content -LiteralPath $p -Value $content -Force } catch { Write-Host '[WARN] Unable to update python ._pth file; continuing with existing content.' } } } > "%TMPTXT%"
 echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName > "%TMPFIND%"
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
 echo $ErrorActionPreference='Stop'; try { (Get-Process -Id $args[0]).Path } catch { '' } > "%TMPPIDPATH%"
@@ -162,11 +162,13 @@ REM ============================================================================
 REM == Load env overrides (needed before dependency install)
 REM ============================================================================
 :load_env
-set "FASTAPI_HOST=127.0.0.1"
-set "FASTAPI_PORT=8000"
+set "CORE_SERVICE_HOST=127.0.0.1"
+set "CORE_SERVICE_PORT=6045"
+set "CORE_SERVICE_RELOAD=false"
+set "FASTAPI_HOST="
+set "FASTAPI_PORT="
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=8001"
-set "RELOAD=false"
 set "OPTIONAL_DEPENDENCIES=false"
 
 if exist "%DOTENV%" (
@@ -192,10 +194,16 @@ if exist "%DOTENV%" (
 set "INSTALL_EXTRAS=false"
 if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
 
-echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
+if not defined CORE_SERVICE_HOST if defined FASTAPI_HOST set "CORE_SERVICE_HOST=!FASTAPI_HOST!"
+if not defined CORE_SERVICE_PORT if defined FASTAPI_PORT set "CORE_SERVICE_PORT=!FASTAPI_PORT!"
+
+if not defined CORE_SERVICE_HOST set "CORE_SERVICE_HOST=127.0.0.1"
+if not defined CORE_SERVICE_PORT set "CORE_SERVICE_PORT=6045"
+
+echo [INFO] CORE_SERVICE_HOST=!CORE_SERVICE_HOST! CORE_SERVICE_PORT=!CORE_SERVICE_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! CORE_SERVICE_RELOAD=!CORE_SERVICE_RELOAD!
 set "UI_URL=http://!UI_HOST!:!UI_PORT!"
 set "RELOAD_FLAG="
-if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
+if /i "!CORE_SERVICE_RELOAD!"=="true" set "RELOAD_FLAG=--reload"
 
 REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
 set "PYTHONHOME="
@@ -212,9 +220,7 @@ if not exist "%pyproject%" (
 )
 
 pushd "%root_folder%app\server" >nul
-set "uv_extras_flag="
-if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
-"%uv_exe%" sync %uv_extras_flag%
+"%uv_exe%" sync --all-packages --group dev
 set "sync_ec=%ERRORLEVEL%"
 popd >nul
 if not "%sync_ec%"=="0" (
@@ -273,13 +279,13 @@ if not exist "%python_exe%" (
 )
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
-  echo [INFO] Releasing backend port !FASTAPI_PORT! from PID %%P.
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!CORE_SERVICE_PORT! .*LISTENING"') do (
+  echo [INFO] Releasing backend port !CORE_SERVICE_PORT! from PID %%P.
   taskkill /PID %%P /F >nul 2>&1
 )
 set "backend_port_free="
 for /L %%i in (1,1,20) do (
-  netstat -ano | findstr /R /C:":!FASTAPI_PORT! .*LISTENING" >nul
+  netstat -ano | findstr /R /C:":!CORE_SERVICE_PORT! .*LISTENING" >nul
   if !errorlevel! neq 0 (
     set "backend_port_free=1"
     goto :backend_port_released
@@ -288,14 +294,14 @@ for /L %%i in (1,1,20) do (
 )
 :backend_port_released
 if not defined backend_port_free (
-  echo [FATAL] backend port !FASTAPI_PORT! is still occupied after 20 seconds.
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!FASTAPI_PORT! .*LISTENING"') do (
+  echo [FATAL] backend port !CORE_SERVICE_PORT! is still occupied after 20 seconds.
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":!CORE_SERVICE_PORT! .*LISTENING"') do (
     set "pid_path="
     for /f "delims=" %%K in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPPIDPATH%" %%P') do set "pid_path=%%K"
     if defined pid_path (
-      echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: !pid_path!
+      echo [INFO] Port !CORE_SERVICE_PORT! listener PID %%P path: !pid_path!
     ) else (
-      echo [INFO] Port !FASTAPI_PORT! listener PID %%P path: [unknown]
+      echo [INFO] Port !CORE_SERVICE_PORT! listener PID %%P path: [unknown]
     )
   )
   goto error
@@ -304,12 +310,12 @@ if not exist "%venv_dir%\Scripts\python.exe" (
   echo [FATAL] virtual environment python not found at "%venv_dir%\Scripts\python.exe"
   goto error
 )
-start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%app" --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%app/server/core_service" --host !CORE_SERVICE_HOST! --port !CORE_SERVICE_PORT! !RELOAD_FLAG! --log-level info
 
 REM ============================================================================
 REM Wait for backend
 REM ============================================================================
-set "BACKEND_BASE_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!"
+set "BACKEND_BASE_URL=http://!CORE_SERVICE_HOST!:!CORE_SERVICE_PORT!"
 echo [WAIT] Waiting for backend readiness at !BACKEND_BASE_URL!...
 for /L %%i in (1,1,60) do (
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$base='!BACKEND_BASE_URL!'; $paths=@('/api/health','/health','/docs','/'); foreach ($p in $paths) { try { $r = Invoke-WebRequest -UseBasicParsing -Uri ($base + $p) -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300) { exit 0 } } catch {} }; exit 1" >nul 2>&1

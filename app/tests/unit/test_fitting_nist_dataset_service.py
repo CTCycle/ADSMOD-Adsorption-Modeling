@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from app.server.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
-from app.server.services.modeling.nist_dataset import FittingNISTDatasetService
+from shared.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
+from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
 
 
 def test_prepare_nist_dataframe_requires_expected_columns() -> None:
@@ -31,7 +31,7 @@ def test_load_for_fitting_preserves_response_contract(monkeypatch: pytest.Monkey
     adsorbates = pd.DataFrame({"name": ["co2"], "molecular_weight": [44.01]})
 
     monkeypatch.setattr(
-        "app.server.services.modeling.nist_dataset.NISTDataSerializer.load_adsorption_datasets",
+        "core_service.services.modeling.nist_dataset.NISTDataSerializer.load_adsorption_datasets",
         lambda _self: (nist_rows, adsorbates, pd.DataFrame()),
     )
     monkeypatch.setattr(
@@ -59,3 +59,4 @@ def test_load_for_fitting_preserves_response_contract(monkeypatch: pytest.Monkey
         DEFAULT_DATASET_COLUMN_MAPPING["pressure"],
         DEFAULT_DATASET_COLUMN_MAPPING["uptake"],
     }
+

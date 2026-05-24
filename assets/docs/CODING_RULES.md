@@ -1,6 +1,6 @@
 # ADSMOD Coding Rules
 
-Last updated: 2026-04-24
+Last updated: 2026-05-24
 
 ## 1. Scope
 
@@ -11,9 +11,9 @@ These rules apply to all maintained source code in this repository. Keep changes
 ### Runtime and environment
 
 - Target Python version: `>=3.14` (`pyproject.toml`).
-- Use `runtimes/.venv` when available; fallback only to `root/.venv` if `runtimes/.venv` is absent.
+- Use the backend workspace environment at `app/server/.venv`.
 - Do not create new virtual environments for normal development tasks.
-- Keep dependency state aligned with `uv` and `runtimes/uv.lock`.
+- Keep dependency state aligned with `uv` and `app/server/uv.lock`.
 
 ### Typing
 
@@ -35,7 +35,7 @@ These rules apply to all maintained source code in this repository. Keep changes
 
 - Use async handlers only when dependencies are non-blocking.
 - Do not run CPU-heavy workloads directly in async request handlers.
-- Route long-running tasks through the existing job system (`server/services/jobs.py`).
+- Route long-running tasks through the service job systems (`core_service/services/jobs.py`, `ml_service/services/jobs.py`).
 - Long-running features must expose start, poll/status, and cancel operations.
 
 ### Code structure
@@ -97,3 +97,15 @@ These rules apply to all maintained source code in this repository. Keep changes
 - Keep CMD (`.bat`) and PowerShell usage explicit and deterministic.
 - Preserve runtime-safe path handling and avoid destructive operations outside intended directories.
 - Keep script behavior compatible with the existing launcher/runtime flow.
+
+## 5. Backend Service Boundaries
+
+- Import direction:
+- `core_service -> shared`
+- `ml_service -> shared`
+- `shared -> no service package`
+- `core_service` must not import `ml_service`.
+- `shared` must not import from `core_service` or `ml_service`.
+- `core_service` must not import ML-heavy dependencies (`torch`, `keras`, `scikit-learn`).
+- ML-heavy dependencies belong only in `app/server/ml_service/pyproject.toml`.
+- Shared persistence, CRUD, ORM models, and database/session utilities belong in `app/server/shared`.
