@@ -40,7 +40,19 @@ export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPaylo
             return { dataset: null, error: detail };
         }
 
-        return { dataset: result.dataset || null, error: null };
+        if (!result.dataset || typeof result.dataset !== 'object') {
+            return { dataset: null, error: 'NIST dataset response did not include dataset records.' };
+        }
+
+        const dataset = result.dataset as DatasetPayload;
+        return {
+            dataset: {
+                dataset_name: dataset.dataset_name,
+                columns: Array.isArray(dataset.columns) ? dataset.columns : [],
+                records: Array.isArray(dataset.records) ? dataset.records : [],
+            },
+            error: null,
+        };
     } catch (error) {
         if (error instanceof Error) {
             return { dataset: null, error: error.message };
