@@ -1,6 +1,6 @@
 # ADSMOD Documentation Overview
 
-Last updated: 2026-05-24
+Last updated: 2026-05-26
 
 ## FILES INDEX
 
@@ -38,9 +38,10 @@ Last updated: 2026-05-24
 - Prefer script-first Windows workflows already present in this repository (`.bat` launch/build/test scripts).
 - Update this section whenever new environment-specific solutions or constraints are identified.
 
-## STAGE 1 BACKEND SPLIT
+## SERVICE AND FRONTEND SPLIT
 
 - ADSMOD backend is split into `app/server/core_service`, `app/server/ml_service`, and `app/server/shared`.
 - `core_service` handles non-ML workflows (health, datasets, fitting, NIST).
 - `ml_service` handles training workflows (dataset preparation, checkpoints, training status/control).
 - Shared persistence, repositories, and database access are provided through `app/server/shared`.
+- ADSMOD frontend is split into `app/client` (core UI for source/fitting) and `app/ml_client` (ML UI for training).

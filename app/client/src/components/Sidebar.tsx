@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type PageId = 'source' | 'fitting' | 'training';
+export type PageId = 'source' | 'fitting';
 
 interface SidebarProps {
     currentPage: PageId;
@@ -36,21 +36,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) =
                     <path d="M8 17v-3" />
                 </svg>
                 <span className="header-tab-label">fitting</span>
-            </button>
-
-            <button
-                className={`header-tab ${currentPage === 'training' ? 'active' : ''}`}
-                onClick={() => onPageChange('training')}
-                title="Training"
-                type="button"
-            >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
-                    <path d="M8.5 8.5v.01" />
-                    <path d="M16 16v.01" />
-                    <path d="M12 12v.01" />
-                </svg>
-                <span className="header-tab-label">training</span>
             </button>
         </nav>
     );

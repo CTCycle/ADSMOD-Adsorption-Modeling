@@ -31,3 +31,23 @@ jobs:
           export MPLBACKEND=Agg
           python -m scripts.generate_openapi --app core_service.app:app --output ../shared/core_openapi.json
           python -m scripts.generate_openapi --app ml_service.app:app --output ../shared/ml_openapi.json
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build core frontend
+        run: |
+          cd app/client
+          npm ci
+          npm run lint
+          npm run build
+      - name: Build ML frontend
+        run: |
+          cd app/ml_client
+          npm ci
+          npm run lint
+          npm run build

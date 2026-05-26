@@ -1,13 +1,15 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-05-24
+Last updated: 2026-05-26
 
 ## 1. Supported Modes
 
 ### Local web app mode (primary)
 
 - Backend: Uvicorn serving `core_service.app:app` (and `ml_service.app:app` for training APIs).
-- Frontend: Vite preview (built `client/dist`) or Vite dev server.
+- Frontend:
+  - Core UI (`app/client`) on port `5173` (dev default).
+  - ML UI (`app/ml_client`) on port `5174` (dev default).
 - Canonical launcher: `ADSMOD/start_on_windows.bat`.
 
 ### Core service mode (API-only)
@@ -77,19 +79,23 @@ PowerShell:
 .\app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
 ```
 
-### Frontend development server
+### Frontend development servers
 
 CMD:
 
 ```cmd
-cd ADSMOD\client
+cd ADSMOD\app\client
+npm run dev
+cd ADSMOD\app\ml_client
 npm run dev
 ```
 
 PowerShell:
 
 ```powershell
-Set-Location ADSMOD/client
+Set-Location ADSMOD/app/client
+npm run dev
+Set-Location ADSMOD/app/ml_client
 npm run dev
 ```
 
@@ -159,8 +165,8 @@ Static application settings file: `ADSMOD/settings/configurations.json`
 
 ## 5. Interoperability
 
-- Frontend calls backend using `/api` path.
-- Vite `server.proxy` and `preview.proxy` forward `/api` to backend host/port from env settings.
+- Core frontend calls only `core_service` through `/api`.
+- ML frontend calls only `ml_service` through `/api/training`.
 - Tauri runtime waits for backend port readiness, then redirects window to backend root URL.
 - Shared storage/services across modes:
   - Database (`resources/database.db` for embedded mode).

@@ -1,6 +1,6 @@
 # ADSMOD UI Standards
 
-Last updated: 2026-04-24
+Last updated: 2026-05-26
 
 This standard is based on the current implementation in `ADSMOD/client/src`.
 
@@ -75,11 +75,12 @@ This standard is based on the current implementation in `ADSMOD/client/src`.
 
 ## 5. Page Structure and Navigation Hierarchy
 
-- Global top-level routes/pages:
+- Core frontend (`app/client`) routes/pages:
   - `source`
   - `fitting`
-  - `training`
-- `training` contains sub-views:
+- ML frontend (`app/ml_client`) route/page:
+  - `training` (with sub-views)
+- `training` sub-views:
   - `Data Processing`
   - `Train datasets`
   - `Checkpoints`

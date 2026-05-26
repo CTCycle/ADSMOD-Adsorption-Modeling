@@ -1,0 +1,172 @@
+.info-modal-content {
+    background: #ffffff;
+    border-radius: var(--radius-xl);
+    width: min(600px, 95%);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: modal-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid var(--slate-200);
+}
+
+@keyframes modal-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.info-modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--slate-100);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--slate-50);
+}
+
+.info-modal-header h4 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--slate-900);
+    letter-spacing: -0.01em;
+}
+
+.info-modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--slate-400);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.info-modal-close-btn:hover {
+    background: var(--slate-200);
+    color: var(--slate-600);
+}
+
+.info-modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    background: white;
+}
+
+/* Custom Scrollbar */
+.info-modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.info-modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.info-modal-body::-webkit-scrollbar-thumb {
+    background: var(--slate-200);
+    border-radius: 10px;
+}
+
+.info-modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--slate-300);
+}
+
+.info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.75rem;
+    background: var(--slate-50);
+    border: 1px solid var(--slate-100);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.info-row:hover {
+    background: white;
+    border-color: var(--primary-200);
+    box-shadow: var(--shadow-sm);
+}
+
+.info-row.full-width {
+    grid-column: 1 / -1;
+}
+
+.info-header-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.info-icon-wrapper {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-600);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+}
+
+.info-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--slate-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.info-value {
+    font-size: 0.9rem;
+    color: var(--slate-900);
+    font-weight: 600;
+}
+
+.info-object-container {
+    margin-top: 0.5rem;
+    background: var(--slate-900);
+    color: var(--slate-300);
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    overflow-x: auto;
+}
+
+.info-object-container pre {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.info-modal-footer {
+    padding: 1rem 1.5rem;
+    background: var(--slate-50);
+    border-top: 1px solid var(--slate-100);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.info-modal-footer button {
+    padding: 0.6rem 2rem;
+    font-weight: 600;
+}

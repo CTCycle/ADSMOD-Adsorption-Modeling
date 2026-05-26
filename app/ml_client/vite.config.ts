@@ -8,11 +8,11 @@ export default defineConfig(({ mode }) => {
     const localEnv = loadEnv(mode, __dirname, '')
     const env = { ...localEnv, ...settingsEnv }
 
-    const uiHost = env.UI_HOST || '127.0.0.1'
-    const uiPort = Number(env.UI_PORT || 5173)
-    const coreApiHost = env.CORE_SERVICE_HOST || env.FASTAPI_HOST || '127.0.0.1'
-    const coreApiPort = Number(env.CORE_SERVICE_PORT || env.FASTAPI_PORT || 8000)
-    const coreApiTarget = `http://${coreApiHost}:${coreApiPort}`
+    const uiHost = env.ML_UI_HOST || env.UI_HOST || '127.0.0.1'
+    const uiPort = Number(env.ML_UI_PORT || 5174)
+    const mlApiHost = env.ML_SERVICE_HOST || '127.0.0.1'
+    const mlApiPort = Number(env.ML_SERVICE_PORT || 8001)
+    const mlApiTarget = `http://${mlApiHost}:${mlApiPort}`
 
     return {
         envDir,
@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => {
             port: uiPort,
             strictPort: false,
             proxy: {
-                '/api': {
-                    target: coreApiTarget,
+                '/api/training': {
+                    target: mlApiTarget,
                     changeOrigin: true,
                 },
             },
@@ -33,8 +33,8 @@ export default defineConfig(({ mode }) => {
             port: uiPort,
             strictPort: false,
             proxy: {
-                '/api': {
-                    target: coreApiTarget,
+                '/api/training': {
+                    target: mlApiTarget,
                     changeOrigin: true,
                 },
             },

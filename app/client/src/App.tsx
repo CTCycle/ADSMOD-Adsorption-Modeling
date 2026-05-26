@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Sidebar, PageId } from './components/Sidebar';
 import { ConfigPage } from './pages/ConfigPage';
 import { ModelsPage } from './pages/ModelsPage';
-import { MachineLearningPage } from './pages/MachineLearningPage';
 import { ADSORPTION_MODELS } from './adsorptionModels';
 import {
     loadDataset,
@@ -25,7 +24,6 @@ type OptimizationMethod = FittingPayload['optimization_method'];
 const initialMountedPages: Record<PageId, boolean> = {
     source: true,
     fitting: false,
-    training: false,
 };
 
 const NIST_DATASET_OPTION = '__NIST_A_COLLECTION__';
@@ -346,11 +344,6 @@ function App() {
                     </section>
                 )}
 
-                {mountedPages.training && (
-                    <section hidden={currentPage !== 'training'} aria-hidden={currentPage !== 'training'}>
-                        <MachineLearningPage />
-                    </section>
-                )}
             </main>
         </div>
     );
