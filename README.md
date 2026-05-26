@@ -9,13 +9,15 @@
 
 ADSMOD is a comprehensive web application designed for the collection, management, and modeling of adsorption data. This project represents the evolution and unification of two predecessor projects: **ADSORFIT** and **NISTADS Adsorption Modeling** (the former name of this repository).
 
-### Stage 1 backend split
+### Service and frontend split
 
-- Stage 1 separates the backend into:
+- Backend split:
 - `app/server/core_service` (non-ML API workflows)
 - `app/server/ml_service` (training/ML workflows)
 - `app/server/shared` (shared persistence and repository layer)
-- Stage 1 does not split frontend runtime yet; frontend split and launcher menu split are later stages.
+- Frontend split:
+- `app/client` (core UI for source/fitting; talks only to `core_service`)
+- `app/ml_client` (ML UI for training; talks only to `ml_service`)
 
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
@@ -62,14 +64,16 @@ ADSMOD provides an automated installation and launcher script for Windows users.
 If you prefer manual setup or are running outside the launcher workflow:
 1. Install Python and Node.js.
 2. Run `uv sync --all-packages --group dev` from `app/server`.
-3. Install frontend dependencies in `app/client`.
+3. Install frontend dependencies in `app/client` and `app/ml_client`.
 4. Launch backend and frontend processes.
 
 ### Backend startup commands (Stage 1)
 
 ```cmd
-app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
-app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 6046
+app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 8000
+app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8001
+cd app\client && npm run dev
+cd app\ml_client && npm run dev
 ```
 
 ## 4. How to Use
@@ -92,7 +96,9 @@ Adjust host/port and runtime backend values in that file when needed.
 
 ### 4.3 Operational Workflow and UI Snapshots
 
-The application workflow is organized into three top navigation tabs: `source`, `fitting`, and `training`.
+The application workflow is split across two frontends:
+- Core frontend: `source` and `fitting`.
+- ML frontend: `training`.
 The snapshots below were captured from the current `develop` build (`v2.3.0` release preparation) and are intended to show representative product states without duplication.
 
 #### 4.3.1 Data Source Configuration
@@ -146,7 +152,7 @@ Run `setup_and_maintenance.bat` to access setup and maintenance actions:
 
 ### 5.1 Frontend Development Commands
 
-From `app/client`:
+From `app/client` and `app/ml_client`:
 
 ```bash
 npm install

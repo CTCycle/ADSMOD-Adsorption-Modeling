@@ -1,6 +1,6 @@
 # ADSMOD User Manual
 
-Last updated: 2026-05-24
+Last updated: 2026-05-26
 
 ## 1. Start the Application
 
@@ -22,11 +22,10 @@ The launcher prepares runtimes/dependencies, starts backend and frontend, and op
 
 ## 2. Main Navigation
 
-The app has three top-level sections:
+The app is split into two frontends:
 
-- `source`: load local datasets and run NIST collection.
-- `fitting`: configure optimization and run adsorption model fitting.
-- `training`: process datasets, manage checkpoints, and run/resume training.
+- Core UI (`app/client`): `source` and `fitting`.
+- ML UI (`app/ml_client`): `training`.
 
 ## 3. Core Workflows
 
@@ -50,14 +49,14 @@ The app has three top-level sections:
 
 ### C. Build training data and run training
 
-1. Open `training`.
+1. Open the ML UI (`app/ml_client`).
 2. In `Data Processing`, build processed dataset(s).
 3. In `Train datasets`, start a new training run.
 4. Use `Training Dashboard` to monitor progress, metrics, and logs.
 
 ### D. Resume from checkpoint
 
-1. Open `training` -> `Checkpoints`.
+1. Open ML UI `Checkpoints`.
 2. Select checkpoint.
 3. Resume training with additional epochs.
 4. Validate resumed metrics on dashboard.

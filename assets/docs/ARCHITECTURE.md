@@ -1,6 +1,6 @@
 # ADSMOD Architecture
 
-Last updated: 2026-05-24
+Last updated: 2026-05-26
 
 ## 1. System Overview
 
@@ -10,7 +10,9 @@ ADSMOD is a Windows-first local application with:
   - `core_service`: non-ML API workflows (health, datasets, fitting, NIST).
   - `ml_service`: ML API workflows (training datasets, checkpoints, training lifecycle).
   - `shared`: persistence, repositories, schemas, and common backend utilities.
-- Frontend: React + TypeScript + Vite under `app/client`.
+- Frontend split:
+  - `app/client`: core frontend (source + fitting) for `core_service`.
+  - `app/ml_client`: ML frontend (training) for `ml_service`.
 - Optional desktop shell: Tauri under `app/client/src-tauri` and `release/tauri`.
 - Runtime/toolchain bootstrap binaries under `runtimes/`.
 

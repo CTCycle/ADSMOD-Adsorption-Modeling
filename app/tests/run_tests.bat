@@ -6,6 +6,7 @@ for %%I in ("%SCRIPT_DIR%..\..") do set "PROJECT_ROOT=%%~fI"
 set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
+set "ML_CLIENT_DIR=%APP_DIR%\ml_client"
 set "TESTS_DIR=%APP_DIR%\tests"
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
@@ -22,12 +23,14 @@ set "UI_PORT=7861"
 set "TEST_RESULT=0"
 set "BACKEND_PHASE=SKIPPED"
 set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
+set "ML_FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
 set "FRONTEND_UNIT_PHASE=SKIPPED"
 set "FRONTEND_E2E_PHASE=SKIPPED"
 set "PYTEST_PHASE=SKIPPED"
 set "LIVE_SERVER_PHASE=SKIPPED"
 set "STARTED_BACKEND=0"
 set "STARTED_FRONTEND=0"
+set "STARTED_ML_FRONTEND=0"
 
 if exist "%SETTINGS_ENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%SETTINGS_ENV%") do (
@@ -170,6 +173,32 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
     )
   )
 
+  if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%ML_CLIENT_DIR%\package.json" (
+    if not exist "%ML_CLIENT_DIR%\node_modules" (
+      echo [INFO] Installing ML frontend dependencies...
+      if exist "%ML_CLIENT_DIR%\package-lock.json" (
+        call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" ci
+        if errorlevel 1 call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" install
+      ) else (
+        call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" install
+      )
+      if errorlevel 1 (
+        set "LIVE_SERVER_PHASE=FAIL"
+        set "TEST_RESULT=1"
+        goto cleanup
+      )
+    )
+
+    echo [INFO] Building ML frontend...
+    call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" run build
+    if errorlevel 1 (
+      set "LIVE_SERVER_PHASE=FAIL"
+      set "TEST_RESULT=1"
+      goto cleanup
+    )
+    set "ML_FRONTEND_BOOTSTRAP_PHASE=PASS"
+  )
+
   echo [INFO] Waiting for live services...
   set "ATTEMPTS=0"
   :wait_loop
@@ -257,6 +286,7 @@ echo ============================================================
 echo  Live server phase   : %LIVE_SERVER_PHASE%
 echo  Python tests        : %PYTEST_PHASE%
 echo  Frontend bootstrap  : %FRONTEND_BOOTSTRAP_PHASE%
+echo  ML frontend build   : %ML_FRONTEND_BOOTSTRAP_PHASE%
 echo  Frontend unit tests : %FRONTEND_UNIT_PHASE%
 echo  Frontend E2E tests  : %FRONTEND_E2E_PHASE%
 echo ============================================================
