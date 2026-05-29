@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from shared.schemas.settings import build_database_settings
+from shared.common.settings import build_database_settings
 
 
 # -------------------------------------------------------------------------

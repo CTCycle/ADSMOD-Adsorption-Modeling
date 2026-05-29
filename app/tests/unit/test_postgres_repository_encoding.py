@@ -1,4 +1,4 @@
-from shared.schemas.settings import DatabaseSettings
+from shared.common.settings import DatabaseSettings
 from shared.repositories.database.postgres import PostgresRepository
 
 

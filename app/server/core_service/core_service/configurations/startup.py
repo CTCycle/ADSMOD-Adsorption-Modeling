@@ -8,20 +8,30 @@ from shared.common.settings import AppSettings, ServerSettings, get_server_setti
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
-def get_core_host() -> str:
+def get_env_value(*keys: str, default: str = "") -> str:
+    for key in keys:
+        value = os.getenv(key)
+        if value is not None and value.strip():
+            return value.strip()
     load_environment()
-    return (os.getenv("CORE_SERVICE_HOST") or os.getenv("FASTAPI_HOST") or "127.0.0.1").strip()
+    for key in keys:
+        value = os.getenv(key)
+        if value is not None and value.strip():
+            return value.strip()
+    return default
+
+
+def get_core_host() -> str:
+    return get_env_value("CORE_SERVICE_HOST", "FASTAPI_HOST", default="127.0.0.1")
 
 
 def get_core_port() -> int:
-    load_environment()
-    raw = (os.getenv("CORE_SERVICE_PORT") or os.getenv("FASTAPI_PORT") or "6045").strip()
+    raw = get_env_value("CORE_SERVICE_PORT", "FASTAPI_PORT", default="6045")
     return int(raw)
 
 
 def core_reload_enabled() -> bool:
-    load_environment()
-    value = (os.getenv("CORE_SERVICE_RELOAD") or os.getenv("RELOAD") or "true").strip().lower()
+    value = get_env_value("CORE_SERVICE_RELOAD", "RELOAD", default="true").lower()
     return value in {"1", "true", "yes", "on"}
 
 
@@ -54,8 +64,7 @@ def direct_api_enabled() -> bool:
 
 
 def tauri_mode_enabled() -> bool:
-    load_environment()
-    value = os.getenv("ADSMOD_TAURI_MODE", "false").strip().lower()
+    value = get_env_value("ADSMOD_TAURI_MODE", default="false").lower()
     return value in {"1", "true", "yes", "on"}
 
 

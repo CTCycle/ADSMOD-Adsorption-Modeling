@@ -4,7 +4,7 @@ from shared.common.constants import CONFIGURATION_FILE
 from core_service.configurations import (
     get_server_settings,
 )
-from shared.schemas.settings import (
+from shared.common.settings import (
     build_training_settings,
 )
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ADSMOD Model Fitting Backend ML Service",
-    "description": "ADSMOD machine learning service for dataset preparation, training, checkpoint management, and model workflows.",
+    "description": "FastAPI backend Machine learning service for dataset preparation, training, checkpoint management, and model workflows.",
     "version": "1.2.0"
   },
   "paths": {
