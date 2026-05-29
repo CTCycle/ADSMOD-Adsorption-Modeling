@@ -4,7 +4,7 @@ import tempfile
 import pytest
 from pydantic import ValidationError
 
-from app.server.app import public_host_mode_enabled, resolve_spa_file_path
+from core_service.configurations import public_host_mode_enabled, resolve_spa_file_path
 from core_service.domain.fitting import DatasetPayload
 from ml_service.domain.training import TrainingConfigRequest
 

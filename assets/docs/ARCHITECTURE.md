@@ -1,6 +1,6 @@
 # ADSMOD Architecture
 
-Last updated: 2026-05-26
+Last updated: 2026-05-29
 
 ## 1. System Overview
 
@@ -64,7 +64,6 @@ app/server/
       repositories/
       persistence/
       models/
-      schemas/
       common/
 ```
 
@@ -72,7 +71,6 @@ app/server/
 
 - Core ASGI app: `core_service.app:app`
 - ML ASGI app: `ml_service.app:app`
-- Compatibility shim: `app/server/app.py` re-exports `core_service.app:app` for temporary legacy references only.
 
 ## 5. Runtime and Environment Model
 
