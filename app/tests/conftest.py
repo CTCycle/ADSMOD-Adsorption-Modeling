@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
 os.environ.setdefault("MPLBACKEND", "Agg")
@@ -13,21 +14,22 @@ from playwright.sync_api import APIRequestContext, Page, Playwright
 
 # [CONSTANTS]
 ###############################################################################
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-FIXTURES_DIR = os.path.join(TESTS_DIR, "fixtures")
-APP_ROOT = os.path.dirname(TESTS_DIR)
-PROJECT_ROOT = os.path.dirname(APP_ROOT)
-SETTINGS_ENV = os.path.join(PROJECT_ROOT, "settings", ".env")
+TESTS_DIR = Path(__file__).resolve().parent
+FIXTURES_DIR = TESTS_DIR / "fixtures"
+APP_ROOT = TESTS_DIR.parent
+PROJECT_ROOT = APP_ROOT.parent
+SETTINGS_ENV = PROJECT_ROOT / "settings" / ".env"
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
 
 
 # -------------------------------------------------------------------------
-def load_env_values(path: str) -> dict[str, str]:
+def load_env_values(path: str | Path) -> dict[str, str]:
+    path = Path(path)
     values: dict[str, str] = {}
-    if not os.path.exists(path):
+    if not path.exists():
         return values
 
-    with open(path, "r", encoding="utf-8") as handle:
+    with path.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
             line = raw_line.strip()
             if not line or line.startswith("#") or line.startswith(";"):
@@ -136,7 +138,7 @@ def page(playwright: Playwright, base_url: str) -> Page:
 @pytest.fixture(scope="session")
 def sample_csv_path() -> str:
     """Return the path to the sample adsorption CSV fixture."""
-    return os.path.join(FIXTURES_DIR, "sample_adsorption.csv")
+    return str(FIXTURES_DIR / "sample_adsorption.csv")
 
 
 # -----------------------------------------------------------------------------

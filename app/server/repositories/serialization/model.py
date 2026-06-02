@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 import json
-import os
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 from keras.models import load_model
 
@@ -43,19 +43,17 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def create_checkpoint_folder(self) -> str:
         today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
-        checkpoint_path = os.path.join(
-            CHECKPOINTS_PATH, f"{self.model_name}_{today_datetime}"
-        )
-        os.makedirs(checkpoint_path, exist_ok=True)
-        os.makedirs(os.path.join(checkpoint_path, "configuration"), exist_ok=True)
+        checkpoint_path = Path(CHECKPOINTS_PATH) / f"{self.model_name}_{today_datetime}"
+        checkpoint_path.mkdir(parents=True, exist_ok=True)
+        (checkpoint_path / "configuration").mkdir(parents=True, exist_ok=True)
         logger.debug("Created checkpoint folder at %s", checkpoint_path)
 
-        return checkpoint_path
+        return str(checkpoint_path)
 
     # -------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint_name: str) -> bool:
-        checkpoint_path = self.resolve_checkpoint_path(checkpoint_name)
-        if not os.path.exists(checkpoint_path):
+        checkpoint_path = Path(self.resolve_checkpoint_path(checkpoint_name))
+        if not checkpoint_path.exists():
             return False
         try:
             shutil.rmtree(checkpoint_path)
@@ -67,10 +65,11 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_pretrained_model(self, model: Any, path: str) -> None:
-        model_files_path = os.path.join(path, "saved_model.keras")
+        path = Path(path)
+        model_files_path = path / "saved_model.keras"
         model.save(model_files_path)
         logger.info(
-            "Training session is over. Model %s has been saved", os.path.basename(path)
+            "Training session is over. Model %s has been saved", path.name
         )
 
     # -------------------------------------------------------------------------
@@ -81,36 +80,39 @@ class ModelSerializer:
         configuration: dict[str, Any],
         metadata: TrainingMetadata,
     ) -> None:
-        config_path = os.path.join(path, "configuration", "configuration.json")
-        metadata_path = os.path.join(path, "configuration", "metadata.json")
-        history_path = os.path.join(path, "configuration", "session_history.json")
+        path = Path(path)
+        configuration_dir = path / "configuration"
+        config_path = configuration_dir / "configuration.json"
+        metadata_path = configuration_dir / "metadata.json"
+        history_path = configuration_dir / "session_history.json"
 
-        with open(config_path, "w", encoding="utf-8") as f:
+        with config_path.open("w", encoding="utf-8") as f:
             json.dump(configuration, f, indent=4, default=str)
-        with open(metadata_path, "w", encoding="utf-8") as f:
+        with metadata_path.open("w", encoding="utf-8") as f:
             f.write(metadata.model_dump_json(indent=4))
-        with open(history_path, "w", encoding="utf-8") as f:
+        with history_path.open("w", encoding="utf-8") as f:
             json.dump(history, f, indent=4, default=str)
 
         logger.debug(
             "Model configuration, session history and metadata saved for %s",
-            os.path.basename(path),
+            path.name,
         )
 
     # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
         model_folders: list[str] = []
-        if not os.path.exists(CHECKPOINTS_PATH):
+        checkpoints_dir = Path(CHECKPOINTS_PATH)
+        if not checkpoints_dir.exists():
             return model_folders
-        for entry in os.scandir(CHECKPOINTS_PATH):
+        for entry in checkpoints_dir.iterdir():
             if entry.is_dir():
                 try:
                     self.resolve_checkpoint_path(entry.name)
                 except ValueError:
                     continue
                 has_keras = any(
-                    f.name.endswith(".keras") and f.is_file()
-                    for f in os.scandir(entry.path)
+                    checkpoint_file.suffix == ".keras" and checkpoint_file.is_file()
+                    for checkpoint_file in entry.iterdir()
                 )
                 if has_keras:
                     model_folders.append(entry.name)
@@ -121,12 +123,14 @@ class ModelSerializer:
     def load_training_configuration(
         self, path: str
     ) -> tuple[dict, TrainingMetadata, dict]:
-        config_path = os.path.join(path, "configuration", "configuration.json")
-        metadata_path = os.path.join(path, "configuration", "metadata.json")
-        history_path = os.path.join(path, "configuration", "session_history.json")
-        with open(config_path, encoding="utf-8") as f:
+        path = Path(path)
+        configuration_dir = path / "configuration"
+        config_path = configuration_dir / "configuration.json"
+        metadata_path = configuration_dir / "metadata.json"
+        history_path = configuration_dir / "session_history.json"
+        with config_path.open(encoding="utf-8") as f:
             configuration = json.load(f)
-        with open(metadata_path, encoding="utf-8") as f:
+        with metadata_path.open(encoding="utf-8") as f:
             metadata_dict = json.load(f)
             if "dataset_hash" not in metadata_dict:
                 alias_value = metadata_dict.get("hashcode") or metadata_dict.get(
@@ -135,7 +139,7 @@ class ModelSerializer:
                 if alias_value:
                     metadata_dict["dataset_hash"] = alias_value
             metadata = TrainingMetadata(**metadata_dict)
-        with open(history_path, encoding="utf-8") as f:
+        with history_path.open(encoding="utf-8") as f:
             history = json.load(f)
 
         return configuration, metadata, history
@@ -158,7 +162,7 @@ class ModelSerializer:
         }
 
         checkpoint_path = self.resolve_checkpoint_path(checkpoint)
-        model_path = os.path.join(checkpoint_path, "saved_model.keras")
+        model_path = Path(checkpoint_path) / "saved_model.keras"
         model = load_model(
             model_path,
             custom_objects=custom_objects,

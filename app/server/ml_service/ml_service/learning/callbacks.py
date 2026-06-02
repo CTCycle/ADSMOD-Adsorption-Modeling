@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import keras
@@ -216,7 +216,7 @@ class PeriodicCheckpointCallback(Callback):
         if (epoch + 1) % self.frequency != 0:
             return
         filename = f"model_checkpoint_E{epoch + 1:02d}.keras"
-        target_path = os.path.join(self.checkpoint_dir, filename)
+        target_path = Path(self.checkpoint_dir) / filename
         try:
             if self.model is not None:
                 self.model.save(target_path)

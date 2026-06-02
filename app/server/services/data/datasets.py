@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import io
-import os
 import re
 from difflib import get_close_matches
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -86,7 +86,7 @@ class DatasetService:
     # -------------------------------------------------------------------------
     def derive_dataset_name(self, filename: str | None) -> str:
         if isinstance(filename, str):
-            base = os.path.splitext(os.path.basename(filename))[0].strip()
+            base = Path(filename).stem.strip()
             if base:
                 normalized = self.DATASET_NAME_SANITIZER.sub("_", base)
                 normalized = normalized.strip(" ._-")
@@ -148,7 +148,7 @@ class DatasetService:
         """
         extension = ""
         if isinstance(filename, str):
-            extension = os.path.splitext(filename)[1].lower()
+            extension = Path(filename).suffix.lower()
 
         if extension and extension not in self.allowed_extensions:
             raise ValueError(f"Unsupported file type: {extension}")
