@@ -1,12 +1,13 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-05-26
+Last updated: 2026-05-31
 
 ## 1. Supported Modes
 
 ### Local web app mode (primary)
 
-- Backend: Uvicorn serving `core_service.app:app` (and `ml_service.app:app` for training APIs).
+- Backend: Uvicorn serving unified entrypoint `app.server.app:app`.
+- Unified entrypoint composes core routes from `core_service` and training routes from `ml_service`.
 - Frontend:
   - Core UI (`app/client`) on port `5173` (dev default).
   - ML UI (`app/ml_client`) on port `5174` (dev default).
@@ -35,7 +36,8 @@ Last updated: 2026-05-26
 ### Desktop mode (Tauri, Windows)
 
 - Tauri host process in `client/src-tauri/src/main.rs`.
-- Spawns and monitors backend process, then loads local backend URL in the webview.
+- Spawns and monitors backend process through `app.server.app:app`, then loads local backend URL in the webview.
+- Backend entrypoint serves packaged `app/client/dist` assets when `ADSMOD_TAURI_MODE=true`.
 - Packaging flow via `release/tauri/build_with_tauri.bat`.
 
 ### Containerized mode
@@ -63,7 +65,7 @@ What it does:
 - Ensures portable runtimes (`runtimes/python`, `runtimes/uv`, `runtimes/nodejs`).
 - Syncs backend workspace deps with `uv` into `app/server/.venv`.
 - Installs frontend deps, builds `client/dist` when missing.
-- Starts backend and frontend on configured host/ports.
+- Starts unified backend entrypoint and frontend on configured host/ports.
 
 ### API-only backend
 
@@ -152,7 +154,7 @@ Static application settings file: `ADSMOD/settings/configurations.json`
 
 - Local launcher mode:
   - Uses `.env` host/port values.
-  - Core backend startup uses `CORE_SERVICE_*` values (with compatibility fallback to `FASTAPI_*`).
+  - Unified backend startup uses `CORE_SERVICE_*` values (with compatibility fallback to `FASTAPI_*`).
   - Runs backend and frontend as separate processes.
 - API-only mode:
   - No frontend process required.

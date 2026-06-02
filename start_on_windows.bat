@@ -38,7 +38,7 @@ set "npm_cmd=%nodejs_dir%\npm.cmd"
 set "env_marker_node=%nodejs_dir%\.is_installed"
 
 set "pyproject=%root_folder%app\server\pyproject.toml"
-set "UVICORN_MODULE=core_service.app:app"
+set "UVICORN_MODULE=app.server.app:app"
 set "FRONTEND_DIR=%root_folder%app\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
@@ -310,7 +310,7 @@ if not exist "%venv_dir%\Scripts\python.exe" (
   echo [FATAL] virtual environment python not found at "%venv_dir%\Scripts\python.exe"
   goto error
 )
-start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%app/server/core_service" --host !CORE_SERVICE_HOST! --port !CORE_SERVICE_PORT! !RELOAD_FLAG! --log-level info
+start "" /b "%venv_dir%\Scripts\python.exe" -m uvicorn %UVICORN_MODULE% --app-dir "%root_folder%" --host !CORE_SERVICE_HOST! --port !CORE_SERVICE_PORT! !RELOAD_FLAG! --log-level info
 
 REM ============================================================================
 REM Wait for backend
