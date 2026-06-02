@@ -70,6 +70,7 @@ If you prefer manual setup or are running outside the launcher workflow:
 ### Backend startup commands (Stage 1)
 
 ```cmd
+app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
 app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 8000
 app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8001
 cd app\client && npm run dev
