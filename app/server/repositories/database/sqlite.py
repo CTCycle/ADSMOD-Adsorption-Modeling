@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -33,9 +33,9 @@ class SQLiteRepository:
         settings: DatabaseSettings,
         initialize_schema: bool | None = None,
     ) -> None:
-        self.db_path: str | None = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-        db_file_exists = os.path.exists(self.db_path)
+        self.db_path = Path(RESOURCES_PATH) / DATABASE_FILENAME
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_file_exists = self.db_path.exists()
         if initialize_schema is None:
             initialize_schema = not db_file_exists
 

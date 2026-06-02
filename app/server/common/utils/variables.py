@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -11,8 +12,8 @@ from app.server.common.utils.logger import logger
 ###############################################################################
 class EnvironmentVariables:
     def __init__(self) -> None:
-        self.env_path = ENV_FILE_PATH
-        if os.path.exists(self.env_path):
+        self.env_path = Path(ENV_FILE_PATH)
+        if self.env_path.exists():
             load_dotenv(self.env_path, override=True)
         else:
             logger.info(

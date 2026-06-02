@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
@@ -40,29 +40,29 @@ def service_root() -> ServiceStatusResponse:
 # -----------------------------------------------------------------------------
 class SpaEntrypointHandlers:
     def __init__(self, client_dist_path: str) -> None:
-        self.client_dist_path = client_dist_path
+        self.client_dist_path = Path(client_dist_path)
 
     # -------------------------------------------------------------------------
     def serve_spa_root(self) -> FileResponse:
-        return FileResponse(os.path.join(self.client_dist_path, "index.html"))
+        return FileResponse(self.client_dist_path / "index.html")
 
     # -------------------------------------------------------------------------
     def serve_spa_entrypoint(self, full_path: str) -> FileResponse:
         requested_path = resolve_spa_file_path(self.client_dist_path, full_path)
         if requested_path is not None:
             return FileResponse(requested_path)
-        return FileResponse(os.path.join(self.client_dist_path, "index.html"))
+        return FileResponse(self.client_dist_path / "index.html")
 
 
 # -----------------------------------------------------------------------------
 def register_root_routes(app: FastAPI) -> None:
     if packaged_client_available():
         client_dist_path = get_client_dist_path()
-        assets_path = os.path.join(client_dist_path, "assets")
+        assets_path = Path(client_dist_path) / "assets"
         handlers = SpaEntrypointHandlers(client_dist_path=client_dist_path)
 
-        if os.path.isdir(assets_path):
-            app.mount("/assets", StaticFiles(directory=assets_path), name="spa-assets")
+        if assets_path.is_dir():
+            app.mount("/assets", StaticFiles(directory=str(assets_path)), name="spa-assets")
 
         app.add_api_route(
             "/",

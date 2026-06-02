@@ -4,16 +4,16 @@ import logging
 import logging.config
 import sys
 from datetime import datetime
-from os import makedirs
-from os.path import join
+from pathlib import Path
 
 from shared.common.constants import LOGS_PATH
 
 
 ###############################################################################
-makedirs(LOGS_PATH, exist_ok=True)
+logs_path = Path(LOGS_PATH)
+logs_path.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = join(LOGS_PATH, f"ADSMOD_{current_timestamp}.log")
+log_filename = logs_path / f"ADSMOD_{current_timestamp}.log"
 
 
 ###############################################################################
@@ -48,7 +48,7 @@ LOG_CONFIG = {
             "class": "logging.FileHandler",
             "level": "DEBUG",
             "formatter": "default",
-            "filename": log_filename,
+            "filename": str(log_filename),
             "mode": "a",
             "encoding": "utf-8",
         },

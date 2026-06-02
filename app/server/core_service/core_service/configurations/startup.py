@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from os import PathLike
+from pathlib import Path
 
 from shared.common.env import load_environment
 from shared.common.settings import AppSettings, ServerSettings, get_server_settings
@@ -49,15 +51,19 @@ def public_host_mode_enabled() -> bool:
     return bool(host and host not in LOOPBACK_HOSTS)
 
 
-def resolve_spa_file_path(client_dist_path: str, requested_path: str) -> str | None:
-    normalized_path = str(requested_path or "").lstrip("/\\")
-    absolute_root = os.path.abspath(client_dist_path)
-    candidate = os.path.abspath(os.path.join(absolute_root, normalized_path))
-    if os.path.commonpath([absolute_root, candidate]) != absolute_root:
+def resolve_spa_file_path(
+    client_dist_path: str | PathLike[str], requested_path: str | PathLike[str]
+) -> str | None:
+    normalized_path = str(requested_path or "").replace("\\", "/").lstrip("/")
+    absolute_root = Path(client_dist_path).resolve()
+    candidate = (absolute_root / normalized_path).resolve()
+    try:
+        candidate.relative_to(absolute_root)
+    except ValueError:
         return None
-    if not os.path.isfile(candidate):
+    if not candidate.is_file():
         return None
-    return candidate
+    return str(candidate)
 
 def direct_api_enabled() -> bool:
     return not public_host_mode_enabled()
@@ -69,9 +75,9 @@ def tauri_mode_enabled() -> bool:
 
 
 def get_client_dist_path() -> str:
-    project_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".."))
-    return os.path.join(project_path, "app", "client", "dist")
+    project_path = Path(__file__).resolve().parents[5]
+    return str(project_path / "app" / "client" / "dist")
 
 
 def packaged_client_available() -> bool:
-    return tauri_mode_enabled() and os.path.isdir(get_client_dist_path())
+    return tauri_mode_enabled() and Path(get_client_dist_path()).is_dir()

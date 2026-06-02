@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import time
+from pathlib import Path
 from typing import Any
 
 from ml_service.common.utils.logger import logger
@@ -298,7 +298,7 @@ class TrainingService:
                     "success": False,
                     "message": "Reference checkpoint name is invalid.",
                 }
-            if not os.path.isdir(checkpoint_path):
+            if not Path(checkpoint_path).is_dir():
                 return {
                     "success": False,
                     "message": "Reference checkpoint not found.",
@@ -460,7 +460,7 @@ class TrainingService:
         detailed_checkpoints: list[CheckpointDetailInfo] = []
 
         for checkpoint in checkpoints:
-            checkpoint_path = os.path.join(CHECKPOINTS_PATH, checkpoint)
+            checkpoint_path = str(Path(CHECKPOINTS_PATH) / checkpoint)
             epochs_trained: int | None = None
             final_loss: float | None = None
             final_accuracy: float | None = None
@@ -542,7 +542,7 @@ class TrainingService:
         checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
             checkpoint_name
         )
-        if not os.path.isdir(checkpoint_path):
+        if not Path(checkpoint_path).is_dir():
             raise FileNotFoundError(f"Checkpoint {checkpoint_name} not found")
 
         configuration, metadata, history = (
