@@ -44,7 +44,7 @@ This project utilizes deep learning techniques to model adsorption phenomena.
 
 ### 3.1 Windows (One Click Setup)
 
-ADSMOD provides an automated installation and launcher script for Windows users.
+ADSMOD provides an automated menu-driven launcher and maintenance script for Windows users.
 
 1. Navigate to the `ADSMOD` directory.
 2. Run `start_on_windows.bat`.
@@ -52,8 +52,9 @@ ADSMOD provides an automated installation and launcher script for Windows users.
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
 - Installs backend dependencies from `pyproject.toml` into `app/server/.venv`.
-- Installs frontend dependencies and builds the frontend bundle.
-- Starts backend and frontend.
+- Installs frontend dependencies and can build the selected frontend bundle.
+- Exposes launch modes for the core webapp, ML webapp, or both.
+- Exposes setup and maintenance actions for core-only, ML-only, or shared operations.
 
 **First Run vs. Subsequent Runs:**
 - On the **first run**, setup may take time because runtimes and dependencies are downloaded.
@@ -82,7 +83,7 @@ cd app\ml_client && npm run dev
 ### 4.1 Launching the Application
 
 **Windows:**
-Double-click `start_on_windows.bat`. This launches backend/frontend and opens the UI at `http://<UI_HOST>:<UI_PORT>` from `settings/.env`.
+Double-click `start_on_windows.bat`. Use the menu to launch the core webapp, the ML webapp, or both.
 
 **Windows (Packaged Tauri App):**
 Build with `release\tauri\build_with_tauri.bat`, then launch from `release/windows/installers` or `release/windows/portable`.
@@ -144,10 +145,11 @@ The snapshots below were captured from the current `develop` build (`v2.3.0` rel
 
 ## 5. Setup and Maintenance
 
-Run `setup_and_maintenance.bat` to access setup and maintenance actions:
+Run `start_on_windows.bat` to access setup and maintenance actions:
 
 - **Remove logs**: clears `.log` files under `app/resources/logs`.
-- **Uninstall app**: removes local runtimes and build artifacts while preserving folder scaffolding.
+- **Install or update core, ML, or both webapps**: prepares shared runtimes plus the selected frontend scope.
+- **Uninstall app artifacts**: removes core-only, ML-only, or full local runtime/build artifacts.
 - **Initialize database**: creates or resets the project database schema.
 - **Clean desktop build artifacts**: removes Tauri build output under release targets.
 
