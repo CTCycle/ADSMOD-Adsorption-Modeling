@@ -1,47 +1,110 @@
-# ADSMOD Documentation Overview
+# ADSMOD Project Overview
 
-Last updated: 2026-05-26
+Last updated: 2026-06-03
 
-## FILES INDEX
+## Purpose
 
-- PROJECT_OVERVIEW.md  
-  Master index for all documentation files, plus documentation handling rules and environment rules.
+This file is the root index for `assets/docs`. Read it first, then open the smallest topic file that answers the current question.
 
-- ARCHITECTURE.md  
-  System architecture map: directory structure, backend/frontend modules, API endpoints, layering, persistence, and concurrency model.
+## Navigation Rules
 
-- CODING_RULES.md  
-  Consolidated coding standards for Python and TypeScript, including typing, validation, async guidance, and tooling expectations.
+1. Start with this file only.
+2. Choose the relevant topic folder.
+3. Open the topic overview before reading leaf documents.
+4. Read only the smallest leaf file required for the task.
+5. Expand to adjacent files only when the task crosses topic boundaries.
 
-- RUNTIME_MODES.md  
-  Supported runtime targets and startup procedures (local web/API, tests, and Tauri desktop), with configuration and deployment notes.
+## Naming Rules
 
-- UI_STANDARDS.md  
-  Enforceable UI implementation standards derived from the current React/CSS codebase (tokens, components, responsiveness, and accessibility).
+- All documentation files and folders under `assets/docs` use lowercase names.
+- Root-level files are reserved for entry-point documentation only.
+- Topic folders group related leaf documents by subject.
 
-- USER_MANUAL.md  
-  End-user operational guide for launching, navigating, and running the main ingestion, fitting, and training workflows.
+## Documentation Ontology
 
-## CONTEXT RULES
+### Root
 
-- Read documentation files only when needed for the current task.
-- Defer reading until required by the task scope.
-- Keep all related documents updated when behavior, structure, or conventions change.
-- Always include a `Last updated: YYYY-MM-DD` line when modifying any document.
-- Do not read all `SKILL.md` files indiscriminately.
-- Pre-select relevant files using folder structure and user intent before opening documents.
+- [`project_overview.md`](project_overview.md)
+  - Central index for the documentation tree, reading rules, and environment assumptions.
 
-## ENVIRONMENT RULES
+### Architecture
+
+- [`architecture/overview.md`](architecture/overview.md)
+  - Index for system structure, service boundaries, API ownership, and persistence layout.
+- [`architecture/system_overview.md`](architecture/system_overview.md)
+  - Repository structure, service/frontend split, entry points, and runtime composition.
+- [`architecture/service_boundaries.md`](architecture/service_boundaries.md)
+  - Backend dependency direction, import constraints, and ownership rules.
+- [`architecture/api_surface.md`](architecture/api_surface.md)
+  - Core-service and ML-service route ownership.
+- [`architecture/persistence_and_packages.md`](architecture/persistence_and_packages.md)
+  - Shared backend workspace, persistence ownership, and validation expectations.
+
+### Coding
+
+- [`coding/overview.md`](coding/overview.md)
+  - Index for code standards and quality expectations.
+- [`coding/python.md`](coding/python.md)
+  - Python runtime, typing, validation, async, structure, and service-boundary rules.
+- [`coding/typescript.md`](coding/typescript.md)
+  - Frontend TypeScript structure, contracts, API usage, and accessibility expectations.
+- [`coding/quality_gates.md`](coding/quality_gates.md)
+  - Linting, typing, testing, and validation requirements across the stack.
+- [`coding/windows_scripts.md`](coding/windows_scripts.md)
+  - Rules for `.bat` and PowerShell operational code.
+
+### Runtime
+
+- [`runtime/overview.md`](runtime/overview.md)
+  - Index for runtime modes, startup, configuration, and packaging.
+- [`runtime/modes.md`](runtime/modes.md)
+  - Supported execution modes and their responsibilities.
+- [`runtime/startup.md`](runtime/startup.md)
+  - Launcher and manual startup procedures.
+- [`runtime/configuration.md`](runtime/configuration.md)
+  - Environment variables, structured settings, and mode-specific configuration behavior.
+- [`runtime/deployment.md`](runtime/deployment.md)
+  - Packaging, runtime dependencies, interoperability, and current constraints.
+
+### UI
+
+- [`ui/overview.md`](ui/overview.md)
+  - Index for tokens, component patterns, and UX rules.
+- [`ui/design_tokens.md`](ui/design_tokens.md)
+  - Typography, spacing, radius, color, and surface standards.
+- [`ui/components_and_patterns.md`](ui/components_and_patterns.md)
+  - Buttons, forms, navigation, data views, dialogs, and status-heavy interaction patterns.
+- [`ui/experience.md`](ui/experience.md)
+  - Page structure, workflow UX, responsiveness, accessibility, and design principles.
+
+### Operations
+
+- [`operations/overview.md`](operations/overview.md)
+  - Index for end-user workflows, common commands, and troubleshooting.
+- [`operations/workflows.md`](operations/workflows.md)
+  - Primary user workflows across source, fitting, and training.
+- [`operations/commands.md`](operations/commands.md)
+  - Launch, test, frontend, maintenance, and packaging commands.
+- [`operations/troubleshooting.md`](operations/troubleshooting.md)
+  - Common runtime and packaging issues with expected checks.
+
+## Reading Order
+
+1. Read this root index.
+2. Open the relevant topic overview.
+3. Open the smallest leaf file needed for the task.
+4. Return here when switching to a different topic branch.
+
+## Context Rules
+
+- Read documentation only when required by the current task.
+- Keep all affected documents aligned with implementation changes.
+- Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
+- Do not read the entire documentation tree unless the task explicitly requires broad context.
+
+## Environment Rules
 
 - Assume Windows as the default operating environment.
-- Support both CMD and PowerShell command forms when documenting operational steps.
-- Prefer script-first Windows workflows already present in this repository (`.bat` launch/build/test scripts).
-- Update this section whenever new environment-specific solutions or constraints are identified.
-
-## SERVICE AND FRONTEND SPLIT
-
-- ADSMOD backend is split into `app/server/core_service`, `app/server/ml_service`, and `app/server/shared`.
-- `core_service` handles non-ML workflows (health, datasets, fitting, NIST).
-- `ml_service` handles training workflows (dataset preparation, checkpoints, training status/control).
-- Shared persistence, repositories, and database access are provided through `app/server/shared`.
-- ADSMOD frontend is split into `app/client` (core UI for source/fitting) and `app/ml_client` (ML UI for training).
+- Document both CMD and PowerShell forms when commands differ.
+- Prefer repository launch/build/test scripts over ad-hoc manual procedures.
+- Update environment guidance when new runtime constraints or supported workflows are introduced.
