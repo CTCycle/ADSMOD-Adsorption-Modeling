@@ -6,8 +6,10 @@ Last updated: 2026-06-03
 
 ### Local Web App Mode
 
-- Backend: Uvicorn serving unified entrypoint `app.server.app:app`.
-- Unified entrypoint composes core routes from `core_service` and training routes from `ml_service`.
+- Backend launch choices:
+- `core_service.app:app` for the core webapp launcher mode.
+- `ml_service.app:app` for the ML webapp launcher mode.
+- Both services together for the combined launcher mode.
 - Frontends
   - Core UI in `app/client`, with dev default port `5173`.
   - ML UI in `app/ml_client`, with dev default port `5174`.

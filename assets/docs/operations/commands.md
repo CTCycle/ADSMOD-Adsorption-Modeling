@@ -4,8 +4,7 @@ Last updated: 2026-06-03
 
 ## Launch And Maintenance
 
-- Start app: `ADSMOD\start_on_windows.bat`
-- Maintenance menu: `ADSMOD\setup_and_maintenance.bat`
+- Unified launcher and maintenance menu: `ADSMOD\start_on_windows.bat`
 
 ## Tests
 

@@ -16,13 +16,13 @@ PowerShell:
 .\ADSMOD\start_on_windows.bat
 ```
 
-This launcher:
+This menu-driven script:
 
 - ensures portable runtimes under `runtimes/`
 - syncs backend workspace dependencies into `app/server/.venv`
 - installs frontend dependencies when needed
-- builds frontend assets when required
-- starts the unified backend and frontend processes
+- exposes launch choices for the core webapp, ML webapp, or both
+- exposes setup and maintenance choices for core-only, ML-only, or shared operations
 
 ## API-Only Backend Startup
 
