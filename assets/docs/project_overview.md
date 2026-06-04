@@ -31,7 +31,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 
 - [`architecture/overview.md`](architecture/overview.md)
   - Index for system structure, service boundaries, API ownership, and persistence layout.
-- [`architecture.md`](architecture.md)
+- [`architecture.md`](architecture/architecture.md)
   - Root architecture entry point that links to the canonical architecture topic documents.
 - [`architecture/system_overview.md`](architecture/system_overview.md)
   - Repository structure, service/frontend split, entry points, and runtime composition.
