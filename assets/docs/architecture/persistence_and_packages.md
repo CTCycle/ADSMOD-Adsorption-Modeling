@@ -1,6 +1,6 @@
 # ADSMOD Persistence And Packages
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 ## Backend Workspace Model
 
@@ -17,6 +17,7 @@ Persistence and data access shared by multiple services live in `app/server/shar
 - repository queries
 - ORM schemas and models
 - persistence-safe serializers and shared helpers
+- shared infrastructure services that do not depend on `core_service` or `ml_service`
 
 ML-specific model and checkpoint serialization remains under `ml_service`.
 

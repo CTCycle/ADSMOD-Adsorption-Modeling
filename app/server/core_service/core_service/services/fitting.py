@@ -10,7 +10,7 @@ from core_service.domain.jobs import (
     JobStatusResponse,
 )
 from core_service.services.job_responses import JobResponseFactory
-from core_service.services.jobs import job_manager
+from core_service.services.jobs import JobManager
 from core_service.services.modeling.fitting import FittingPipeline
 from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
 
@@ -21,9 +21,11 @@ class FittingService:
 
     def __init__(
         self,
+        job_manager: JobManager | None = None,
         pipeline: FittingPipeline | None = None,
         nist_dataset_service: FittingNISTDatasetService | None = None,
     ) -> None:
+        self.job_manager = job_manager or JobManager(logger=logger)
         self.pipeline = pipeline or FittingPipeline()
         self.nist_dataset_service = nist_dataset_service or FittingNISTDatasetService()
 
@@ -44,7 +46,7 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
-        if job_manager.is_job_running(self.JOB_TYPE):
+        if self.job_manager.is_job_running(self.JOB_TYPE):
             raise ValueError("A fitting job is already running.")
 
         logger.info(
@@ -59,7 +61,7 @@ class FittingService:
             for name, config in payload.parameter_bounds.items()
         }
 
-        job_id = job_manager.start_job(
+        job_id = self.job_manager.start_job(
             job_type=self.JOB_TYPE,
             runner=self._run_fitting_sync,
             args=(
@@ -79,7 +81,7 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = job_manager.get_job_status(job_id)
+        job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise LookupError(f"Job {job_id} not found.")
         return JobResponseFactory.status(
@@ -89,7 +91,7 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def list_jobs(self) -> JobListResponse:
-        all_jobs = job_manager.list_jobs(self.JOB_TYPE)
+        all_jobs = self.job_manager.list_jobs(self.JOB_TYPE)
         return JobResponseFactory.list(
             job_statuses=all_jobs,
             poll_interval=get_server_settings().jobs.polling_interval,
@@ -97,7 +99,7 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> JobCancelResponse:
-        success = job_manager.cancel_job(job_id)
+        success = self.job_manager.cancel_job(job_id)
         if not success:
             raise ValueError(
                 f"Job {job_id} cannot be cancelled (not found or already completed)."

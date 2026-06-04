@@ -17,9 +17,8 @@ from core_service.common.constants import (
     FITTING_RUN_ENDPOINT,
 )
 from core_service.common.utils.logger import logger
+from core_service.services.container import CoreServiceContainer
 from core_service.services.fitting import FittingService
-
-router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
 
 
 ###############################################################################
@@ -121,10 +120,10 @@ class FittingEndpoint:
 
 
 ###############################################################################
-fitting_endpoint = FittingEndpoint(
-    router=router,
-    service=FittingService(),
-)
-fitting_endpoint.add_routes()
+def create_fitting_router(container: CoreServiceContainer) -> APIRouter:
+    router = APIRouter(prefix=FITTING_ROUTER_PREFIX, tags=["fitting"])
+    endpoint = FittingEndpoint(router=router, service=container.fitting_service)
+    endpoint.add_routes()
+    return router
 
 

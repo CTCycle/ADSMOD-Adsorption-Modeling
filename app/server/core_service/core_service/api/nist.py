@@ -36,12 +36,11 @@ from core_service.common.constants import (
     NIST_STATUS_ENDPOINT,
 )
 from core_service.common.utils.logger import logger
+from core_service.services.container import CoreServiceContainer
 from core_service.services.data.nist_service import NISTDataService
 from core_service.services.job_responses import JobResponseFactory
-from core_service.services.jobs import job_manager
+from core_service.services.jobs import JobManager
 from core_service.configurations import get_server_settings
-
-router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
 
 
 ###############################################################################
@@ -52,9 +51,15 @@ class NistEndpoint:
     CATEGORY_FETCH_SUFFIX = "fetch"
     CATEGORY_ENRICH_SUFFIX = "enrich"
 
-    def __init__(self, router: APIRouter, service: NISTDataService) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        service: NISTDataService,
+        job_manager: JobManager,
+    ) -> None:
         self.router = router
         self.service = service
+        self.job_manager = job_manager
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -69,14 +74,14 @@ class NistEndpoint:
         args: tuple[Any, ...] = (),
         message: str = "Job started.",
     ) -> JobStartResponse:
-        if job_manager.is_job_running(job_type):
+        if self.job_manager.is_job_running(job_type):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"A {job_type} job is already running.",
             )
 
         job_id = str(uuid.uuid4())[:8]
-        job_manager.start_job(
+        self.job_manager.start_job(
             job_type=job_type,
             runner=runner,
             args=args,
@@ -281,7 +286,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = job_manager.get_job_status(job_id)
+        job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -296,7 +301,7 @@ class NistEndpoint:
     def list_jobs(self) -> JobListResponse:
         all_jobs = [
             job
-            for job in job_manager.list_jobs()
+            for job in self.job_manager.list_jobs()
             if str(job.get("job_type", "")).startswith("nist_")
         ]
         return JobResponseFactory.list(
@@ -306,7 +311,7 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> JobCancelResponse:
-        success = job_manager.cancel_job(job_id)
+        success = self.job_manager.cancel_job(job_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -416,9 +421,13 @@ class NistEndpoint:
 
 
 ###############################################################################
-nist_service = NISTDataService()
-nist_endpoint = NistEndpoint(router=router, service=nist_service)
-nist_endpoint.add_routes()
-
-
+def create_nist_router(container: CoreServiceContainer) -> APIRouter:
+    router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
+    endpoint = NistEndpoint(
+        router=router,
+        service=container.nist_service,
+        job_manager=container.job_manager,
+    )
+    endpoint.add_routes()
+    return router
 

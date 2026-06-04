@@ -4,6 +4,8 @@ import warnings
 
 from fastapi import FastAPI
 
+from core_service.api.entrypoint import health_router, register_root_routes
+from core_service.api.routes import register_core_routes
 from core_service.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
@@ -13,41 +15,34 @@ from core_service.configurations.startup import (
     public_host_mode_enabled,
     resolve_spa_file_path,
 )
-from core_service.api.datasets import router as dataset_router
-from core_service.api.entrypoint import health_router, register_root_routes
-from core_service.api.fitting import router as fit_router
-from core_service.api.nist import router as nist_router
+from core_service.services.container import CoreServiceContainer
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 PUBLIC_HOST_MODE = public_host_mode_enabled()
 
-app = FastAPI(
-    title=FASTAPI_TITLE,
-    version=FASTAPI_VERSION,
-    description=FASTAPI_DESCRIPTION,
-    docs_url=None if PUBLIC_HOST_MODE else "/docs",
-    redoc_url=None if PUBLIC_HOST_MODE else "/redoc",
-    openapi_url=None if PUBLIC_HOST_MODE else "/openapi.json",
-)
+def create_app(container: CoreServiceContainer | None = None) -> FastAPI:
+    application = FastAPI(
+        title=FASTAPI_TITLE,
+        version=FASTAPI_VERSION,
+        description=FASTAPI_DESCRIPTION,
+        docs_url=None if PUBLIC_HOST_MODE else "/docs",
+        redoc_url=None if PUBLIC_HOST_MODE else "/redoc",
+        openapi_url=None if PUBLIC_HOST_MODE else "/openapi.json",
+    )
+    resolved_container = container or CoreServiceContainer()
+    application.state.container = resolved_container
+    application.include_router(health_router)
+    register_core_routes(application, resolved_container)
+    register_root_routes(application)
+    return application
 
-routers = [
-    health_router,
-    dataset_router,
-    fit_router,
-    nist_router,
-]
 
-for router in routers:
-    if router is health_router:
-        app.include_router(router)
-    else:
-        app.include_router(router, prefix="/api", include_in_schema=False)
-
-register_root_routes(app)
+app = create_app()
 
 __all__ = [
     "app",
+    "create_app",
     "PUBLIC_HOST_MODE",
     "public_host_mode_enabled",
     "resolve_spa_file_path",

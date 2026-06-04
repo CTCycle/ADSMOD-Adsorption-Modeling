@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from ml_service.domain.jobs import (
     JobCancelResponse,
@@ -24,9 +24,8 @@ from ml_service.domain.training import (
     TrainingStatusResponse,
 )
 from ml_service.common.utils.logger import logger
+from ml_service.services.container import MlServiceContainer
 from ml_service.services.training import TrainingService
-
-router = APIRouter(prefix="/training", tags=["training"])
 
 
 ###############################################################################
@@ -288,106 +287,126 @@ class TrainingEndpoint:
             self.get_training_datasets,
             methods=["GET"],
             response_model=TrainingDatasetResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/dataset-sources",
             self.get_dataset_sources,
             methods=["GET"],
             response_model=DatasetSourcesResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/dataset-source",
             self.delete_dataset_source,
             methods=["DELETE"],
             response_model=DatasetSourceDeleteResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/build-dataset",
             self.build_training_dataset,
             methods=["POST"],
             response_model=JobStartResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/processed-datasets",
             self.get_processed_datasets,
             methods=["GET"],
             response_model=ProcessedDatasetsResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/dataset-info",
             self.get_dataset_info,
             methods=["GET"],
             response_model=DatasetInfoResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/dataset",
             self.clear_training_dataset,
             methods=["DELETE"],
             response_model=OperationStatusResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/jobs",
             self.list_dataset_jobs,
             methods=["GET"],
             response_model=JobListResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/jobs/{job_id}",
             self.get_dataset_job_status,
             methods=["GET"],
             response_model=JobStatusResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/jobs/{job_id}",
             self.cancel_dataset_job,
             methods=["DELETE"],
             response_model=JobCancelResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/checkpoints",
             self.get_checkpoints,
             methods=["GET"],
             response_model=CheckpointsResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/checkpoints/{checkpoint_name}",
             self.get_checkpoint_details,
             methods=["GET"],
             response_model=CheckpointFullDetailsResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/checkpoints/{checkpoint_name}",
             self.delete_checkpoint,
             methods=["DELETE"],
             response_model=OperationStatusResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/start",
             self.start_training,
             methods=["POST"],
             response_model=TrainingStartResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/resume",
             self.resume_training,
             methods=["POST"],
             response_model=TrainingStartResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/stop",
             self.stop_training,
             methods=["POST"],
             response_model=OperationStatusResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/status",
             self.get_training_status,
             methods=["GET"],
             response_model=TrainingStatusResponse,
+            status_code=status.HTTP_200_OK,
         )
 
 
 ###############################################################################
-training_endpoint = TrainingEndpoint(router=router, service=TrainingService())
-training_endpoint.add_routes()
+def create_training_router(container: MlServiceContainer) -> APIRouter:
+    router = APIRouter(prefix="/training", tags=["training"])
+    endpoint = TrainingEndpoint(router=router, service=container.training_service)
+    endpoint.add_routes()
+    return router
 
