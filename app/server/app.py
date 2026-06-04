@@ -12,21 +12,20 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from shared.common.constants import (
-    CHECKPOINTS_PATH,
+    APP_PATH,
+    CHECKPOINTS_DIR,
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
-    LOGS_PATH,
-    RESOURCES_PATH,
-    TEMPLATES_PATH,
+    LOGS_DIR,
+    RESOURCES_DIR,
+    TEMPLATES_DIR,
 )
 from shared.common.env import load_environment
 from shared.common.settings import ServerSettings, get_server_settings
 from shared.repositories.database.initializer import initialize_database
 
-SERVER_DIR = Path(__file__).resolve().parent
-APP_DIR = SERVER_DIR.parent
-CLIENT_DIST_PATH = APP_DIR / "client" / "dist"
+CLIENT_DIST_PATH = APP_PATH / "client" / "dist"
 CLIENT_INDEX_FILE_PATH = CLIENT_DIST_PATH / "index.html"
 CLIENT_ASSETS_PATH = CLIENT_DIST_PATH / "assets"
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
@@ -91,8 +90,8 @@ def _tauri_mode_enabled() -> bool:
 
 
 def _ensure_runtime_directories() -> None:
-    for path_value in (RESOURCES_PATH, LOGS_PATH, TEMPLATES_PATH, CHECKPOINTS_PATH):
-        Path(path_value).mkdir(parents=True, exist_ok=True)
+    for path_value in (RESOURCES_DIR, LOGS_DIR, TEMPLATES_DIR, CHECKPOINTS_DIR):
+        path_value.mkdir(parents=True, exist_ok=True)
 
 
 def _run_startup_validations(settings: ServerSettings) -> None:
