@@ -1,6 +1,6 @@
 # ADSMOD API Surface
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 ## Core Service Scope
 
@@ -12,6 +12,7 @@ Core service owns non-ML routes only:
 - NIST and source-collection routes
 
 Core service must not expose `/api/training/*`.
+`app/server/app.py` may compose those routes into the unified backend, but route ownership remains with `core_service`.
 
 ## ML Service Scope
 
@@ -32,3 +33,5 @@ ML service owns training workflows:
 - `/api/training/resume`
 - `/api/training/stop`
 - `/api/training/status`
+
+Training routes belong only to `ml_service`, even when they are mounted by the unified backend entrypoint.

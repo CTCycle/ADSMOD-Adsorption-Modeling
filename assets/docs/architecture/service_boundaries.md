@@ -1,6 +1,6 @@
 # ADSMOD Service Boundaries
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 ## Dependency Direction
 
@@ -18,4 +18,6 @@ Last updated: 2026-06-03
 
 - ML-heavy dependencies belong only in `app/server/ml_service/pyproject.toml`.
 - Shared persistence, CRUD logic, ORM models, and database/session utilities belong in `app/server/shared`.
+- Shared infrastructure that is not business-domain specific, such as reusable job orchestration, belongs in `shared`.
 - ML-specific training and checkpoint implementation stays in `ml_service`.
+- Legacy monolith paths under `app/server/api`, `common`, `configurations`, `domain`, `learning`, `repositories`, and `services` are not part of the active architecture.

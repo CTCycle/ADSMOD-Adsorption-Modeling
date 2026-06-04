@@ -1,47 +1,16 @@
 from __future__ import annotations
 
 import os
-import sys
 import warnings
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-
-SERVER_DIR = Path(__file__).resolve().parent
-APP_DIR = SERVER_DIR.parent
-CLIENT_DIST_PATH = APP_DIR / "client" / "dist"
-CLIENT_INDEX_FILE_PATH = CLIENT_DIST_PATH / "index.html"
-CLIENT_ASSETS_PATH = CLIENT_DIST_PATH / "assets"
-TRUTHY_VALUES = {"1", "true", "yes", "on"}
-
-for package_dir in (
-    SERVER_DIR / "shared",
-    SERVER_DIR / "core_service",
-    SERVER_DIR / "ml_service",
-):
-    resolved_package_dir = str(package_dir)
-    if package_dir.is_dir() and resolved_package_dir not in sys.path:
-        sys.path.insert(0, resolved_package_dir)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from shared.common.env import load_environment
-from shared.common.settings import ServerSettings, get_server_settings
-from shared.repositories.database.initializer import initialize_database
-
-load_environment()
-os.environ.setdefault("KERAS_BACKEND", "torch")
-os.environ.setdefault("MPLBACKEND", "Agg")
-warnings.filterwarnings("ignore", category=FutureWarning)
-
-from core_service.api.datasets import router as dataset_router
-from core_service.api.entrypoint import health_router
-from core_service.api.fitting import router as fitting_router
-from core_service.api.nist import router as nist_router
-from ml_service.api.training import router as training_router
 from shared.common.constants import (
     CHECKPOINTS_PATH,
     FASTAPI_DESCRIPTION,
@@ -51,6 +20,37 @@ from shared.common.constants import (
     RESOURCES_PATH,
     TEMPLATES_PATH,
 )
+from shared.common.env import load_environment
+from shared.common.settings import ServerSettings, get_server_settings
+from shared.repositories.database.initializer import initialize_database
+
+SERVER_DIR = Path(__file__).resolve().parent
+APP_DIR = SERVER_DIR.parent
+CLIENT_DIST_PATH = APP_DIR / "client" / "dist"
+CLIENT_INDEX_FILE_PATH = CLIENT_DIST_PATH / "index.html"
+CLIENT_ASSETS_PATH = CLIENT_DIST_PATH / "assets"
+TRUTHY_VALUES = {"1", "true", "yes", "on"}
+
+load_environment()
+os.environ.setdefault("KERAS_BACKEND", "torch")
+os.environ.setdefault("MPLBACKEND", "Agg")
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+def _load_service_modules():
+    from core_service.api.entrypoint import health_router
+    from core_service.api.routes import register_core_routes
+    from core_service.services.container import CoreServiceContainer
+    from ml_service.api.routes import register_ml_routes
+    from ml_service.services.container import MlServiceContainer
+
+    return (
+        health_router,
+        register_core_routes,
+        CoreServiceContainer,
+        register_ml_routes,
+        MlServiceContainer,
+    )
 
 
 def _client_build_available() -> bool:
@@ -131,6 +131,14 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    (
+        health_router,
+        register_core_routes,
+        CoreServiceContainer,
+        register_ml_routes,
+        MlServiceContainer,
+    ) = _load_service_modules()
+
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
@@ -146,11 +154,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    core_container = CoreServiceContainer()
+    ml_container = MlServiceContainer()
+    application.state.core_container = core_container
+    application.state.ml_container = ml_container
+
     application.include_router(health_router)
-    application.include_router(dataset_router, prefix="/api", include_in_schema=False)
-    application.include_router(fitting_router, prefix="/api", include_in_schema=False)
-    application.include_router(nist_router, prefix="/api", include_in_schema=False)
-    application.include_router(training_router, prefix="/api", include_in_schema=True)
+    register_core_routes(application, core_container, prefix="/api", include_schema=False)
+    register_ml_routes(application, ml_container, prefix="/api", include_schema=True)
 
     if _client_build_available():
         if CLIENT_ASSETS_PATH.is_dir():

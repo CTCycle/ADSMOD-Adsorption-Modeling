@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 ## Platform Shape
 
@@ -58,7 +58,9 @@ app/server/
 
 - Core ASGI app: `core_service.app:app`
 - ML ASGI app: `ml_service.app:app`
-- Unified local-web/Tauri backend entrypoint: `app.server.app:app`
+- Unified local-web/Tauri backend composition entrypoint: `app.server.app:app`
+
+The unified entrypoint composes service routers; it does not own backend business handlers.
 
 ## Frontend Responsibility Split
 

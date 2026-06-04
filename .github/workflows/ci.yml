@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
@@ -24,13 +25,14 @@ jobs:
           python -c "print('ci sanity ok')"
       - name: Backend import validation
         run: |
-          cd app/server
-          uv sync --all-packages --group dev
-          python -c "from core_service.app import app as core_app; from ml_service.app import app as ml_app; print(core_app.title, ml_app.title)"
-          export KERAS_BACKEND=torch
-          export MPLBACKEND=Agg
-          python -m scripts.generate_openapi --app core_service.app:app --output ../shared/core_openapi.json
-          python -m scripts.generate_openapi --app ml_service.app:app --output ../shared/ml_openapi.json
+          uv sync --project app/server --all-packages --group dev
+          uv run --project app/server python -c "import core_service.app; import ml_service.app; import app.server.app"
+          uv run --project app/server ruff check app/server
+          uv run --project app/server python -m pytest app/tests/backend --ignore app/tests/backend/performance
+          uv run --project app/server python -m pytest app/tests/unit
+          uv run --project app/server python -m pytest app/tests/server
+          uv run --project app/server python app/scripts/generate_openapi.py --app core_service.app:app --output app/shared/core_openapi.json
+          uv run --project app/server python app/scripts/generate_openapi.py --app ml_service.app:app --output app/shared/ml_openapi.json
 
   frontend-build:
     runs-on: ubuntu-latest

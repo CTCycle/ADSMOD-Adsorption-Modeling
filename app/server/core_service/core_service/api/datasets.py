@@ -10,9 +10,8 @@ from core_service.common.constants import (
     DATASETS_ROUTER_PREFIX,
 )
 from core_service.common.utils.logger import logger
+from core_service.services.container import CoreServiceContainer
 from core_service.services.data.datasets import DatasetService
-
-router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["load"])
 
 
 ###############################################################################
@@ -130,7 +129,9 @@ class DatasetEndpoint:
 
 
 ###############################################################################
-dataset_service = DatasetService()
-dataset_endpoint = DatasetEndpoint(router=router, service=dataset_service)
-dataset_endpoint.add_routes()
+def create_dataset_router(container: CoreServiceContainer) -> APIRouter:
+    router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["load"])
+    endpoint = DatasetEndpoint(router=router, service=container.dataset_service)
+    endpoint.add_routes()
+    return router
 

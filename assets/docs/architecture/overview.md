@@ -1,10 +1,12 @@
 # Architecture Overview
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
 ## Scope
 
 This section covers system structure, ownership boundaries, API routing, and backend workspace organization.
+
+`app/server/app.py` is the unified composition entrypoint. Business route ownership stays inside `core_service` and `ml_service`.
 
 ## Documents
 

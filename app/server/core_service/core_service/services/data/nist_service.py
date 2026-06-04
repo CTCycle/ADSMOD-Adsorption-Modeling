@@ -18,11 +18,12 @@ from core_service.services.data.nistads import (
     NISTDatasetBuilder,
     PubChemClient,
 )
-from core_service.services.jobs import job_manager
+from core_service.services.jobs import JobManager
 
 
 class NISTDataService:
-    def __init__(self) -> None:
+    def __init__(self, job_manager: JobManager) -> None:
+        self.job_manager = job_manager
         self.serializer = NISTDataSerializer()
         self.builder = NISTDatasetBuilder()
         self.state_lock = threading.Lock()
@@ -142,21 +143,21 @@ class NISTDataService:
             host_fraction,
         )
         if job_id:
-            job_manager.update_progress(job_id, 0.0)
+            self.job_manager.update_progress(job_id, 0.0)
 
         experiments_result = await self.fetch_experiments_records(
             experiments_fraction, job_id=None
         )
         if job_id:
-            job_manager.update_progress(job_id, 35.0)
+            self.job_manager.update_progress(job_id, 35.0)
 
         guest_result = await self.fetch_guest_records(guest_fraction, job_id=None)
         if job_id:
-            job_manager.update_progress(job_id, 70.0)
+            self.job_manager.update_progress(job_id, 70.0)
 
         host_result = await self.fetch_host_records(host_fraction, job_id=None)
         if job_id:
-            job_manager.update_progress(job_id, 100.0)
+            self.job_manager.update_progress(job_id, 100.0)
 
         return {
             "experiments_count": int(experiments_result.get("fetched_count", 0)),
@@ -211,7 +212,7 @@ class NISTDataService:
         job_id: str | None = None,
     ) -> dict[str, Any]:
         if job_id:
-            job_manager.update_progress(job_id, 10.0)
+            self.job_manager.update_progress(job_id, 10.0)
 
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -219,7 +220,7 @@ class NISTDataService:
 
         available_count = int(len(index))
         if job_id:
-            job_manager.update_progress(job_id, 100.0)
+            self.job_manager.update_progress(job_id, 100.0)
 
         self.update_category_state(
             category,
@@ -243,7 +244,7 @@ class NISTDataService:
         api_client = NISTApiClient(get_server_settings().nist.parallel_tasks)
 
         if job_id:
-            job_manager.update_progress(job_id, 5.0)
+            self.job_manager.update_progress(job_id, 5.0)
 
         timeout = httpx.Timeout(30.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -270,7 +271,7 @@ class NISTDataService:
                 )
 
             if job_id:
-                job_manager.update_progress(job_id, 25.0)
+                self.job_manager.update_progress(job_id, 25.0)
 
             identifiers_to_fetch = [
                 identifier
@@ -290,7 +291,7 @@ class NISTDataService:
                 )
                 fetched_count = int(len(experiments_data))
                 if job_id:
-                    job_manager.update_progress(job_id, 65.0)
+                    self.job_manager.update_progress(job_id, 65.0)
 
                 single_component, binary_mixture = self.builder.build_datasets(
                     experiments_data
@@ -298,7 +299,7 @@ class NISTDataService:
                 single_component_rows = int(len(single_component))
                 binary_mixture_rows = int(len(binary_mixture))
                 if job_id:
-                    job_manager.update_progress(job_id, 80.0)
+                    self.job_manager.update_progress(job_id, 80.0)
 
                 await asyncio.to_thread(
                     self.serializer.save_adsorption_datasets,
@@ -317,7 +318,7 @@ class NISTDataService:
                 )
                 fetched_count = int(len(guest_data))
                 if job_id:
-                    job_manager.update_progress(job_id, 70.0)
+                    self.job_manager.update_progress(job_id, 70.0)
                 await asyncio.to_thread(
                     self.serializer.save_materials_datasets,
                     guest_data,
@@ -334,7 +335,7 @@ class NISTDataService:
                 )
                 fetched_count = int(len(host_data))
                 if job_id:
-                    job_manager.update_progress(job_id, 70.0)
+                    self.job_manager.update_progress(job_id, 70.0)
                 await asyncio.to_thread(
                     self.serializer.save_materials_datasets,
                     None,
@@ -352,7 +353,7 @@ class NISTDataService:
             last_update=self.now_iso(),
         )
         if job_id:
-            job_manager.update_progress(job_id, 100.0)
+            self.job_manager.update_progress(job_id, 100.0)
 
         elapsed = monotonic() - start_time
         logger.info(
@@ -484,7 +485,7 @@ class NISTDataService:
             }
 
         if job_id:
-            job_manager.update_progress(job_id, 10.0)
+            self.job_manager.update_progress(job_id, 10.0)
 
         for column in (weight_col, formula_col, smile_col):
             if column not in data.columns:
@@ -494,7 +495,7 @@ class NISTDataService:
         properties = await pubchem.fetch_properties_for_names(names)
 
         if job_id:
-            job_manager.update_progress(job_id, 50.0)
+            self.job_manager.update_progress(job_id, 50.0)
 
         properties_frame = pd.DataFrame(properties)
         if properties_frame.empty:
@@ -549,7 +550,7 @@ class NISTDataService:
         rows_updated = max(after_count - before_count, 0)
 
         if job_id:
-            job_manager.update_progress(job_id, 80.0)
+            self.job_manager.update_progress(job_id, 80.0)
 
         if target == "guest":
             await asyncio.to_thread(
@@ -578,7 +579,7 @@ class NISTDataService:
         )
         self.update_category_state(category, last_update=self.now_iso())
         if job_id:
-            job_manager.update_progress(job_id, 100.0)
+            self.job_manager.update_progress(job_id, 100.0)
 
         return {
             "category": category,

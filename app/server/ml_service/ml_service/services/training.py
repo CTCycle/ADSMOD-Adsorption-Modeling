@@ -40,7 +40,7 @@ from ml_service.learning.training.worker import ProcessWorker
 from ml_service.services.data.builder import DatasetBuilder, DatasetBuilderConfig
 from ml_service.services.data.composition import DatasetCompositionService
 from ml_service.services.job_responses import JobResponseFactory
-from ml_service.services.jobs import job_manager
+from ml_service.services.jobs import JobManager
 
 
 ###############################################################################
@@ -124,8 +124,9 @@ def determine_checkpoint_compatibility(
 
 ###############################################################################
 class TrainingJobRunner:
-    def __init__(self, session: TrainingSession) -> None:
+    def __init__(self, session: TrainingSession, job_manager: JobManager) -> None:
         self.session = session
+        self.job_manager = job_manager
 
     # -------------------------------------------------------------------------
     def handle_training_progress(self, job_id: str, message: dict[str, Any]) -> None:
@@ -141,8 +142,8 @@ class TrainingJobRunner:
         if progress <= 0.0 and state["total_epochs"] > 0:
             progress = (state["current_epoch"] / state["total_epochs"]) * 100
 
-        job_manager.update_progress(job_id, progress)
-        job_manager.update_result(
+        self.job_manager.update_progress(job_id, progress)
+        self.job_manager.update_result(
             job_id,
             {
                 "current_epoch": state["current_epoch"],
@@ -170,7 +171,7 @@ class TrainingJobRunner:
         stop_requested_at: float | None = None
 
         while worker.is_alive():
-            if job_manager.should_stop(job_id):
+            if self.job_manager.should_stop(job_id):
                 if not worker.is_interrupted():
                     worker.stop()
                     stop_requested_at = time.monotonic()
@@ -189,7 +190,9 @@ class TrainingJobRunner:
 
         result_payload = worker.read_result()
         if result_payload is None:
-            if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
+            if worker.exitcode not in (0, None) and not self.job_manager.should_stop(
+                job_id
+            ):
                 raise RuntimeError(
                     f"Training process exited with code {worker.exitcode}"
                 )
@@ -220,14 +223,14 @@ class TrainingJobRunner:
                 stop_timeout_seconds=get_training_process_stop_timeout_seconds(),
             )
 
-            if job_manager.should_stop(job_id):
+            if self.job_manager.should_stop(job_id):
                 training_manager.handle_job_completion(job_id, "cancelled", None, None)
                 return {}
 
             training_manager.handle_job_completion(job_id, "completed", result, None)
             return result
         except Exception as exc:  # noqa: BLE001
-            if job_manager.should_stop(job_id):
+            if self.job_manager.should_stop(job_id):
                 training_manager.handle_job_completion(job_id, "cancelled", None, None)
                 return {}
             training_manager.handle_job_completion(job_id, "failed", None, str(exc))
@@ -244,6 +247,17 @@ class TrainingJobRunner:
 class TrainingService:
     DATASET_JOB_TYPE = "training_dataset"
     TRAINING_JOB_TYPE = "training"
+
+    def __init__(
+        self,
+        *,
+        job_manager: JobManager,
+        training_session: TrainingSession,
+        training_job_runner: TrainingJobRunner,
+    ) -> None:
+        self.job_manager = job_manager
+        self.training_session = training_session
+        self.training_job_runner = training_job_runner
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
@@ -359,10 +373,10 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def build_training_dataset(self, request: DatasetBuildRequest) -> JobStartResponse:
-        if job_manager.is_job_running(self.DATASET_JOB_TYPE):
+        if self.job_manager.is_job_running(self.DATASET_JOB_TYPE):
             raise ValueError("A dataset build job is already running.")
 
-        job_id = job_manager.start_job(
+        job_id = self.job_manager.start_job(
             job_type=self.DATASET_JOB_TYPE,
             runner=self.run_dataset_build,
             args=(request.model_dump(),),
@@ -376,7 +390,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_dataset_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = job_manager.get_job_status(job_id)
+        job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise LookupError(f"Job {job_id} not found.")
         return JobResponseFactory.status(
@@ -386,7 +400,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def list_dataset_jobs(self) -> JobListResponse:
-        all_jobs = job_manager.list_jobs(self.DATASET_JOB_TYPE)
+        all_jobs = self.job_manager.list_jobs(self.DATASET_JOB_TYPE)
         return JobResponseFactory.list(
             job_statuses=all_jobs,
             poll_interval=get_server_settings().jobs.polling_interval,
@@ -394,7 +408,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def cancel_dataset_job(self, job_id: str) -> JobCancelResponse:
-        success = job_manager.cancel_job(job_id)
+        success = self.job_manager.cancel_job(job_id)
         if not success:
             raise ValueError(f"Job {job_id} cannot be cancelled.")
         return JobResponseFactory.cancelled(job_id)
@@ -568,7 +582,9 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
         state = training_manager.state.snapshot()
-        if state["is_training"] or job_manager.is_job_running(self.TRAINING_JOB_TYPE):
+        if state["is_training"] or self.job_manager.is_job_running(
+            self.TRAINING_JOB_TYPE
+        ):
             raise ValueError("Training is already in progress. Stop it first.")
 
         resolved_label = training_manager.data_serializer.normalize_dataset_label(
@@ -590,23 +606,23 @@ class TrainingService:
         if info is None:
             raise ValueError("No training dataset available. Build the dataset first.")
 
-        job_id = job_manager.start_job(
+        job_id = self.job_manager.start_job(
             job_type=self.TRAINING_JOB_TYPE,
-            runner=training_job_runner.run_process_job,
+            runner=self.training_job_runner.run_process_job,
             kwargs={
                 "process_kwargs": {"configuration": configuration},
             },
         )
 
         total_epochs = int(configuration.get("epochs", 0))
-        training_session.reset_for_new_session(
+        self.training_session.reset_for_new_session(
             total_epochs=total_epochs,
             job_id=job_id,
             current_epoch=0,
             message="Starting training session",
         )
         state_snapshot = training_manager.state.snapshot()
-        job_manager.update_result(
+        self.job_manager.update_result(
             job_id,
             {
                 "current_epoch": state_snapshot["current_epoch"],
@@ -626,7 +642,9 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> TrainingStartResponse:
         state = training_manager.state.snapshot()
-        if state["is_training"] or job_manager.is_job_running(self.TRAINING_JOB_TYPE):
+        if state["is_training"] or self.job_manager.is_job_running(
+            self.TRAINING_JOB_TYPE
+        ):
             raise ValueError("Training is already in progress. Stop it first.")
 
         logger.info(
@@ -655,9 +673,9 @@ class TrainingService:
         )
         last_metrics = training_manager.extract_last_metrics(history_entries)
 
-        job_id = job_manager.start_job(
+        job_id = self.job_manager.start_job(
             job_type=self.TRAINING_JOB_TYPE,
-            runner=training_job_runner.run_process_job,
+            runner=self.training_job_runner.run_process_job,
             kwargs={
                 "process_kwargs": {
                     "configuration": None,
@@ -668,7 +686,7 @@ class TrainingService:
         )
 
         total_epochs = from_epoch + request.additional_epochs
-        training_session.reset_for_new_session(
+        self.training_session.reset_for_new_session(
             total_epochs=total_epochs,
             job_id=job_id,
             current_epoch=from_epoch,
@@ -677,7 +695,7 @@ class TrainingService:
             metrics=last_metrics,
         )
         state_snapshot = training_manager.state.snapshot()
-        job_manager.update_result(
+        self.job_manager.update_result(
             job_id,
             {
                 "current_epoch": state_snapshot["current_epoch"],
@@ -709,10 +727,10 @@ class TrainingService:
         logger.info("Stop requested for current training session")
         training_manager.state.update(stop_requested=True)
         training_manager.state.add_log("Stop requested by user...")
-        if training_session.worker is not None:
-            training_session.worker.stop()
-        if training_session.current_job_id:
-            job_manager.cancel_job(training_session.current_job_id)
+        if self.training_session.worker is not None:
+            self.training_session.worker.stop()
+        if self.training_session.current_job_id:
+            self.job_manager.cancel_job(self.training_session.current_job_id)
 
         return OperationStatusResponse(
             status="stopped",
@@ -739,10 +757,6 @@ class TrainingService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-
-###############################################################################
-training_session = TrainingSession()
-training_job_runner = TrainingJobRunner(training_session)
 
 
 
