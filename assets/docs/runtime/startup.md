@@ -22,7 +22,22 @@ This menu-driven script:
 - syncs backend workspace dependencies into `app/server/.venv`
 - installs frontend dependencies when needed
 - exposes launch choices for core frontend + core service, ML frontend + ML service, or both stacks
-- exposes setup and maintenance choices for core-only, ML-only, or shared operations
+
+## Setup And Maintenance
+
+CMD:
+
+```cmd
+ADSMOD\setup_and_maintenance.bat
+```
+
+PowerShell:
+
+```powershell
+.\ADSMOD\setup_and_maintenance.bat
+```
+
+This separate menu-driven script owns setup, test, cleanup, and uninstall operations.
 
 ## API-Only Backend Startup
 

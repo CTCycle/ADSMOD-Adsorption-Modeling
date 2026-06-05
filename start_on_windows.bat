@@ -57,10 +57,9 @@ echo ==========================================================================
 echo 1. Start core frontend + core service
 echo 2. Start ML frontend + ML service
 echo 3. Start both frontends + both services
-echo 4. Setup and maintenance
-echo 5. Exit
+echo 4. Exit
 echo.
-choice /c 12345 /n /m "Select an option (1-5): "
+choice /c 1234 /n /m "Select an option (1-4): "
 set "main_choice=%ERRORLEVEL%"
 
 if "%main_choice%"=="1" (
@@ -75,84 +74,12 @@ if "%main_choice%"=="3" (
   call :launch_scope both
   goto :main_menu
 )
-if "%main_choice%"=="4" goto :maintenance_menu
-if "%main_choice%"=="5" goto :exit
+if "%main_choice%"=="4" goto :exit
 goto :main_menu
-
-:maintenance_menu
-cls
-echo ==========================================================================
-echo                         ADSMOD Setup And Maintenance
-echo ==========================================================================
-echo 1. Install or update core frontend + core service
-echo 2. Install or update ML frontend + ML service
-echo 3. Install or update both frontend + service stacks
-echo 4. Initialize database
-echo 5. Run test suite
-echo 6. Remove logs
-echo 7. Clean desktop packages
-echo 8. Uninstall core webapp artifacts
-echo 9. Uninstall ML webapp artifacts
-echo A. Uninstall everything
-echo 0. Back
-echo.
-choice /c 123456789A0 /n /m "Select an option (1-9, A, 0): "
-set "maintenance_choice=%ERRORLEVEL%"
-
-if "%maintenance_choice%"=="1" (
-  call :install_or_update_scope core
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="2" (
-  call :install_or_update_scope ml
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="3" (
-  call :install_or_update_scope both
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="4" (
-  call :run_init_db
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="5" (
-  call :run_tests
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="6" (
-  call :remove_logs
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="7" (
-  call :remove_desktop
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="8" (
-  call :uninstall_scope core
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="9" (
-  call :uninstall_scope ml
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="10" (
-  call :uninstall_scope both
-  goto :maintenance_menu
-)
-if "%maintenance_choice%"=="11" goto :main_menu
-goto :maintenance_menu
 
 :handle_cli
 set "cli_action=%~1"
 set "cli_scope=%~2"
-
-if /i "%cli_action%"=="maintenance" (
-  if not defined cli_scope goto :maintenance_menu
-  set "interactive_mode=false"
-  set "auto_open_browser=false"
-  call :run_cli_maintenance "%cli_scope%"
-  exit /b !ERRORLEVEL!
-)
 
 if /i "%cli_action%"=="install" (
   set "interactive_mode=false"
@@ -168,27 +95,43 @@ if /i "%cli_action%"=="launch" (
   exit /b !ERRORLEVEL!
 )
 
+if /i "%cli_action%"=="init-db" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :run_init_db
+  exit /b !ERRORLEVEL!
+)
+
+if /i "%cli_action%"=="test" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :run_tests
+  exit /b !ERRORLEVEL!
+)
+
+if /i "%cli_action%"=="remove-logs" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :remove_logs
+  exit /b !ERRORLEVEL!
+)
+
+if /i "%cli_action%"=="clean-desktop" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :remove_desktop
+  exit /b !ERRORLEVEL!
+)
+
+if /i "%cli_action%"=="uninstall" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :uninstall_scope "%cli_scope%"
+  exit /b !ERRORLEVEL!
+)
+
 echo [ERROR] Unknown command "%cli_action%".
-echo [INFO] Supported commands: maintenance [core^|ml^|both], install ^<scope^>, launch ^<scope^>.
-exit /b 1
-
-:run_cli_maintenance
-set "cli_scope=%~1"
-if /i "%cli_scope%"=="core" (
-  call :install_or_update_scope core
-  exit /b !ERRORLEVEL!
-)
-if /i "%cli_scope%"=="ml" (
-  call :install_or_update_scope ml
-  exit /b !ERRORLEVEL!
-)
-if /i "%cli_scope%"=="both" (
-  call :install_or_update_scope both
-  exit /b !ERRORLEVEL!
-)
-
-echo [ERROR] Unknown maintenance scope "%cli_scope%".
-echo [INFO] Supported maintenance scopes: core, ml, both.
+echo [INFO] Supported commands: launch ^<core^|ml^|both^>, install ^<core^|ml^|both^>, init-db, test, remove-logs, clean-desktop, uninstall ^<core^|ml^|both^>.
 exit /b 1
 
 :load_env
@@ -667,7 +610,12 @@ if not exist "%log_dir%\" (
   exit /b 0
 )
 if exist "%log_dir%\*.log" (
-  del /q "%log_dir%\*.log"
+  del /q "%log_dir%\*.log" >nul 2>&1
+  if exist "%log_dir%\*.log" (
+    echo [ERROR] One or more log files could not be deleted from "%log_dir%".
+    call :maybe_pause
+    exit /b 1
+  )
   echo [SUCCESS] Log files deleted.
   call :maybe_pause
   exit /b 0
