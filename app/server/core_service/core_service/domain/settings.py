@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
@@ -8,12 +9,27 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from core_service.common.constants import CONFIGURATION_FILE
+from shared.common.env import load_environment
 
 
 DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
 DEFAULT_PREFETCH_FACTOR = 1
 DEFAULT_PIN_MEMORY = True
 DEFAULT_PLOT_UPDATE_BATCH_INTERVAL = 10
+TRUTHY_VALUES = {"1", "true", "yes", "on"}
+DATABASE_ENV_DEFAULTS: dict[str, Any] = {
+    "embedded_database": True,
+    "engine": "postgres",
+    "host": None,
+    "port": 5432,
+    "database_name": None,
+    "username": None,
+    "password": None,
+    "ssl": False,
+    "ssl_ca": None,
+    "connect_timeout": 30,
+    "insert_batch_size": 5000,
+}
 
 
 ###############################################################################
@@ -261,8 +277,62 @@ def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
 
 
 # -----------------------------------------------------------------------------
+def _get_env_text(key: str) -> str | None:
+    value = os.getenv(key)
+    if value is None:
+        return None
+    text = value.strip()
+    return text or None
+
+
+# -----------------------------------------------------------------------------
+def _get_env_bool(key: str, default: bool) -> bool:
+    value = _get_env_text(key)
+    if value is None:
+        return default
+    return value.lower() in TRUTHY_VALUES
+
+
+# -----------------------------------------------------------------------------
+def _get_env_int(key: str, default: int) -> int:
+    value = _get_env_text(key)
+    if value is None:
+        return default
+    return int(value)
+
+
+# -----------------------------------------------------------------------------
+def _load_database_environment_payload() -> dict[str, Any]:
+    load_environment()
+    return {
+        "embedded_database": _get_env_bool(
+            "DATABASE_EMBEDDED", DATABASE_ENV_DEFAULTS["embedded_database"]
+        ),
+        "engine": _get_env_text("DATABASE_ENGINE")
+        or DATABASE_ENV_DEFAULTS["engine"],
+        "host": _get_env_text("DATABASE_HOST"),
+        "port": _get_env_int("DATABASE_PORT", DATABASE_ENV_DEFAULTS["port"]),
+        "database_name": _get_env_text("DATABASE_NAME"),
+        "username": _get_env_text("DATABASE_USERNAME"),
+        "password": os.getenv("DATABASE_PASSWORD"),
+        "ssl": _get_env_bool("DATABASE_SSL", DATABASE_ENV_DEFAULTS["ssl"]),
+        "ssl_ca": _get_env_text("DATABASE_SSL_CA"),
+        "connect_timeout": _get_env_int(
+            "DATABASE_CONNECT_TIMEOUT", DATABASE_ENV_DEFAULTS["connect_timeout"]
+        ),
+        "insert_batch_size": _get_env_int(
+            "DATABASE_INSERT_BATCH_SIZE",
+            DATABASE_ENV_DEFAULTS["insert_batch_size"],
+        ),
+    }
+
+
+# -----------------------------------------------------------------------------
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
-    json_settings = JsonDatabaseSettings.model_validate(_ensure_mapping(payload))
+    _ = payload
+    json_settings = JsonDatabaseSettings.model_validate(
+        _load_database_environment_payload()
+    )
     if json_settings.embedded_database:
         return DatabaseSettings(
             embedded_database=True,
