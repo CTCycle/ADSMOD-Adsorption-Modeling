@@ -41,9 +41,13 @@ set "nodejs_version=22.12.0"
 set "nodejs_zip_filename=node-v%nodejs_version%-win-x64.zip"
 set "nodejs_zip_url=https://nodejs.org/dist/v%nodejs_version%/%nodejs_zip_filename%"
 set "nodejs_zip_path=%nodejs_dir%\%nodejs_zip_filename%"
+set "startup_wait_seconds=30"
+set "interactive_mode=true"
+set "auto_open_browser=true"
 
 call :load_env
-if /i "%~1"=="maintenance" goto :maintenance_menu
+if not "%~1"=="" call :handle_cli "%~1" "%~2"
+if not "%~1"=="" goto :exit
 
 :main_menu
 cls
@@ -138,6 +142,55 @@ if "%maintenance_choice%"=="10" (
 if "%maintenance_choice%"=="11" goto :main_menu
 goto :maintenance_menu
 
+:handle_cli
+set "cli_action=%~1"
+set "cli_scope=%~2"
+
+if /i "%cli_action%"=="maintenance" (
+  if not defined cli_scope goto :maintenance_menu
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :run_cli_maintenance "%cli_scope%"
+  exit /b !ERRORLEVEL!
+)
+
+if /i "%cli_action%"=="install" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :install_or_update_scope "%cli_scope%"
+  exit /b !ERRORLEVEL!
+)
+
+if /i "%cli_action%"=="launch" (
+  set "interactive_mode=false"
+  set "auto_open_browser=false"
+  call :launch_scope "%cli_scope%"
+  exit /b !ERRORLEVEL!
+)
+
+echo [ERROR] Unknown command "%cli_action%".
+echo [INFO] Supported commands: maintenance [core^|ml^|both], install ^<scope^>, launch ^<scope^>.
+exit /b 1
+
+:run_cli_maintenance
+set "cli_scope=%~1"
+if /i "%cli_scope%"=="core" (
+  call :install_or_update_scope core
+  exit /b !ERRORLEVEL!
+)
+if /i "%cli_scope%"=="ml" (
+  call :install_or_update_scope ml
+  exit /b !ERRORLEVEL!
+)
+if /i "%cli_scope%"=="both" (
+  call :install_or_update_scope both
+  exit /b !ERRORLEVEL!
+)
+
+echo [ERROR] Unknown maintenance scope "%cli_scope%".
+echo [INFO] Supported maintenance scopes: core, ml, both.
+exit /b 1
+
 :load_env
 set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=6045"
@@ -197,7 +250,7 @@ echo [INFO] Preparing %scope% frontend + service launch...
 call :prepare_scope "%scope%" "false"
 if errorlevel 1 (
   echo [ERROR] Launch preparation failed.
-  pause
+  call :maybe_pause
   exit /b 1
 )
 
@@ -209,11 +262,15 @@ if /i "%scope%"=="core" (
 
   start "ADSMOD Core API" /D "%server_dir%" "%venv_python%" -m uvicorn core_service.app:app --host %CORE_SERVICE_HOST% --port %CORE_SERVICE_PORT%
   start "ADSMOD Core UI" /D "%client_dir%" "%npm_cmd%" run dev
-  start "" "http://%UI_HOST%:%UI_PORT%"
+  call :wait_for_port_ready "%CORE_SERVICE_PORT%" "Core API" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :wait_for_port_ready "%UI_PORT%" "Core UI" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :maybe_open_browser "http://%UI_HOST%:%UI_PORT%"
   echo [SUCCESS] Core frontend and core service started.
   echo [INFO] Core API: http://%CORE_SERVICE_HOST%:%CORE_SERVICE_PORT%
   echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
@@ -225,11 +282,15 @@ if /i "%scope%"=="ml" (
 
   start "ADSMOD ML API" /D "%server_dir%" "%venv_python%" -m uvicorn ml_service.app:app --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT%
   start "ADSMOD ML UI" /D "%ml_client_dir%" "%npm_cmd%" run dev
-  start "" "http://%ML_UI_HOST%:%ML_UI_PORT%"
+  call :wait_for_port_ready "%ML_SERVICE_PORT%" "ML API" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :wait_for_port_ready "%ML_UI_PORT%" "ML UI" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :maybe_open_browser "http://%ML_UI_HOST%:%ML_UI_PORT%"
   echo [SUCCESS] ML frontend and ML service started.
   echo [INFO] ML API: http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
   echo [INFO] ML UI : http://%ML_UI_HOST%:%ML_UI_PORT%
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
@@ -247,20 +308,28 @@ if /i "%scope%"=="both" (
   start "ADSMOD ML API" /D "%server_dir%" "%venv_python%" -m uvicorn ml_service.app:app --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT%
   start "ADSMOD Core UI" /D "%client_dir%" "%npm_cmd%" run dev
   start "ADSMOD ML UI" /D "%ml_client_dir%" "%npm_cmd%" run dev
-  start "" "http://%UI_HOST%:%UI_PORT%"
-  start "" "http://%ML_UI_HOST%:%ML_UI_PORT%"
+  call :wait_for_port_ready "%CORE_SERVICE_PORT%" "Core API" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :wait_for_port_ready "%ML_SERVICE_PORT%" "ML API" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :wait_for_port_ready "%UI_PORT%" "Core UI" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :wait_for_port_ready "%ML_UI_PORT%" "ML UI" "%startup_wait_seconds%"
+  if errorlevel 1 goto :launch_failed
+  call :maybe_open_browser "http://%UI_HOST%:%UI_PORT%"
+  call :maybe_open_browser "http://%ML_UI_HOST%:%ML_UI_PORT%"
   echo [SUCCESS] Both frontends and both services started.
   echo [INFO] Core API: http://%CORE_SERVICE_HOST%:%CORE_SERVICE_PORT%
   echo [INFO] ML API  : http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
   echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
   echo [INFO] ML UI   : http://%ML_UI_HOST%:%ML_UI_PORT%
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
 :launch_failed
 echo [ERROR] Launch aborted.
-pause
+call :maybe_pause
 exit /b 1
 
 :install_or_update_scope
@@ -270,11 +339,11 @@ echo [INFO] Installing or updating %scope% frontend + service stack...
 call :prepare_scope "%scope%" "true"
 if errorlevel 1 (
   echo [ERROR] Install or update failed.
-  pause
+  call :maybe_pause
   exit /b 1
 )
 echo [SUCCESS] %scope% frontend + service stack is ready.
-pause
+call :maybe_pause
 exit /b 0
 
 :prepare_scope
@@ -322,7 +391,21 @@ if exist "%python_pth_file%" (
   )
 )
 
-for /f "delims=" %%V in ('"%python_exe%" -c "import platform; print(platform.python_version())"') do set "found_py=%%V"
+set "probe_file=%TEMP%\adsmod-python-version-%RANDOM%.txt"
+set "found_py="
+"%python_exe%" -c "import platform; print(platform.python_version())" > "%probe_file%" 2>nul
+set "probe_ec=%ERRORLEVEL%"
+if not "%probe_ec%"=="0" (
+  if exist "%probe_file%" del /q "%probe_file%" >nul 2>&1
+  echo [ERROR] Failed to execute Python runtime at "%python_exe%".
+  exit /b 1
+)
+set /p found_py=<"%probe_file%"
+if exist "%probe_file%" del /q "%probe_file%" >nul 2>&1
+if not defined found_py (
+  echo [ERROR] Failed to detect Python version from "%python_exe%".
+  exit /b 1
+)
 echo [OK] Python ready: !found_py!
 exit /b 0
 
@@ -347,7 +430,22 @@ if not exist "%uv_exe%" (
   if /i not "!found_uv!"=="%uv_exe%" copy /y "!found_uv!" "%uv_exe%" >nul
 )
 
-for /f "delims=" %%V in ('"%uv_exe%" --version') do echo [OK] %%V
+set "probe_file=%TEMP%\adsmod-uv-version-%RANDOM%.txt"
+"%uv_exe%" --version > "%probe_file%" 2>nul
+set "probe_ec=%ERRORLEVEL%"
+if not "%probe_ec%"=="0" (
+  if exist "%probe_file%" del /q "%probe_file%" >nul 2>&1
+  echo [ERROR] Failed to execute uv at "%uv_exe%".
+  exit /b 1
+)
+set "found_uv_version="
+set /p found_uv_version=<"%probe_file%"
+if exist "%probe_file%" del /q "%probe_file%" >nul 2>&1
+if not defined found_uv_version (
+  echo [ERROR] Failed to detect uv version from "%uv_exe%".
+  exit /b 1
+)
+echo [OK] !found_uv_version!
 exit /b 0
 
 :ensure_node_runtime
@@ -376,7 +474,22 @@ if not exist "%npm_cmd%" (
   exit /b 1
 )
 
-for /f "delims=" %%V in ('"%node_exe%" --version') do echo [OK] Node.js ready: %%V
+set "probe_file=%TEMP%\adsmod-node-version-%RANDOM%.txt"
+"%node_exe%" --version > "%probe_file%" 2>nul
+set "probe_ec=%ERRORLEVEL%"
+if not "%probe_ec%"=="0" (
+  if exist "%probe_file%" del /q "%probe_file%" >nul 2>&1
+  echo [ERROR] Failed to execute Node.js runtime at "%node_exe%".
+  exit /b 1
+)
+set "found_node_version="
+set /p found_node_version=<"%probe_file%"
+if exist "%probe_file%" del /q "%probe_file%" >nul 2>&1
+if not defined found_node_version (
+  echo [ERROR] Failed to detect Node.js version from "%node_exe%".
+  exit /b 1
+)
+echo [OK] Node.js ready: !found_node_version!
 exit /b 0
 
 :sync_backend_dependencies
@@ -417,17 +530,17 @@ set "build_frontends=%~2"
 
 if /i "%scope%"=="core" (
   call :install_frontend "%client_dir%" "Core UI" "%build_frontends%"
-  exit /b %ERRORLEVEL%
+  exit /b !ERRORLEVEL!
 )
 if /i "%scope%"=="ml" (
   call :install_frontend "%ml_client_dir%" "ML UI" "%build_frontends%"
-  exit /b %ERRORLEVEL%
+  exit /b !ERRORLEVEL!
 )
 if /i "%scope%"=="both" (
   call :install_frontend "%client_dir%" "Core UI" "%build_frontends%"
   if errorlevel 1 exit /b 1
   call :install_frontend "%ml_client_dir%" "ML UI" "%build_frontends%"
-  exit /b %ERRORLEVEL%
+  exit /b !ERRORLEVEL!
 )
 
 echo [ERROR] Unknown scope "%scope%".
@@ -443,25 +556,27 @@ set "frontend_modules=%frontend_dir%\node_modules"
 if /i "%build_frontends%"=="true" (
   echo [STEP] Installing dependencies for %frontend_name%
   pushd "%frontend_dir%" >nul
-  if exist "%frontend_lockfile%" (
+  if exist "%frontend_modules%" (
+    call "%npm_cmd%" install
+  ) else if exist "%frontend_lockfile%" (
     call "%npm_cmd%" ci
   ) else (
     call "%npm_cmd%" install
   )
-  set "npm_ec=%ERRORLEVEL%"
+  set "npm_ec=!ERRORLEVEL!"
   popd >nul
-  if not "%npm_ec%"=="0" (
-    echo [ERROR] Dependency install failed for %frontend_name% with code %npm_ec%.
+  if not "!npm_ec!"=="0" (
+    echo [ERROR] Dependency install failed for %frontend_name% with code !npm_ec!.
     exit /b 1
   )
 
   echo [STEP] Building %frontend_name%
   pushd "%frontend_dir%" >nul
   call "%npm_cmd%" run build
-  set "build_ec=%ERRORLEVEL%"
+  set "build_ec=!ERRORLEVEL!"
   popd >nul
-  if not "%build_ec%"=="0" (
-    echo [ERROR] Build failed for %frontend_name% with code %build_ec%.
+  if not "!build_ec!"=="0" (
+    echo [ERROR] Build failed for %frontend_name% with code !build_ec!.
     exit /b 1
   )
 
@@ -476,7 +591,9 @@ if exist "%frontend_modules%" (
 
 echo [STEP] Installing dependencies for %frontend_name%
 pushd "%frontend_dir%" >nul
-if exist "%frontend_lockfile%" (
+if exist "%frontend_modules%" (
+  call "%npm_cmd%" install
+) else if exist "%frontend_lockfile%" (
   call "%npm_cmd%" ci
 ) else (
   call "%npm_cmd%" install
@@ -495,14 +612,14 @@ exit /b 0
 echo.
 if not exist "%init_db_script%" (
   echo [ERROR] Missing database script: "%init_db_script%".
-  pause
+  call :maybe_pause
   exit /b 1
 )
 
 call :prepare_scope core false
 if errorlevel 1 (
   echo [ERROR] Database initialization prerequisites failed.
-  pause
+  call :maybe_pause
   exit /b 1
 )
 
@@ -512,19 +629,19 @@ set "run_ec=%ERRORLEVEL%"
 popd >nul
 if "%run_ec%"=="0" (
   echo [SUCCESS] Database initialization completed.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
 echo [ERROR] Database initialization failed with exit code %run_ec%.
-pause
+call :maybe_pause
 exit /b 1
 
 :run_tests
 set "test_script=%tests_dir%\run_tests.bat"
 if not exist "%test_script%" (
   echo [ERROR] Missing test script: "%test_script%".
-  pause
+  call :maybe_pause
   exit /b 1
 )
 
@@ -535,29 +652,29 @@ set "test_ec=%ERRORLEVEL%"
 popd >nul
 if "%test_ec%"=="0" (
   echo [SUCCESS] Test suite completed.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
 echo [ERROR] Test suite failed with exit code %test_ec%.
-pause
+call :maybe_pause
 exit /b 1
 
 :remove_logs
 if not exist "%log_dir%\" (
   echo [INFO] Log directory not found at "%log_dir%".
-  pause
+  call :maybe_pause
   exit /b 0
 )
 if exist "%log_dir%\*.log" (
   del /q "%log_dir%\*.log"
   echo [SUCCESS] Log files deleted.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
 echo [INFO] No log files found.
-pause
+call :maybe_pause
 exit /b 0
 
 :remove_desktop
@@ -566,11 +683,11 @@ if exist "%tauri_clean_script%" (
   set "clean_ec=%ERRORLEVEL%"
   if not "%clean_ec%"=="0" (
     echo [ERROR] Desktop package cleanup failed with exit code %clean_ec%.
-    pause
+    call :maybe_pause
     exit /b 1
   )
   echo [SUCCESS] Desktop package cleanup completed.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
@@ -578,7 +695,7 @@ if exist "%client_dir%\src-tauri\target\release" rd /s /q "%client_dir%\src-taur
 if exist "%client_dir%\src-tauri\target" rd /s /q "%client_dir%\src-tauri\target"
 if exist "%repo_root%\release\windows" rd /s /q "%repo_root%\release\windows"
 echo [SUCCESS] Desktop package cleanup completed.
-pause
+call :maybe_pause
 exit /b 0
 
 :uninstall_scope
@@ -589,14 +706,14 @@ echo [UNINSTALL] Removing %scope% artifacts...
 if /i "%scope%"=="core" (
   call :remove_frontend_artifacts "%client_dir%"
   echo [SUCCESS] Core webapp artifacts removed.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
 if /i "%scope%"=="ml" (
   call :remove_frontend_artifacts "%ml_client_dir%"
   echo [SUCCESS] ML webapp artifacts removed.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
@@ -612,12 +729,12 @@ if /i "%scope%"=="both" (
   if exist "%runtimes_dir%\python" rd /s /q "%runtimes_dir%\python"
   if exist "%runtimes_dir%\nodejs" rd /s /q "%runtimes_dir%\nodejs"
   echo [SUCCESS] All app artifacts removed.
-  pause
+  call :maybe_pause
   exit /b 0
 )
 
 echo [ERROR] Unknown uninstall scope "%scope%".
-pause
+call :maybe_pause
 exit /b 1
 
 :remove_frontend_artifacts
@@ -638,6 +755,24 @@ if errorlevel 1 exit /b 0
 
 echo [ERROR] %target_name% port %target_port% is already in use.
 exit /b 1
+
+:wait_for_port_ready
+set "target_port=%~1"
+set "target_name=%~2"
+set "target_timeout=%~3"
+if "%target_timeout%"=="" set "target_timeout=30"
+set /a wait_elapsed=0
+
+:wait_for_port_ready_loop
+netstat -ano | findstr /R /C:":%target_port% .*LISTENING" >nul
+if not errorlevel 1 exit /b 0
+if %wait_elapsed% geq %target_timeout% (
+  echo [ERROR] %target_name% did not start listening on port %target_port% within %target_timeout% seconds.
+  exit /b 1
+)
+set /a wait_elapsed+=1
+>nul ping 127.0.0.1 -n 2
+goto :wait_for_port_ready_loop
 
 :download_file
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri '%~1' -OutFile '%~2'"
@@ -663,5 +798,14 @@ if %node_move_ec% geq 8 (
 if exist "%node_source_dir%" rd /s /q "%node_source_dir%" >nul 2>&1
 exit /b 0
 
+:maybe_open_browser
+if /i "%auto_open_browser%"=="true" start "" "%~1"
+exit /b 0
+
+:maybe_pause
+if /i "%interactive_mode%"=="true" pause
+exit /b 0
+
 :exit
-endlocal
+set "script_ec=%ERRORLEVEL%"
+endlocal & exit /b %script_ec%
