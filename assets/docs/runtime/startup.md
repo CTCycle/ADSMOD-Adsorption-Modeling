@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Recommended Local Web Startup
 
@@ -21,7 +21,7 @@ This menu-driven script:
 - ensures portable runtimes under `runtimes/`
 - syncs backend workspace dependencies into `app/server/.venv`
 - installs frontend dependencies when needed
-- exposes launch choices for the core webapp, ML webapp, or both
+- exposes launch choices for core frontend + core service, ML frontend + ML service, or both stacks
 - exposes setup and maintenance choices for core-only, ML-only, or shared operations
 
 ## API-Only Backend Startup

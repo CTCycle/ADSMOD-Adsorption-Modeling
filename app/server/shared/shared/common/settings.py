@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from shared.common.constants import CONFIGURATION_FILE
+from shared.common.constants import (
+    CORE_CONFIGURATION_FILE_PATH,
+    SERVICE_CONFIG_PATH_ENV,
+)
 
 
 DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
@@ -218,7 +222,7 @@ def _load_configuration_payload(path: str) -> dict[str, Any]:
 
 ###############################################################################
 class AppSettings(BaseModel):
-    _configuration_file: ClassVar[str] = CONFIGURATION_FILE
+    _configuration_file: ClassVar[str | None] = None
 
     database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
     datasets: JsonDatasetSettings = Field(default_factory=JsonDatasetSettings)
@@ -228,8 +232,8 @@ class AppSettings(BaseModel):
     training: JsonTrainingSettings = Field(default_factory=JsonTrainingSettings)
 
     @classmethod
-    def load(cls) -> "AppSettings":
-        payload = _load_configuration_payload(getattr(cls, "_configuration_file"))
+    def load(cls, config_path: str | None = None) -> "AppSettings":
+        payload = _load_configuration_payload(_resolve_configuration_path(config_path, getattr(cls, "_configuration_file")))
 
         values: dict[str, Any] = {
             "database": payload.get("database", {}),
@@ -258,6 +262,24 @@ def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
     if isinstance(value, dict):
         return value
     return {}
+
+
+# -----------------------------------------------------------------------------
+def _resolve_configuration_path(
+    config_path: str | None = None,
+    default_path: str | None = None,
+) -> str:
+    if config_path:
+        return config_path
+
+    configured_path = os.getenv(SERVICE_CONFIG_PATH_ENV, "").strip()
+    if configured_path:
+        return configured_path
+
+    if default_path:
+        return default_path
+
+    return CORE_CONFIGURATION_FILE_PATH
 
 
 # -----------------------------------------------------------------------------
@@ -385,9 +407,8 @@ __all__ = [
 
 ###############################################################################
 def get_server_settings(config_path: str | None = None) -> ServerSettings:
-    if config_path is None:
-        return AppSettings.load().to_server_settings()
-    payload = _load_configuration_payload(config_path)
+    resolved_config_path = _resolve_configuration_path(config_path)
+    payload = _load_configuration_payload(resolved_config_path)
     values: dict[str, Any] = {
         'database': payload.get('database', {}),
         'datasets': payload.get('datasets', {}),

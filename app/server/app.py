@@ -14,11 +14,13 @@ from fastapi.staticfiles import StaticFiles
 from shared.common.constants import (
     APP_PATH,
     CHECKPOINTS_DIR,
+    CORE_CONFIGURATION_FILE_PATH,
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
     LOGS_DIR,
     RESOURCES_DIR,
+    SERVICE_CONFIG_PATH_ENV,
     TEMPLATES_DIR,
 )
 from shared.common.env import load_environment
@@ -31,6 +33,7 @@ CLIENT_ASSETS_PATH = CLIENT_DIST_PATH / "assets"
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
 load_environment()
+os.environ.setdefault(SERVICE_CONFIG_PATH_ENV, CORE_CONFIGURATION_FILE_PATH)
 os.environ.setdefault("KERAS_BACKEND", "torch")
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)

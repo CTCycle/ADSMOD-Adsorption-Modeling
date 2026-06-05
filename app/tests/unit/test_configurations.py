@@ -1,21 +1,23 @@
 import json
 
-from shared.common.constants import CONFIGURATION_FILE
+from core_service.common.constants import CONFIGURATION_FILE as CORE_CONFIGURATION_FILE
+from ml_service.common.constants import CONFIGURATION_FILE as ML_CONFIGURATION_FILE
 from core_service.configurations import (
     get_server_settings,
 )
 from shared.common.settings import (
+    AppSettings,
     build_training_settings,
 )
 
 
 def test_json_structure_matches_settings():
     """
-    Verify that keys present in configurations.json [training] section
+    Verify that keys present in the core runtime JSON [training] section
     are correctly loaded into the TrainingSettings dataclass.
     """
     settings = get_server_settings()
-    with open(CONFIGURATION_FILE, "r", encoding="utf-8") as handle:
+    with open(CORE_CONFIGURATION_FILE, "r", encoding="utf-8") as handle:
         config_dict = json.load(handle)
 
     training_json = config_dict.get("training", {})
@@ -31,7 +33,7 @@ def test_json_structure_matches_settings():
 
 def test_config_values_are_respected():
     """
-    Verify that specific values set in configurations.json are reflected in the settings object.
+    Verify that specific values set in runtime JSON are reflected in the settings object.
     Checks values handled directly by TrainingSettings construction.
     """
     # Create a mock payload with known values
@@ -75,5 +77,14 @@ def test_default_fallbacks():
     assert training_settings.pin_memory is True
     assert training_settings.persistent_workers is False
     assert training_settings.plot_update_batch_interval == 10
+
+
+def test_both_runtime_configuration_files_validate() -> None:
+    for config_path in (CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE):
+        settings = AppSettings.load(config_path)
+        server_settings = settings.to_server_settings()
+
+        assert server_settings.datasets.allowed_extensions
+        assert server_settings.jobs.polling_interval > 0
 
 

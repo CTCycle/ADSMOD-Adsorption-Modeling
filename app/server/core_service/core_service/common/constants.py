@@ -12,6 +12,7 @@ LOGS_DIR = RESOURCES_DIR / "logs"
 TEMPLATES_DIR = RESOURCES_DIR / "templates"
 CHECKPOINTS_DIR = RESOURCES_DIR / "checkpoints"
 ENV_FILE = SETTING_DIR / ".env"
+CORE_CONFIGURATION_FILE = SETTING_DIR / "core_service.json"
 ROOT_DIR = str(ROOT_PATH)
 APP_DIR = str(APP_PATH)
 SETTING_PATH = str(SETTING_DIR)
@@ -20,11 +21,12 @@ LOGS_PATH = str(LOGS_DIR)
 TEMPLATES_PATH = str(TEMPLATES_DIR)
 CHECKPOINTS_PATH = str(CHECKPOINTS_DIR)
 ENV_FILE_PATH = str(ENV_FILE)
+CORE_CONFIGURATION_FILE_PATH = str(CORE_CONFIGURATION_FILE)
 DATABASE_FILENAME = "database.db"
 
 
 ###############################################################################
-CONFIGURATION_FILE = str(SETTING_DIR / "configurations.json")
+CONFIGURATION_FILE = CORE_CONFIGURATION_FILE_PATH
 
 
 ###############################################################################
