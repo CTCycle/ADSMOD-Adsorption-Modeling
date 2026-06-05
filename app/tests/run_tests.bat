@@ -74,9 +74,12 @@ set "ADSMOD_TEST_BACKEND_URL=%APP_TEST_BACKEND_URL%"
 set "ADSMOD_TEST_ML_BACKEND_URL=%APP_TEST_ML_BACKEND_URL%"
 set "ADSMOD_TEST_FRONTEND_URL=%APP_TEST_FRONTEND_URL%"
 
-if "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
-if "%STANDARD_TEST_SKIP_FRONTEND%"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
-if "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="" set "STANDARD_TEST_INCLUDE_PERFORMANCE=false"
+if "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
+if "!STANDARD_TEST_SKIP_FRONTEND!"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
+if "!STANDARD_TEST_INCLUDE_PERFORMANCE!"=="" set "STANDARD_TEST_INCLUDE_PERFORMANCE=false"
+set "STANDARD_TEST_SKIP_LIVE_SERVERS=!STANDARD_TEST_SKIP_LIVE_SERVERS: =!"
+set "STANDARD_TEST_SKIP_FRONTEND=!STANDARD_TEST_SKIP_FRONTEND: =!"
+set "STANDARD_TEST_INCLUDE_PERFORMANCE=!STANDARD_TEST_INCLUDE_PERFORMANCE: =!"
 
 if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
@@ -124,7 +127,7 @@ if not "%STANDARD_TEST_PYTEST_TARGET%"=="" set "PYTEST_TARGET=%STANDARD_TEST_PYT
 set "HAS_E2E=0"
 if exist "%TESTS_DIR%\e2e" set "HAS_E2E=1"
 
-if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
+if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
   set "LIVE_SERVER_PHASE=PASS"
 
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
@@ -232,8 +235,15 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" (
+set "PYTEST_IGNORE_E2E="
+if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" if "!HAS_E2E!"=="1" set "PYTEST_IGNORE_E2E=true"
+
+if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" if /i "%PYTEST_IGNORE_E2E%"=="true" (
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short %*
+) else if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" (
   "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %*
+) else if /i "%PYTEST_IGNORE_E2E%"=="true" (
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" %*
 ) else (
   "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" %*
 )
@@ -245,7 +255,7 @@ if "%PYTEST_RC%"=="0" (
   set "TEST_RESULT=1"
 )
 
-if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="true" goto summary
+if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="true" goto summary
 if not exist "%CLIENT_DIR%\package.json" goto summary
 
 set "HAS_FRONTEND_UNIT=0"

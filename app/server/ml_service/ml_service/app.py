@@ -10,6 +10,10 @@ os.environ.setdefault(
     "ADSMOD_CONFIG_PATH",
     str(Path(__file__).resolve().parents[4] / "settings" / "ml_service.json")
 )
+# Keras resolves its backend during import, so backend-related env vars must exist
+# before any ml_service module transitively imports keras.
+os.environ.setdefault("KERAS_BACKEND", "torch")
+os.environ.setdefault("MPLBACKEND", "Agg")
 
 from ml_service.api.entrypoint import health_router
 from ml_service.api.routes import register_ml_routes
@@ -19,10 +23,6 @@ from ml_service.common.constants import (
     FASTAPI_VERSION,
 )
 from ml_service.services.container import MlServiceContainer
-
-# Ensure Keras loads with the intended backend even when env vars are absent.
-os.environ.setdefault("KERAS_BACKEND", "torch")
-os.environ.setdefault("MPLBACKEND", "Agg")
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 

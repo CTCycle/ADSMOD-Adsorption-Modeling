@@ -18,7 +18,7 @@ Last updated: 2026-06-05
 
 - Desktop packaging flows through `release/tauri/build_with_tauri.bat`.
 - Windows packaging outputs artifacts under `release/windows`.
-- The Tauri bundle stages server code, scripts, settings, frontend dist assets, and runtime binaries.
+- The Tauri bundle stages server code, scripts, settings, Angular frontend dist assets, and runtime binaries.
 - Backend dependency state is locked in `app/server/uv.lock`.
 
 ## Constraints

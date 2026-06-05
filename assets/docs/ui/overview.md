@@ -1,10 +1,10 @@
 # UI Overview
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Scope
 
-This section covers design tokens, component patterns, and user-experience rules for the current React frontends.
+This section covers design tokens, component patterns, and user-experience rules for the Angular frontends.
 
 ## Documents
 
