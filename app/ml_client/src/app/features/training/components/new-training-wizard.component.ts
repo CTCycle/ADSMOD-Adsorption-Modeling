@@ -42,7 +42,11 @@ const LAST_PAGE_INDEX = 4;
                                         <div class="wizard-toggle-control">
                                             <label>Shuffle Buffered</label>
                                             <div class="wizard-toggle-switch">
-                                                <adsmod-switch [checked]="shuffleDataset()" (checkedChange)="shuffleDatasetControl.setValue($event)" />
+                                                <adsmod-switch
+                                                    [checked]="shuffleDataset()"
+                                                    ariaLabel="Shuffle buffered dataset rows"
+                                                    (checkedChange)="shuffleDatasetControl.setValue($event)"
+                                                />
                                             </div>
                                         </div>
                                         @if (shuffleDataset()) {

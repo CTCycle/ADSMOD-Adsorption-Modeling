@@ -1,20 +1,24 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
+let fileUploadIdCounter = 0;
+
 @Component({
     selector: 'adsmod-file-upload',
     standalone: true,
     template: `
         <div class="file-upload">
             <input
+                [id]="inputId"
                 type="file"
                 [accept]="accept"
                 [disabled]="disabled"
+                [attr.aria-label]="label"
                 (change)="handleChange($event)"
             />
-            <div class="file-upload-label">
+            <label class="file-upload-label" [for]="inputId">
                 <span aria-hidden="true">[file]</span>
                 <span>{{ label }}</span>
-            </div>
+            </label>
         </div>
     `,
 })
@@ -25,6 +29,8 @@ export class FileUploadComponent {
     @Input() disabled = false;
     @Output() readonly fileSelected = new EventEmitter<File>();
     @Output() readonly fileUploaded = new EventEmitter<File>();
+
+    protected readonly inputId = `adsmod-file-upload-${fileUploadIdCounter++}`;
 
     protected handleChange(event: Event): void {
         const input = event.target as HTMLInputElement;

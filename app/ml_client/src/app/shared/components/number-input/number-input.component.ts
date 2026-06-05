@@ -1,12 +1,15 @@
 import { Component, input, output } from '@angular/core';
 
+let numberInputIdCounter = 0;
+
 @Component({
     selector: 'adsmod-number-input',
     standalone: true,
     template: `
-        <div style="flex: 1; min-width: 140px;">
-            <label class="field-label">{{ label() }}</label>
+        <div class="number-input-wrapper">
+            <label class="field-label" [for]="inputId">{{ label() }}</label>
             <input
+                [id]="inputId"
                 class="number-input-field"
                 type="number"
                 [value]="value()"
@@ -28,6 +31,8 @@ export class NumberInputComponent {
     readonly precision = input(4);
     readonly disabled = input(false);
     readonly valueChange = output<number>();
+
+    protected readonly inputId = `adsmod-number-input-${numberInputIdCounter++}`;
 
     protected handleChange(event: Event): void {
         const rawValue = Number.parseFloat((event.target as HTMLInputElement).value);
