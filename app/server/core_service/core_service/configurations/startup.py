@@ -4,6 +4,7 @@ import os
 from os import PathLike
 from pathlib import Path
 
+from core_service.common.constants import CONFIGURATION_FILE
 from shared.common.env import load_environment
 from shared.common.settings import AppSettings, ServerSettings, get_server_settings
 
@@ -38,12 +39,11 @@ def core_reload_enabled() -> bool:
 
 
 def get_app_settings(config_path: str | None = None) -> AppSettings:
-    _ = config_path
-    return AppSettings.load()
+    return AppSettings.load(config_path or CONFIGURATION_FILE)
 
 
 def get_server_settings_runtime(config_path: str | None = None) -> ServerSettings:
-    return get_server_settings(config_path)
+    return get_server_settings(config_path or CONFIGURATION_FILE)
 
 
 def public_host_mode_enabled() -> bool:

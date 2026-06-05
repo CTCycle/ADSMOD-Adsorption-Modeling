@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from ml_service.common.constants import CONFIGURATION_FILE
-from ml_service.domain.settings import AppSettings, ServerSettings
+from shared.common.settings import AppSettings, ServerSettings
 
 
 ###############################################################################

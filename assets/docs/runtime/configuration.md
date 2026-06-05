@@ -1,11 +1,12 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Primary Runtime Files
 
 - Environment file: `ADSMOD/settings/.env`
-- Structured settings file: `ADSMOD/settings/configurations.json`
+- Core service settings file: `ADSMOD/settings/core_service.json`
+- ML service settings file: `ADSMOD/settings/ml_service.json`
 
 ## Environment Variables
 
@@ -28,7 +29,7 @@ Current launcher and runtime keys include:
 
 ## Structured Settings Coverage
 
-`ADSMOD/settings/configurations.json` contains:
+Each backend runtime JSON contains:
 
 - database mode and connection settings
 - job polling interval
@@ -38,7 +39,8 @@ Current launcher and runtime keys include:
 
 - Local launcher mode
   - uses `.env` host and port values
-  - unified backend startup uses `CORE_SERVICE_*` values with fallback to `FASTAPI_*`
+  - core service reads `settings/core_service.json`
+  - ML service reads `settings/ml_service.json`
   - runs backend and frontend as separate processes
 - API-only mode
   - requires no frontend process

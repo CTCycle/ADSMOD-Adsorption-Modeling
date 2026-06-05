@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import os
 import warnings
+from pathlib import Path
 
 from fastapi import FastAPI
+
+os.environ.setdefault(
+    "ADSMOD_CONFIG_PATH",
+    str(Path(__file__).resolve().parents[4] / "settings" / "ml_service.json")
+)
 
 from ml_service.api.entrypoint import health_router
 from ml_service.api.routes import register_ml_routes

@@ -1,0 +1,42 @@
+{
+  "database": {
+    "embedded_database": true,
+    "engine": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database_name": "ADSMOD",
+    "username": "postgres",
+    "password": "",
+    "ssl": false,
+    "ssl_ca": null,
+    "connect_timeout": 30,
+    "insert_batch_size": 5000
+  },
+  "datasets": {
+    "allowed_extensions": [
+      ".csv",
+      ".xls",
+      ".xlsx"
+    ],
+    "column_detection_cutoff": 0.6
+  },
+  "nist": {
+    "parallel_tasks": 40,
+    "pubchem_parallel_tasks": 1
+  },
+  "fitting": {
+    "default_max_iterations": 1000,
+    "max_iterations_upper_bound": 1000000000,
+    "default_parameter_initial": 1.0,
+    "default_parameter_min": 0.0,
+    "default_parameter_max": 100.0,
+    "preview_row_limit": 20,
+    "best_model_metric": "AICc"
+  },
+  "jobs": {
+    "polling_interval": 1.0
+  },
+  "training": {
+    "persistent_workers": false
+  }
+}

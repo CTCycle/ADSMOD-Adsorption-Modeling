@@ -1,6 +1,6 @@
 # ADSMOD Deployment And Packaging
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Interoperability
 
@@ -12,7 +12,7 @@ Last updated: 2026-06-03
 
 - Database: `resources/database.db` for embedded mode
 - Checkpoints: `resources/checkpoints`
-- Runtime env and config files: `settings/.env` and `settings/configurations.json`
+- Runtime env and config files: `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json`
 
 ## Packaging Notes
 

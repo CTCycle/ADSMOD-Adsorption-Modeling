@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import json
 
+from core_service.common.constants import CONFIGURATION_FILE as CORE_CONFIGURATION_FILE
 from core_service.configurations.management import ConfigurationManager
 from core_service.domain.settings import ServerSettings
+from ml_service.common.constants import CONFIGURATION_FILE as ML_CONFIGURATION_FILE
+from ml_service.configurations.management import (
+    ConfigurationManager as MlConfigurationManager,
+)
 
 
 def write_config(path: str, payload: dict[str, object]) -> None:
@@ -74,5 +79,15 @@ def test_manager_to_server_settings(tmp_path) -> None:
 
     assert isinstance(server_settings, ServerSettings)
     assert server_settings.datasets.column_detection_cutoff == 0.65
+
+
+def test_core_manager_defaults_to_core_runtime_file() -> None:
+    manager = ConfigurationManager()
+    assert manager.config_path == CORE_CONFIGURATION_FILE
+
+
+def test_ml_manager_defaults_to_ml_runtime_file() -> None:
+    manager = MlConfigurationManager()
+    assert manager.config_path == ML_CONFIGURATION_FILE
 
 

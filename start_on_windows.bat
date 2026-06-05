@@ -50,9 +50,9 @@ cls
 echo ==========================================================================
 echo                               ADSMOD Menu
 echo ==========================================================================
-echo 1. Launch core webapp
-echo 2. Launch ML webapp
-echo 3. Launch both webapps
+echo 1. Start core frontend + core service
+echo 2. Start ML frontend + ML service
+echo 3. Start both frontends + both services
 echo 4. Setup and maintenance
 echo 5. Exit
 echo.
@@ -80,9 +80,9 @@ cls
 echo ==========================================================================
 echo                         ADSMOD Setup And Maintenance
 echo ==========================================================================
-echo 1. Install or update core webapp
-echo 2. Install or update ML webapp
-echo 3. Install or update both webapps
+echo 1. Install or update core frontend + core service
+echo 2. Install or update ML frontend + ML service
+echo 3. Install or update both frontend + service stacks
 echo 4. Initialize database
 echo 5. Run test suite
 echo 6. Remove logs
@@ -193,7 +193,7 @@ exit /b 0
 set "scope=%~1"
 call :load_env
 echo.
-echo [INFO] Preparing %scope% webapp launch...
+echo [INFO] Preparing %scope% frontend + service launch...
 call :prepare_scope "%scope%" "false"
 if errorlevel 1 (
   echo [ERROR] Launch preparation failed.
@@ -210,7 +210,7 @@ if /i "%scope%"=="core" (
   start "ADSMOD Core API" /D "%server_dir%" "%venv_python%" -m uvicorn core_service.app:app --host %CORE_SERVICE_HOST% --port %CORE_SERVICE_PORT%
   start "ADSMOD Core UI" /D "%client_dir%" "%npm_cmd%" run dev
   start "" "http://%UI_HOST%:%UI_PORT%"
-  echo [SUCCESS] Core webapp started.
+  echo [SUCCESS] Core frontend and core service started.
   echo [INFO] Core API: http://%CORE_SERVICE_HOST%:%CORE_SERVICE_PORT%
   echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
   pause
@@ -226,7 +226,7 @@ if /i "%scope%"=="ml" (
   start "ADSMOD ML API" /D "%server_dir%" "%venv_python%" -m uvicorn ml_service.app:app --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT%
   start "ADSMOD ML UI" /D "%ml_client_dir%" "%npm_cmd%" run dev
   start "" "http://%ML_UI_HOST%:%ML_UI_PORT%"
-  echo [SUCCESS] ML webapp started.
+  echo [SUCCESS] ML frontend and ML service started.
   echo [INFO] ML API: http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
   echo [INFO] ML UI : http://%ML_UI_HOST%:%ML_UI_PORT%
   pause
@@ -249,7 +249,7 @@ if /i "%scope%"=="both" (
   start "ADSMOD ML UI" /D "%ml_client_dir%" "%npm_cmd%" run dev
   start "" "http://%UI_HOST%:%UI_PORT%"
   start "" "http://%ML_UI_HOST%:%ML_UI_PORT%"
-  echo [SUCCESS] Core and ML webapps started.
+  echo [SUCCESS] Both frontends and both services started.
   echo [INFO] Core API: http://%CORE_SERVICE_HOST%:%CORE_SERVICE_PORT%
   echo [INFO] ML API  : http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
   echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
@@ -266,14 +266,14 @@ exit /b 1
 :install_or_update_scope
 set "scope=%~1"
 echo.
-echo [INFO] Installing or updating %scope% webapp...
+echo [INFO] Installing or updating %scope% frontend + service stack...
 call :prepare_scope "%scope%" "true"
 if errorlevel 1 (
   echo [ERROR] Install or update failed.
   pause
   exit /b 1
 )
-echo [SUCCESS] %scope% webapp is ready.
+echo [SUCCESS] %scope% frontend + service stack is ready.
 pause
 exit /b 0
 
