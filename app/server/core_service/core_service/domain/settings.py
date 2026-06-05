@@ -276,7 +276,7 @@ def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
     return {}
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _get_env_text(key: str) -> str | None:
     value = os.getenv(key)
     if value is None:
@@ -285,7 +285,7 @@ def _get_env_text(key: str) -> str | None:
     return text or None
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _get_env_bool(key: str, default: bool) -> bool:
     value = _get_env_text(key)
     if value is None:
@@ -293,7 +293,7 @@ def _get_env_bool(key: str, default: bool) -> bool:
     return value.lower() in TRUTHY_VALUES
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _get_env_int(key: str, default: int) -> int:
     value = _get_env_text(key)
     if value is None:
@@ -301,7 +301,7 @@ def _get_env_int(key: str, default: int) -> int:
     return int(value)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _load_database_environment_payload() -> dict[str, Any]:
     load_environment()
     return {
@@ -327,7 +327,7 @@ def _load_database_environment_payload() -> dict[str, Any]:
     }
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
     _ = payload
     json_settings = JsonDatabaseSettings.model_validate(
@@ -364,7 +364,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     json_settings = JsonDatasetSettings.model_validate(_ensure_mapping(payload))
     return DatasetSettings(
@@ -373,7 +373,7 @@ def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
     json_settings = JsonNISTSettings.model_validate(_ensure_mapping(payload))
     return NISTSettings(
@@ -382,7 +382,7 @@ def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
     json_settings = JsonFittingSettings.model_validate(_ensure_mapping(payload))
     return FittingSettings(
@@ -396,7 +396,7 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_job_settings(payload: dict[str, Any] | Any) -> JobSettings:
     json_settings = JsonJobSettings.model_validate(_ensure_mapping(payload))
     return JobSettings(
@@ -404,7 +404,7 @@ def build_job_settings(payload: dict[str, Any] | Any) -> JobSettings:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     json_settings = JsonTrainingSettings.model_validate(_ensure_mapping(payload))
     return TrainingSettings(
@@ -419,7 +419,7 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
     section_payload = _ensure_mapping(payload)
     return ServerSettings(

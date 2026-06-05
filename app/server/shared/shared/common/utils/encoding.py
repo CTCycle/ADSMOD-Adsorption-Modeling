@@ -23,7 +23,7 @@ ZERO_WIDTH_CHARACTERS = {
 }
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_unicode_text(value: str) -> str:
     normalized = value.replace("\u00a0", " ")
     normalized = "".join(
@@ -36,7 +36,7 @@ def normalize_unicode_text(value: str) -> str:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_error_text(value: str) -> str:
     return "".join(
         character
@@ -45,7 +45,7 @@ def normalize_error_text(value: str) -> str:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def sanitize_unicode_payload(value: Any) -> Any:
     if isinstance(value, str):
         return normalize_unicode_text(value)
@@ -61,7 +61,7 @@ def sanitize_unicode_payload(value: Any) -> Any:
     return value
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def sanitize_dataframe_strings(dataframe: pd.DataFrame) -> pd.DataFrame:
     if dataframe.empty:
         return dataframe
@@ -77,7 +77,7 @@ def sanitize_dataframe_strings(dataframe: pd.DataFrame) -> pd.DataFrame:
     return sanitized
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def decode_json_response_bytes(raw_bytes: bytes) -> dict[str, Any] | list[Any]:
     decoded = raw_bytes.decode("utf-8-sig", errors="replace")
     payload = json.loads(decoded)

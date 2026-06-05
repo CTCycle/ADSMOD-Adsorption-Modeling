@@ -90,14 +90,14 @@ def base_url() -> str:
     return FRONTEND_URL
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     """Return the backend API base URL."""
     return BACKEND_URL
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def api_context(playwright: Playwright, api_base_url: str) -> APIRequestContext:
     """Create a Playwright API request context for backend calls."""
@@ -106,14 +106,14 @@ def api_context(playwright: Playwright, api_base_url: str) -> APIRequestContext:
     context.dispose()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def ml_api_base_url() -> str:
     """Return the ML backend API base URL."""
     return ML_BACKEND_URL
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def ml_api_context(playwright: Playwright, ml_api_base_url: str) -> APIRequestContext:
     """Create a Playwright API request context for ML backend calls."""
@@ -122,7 +122,7 @@ def ml_api_context(playwright: Playwright, ml_api_base_url: str) -> APIRequestCo
     context.dispose()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="function")
 def page(playwright: Playwright, base_url: str) -> Page:
     """Create a new browser page for each test."""
@@ -134,14 +134,14 @@ def page(playwright: Playwright, base_url: str) -> Page:
     browser.close()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def sample_csv_path() -> str:
     """Return the path to the sample adsorption CSV fixture."""
     return str(FIXTURES_DIR / "sample_adsorption.csv")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def pytest_collection_modifyitems(
     session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
 ) -> None:

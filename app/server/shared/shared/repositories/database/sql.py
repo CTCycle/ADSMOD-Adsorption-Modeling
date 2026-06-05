@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy.sql.elements import TextClause
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_create_database_sql(
     database_name: str,
 ) -> TextClause:
@@ -22,11 +22,11 @@ def build_postgres_server_encoding_sql() -> TextClause:
     return sqlalchemy.text("SHOW SERVER_ENCODING")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def postgres_set_client_encoding_sql() -> str:
     return "SET client_encoding TO 'UTF8'"
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def sqlite_enable_foreign_keys_sql() -> str:
     return "PRAGMA foreign_keys=ON"
