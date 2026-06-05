@@ -67,7 +67,7 @@ def build_sqlite_engine() -> sqlalchemy.Engine:
     return engine
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def upsert_adsorbate(
     engine: sqlalchemy.Engine,
     payload: dict[str, object],

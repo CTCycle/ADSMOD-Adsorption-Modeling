@@ -15,7 +15,7 @@ from shared.repositories.database.utils import normalize_postgres_engine
 from shared.common.utils.logger import logger
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {
         "connect_timeout": settings.connect_timeout,
@@ -28,7 +28,7 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
     return connect_args
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     port = settings.port or 5432
     engine_name = normalize_postgres_engine(settings.engine)
@@ -40,7 +40,7 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def clone_settings_with_database(
     settings: DatabaseSettings, database_name: str
 ) -> DatabaseSettings:
@@ -59,13 +59,13 @@ def clone_settings_with_database(
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings, initialize_schema=True)
     logger.info("Initialized SQLite database schema at %s", repository.db_path)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
     if not settings.host:
         raise ValueError("Database host is required for PostgreSQL initialization.")

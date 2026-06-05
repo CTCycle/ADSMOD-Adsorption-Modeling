@@ -27,17 +27,17 @@ def health_check() -> ServiceStatusResponse:
     return ServiceStatusResponse(status="ok")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def redirect_to_docs() -> RedirectResponse:
     return RedirectResponse(url="/docs")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def service_root() -> ServiceStatusResponse:
     return ServiceStatusResponse(status="ok")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 class SpaEntrypointHandlers:
     def __init__(self, client_dist_path: str) -> None:
         self.client_dist_path = Path(client_dist_path)
@@ -54,7 +54,7 @@ class SpaEntrypointHandlers:
         return FileResponse(self.client_dist_path / "index.html")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def register_root_routes(app: FastAPI) -> None:
     if packaged_client_available():
         client_dist_path = get_client_dist_path()

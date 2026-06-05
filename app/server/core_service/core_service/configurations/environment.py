@@ -26,7 +26,7 @@ def load_environment(
     return resolved_path
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def reset_environment_for_tests(keys: Iterable[str]) -> None:
     for key in keys:
         os.environ.pop(str(key), None)

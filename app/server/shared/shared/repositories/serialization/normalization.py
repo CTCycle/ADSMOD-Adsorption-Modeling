@@ -17,19 +17,19 @@ from shared.common.constants import (
 )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_lower(value: Any) -> str:
     return normalize_text(value).lower()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_model_key(model_name: Any) -> str:
     return (
         str(model_name)
@@ -42,7 +42,7 @@ def normalize_model_key(model_name: Any) -> str:
     )
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def to_float(value: Any) -> float | None:
     if value is None:
         return None
@@ -57,7 +57,7 @@ def to_float(value: Any) -> float | None:
     return parsed
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def to_float_list(value: Any) -> list[float]:
     if value is None:
         return []
@@ -82,7 +82,7 @@ def to_float_list(value: Any) -> list[float]:
     return [parsed] if parsed is not None else []
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_processed_key_from_values(
     adsorbent: str,
     adsorbate: str,
