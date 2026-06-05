@@ -63,11 +63,11 @@ def test_ml_frontend_has_no_core_page_imports() -> None:
     assert not violations, '\n'.join(violations)
 
 
-def test_core_vite_proxy_has_no_ml_routes() -> None:
-    text = Path('app/client/vite.config.ts').read_text(encoding='utf-8')
+def test_core_proxy_has_no_ml_routes() -> None:
+    text = Path('app/client/proxy.conf.cjs').read_text(encoding='utf-8')
     assert '/api/training' not in text
 
 
-def test_ml_vite_proxy_has_only_ml_routes() -> None:
-    text = Path('app/ml_client/vite.config.ts').read_text(encoding='utf-8')
+def test_ml_proxy_has_only_ml_routes() -> None:
+    text = Path('app/ml_client/proxy.conf.cjs').read_text(encoding='utf-8')
     assert '/api/training' in text

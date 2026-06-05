@@ -350,10 +350,7 @@ def _resolve_configuration_path(
 
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
-    _ = payload
-    json_settings = JsonDatabaseSettings.model_validate(
-        _load_database_environment_payload()
-    )
+    json_settings = JsonDatabaseSettings.model_validate(_ensure_mapping(payload))
     if json_settings.embedded_database:
         return DatabaseSettings(
             embedded_database=True,

@@ -32,7 +32,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*ù
 package-lock.json
+!app/client/package-lock.json
+!app/ml_client/package-lock.json
 yarn.lock
+**/.angular/
 
 # IDE / OS
 !.vscode/extensions.json

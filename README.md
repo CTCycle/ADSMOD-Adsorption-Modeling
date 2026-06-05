@@ -16,8 +16,8 @@ ADSMOD is a comprehensive web application designed for the collection, managemen
 - `app/server/ml_service` (training/ML workflows)
 - `app/server/shared` (shared persistence and repository layer)
 - Frontend split:
-- `app/client` (core UI for source/fitting; talks only to `core_service`)
-- `app/ml_client` (ML UI for training; talks only to `ml_service`)
+- `app/client` (Angular core UI for source/fitting; talks only to `core_service`)
+- `app/ml_client` (Angular ML UI for training; talks only to `ml_service`)
 
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
@@ -163,7 +163,7 @@ npm run dev
 npm run build
 ```
 
-Frontend API base path is controlled by `VITE_API_BASE_URL` (default: `/api`).
+Frontend API base path defaults to `/api`; Angular development servers proxy core and ML API routes through each app's `proxy.conf.cjs`.
 
 ## 6. Resources
 
@@ -192,7 +192,7 @@ Database mode and backend defaults are loaded from `settings/configurations.json
 | `KERAS_BACKEND`, `MPLBACKEND` | ML/scientific runtime backend configuration. |
 | `RELOAD` | Uvicorn reload toggle for local development. |
 | `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in launcher flow. |
-| `VITE_API_BASE_URL` | Frontend API base path (same-origin `/api` by default). |
+| `VITE_API_BASE_URL` | Optional frontend API base path written into runtime config; same-origin `/api` is used by default. |
 
 Single canonical runtime file:
 - `settings/.env`

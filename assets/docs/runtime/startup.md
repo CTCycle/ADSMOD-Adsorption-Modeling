@@ -73,6 +73,8 @@ Set-Location ADSMOD/app/ml_client
 npm run dev
 ```
 
+Both frontend development servers are Angular CLI servers with API proxy configuration loaded from each app's `proxy.conf.cjs`.
+
 ## Test Startup
 
 CMD:
