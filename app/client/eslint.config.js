@@ -4,7 +4,7 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 export default [
   {
-    ignores: [".angular/**", "dist/**", "node_modules/**", "src-tauri/**", "out-tsc/**", "src/**/*.tsx"],
+    ignores: [".angular/**", "dist/**", "node_modules/**", "src-tauri/**", "out-tsc/**"],
   },
   js.configs.recommended,
   {
