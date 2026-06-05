@@ -1,17 +1,22 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
+let numberInputIdCounter = 0;
+
 @Component({
     selector: 'adsmod-number-input',
     standalone: true,
     template: `
-        <div style="flex: 1; min-width: 140px;">
-            <label>{{ label }}</label>
+        <div class="number-input-wrapper">
+            <label class="field-label" [for]="inputId">{{ label }}</label>
             <input
+                [id]="inputId"
+                class="number-input-field"
                 type="number"
                 [value]="value"
                 [min]="min"
                 [max]="max"
                 [step]="step"
+                [disabled]="disabled"
                 (input)="handleInput($event)"
             />
         </div>
@@ -24,7 +29,10 @@ export class NumberInputComponent {
     @Input() max?: number;
     @Input() step = 0.0001;
     @Input() precision = 4;
+    @Input() disabled = false;
     @Output() readonly valueChange = new EventEmitter<number>();
+
+    protected readonly inputId = `adsmod-number-input-${numberInputIdCounter++}`;
 
     protected handleInput(event: Event): void {
         const input = event.target as HTMLInputElement;

@@ -1133,6 +1133,14 @@ textarea,
   background: white;
   color: var(--slate-900);
 }
+.number-input-wrapper {
+  flex: 1;
+  min-width: 140px;
+}
+
+.number-input-field {
+  width: 100%;
+}
 
 .select-input option {
   background-color: white;

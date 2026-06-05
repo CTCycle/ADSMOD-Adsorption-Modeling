@@ -27,7 +27,11 @@ import { ModelConfigFormComponent } from './model-config-form.component';
             >
                 <div class="model-card-title">
                     <div (click)="$event.stopPropagation()">
-                        <adsmod-switch [checked]="isEnabled" (checkedChange)="enabledChange.emit($event)" />
+                        <adsmod-switch
+                            [checked]="isEnabled"
+                            [ariaLabel]="'Enable ' + model.name"
+                            (checkedChange)="enabledChange.emit($event)"
+                        />
                     </div>
                     <strong>{{ model.name }}</strong>
                 </div>
