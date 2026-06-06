@@ -1,7 +1,7 @@
 import pandas as pd
 
-from app.server.repositories.serialization.training import TrainingDataSerializer
-from app.server.domain.training import TrainingMetadata
+from ml_service.learning.serialization.training import TrainingDataSerializer
+from ml_service.domain.training import TrainingMetadata
 
 
 class StubTrainingQueries:
@@ -125,3 +125,5 @@ def test_save_training_dataset_deduplicates_sample_keys():
     upserted = captured["upsert"]
     assert len(upserted) == 1
     assert upserted["sample_key"].nunique() == 1
+
+

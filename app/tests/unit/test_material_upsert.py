@@ -11,8 +11,8 @@ from sqlalchemy.exc import IntegrityError, InterfaceError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.server.repositories.database.upsert import resolve_conflict_columns
-from app.server.repositories.schemas.models import Adsorbate, Base
+from shared.repositories.database.upsert import resolve_conflict_columns
+from shared.repositories.schemas.models import Adsorbate, Base
 
 
 ###############################################################################
@@ -67,7 +67,7 @@ def build_sqlite_engine() -> sqlalchemy.Engine:
     return engine
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def upsert_adsorbate(
     engine: sqlalchemy.Engine,
     payload: dict[str, object],
@@ -212,3 +212,4 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
         assert rows[0].formula in {"C3H8-a", "C3H8-b"}
 
     engine.dispose()
+

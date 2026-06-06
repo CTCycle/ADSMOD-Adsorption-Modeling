@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import os
 import shutil
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import psutil
 
-from app.server.learning.training.manager import run_training_process
-from app.server.learning.training.worker import ProcessWorker
+from ml_service.learning.training.manager import run_training_process
+from ml_service.learning.training.worker import ProcessWorker
 
 
 ###############################################################################
@@ -26,20 +26,18 @@ class TrainingRunResult:
 
 # -------------------------------------------------------------------------
 def list_checkpoint_folders(root: str) -> set[str]:
-    if not os.path.exists(root):
+    root_path = Path(root)
+    if not root_path.exists():
         return set()
-    folders: set[str] = set()
-    for entry in os.scandir(root):
-        if entry.is_dir():
-            folders.add(entry.name)
-    return folders
+    return {entry.name for entry in root_path.iterdir() if entry.is_dir()}
 
 
 # -------------------------------------------------------------------------
 def remove_checkpoint_folders(root: str, folders: set[str]) -> None:
+    root_path = Path(root)
     for folder in folders:
-        path = os.path.join(root, folder)
-        if os.path.isdir(path):
+        path = root_path / folder
+        if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
 
 
@@ -137,3 +135,4 @@ def run_training_with_metrics(
         result_payload=result_payload,
         exit_code=exit_code,
     )
+

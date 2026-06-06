@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import Column, Integer, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from app.server.repositories.schemas.types import JSONSequence
+from shared.repositories.schemas.types import JSONSequence
 
 Base = declarative_base()
 
@@ -60,3 +60,4 @@ def test_string_payload_raises_for_json_sequence(session):
 
     with pytest.raises(ValueError, match="Invalid JSONSequence payload"):
         _ = session.query(TestModel).first()
+

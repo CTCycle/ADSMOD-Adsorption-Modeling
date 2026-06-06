@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.server.common.utils.variables import EnvironmentVariables
+from shared.common.utils.variables import EnvironmentVariables
 
 
 # -------------------------------------------------------------------------
@@ -36,8 +36,8 @@ def test_runtime_env_parsing_loads_host_port_and_backends(
         monkeypatch.delenv(key, raising=False)
 
     monkeypatch.setattr(
-        "app.server.common.utils.variables.ENV_FILE_PATH",
-        str(env_path),
+        "shared.common.utils.variables.ENV_FILE",
+        env_path,
     )
 
     env_variables = EnvironmentVariables()
@@ -48,3 +48,4 @@ def test_runtime_env_parsing_loads_host_port_and_backends(
     assert env_variables.get("UI_PORT") == "8001"
     assert env_variables.get("KERAS_BACKEND") == "torch"
     assert env_variables.get("MPLBACKEND") == "Agg"
+

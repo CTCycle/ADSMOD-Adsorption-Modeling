@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+os.environ.setdefault("KERAS_BACKEND", "torch")
+os.environ.setdefault("MPLBACKEND", "Agg")
 
 import pytest
 from playwright.sync_api import APIRequestContext, Page, Playwright
@@ -10,21 +14,22 @@ from playwright.sync_api import APIRequestContext, Page, Playwright
 
 # [CONSTANTS]
 ###############################################################################
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-FIXTURES_DIR = os.path.join(TESTS_DIR, "fixtures")
-APP_ROOT = os.path.dirname(TESTS_DIR)
-PROJECT_ROOT = os.path.dirname(APP_ROOT)
-SETTINGS_ENV = os.path.join(PROJECT_ROOT, "settings", ".env")
+TESTS_DIR = Path(__file__).resolve().parent
+FIXTURES_DIR = TESTS_DIR / "fixtures"
+APP_ROOT = TESTS_DIR.parent
+PROJECT_ROOT = APP_ROOT.parent
+SETTINGS_ENV = PROJECT_ROOT / "settings" / ".env"
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
 
 
 # -------------------------------------------------------------------------
-def load_env_values(path: str) -> dict[str, str]:
+def load_env_values(path: str | Path) -> dict[str, str]:
+    path = Path(path)
     values: dict[str, str] = {}
-    if not os.path.exists(path):
+    if not path.exists():
         return values
 
-    with open(path, "r", encoding="utf-8") as handle:
+    with path.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
             line = raw_line.strip()
             if not line or line.startswith("#") or line.startswith(";"):
@@ -54,12 +59,14 @@ def normalize_client_host(bind_host: str) -> str:
 
 
 # -------------------------------------------------------------------------
-def resolve_test_urls() -> tuple[str, str]:
+def resolve_test_urls() -> tuple[str, str, str]:
     env_values = load_env_values(SETTINGS_ENV)
     frontend_host = normalize_client_host(env_values.get("UI_HOST", "127.0.0.1"))
     frontend_port = env_values.get("UI_PORT", "7861")
     backend_host = normalize_client_host(env_values.get("FASTAPI_HOST", "127.0.0.1"))
     backend_port = env_values.get("FASTAPI_PORT", "8000")
+    ml_host = normalize_client_host(env_values.get("ML_SERVICE_HOST", "127.0.0.1"))
+    ml_port = env_values.get("ML_SERVICE_PORT", "6046")
 
     frontend_url = os.getenv(
         "ADSMOD_TEST_FRONTEND_URL", f"http://{frontend_host}:{frontend_port}"
@@ -67,10 +74,13 @@ def resolve_test_urls() -> tuple[str, str]:
     backend_url = os.getenv(
         "ADSMOD_TEST_BACKEND_URL", f"http://{backend_host}:{backend_port}"
     )
-    return frontend_url.rstrip("/"), backend_url.rstrip("/")
+    ml_backend_url = os.getenv(
+        "ADSMOD_TEST_ML_BACKEND_URL", f"http://{ml_host}:{ml_port}"
+    )
+    return frontend_url.rstrip("/"), backend_url.rstrip("/"), ml_backend_url.rstrip("/")
 
 
-FRONTEND_URL, BACKEND_URL = resolve_test_urls()
+FRONTEND_URL, BACKEND_URL, ML_BACKEND_URL = resolve_test_urls()
 
 
 ###############################################################################
@@ -80,14 +90,14 @@ def base_url() -> str:
     return FRONTEND_URL
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     """Return the backend API base URL."""
     return BACKEND_URL
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def api_context(playwright: Playwright, api_base_url: str) -> APIRequestContext:
     """Create a Playwright API request context for backend calls."""
@@ -96,7 +106,23 @@ def api_context(playwright: Playwright, api_base_url: str) -> APIRequestContext:
     context.dispose()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
+@pytest.fixture(scope="session")
+def ml_api_base_url() -> str:
+    """Return the ML backend API base URL."""
+    return ML_BACKEND_URL
+
+
+###############################################################################
+@pytest.fixture(scope="session")
+def ml_api_context(playwright: Playwright, ml_api_base_url: str) -> APIRequestContext:
+    """Create a Playwright API request context for ML backend calls."""
+    context = playwright.request.new_context(base_url=ml_api_base_url)
+    yield context
+    context.dispose()
+
+
+###############################################################################
 @pytest.fixture(scope="function")
 def page(playwright: Playwright, base_url: str) -> Page:
     """Create a new browser page for each test."""
@@ -108,14 +134,14 @@ def page(playwright: Playwright, base_url: str) -> Page:
     browser.close()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @pytest.fixture(scope="session")
 def sample_csv_path() -> str:
     """Return the path to the sample adsorption CSV fixture."""
-    return os.path.join(FIXTURES_DIR, "sample_adsorption.csv")
+    return str(FIXTURES_DIR / "sample_adsorption.csv")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def pytest_collection_modifyitems(
     session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
 ) -> None:

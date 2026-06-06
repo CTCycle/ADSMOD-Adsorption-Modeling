@@ -1,0 +1,1876 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ADSMOD Model Fitting Backend ML Service",
+    "description": "FastAPI backend Machine learning service for dataset preparation, training, checkpoint management, and model workflows.",
+    "version": "1.2.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health Check",
+        "operationId": "health_check_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/datasets": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Training Datasets",
+        "operationId": "get_training_datasets_api_training_datasets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingDatasetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/dataset-sources": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Dataset Sources",
+        "operationId": "get_dataset_sources_api_training_dataset_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetSourcesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/dataset-source": {
+      "delete": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Delete Dataset Source",
+        "operationId": "delete_dataset_source_api_training_dataset_source_delete",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(nist|uploaded)$",
+              "title": "Source"
+            }
+          },
+          {
+            "name": "dataset_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9_. -]+$",
+              "title": "Dataset Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetSourceDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/build-dataset": {
+      "post": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Build Training Dataset",
+        "operationId": "build_training_dataset_api_training_build_dataset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetBuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/processed-datasets": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Processed Datasets",
+        "operationId": "get_processed_datasets_api_training_processed_datasets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessedDatasetsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/dataset-info": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Dataset Info",
+        "operationId": "get_dataset_info_api_training_dataset_info_get",
+        "parameters": [
+          {
+            "name": "dataset_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+              "default": "default",
+              "title": "Dataset Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetInfoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/dataset": {
+      "delete": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Clear Training Dataset",
+        "operationId": "clear_training_dataset_api_training_dataset_delete",
+        "parameters": [
+          {
+            "name": "dataset_label",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/jobs": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "List Dataset Jobs",
+        "operationId": "list_dataset_jobs_api_training_jobs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Dataset Job Status",
+        "operationId": "get_dataset_job_status_api_training_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Cancel Dataset Job",
+        "operationId": "cancel_dataset_job_api_training_jobs__job_id__delete",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/checkpoints": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Checkpoints",
+        "operationId": "get_checkpoints_api_training_checkpoints_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/checkpoints/{checkpoint_name}": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Checkpoint Details",
+        "operationId": "get_checkpoint_details_api_training_checkpoints__checkpoint_name__get",
+        "parameters": [
+          {
+            "name": "checkpoint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+              "title": "Checkpoint Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointFullDetailsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Delete Checkpoint",
+        "operationId": "delete_checkpoint_api_training_checkpoints__checkpoint_name__delete",
+        "parameters": [
+          {
+            "name": "checkpoint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+              "title": "Checkpoint Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/start": {
+      "post": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Start Training",
+        "operationId": "start_training_api_training_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainingConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/resume": {
+      "post": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Resume Training",
+        "operationId": "resume_training_api_training_resume_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeTrainingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/stop": {
+      "post": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Stop Training",
+        "operationId": "stop_training_api_training_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/training/status": {
+      "get": {
+        "tags": [
+          "training"
+        ],
+        "summary": "Get Training Status",
+        "operationId": "get_training_status_api_training_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CheckpointDetailInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "epochs_trained": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epochs Trained"
+          },
+          "final_loss": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Loss"
+          },
+          "final_accuracy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Accuracy"
+          },
+          "is_compatible": {
+            "type": "boolean",
+            "title": "Is Compatible",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CheckpointDetailInfo"
+      },
+      "CheckpointFullDetailsResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "configuration": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainingMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CheckpointFullDetailsResponse"
+      },
+      "CheckpointsResponse": {
+        "properties": {
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointDetailInfo"
+            },
+            "type": "array",
+            "title": "Checkpoints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoints"
+        ],
+        "title": "CheckpointsResponse"
+      },
+      "DatasetBuildRequest": {
+        "properties": {
+          "sample_size": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.01,
+            "title": "Sample Size",
+            "default": 1.0
+          },
+          "validation_size": {
+            "type": "number",
+            "maximum": 0.5,
+            "minimum": 0.05,
+            "title": "Validation Size",
+            "default": 0.2
+          },
+          "min_measurements": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Min Measurements",
+            "default": 1
+          },
+          "max_measurements": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 5.0,
+            "title": "Max Measurements",
+            "default": 30
+          },
+          "smile_sequence_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 5.0,
+            "title": "Smile Sequence Size",
+            "default": 20
+          },
+          "max_pressure": {
+            "type": "number",
+            "maximum": 100000.0,
+            "minimum": 100.0,
+            "title": "Max Pressure",
+            "default": 10000.0
+          },
+          "max_uptake": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Max Uptake",
+            "default": 20.0
+          },
+          "reference_checkpoint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Checkpoint"
+          },
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSelection"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Datasets"
+          },
+          "dataset_label": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$",
+            "title": "Dataset Label",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DatasetBuildRequest"
+      },
+      "DatasetInfoResponse": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "dataset_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Label"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "sample_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Size"
+          },
+          "validation_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Size"
+          },
+          "min_measurements": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Measurements"
+          },
+          "max_measurements": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Measurements"
+          },
+          "smile_sequence_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smile Sequence Size"
+          },
+          "max_pressure": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Pressure"
+          },
+          "max_uptake": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Uptake"
+          },
+          "total_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Samples"
+          },
+          "train_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Samples"
+          },
+          "validation_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Samples"
+          },
+          "smile_vocabulary_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smile Vocabulary Size"
+          },
+          "adsorbent_vocabulary_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbent Vocabulary Size"
+          },
+          "normalization_stats": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normalization Stats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "DatasetInfoResponse"
+      },
+      "DatasetSelection": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "nist",
+              "uploaded"
+            ],
+            "title": "Source"
+          },
+          "dataset_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_. -]+$",
+            "title": "Dataset Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "dataset_name"
+        ],
+        "title": "DatasetSelection"
+      },
+      "DatasetSourceDeleteResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "DatasetSourceDeleteResponse"
+      },
+      "DatasetSourceInfo": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "nist",
+              "uploaded"
+            ],
+            "title": "Source"
+          },
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "dataset_name",
+          "display_name",
+          "row_count"
+        ],
+        "title": "DatasetSourceInfo"
+      },
+      "DatasetSourcesResponse": {
+        "properties": {
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSourceInfo"
+            },
+            "type": "array",
+            "title": "Datasets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasets"
+        ],
+        "title": "DatasetSourcesResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobCancelResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "job_id"
+        ],
+        "title": "JobCancelResponse"
+      },
+      "JobListResponse": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobStatusResponse"
+            },
+            "type": "array",
+            "title": "Jobs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "title": "JobListResponse"
+      },
+      "JobStartResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "job_type": {
+            "type": "string",
+            "title": "Job Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "poll_interval": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poll Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "job_type",
+          "status",
+          "message"
+        ],
+        "title": "JobStartResponse"
+      },
+      "JobStatusResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "job_type": {
+            "type": "string",
+            "title": "Job Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "poll_interval": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poll Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "job_type",
+          "status",
+          "progress"
+        ],
+        "title": "JobStatusResponse"
+      },
+      "OperationStatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "OperationStatusResponse"
+      },
+      "ProcessedDatasetInfo": {
+        "properties": {
+          "dataset_label": {
+            "type": "string",
+            "title": "Dataset Label"
+          },
+          "dataset_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Fa-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Hash"
+          },
+          "train_samples": {
+            "type": "integer",
+            "title": "Train Samples"
+          },
+          "validation_samples": {
+            "type": "integer",
+            "title": "Validation Samples"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_label",
+          "train_samples",
+          "validation_samples"
+        ],
+        "title": "ProcessedDatasetInfo"
+      },
+      "ProcessedDatasetsResponse": {
+        "properties": {
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/ProcessedDatasetInfo"
+            },
+            "type": "array",
+            "title": "Datasets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasets"
+        ],
+        "title": "ProcessedDatasetsResponse"
+      },
+      "ResumeTrainingRequest": {
+        "properties": {
+          "checkpoint_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Checkpoint Name"
+          },
+          "additional_epochs": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Additional Epochs",
+            "default": 10
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "checkpoint_name"
+        ],
+        "title": "ResumeTrainingRequest"
+      },
+      "ServiceStatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ServiceStatusResponse"
+      },
+      "TrainingConfigRequest": {
+        "properties": {
+          "sample_size": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.01,
+            "title": "Sample Size",
+            "default": 1.0
+          },
+          "validation_size": {
+            "type": "number",
+            "maximum": 0.5,
+            "minimum": 0.05,
+            "title": "Validation Size",
+            "default": 0.2
+          },
+          "batch_size": {
+            "type": "integer",
+            "maximum": 256.0,
+            "minimum": 1.0,
+            "title": "Batch Size",
+            "default": 32
+          },
+          "shuffle_dataset": {
+            "type": "boolean",
+            "title": "Shuffle Dataset",
+            "default": true
+          },
+          "max_buffer_size": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Buffer Size",
+            "default": 256
+          },
+          "dataset_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Label"
+          },
+          "dataset_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Fa-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Hash"
+          },
+          "selected_model": {
+            "type": "string",
+            "title": "Selected Model",
+            "default": "SCADS Series"
+          },
+          "dropout_rate": {
+            "type": "number",
+            "maximum": 0.5,
+            "minimum": 0.0,
+            "title": "Dropout Rate",
+            "default": 0.1
+          },
+          "num_attention_heads": {
+            "type": "integer",
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Num Attention Heads",
+            "default": 8
+          },
+          "num_encoders": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Num Encoders",
+            "default": 4
+          },
+          "molecular_embedding_size": {
+            "type": "integer",
+            "maximum": 1024.0,
+            "minimum": 64.0,
+            "title": "Molecular Embedding Size",
+            "default": 256
+          },
+          "epochs": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Epochs",
+            "default": 50
+          },
+          "dataloader_workers": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 0.0,
+            "title": "Dataloader Workers",
+            "default": 0
+          },
+          "prefetch_factor": {
+            "type": "integer",
+            "maximum": 32.0,
+            "minimum": 1.0,
+            "title": "Prefetch Factor",
+            "default": 1
+          },
+          "pin_memory": {
+            "type": "boolean",
+            "title": "Pin Memory",
+            "default": true
+          },
+          "use_device_GPU": {
+            "type": "boolean",
+            "title": "Use Device Gpu",
+            "default": true
+          },
+          "device_ID": {
+            "type": "integer",
+            "maximum": 32.0,
+            "minimum": 0.0,
+            "title": "Device Id",
+            "default": 0
+          },
+          "use_mixed_precision": {
+            "type": "boolean",
+            "title": "Use Mixed Precision",
+            "default": false
+          },
+          "use_jit": {
+            "type": "boolean",
+            "title": "Use Jit",
+            "default": false
+          },
+          "jit_backend": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Jit Backend",
+            "default": "inductor"
+          },
+          "use_lr_scheduler": {
+            "type": "boolean",
+            "title": "Use Lr Scheduler",
+            "default": true
+          },
+          "initial_lr": {
+            "type": "number",
+            "maximum": 0.01,
+            "minimum": 1e-07,
+            "title": "Initial Lr",
+            "default": 0.0001
+          },
+          "target_lr": {
+            "type": "number",
+            "maximum": 0.001,
+            "minimum": 1e-08,
+            "title": "Target Lr",
+            "default": 1e-05
+          },
+          "constant_steps": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Constant Steps",
+            "default": 5
+          },
+          "decay_steps": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Decay Steps",
+            "default": 10
+          },
+          "save_checkpoints": {
+            "type": "boolean",
+            "title": "Save Checkpoints",
+            "default": true
+          },
+          "checkpoints_frequency": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Checkpoints Frequency",
+            "default": 5
+          },
+          "custom_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TrainingConfigRequest"
+      },
+      "TrainingDatasetResponse": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "train_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Samples"
+          },
+          "validation_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Samples"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "TrainingDatasetResponse"
+      },
+      "TrainingMetadata": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "sample_size": {
+            "type": "number",
+            "title": "Sample Size",
+            "default": 1.0
+          },
+          "validation_size": {
+            "type": "number",
+            "title": "Validation Size",
+            "default": 0.2
+          },
+          "min_measurements": {
+            "type": "integer",
+            "title": "Min Measurements",
+            "default": 1
+          },
+          "max_measurements": {
+            "type": "integer",
+            "title": "Max Measurements",
+            "default": 30
+          },
+          "smile_sequence_size": {
+            "type": "integer",
+            "title": "Smile Sequence Size",
+            "default": 20
+          },
+          "max_pressure": {
+            "type": "number",
+            "title": "Max Pressure",
+            "default": 10000.0
+          },
+          "max_uptake": {
+            "type": "number",
+            "title": "Max Uptake",
+            "default": 20.0
+          },
+          "total_samples": {
+            "type": "integer",
+            "title": "Total Samples",
+            "default": 0
+          },
+          "train_samples": {
+            "type": "integer",
+            "title": "Train Samples",
+            "default": 0
+          },
+          "validation_samples": {
+            "type": "integer",
+            "title": "Validation Samples",
+            "default": 0
+          },
+          "smile_vocabulary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Smile Vocabulary"
+          },
+          "adsorbent_vocabulary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Adsorbent Vocabulary"
+          },
+          "normalization_stats": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Normalization Stats"
+          },
+          "dataset_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Fa-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Hash"
+          },
+          "smile_vocabulary_size": {
+            "type": "integer",
+            "title": "Smile Vocabulary Size",
+            "default": 0
+          },
+          "adsorbent_vocabulary_size": {
+            "type": "integer",
+            "title": "Adsorbent Vocabulary Size",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "TrainingMetadata"
+      },
+      "TrainingStartResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "poll_interval": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poll Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "session_id",
+          "message"
+        ],
+        "title": "TrainingStartResponse"
+      },
+      "TrainingStatusResponse": {
+        "properties": {
+          "is_training": {
+            "type": "boolean",
+            "title": "Is Training"
+          },
+          "current_epoch": {
+            "type": "integer",
+            "title": "Current Epoch"
+          },
+          "total_epochs": {
+            "type": "integer",
+            "title": "Total Epochs"
+          },
+          "progress": {
+            "type": "number",
+            "title": "Progress"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log"
+          },
+          "poll_interval": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Poll Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_training",
+          "current_epoch",
+          "total_epochs",
+          "progress"
+        ],
+        "title": "TrainingStatusResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
