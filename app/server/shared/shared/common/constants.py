@@ -1,29 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-# [PATHS]
-###############################################################################
-ROOT_PATH = Path(__file__).resolve().parents[5]
-APP_PATH = ROOT_PATH / "app"
-SETTING_DIR = ROOT_PATH / "settings"
-RESOURCES_DIR = APP_PATH / "resources"
-LOGS_DIR = RESOURCES_DIR / "logs"
-TEMPLATES_DIR = RESOURCES_DIR / "templates"
-CHECKPOINTS_DIR = RESOURCES_DIR / "checkpoints"
-ENV_FILE = SETTING_DIR / ".env"
-CORE_CONFIGURATION_FILE = SETTING_DIR / "core_service.json"
-ML_CONFIGURATION_FILE = SETTING_DIR / "ml_service.json"
-ROOT_DIR = str(ROOT_PATH)
-APP_DIR = str(APP_PATH)
-SETTING_PATH = str(SETTING_DIR)
-RESOURCES_PATH = str(RESOURCES_DIR)
-LOGS_PATH = str(LOGS_DIR)
-TEMPLATES_PATH = str(TEMPLATES_DIR)
-CHECKPOINTS_PATH = str(CHECKPOINTS_DIR)
-ENV_FILE_PATH = str(ENV_FILE)
-CORE_CONFIGURATION_FILE_PATH = str(CORE_CONFIGURATION_FILE)
-ML_CONFIGURATION_FILE_PATH = str(ML_CONFIGURATION_FILE)
 DATABASE_FILENAME = "database.db"
 
 

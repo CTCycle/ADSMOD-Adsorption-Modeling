@@ -4,16 +4,14 @@ import logging
 import logging.config
 import sys
 from datetime import datetime
-from pathlib import Path
 
-from core_service.common.constants import LOGS_PATH
+from shared.common.paths import LOGS_DIR
 
 
 ###############################################################################
-logs_path = Path(LOGS_PATH)
-logs_path.mkdir(parents=True, exist_ok=True)
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = logs_path / f"ADSMOD_{current_timestamp}.log"
+log_filename = LOGS_DIR / f"ADSMOD_{current_timestamp}.log"
 
 
 ###############################################################################

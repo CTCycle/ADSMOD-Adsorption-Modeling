@@ -8,8 +8,8 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from core_service.common.constants import CONFIGURATION_FILE
 from shared.common.env import load_environment
+from shared.common.paths import CORE_CONFIGURATION_FILE
 
 
 DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
@@ -215,7 +215,7 @@ class JsonTrainingSettings(BaseModel):
 
 
 ###############################################################################
-def _load_configuration_payload(path: str) -> dict[str, Any]:
+def _load_configuration_payload(path: str | Path) -> dict[str, Any]:
     configuration_file = Path(path)
     if not configuration_file.exists():
         raise RuntimeError(f"Configuration file not found: {configuration_file}")
@@ -234,7 +234,7 @@ def _load_configuration_payload(path: str) -> dict[str, Any]:
 
 ###############################################################################
 class AppSettings(BaseModel):
-    _configuration_file: ClassVar[str] = CONFIGURATION_FILE
+    _configuration_file: ClassVar[Path] = CORE_CONFIGURATION_FILE
 
     database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
     datasets: JsonDatasetSettings = Field(default_factory=JsonDatasetSettings)

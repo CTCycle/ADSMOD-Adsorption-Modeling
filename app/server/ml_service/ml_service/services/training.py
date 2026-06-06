@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 from ml_service.common.utils.logger import logger
-from ml_service.common.constants import CHECKPOINTS_PATH
 from ml_service.configurations import get_server_settings
 from ml_service.domain.jobs import (
     JobCancelResponse,
@@ -41,6 +40,7 @@ from ml_service.services.data.builder import DatasetBuilder, DatasetBuilderConfi
 from ml_service.services.data.composition import DatasetCompositionService
 from ml_service.services.job_responses import JobResponseFactory
 from ml_service.services.jobs import JobManager
+from shared.common.paths import CHECKPOINTS_DIR
 
 
 ###############################################################################
@@ -474,7 +474,7 @@ class TrainingService:
         detailed_checkpoints: list[CheckpointDetailInfo] = []
 
         for checkpoint in checkpoints:
-            checkpoint_path = str(Path(CHECKPOINTS_PATH) / checkpoint)
+            checkpoint_path = str(CHECKPOINTS_DIR / checkpoint)
             epochs_trained: int | None = None
             final_loss: float | None = None
             final_accuracy: float | None = None

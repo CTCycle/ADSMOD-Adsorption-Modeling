@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 
-from ml_service.common.constants import CONFIGURATION_FILE
 from shared.common.env import load_environment
+from shared.common.paths import ML_CONFIGURATION_FILE
 from shared.common.settings import AppSettings, ServerSettings, get_server_settings
 
 
@@ -25,8 +25,8 @@ def ml_reload_enabled() -> bool:
 
 
 def get_app_settings(config_path: str | None = None) -> AppSettings:
-    return AppSettings.load(config_path or CONFIGURATION_FILE)
+    return AppSettings.load(config_path or ML_CONFIGURATION_FILE)
 
 
 def get_server_settings_runtime(config_path: str | None = None) -> ServerSettings:
-    return get_server_settings(config_path or CONFIGURATION_FILE)
+    return get_server_settings(config_path or ML_CONFIGURATION_FILE)

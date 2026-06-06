@@ -13,7 +13,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.common.settings import DatabaseSettings
-from shared.common.constants import RESOURCES_PATH, DATABASE_FILENAME
+from shared.common.constants import DATABASE_FILENAME
+from shared.common.paths import RESOURCES_DIR
 from shared.common.utils.encoding import sanitize_dataframe_strings
 from shared.common.utils.security import ensure_safe_sql_identifier
 from shared.common.utils.logger import logger
@@ -33,7 +34,7 @@ class SQLiteRepository:
         settings: DatabaseSettings,
         initialize_schema: bool | None = None,
     ) -> None:
-        self.db_path = Path(RESOURCES_PATH) / DATABASE_FILENAME
+        self.db_path = RESOURCES_DIR / DATABASE_FILENAME
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         db_file_exists = self.db_path.exists()
         if initialize_schema is None:

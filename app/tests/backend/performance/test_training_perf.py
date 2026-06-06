@@ -11,7 +11,6 @@ from dataclasses import dataclass
 import pytest
 
 from ml_service.domain.training import TrainingConfigRequest
-from shared.common.constants import CHECKPOINTS_PATH
 from app.tests.backend.performance.dataset import (
     SyntheticDatasetSpec,
     clear_synthetic_training_dataset,
@@ -22,6 +21,7 @@ from app.tests.backend.performance.harness import (
     remove_checkpoint_folders,
     run_training_with_metrics,
 )
+from shared.common.paths import CHECKPOINTS_DIR
 
 
 ###############################################################################
@@ -184,7 +184,7 @@ def test_training_pipeline_performance(scenario: TrainingScenario) -> None:
             scenario, dataset_label, metadata.dataset_hash
         )
 
-        checkpoints_before = list_checkpoint_folders(CHECKPOINTS_PATH)
+        checkpoints_before = list_checkpoint_folders(CHECKPOINTS_DIR)
 
         result = run_training_with_metrics(
             configuration=configuration,
@@ -194,7 +194,7 @@ def test_training_pipeline_performance(scenario: TrainingScenario) -> None:
             baseline_epoch=int(limits["baseline_epoch"]),
         )
 
-        checkpoints_after = list_checkpoint_folders(CHECKPOINTS_PATH)
+        checkpoints_after = list_checkpoint_folders(CHECKPOINTS_DIR)
         created_checkpoints = checkpoints_after - checkpoints_before
 
         assert not result.timed_out, (
@@ -229,6 +229,6 @@ def test_training_pipeline_performance(scenario: TrainingScenario) -> None:
         )
     finally:
         if created_checkpoints:
-            remove_checkpoint_folders(CHECKPOINTS_PATH, created_checkpoints)
+            remove_checkpoint_folders(CHECKPOINTS_DIR, created_checkpoints)
         clear_synthetic_training_dataset(dataset_label)
 

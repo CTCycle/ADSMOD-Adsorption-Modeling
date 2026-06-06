@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from core_service.common.constants import CONFIGURATION_FILE as CORE_CONFIGURATION_FILE
 from core_service.configurations.management import ConfigurationManager
 from core_service.domain.settings import ServerSettings
-from ml_service.common.constants import CONFIGURATION_FILE as ML_CONFIGURATION_FILE
 from ml_service.configurations.management import (
     ConfigurationManager as MlConfigurationManager,
 )
+from shared.common.paths import CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE
 
 
 def write_config(path: str, payload: dict[str, object]) -> None:
-    with open(path, "w", encoding="utf-8") as handle:
+    with Path(path).open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
 
 

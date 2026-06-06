@@ -9,10 +9,10 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from shared.common.constants import (
-    CORE_CONFIGURATION_FILE_PATH,
     SERVICE_CONFIG_PATH_ENV,
 )
 from shared.common.env import load_environment
+from shared.common.paths import CORE_CONFIGURATION_FILE
 
 
 DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
@@ -218,7 +218,7 @@ class JsonTrainingSettings(BaseModel):
 
 
 ###############################################################################
-def _load_configuration_payload(path: str) -> dict[str, Any]:
+def _load_configuration_payload(path: str | Path) -> dict[str, Any]:
     configuration_file = Path(path)
     if not configuration_file.exists():
         raise RuntimeError(f"Configuration file not found: {configuration_file}")
@@ -237,7 +237,7 @@ def _load_configuration_payload(path: str) -> dict[str, Any]:
 
 ###############################################################################
 class AppSettings(BaseModel):
-    _configuration_file: ClassVar[str | None] = None
+    _configuration_file: ClassVar[Path | None] = None
 
     database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
     datasets: JsonDatasetSettings = Field(default_factory=JsonDatasetSettings)
@@ -247,7 +247,7 @@ class AppSettings(BaseModel):
     training: JsonTrainingSettings = Field(default_factory=JsonTrainingSettings)
 
     @classmethod
-    def load(cls, config_path: str | None = None) -> "AppSettings":
+    def load(cls, config_path: str | Path | None = None) -> "AppSettings":
         payload = _load_configuration_payload(_resolve_configuration_path(config_path, getattr(cls, "_configuration_file")))
 
         values: dict[str, Any] = {
@@ -332,20 +332,20 @@ def _load_database_environment_payload() -> dict[str, Any]:
 
 ###############################################################################
 def _resolve_configuration_path(
-    config_path: str | None = None,
-    default_path: str | None = None,
-) -> str:
+    config_path: str | Path | None = None,
+    default_path: str | Path | None = None,
+) -> Path:
     if config_path:
-        return config_path
+        return Path(config_path)
 
     configured_path = os.getenv(SERVICE_CONFIG_PATH_ENV, "").strip()
     if configured_path:
-        return configured_path
+        return Path(configured_path)
 
     if default_path:
-        return default_path
+        return Path(default_path)
 
-    return CORE_CONFIGURATION_FILE_PATH
+    return CORE_CONFIGURATION_FILE
 
 
 ###############################################################################
@@ -472,7 +472,7 @@ __all__ = [
 
 
 ###############################################################################
-def get_server_settings(config_path: str | None = None) -> ServerSettings:
+def get_server_settings(config_path: str | Path | None = None) -> ServerSettings:
     resolved_config_path = _resolve_configuration_path(config_path)
     payload = _load_configuration_payload(resolved_config_path)
     values: dict[str, Any] = {
