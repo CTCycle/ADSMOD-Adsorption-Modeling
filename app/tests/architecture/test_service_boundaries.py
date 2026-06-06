@@ -11,6 +11,7 @@ ML_PACKAGE_ROOT = SERVER_ROOT / "ml_service" / "ml_service"
 SHARED_PACKAGE_ROOT = SERVER_ROOT / "shared" / "shared"
 CORE_FRONTEND_ROOT = REPO_ROOT / "app" / "client" / "src" / "app"
 ML_FRONTEND_ROOT = REPO_ROOT / "app" / "ml_client" / "src" / "app"
+UNIFIED_BACKEND_ENTRYPOINT = SERVER_ROOT / "app.py"
 
 ML_HEAVY_IMPORT_ROOTS = {"keras", "sklearn", "tensorflow", "torch"}
 SERVICE_IMPORT_ROOTS = {"core_service", "ml_service"}
@@ -33,6 +34,8 @@ CORE_FORBIDDEN_FRONTEND_SNIPPETS = {
 }
 ML_FORBIDDEN_FRONTEND_SNIPPETS = {
     "/api/datasets",
+    "/api/fitting",
+    "/api/nist",
     "${API_BASE_URL}/datasets",
     "${API_BASE_URL}/fitting",
     "${API_BASE_URL}/nist",
@@ -115,13 +118,13 @@ def test_active_backend_packages_do_not_import_legacy_top_level_packages() -> No
     violations: list[str] = []
     for root in active_roots:
         violations.extend(_find_python_import_violations(root, LEGACY_BACKEND_IMPORT_ROOTS))
-    violations.extend(
-        _find_python_import_violations(
-            SERVER_ROOT,
-            set(),
-        )
-    )
     assert not violations, "\n".join(violations)
+
+
+def test_unified_backend_entrypoint_is_only_composition_glue() -> None:
+    imports = _parse_import_roots(UNIFIED_BACKEND_ENTRYPOINT)
+    forbidden = sorted(imports & ML_HEAVY_IMPORT_ROOTS)
+    assert not forbidden, f"app/server/app.py must not import ML frameworks directly: {forbidden}"
 
 
 def test_core_frontend_does_not_reference_training_or_ml_api_routes() -> None:
