@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.server.common.utils.encoding import (
+from shared.common.utils.encoding import (
     decode_json_response_bytes,
     normalize_unicode_text,
     sanitize_dataframe_strings,
@@ -38,3 +38,4 @@ def test_sanitize_dataframe_strings_handles_unicode_without_loss() -> None:
     assert sanitized.loc[1, "name"] == "na y"
     assert sanitized.loc[0, "unit"] == "µmol/g"
     assert sanitized.loc[1, "unit"] == "Å"
+

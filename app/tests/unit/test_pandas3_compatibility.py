@@ -3,10 +3,10 @@ from __future__ import annotations
 import pandas as pd
 from pandas.api.types import is_string_dtype
 
-from app.server.common.utils.encoding import sanitize_dataframe_strings
-from app.server.repositories.database.postgres import PostgresRepository
-from app.server.services.data.conversion import PressureConversion
-from app.server.services.data.sanitizer import DataSanitizer
+from shared.common.utils.encoding import sanitize_dataframe_strings
+from shared.repositories.database.postgres import PostgresRepository
+from core_service.services.data.conversion import PressureConversion
+from ml_service.services.data.sanitizer import DataSanitizer
 
 
 def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
@@ -92,3 +92,4 @@ def test_deduplicate_conflict_batch_keeps_last_conflict_record() -> None:
     assert deduplicated[1]["sample_key"] == "B"
     assert deduplicated[2]["sample_key"] is None
     assert deduplicated[3]["sample_key"] is None
+

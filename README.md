@@ -9,6 +9,16 @@
 
 ADSMOD is a comprehensive web application designed for the collection, management, and modeling of adsorption data. This project represents the evolution and unification of two predecessor projects: **ADSORFIT** and **NISTADS Adsorption Modeling** (the former name of this repository).
 
+### Service and frontend split
+
+- Backend split:
+- `app/server/core_service` (non-ML API workflows)
+- `app/server/ml_service` (training/ML workflows)
+- `app/server/shared` (shared persistence and repository layer)
+- Frontend split:
+- `app/client` (Angular core UI for source/fitting; talks only to `core_service`)
+- `app/ml_client` (Angular ML UI for training; talks only to `ml_service`)
+
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
 - **Enrich** material data with chemical properties fetched from PubChem.
@@ -34,7 +44,7 @@ This project utilizes deep learning techniques to model adsorption phenomena.
 
 ### 3.1 Windows (One Click Setup)
 
-ADSMOD provides an automated installation and launcher script for Windows users.
+ADSMOD provides an automated menu-driven launcher and maintenance script for Windows users.
 
 1. Navigate to the `ADSMOD` directory.
 2. Run `start_on_windows.bat`.
@@ -42,8 +52,9 @@ ADSMOD provides an automated installation and launcher script for Windows users.
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
 - Installs backend dependencies from `pyproject.toml` into `app/server/.venv`.
-- Installs frontend dependencies and builds the frontend bundle.
-- Starts backend and frontend.
+- Installs frontend dependencies and can build the selected frontend bundle.
+- Exposes launch modes for the core webapp, ML webapp, or both.
+- Exposes setup and maintenance actions for core-only, ML-only, or shared operations.
 
 **First Run vs. Subsequent Runs:**
 - On the **first run**, setup may take time because runtimes and dependencies are downloaded.
@@ -53,16 +64,26 @@ ADSMOD provides an automated installation and launcher script for Windows users.
 
 If you prefer manual setup or are running outside the launcher workflow:
 1. Install Python and Node.js.
-2. Install backend dependencies from the app/server.
-3. Install frontend dependencies in `app/client`.
+2. Run `uv sync --all-packages --group dev` from `app/server`.
+3. Install frontend dependencies in `app/client` and `app/ml_client`.
 4. Launch backend and frontend processes.
+
+### Backend startup commands (Stage 1)
+
+```cmd
+app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
+app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 8000
+app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8001
+cd app\client && npm run dev
+cd app\ml_client && npm run dev
+```
 
 ## 4. How to Use
 
 ### 4.1 Launching the Application
 
 **Windows:**
-Double-click `start_on_windows.bat`. This launches backend/frontend and opens the UI at `http://<UI_HOST>:<UI_PORT>` from `settings/.env`.
+Double-click `start_on_windows.bat`. Use the menu to launch the core webapp, the ML webapp, or both.
 
 **Windows (Packaged Tauri App):**
 Build with `release\tauri\build_with_tauri.bat`, then launch from `release/windows/installers` or `release/windows/portable`.
@@ -77,7 +98,9 @@ Adjust host/port and runtime backend values in that file when needed.
 
 ### 4.3 Operational Workflow and UI Snapshots
 
-The application workflow is organized into three top navigation tabs: `source`, `fitting`, and `training`.
+The application workflow is split across two frontends:
+- Core frontend: `source` and `fitting`.
+- ML frontend: `training`.
 The snapshots below were captured from the current `develop` build (`v2.3.0` release preparation) and are intended to show representative product states without duplication.
 
 #### 4.3.1 Data Source Configuration
@@ -122,16 +145,17 @@ The snapshots below were captured from the current `develop` build (`v2.3.0` rel
 
 ## 5. Setup and Maintenance
 
-Run `setup_and_maintenance.bat` to access setup and maintenance actions:
+Run `start_on_windows.bat` to access setup and maintenance actions:
 
 - **Remove logs**: clears `.log` files under `app/resources/logs`.
-- **Uninstall app**: removes local runtimes and build artifacts while preserving folder scaffolding.
+- **Install or update core, ML, or both webapps**: prepares shared runtimes plus the selected frontend scope.
+- **Uninstall app artifacts**: removes core-only, ML-only, or full local runtime/build artifacts.
 - **Initialize database**: creates or resets the project database schema.
 - **Clean desktop build artifacts**: removes Tauri build output under release targets.
 
 ### 5.1 Frontend Development Commands
 
-From `app/client`:
+From `app/client` and `app/ml_client`:
 
 ```bash
 npm install
@@ -139,7 +163,7 @@ npm run dev
 npm run build
 ```
 
-Frontend API base path is controlled by `VITE_API_BASE_URL` (default: `/api`).
+Frontend API base path defaults to `/api`; Angular development servers proxy core and ML API routes through each app's `proxy.conf.cjs`.
 
 ## 6. Resources
 
@@ -168,7 +192,7 @@ Database mode and backend defaults are loaded from `settings/configurations.json
 | `KERAS_BACKEND`, `MPLBACKEND` | ML/scientific runtime backend configuration. |
 | `RELOAD` | Uvicorn reload toggle for local development. |
 | `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in launcher flow. |
-| `VITE_API_BASE_URL` | Frontend API base path (same-origin `/api` by default). |
+| `VITE_API_BASE_URL` | Optional frontend API base path written into runtime config; same-origin `/api` is used by default. |
 
 Single canonical runtime file:
 - `settings/.env`
@@ -177,43 +201,3 @@ Single canonical runtime file:
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
 
-## Final validation and green-run requirement
-
-After completing the restructure and all rewiring, run the full validation process in one uninterrupted pass until everything is green.
-
-Do not stop to ask for confirmation between steps. If a check fails, diagnose the issue, fix it, and rerun the relevant checks until the project passes. Only stop if there is a hard blocker that cannot be resolved from the repository contents, and in that case report the exact blocker, the failing command, the error output, and the files likely involved.
-
-Validation must include, where applicable:
-
-* Run and verify all root-level `.bat` launcher scripts.
-* Run and verify all root-level `.bat` maintenance scripts.
-* Confirm every `.bat` script still works from the repository root after the restructure.
-* Confirm runtime discovery and setup works with `runtimes/`.
-* Run `uv sync` from `app/server/`.
-* Confirm `.venv` and `uv.lock` are created or used only inside `app/server/`.
-* Run backend linting, formatting checks, type checks, and tests if present.
-* Run the FastAPI backend startup path and confirm imports, settings loading, resources loading, and path constants work.
-* Generate or validate `app/shared/openapi.json` from the backend.
-* Run frontend install, linting, type checks, tests, and production build if present.
-* Confirm frontend API generation uses `app/shared/openapi.json` where applicable.
-* Run all test suites under `app/tests/`.
-* Validate Python imports after the move.
-* Validate frontend imports after the move.
-* Validate all script references under `app/scripts/`.
-* Validate documentation and README references to the new layout.
-* Validate Docker builds or compose files if present.
-* Validate Tauri configuration if present.
-* Run Tauri development checks if present.
-* Run Tauri packaging or release build if present, and confirm output still lands in `release/` or the configured release output location.
-* Confirm `.github/` remains unchanged.
-* Confirm `assets/` and `release/` contents remain unchanged.
-* Confirm `settings/` and `app/resources/` were extracted correctly and are read from their new locations.
-* Confirm there are no stale references to the old root-level backend, client, tests, settings, or resources paths.
-
-At the end, provide a concise validation report listing:
-
-* Every command run.
-* Whether it passed or failed.
-* Any fixes made after failures.
-* Any remaining warnings or limitations.
-* Final green status once all required checks pass.

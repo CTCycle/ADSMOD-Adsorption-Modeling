@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.server.repositories.database.backend import database
-from app.server.repositories.queries.nist import NISTDataSerializer
+from shared.repositories.database.backend import database
+from shared.repositories.queries.nist import NISTDataSerializer
 
 
 class UpsertCapture:
@@ -194,3 +194,4 @@ def test_save_materials_generates_adsorbent_key_when_column_is_missing(
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
     assert frame.iloc[0]["adsorbent_key"] == "host:hosthashxyz"
+

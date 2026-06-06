@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from app.server.configurations.management import ConfigurationManager
-from app.server.domain.settings import ServerSettings
+from core_service.configurations.management import ConfigurationManager
+from core_service.domain.settings import ServerSettings
+from ml_service.configurations.management import (
+    ConfigurationManager as MlConfigurationManager,
+)
+from shared.common.paths import CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE
 
 
 def write_config(path: str, payload: dict[str, object]) -> None:
-    with open(path, "w", encoding="utf-8") as handle:
+    with Path(path).open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
 
 
@@ -74,4 +79,15 @@ def test_manager_to_server_settings(tmp_path) -> None:
 
     assert isinstance(server_settings, ServerSettings)
     assert server_settings.datasets.column_detection_cutoff == 0.65
+
+
+def test_core_manager_defaults_to_core_runtime_file() -> None:
+    manager = ConfigurationManager()
+    assert manager.config_path == CORE_CONFIGURATION_FILE
+
+
+def test_ml_manager_defaults_to_ml_runtime_file() -> None:
+    manager = MlConfigurationManager()
+    assert manager.config_path == ML_CONFIGURATION_FILE
+
 

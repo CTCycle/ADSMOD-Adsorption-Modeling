@@ -6,24 +6,31 @@ for %%I in ("%SCRIPT_DIR%..\..") do set "PROJECT_ROOT=%%~fI"
 set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
+set "ML_CLIENT_DIR=%APP_DIR%\ml_client"
 set "TESTS_DIR=%APP_DIR%\tests"
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
 
 set "FASTAPI_HOST=127.0.0.1"
-set "FASTAPI_PORT=8000"
+set "FASTAPI_PORT=6045"
+set "CORE_SERVICE_HOST=127.0.0.1"
+set "CORE_SERVICE_PORT=6045"
+set "ML_SERVICE_HOST=127.0.0.1"
+set "ML_SERVICE_PORT=6046"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=7861"
 set "TEST_RESULT=0"
 set "BACKEND_PHASE=SKIPPED"
 set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
+set "ML_FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
 set "FRONTEND_UNIT_PHASE=SKIPPED"
 set "FRONTEND_E2E_PHASE=SKIPPED"
 set "PYTEST_PHASE=SKIPPED"
 set "LIVE_SERVER_PHASE=SKIPPED"
 set "STARTED_BACKEND=0"
 set "STARTED_FRONTEND=0"
+set "STARTED_ML_FRONTEND=0"
 
 if exist "%SETTINGS_ENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%SETTINGS_ENV%") do (
@@ -32,6 +39,10 @@ if exist "%SETTINGS_ENV%" (
       for /f "tokens=1,* delims==" %%A in ("!line!") do (
         if /i "%%A"=="FASTAPI_HOST" set "FASTAPI_HOST=%%B"
         if /i "%%A"=="FASTAPI_PORT" set "FASTAPI_PORT=%%B"
+        if /i "%%A"=="CORE_SERVICE_HOST" set "CORE_SERVICE_HOST=%%B"
+        if /i "%%A"=="CORE_SERVICE_PORT" set "CORE_SERVICE_PORT=%%B"
+        if /i "%%A"=="ML_SERVICE_HOST" set "ML_SERVICE_HOST=%%B"
+        if /i "%%A"=="ML_SERVICE_PORT" set "ML_SERVICE_PORT=%%B"
         if /i "%%A"=="UI_HOST" set "UI_HOST=%%B"
         if /i "%%A"=="UI_PORT" set "UI_PORT=%%B"
       )
@@ -39,22 +50,36 @@ if exist "%SETTINGS_ENV%" (
   )
 )
 
-set "TEST_FASTAPI_HOST=%FASTAPI_HOST%"
+if "%CORE_SERVICE_HOST%"=="" set "CORE_SERVICE_HOST=%FASTAPI_HOST%"
+if "%CORE_SERVICE_PORT%"=="" set "CORE_SERVICE_PORT=%FASTAPI_PORT%"
+set "TEST_FASTAPI_HOST=%CORE_SERVICE_HOST%"
+set "TEST_ML_HOST=%ML_SERVICE_HOST%"
 set "TEST_UI_HOST=%UI_HOST%"
 if /i "%TEST_FASTAPI_HOST%"=="0.0.0.0" set "TEST_FASTAPI_HOST=127.0.0.1"
 if /i "%TEST_FASTAPI_HOST%"=="::" set "TEST_FASTAPI_HOST=127.0.0.1"
 if /i "%TEST_FASTAPI_HOST%"=="[::]" set "TEST_FASTAPI_HOST=127.0.0.1"
+if /i "%TEST_ML_HOST%"=="0.0.0.0" set "TEST_ML_HOST=127.0.0.1"
+if /i "%TEST_ML_HOST%"=="::" set "TEST_ML_HOST=127.0.0.1"
+if /i "%TEST_ML_HOST%"=="[::]" set "TEST_ML_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="0.0.0.0" set "TEST_UI_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="::" set "TEST_UI_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="[::]" set "TEST_UI_HOST=127.0.0.1"
 
-set "APP_TEST_BACKEND_URL=http://%TEST_FASTAPI_HOST%:%FASTAPI_PORT%"
+set "APP_TEST_BACKEND_URL=http://%TEST_FASTAPI_HOST%:%CORE_SERVICE_PORT%"
+set "APP_TEST_ML_BACKEND_URL=http://%TEST_ML_HOST%:%ML_SERVICE_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
 set "API_BASE_URL=%APP_TEST_BACKEND_URL%"
 set "UI_BASE_URL=%APP_TEST_FRONTEND_URL%"
+set "ADSMOD_TEST_BACKEND_URL=%APP_TEST_BACKEND_URL%"
+set "ADSMOD_TEST_ML_BACKEND_URL=%APP_TEST_ML_BACKEND_URL%"
+set "ADSMOD_TEST_FRONTEND_URL=%APP_TEST_FRONTEND_URL%"
 
-if "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
-if "%STANDARD_TEST_SKIP_FRONTEND%"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
+if "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
+if "!STANDARD_TEST_SKIP_FRONTEND!"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
+if "!STANDARD_TEST_INCLUDE_PERFORMANCE!"=="" set "STANDARD_TEST_INCLUDE_PERFORMANCE=false"
+set "STANDARD_TEST_SKIP_LIVE_SERVERS=!STANDARD_TEST_SKIP_LIVE_SERVERS: =!"
+set "STANDARD_TEST_SKIP_FRONTEND=!STANDARD_TEST_SKIP_FRONTEND: =!"
+set "STANDARD_TEST_INCLUDE_PERFORMANCE=!STANDARD_TEST_INCLUDE_PERFORMANCE: =!"
 
 if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
@@ -75,10 +100,16 @@ if exist "%RUNTIME_NPM%" (
   set "NPM_CMD=npm"
 )
 
-set "UVICORN_APP=app.server.app:app"`r`nset "BACKEND_WORKDIR=%PROJECT_ROOT%"`r`nset "PYTHONPATH=%PROJECT_ROOT%;%APP_DIR%"
-"%PYTHON_CMD%" -c "import importlib; importlib.import_module('app.server.app')" >nul 2>&1
+set "UVICORN_APP=core_service.app:app"
+set "ML_UVICORN_APP=ml_service.app:app"
+set "BACKEND_WORKDIR=%PROJECT_ROOT%"
+set "PYTHONPATH=%PROJECT_ROOT%\app\server\core_service;%PROJECT_ROOT%\app\server\ml_service;%PROJECT_ROOT%\app\server\shared;%APP_DIR%;%PROJECT_ROOT%"
+"%PYTHON_CMD%" -c "import importlib; importlib.import_module('core_service.app')" >nul 2>&1
 if errorlevel 1 (
-  set "UVICORN_APP=server.app:app"`r`n  set "BACKEND_WORKDIR=%SERVER_DIR%"`r`n  set "PYTHONPATH=%APP_DIR%"
+  set "UVICORN_APP=server.app:app"
+  set "ML_UVICORN_APP=ml_service.app:app"
+  set "BACKEND_WORKDIR=%SERVER_DIR%"
+  set "PYTHONPATH=%APP_DIR%"
 )
 
 echo.
@@ -87,6 +118,7 @@ echo  Standard Test Runner
 echo ============================================================
 echo [INFO] Project root: %PROJECT_ROOT%
 echo [INFO] Backend URL : %APP_TEST_BACKEND_URL%
+echo [INFO] ML URL      : %APP_TEST_ML_BACKEND_URL%
 echo [INFO] Frontend URL: %APP_TEST_FRONTEND_URL%
 echo.
 
@@ -95,14 +127,19 @@ if not "%STANDARD_TEST_PYTEST_TARGET%"=="" set "PYTEST_TARGET=%STANDARD_TEST_PYT
 set "HAS_E2E=0"
 if exist "%TESTS_DIR%\e2e" set "HAS_E2E=1"
 
-if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
+if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
   set "LIVE_SERVER_PHASE=PASS"
 
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %CORE_SERVICE_HOST% --port %CORE_SERVICE_PORT% --log-level warning
     set "STARTED_BACKEND=1"
+  )
+  curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/api/health" >nul 2>&1
+  if errorlevel 1 (
+    echo [INFO] Starting ML backend server...
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %ML_UVICORN_APP% --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT% --log-level warning
   )
 
   if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%CLIENT_DIR%\package.json" (
@@ -139,6 +176,32 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
     )
   )
 
+  if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%ML_CLIENT_DIR%\package.json" (
+    if not exist "%ML_CLIENT_DIR%\node_modules" (
+      echo [INFO] Installing ML frontend dependencies...
+      if exist "%ML_CLIENT_DIR%\package-lock.json" (
+        call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" ci
+        if errorlevel 1 call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" install
+      ) else (
+        call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" install
+      )
+      if errorlevel 1 (
+        set "LIVE_SERVER_PHASE=FAIL"
+        set "TEST_RESULT=1"
+        goto cleanup
+      )
+    )
+
+    echo [INFO] Building ML frontend...
+    call "%NPM_CMD%" --prefix "%ML_CLIENT_DIR%" run build
+    if errorlevel 1 (
+      set "LIVE_SERVER_PHASE=FAIL"
+      set "TEST_RESULT=1"
+      goto cleanup
+    )
+    set "ML_FRONTEND_BOOTSTRAP_PHASE=PASS"
+  )
+
   echo [INFO] Waiting for live services...
   set "ATTEMPTS=0"
   :wait_loop
@@ -149,6 +212,12 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   )
 
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
+  if errorlevel 1 (
+    set /a ATTEMPTS+=1
+    timeout /t 1 /nobreak >nul
+    goto wait_loop
+  )
+  curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/api/health" >nul 2>&1
   if errorlevel 1 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
@@ -166,7 +235,18 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %*
+set "PYTEST_IGNORE_E2E="
+if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" if "!HAS_E2E!"=="1" set "PYTEST_IGNORE_E2E=true"
+
+if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" if /i "%PYTEST_IGNORE_E2E%"=="true" (
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short %*
+) else if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" (
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %*
+) else if /i "%PYTEST_IGNORE_E2E%"=="true" (
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" %*
+) else (
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" %*
+)
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"
@@ -175,7 +255,7 @@ if "%PYTEST_RC%"=="0" (
   set "TEST_RESULT=1"
 )
 
-if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="true" goto summary
+if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="true" goto summary
 if not exist "%CLIENT_DIR%\package.json" goto summary
 
 set "HAS_FRONTEND_UNIT=0"
@@ -216,6 +296,7 @@ echo ============================================================
 echo  Live server phase   : %LIVE_SERVER_PHASE%
 echo  Python tests        : %PYTEST_PHASE%
 echo  Frontend bootstrap  : %FRONTEND_BOOTSTRAP_PHASE%
+echo  ML frontend build   : %ML_FRONTEND_BOOTSTRAP_PHASE%
 echo  Frontend unit tests : %FRONTEND_UNIT_PHASE%
 echo  Frontend E2E tests  : %FRONTEND_E2E_PHASE%
 echo ============================================================
@@ -223,11 +304,13 @@ echo.
 
 :cleanup
 if "%STARTED_BACKEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%FASTAPI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%CORE_SERVICE_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%ML_SERVICE_PORT% "') do taskkill /PID %%P /F >nul 2>&1
 )
 if "%STARTED_FRONTEND%"=="1" (
   for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
 )
 
 exit /b %TEST_RESULT%
+
 
