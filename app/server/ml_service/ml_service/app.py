@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import os
 import warnings
-from pathlib import Path
 
 from fastapi import FastAPI
 
-os.environ.setdefault(
-    "ADSMOD_CONFIG_PATH",
-    str(Path(__file__).resolve().parents[4] / "settings" / "ml_service.json")
-)
+from shared.common.paths import ML_CONFIGURATION_FILE
+
+os.environ.setdefault("ADSMOD_CONFIG_PATH", str(ML_CONFIGURATION_FILE))
 # Keras resolves its backend during import, so backend-related env vars must exist
 # before any ml_service module transitively imports keras.
 os.environ.setdefault("KERAS_BACKEND", "torch")

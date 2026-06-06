@@ -6,8 +6,8 @@ from typing import Iterable
 
 from dotenv import load_dotenv
 
-from ml_service.common.constants import ENV_FILE_PATH
 from ml_service.common.utils.logger import logger
+from shared.common.paths import ENV_FILE
 
 
 ###############################################################################
@@ -17,7 +17,7 @@ def load_environment(
     force: bool = False,
 ) -> Path | None:
     _ = force
-    resolved_path = Path(env_path) if env_path is not None else Path(ENV_FILE_PATH)
+    resolved_path = Path(env_path) if env_path is not None else ENV_FILE
     if not resolved_path.exists():
         logger.warning(".env file not found at: %s", resolved_path)
         return None

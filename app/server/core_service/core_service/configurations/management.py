@@ -6,14 +6,14 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from core_service.common.constants import CONFIGURATION_FILE
+from shared.common.paths import CORE_CONFIGURATION_FILE
 from core_service.domain.settings import AppSettings, ServerSettings
 
 
 ###############################################################################
 class ConfigurationManager:
     def __init__(self, config_path: str | None = None) -> None:
-        self.config_path = config_path or CONFIGURATION_FILE
+        self.config_path = Path(config_path) if config_path is not None else CORE_CONFIGURATION_FILE
         self.settings: AppSettings | None = None
 
     # -------------------------------------------------------------------------
@@ -59,7 +59,7 @@ class ConfigurationManager:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _load_settings_from_path(config_path: str) -> AppSettings:
+    def _load_settings_from_path(config_path: str | Path) -> AppSettings:
         payload = ConfigurationManager.load_configuration_data(config_path)
         values: dict[str, Any] = {
             "database": payload.get("database", {}),
@@ -80,8 +80,8 @@ class ConfigurationManager:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def load_configuration_data(path: str | None = None) -> dict[str, Any]:
-        resolved_path = Path(path or CONFIGURATION_FILE)
+    def load_configuration_data(path: str | Path | None = None) -> dict[str, Any]:
+        resolved_path = Path(path) if path is not None else CORE_CONFIGURATION_FILE
         if not resolved_path.exists():
             raise RuntimeError(f"Configuration file not found: {resolved_path}")
         try:

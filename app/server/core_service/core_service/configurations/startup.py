@@ -4,8 +4,8 @@ import os
 from os import PathLike
 from pathlib import Path
 
-from core_service.common.constants import CONFIGURATION_FILE
 from shared.common.env import load_environment
+from shared.common.paths import CLIENT_DIST_DIR, CORE_CONFIGURATION_FILE
 from shared.common.settings import AppSettings, ServerSettings, get_server_settings
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
@@ -39,11 +39,11 @@ def core_reload_enabled() -> bool:
 
 
 def get_app_settings(config_path: str | None = None) -> AppSettings:
-    return AppSettings.load(config_path or CONFIGURATION_FILE)
+    return AppSettings.load(config_path or CORE_CONFIGURATION_FILE)
 
 
 def get_server_settings_runtime(config_path: str | None = None) -> ServerSettings:
-    return get_server_settings(config_path or CONFIGURATION_FILE)
+    return get_server_settings(config_path or CORE_CONFIGURATION_FILE)
 
 
 def public_host_mode_enabled() -> bool:
@@ -75,8 +75,7 @@ def tauri_mode_enabled() -> bool:
 
 
 def get_client_dist_path() -> str:
-    project_path = Path(__file__).resolve().parents[5]
-    return str(project_path / "app" / "client" / "dist")
+    return str(CLIENT_DIST_DIR)
 
 
 def packaged_client_available() -> bool:

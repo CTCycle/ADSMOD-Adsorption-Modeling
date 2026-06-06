@@ -1,10 +1,10 @@
 import json
+from pathlib import Path
 
-from core_service.common.constants import CONFIGURATION_FILE as CORE_CONFIGURATION_FILE
-from ml_service.common.constants import CONFIGURATION_FILE as ML_CONFIGURATION_FILE
 from core_service.configurations import (
     get_server_settings,
 )
+from shared.common.paths import CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE
 from shared.common.settings import (
     AppSettings,
     build_training_settings,
@@ -17,7 +17,7 @@ def test_json_structure_matches_settings():
     are correctly loaded into the TrainingSettings dataclass.
     """
     settings = get_server_settings()
-    with open(CORE_CONFIGURATION_FILE, "r", encoding="utf-8") as handle:
+    with Path(CORE_CONFIGURATION_FILE).open("r", encoding="utf-8") as handle:
         config_dict = json.load(handle)
 
     training_json = config_dict.get("training", {})

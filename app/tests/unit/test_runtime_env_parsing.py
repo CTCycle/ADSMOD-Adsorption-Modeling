@@ -36,8 +36,8 @@ def test_runtime_env_parsing_loads_host_port_and_backends(
         monkeypatch.delenv(key, raising=False)
 
     monkeypatch.setattr(
-        "shared.common.utils.variables.ENV_FILE_PATH",
-        str(env_path),
+        "shared.common.utils.variables.ENV_FILE",
+        env_path,
     )
 
     env_variables = EnvironmentVariables()

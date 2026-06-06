@@ -26,7 +26,7 @@ from ml_service.learning.models.transformers import (
     TransformerEncoder,
 )
 from ml_service.learning.training.scheduler import LinearDecayLRScheduler
-from shared.common.constants import CHECKPOINTS_PATH
+from shared.common.paths import CHECKPOINTS_DIR
 from shared.common.utils.logger import logger
 from shared.common.utils.security import resolve_checkpoint_path
 
@@ -38,12 +38,12 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def resolve_checkpoint_path(self, checkpoint_name: str) -> str:
-        return resolve_checkpoint_path(CHECKPOINTS_PATH, checkpoint_name)
+        return resolve_checkpoint_path(CHECKPOINTS_DIR, checkpoint_name)
 
     # -------------------------------------------------------------------------
     def create_checkpoint_folder(self) -> str:
         today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
-        checkpoint_path = Path(CHECKPOINTS_PATH) / f"{self.model_name}_{today_datetime}"
+        checkpoint_path = CHECKPOINTS_DIR / f"{self.model_name}_{today_datetime}"
         checkpoint_path.mkdir(parents=True, exist_ok=True)
         (checkpoint_path / "configuration").mkdir(parents=True, exist_ok=True)
         logger.debug("Created checkpoint folder at %s", checkpoint_path)
@@ -101,10 +101,9 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
         model_folders: list[str] = []
-        checkpoints_dir = Path(CHECKPOINTS_PATH)
-        if not checkpoints_dir.exists():
+        if not CHECKPOINTS_DIR.exists():
             return model_folders
-        for entry in checkpoints_dir.iterdir():
+        for entry in CHECKPOINTS_DIR.iterdir():
             if entry.is_dir():
                 try:
                     self.resolve_checkpoint_path(entry.name)

@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 
-from shared.common.constants import ENV_FILE_PATH
+from shared.common.paths import ENV_FILE
 from shared.common.utils.logger import logger
 
 
 ###############################################################################
 class EnvironmentVariables:
     def __init__(self) -> None:
-        self.env_path = Path(ENV_FILE_PATH)
+        self.env_path = ENV_FILE
         if self.env_path.exists():
             load_dotenv(self.env_path, override=True)
         else:

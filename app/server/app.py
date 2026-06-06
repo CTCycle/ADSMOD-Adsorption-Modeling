@@ -12,28 +12,29 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from shared.common.constants import (
-    APP_PATH,
-    CHECKPOINTS_DIR,
-    CORE_CONFIGURATION_FILE_PATH,
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
-    LOGS_DIR,
-    RESOURCES_DIR,
     SERVICE_CONFIG_PATH_ENV,
-    TEMPLATES_DIR,
 )
 from shared.common.env import load_environment
+from shared.common.paths import (
+    CHECKPOINTS_DIR,
+    CLIENT_ASSETS_DIR,
+    CLIENT_DIST_DIR,
+    CLIENT_INDEX_FILE,
+    CORE_CONFIGURATION_FILE,
+    LOGS_DIR,
+    RESOURCES_DIR,
+    TEMPLATES_DIR,
+)
 from shared.common.settings import ServerSettings, get_server_settings
 from shared.repositories.database.initializer import initialize_database
 
-CLIENT_DIST_PATH = APP_PATH / "client" / "dist"
-CLIENT_INDEX_FILE_PATH = CLIENT_DIST_PATH / "index.html"
-CLIENT_ASSETS_PATH = CLIENT_DIST_PATH / "assets"
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
 load_environment()
-os.environ.setdefault(SERVICE_CONFIG_PATH_ENV, CORE_CONFIGURATION_FILE_PATH)
+os.environ.setdefault(SERVICE_CONFIG_PATH_ENV, str(CORE_CONFIGURATION_FILE))
 os.environ.setdefault("KERAS_BACKEND", "torch")
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -56,11 +57,11 @@ def _load_service_modules():
 
 
 def _client_build_available() -> bool:
-    return CLIENT_INDEX_FILE_PATH.is_file()
+    return CLIENT_INDEX_FILE.is_file()
 
 
 def _resolve_client_file(full_path: str) -> Path | None:
-    client_root = CLIENT_DIST_PATH.resolve()
+    client_root = CLIENT_DIST_DIR.resolve()
     requested_path = (client_root / full_path).resolve()
 
     if not requested_path.is_relative_to(client_root):
@@ -104,19 +105,19 @@ def _run_startup_validations(settings: ServerSettings) -> None:
     if _tauri_mode_enabled() and not _client_build_available():
         raise RuntimeError(
             "Tauri mode requires a built frontend bundle at "
-            f"{CLIENT_INDEX_FILE_PATH}."
+            f"{CLIENT_INDEX_FILE}."
         )
 
 
 def serve_client_root() -> FileResponse:
-    return FileResponse(CLIENT_INDEX_FILE_PATH)
+    return FileResponse(CLIENT_INDEX_FILE)
 
 
 def serve_client_path(full_path: str) -> FileResponse:
     client_file = _resolve_client_file(full_path)
     if client_file is not None:
         return FileResponse(client_file)
-    return FileResponse(CLIENT_INDEX_FILE_PATH)
+    return FileResponse(CLIENT_INDEX_FILE)
 
 
 def redirect_root_to_docs() -> RedirectResponse:
@@ -166,10 +167,10 @@ def create_app() -> FastAPI:
     register_ml_routes(application, ml_container, prefix="/api", include_schema=True)
 
     if _client_build_available():
-        if CLIENT_ASSETS_PATH.is_dir():
+        if CLIENT_ASSETS_DIR.is_dir():
             application.mount(
                 "/assets",
-                StaticFiles(directory=str(CLIENT_ASSETS_PATH)),
+                StaticFiles(directory=str(CLIENT_ASSETS_DIR)),
                 name="assets",
             )
         application.add_api_route(
