@@ -1,6 +1,5 @@
 import { Component, computed, effect, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { TrainingViewId, TrainingWorkspaceStore } from '../../../core/state/training-workspace.store';
@@ -13,6 +12,7 @@ import { TrainingHistoryChartPanelComponent } from '../components/training-histo
 import { TrainingSetupRowComponent } from '../components/training-setup-row.component';
 import { TrainingActionRunnerService } from '../services/training-action-runner.service';
 import { TrainingStatusPollingService } from '../services/training-status-polling.service';
+import { TrainingViewNavigationService } from '../services/training-view-navigation.service';
 import type {
     CheckpointFullDetails,
     DatasetFullInfo,
@@ -254,6 +254,7 @@ export class MachineLearningPageComponent {
     protected readonly store = inject(TrainingWorkspaceStore);
     private readonly actionRunner = inject(TrainingActionRunnerService);
     private readonly statusPolling = inject(TrainingStatusPollingService);
+    private readonly viewNavigation = inject(TrainingViewNavigationService);
     protected readonly views = TRAINING_VIEWS;
     protected readonly chartColors = {
         loss: '#f59e0b',
@@ -358,7 +359,7 @@ export class MachineLearningPageComponent {
                     () => void this.store.loadCheckpoints()
                 );
                 await this.refreshStatus();
-                this.store.setActiveView('dashboard');
+                await this.viewNavigation.navigateTo('dashboard');
             },
         });
     }
@@ -380,7 +381,7 @@ export class MachineLearningPageComponent {
                     () => void this.store.loadCheckpoints()
                 );
                 await this.refreshStatus();
-                this.store.setActiveView('dashboard');
+                await this.viewNavigation.navigateTo('dashboard');
             },
         });
     }

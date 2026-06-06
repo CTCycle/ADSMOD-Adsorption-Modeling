@@ -12,7 +12,7 @@ interface RunTrainingActionOptions<TSuccessStatus extends string> {
     actionLabel: string;
     setLoading: (loading: boolean) => void;
     appendLog: (message: string) => void;
-    onSuccess?: (result: TrainingActionResult<TSuccessStatus>) => void;
+    onSuccess?: (result: TrainingActionResult<TSuccessStatus>) => Promise<void> | void;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -30,7 +30,7 @@ export class TrainingActionRunnerService {
             const result = await action();
             if (result.status === successStatus) {
                 appendLog(result.message);
-                onSuccess?.(result);
+                await onSuccess?.(result);
                 return;
             }
 
