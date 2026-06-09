@@ -24,7 +24,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 
 ### Root
 
-- [`project_overview.md`](project_overview.md)
+- [`project_index.md`](project_index.md)
   - Central index for the documentation tree, reading rules, and environment assumptions.
 
 ### Architecture
