@@ -9,7 +9,10 @@ from ml_service.services.training import (
 )
 
 
+###############################################################################
 class MlServiceContainer:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.job_manager = JobManager(logger=logger)
         self.training_session = TrainingSession()

@@ -28,9 +28,10 @@ from ml_service.common.constants import (
 from ml_service.common.utils.logger import logger
 from ml_service.domain.datasets import DatasetColumns
 
-
 ###############################################################################
 class AdsorptionDataProcessor:
+
+    # -------------------------------------------------------------------------
     def __init__(self, dataset: pd.DataFrame) -> None:
         self.dataset = dataset.copy()
         self.columns = DatasetColumns()
@@ -213,9 +214,9 @@ class AdsorptionDataProcessor:
         )
         return stats
 
-
 ###############################################################################
 class DatasetAdapter:
+
     # -------------------------------------------------------------------------
     @staticmethod
     def combine_results(

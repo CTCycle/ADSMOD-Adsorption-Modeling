@@ -3,14 +3,19 @@ from torch.utils.data import DataLoader, Dataset
 from ml_service.learning.device import DeviceDataLoader
 
 
+###############################################################################
 class MockDataset(Dataset):
+
+    # -------------------------------------------------------------------------
     def __len__(self):
         return 5
 
+    # -------------------------------------------------------------------------
     def __getitem__(self, idx):
         return {"input": torch.tensor([idx])}, torch.tensor([idx])
 
 
+###############################################################################
 def test_device_data_loader():
     dataset = MockDataset()
     loader = DataLoader(dataset, batch_size=2)

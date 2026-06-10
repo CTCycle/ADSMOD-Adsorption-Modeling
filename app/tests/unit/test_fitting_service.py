@@ -6,6 +6,7 @@ from core_service.domain.fitting import FittingRequest
 from core_service.services.fitting import FittingService
 
 
+###############################################################################
 def build_request() -> FittingRequest:
     return FittingRequest.model_validate(
         {
@@ -30,6 +31,7 @@ def build_request() -> FittingRequest:
     )
 
 
+###############################################################################
 def test_start_fitting_job_returns_job_start_response(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
     payload = build_request()
@@ -43,6 +45,7 @@ def test_start_fitting_job_returns_job_start_response(monkeypatch: pytest.Monkey
     assert response.status == "running"
 
 
+###############################################################################
 def test_cancel_job_returns_modeled_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
     monkeypatch.setattr(service.job_manager, "cancel_job", lambda _job_id: True)
@@ -52,6 +55,7 @@ def test_cancel_job_returns_modeled_payload(monkeypatch: pytest.MonkeyPatch) -> 
     assert response.job_id == "fit12345"
 
 
+###############################################################################
 def test_cancel_job_raises_when_not_cancellable(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
     monkeypatch.setattr(service.job_manager, "cancel_job", lambda _job_id: False)

@@ -8,11 +8,14 @@ from ml_service.common.constants import PAD_VALUE
 
 
 # [LOSS FUNCTION]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(
     package="CustomLoss", name="MaskedMeanSquaredError"
 )
 class MaskedMeanSquaredError(keras.losses.Loss):
+
+    # -------------------------------------------------------------------------
     def __init__(self, name: str = "MaskedMeanSquaredError", **kwargs) -> None:
         super().__init__(name=name, **kwargs)
 
@@ -32,6 +35,7 @@ class MaskedMeanSquaredError(keras.losses.Loss):
         base_config = super().get_config()
         return {**base_config, "name": self.name}
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[MaskedMeanSquaredError], config: dict[str, Any]
@@ -40,11 +44,14 @@ class MaskedMeanSquaredError(keras.losses.Loss):
 
 
 # [METRICS]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(
     package="CustomMetrics", name="MaskedRSquared"
 )
 class MaskedRSquared(keras.metrics.Metric):
+
+    # -------------------------------------------------------------------------
     def __init__(self, name: str = "MaskedR2", **kwargs) -> None:
         super().__init__(name=name, **kwargs)
         self.ssr = self.add_weight(name="ssr", initializer="zeros")
@@ -95,6 +102,7 @@ class MaskedRSquared(keras.metrics.Metric):
         base_config = super().get_config()
         return {**base_config, "name": self.name}
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[MaskedRSquared], config: dict[str, Any]

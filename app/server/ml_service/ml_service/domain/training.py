@@ -20,7 +20,6 @@ REGEX_LONG_NAME = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
 REGEX_BACKEND = r"^[A-Za-z0-9_.-]+$"
 REGEX_DATASET_NAME = r"^[A-Za-z0-9_. -]+$"
 
-
 ###############################################################################
 class TrainingConfigRequest(BaseModel):
     model_config = STRICT_STRIPPED_CONFIG
@@ -82,7 +81,6 @@ class TrainingConfigRequest(BaseModel):
         pattern=REGEX_NAME,
     )
 
-
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
     model_config = STRICT_STRIPPED_CONFIG
@@ -95,14 +93,12 @@ class ResumeTrainingRequest(BaseModel):
     )
     additional_epochs: int = Field(default=10, ge=1, le=100)
 
-
 ###############################################################################
 class TrainingDatasetResponse(BaseModel):
     available: bool
     name: str | None = None
     train_samples: int | None = None
     validation_samples: int | None = None
-
 
 ###############################################################################
 class CheckpointDetailInfo(BaseModel):
@@ -112,7 +108,6 @@ class CheckpointDetailInfo(BaseModel):
     final_accuracy: float | None = None
     is_compatible: bool = True
 
-
 ###############################################################################
 class CheckpointFullDetailsResponse(BaseModel):
     name: str
@@ -120,11 +115,9 @@ class CheckpointFullDetailsResponse(BaseModel):
     metadata: TrainingMetadata | None = None
     history: dict[str, Any] | None = None
 
-
 ###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointDetailInfo]
-
 
 ###############################################################################
 class TrainingStartResponse(BaseModel):
@@ -132,7 +125,6 @@ class TrainingStartResponse(BaseModel):
     session_id: str
     message: str
     poll_interval: float | None = None
-
 
 ###############################################################################
 class TrainingStatusResponse(BaseModel):
@@ -144,7 +136,6 @@ class TrainingStatusResponse(BaseModel):
     history: list[dict[str, Any]] = Field(default_factory=list)
     log: list[str] = Field(default_factory=list)
     poll_interval: float | None = None
-
 
 ###############################################################################
 @dataclass
@@ -161,26 +152,26 @@ class TrainingState:
     log: list[str] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def update(self, **kwargs: Any) -> None:
         with self.lock:
             for key, value in kwargs.items():
                 if hasattr(self, key):
                     setattr(self, key, value)
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def add_log(self, message: str) -> None:
         with self.lock:
             self.log.append(message)
             if len(self.log) > 1000:
                 self.log = self.log[-1000:]
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def add_history(self, epoch_data: dict[str, Any]) -> None:
         with self.lock:
             self.history.append(epoch_data)
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
             return {
@@ -196,7 +187,6 @@ class TrainingState:
                 "log": list(self.log),
             }
 
-
 ###############################################################################
 class DatasetSelection(BaseModel):
     model_config = STRICT_STRIPPED_CONFIG
@@ -207,7 +197,6 @@ class DatasetSelection(BaseModel):
         max_length=128,
         pattern=REGEX_DATASET_NAME,
     )
-
 
 ###############################################################################
 class DatasetBuildRequest(BaseModel):
@@ -234,7 +223,6 @@ class DatasetBuildRequest(BaseModel):
         pattern=REGEX_LABEL,
     )
 
-
 ###############################################################################
 class DatasetSourceInfo(BaseModel):
     source: Literal["nist", "uploaded"]
@@ -242,23 +230,19 @@ class DatasetSourceInfo(BaseModel):
     display_name: str
     row_count: int
 
-
 ###############################################################################
 class DatasetSourcesResponse(BaseModel):
     datasets: list[DatasetSourceInfo]
-
 
 ###############################################################################
 class OperationStatusResponse(BaseModel):
     status: str
     message: str
 
-
 ###############################################################################
 class DatasetSourceDeleteResponse(BaseModel):
     status: str
     message: str
-
 
 ###############################################################################
 class DatasetBuildResponse(BaseModel):
@@ -267,7 +251,6 @@ class DatasetBuildResponse(BaseModel):
     total_samples: int | None = None
     train_samples: int | None = None
     validation_samples: int | None = None
-
 
 ###############################################################################
 class DatasetInfoResponse(BaseModel):
@@ -293,7 +276,6 @@ class DatasetInfoResponse(BaseModel):
     adsorbent_vocabulary_size: int | None = None
     normalization_stats: dict[str, Any] | None = None
 
-
 ###############################################################################
 class ProcessedDatasetInfo(BaseModel):
     dataset_label: str
@@ -305,11 +287,9 @@ class ProcessedDatasetInfo(BaseModel):
     validation_samples: int
     created_at: str | None = None
 
-
 ###############################################################################
 class ProcessedDatasetsResponse(BaseModel):
     datasets: list[ProcessedDatasetInfo]
-
 
 ###############################################################################
 class TrainingMetadata(BaseModel):

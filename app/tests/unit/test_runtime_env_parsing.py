@@ -4,8 +4,7 @@ from pathlib import Path
 
 from shared.common.utils.variables import EnvironmentVariables
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def test_runtime_env_parsing_loads_host_port_and_backends(
     monkeypatch,
     tmp_path: Path,

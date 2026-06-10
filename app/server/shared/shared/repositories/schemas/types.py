@@ -5,7 +5,6 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, TypeDecorator
 
-
 ###############################################################################
 class JSONSequence(TypeDecorator):
     """
@@ -40,7 +39,6 @@ class JSONSequence(TypeDecorator):
                 "Invalid JSONSequence payload: expected JSON list, received string."
             )
         return value
-
 
 ###############################################################################
 def normalize_sequence_values(values: list[Any]) -> list[Any]:

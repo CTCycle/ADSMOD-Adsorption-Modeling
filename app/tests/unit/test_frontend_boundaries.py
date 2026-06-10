@@ -3,15 +3,18 @@ from __future__ import annotations
 from pathlib import Path
 
 
+###############################################################################
 def _read_text(path: Path) -> str:
     return path.read_text(encoding='utf-8')
 
 
+###############################################################################
 def _iter_ts_like_files(root: Path):
     for pattern in ('*.ts', '*.tsx'):
         yield from root.rglob(pattern)
 
 
+###############################################################################
 def test_core_frontend_has_no_ml_imports_or_endpoints() -> None:
     root = Path('app/client/src')
     forbidden_tokens = [
@@ -36,6 +39,7 @@ def test_core_frontend_has_no_ml_imports_or_endpoints() -> None:
     assert not violations, '\n'.join(violations)
 
 
+###############################################################################
 def test_ml_frontend_has_no_core_page_imports() -> None:
     root = Path('app/ml_client/src')
     forbidden_tokens = [
@@ -63,11 +67,13 @@ def test_ml_frontend_has_no_core_page_imports() -> None:
     assert not violations, '\n'.join(violations)
 
 
+###############################################################################
 def test_core_proxy_has_no_ml_routes() -> None:
     text = Path('app/client/proxy.conf.cjs').read_text(encoding='utf-8')
     assert '/api/training' not in text
 
 
+###############################################################################
 def test_ml_proxy_has_only_ml_routes() -> None:
     text = Path('app/ml_client/proxy.conf.cjs').read_text(encoding='utf-8')
     assert '/api/training' in text

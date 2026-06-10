@@ -14,11 +14,11 @@ from core_service.services.jobs import JobManager
 from core_service.services.modeling.fitting import FittingPipeline
 from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
 
-
 ###############################################################################
 class FittingService:
     JOB_TYPE = "fitting"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         job_manager: JobManager | None = None,

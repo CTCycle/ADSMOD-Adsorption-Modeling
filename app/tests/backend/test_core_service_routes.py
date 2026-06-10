@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 
+###############################################################################
 def test_core_routes_exclude_training() -> None:
     from core_service.app import app
 
@@ -10,6 +11,7 @@ def test_core_routes_exclude_training() -> None:
     assert client.get("/api/training/status").status_code == 404
 
 
+###############################################################################
 def test_core_health_route() -> None:
     from core_service.app import app
 
@@ -18,6 +20,7 @@ def test_core_health_route() -> None:
     assert response.status_code == 200
 
 
+###############################################################################
 def test_unified_app_exposes_core_routes_without_direct_training_ownership() -> None:
     from app.server.app import app
 

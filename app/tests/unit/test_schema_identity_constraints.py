@@ -17,6 +17,7 @@ from shared.repositories.schemas.models import (
 )
 
 
+###############################################################################
 def enable_foreign_keys_sqlite(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
     cursor = dbapi_connection.cursor()
     try:
@@ -25,6 +26,7 @@ def enable_foreign_keys_sqlite(dbapi_connection, connection_record) -> None:  # 
         cursor.close()
 
 
+###############################################################################
 def test_adsorption_point_component_uses_composite_primary_key() -> None:
     table = AdsorptionPointComponent.__table__
     assert "id" not in table.columns
@@ -34,6 +36,7 @@ def test_adsorption_point_component_uses_composite_primary_key() -> None:
     ]
 
 
+###############################################################################
 def test_adsorption_fit_keeps_surrogate_id_and_natural_uniqueness() -> None:
     table = AdsorptionFit.__table__
     assert [column.name for column in table.primary_key.columns] == ["id"]
@@ -47,6 +50,7 @@ def test_adsorption_fit_keeps_surrogate_id_and_natural_uniqueness() -> None:
     assert ("processed_id", "model_name", "optimization_method") in unique_constraints
 
 
+###############################################################################
 def test_adsorption_point_component_ddl_compiles_for_postgresql() -> None:
     ddl = str(
         CreateTable(AdsorptionPointComponent.__table__).compile(
@@ -57,6 +61,7 @@ def test_adsorption_point_component_ddl_compiles_for_postgresql() -> None:
     assert " id " not in ddl.lower()
 
 
+###############################################################################
 def test_sqlite_drop_and_recreate_restarts_identity() -> None:
     engine = create_engine("sqlite:///:memory:", future=True)
     Base.metadata.create_all(engine)
@@ -77,6 +82,7 @@ def test_sqlite_drop_and_recreate_restarts_identity() -> None:
     assert second_id == 1
 
 
+###############################################################################
 def test_point_component_enforces_composite_identity_and_cascade() -> None:
     engine = create_engine("sqlite:///:memory:", future=True)
     event.listen(engine, "connect", enable_foreign_keys_sqlite)

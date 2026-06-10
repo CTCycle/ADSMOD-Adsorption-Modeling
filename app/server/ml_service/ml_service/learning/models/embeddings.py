@@ -9,11 +9,14 @@ from ml_service.common.constants import PAD_VALUE
 
 
 # [POSITIONAL EMBEDDING]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(
     package="Embeddings", name="MolecularEmbedding"
 )
 class MolecularEmbedding(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         smile_vocab_size: int,
@@ -110,6 +113,7 @@ class MolecularEmbedding(layers.Layer):
         )
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[MolecularEmbedding], config: dict[str, Any]

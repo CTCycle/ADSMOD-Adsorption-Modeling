@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 
+###############################################################################
 def load_asgi_app(spec: str):
     module_name, _, app_name = spec.partition(":")
     if not module_name or not app_name:
@@ -17,6 +18,7 @@ def load_asgi_app(spec: str):
     return app
 
 
+###############################################################################
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate OpenAPI JSON for a FastAPI app.")
     parser.add_argument("--app", required=True, help="ASGI app path, e.g. core_service.app:app")

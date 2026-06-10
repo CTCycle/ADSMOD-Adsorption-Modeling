@@ -11,7 +11,6 @@ import psutil
 from ml_service.learning.training.manager import run_training_process
 from ml_service.learning.training.worker import ProcessWorker
 
-
 ###############################################################################
 @dataclass
 class TrainingRunResult:
@@ -23,16 +22,14 @@ class TrainingRunResult:
     result_payload: dict[str, Any] | None
     exit_code: int | None
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def list_checkpoint_folders(root: str) -> set[str]:
     root_path = Path(root)
     if not root_path.exists():
         return set()
     return {entry.name for entry in root_path.iterdir() if entry.is_dir()}
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def remove_checkpoint_folders(root: str, folders: set[str]) -> None:
     root_path = Path(root)
     for folder in folders:
@@ -40,8 +37,7 @@ def remove_checkpoint_folders(root: str, folders: set[str]) -> None:
         if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def run_training_with_metrics(
     configuration: dict[str, Any],
     timeout_seconds: float,

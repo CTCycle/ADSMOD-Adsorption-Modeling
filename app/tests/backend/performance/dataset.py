@@ -10,7 +10,6 @@ import pandas as pd
 from ml_service.domain.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
 
-
 ###############################################################################
 @dataclass
 class SyntheticDatasetSpec:
@@ -23,19 +22,16 @@ class SyntheticDatasetSpec:
     seed: int
     dataset_label: str
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def build_smile_vocabulary(size: int) -> dict[str, int]:
     tokens = [f"T{index}" for index in range(size)]
     return {token: index + 1 for index, token in enumerate(tokens)}
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def build_adsorbent_vocabulary(count: int) -> dict[str, int]:
     return {f"adsorbent_{index}": index for index in range(count)}
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def create_synthetic_training_frame(
     spec: SyntheticDatasetSpec,
 ) -> tuple[pd.DataFrame, TrainingMetadata]:
@@ -112,8 +108,7 @@ def create_synthetic_training_frame(
 
     return dataset, metadata
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def save_synthetic_training_dataset(
     dataset: pd.DataFrame,
     metadata: TrainingMetadata,
@@ -147,8 +142,7 @@ def save_synthetic_training_dataset(
 
     serializer.save_training_metadata(metadata_df, dataset_label)
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def create_and_save_synthetic_training_dataset(
     spec: SyntheticDatasetSpec,
 ) -> TrainingMetadata:
@@ -156,8 +150,7 @@ def create_and_save_synthetic_training_dataset(
     save_synthetic_training_dataset(dataset, metadata, spec.dataset_label)
     return metadata
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def clear_synthetic_training_dataset(dataset_label: str) -> None:
     serializer = TrainingDataSerializer()
     serializer.clear_training_dataset(dataset_label)

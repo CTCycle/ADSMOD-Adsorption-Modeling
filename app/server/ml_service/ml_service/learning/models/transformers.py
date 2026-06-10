@@ -7,9 +7,12 @@ from keras import activations, layers
 
 
 # [ADD NORM LAYER]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(keras.layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(self, epsilon: float = 10e-10, **kwargs) -> None:
         super().__init__(**kwargs)
         self.epsilon = epsilon
@@ -29,6 +32,7 @@ class AddNorm(keras.layers.Layer):
 
         return x_norm
 
+    # -------------------------------------------------------------------------
     def compute_mask(self, inputs: Any, mask=None) -> Any:
         if mask is None:
             return None
@@ -42,15 +46,19 @@ class AddNorm(keras.layers.Layer):
         config.update({"epsilon": self.epsilon})
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
 
 # [FEED FORWARD]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(keras.layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, dense_units: int, dropout: float, seed: int = 42, **kwargs
     ) -> None:
@@ -88,15 +96,19 @@ class FeedForward(keras.layers.Layer):
         )
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
 
 # [TRANSFORMER ENCODER]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(keras.layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, embedding_dims: int, num_heads: int, seed: int, **kwargs
     ) -> None:
@@ -154,6 +166,7 @@ class TransformerEncoder(keras.layers.Layer):
         )
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[TransformerEncoder], config: dict[str, Any]

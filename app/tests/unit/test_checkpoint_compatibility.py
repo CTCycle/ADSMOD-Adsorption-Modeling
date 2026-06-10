@@ -10,14 +10,19 @@ from ml_service.domain.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
 
 
+###############################################################################
 class TrainingMetadataQueries:
+
+    # -------------------------------------------------------------------------
     def __init__(self, metadata_frame: pd.DataFrame) -> None:
         self.metadata_frame = metadata_frame
 
+    # -------------------------------------------------------------------------
     def load_training_metadata(self, limit=None, offset=None):  # noqa: ANN001
         return self.metadata_frame
 
 
+###############################################################################
 def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
     return TrainingMetadata(
         dataset_hash=dataset_hash,
@@ -28,6 +33,7 @@ def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
     )
 
 
+###############################################################################
 def test_checkpoint_compatibility_single_dataset_match() -> None:
     hash_one = "1" * 64
     metadata = build_metadata(hash_one)
@@ -37,6 +43,7 @@ def test_checkpoint_compatibility_single_dataset_match() -> None:
     )
 
 
+###############################################################################
 def test_checkpoint_compatibility_multiple_datasets_one_matches() -> None:
     hash_one = "1" * 64
     hash_two = "2" * 64
@@ -49,6 +56,7 @@ def test_checkpoint_compatibility_multiple_datasets_one_matches() -> None:
     )
 
 
+###############################################################################
 def test_checkpoint_compatibility_multiple_datasets_none_match() -> None:
     hash_one = "1" * 64
     hash_two = "2" * 64
@@ -61,6 +69,7 @@ def test_checkpoint_compatibility_multiple_datasets_none_match() -> None:
     )
 
 
+###############################################################################
 def test_checkpoint_compatibility_missing_metadata_logs_warning(caplog) -> None:
     with caplog.at_level(logging.WARNING, logger="ADSMOD"):
         result = determine_checkpoint_compatibility(
@@ -72,6 +81,7 @@ def test_checkpoint_compatibility_missing_metadata_logs_warning(caplog) -> None:
     )
 
 
+###############################################################################
 def test_collect_dataset_hashes_skips_uncomputable_hash(caplog) -> None:
     metadata_df = pd.DataFrame(
         [
@@ -103,6 +113,7 @@ def test_collect_dataset_hashes_skips_uncomputable_hash(caplog) -> None:
     assert any("unable to compute hash" in record.message for record in caplog.records)
 
 
+###############################################################################
 def test_collect_dataset_hashes_computes_missing_hash() -> None:
     metadata_df = pd.DataFrame(
         [

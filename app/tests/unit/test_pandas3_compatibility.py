@@ -9,6 +9,7 @@ from core_service.services.data.conversion import PressureConversion
 from ml_service.services.data.sanitizer import DataSanitizer
 
 
+###############################################################################
 def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
     frame = pd.DataFrame({"name": ["zeolite\u200b-a", "na\u00a0y"]}).astype("string")
 
@@ -19,6 +20,7 @@ def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
     assert sanitized.loc[1, "name"] == "na y"
 
 
+###############################################################################
 def test_pressure_conversion_returns_frame_without_unit_column() -> None:
     converter = PressureConversion()
     frame = pd.DataFrame({"pressure": [1.0], "pressure_units": ["bar"]})
@@ -29,6 +31,7 @@ def test_pressure_conversion_returns_frame_without_unit_column() -> None:
     assert converted.loc[0, "pressure"] == 100000.0
 
 
+###############################################################################
 def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     sanitizer = DataSanitizer({"max_pressure": 10, "max_uptake": 20})
     frame = pd.DataFrame(
@@ -47,6 +50,7 @@ def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     assert frame.loc[0, "pressure"] == [0.0, 12_000_000.0, 5.0]
 
 
+###############################################################################
 def test_parse_json_column_value_converts_json_strings_for_jsonb() -> None:
     parsed = PostgresRepository.parse_json_column_value('{"T0": 1, "T1": 2}')
 
@@ -55,6 +59,7 @@ def test_parse_json_column_value_converts_json_strings_for_jsonb() -> None:
     assert parsed["T1"] == 2
 
 
+###############################################################################
 def test_coerce_missing_values_replaces_nan_and_pd_na_with_none() -> None:
     frame = pd.DataFrame(
         {
@@ -72,6 +77,7 @@ def test_coerce_missing_values_replaces_nan_and_pd_na_with_none() -> None:
     assert records[1]["molecular_weight"] is None
 
 
+###############################################################################
 def test_deduplicate_conflict_batch_keeps_last_conflict_record() -> None:
     batch = [
         {"sample_key": "A", "value": 1},

@@ -16,9 +16,10 @@ from ml_service.common.utils.encoding import (
 )
 from ml_service.common.utils.logger import logger
 
-
 ###############################################################################
 class NISTDatasetBuilder:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.raw_drop_cols = [
             "DOI",
@@ -269,9 +270,10 @@ class NISTDatasetBuilder:
 
         return self.expand_dataset(single_component, binary_mixture)
 
-
 ###############################################################################
 class NISTApiClient:
+
+    # -------------------------------------------------------------------------
     def __init__(self, parallel_tasks: int) -> None:
         self.parallel_tasks = max(1, int(parallel_tasks))
         self.semaphore = asyncio.Semaphore(self.parallel_tasks)
@@ -492,9 +494,10 @@ class NISTApiClient:
 
         return guest_data, host_data
 
-
 ###############################################################################
 class PubChemClient:
+
+    # -------------------------------------------------------------------------
     def __init__(self, parallel_tasks: int) -> None:
         self.parallel_tasks = max(1, int(parallel_tasks))
         self.semaphore = asyncio.Semaphore(self.parallel_tasks)

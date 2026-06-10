@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 PUBLIC_HOST_MODE = public_host_mode_enabled()
 
+###############################################################################
 def create_app(container: CoreServiceContainer | None = None) -> FastAPI:
     application = FastAPI(
         title=FASTAPI_TITLE,

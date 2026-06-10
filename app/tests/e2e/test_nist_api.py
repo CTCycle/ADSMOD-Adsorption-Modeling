@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestNistStatus:
     """Tests for the NIST status endpoint."""
@@ -35,7 +34,6 @@ class TestNistStatus:
             assert "binary_mixture_rows" in data
             assert "guest_rows" in data
             assert "host_rows" in data
-
 
 ###############################################################################
 class TestNistFetch:
@@ -81,7 +79,6 @@ class TestNistFetch:
 
         # Assert
         assert response.status == 422  # Pydantic validation error
-
 
 ###############################################################################
 class TestNistProperties:

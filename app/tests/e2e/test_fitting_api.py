@@ -7,7 +7,6 @@ import time
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestFittingRun:
     """Tests for the fitting run endpoint."""
@@ -192,7 +191,6 @@ class TestFittingRun:
         # Assert
         assert response.status == 422  # Pydantic validation error
 
-
 ###############################################################################
 class TestNistDatasetForFitting:
     """Tests for the NIST dataset endpoint."""
@@ -215,7 +213,6 @@ class TestNistDatasetForFitting:
             assert "columns" in dataset
             assert "records" in dataset
             assert "row_count" in dataset
-
 
 ###############################################################################
 class TestFittingJobs:

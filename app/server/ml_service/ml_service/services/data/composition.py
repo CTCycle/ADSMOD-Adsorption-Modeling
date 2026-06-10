@@ -14,12 +14,12 @@ from shared.repositories.serialization.data import DataSerializer
 from ml_service.services.data.conversion import PQ_units_conversion
 from ml_service.services.data.nistads import PubChemClient
 
-
 ###############################################################################
 class DatasetCompositionService:
     ADSORPTION_UNITS_MOL_G = "mol/g"
     RAW_DATASET_NAME_COLUMN = "name"
 
+    # -------------------------------------------------------------------------
     def __init__(self, allow_pubchem_fetch: bool = False) -> None:
         self.serializer = DataSerializer()
         self.nist_serializer = NISTDataSerializer()

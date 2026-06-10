@@ -11,9 +11,10 @@ import time
 
 from ml_service.common.utils.logger import logger
 
-
 ###############################################################################
 class WorkerChannels:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         progress_queue: Any,
@@ -49,9 +50,10 @@ class WorkerChannels:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to send worker message: %s", exc)
 
-
 ###############################################################################
 class ProcessWorker:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         progress_queue_size: int = 256,
@@ -186,7 +188,6 @@ class ProcessWorker:
         if self.process is None:
             return None
         return self.process.exitcode
-
 
 ###############################################################################
 def process_target(

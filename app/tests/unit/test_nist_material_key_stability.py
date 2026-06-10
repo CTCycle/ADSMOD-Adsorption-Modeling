@@ -6,14 +6,17 @@ from shared.repositories.database.backend import database
 from shared.repositories.queries.nist import NISTDataSerializer
 
 
+###############################################################################
 class UpsertCapture:
+
+    # -------------------------------------------------------------------------
     def __init__(self, captured: dict[str, object]) -> None:
         self.captured = captured
 
+    # -------------------------------------------------------------------------
     def __call__(self, df: pd.DataFrame, table_name: str) -> None:
         self.captured["table_name"] = table_name
         self.captured["frame"] = df.copy()
-
 
 ###############################################################################
 def test_save_materials_derives_adsorbate_key_from_inchi(monkeypatch) -> None:
@@ -40,7 +43,6 @@ def test_save_materials_derives_adsorbate_key_from_inchi(monkeypatch) -> None:
     assert frame.iloc[0]["adsorbate_key"] == "inchi:abcdef1234567890abcdef12"
     assert frame.iloc[0]["InChIKey"] == "ABCDEF1234567890ABCDEF12"
 
-
 ###############################################################################
 def test_save_materials_generates_adsorbate_key_when_missing(monkeypatch) -> None:
     serializer = NISTDataSerializer()
@@ -62,7 +64,6 @@ def test_save_materials_generates_adsorbate_key_when_missing(monkeypatch) -> Non
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
     assert frame.iloc[0]["adsorbate_key"] == "inchi:zxcvbnm1234567890zxcvbnm12"
-
 
 ###############################################################################
 def test_save_materials_derives_adsorbent_key_from_hash(monkeypatch) -> None:
@@ -86,7 +87,6 @@ def test_save_materials_derives_adsorbent_key_from_hash(monkeypatch) -> None:
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
     assert frame.iloc[0]["adsorbent_key"] == "host:hosthash001"
-
 
 ###############################################################################
 def test_save_materials_overrides_payload_key_with_deterministic_inchi_key(
@@ -112,7 +112,6 @@ def test_save_materials_overrides_payload_key_with_deterministic_inchi_key(
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
     assert frame.iloc[0]["adsorbate_key"] == "inchi:abcdef1234567890abcdef12"
-
 
 ###############################################################################
 def test_save_materials_deduplicates_duplicate_inchi_rows_before_upsert(
@@ -145,7 +144,6 @@ def test_save_materials_deduplicates_duplicate_inchi_rows_before_upsert(
     assert len(frame) == 1
     assert frame.iloc[0]["InChIKey"] == "ABCDEF1234567890ABCDEF12"
 
-
 ###############################################################################
 def test_save_materials_generates_adsorbate_key_when_column_is_missing(
     monkeypatch,
@@ -169,7 +167,6 @@ def test_save_materials_generates_adsorbate_key_when_column_is_missing(
     frame = captured["frame"]
     assert isinstance(frame, pd.DataFrame)
     assert frame.iloc[0]["adsorbate_key"] == "inchi:qwerty1234567890qwerty123"
-
 
 ###############################################################################
 def test_save_materials_generates_adsorbent_key_when_column_is_missing(

@@ -20,7 +20,6 @@ from core_service.common.constants import (
 )
 from shared.repositories.serialization.data import DataSerializer
 
-
 ###############################################################################
 class DatasetService:
     MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
@@ -80,6 +79,7 @@ class DatasetService:
         ],
     }
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.allowed_extensions = set(get_server_settings().datasets.allowed_extensions)
 

@@ -7,7 +7,6 @@ import os
 import pytest
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestTrainingDatasets:
     """Tests for training dataset availability endpoint."""
@@ -38,7 +37,6 @@ class TestTrainingDatasets:
         if data.get("available"):
             assert "train_samples" in data or "name" in data
 
-
 ###############################################################################
 class TestCheckpoints:
     """Tests for the checkpoints listing endpoint."""
@@ -54,7 +52,6 @@ class TestCheckpoints:
         data = response.json()
         assert "checkpoints" in data
         assert isinstance(data["checkpoints"], list)
-
 
 ###############################################################################
 class TestTrainingStatus:
@@ -84,7 +81,6 @@ class TestTrainingStatus:
         assert "total_epochs" in data
         assert "progress" in data
 
-
 ###############################################################################
 class TestDatasetInfo:
     """Tests for the dataset info endpoint."""
@@ -99,7 +95,6 @@ class TestDatasetInfo:
         assert response.ok
         data = response.json()
         assert "available" in data
-
 
 ###############################################################################
 class TestDatasetBuild:
@@ -165,7 +160,6 @@ class TestDatasetBuild:
         # Assert
         assert response.status == 422  # Pydantic validation error
 
-
 ###############################################################################
 class TestClearDataset:
     """Tests for the clear dataset endpoint."""
@@ -182,7 +176,6 @@ class TestClearDataset:
         assert data.get("status") in {"success", "error"}
         assert "message" in data
 
-
 ###############################################################################
 class TestDatasetSources:
     """Tests for dataset source management endpoints."""
@@ -198,7 +191,6 @@ class TestDatasetSources:
         payload = response.json()
         assert payload.get("status") in {"success", "error"}
         assert isinstance(payload.get("message"), str)
-
 
 ###############################################################################
 class TestTrainingLifecycle:

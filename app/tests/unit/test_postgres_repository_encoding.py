@@ -2,6 +2,7 @@ from shared.common.settings import DatabaseSettings
 from shared.repositories.database.postgres import PostgresRepository
 
 
+###############################################################################
 def test_postgres_connect_args_enforce_utf8_client_encoding() -> None:
     settings = DatabaseSettings(
         embedded_database=False,

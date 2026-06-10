@@ -6,6 +6,7 @@ from ml_service.api.training import create_training_router
 from ml_service.services.container import MlServiceContainer
 
 
+###############################################################################
 def register_ml_routes(
     app: FastAPI,
     container: MlServiceContainer,

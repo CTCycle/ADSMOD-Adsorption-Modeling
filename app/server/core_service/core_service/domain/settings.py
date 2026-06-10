@@ -31,7 +31,6 @@ DATABASE_ENV_DEFAULTS: dict[str, Any] = {
     "insert_batch_size": 5000,
 }
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -47,20 +46,17 @@ class DatabaseSettings:
     connect_timeout: int
     insert_batch_size: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatasetSettings:
     allowed_extensions: tuple[str, ...]
     column_detection_cutoff: float
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class NISTSettings:
     parallel_tasks: int
     pubchem_parallel_tasks: int
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -73,12 +69,10 @@ class FittingSettings:
     preview_row_limit: int
     best_model_metric: str
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class JobSettings:
     polling_interval: float
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -92,7 +86,6 @@ class TrainingSettings:
     persistent_workers: bool
     plot_update_batch_interval: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class ServerSettings:
@@ -102,7 +95,6 @@ class ServerSettings:
     fitting: FittingSettings
     jobs: JobSettings
     training: TrainingSettings
-
 
 ###############################################################################
 class JsonDatabaseSettings(BaseModel):
@@ -118,6 +110,7 @@ class JsonDatabaseSettings(BaseModel):
     connect_timeout: int = Field(default=30, ge=1)
     insert_batch_size: int = Field(default=5000, ge=1)
 
+    # -------------------------------------------------------------------------
     @field_validator(
         "host",
         "database_name",
@@ -133,16 +126,19 @@ class JsonDatabaseSettings(BaseModel):
         text = str(value).strip()
         return text or None
 
+    # -------------------------------------------------------------------------
     @field_validator("engine", mode="before")
     @classmethod
     def normalize_engine(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
         return text or "postgres"
 
+###############################################################################
 class JsonDatasetSettings(BaseModel):
     allowed_extensions: tuple[str, ...] = DEFAULT_ALLOWED_EXTENSIONS
     column_detection_cutoff: float = Field(default=0.6, ge=0.0, le=1.0)
 
+    # -------------------------------------------------------------------------
     @field_validator("allowed_extensions", mode="before")
     @classmethod
     def normalize_extensions(cls, value: Any) -> tuple[str, ...]:
@@ -158,12 +154,10 @@ class JsonDatasetSettings(BaseModel):
         cleaned = tuple(part.strip() for part in values if str(part).strip())
         return cleaned or DEFAULT_ALLOWED_EXTENSIONS
 
-
 ###############################################################################
 class JsonNISTSettings(BaseModel):
     parallel_tasks: int = Field(default=20, ge=1)
     pubchem_parallel_tasks: int = Field(default=10, ge=1)
-
 
 ###############################################################################
 class JsonFittingSettings(BaseModel):
@@ -175,12 +169,14 @@ class JsonFittingSettings(BaseModel):
     preview_row_limit: int = Field(default=5, ge=1)
     best_model_metric: str = "AICc"
 
+    # -------------------------------------------------------------------------
     @field_validator("best_model_metric", mode="before")
     @classmethod
     def normalize_metric(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
         return text or "AICc"
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_bounds(self) -> "JsonFittingSettings":
         if self.max_iterations_upper_bound < self.default_max_iterations:
@@ -193,11 +189,9 @@ class JsonFittingSettings(BaseModel):
             )
         return self
 
-
 ###############################################################################
 class JsonJobSettings(BaseModel):
     polling_interval: float = 1.0
-
 
 ###############################################################################
 class JsonTrainingSettings(BaseModel):
@@ -207,12 +201,12 @@ class JsonTrainingSettings(BaseModel):
     dataloader_workers: int = Field(default=0, ge=0)
     persistent_workers: bool = False
 
+    # -------------------------------------------------------------------------
     @field_validator("jit_backend", mode="before")
     @classmethod
     def normalize_backend(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
         return text or "inductor"
-
 
 ###############################################################################
 def _load_configuration_payload(path: str | Path) -> dict[str, Any]:
@@ -231,7 +225,6 @@ def _load_configuration_payload(path: str | Path) -> dict[str, Any]:
         raise RuntimeError("Configuration must be a JSON object.")
     return payload
 
-
 ###############################################################################
 class AppSettings(BaseModel):
     _configuration_file: ClassVar[Path] = CORE_CONFIGURATION_FILE
@@ -243,6 +236,7 @@ class AppSettings(BaseModel):
     jobs: JsonJobSettings = Field(default_factory=JsonJobSettings)
     training: JsonTrainingSettings = Field(default_factory=JsonTrainingSettings)
 
+    # -------------------------------------------------------------------------
     @classmethod
     def load(cls) -> "AppSettings":
         payload = _load_configuration_payload(getattr(cls, "_configuration_file"))
@@ -268,13 +262,11 @@ class AppSettings(BaseModel):
             training=build_training_settings(self.training.model_dump(mode="python")),
         )
 
-
 ###############################################################################
 def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
     if isinstance(value, dict):
         return value
     return {}
-
 
 ###############################################################################
 def _get_env_text(key: str) -> str | None:
@@ -284,7 +276,6 @@ def _get_env_text(key: str) -> str | None:
     text = value.strip()
     return text or None
 
-
 ###############################################################################
 def _get_env_bool(key: str, default: bool) -> bool:
     value = _get_env_text(key)
@@ -292,14 +283,12 @@ def _get_env_bool(key: str, default: bool) -> bool:
         return default
     return value.lower() in TRUTHY_VALUES
 
-
 ###############################################################################
 def _get_env_int(key: str, default: int) -> int:
     value = _get_env_text(key)
     if value is None:
         return default
     return int(value)
-
 
 ###############################################################################
 def _load_database_environment_payload() -> dict[str, Any]:
@@ -325,7 +314,6 @@ def _load_database_environment_payload() -> dict[str, Any]:
             DATABASE_ENV_DEFAULTS["insert_batch_size"],
         ),
     }
-
 
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
@@ -360,7 +348,6 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         insert_batch_size=json_settings.insert_batch_size,
     )
 
-
 ###############################################################################
 def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
     json_settings = JsonDatasetSettings.model_validate(_ensure_mapping(payload))
@@ -369,7 +356,6 @@ def build_dataset_settings(payload: dict[str, Any] | Any) -> DatasetSettings:
         column_detection_cutoff=json_settings.column_detection_cutoff,
     )
 
-
 ###############################################################################
 def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
     json_settings = JsonNISTSettings.model_validate(_ensure_mapping(payload))
@@ -377,7 +363,6 @@ def build_nist_settings(payload: dict[str, Any] | Any) -> NISTSettings:
         parallel_tasks=json_settings.parallel_tasks,
         pubchem_parallel_tasks=json_settings.pubchem_parallel_tasks,
     )
-
 
 ###############################################################################
 def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
@@ -392,14 +377,12 @@ def build_fitting_settings(payload: dict[str, Any] | Any) -> FittingSettings:
         best_model_metric=json_settings.best_model_metric,
     )
 
-
 ###############################################################################
 def build_job_settings(payload: dict[str, Any] | Any) -> JobSettings:
     json_settings = JsonJobSettings.model_validate(_ensure_mapping(payload))
     return JobSettings(
         polling_interval=json_settings.polling_interval,
     )
-
 
 ###############################################################################
 def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
@@ -414,7 +397,6 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
         persistent_workers=json_settings.persistent_workers,
         plot_update_batch_interval=DEFAULT_PLOT_UPDATE_BATCH_INTERVAL,
     )
-
 
 ###############################################################################
 def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:

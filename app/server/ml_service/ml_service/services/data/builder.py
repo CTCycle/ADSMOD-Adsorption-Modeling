@@ -22,9 +22,10 @@ from ml_service.services.data.sequences import (
     SMILETokenization,
 )
 
-
 ###############################################################################
 class DatasetBuilderConfig:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         sample_size: float = 1.0,
@@ -61,9 +62,10 @@ class DatasetBuilderConfig:
             "split_seed": self.split_seed,
         }
 
-
 ###############################################################################
 class DatasetBuilder:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, config: DatasetBuilderConfig, dataset_label: str = "default"
     ) -> None:

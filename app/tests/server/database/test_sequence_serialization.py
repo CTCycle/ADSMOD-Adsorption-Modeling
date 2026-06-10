@@ -7,12 +7,14 @@ from shared.repositories.schemas.types import JSONSequence
 Base = declarative_base()
 
 
+###############################################################################
 class TestModel(Base):
     __tablename__ = "test_data"
     id = Column(Integer, primary_key=True)
     sequence = Column(JSONSequence)
 
 
+###############################################################################
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:")
@@ -21,6 +23,7 @@ def session():
     yield Session()
 
 
+###############################################################################
 def test_json_sequence_round_trip(session):
     """Verify list data is stored and retrieved correctly."""
     data = [1.1, 2.2, 3.3]
@@ -33,6 +36,7 @@ def test_json_sequence_round_trip(session):
     assert isinstance(retrieved.sequence, list)
 
 
+###############################################################################
 def test_json_sequence_empty_list(session):
     """Verify empty lists are handled correctly."""
     item = TestModel(sequence=[])
@@ -43,6 +47,7 @@ def test_json_sequence_empty_list(session):
     assert retrieved.sequence == []
 
 
+###############################################################################
 def test_json_sequence_none(session):
     """Verify valid None storage."""
     item = TestModel(sequence=None)
@@ -53,6 +58,7 @@ def test_json_sequence_none(session):
     assert retrieved.sequence is None
 
 
+###############################################################################
 def test_string_payload_raises_for_json_sequence(session):
     """Verify string payloads are rejected for JSON sequence columns."""
     session.execute(TestModel.__table__.insert().values(sequence="1.1, 2.2, 3.3"))

@@ -21,9 +21,10 @@ from shared.repositories.schemas.models import (
     Dataset,
 )
 
-
 ###############################################################################
 class DataRepositoryQueries:
+
+    # -------------------------------------------------------------------------
     def __init__(self, db: ADSMODDatabase = database) -> None:
         self.database = db
 

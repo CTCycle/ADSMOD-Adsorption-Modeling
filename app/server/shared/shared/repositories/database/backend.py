@@ -10,7 +10,6 @@ from shared.common.utils.logger import logger
 from shared.repositories.database.postgres import PostgresRepository
 from shared.repositories.database.sqlite import SQLiteRepository
 
-
 ###############################################################################
 class DatabaseBackend(Protocol):
     db_path: str | None
@@ -33,13 +32,11 @@ class DatabaseBackend(Protocol):
 
 BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return cast(DatabaseBackend, SQLiteRepository(settings))
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return cast(DatabaseBackend, PostgresRepository(settings, initialize_schema=False))
 
@@ -49,9 +46,10 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
     "postgres": build_postgres_backend,
 }
 
-
 ###############################################################################
 class ADSMODDatabase:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.settings = get_server_settings().database
         self.backend = self._build_backend(self.settings.embedded_database)

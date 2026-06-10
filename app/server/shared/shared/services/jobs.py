@@ -19,7 +19,10 @@ from shared.common.utils.encoding import normalize_error_text
 from shared.common.utils.logger import logger as shared_logger
 
 
+###############################################################################
 class _JobState:
+
+    # -------------------------------------------------------------------------
     def __init__(self, job_id: str, job_type: str, status: str) -> None:
         self.job_id = job_id
         self.job_type = job_type
@@ -32,12 +35,14 @@ class _JobState:
         self.stop_requested = False
         self.lock = threading.Lock()
 
+    # -------------------------------------------------------------------------
     def update(self, **kwargs: Any) -> None:
         with self.lock:
             for key, value in kwargs.items():
                 if hasattr(self, key):
                     setattr(self, key, value)
 
+    # -------------------------------------------------------------------------
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
             return {
@@ -52,7 +57,10 @@ class _JobState:
             }
 
 
+###############################################################################
 class _JobExecutionConfig:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -69,7 +77,10 @@ class _JobExecutionConfig:
         self.completion_handler = completion_handler
 
 
+###############################################################################
 class _ProcessJobState:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -85,6 +96,7 @@ class _ProcessJobState:
         self.created_at = monotonic()
 
 
+###############################################################################
 def run_process_runner(
     result_queue: multiprocessing.Queue,
     message_queue: multiprocessing.Queue,
@@ -120,9 +132,11 @@ def run_process_runner(
             pass
 
 
+###############################################################################
 class JobManager:
     PROCESS_STOP_TIMEOUT_SECONDS = 10.0
 
+    # -------------------------------------------------------------------------
     def __init__(self, *, logger: Logger | None = None) -> None:
         self._logger = logger or shared_logger
         self.jobs: dict[str, _JobState] = {}
@@ -131,6 +145,7 @@ class JobManager:
         self.job_configs: dict[str, _JobExecutionConfig] = {}
         self.lock = threading.Lock()
 
+    # -------------------------------------------------------------------------
     def start_job(
         self,
         job_type: str,
@@ -191,6 +206,7 @@ class JobManager:
         self._logger.info("Started job %s (type=%s)", job_id, job_type)
         return job_id
 
+    # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> dict[str, Any] | None:
         with self.lock:
             state = self.jobs.get(job_id)
@@ -198,6 +214,7 @@ class JobManager:
             return None
         return state.snapshot()
 
+    # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> bool:
         with self.lock:
             state = self.jobs.get(job_id)
@@ -212,6 +229,7 @@ class JobManager:
         self._logger.info("Cancelled job %s", job_id)
         return True
 
+    # -------------------------------------------------------------------------
     def is_job_running(self, job_type: str | None = None) -> bool:
         with self.lock:
             for state in self.jobs.values():
@@ -220,6 +238,7 @@ class JobManager:
                         return True
         return False
 
+    # -------------------------------------------------------------------------
     def list_jobs(self, job_type: str | None = None) -> list[dict[str, Any]]:
         with self.lock:
             states = list(self.jobs.values())
@@ -229,6 +248,7 @@ class JobManager:
                 results.append(state.snapshot())
         return results
 
+    # -------------------------------------------------------------------------
     def should_stop(self, job_id: str) -> bool:
         with self.lock:
             state = self.jobs.get(job_id)
@@ -236,12 +256,14 @@ class JobManager:
             return True
         return state.stop_requested
 
+    # -------------------------------------------------------------------------
     def update_progress(self, job_id: str, progress: float) -> None:
         with self.lock:
             state = self.jobs.get(job_id)
         if state:
             state.update(progress=min(100.0, max(0.0, progress)))
 
+    # -------------------------------------------------------------------------
     def update_result(self, job_id: str, patch: dict[str, Any]) -> None:
         with self.lock:
             state = self.jobs.get(job_id)
@@ -251,6 +273,7 @@ class JobManager:
             existing = state.result or {}
             state.result = {**existing, **patch}
 
+    # -------------------------------------------------------------------------
     def supports_argument(
         self, runner: Callable[..., dict[str, Any]], name: str
     ) -> bool:
@@ -264,6 +287,7 @@ class JobManager:
                 return True
         return name in signature.parameters
 
+    # -------------------------------------------------------------------------
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
@@ -274,6 +298,7 @@ class JobManager:
                 return True
         return "job_id" in signature.parameters
 
+    # -------------------------------------------------------------------------
     def build_process_kwargs(
         self,
         runner: Callable[..., dict[str, Any]],
@@ -288,6 +313,7 @@ class JobManager:
             updated_kwargs["message_queue"] = message_queue
         return updated_kwargs
 
+    # -------------------------------------------------------------------------
     def terminate_process_tree(self, process_id: int | None) -> None:
         if process_id is None:
             return
@@ -322,6 +348,7 @@ class JobManager:
                 "Failed to force kill process %s: %s", process_id, exc
             )
 
+    # -------------------------------------------------------------------------
     def consume_process_messages(
         self,
         job_id: str,
@@ -348,6 +375,7 @@ class JobManager:
                     "Process message handler failed for %s: %s", job_id, exc
                 )
 
+    # -------------------------------------------------------------------------
     def finalize_job(
         self,
         job_id: str,
@@ -378,6 +406,7 @@ class JobManager:
             except Exception as exc:  # noqa: BLE001
                 self._logger.warning("Completion handler failed for %s: %s", job_id, exc)
 
+    # -------------------------------------------------------------------------
     def run_process_job(
         self,
         job_id: str,
@@ -506,6 +535,7 @@ class JobManager:
         result_queue.join_thread()
         message_queue.join_thread()
 
+    # -------------------------------------------------------------------------
     def _run_job(
         self,
         job_id: str,
@@ -546,6 +576,7 @@ class JobManager:
                 self.job_configs.pop(job_id, None)
 
 
+###############################################################################
 def format_error_message(exc: Exception) -> str:
     messages: list[str] = []
     for candidate in (exc, getattr(exc, "orig", None), getattr(exc, "__cause__", None)):

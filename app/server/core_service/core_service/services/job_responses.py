@@ -10,9 +10,10 @@ from core_service.domain.jobs import (
     JobStatusResponse,
 )
 
-
 ###############################################################################
 class JobResponseFactory:
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def start(
         job_id: str,

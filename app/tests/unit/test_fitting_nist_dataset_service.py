@@ -7,12 +7,14 @@ from shared.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
 from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
 
 
+###############################################################################
 def test_prepare_nist_dataframe_requires_expected_columns() -> None:
     service = FittingNISTDatasetService()
     with pytest.raises(ValueError, match="missing required columns"):
         service.prepare_nist_dataframe(pd.DataFrame({"name": ["exp_1"]}), pd.DataFrame())
 
 
+###############################################################################
 def test_load_for_fitting_preserves_response_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingNISTDatasetService()
 

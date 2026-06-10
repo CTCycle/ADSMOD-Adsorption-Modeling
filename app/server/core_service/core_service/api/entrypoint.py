@@ -16,7 +16,6 @@ from core_service.domain.bootstrap import ServiceStatusResponse
 
 health_router = APIRouter()
 
-
 ###############################################################################
 @health_router.get(
     "/api/health",
@@ -26,19 +25,18 @@ health_router = APIRouter()
 def health_check() -> ServiceStatusResponse:
     return ServiceStatusResponse(status="ok")
 
-
 ###############################################################################
 def redirect_to_docs() -> RedirectResponse:
     return RedirectResponse(url="/docs")
-
 
 ###############################################################################
 def service_root() -> ServiceStatusResponse:
     return ServiceStatusResponse(status="ok")
 
-
 ###############################################################################
 class SpaEntrypointHandlers:
+
+    # -------------------------------------------------------------------------
     def __init__(self, client_dist_path: str) -> None:
         self.client_dist_path = Path(client_dist_path)
 
@@ -52,7 +50,6 @@ class SpaEntrypointHandlers:
         if requested_path is not None:
             return FileResponse(requested_path)
         return FileResponse(self.client_dist_path / "index.html")
-
 
 ###############################################################################
 def register_root_routes(app: FastAPI) -> None:

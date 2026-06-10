@@ -30,9 +30,10 @@ from shared.common.paths import CHECKPOINTS_DIR
 from shared.common.utils.logger import logger
 from shared.common.utils.security import resolve_checkpoint_path
 
-
 ###############################################################################
 class ModelSerializer:
+
+    # -------------------------------------------------------------------------
     def __init__(self, model_name: str = "SCADS") -> None:
         self.model_name = model_name
 

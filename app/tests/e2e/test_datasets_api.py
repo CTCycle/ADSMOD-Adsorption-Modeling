@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestDatasetUpload:
     """Tests for the dataset upload endpoint."""
@@ -67,7 +66,6 @@ class TestDatasetUpload:
         columns = data["dataset"]["columns"]
         assert len(columns) >= 4  # experiment, temperature, pressure, uptake
 
-
 ###############################################################################
 class TestDatasetNames:
     """Tests for the dataset names listing endpoint."""
@@ -83,7 +81,6 @@ class TestDatasetNames:
         data = response.json()
         assert "names" in data
         assert isinstance(data["names"], list)
-
 
 ###############################################################################
 class TestDatasetByName:

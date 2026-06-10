@@ -7,6 +7,7 @@ from ml_service.domain.bootstrap import ServiceStatusResponse
 health_router = APIRouter()
 
 
+###############################################################################
 @health_router.get(
     "/api/health",
     include_in_schema=True,
