@@ -68,9 +68,10 @@ PARAMETER_ALIAS_MAP["Sips"].update(
     }
 )
 
-
 ###############################################################################
 class MinimizeObjective:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         model: Callable[..., np.ndarray],
@@ -103,9 +104,10 @@ class MinimizeObjective:
             return self.penalty
         return float(np.sum(residuals * residuals, dtype=np.float64))
 
-
 ###############################################################################
 class ModelSolver:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.collection = AdsorptionModels()
 
@@ -523,9 +525,10 @@ class ModelSolver:
             return False
         return True
 
-
 ###############################################################################
 class FittingPipeline:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.serializer = DataSerializer()
         self.solver = ModelSolver()

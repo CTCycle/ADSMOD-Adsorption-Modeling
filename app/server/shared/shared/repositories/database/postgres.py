@@ -25,11 +25,11 @@ from shared.common.utils.encoding import sanitize_dataframe_strings
 from shared.common.utils.security import ensure_safe_sql_identifier
 from shared.common.utils.logger import logger
 
-
 ###############################################################################
 class PostgresRepository:
     MAX_STATEMENT_PARAMETERS = 65535
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         settings: DatabaseSettings,

@@ -4,9 +4,10 @@ import pandas as pd
 
 from shared.repositories.database.backend import ADSMODDatabase, database
 
-
 ###############################################################################
 class TrainingRepositoryQueries:
+
+    # -------------------------------------------------------------------------
     def __init__(self, db: ADSMODDatabase = database) -> None:
         self.database = db
 

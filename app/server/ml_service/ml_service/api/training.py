@@ -27,9 +27,10 @@ from ml_service.common.utils.logger import logger
 from ml_service.services.container import MlServiceContainer
 from ml_service.services.training import TrainingService
 
-
 ###############################################################################
 class TrainingEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: TrainingService) -> None:
         self.router = router
         self.service = service
@@ -401,7 +402,6 @@ class TrainingEndpoint:
             response_model=TrainingStatusResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def create_training_router(container: MlServiceContainer) -> APIRouter:

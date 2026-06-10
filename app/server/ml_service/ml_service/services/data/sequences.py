@@ -10,9 +10,10 @@ from keras.preprocessing.sequence import pad_sequences
 from ml_service.common.constants import PAD_VALUE
 from ml_service.common.utils.logger import logger
 
-
 ###############################################################################
 class PressureUptakeSeriesProcess:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"
@@ -68,9 +69,10 @@ class PressureUptakeSeriesProcess:
 
         return filtered_data
 
-
 ###############################################################################
 class SMILETokenization:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.element_symbols = [
             "H",

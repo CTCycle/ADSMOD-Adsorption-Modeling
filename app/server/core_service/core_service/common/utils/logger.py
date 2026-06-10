@@ -13,9 +13,10 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_filename = LOGS_DIR / f"ADSMOD_{current_timestamp}.log"
 
-
 ###############################################################################
 class UnicodeSafeFormatter(logging.Formatter):
+
+    # -------------------------------------------------------------------------
     def format(self, record: logging.LogRecord) -> str:
         message = super().format(record)
         stream_encoding = getattr(sys.stderr, "encoding", None) or "utf-8"

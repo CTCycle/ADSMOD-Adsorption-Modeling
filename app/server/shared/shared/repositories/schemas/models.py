@@ -15,11 +15,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from shared.repositories.schemas.types import JSONSequence
 
-
 ###############################################################################
 class Base(DeclarativeBase):
     pass
-
 
 ###############################################################################
 class Dataset(Base):
@@ -33,7 +31,6 @@ class Dataset(Base):
         CheckConstraint("source IN ('uploaded', 'nist')"),
         Index("ix_datasets_source", "source"),
     )
-
 
 ###############################################################################
 class Adsorbate(Base):
@@ -53,7 +50,6 @@ class Adsorbate(Base):
         Index("ix_adsorbates_name", "name"),
     )
 
-
 ###############################################################################
 class Adsorbent(Base):
     __tablename__ = "adsorbents"
@@ -70,7 +66,6 @@ class Adsorbent(Base):
         UniqueConstraint("hashkey"),
         Index("ix_adsorbents_name", "name"),
     )
-
 
 ###############################################################################
 class AdsorptionIsotherm(Base):
@@ -97,7 +92,6 @@ class AdsorptionIsotherm(Base):
         Index("ix_adsorption_isotherms_adsorbent_id", "adsorbent_id"),
     )
 
-
 ###############################################################################
 class AdsorptionIsothermComponent(Base):
     __tablename__ = "adsorption_isotherm_components"
@@ -120,7 +114,6 @@ class AdsorptionIsothermComponent(Base):
         Index("ix_adsorption_isotherm_components_adsorbate_id", "adsorbate_id"),
     )
 
-
 ###############################################################################
 class AdsorptionPoint(Base):
     __tablename__ = "adsorption_points"
@@ -135,7 +128,6 @@ class AdsorptionPoint(Base):
         UniqueConstraint("isotherm_id", "point_index"),
         Index("ix_adsorption_points_isotherm_id", "isotherm_id"),
     )
-
 
 ###############################################################################
 class AdsorptionPointComponent(Base):
@@ -160,7 +152,6 @@ class AdsorptionPointComponent(Base):
         Index("ix_adsorption_point_components_point_id", "point_id"),
         Index("ix_adsorption_point_components_component_id", "component_id"),
     )
-
 
 ###############################################################################
 class AdsorptionProcessedIsotherm(Base):
@@ -188,7 +179,6 @@ class AdsorptionProcessedIsotherm(Base):
         Index("ix_adsorption_processed_isotherms_isotherm_id", "isotherm_id"),
     )
 
-
 ###############################################################################
 class AdsorptionFit(Base):
     __tablename__ = "adsorption_fits"
@@ -210,7 +200,6 @@ class AdsorptionFit(Base):
         Index("ix_adsorption_fits_model_name", "model_name"),
     )
 
-
 ###############################################################################
 class AdsorptionFitParam(Base):
     __tablename__ = "adsorption_fit_params"
@@ -225,7 +214,6 @@ class AdsorptionFitParam(Base):
         UniqueConstraint("fit_id", "param_name"),
         Index("ix_adsorption_fit_params_fit_id", "fit_id"),
     )
-
 
 ###############################################################################
 class AdsorptionBestFit(Base):
@@ -250,7 +238,6 @@ class AdsorptionBestFit(Base):
         Index("ix_adsorption_best_fit_worst_fit_id", "worst_fit_id"),
     )
 
-
 ###############################################################################
 class TrainingMetadata(Base):
     __tablename__ = "training_metadata"
@@ -274,7 +261,6 @@ class TrainingMetadata(Base):
         UniqueConstraint("hashcode"),
         Index("ix_training_metadata_dataset_label", "dataset_label"),
     )
-
 
 ###############################################################################
 class TrainingDataset(Base):

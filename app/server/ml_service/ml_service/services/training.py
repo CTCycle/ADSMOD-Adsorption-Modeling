@@ -42,7 +42,6 @@ from ml_service.services.job_responses import JobResponseFactory
 from ml_service.services.jobs import JobManager
 from shared.common.paths import CHECKPOINTS_DIR
 
-
 ###############################################################################
 def get_training_process_stop_timeout_seconds() -> float:
     return max(
@@ -50,9 +49,10 @@ def get_training_process_stop_timeout_seconds() -> float:
         float(get_server_settings().jobs.polling_interval),
     )
 
-
 ###############################################################################
 class TrainingSession:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.worker: ProcessWorker | None = None
         self.current_job_id: str | None = None
@@ -92,7 +92,6 @@ class TrainingSession:
         self.worker = None
         self.current_job_id = None
 
-
 ###############################################################################
 def determine_checkpoint_compatibility(
     checkpoint_name: str,
@@ -121,9 +120,10 @@ def determine_checkpoint_compatibility(
 
     return checkpoint_hash in dataset_hashes
 
-
 ###############################################################################
 class TrainingJobRunner:
+
+    # -------------------------------------------------------------------------
     def __init__(self, session: TrainingSession, job_manager: JobManager) -> None:
         self.session = session
         self.job_manager = job_manager
@@ -242,12 +242,12 @@ class TrainingJobRunner:
             worker.cleanup()
             self.session.finish_session()
 
-
 ###############################################################################
 class TrainingService:
     DATASET_JOB_TYPE = "training_dataset"
     TRAINING_JOB_TYPE = "training"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,

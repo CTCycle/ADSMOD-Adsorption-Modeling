@@ -26,9 +26,10 @@ from shared.repositories.schemas.types import JSONSequence
 TABLE_NAME_LABEL = "table name"
 SQLITE_MAX_VARIABLES = 999
 
-
 ###############################################################################
 class SQLiteRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         settings: DatabaseSettings,

@@ -11,6 +11,7 @@ from shared.common.settings import (
 )
 
 
+###############################################################################
 def test_json_structure_matches_settings():
     """
     Verify that keys present in the core runtime JSON [training] section
@@ -31,6 +32,7 @@ def test_json_structure_matches_settings():
         )
 
 
+###############################################################################
 def test_config_values_are_respected():
     """
     Verify that specific values set in runtime JSON are reflected in the settings object.
@@ -61,6 +63,7 @@ def test_config_values_are_respected():
     assert training_settings.plot_update_batch_interval == 10
 
 
+###############################################################################
 def test_default_fallbacks():
     """
     Verify that missing values fallback to safe defaults.
@@ -79,6 +82,7 @@ def test_default_fallbacks():
     assert training_settings.plot_update_batch_interval == 10
 
 
+###############################################################################
 def test_both_runtime_configuration_files_validate() -> None:
     for config_path in (CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE):
         settings = AppSettings.load(config_path)

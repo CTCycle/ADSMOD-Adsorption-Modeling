@@ -7,7 +7,10 @@ from core_service.services.fitting import FittingService
 from core_service.services.jobs import JobManager
 
 
+###############################################################################
 class CoreServiceContainer:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.job_manager = JobManager(logger=logger)
         self.dataset_service = DatasetService()

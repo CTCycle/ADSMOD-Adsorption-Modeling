@@ -6,6 +6,7 @@ from shared.repositories.database.sqlite import SQLiteRepository
 from shared.repositories.schemas.models import TrainingDataset
 
 
+###############################################################################
 def test_sqlite_prepare_for_storage_parses_json_sequence_strings() -> None:
     repository = SQLiteRepository.__new__(SQLiteRepository)
     raw = pd.DataFrame(
@@ -25,6 +26,7 @@ def test_sqlite_prepare_for_storage_parses_json_sequence_strings() -> None:
     assert prepared.loc[0, "adsorbate_encoded_smile"] == [6.0, 4.0, 5.0]
 
 
+###############################################################################
 def test_sqlite_restore_after_load_decodes_double_encoded_sequences() -> None:
     repository = SQLiteRepository.__new__(SQLiteRepository)
     loaded = pd.DataFrame(
@@ -47,6 +49,7 @@ def test_sqlite_restore_after_load_decodes_double_encoded_sequences() -> None:
     assert converted.tolist() == [6, 4, 5]
 
 
+###############################################################################
 def test_sqlite_prepare_for_save_serializes_sequences_to_json_strings() -> None:
     repository = SQLiteRepository.__new__(SQLiteRepository)
     raw = pd.DataFrame(
@@ -78,6 +81,7 @@ def test_sqlite_prepare_for_save_serializes_sequences_to_json_strings() -> None:
     ) == [6.0, 4.0, 5.0]
 
 
+###############################################################################
 def test_sqlite_and_postgres_json_value_parsing_match_for_sequences() -> None:
     sqlite_value = SQLiteRepository.parse_json_column_value('"[6.0, 4.0, 5.0]"')
     postgres_value = PostgresRepository.parse_json_column_value("[6.0, 4.0, 5.0]")

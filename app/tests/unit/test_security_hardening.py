@@ -10,6 +10,7 @@ from core_service.domain.fitting import DatasetPayload
 from ml_service.domain.training import TrainingConfigRequest
 
 
+###############################################################################
 def test_resolve_spa_file_path_rejects_traversal() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         index_path = Path(temp_dir) / "index.html"
@@ -21,6 +22,7 @@ def test_resolve_spa_file_path_rejects_traversal() -> None:
         assert resolve_spa_file_path(Path(temp_dir), "../secrets.txt") is None
 
 
+###############################################################################
 def test_resolve_checkpoint_path_accepts_path_inputs() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         base_path = Path(temp_dir)
@@ -29,6 +31,7 @@ def test_resolve_checkpoint_path_accepts_path_inputs() -> None:
         assert resolved == str((base_path / "checkpoint_01").resolve())
 
 
+###############################################################################
 def test_public_host_mode_enabled_detects_non_loopback_host(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("FASTAPI_HOST", raising=False)
     monkeypatch.setenv("CORE_SERVICE_HOST", "0.0.0.0")
@@ -39,6 +42,7 @@ def test_public_host_mode_enabled_detects_non_loopback_host(monkeypatch: pytest.
     assert public_host_mode_enabled() is False
 
 
+###############################################################################
 def test_dataset_payload_rejects_unsafe_dataset_name() -> None:
     with pytest.raises(ValidationError):
         DatasetPayload(
@@ -48,6 +52,7 @@ def test_dataset_payload_rejects_unsafe_dataset_name() -> None:
         )
 
 
+###############################################################################
 def test_training_config_rejects_invalid_dataset_hash() -> None:
     with pytest.raises(ValidationError):
         TrainingConfigRequest(dataset_hash="not_a_sha256")

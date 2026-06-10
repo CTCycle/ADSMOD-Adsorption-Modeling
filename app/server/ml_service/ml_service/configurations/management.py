@@ -9,9 +9,10 @@ from pydantic import ValidationError
 from shared.common.paths import ML_CONFIGURATION_FILE
 from shared.common.settings import AppSettings, ServerSettings
 
-
 ###############################################################################
 class ConfigurationManager:
+
+    # -------------------------------------------------------------------------
     def __init__(self, config_path: str | None = None) -> None:
         self.config_path = Path(config_path) if config_path is not None else ML_CONFIGURATION_FILE
         self.settings: AppSettings | None = None

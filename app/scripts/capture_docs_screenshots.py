@@ -17,6 +17,7 @@ VIEWPORT = {"width": 1440, "height": 900}
 MAX_RETRIES = 3
 
 
+###############################################################################
 @dataclass(slots=True)
 class CaptureRecord:
     page_title: str
@@ -26,10 +27,12 @@ class CaptureRecord:
     notes: str
 
 
+###############################################################################
 def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+###############################################################################
 def wait_for_idle(page: Page, timeout_ms: int = 15000) -> None:
     try:
         page.wait_for_load_state("networkidle", timeout=timeout_ms)
@@ -38,6 +41,7 @@ def wait_for_idle(page: Page, timeout_ms: int = 15000) -> None:
         page.wait_for_timeout(1200)
 
 
+###############################################################################
 def make_deterministic(page: Page) -> None:
     page.add_style_tag(
         content="""
@@ -51,6 +55,7 @@ def make_deterministic(page: Page) -> None:
     )
 
 
+###############################################################################
 def dismiss_common_overlays(page: Page) -> None:
     selectors = (
         "button:has-text('Accept')",
@@ -91,6 +96,7 @@ def dismiss_common_overlays(page: Page) -> None:
     )
 
 
+###############################################################################
 def goto_with_retry(page: Page, url: str, description: str, retries: int = MAX_RETRIES) -> None:
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):
@@ -106,6 +112,7 @@ def goto_with_retry(page: Page, url: str, description: str, retries: int = MAX_R
     raise RuntimeError(f"Failed to load {description} at {url}: {last_error}") from last_error
 
 
+###############################################################################
 def click_with_retry(action: Callable[[], None], label: str, retries: int = MAX_RETRIES) -> None:
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):
@@ -119,6 +126,7 @@ def click_with_retry(action: Callable[[], None], label: str, retries: int = MAX_
     raise RuntimeError(f"Failed action '{label}': {last_error}") from last_error
 
 
+###############################################################################
 def take_screenshot_with_segments(page: Page, output_name: str) -> tuple[list[str], str]:
     page.evaluate("() => window.scrollTo(0, 0)")
     page.wait_for_timeout(250)
@@ -126,6 +134,7 @@ def take_screenshot_with_segments(page: Page, output_name: str) -> tuple[list[st
     return [output_name], "Viewport screenshot."
 
 
+###############################################################################
 def maybe_capture_scrolled_container(
     page: Page, container_selector: str, output_stem: str
 ) -> list[str]:
@@ -155,10 +164,12 @@ def maybe_capture_scrolled_container(
     return extra_files
 
 
+###############################################################################
 def expect_visible(page: Page, selector: str, timeout_ms: int = 15000) -> None:
     page.locator(selector).first.wait_for(state="visible", timeout=timeout_ms)
 
 
+###############################################################################
 def capture_view(
     page: Page,
     title: str,
@@ -190,6 +201,7 @@ def capture_view(
     )
 
 
+###############################################################################
 def main() -> int:
     ensure_dir(FIGURES_DIR)
 

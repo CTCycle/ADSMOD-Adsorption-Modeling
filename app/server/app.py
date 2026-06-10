@@ -40,6 +40,7 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 
+###############################################################################
 def _load_service_modules():
     from core_service.api.entrypoint import health_router
     from core_service.api.routes import register_core_routes
@@ -56,10 +57,12 @@ def _load_service_modules():
     )
 
 
+###############################################################################
 def _client_build_available() -> bool:
     return CLIENT_INDEX_FILE.is_file()
 
 
+###############################################################################
 def _resolve_client_file(full_path: str) -> Path | None:
     client_root = CLIENT_DIST_DIR.resolve()
     requested_path = (client_root / full_path).resolve()
@@ -71,6 +74,7 @@ def _resolve_client_file(full_path: str) -> Path | None:
     return None
 
 
+###############################################################################
 def _build_cors_origins() -> list[str]:
     hosts = {"127.0.0.1", "localhost"}
     ui_host = os.getenv("UI_HOST", "").strip()
@@ -89,15 +93,18 @@ def _build_cors_origins() -> list[str]:
     return sorted(f"http://{host}:{port}" for host in hosts for port in ports)
 
 
+###############################################################################
 def _tauri_mode_enabled() -> bool:
     return os.getenv("ADSMOD_TAURI_MODE", "false").strip().lower() in TRUTHY_VALUES
 
 
+###############################################################################
 def _ensure_runtime_directories() -> None:
     for path_value in (RESOURCES_DIR, LOGS_DIR, TEMPLATES_DIR, CHECKPOINTS_DIR):
         path_value.mkdir(parents=True, exist_ok=True)
 
 
+###############################################################################
 def _run_startup_validations(settings: ServerSettings) -> None:
     _ = settings
     _ensure_runtime_directories()
@@ -109,10 +116,12 @@ def _run_startup_validations(settings: ServerSettings) -> None:
         )
 
 
+###############################################################################
 def serve_client_root() -> FileResponse:
     return FileResponse(CLIENT_INDEX_FILE)
 
 
+###############################################################################
 def serve_client_path(full_path: str) -> FileResponse:
     client_file = _resolve_client_file(full_path)
     if client_file is not None:
@@ -120,10 +129,12 @@ def serve_client_path(full_path: str) -> FileResponse:
     return FileResponse(CLIENT_INDEX_FILE)
 
 
+###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse("/docs")
 
 
+###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
@@ -133,6 +144,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+###############################################################################
 def create_app() -> FastAPI:
     (
         health_router,

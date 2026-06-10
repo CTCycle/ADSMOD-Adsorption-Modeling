@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 
+###############################################################################
 def test_ml_routes_include_training() -> None:
     from ml_service.app import app
 
@@ -12,6 +13,7 @@ def test_ml_routes_include_training() -> None:
     assert client.get("/api/training/datasets").status_code in {200, 500}
 
 
+###############################################################################
 def test_ml_health_route() -> None:
     from ml_service.app import app
 

@@ -20,9 +20,10 @@ from core_service.common.utils.logger import logger
 from core_service.services.container import CoreServiceContainer
 from core_service.services.fitting import FittingService
 
-
 ###############################################################################
 class FittingEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: FittingService) -> None:
         self.router = router
         self.service = service
@@ -117,7 +118,6 @@ class FittingEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def create_fitting_router(container: CoreServiceContainer) -> APIRouter:

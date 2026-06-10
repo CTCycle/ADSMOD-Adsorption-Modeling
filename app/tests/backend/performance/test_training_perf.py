@@ -23,7 +23,6 @@ from app.tests.backend.performance.harness import (
 )
 from shared.common.paths import CHECKPOINTS_DIR
 
-
 ###############################################################################
 @dataclass
 class TrainingScenario:
@@ -40,7 +39,6 @@ class TrainingScenario:
     smile_vocab_size: int
     validation_fraction: float
     seed: int
-
 
 ###############################################################################
 def build_training_configuration(
@@ -78,8 +76,7 @@ def build_training_configuration(
     configuration["training_seed"] = scenario.seed
     return configuration
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def resolve_perf_limits(strict_mode: bool) -> dict[str, float]:
     if strict_mode:
         return {
@@ -107,8 +104,7 @@ def resolve_perf_limits(strict_mode: bool) -> dict[str, float]:
         "stop_grace_seconds": float(os.getenv("PERF_TEST_STOP_GRACE_SECONDS", "8")),
     }
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def scenario_matrix() -> list[TrainingScenario]:
     return [
         TrainingScenario(
@@ -159,6 +155,7 @@ def scenario_matrix() -> list[TrainingScenario]:
     ]
 
 
+###############################################################################
 @pytest.mark.parametrize("scenario", scenario_matrix(), ids=lambda s: s.name)
 def test_training_pipeline_performance(scenario: TrainingScenario) -> None:
     strict_mode = os.getenv("PERF_TEST_STRICT") == "1"

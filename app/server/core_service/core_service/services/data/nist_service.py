@@ -21,7 +21,10 @@ from core_service.services.data.nistads import (
 from core_service.services.jobs import JobManager
 
 
+###############################################################################
 class NISTDataService:
+
+    # -------------------------------------------------------------------------
     def __init__(self, job_manager: JobManager) -> None:
         self.job_manager = job_manager
         self.serializer = NISTDataSerializer()

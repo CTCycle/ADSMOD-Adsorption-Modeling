@@ -13,9 +13,10 @@ from core_service.common.utils.logger import logger
 from core_service.services.container import CoreServiceContainer
 from core_service.services.data.datasets import DatasetService
 
-
 ###############################################################################
 class DatasetEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: DatasetService) -> None:
         self.router = router
         self.service = service
@@ -126,7 +127,6 @@ class DatasetEndpoint:
             response_model=DatasetLoadResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:

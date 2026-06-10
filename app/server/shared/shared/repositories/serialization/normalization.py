@@ -16,18 +16,15 @@ from shared.common.constants import (
     COLUMN_UPTAKE_MOL_G,
 )
 
-
 ###############################################################################
 def normalize_text(value: Any) -> str:
     if value is None:
         return ""
     return str(value).strip()
 
-
 ###############################################################################
 def normalize_lower(value: Any) -> str:
     return normalize_text(value).lower()
-
 
 ###############################################################################
 def normalize_model_key(model_name: Any) -> str:
@@ -40,7 +37,6 @@ def normalize_model_key(model_name: Any) -> str:
         .upper()
         .strip("_")
     )
-
 
 ###############################################################################
 def to_float(value: Any) -> float | None:
@@ -55,7 +51,6 @@ def to_float(value: Any) -> float | None:
     if pd.isna(parsed):
         return None
     return parsed
-
 
 ###############################################################################
 def to_float_list(value: Any) -> list[float]:
@@ -80,7 +75,6 @@ def to_float_list(value: Any) -> list[float]:
         return values
     parsed = to_float(value)
     return [parsed] if parsed is not None else []
-
 
 ###############################################################################
 def build_processed_key_from_values(

@@ -7,6 +7,7 @@ import pandas as pd
 from ml_service.common.utils.logger import logger
 
 
+###############################################################################
 def map_values(
     values: list[int | float] | int | float | None,
     converter: Callable[[float], float],
@@ -27,8 +28,11 @@ def map_values(
 
 
 # [CONVERSION OF PRESSURE]
+
 ###############################################################################
 class PressureConversion:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.P_COL = "pressure"
         self.P_UNIT_COL = "pressure_units"
@@ -127,8 +131,11 @@ class PressureConversion:
 
 
 # [CONVERSION OF UPTAKE]
+
 ###############################################################################
 class UptakeConversion:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.Q_COL = "adsorbed_amount"
         self.Q_UNIT_COL = "adsorption_units"
@@ -244,7 +251,6 @@ class UptakeConversion:
         dataframe = dataframe.drop(columns=unit_column)
 
         return dataframe
-
 
 ###############################################################################
 def PQ_units_conversion(dataframe: pd.DataFrame) -> pd.DataFrame:

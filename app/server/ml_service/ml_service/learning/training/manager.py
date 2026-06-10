@@ -23,7 +23,6 @@ MODEL_COMPONENTS = {
     SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
 }
 
-
 ###############################################################################
 def put_worker_result(result_queue: Any | None, payload: dict[str, Any]) -> None:
     if result_queue is None:
@@ -36,9 +35,10 @@ def put_worker_result(result_queue: Any | None, payload: dict[str, Any]) -> None
         except Exception:
             return
 
-
 ###############################################################################
 class TrainingProcessRunner:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         worker: Any | None = None,
@@ -47,7 +47,7 @@ class TrainingProcessRunner:
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def should_stop(self) -> bool:
         if self.worker is None:
             return False
@@ -56,7 +56,7 @@ class TrainingProcessRunner:
             return bool(checker())
         return False
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, total_epochs: int, logs: dict[str, Any]) -> None:
         self.send_training_message(
             self.worker,
@@ -68,7 +68,7 @@ class TrainingProcessRunner:
             },
         )
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def log(self, message: str) -> None:
         self.send_training_message(
             self.worker,
@@ -78,7 +78,7 @@ class TrainingProcessRunner:
             },
         )
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @staticmethod
     def normalize_model_name(name: str | None) -> str:
         if not name:
@@ -88,7 +88,7 @@ class TrainingProcessRunner:
             return SCADS_ATOMIC_MODEL
         return SCADS_SERIES_MODEL
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @staticmethod
     def send_training_message(worker: Any | None, payload: dict[str, Any]) -> None:
         if worker is None:
@@ -101,7 +101,7 @@ class TrainingProcessRunner:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to send training message: %s", exc)
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def ensure_required_columns(self, data: Any, required: list[str]) -> None:
         if data is None or getattr(data, "empty", True):
             raise ValueError("Training dataset is empty.")
@@ -109,7 +109,7 @@ class TrainingProcessRunner:
         if missing:
             raise ValueError(f"Training dataset missing columns: {', '.join(missing)}")
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def validate_resume_model(self, model: Any) -> None:
         optimizer = getattr(model, "optimizer", None)
         compiled_loss = getattr(model, "compiled_loss", None)
@@ -135,7 +135,7 @@ class TrainingProcessRunner:
                 "momentum to be saved in the checkpoint."
             )
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def start_training(self, configuration: dict[str, Any]) -> None:
         dataset_label = self.data_serializer.normalize_dataset_label(
             configuration.get("dataset_label")
@@ -205,7 +205,7 @@ class TrainingProcessRunner:
             checkpoint_path, history, configuration, metadata
         )
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def resume_training(self, checkpoint: str, additional_epochs: int) -> None:
         (
             model,
@@ -292,6 +292,7 @@ class TrainingProcessRunner:
         )
 
 
+###############################################################################
 def run_training_process(
     configuration: dict[str, Any] | None,
     checkpoint: str | None = None,
@@ -329,15 +330,16 @@ def run_training_process(
     except Exception as exc:  # noqa: BLE001
         put_worker_result(result_queue, {"error": str(exc)})
 
-
 ###############################################################################
 class TrainingManager:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.state = TrainingState()
         self.data_serializer = TrainingDataSerializer()
         self.model_serializer = ModelSerializer()
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def build_history_entries(self, session: dict[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(session, dict):
             return []
@@ -364,7 +366,7 @@ class TrainingManager:
             entries.append(entry)
         return entries
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def extract_last_metrics(
         self, history_entries: list[dict[str, Any]]
     ) -> dict[str, float]:
@@ -379,7 +381,7 @@ class TrainingManager:
                 metrics[key] = float(value)
         return metrics
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def handle_process_message(self, job_id: str, message: dict[str, Any]) -> None:
         if job_id != self.state.session_id:
             return
@@ -456,7 +458,7 @@ class TrainingManager:
                 self.state.update(last_error=str(error_text))
                 self.state.add_log(f"Training error: {error_text}")
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def handle_job_completion(
         self,
         job_id: str,
@@ -483,7 +485,7 @@ class TrainingManager:
             completion_payload["progress"] = 100.0
         self.state.update(**completion_payload)
 
-    # ---------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _on_epoch_end(
         self, epoch: int, total_epochs: int, logs: dict[str, Any]
     ) -> None:

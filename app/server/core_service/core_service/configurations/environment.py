@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 from core_service.common.utils.logger import logger
 from shared.common.paths import ENV_FILE
 
-
 ###############################################################################
 def load_environment(
     env_path: str | Path | None = None,
@@ -24,7 +23,6 @@ def load_environment(
 
     load_dotenv(dotenv_path=resolved_path, override=True)
     return resolved_path
-
 
 ###############################################################################
 def reset_environment_for_tests(keys: Iterable[str]) -> None:

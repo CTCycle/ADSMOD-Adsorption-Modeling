@@ -4,21 +4,29 @@ from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.domain.training import TrainingMetadata
 
 
+###############################################################################
 class StubTrainingQueries:
+
+    # -------------------------------------------------------------------------
     def __init__(self, captured: dict[str, pd.DataFrame]) -> None:
         self.captured = captured
 
+    # -------------------------------------------------------------------------
     def load_training_dataset(self, limit=None):  # noqa: ANN001
         return pd.DataFrame()
 
+    # -------------------------------------------------------------------------
     def save_training_dataset(self, dataset):  # noqa: ANN001
         self.captured["saved"] = dataset.copy()
 
+    # -------------------------------------------------------------------------
     def upsert_training_dataset(self, dataset):  # noqa: ANN001
         self.captured["upsert"] = dataset.copy()
 
 
 # Helper to create a basis metadata object
+
+###############################################################################
 def create_basis_metadata(**kwargs):
     defaults = {
         "sample_size": 1.0,
@@ -36,6 +44,7 @@ def create_basis_metadata(**kwargs):
     return TrainingMetadata(**defaults)
 
 
+###############################################################################
 def test_validate_metadata_identical():
     """Verify that two identical metadata objects pass validation."""
     meta1 = create_basis_metadata()
@@ -43,6 +52,7 @@ def test_validate_metadata_identical():
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is True
 
 
+###############################################################################
 def test_validate_metadata_param_mismatch():
     """Verify that a scalar parameter mismatch causes validation failure."""
     meta1 = create_basis_metadata(sample_size=1.0)
@@ -50,6 +60,7 @@ def test_validate_metadata_param_mismatch():
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
 
+###############################################################################
 def test_validate_metadata_vocab_key_mismatch():
     """Verify that different vocabulary keys cause failure."""
     meta1 = create_basis_metadata(smile_vocabulary={"A": 1})
@@ -57,6 +68,7 @@ def test_validate_metadata_vocab_key_mismatch():
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
 
+###############################################################################
 def test_validate_metadata_vocab_index_mismatch():
     """Verify that different vocabulary INDICES for same keys cause failure (strict check)."""
     meta1 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
@@ -64,6 +76,7 @@ def test_validate_metadata_vocab_index_mismatch():
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
 
+###############################################################################
 def test_validate_metadata_vocab_empty_vs_none():
     """Verify that empty vocabulary behaves consistently vs None (Pydantic usually handles None as defaults)."""
     meta1 = create_basis_metadata(smile_vocabulary={})
@@ -72,6 +85,7 @@ def test_validate_metadata_vocab_empty_vs_none():
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is True
 
 
+###############################################################################
 def test_validate_metadata_normalization_stats():
     """Verify that normalization stats differences cause failure."""
     meta1 = create_basis_metadata(normalization_stats={"mean": 0.0})
@@ -79,6 +93,7 @@ def test_validate_metadata_normalization_stats():
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
 
+###############################################################################
 def test_compute_metadata_hash_determinism():
     """Verify that hash computation is deterministic (order independent for dicts)."""
     meta1 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
@@ -92,6 +107,7 @@ def test_compute_metadata_hash_determinism():
     assert hash1 == hash2
 
 
+###############################################################################
 def test_save_training_dataset_deduplicates_sample_keys():
     captured: dict[str, pd.DataFrame] = {}
     serializer = TrainingDataSerializer(queries=StubTrainingQueries(captured))

@@ -12,7 +12,6 @@ MAX_COLUMN_NAME_LENGTH = 128
 MAX_DATASET_NAME_LENGTH = 128
 MAX_FITTING_ITERATIONS = 1_000_000
 
-
 ###############################################################################
 class DatasetPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -60,14 +59,12 @@ class DatasetPayload(BaseModel):
                     )
         return records
 
-
 ###############################################################################
 class ModelParameterConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     min: dict[str, float] = Field(default_factory=dict)
     max: dict[str, float] = Field(default_factory=dict)
     initial: dict[str, float] = Field(default_factory=dict)
-
 
 ###############################################################################
 class FittingRequest(BaseModel):
@@ -83,7 +80,6 @@ class FittingRequest(BaseModel):
     parameter_bounds: dict[str, ModelParameterConfig] = Field(default_factory=dict, max_length=32)
     dataset: DatasetPayload
 
-
 ###############################################################################
 class FittingResponse(BaseModel):
     status: str = Field(default="success")
@@ -93,14 +89,12 @@ class FittingResponse(BaseModel):
     best_model_saved: bool
     best_model_preview: list[dict[str, Any]] | None = None
 
-
 ###############################################################################
 class NISTFittingDatasetPayload(BaseModel):
     dataset_name: str
     columns: list[str]
     records: list[dict[str, Any]]
     row_count: int
-
 
 ###############################################################################
 class NISTFittingDatasetResponse(BaseModel):

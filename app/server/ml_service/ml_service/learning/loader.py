@@ -14,8 +14,11 @@ from ml_service.services.data.sanitizer import AggregateDatasets
 
 
 # [CUSTOM DATASET FOR TORCH DATALOADERS]
+
 ###############################################################################
 class TorchDictDataset(Dataset):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         inputs: dict[str, np.ndarray],
@@ -42,8 +45,11 @@ class TorchDictDataset(Dataset):
 
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]
+
 ###############################################################################
 class DataLoaderProcessor:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], metadata: dict) -> None:
         self.normalization_config = metadata.get("normalization_stats", {})
         self.series_length = metadata.get("max_measurements", 30)
@@ -181,9 +187,10 @@ class DataLoaderProcessor:
             padded[idx, :length] = array[:length]
         return padded.tolist()
 
-
 ###############################################################################
 class SCADSDataLoader:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         configuration: dict[str, Any],
@@ -303,9 +310,10 @@ class SCADSDataLoader:
 
         return DataLoader(dataset, **loader_settings)
 
-
-################################################################################
+###############################################################################
 class SCADSAtomicDataLoader:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         configuration: dict[str, Any],

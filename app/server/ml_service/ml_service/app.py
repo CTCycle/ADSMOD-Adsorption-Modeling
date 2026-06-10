@@ -24,6 +24,7 @@ from ml_service.services.container import MlServiceContainer
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+###############################################################################
 def create_app(container: MlServiceContainer | None = None) -> FastAPI:
     application = FastAPI(
         title=f"{FASTAPI_TITLE} ML Service",

@@ -42,7 +42,6 @@ from core_service.services.job_responses import JobResponseFactory
 from core_service.services.jobs import JobManager
 from core_service.configurations import get_server_settings
 
-
 ###############################################################################
 class NistEndpoint:
     JOB_TYPE_FETCH = "nist_fetch"
@@ -51,6 +50,7 @@ class NistEndpoint:
     CATEGORY_FETCH_SUFFIX = "fetch"
     CATEGORY_ENRICH_SUFFIX = "enrich"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         router: APIRouter,
@@ -418,7 +418,6 @@ class NistEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def create_nist_router(container: CoreServiceContainer) -> APIRouter:

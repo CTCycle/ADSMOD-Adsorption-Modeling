@@ -51,7 +51,6 @@ from shared.repositories.schemas.models import (
     Dataset,
 )
 
-
 ###############################################################################
 class DataSerializer:
     raw_table = "adsorption_data"
@@ -64,6 +63,7 @@ class DataSerializer:
 
     table_aliases: dict[str, str] = {}
 
+    # -------------------------------------------------------------------------
     def __init__(self, queries: DataRepositoryQueries | None = None) -> None:
         self.queries = queries or DataRepositoryQueries()
         self.engine = database.backend.engine

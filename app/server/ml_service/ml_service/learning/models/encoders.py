@@ -10,9 +10,12 @@ from ml_service.learning.models.transformers import AddNorm, FeedForward
 
 
 # [STATE ENCODER]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(package="Encoders", name="StateEncoder")
 class StateEncoder(keras.layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(self, dropout_rate: float = 0.2, seed: int = 42, **kwargs) -> None:
         super().__init__(**kwargs)
         self.dropout_rate = dropout_rate
@@ -47,17 +50,21 @@ class StateEncoder(keras.layers.Layer):
         config.update({"dropout_rate": self.dropout_rate, "seed": self.seed})
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls: type[StateEncoder], config: dict[str, Any]) -> StateEncoder:
         return cls(**config)
 
 
 # [PRESSURE SERIES ENCODER]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(
     package="Encoders", name="PressureSerierEncoder"
 )
 class PressureSerierEncoder(keras.layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         embedding_dims: int,
@@ -141,6 +148,7 @@ class PressureSerierEncoder(keras.layers.Layer):
         )
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[PressureSerierEncoder], config: dict[str, Any]
@@ -149,9 +157,12 @@ class PressureSerierEncoder(keras.layers.Layer):
 
 
 # [UPTAKE DECODER]
+
 ###############################################################################
 @keras.saving.register_keras_serializable(package="Decoders", name="QDecoder")
 class QDecoder(keras.layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         embedding_dims: int = 128,
@@ -222,6 +233,7 @@ class QDecoder(keras.layers.Layer):
         )
         return config
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls: type[QDecoder], config: dict[str, Any]) -> QDecoder:
         return cls(**config)

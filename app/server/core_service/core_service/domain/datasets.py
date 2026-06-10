@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from core_service.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
 from core_service.domain.fitting import DatasetPayload
 
-
 ###############################################################################
 @dataclass
 class DatasetColumns:
@@ -26,13 +25,11 @@ class DatasetColumns:
             "uptake": self.uptake,
         }
 
-
 ###############################################################################
 class DatasetLoadResponse(BaseModel):
     status: str = Field(default="success")
     summary: str
     dataset: DatasetPayload | dict[str, Any] | None = None
-
 
 ###############################################################################
 class DatasetNamesResponse(BaseModel):

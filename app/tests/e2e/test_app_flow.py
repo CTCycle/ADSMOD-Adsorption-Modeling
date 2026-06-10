@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
-
 ###############################################################################
 class TestHomepage:
     """Tests for the main application homepage."""
@@ -28,7 +27,6 @@ class TestHomepage:
         header = page.locator(".app-header h1")
         expect(header).to_be_visible()
         expect(header).to_have_text("ADSMOD")
-
 
 ###############################################################################
 class TestHeaderNavigation:
@@ -70,7 +68,6 @@ class TestHeaderNavigation:
         training_section = page.locator("section:not([hidden]) .ml-page")
         expect(training_section).to_be_visible()
 
-
 ###############################################################################
 class TestConfigPage:
     """Tests for the Fitting Configuration page elements."""
@@ -94,7 +91,6 @@ class TestConfigPage:
         # Assert
         upload_input = page.locator("input[type='file']").first
         expect(upload_input).to_be_attached()
-
 
 ###############################################################################
 class TestModelsPage:

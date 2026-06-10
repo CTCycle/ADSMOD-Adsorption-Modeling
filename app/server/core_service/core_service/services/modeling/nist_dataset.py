@@ -15,9 +15,9 @@ from core_service.services.data.conversion import (
     UptakeConversion,
 )
 
-
 ###############################################################################
 class FittingNISTDatasetService:
+
     # -------------------------------------------------------------------------
     @staticmethod
     def normalize_uptake_to_mol_g(

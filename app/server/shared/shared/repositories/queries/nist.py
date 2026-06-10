@@ -20,7 +20,6 @@ from shared.repositories.schemas.models import (
     Dataset,
 )
 
-
 ###############################################################################
 class NISTDataSerializer:
     SINGLE_COMPONENT_UNIQUE_COLUMNS = [
@@ -31,6 +30,7 @@ class NISTDataSerializer:
         "adsorbed_amount",
     ]
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.engine = database.backend.engine
         self.session_factory = sessionmaker(bind=self.engine, future=True)

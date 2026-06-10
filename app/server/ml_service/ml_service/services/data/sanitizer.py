@@ -9,9 +9,10 @@ from sklearn.preprocessing import LabelEncoder
 
 from ml_service.common.utils.logger import logger
 
-
 ###############################################################################
 class AggregateDatasets:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.guest_properties = [
             "name",
@@ -65,9 +66,10 @@ class AggregateDatasets:
 
         return grouped_data
 
-
 ###############################################################################
 class DataSanitizer:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.separator = " "
         self.P_TARGET_COL = "pressure"
@@ -134,9 +136,10 @@ class DataSanitizer:
         dataset = dataset.dropna().reset_index(drop=True)
         return dataset
 
-
 ###############################################################################
 class AdsorbentEncoder:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, configuration: dict[str, Any], train_dataset: pd.DataFrame
     ) -> None:
@@ -173,9 +176,10 @@ class AdsorbentEncoder:
 
         return dataset, mapping
 
-
 ###############################################################################
 class FeatureNormalizer:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         configuration: dict[str, Any],
@@ -230,9 +234,10 @@ class FeatureNormalizer:
 
         return dataset
 
-
 ###############################################################################
 class TrainValidationSplit:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.P_COL = "pressure"
         self.Q_COL = "adsorbed_amount"

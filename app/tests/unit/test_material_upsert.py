@@ -14,7 +14,6 @@ from sqlalchemy.pool import StaticPool
 from shared.repositories.database.upsert import resolve_conflict_columns
 from shared.repositories.schemas.models import Adsorbate, Base
 
-
 ###############################################################################
 def configure_sqlite_connection(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
     cursor = dbapi_connection.cursor()
@@ -23,7 +22,6 @@ def configure_sqlite_connection(dbapi_connection, connection_record) -> None:  #
         cursor.execute("PRAGMA busy_timeout=30000")
     finally:
         cursor.close()
-
 
 ###############################################################################
 def run_concurrent_upsert(
@@ -34,7 +32,6 @@ def run_concurrent_upsert(
 ) -> None:
     barrier.wait()
     run_upsert_with_retry(engine, payload, conflict_columns)
-
 
 ###############################################################################
 def run_upsert_with_retry(
@@ -53,7 +50,6 @@ def run_upsert_with_retry(
             if attempts > retries:
                 raise
 
-
 ###############################################################################
 def build_sqlite_engine() -> sqlalchemy.Engine:
     engine = sqlalchemy.create_engine(
@@ -65,7 +61,6 @@ def build_sqlite_engine() -> sqlalchemy.Engine:
     event.listen(engine, "connect", configure_sqlite_connection)
     Base.metadata.create_all(engine)
     return engine
-
 
 ###############################################################################
 def upsert_adsorbate(
@@ -86,7 +81,6 @@ def upsert_adsorbate(
         )
         session.execute(statement)
         session.commit()
-
 
 ###############################################################################
 def test_wrong_conflict_target_can_raise_duplicate_adsorbate_key() -> None:
@@ -120,7 +114,6 @@ def test_wrong_conflict_target_can_raise_duplicate_adsorbate_key() -> None:
             session.commit()
 
     engine.dispose()
-
 
 ###############################################################################
 def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
@@ -158,7 +151,6 @@ def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
         assert rows[0].molecular_formula == "C2H6"
 
     engine.dispose()
-
 
 ###############################################################################
 def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:

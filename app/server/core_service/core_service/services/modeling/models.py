@@ -6,9 +6,10 @@ import numpy as np
 
 from core_service.common.constants import FITTING_MODEL_NAMES
 
-
 ###############################################################################
 class AdsorptionModels:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.model_names = list(FITTING_MODEL_NAMES)
         self.models = {

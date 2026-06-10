@@ -11,7 +11,6 @@ from ml_service.domain.training import TrainingMetadata
 from shared.common.utils.logger import logger
 from shared.repositories.queries.training import TrainingRepositoryQueries
 
-
 ###############################################################################
 class TrainingDataSerializer:
     dataset_table = "training_dataset"
@@ -23,6 +22,7 @@ class TrainingDataSerializer:
     training_hash_column = "training_hashcode"
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
+    # -------------------------------------------------------------------------
     def __init__(self, queries: TrainingRepositoryQueries | None = None) -> None:
         self.queries = queries or TrainingRepositoryQueries()
 

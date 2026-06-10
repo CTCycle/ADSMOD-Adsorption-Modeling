@@ -12,7 +12,6 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 
-
 ###############################################################################
 @dataclass
 class JobState:
@@ -48,7 +47,6 @@ class JobState:
                 "completed_at": self.completed_at,
             }
 
-
 ###############################################################################
 @dataclass
 class JobExecutionConfig:
@@ -59,7 +57,6 @@ class JobExecutionConfig:
         Callable[[str, str, dict[str, Any] | None, str | None], None] | None
     ) = None
 
-
 ###############################################################################
 @dataclass
 class ProcessJobState:
@@ -69,7 +66,6 @@ class ProcessJobState:
     message_queue: multiprocessing.Queue
     created_at: float = field(default_factory=monotonic)
 
-
 ###############################################################################
 class JobStartResponse(BaseModel):
     job_id: str
@@ -77,7 +73,6 @@ class JobStartResponse(BaseModel):
     status: str
     message: str
     poll_interval: float | None = None
-
 
 ###############################################################################
 class JobStatusResponse(BaseModel):
@@ -89,17 +84,14 @@ class JobStatusResponse(BaseModel):
     error: str | None = None
     poll_interval: float | None = None
 
-
 ###############################################################################
 class JobListResponse(BaseModel):
     jobs: list[JobStatusResponse]
-
 
 ###############################################################################
 class JobCancelResponse(BaseModel):
     status: str
     job_id: str
-
 
 ###############################################################################
 class StatusMessageResponse(BaseModel):

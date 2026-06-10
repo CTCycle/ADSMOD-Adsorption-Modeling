@@ -14,7 +14,6 @@ from shared.repositories.database.sqlite import SQLiteRepository
 from shared.repositories.database.utils import normalize_postgres_engine
 from shared.common.utils.logger import logger
 
-
 ###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {
@@ -27,7 +26,6 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
             connect_args["sslrootcert"] = settings.ssl_ca
     return connect_args
 
-
 ###############################################################################
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     port = settings.port or 5432
@@ -38,7 +36,6 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
         f"{engine_name}://{safe_username}:{safe_password}"
         f"@{settings.host}:{port}/{database_name}"
     )
-
 
 ###############################################################################
 def clone_settings_with_database(
@@ -58,12 +55,10 @@ def clone_settings_with_database(
         insert_batch_size=settings.insert_batch_size,
     )
 
-
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings, initialize_schema=True)
     logger.info("Initialized SQLite database schema at %s", repository.db_path)
-
 
 ###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
@@ -104,8 +99,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
     return target_database
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def run_database_initialization() -> None:
     settings = get_server_settings().database
     if settings.embedded_database:
@@ -123,8 +117,7 @@ def run_database_initialization() -> None:
 
     ensure_postgres_database(settings)
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def initialize_database() -> None:
     try:
         run_database_initialization()

@@ -7,9 +7,10 @@ from dotenv import load_dotenv
 from shared.common.paths import ENV_FILE
 from shared.common.utils.logger import logger
 
-
 ###############################################################################
 class EnvironmentVariables:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.env_path = ENV_FILE
         if self.env_path.exists():
