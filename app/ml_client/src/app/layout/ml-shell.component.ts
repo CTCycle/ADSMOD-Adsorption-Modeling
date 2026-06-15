@@ -5,6 +5,12 @@ import { RouterOutlet } from '@angular/router';
     selector: 'adsmod-ml-shell',
     standalone: true,
     imports: [RouterOutlet],
-    template: '<router-outlet />',
+    template: `
+        <div class="app-container">
+            <main class="app-main">
+                <router-outlet />
+            </main>
+        </div>
+    `,
 })
 export class MlShellComponent {}

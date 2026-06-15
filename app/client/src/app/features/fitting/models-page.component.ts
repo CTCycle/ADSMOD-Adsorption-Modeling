@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { ADSORPTION_MODELS } from '../../core/constants/adsorption-models';
 import { CoreWorkspaceStore, OptimizationMethod } from '../../core/state/core-workspace.store';
+import { HeaderTabsComponent } from '../../layout/header-tabs.component';
 import type { ModelParameters } from '../../models/fitting.model';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { ModelCardComponent } from './model-card.component';
@@ -26,100 +27,118 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
 @Component({
     selector: 'adsmod-models-page',
     standalone: true,
-    imports: [ModelCardComponent, NumberInputComponent],
+    imports: [ModelCardComponent, NumberInputComponent, HeaderTabsComponent],
     template: `
-        <div class="models-page">
-            <div class="fitting-config-panel">
-                <div class="models-header-row">
-                    <div class="models-title-block">
-                        <h3>Fitting Configuration</h3>
-                        <p>Configure the optimizer and run the fit.</p>
-                    </div>
+        <div class="route-workspace route-workspace-fitting">
+            <aside class="route-rail route-rail-fitting" aria-label="Fitting overview">
+                <div class="route-rail-brand">
+                    <div class="route-rail-logo" aria-hidden="true">AD</div>
+                    <div class="route-rail-wordmark">ADSMOD</div>
+                </div>
+                <div class="route-rail-copy">
+                    <h1>Fitting</h1>
+                    <p>Configure the optimizer and run the fit.</p>
+                </div>
+            </aside>
+
+            <section class="route-canvas route-canvas-fitting">
+                <div class="route-tabs-row">
+                    <adsmod-header-tabs />
                 </div>
 
-                <div class="fitting-main-layout">
-                    <div class="fitting-controls-column">
-                        <div class="fitting-controls-row">
-                            <div class="control-group">
-                                <label class="field-label">Dataset</label>
-                                <div class="fitting-dataset-row">
-                                    <select
-                                        [value]="store.selectedDataset() || ''"
-                                        (change)="selectDataset($event)"
-                                        class="select-input fitting-dataset-select"
-                                    >
-                                        <option value="">{{ store.availableDatasets().length === 0 ? 'No datasets available' : 'Select a dataset' }}</option>
-                                        <option [value]="store.nistDatasetOption">NIST-A Collection</option>
-                                        @for (datasetName of store.availableDatasets(); track datasetName) {
-                                            <option [value]="datasetName">{{ datasetName }}</option>
-                                        }
-                                    </select>
+                <div class="models-page">
+                    <div class="fitting-config-panel">
+                        <div class="models-header-row">
+                            <div class="models-title-block">
+                                <h3>Fitting Configuration</h3>
+                            </div>
+                        </div>
+
+                        <div class="fitting-main-layout">
+                            <div class="fitting-controls-column">
+                                <div class="fitting-controls-row">
+                                    <div class="control-group">
+                                        <label class="field-label">Dataset</label>
+                                        <div class="fitting-dataset-row">
+                                            <select
+                                                [value]="store.selectedDataset() || ''"
+                                                (change)="selectDataset($event)"
+                                                class="select-input fitting-dataset-select"
+                                            >
+                                                <option value="">{{ store.availableDatasets().length === 0 ? 'No datasets available' : 'Select a dataset' }}</option>
+                                                <option [value]="store.nistDatasetOption">NIST-A Collection</option>
+                                                @for (datasetName of store.availableDatasets(); track datasetName) {
+                                                    <option [value]="datasetName">{{ datasetName }}</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="control-group">
+                                        <adsmod-number-input
+                                            label="Max iterations"
+                                            [value]="store.maxIterations()"
+                                            [min]="1"
+                                            [max]="1000000"
+                                            [step]="1"
+                                            [precision]="0"
+                                            (valueChange)="store.setMaxIterations($event)"
+                                        />
+                                    </div>
+                                    <div class="control-group">
+                                        <label class="field-label">Optimization method</label>
+                                        <select
+                                            [value]="store.optimizationMethod()"
+                                            (change)="selectOptimizer($event)"
+                                            class="select-input"
+                                        >
+                                            @for (option of optimizationOptions; track option.value) {
+                                                <option [value]="option.value">{{ option.label }}</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="control-group">
+                                        <div class="fitting-action-buttons">
+                                            <button class="primary fitting-action-primary" type="button" (click)="startFitting()">
+                                                Start Fitting
+                                            </button>
+                                            <button class="secondary fitting-action-secondary" type="button" (click)="store.resetFittingStatus()">
+                                                Reset Log
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="control-group">
-                                <adsmod-number-input
-                                    label="Max iterations"
-                                    [value]="store.maxIterations()"
-                                    [min]="1"
-                                    [max]="1000000"
-                                    [step]="1"
-                                    [precision]="0"
-                                    (valueChange)="store.setMaxIterations($event)"
-                                />
-                            </div>
-                            <div class="control-group">
-                                <label class="field-label">Optimization method</label>
-                                <select
-                                    [value]="store.optimizationMethod()"
-                                    (change)="selectOptimizer($event)"
-                                    class="select-input"
-                                >
-                                    @for (option of optimizationOptions; track option.value) {
-                                        <option [value]="option.value">{{ option.label }}</option>
-                                    }
-                                </select>
-                            </div>
-                            <div class="control-group">
-                                <div class="fitting-action-buttons">
-                                    <button class="primary fitting-action-primary" type="button" (click)="startFitting()">
-                                        Start Fitting
-                                    </button>
-                                    <button class="secondary fitting-action-secondary" type="button" (click)="store.resetFittingStatus()">
-                                        Reset Log
-                                    </button>
+
+                            <div class="fitting-status-column">
+                                <div class="fitting-status-box">
+                                    <div class="status-label">Fitting Log:</div>
+                                    <pre class="status-text">{{ store.fittingStatus() || 'Ready to start...' }}</pre>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="fitting-status-column">
-                        <div class="fitting-status-box">
-                            <div class="status-label">Fitting Log:</div>
-                            <pre class="status-text">{{ store.fittingStatus() || 'Ready to start...' }}</pre>
-                        </div>
+                    <hr class="section-separator" />
+
+                    <div class="models-grid-header">
+                        <h3>Select Adsorption Models</h3>
+                    </div>
+
+                    <div class="models-grid">
+                        @for (model of models; track model.id) {
+                            <adsmod-model-card
+                                [model]="model"
+                                [isExpanded]="expandedModel() === model.id"
+                                [isEnabled]="store.modelStates()[model.name].enabled"
+                                [currentConfig]="store.modelStates()[model.name].config"
+                                (toggle)="toggleExpanded($event)"
+                                (enabledChange)="store.setModelEnabled(model.name, $event)"
+                                (configChange)="updateModelConfig(model.name, $event)"
+                            />
+                        }
                     </div>
                 </div>
-            </div>
-
-            <hr class="section-separator" />
-
-            <div class="models-grid-header">
-                <h3>Select Adsorption Models</h3>
-            </div>
-
-            <div class="models-grid">
-                @for (model of models; track model.id) {
-                    <adsmod-model-card
-                        [model]="model"
-                        [isExpanded]="expandedModel() === model.id"
-                        [isEnabled]="store.modelStates()[model.name].enabled"
-                        [currentConfig]="store.modelStates()[model.name].config"
-                        (toggle)="toggleExpanded($event)"
-                        (enabledChange)="store.setModelEnabled(model.name, $event)"
-                        (configChange)="updateModelConfig(model.name, $event)"
-                    />
-                }
-            </div>
+            </section>
         </div>
     `,
 })
