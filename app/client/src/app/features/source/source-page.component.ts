@@ -2,17 +2,33 @@ import { Component, inject } from '@angular/core';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import { FileUploadComponent } from '../../shared/components/file-upload/file-upload.component';
 import { MarkdownRendererComponent } from '../../shared/components/markdown-renderer/markdown-renderer.component';
+import { HeaderTabsComponent } from '../../layout/header-tabs.component';
 import { NistCollectionRowsComponent } from './nist-collection-rows.component';
 
 @Component({
     selector: 'adsmod-source-page',
     standalone: true,
-    imports: [FileUploadComponent, MarkdownRendererComponent, NistCollectionRowsComponent],
+    imports: [FileUploadComponent, MarkdownRendererComponent, NistCollectionRowsComponent, HeaderTabsComponent],
     template: `
-        <div class="source-page">
-            <div class="source-columns">
-                <section class="source-column" aria-label="Dataset source section">
-                    <div class="source-column-row source-column-header">
+        <div class="route-workspace route-workspace-source">
+            <aside class="route-rail route-rail-source" aria-label="Source overview">
+                <div class="route-rail-brand">
+                    <div class="route-rail-logo" aria-hidden="true">AD</div>
+                    <div class="route-rail-wordmark">ADSMOD</div>
+                </div>
+                <div class="route-rail-copy">
+                    <h1>Source</h1>
+                    <p>Prepare and manage experimental datasets.</p>
+                </div>
+            </aside>
+
+            <section class="route-canvas route-canvas-source">
+                <div class="route-tabs-row">
+                    <adsmod-header-tabs />
+                </div>
+
+                <div class="source-card-grid">
+                    <section class="source-card source-card-primary" aria-label="Dataset source section">
                         <div class="section-title">Load Experimental Data</div>
                         <div class="section-caption">
                             Upload adsorption data from local CSV or Excel files.
@@ -24,9 +40,7 @@ import { NistCollectionRowsComponent } from './nist-collection-rows.component';
                             <span class="inline-pill">{{ datasetBadge }}</span>
                             <span class="inline-pill">{{ sampleBadge }}</span>
                         </div>
-                    </div>
 
-                    <div class="source-column-row source-column-widget">
                         <div class="dataset-upload-toolbar">
                             <adsmod-file-upload
                                 label="Load dataset"
@@ -48,39 +62,38 @@ import { NistCollectionRowsComponent } from './nist-collection-rows.component';
                             <span class="inline-pill">Dataset: {{ datasetDisplayName }}</span>
                             <span class="inline-pill">Size: {{ datasetDisplaySize }}</span>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="source-column-row source-column-log">
+                    <section class="source-card source-card-secondary" aria-label="NIST source section">
+                        <div class="source-card-topline">
+                            <div>
+                                <div class="section-title">NIST-A Collection</div>
+                                <div class="section-caption">
+                                    Fetch NIST-A records into the local database using sampling fractions.
+                                </div>
+                                <div class="section-caption section-caption-journey">
+                                    Use NIST data to benchmark coverage before moving to fitting and training.
+                                </div>
+                            </div>
+                        </div>
+                        <adsmod-nist-collection-rows (statusUpdate)="store.setNistStatusMessage($event)" />
+                    </section>
+
+                    <section class="source-card source-card-tertiary" aria-label="Uploaded dataset statistics">
                         <div class="panel-title">Uploaded Data Statistics</div>
-                        <div class="source-markdown-scroll markdown-content compact-stats">
+                        <div class="source-card-text">
                             <adsmod-markdown-renderer [content]="store.datasetStats()" />
                         </div>
-                    </div>
-                </section>
+                    </section>
 
-                <section class="source-column" aria-label="NIST source section">
-                    <div class="source-column-row source-column-header">
-                        <div class="section-title">NIST-A Collection</div>
-                        <div class="section-caption">
-                            Fetch NIST-A records into the local database using sampling fractions.
-                        </div>
-                        <div class="section-caption section-caption-journey">
-                            Use NIST data to benchmark coverage before moving to fitting and training.
-                        </div>
-                    </div>
-
-                    <div class="source-column-row source-column-widget">
-                        <adsmod-nist-collection-rows (statusUpdate)="store.setNistStatusMessage($event)" />
-                    </div>
-
-                    <div class="source-column-row source-column-log">
+                    <section class="source-card source-card-tertiary" aria-label="NIST status updates">
                         <div class="panel-title">NIST-A Status Updates</div>
-                        <div class="source-markdown-scroll markdown-content">
+                        <div class="source-card-text">
                             <adsmod-markdown-renderer [content]="store.nistStatusMessage()" />
                         </div>
-                    </div>
-                </section>
-            </div>
+                    </section>
+                </div>
+            </section>
         </div>
     `,
 })

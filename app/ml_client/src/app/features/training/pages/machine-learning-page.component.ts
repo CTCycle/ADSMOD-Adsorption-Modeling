@@ -52,49 +52,55 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
         TrainingHistoryChartPanelComponent,
     ],
     template: `
-        <main class="training-workspace">
-            <section class="training-view-toolbar" aria-label="Training views">
-                @for (view of views; track view.id) {
-                    <a class="training-view-tab" [routerLink]="['/training', view.id]" routerLinkActive="active">
-                        <span class="training-view-tab-icon" aria-hidden="true">
-                            @switch (view.id) {
-                                @case ('processing') {
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                        <polyline points="7 10 12 15 17 10" />
-                                        <line x1="12" y1="15" x2="12" y2="3" />
-                                    </svg>
+        <main class="route-workspace route-workspace-training">
+            <section class="route-rail route-rail-training training-rail" aria-label="Training workspace navigation">
+                <div class="route-rail-brand">
+                    <div class="route-rail-logo" aria-hidden="true">AD</div>
+                    <div class="route-rail-wordmark">ADSMOD</div>
+                </div>
+                <nav class="training-view-toolbar" aria-label="Training views">
+                    @for (view of views; track view.id) {
+                        <a class="training-view-tab" [routerLink]="['/training', view.id]" routerLinkActive="active">
+                            <span class="training-view-tab-icon" aria-hidden="true">
+                                @switch (view.id) {
+                                    @case ('processing') {
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7 10 12 15 17 10" />
+                                            <line x1="12" y1="15" x2="12" y2="3" />
+                                        </svg>
+                                    }
+                                    @case ('datasets') {
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="3" y="4" width="18" height="6" rx="1" />
+                                            <rect x="3" y="14" width="18" height="6" rx="1" />
+                                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                                            <line x1="7" y1="17" x2="7.01" y2="17" />
+                                        </svg>
+                                    }
+                                    @case ('checkpoints') {
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="4" y="4" width="16" height="16" rx="2" />
+                                            <path d="M8 9h8" />
+                                            <path d="M8 13h8" />
+                                            <path d="M8 17h5" />
+                                        </svg>
+                                    }
+                                    @case ('dashboard') {
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 3v18h18" />
+                                            <path d="M19 9l-5 5-4-4-3 3" />
+                                        </svg>
+                                    }
                                 }
-                                @case ('datasets') {
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="3" y="4" width="18" height="6" rx="1" />
-                                        <rect x="3" y="14" width="18" height="6" rx="1" />
-                                        <line x1="7" y1="7" x2="7.01" y2="7" />
-                                        <line x1="7" y1="17" x2="7.01" y2="17" />
-                                    </svg>
-                                }
-                                @case ('checkpoints') {
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="4" y="4" width="16" height="16" rx="2" />
-                                        <path d="M8 9h8" />
-                                        <path d="M8 13h8" />
-                                        <path d="M8 17h5" />
-                                    </svg>
-                                }
-                                @case ('dashboard') {
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M3 3v18h18" />
-                                        <path d="M19 9l-5 5-4-4-3 3" />
-                                    </svg>
-                                }
-                            }
-                        </span>
-                        <span class="training-view-tab-label">{{ view.label }}</span>
-                    </a>
-                }
+                            </span>
+                            <span class="training-view-tab-label">{{ view.label }}</span>
+                        </a>
+                    }
+                </nav>
             </section>
 
-            <section class="training-view-panel">
+            <section class="route-canvas route-canvas-training training-view-panel">
                 <div class="training-view-description">
                     <h2>{{ activeView().label }}</h2>
                     <p>{{ activeView().description }}</p>
