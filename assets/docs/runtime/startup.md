@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-06-05
+Last updated: 2026-06-16
 
 ## Recommended Local Web Startup
 
@@ -22,6 +22,9 @@ This menu-driven script:
 - syncs backend workspace dependencies into `app/server/.venv`
 - installs frontend dependencies when needed
 - exposes launch choices for core frontend + core service, ML frontend + ML service, or both stacks
+- exits after handing launch control to the selected stack instead of returning to the menu
+- starts frontend dev servers in the background and opens the browser after the selected UI responds
+- respects `UI_PORT` and `ML_UI_PORT` overrides from `settings/.env` when launching frontend dev servers
 
 ## Setup And Maintenance
 
