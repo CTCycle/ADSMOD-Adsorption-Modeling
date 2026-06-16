@@ -64,17 +64,17 @@ set "main_choice=%ERRORLEVEL%"
 
 if "%main_choice%"=="1" (
   call :launch_scope core
-  goto :main_menu
+  goto :exit
 )
 if "%main_choice%"=="2" (
   call :launch_scope ml
-  goto :main_menu
+  goto :exit
 )
 if "%main_choice%"=="3" (
   call :launch_scope both
-  goto :main_menu
+  goto :exit
 )
-if "%main_choice%"=="4" goto :exit
+if "%main_choice%"=="4" exit /b 0
 goto :main_menu
 
 :handle_cli
@@ -203,17 +203,16 @@ if /i "%scope%"=="core" (
   call :assert_port_available "%UI_PORT%" "Core UI"
   if errorlevel 1 goto :launch_failed
 
-  start "ADSMOD Core API" /D "%server_dir%" "%venv_python%" -m uvicorn core_service.app:app --host %CORE_SERVICE_HOST% --port %CORE_SERVICE_PORT%
-  start "ADSMOD Core UI" /D "%client_dir%" "%npm_cmd%" run dev
+  call :start_backend_process "ADSMOD Core API" "core_service.app:app" "%CORE_SERVICE_HOST%" "%CORE_SERVICE_PORT%"
+  call :start_hidden_frontend "%client_dir%" "Core UI" "%UI_HOST%" "%UI_PORT%"
   call :wait_for_port_ready "%CORE_SERVICE_PORT%" "Core API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :wait_for_port_ready "%UI_PORT%" "Core UI" "%startup_wait_seconds%"
+  call :wait_for_http_ready "http://%UI_HOST%:%UI_PORT%/" "Core UI" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
   call :maybe_open_browser "http://%UI_HOST%:%UI_PORT%"
   echo [SUCCESS] Core frontend and core service started.
   echo [INFO] Core API: http://%CORE_SERVICE_HOST%:%CORE_SERVICE_PORT%
   echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
-  call :maybe_pause
   exit /b 0
 )
 
@@ -223,17 +222,16 @@ if /i "%scope%"=="ml" (
   call :assert_port_available "%ML_UI_PORT%" "ML UI"
   if errorlevel 1 goto :launch_failed
 
-  start "ADSMOD ML API" /D "%server_dir%" "%venv_python%" -m uvicorn ml_service.app:app --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT%
-  start "ADSMOD ML UI" /D "%ml_client_dir%" "%npm_cmd%" run dev
+  call :start_backend_process "ADSMOD ML API" "ml_service.app:app" "%ML_SERVICE_HOST%" "%ML_SERVICE_PORT%"
+  call :start_hidden_frontend "%ml_client_dir%" "ML UI" "%ML_UI_HOST%" "%ML_UI_PORT%"
   call :wait_for_port_ready "%ML_SERVICE_PORT%" "ML API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :wait_for_port_ready "%ML_UI_PORT%" "ML UI" "%startup_wait_seconds%"
+  call :wait_for_http_ready "http://%ML_UI_HOST%:%ML_UI_PORT%/" "ML UI" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
   call :maybe_open_browser "http://%ML_UI_HOST%:%ML_UI_PORT%"
   echo [SUCCESS] ML frontend and ML service started.
   echo [INFO] ML API: http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
   echo [INFO] ML UI : http://%ML_UI_HOST%:%ML_UI_PORT%
-  call :maybe_pause
   exit /b 0
 )
 
@@ -247,17 +245,17 @@ if /i "%scope%"=="both" (
   call :assert_port_available "%ML_UI_PORT%" "ML UI"
   if errorlevel 1 goto :launch_failed
 
-  start "ADSMOD Core API" /D "%server_dir%" "%venv_python%" -m uvicorn core_service.app:app --host %CORE_SERVICE_HOST% --port %CORE_SERVICE_PORT%
-  start "ADSMOD ML API" /D "%server_dir%" "%venv_python%" -m uvicorn ml_service.app:app --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT%
-  start "ADSMOD Core UI" /D "%client_dir%" "%npm_cmd%" run dev
-  start "ADSMOD ML UI" /D "%ml_client_dir%" "%npm_cmd%" run dev
+  call :start_backend_process "ADSMOD Core API" "core_service.app:app" "%CORE_SERVICE_HOST%" "%CORE_SERVICE_PORT%"
+  call :start_backend_process "ADSMOD ML API" "ml_service.app:app" "%ML_SERVICE_HOST%" "%ML_SERVICE_PORT%"
+  call :start_hidden_frontend "%client_dir%" "Core UI" "%UI_HOST%" "%UI_PORT%"
+  call :start_hidden_frontend "%ml_client_dir%" "ML UI" "%ML_UI_HOST%" "%ML_UI_PORT%"
   call :wait_for_port_ready "%CORE_SERVICE_PORT%" "Core API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
   call :wait_for_port_ready "%ML_SERVICE_PORT%" "ML API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :wait_for_port_ready "%UI_PORT%" "Core UI" "%startup_wait_seconds%"
+  call :wait_for_http_ready "http://%UI_HOST%:%UI_PORT%/" "Core UI" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :wait_for_port_ready "%ML_UI_PORT%" "ML UI" "%startup_wait_seconds%"
+  call :wait_for_http_ready "http://%ML_UI_HOST%:%ML_UI_PORT%/" "ML UI" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
   call :maybe_open_browser "http://%UI_HOST%:%UI_PORT%"
   call :maybe_open_browser "http://%ML_UI_HOST%:%ML_UI_PORT%"
@@ -266,7 +264,6 @@ if /i "%scope%"=="both" (
   echo [INFO] ML API  : http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
   echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
   echo [INFO] ML UI   : http://%ML_UI_HOST%:%ML_UI_PORT%
-  call :maybe_pause
   exit /b 0
 )
 
@@ -704,6 +701,26 @@ if errorlevel 1 exit /b 0
 echo [ERROR] %target_name% port %target_port% is already in use.
 exit /b 1
 
+:start_backend_process
+set "backend_title=%~1"
+set "backend_module=%~2"
+set "backend_host=%~3"
+set "backend_port=%~4"
+start "%backend_title%" /D "%server_dir%" "%venv_python%" -m uvicorn %backend_module% --host %backend_host% --port %backend_port%
+exit /b 0
+
+:start_hidden_frontend
+set "frontend_dir=%~1"
+set "frontend_name=%~2"
+set "frontend_host=%~3"
+set "frontend_port=%~4"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Start-Process -WindowStyle Hidden -WorkingDirectory '%frontend_dir%' -FilePath '%npm_cmd%' -ArgumentList 'run','dev','--','--host','%frontend_host%','--port','%frontend_port%' | Out-Null"
+if errorlevel 1 (
+  echo [ERROR] Failed to start %frontend_name% in the background.
+  exit /b 1
+)
+exit /b 0
+
 :wait_for_port_ready
 set "target_port=%~1"
 set "target_name=%~2"
@@ -721,6 +738,24 @@ if %wait_elapsed% geq %target_timeout% (
 set /a wait_elapsed+=1
 >nul ping 127.0.0.1 -n 2
 goto :wait_for_port_ready_loop
+
+:wait_for_http_ready
+set "target_url=%~1"
+set "target_name=%~2"
+set "target_timeout=%~3"
+if "%target_timeout%"=="" set "target_timeout=30"
+set /a wait_elapsed=0
+
+:wait_for_http_ready_loop
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $response = Invoke-WebRequest -UseBasicParsing -Uri '%target_url%' -TimeoutSec 2; if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) { exit 0 } ; exit 1" >nul 2>&1
+if not errorlevel 1 exit /b 0
+if %wait_elapsed% geq %target_timeout% (
+  echo [ERROR] %target_name% did not respond at %target_url% within %target_timeout% seconds.
+  exit /b 1
+)
+set /a wait_elapsed+=1
+>nul ping 127.0.0.1 -n 2
+goto :wait_for_http_ready_loop
 
 :download_file
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri '%~1' -OutFile '%~2'"
