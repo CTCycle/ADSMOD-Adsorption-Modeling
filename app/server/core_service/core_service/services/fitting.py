@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from typing import Any
+
 from core_service.common.utils.logger import logger
 from core_service.configurations import get_server_settings
 from core_service.domain.fitting import FittingRequest, NISTFittingDatasetResponse
-from core_service.domain.jobs import (
+from core_service.services.modeling.fitting import FittingPipeline
+from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
+from shared.models.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
-from core_service.services.job_responses import JobResponseFactory
-from core_service.services.jobs import JobManager
-from core_service.services.modeling.fitting import FittingPipeline
-from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
+from shared.services.job_responses import JobResponseFactory
+from shared.services.jobs import JobManager
 
 ###############################################################################
 class FittingService:
@@ -32,11 +34,11 @@ class FittingService:
     # -------------------------------------------------------------------------
     def _run_fitting_sync(
         self,
-        dataset_dict: dict,
-        parameter_bounds_dict: dict,
+        dataset_dict: dict[str, Any],
+        parameter_bounds_dict: dict[str, Any],
         max_iterations: int,
         optimization_method: str,
-    ) -> dict:
+    ) -> dict[str, Any]:
         return self.pipeline.run(
             dataset_dict,
             parameter_bounds_dict,

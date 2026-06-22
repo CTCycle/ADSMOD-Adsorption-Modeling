@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 
 from ml_service.configurations import get_server_settings
-from ml_service.common.constants import (
+from shared.common.constants import (
     COLUMN_EXPERIMENT,
     COLUMN_TEMPERATURE_K,
     COLUMN_PRESSURE_PA,

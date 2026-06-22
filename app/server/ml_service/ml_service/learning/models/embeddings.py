@@ -5,7 +5,7 @@ from typing import Any
 import keras
 from keras import layers
 
-from ml_service.common.constants import PAD_VALUE
+from shared.common.constants import PAD_VALUE
 
 
 # [POSITIONAL EMBEDDING]

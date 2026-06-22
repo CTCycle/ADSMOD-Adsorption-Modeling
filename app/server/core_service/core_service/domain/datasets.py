@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from core_service.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
+from shared.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
 from core_service.domain.fitting import DatasetPayload
 
 ###############################################################################

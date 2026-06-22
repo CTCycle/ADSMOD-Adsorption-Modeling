@@ -18,7 +18,7 @@ from ml_service.services.data.nistads import (
     NISTDatasetBuilder,
     PubChemClient,
 )
-from ml_service.services.jobs import JobManager
+from shared.services.jobs import JobManager
 
 
 ###############################################################################

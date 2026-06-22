@@ -1,4 +1,5 @@
-from shared.services.jobs import JobManager, format_error_message
-
-__all__ = ["JobManager", "format_error_message"]
+raise ImportError(
+    "ml_service.services.jobs was removed. "
+    "Import JobManager from shared.services.jobs."
+)
 

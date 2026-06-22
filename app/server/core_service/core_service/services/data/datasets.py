@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from fastapi import HTTPException, UploadFile, status
 
 from core_service.configurations import get_server_settings
-from core_service.common.constants import (
+from shared.common.constants import (
     COLUMN_EXPERIMENT,
     COLUMN_TEMPERATURE_K,
     COLUMN_PRESSURE_PA,
@@ -82,6 +83,36 @@ class DatasetService:
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.allowed_extensions = set(get_server_settings().datasets.allowed_extensions)
+
+    # -------------------------------------------------------------------------
+    async def load_uploaded_file(
+        self, file: UploadFile
+    ) -> tuple[dict[str, Any], str]:
+        payload = await self.read_upload_bytes(file)
+        return self.load_from_bytes(payload, file.filename)
+
+    # -------------------------------------------------------------------------
+    async def read_upload_bytes(self, file: UploadFile) -> bytes:
+        chunk_size = 1024 * 1024
+        payload = bytearray()
+        try:
+            while True:
+                chunk = await file.read(chunk_size)
+                if not chunk:
+                    break
+                payload.extend(chunk)
+                if len(payload) > self.MAX_UPLOAD_SIZE_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=(
+                            "Uploaded dataset exceeds "
+                            f"{self.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB limit."
+                        ),
+                    )
+        finally:
+            await file.close()
+
+        return bytes(payload)
 
     # -------------------------------------------------------------------------
     def derive_dataset_name(self, filename: str | None) -> str:

@@ -3,15 +3,15 @@ from __future__ import annotations
 from fastapi import APIRouter, File, HTTPException, Path, UploadFile, status
 
 from core_service.domain.datasets import DatasetLoadResponse, DatasetNamesResponse
-from core_service.common.constants import (
+from core_service.common.utils.logger import logger
+from core_service.services.container import CoreServiceContainer
+from core_service.services.data.datasets import DatasetService
+from shared.common.constants import (
     DATASETS_FETCH_ENDPOINT,
     DATASETS_LOAD_ENDPOINT,
     DATASETS_NAMES_ENDPOINT,
     DATASETS_ROUTER_PREFIX,
 )
-from core_service.common.utils.logger import logger
-from core_service.services.container import CoreServiceContainer
-from core_service.services.data.datasets import DatasetService
 
 ###############################################################################
 class DatasetEndpoint:
@@ -23,43 +23,15 @@ class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
     async def load_dataset(self, file: UploadFile = File(...)) -> DatasetLoadResponse:
-        max_size = self.service.MAX_UPLOAD_SIZE_BYTES
-        chunk_size = 1024 * 1024
-        payload = bytearray()
         try:
-            while True:
-                chunk = await file.read(chunk_size)
-                if not chunk:
-                    break
-                payload.extend(chunk)
-                if len(payload) > max_size:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=(
-                            "Uploaded dataset exceeds "
-                            f"{max_size // (1024 * 1024)} MB limit."
-                        ),
-                    )
-        except Exception as exc:  # noqa: BLE001
-            if isinstance(exc, HTTPException):
-                raise
-            logger.warning("Failed to read uploaded dataset: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Unable to read uploaded dataset.",
-            ) from exc
-        finally:
-            await file.close()
-
-        try:
-            dataset_payload, summary = self.service.load_from_bytes(
-                bytes(payload), file.filename
-            )
+            dataset_payload, summary = await self.service.load_uploaded_file(file)
         except ValueError as exc:
             logger.warning("Invalid dataset upload: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
             ) from exc
+        except HTTPException:
+            raise
         except Exception as exc:  # noqa: BLE001
             logger.exception("Dataset processing failed")
             raise HTTPException(

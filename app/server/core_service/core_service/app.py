@@ -1,26 +1,25 @@
 from __future__ import annotations
 
-import os
 import warnings
 
 from fastapi import FastAPI
 
-from shared.common.paths import CORE_CONFIGURATION_FILE
+from core_service.bootstrap import configure_environment
 
-os.environ.setdefault("ADSMOD_CONFIG_PATH", str(CORE_CONFIGURATION_FILE))
+configure_environment()
 
 from core_service.api.entrypoint import health_router, register_root_routes
 from core_service.api.routes import register_core_routes
-from core_service.common.constants import (
-    FASTAPI_DESCRIPTION,
-    FASTAPI_TITLE,
-    FASTAPI_VERSION,
-)
 from core_service.configurations.startup import (
     public_host_mode_enabled,
     resolve_spa_file_path,
 )
 from core_service.services.container import CoreServiceContainer
+from shared.common.constants import (
+    FASTAPI_DESCRIPTION,
+    FASTAPI_TITLE,
+    FASTAPI_VERSION,
+)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 

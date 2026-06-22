@@ -1,26 +1,21 @@
 from __future__ import annotations
 
-import os
 import warnings
 
 from fastapi import FastAPI
 
-from shared.common.paths import ML_CONFIGURATION_FILE
+from ml_service.bootstrap import configure_environment
 
-os.environ.setdefault("ADSMOD_CONFIG_PATH", str(ML_CONFIGURATION_FILE))
-# Keras resolves its backend during import, so backend-related env vars must exist
-# before any ml_service module transitively imports keras.
-os.environ.setdefault("KERAS_BACKEND", "torch")
-os.environ.setdefault("MPLBACKEND", "Agg")
+configure_environment()
 
 from ml_service.api.entrypoint import health_router
 from ml_service.api.routes import register_ml_routes
-from ml_service.common.constants import (
+from ml_service.services.container import MlServiceContainer
+from shared.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from ml_service.services.container import MlServiceContainer
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 

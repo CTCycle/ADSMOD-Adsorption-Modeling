@@ -6,12 +6,6 @@ from typing import Any
 
 from ml_service.common.utils.logger import logger
 from ml_service.configurations import get_server_settings
-from ml_service.domain.jobs import (
-    JobCancelResponse,
-    JobListResponse,
-    JobStartResponse,
-    JobStatusResponse,
-)
 from ml_service.domain.training import (
     CheckpointDetailInfo,
     CheckpointFullDetailsResponse,
@@ -31,16 +25,19 @@ from ml_service.domain.training import (
     TrainingStartResponse,
     TrainingStatusResponse,
 )
-from ml_service.learning.training.manager import (
-    run_training_process,
-    training_manager,
-)
+from ml_service.learning.training.manager import TrainingManager, run_training_process
 from ml_service.learning.training.worker import ProcessWorker
 from ml_service.services.data.builder import DatasetBuilder, DatasetBuilderConfig
 from ml_service.services.data.composition import DatasetCompositionService
-from ml_service.services.job_responses import JobResponseFactory
-from ml_service.services.jobs import JobManager
 from shared.common.paths import CHECKPOINTS_DIR
+from shared.models.jobs import (
+    JobCancelResponse,
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
+from shared.services.job_responses import JobResponseFactory
+from shared.services.jobs import JobManager
 
 ###############################################################################
 def get_training_process_stop_timeout_seconds() -> float:
@@ -53,7 +50,8 @@ def get_training_process_stop_timeout_seconds() -> float:
 class TrainingSession:
 
     # -------------------------------------------------------------------------
-    def __init__(self) -> None:
+    def __init__(self, training_manager: TrainingManager) -> None:
+        self.training_manager = training_manager
         self.worker: ProcessWorker | None = None
         self.current_job_id: str | None = None
 
@@ -71,7 +69,7 @@ class TrainingSession:
             history = []
         if metrics is None:
             metrics = {}
-        training_manager.state.update(
+        self.training_manager.state.update(
             is_training=True,
             current_epoch=current_epoch,
             total_epochs=total_epochs,
@@ -84,7 +82,7 @@ class TrainingSession:
             log=[],
         )
         log_message = message or "Starting training session"
-        training_manager.state.add_log(f"{log_message}: {job_id}")
+        self.training_manager.state.add_log(f"{log_message}: {job_id}")
         self.current_job_id = job_id
 
     # -------------------------------------------------------------------------
@@ -124,18 +122,24 @@ def determine_checkpoint_compatibility(
 class TrainingJobRunner:
 
     # -------------------------------------------------------------------------
-    def __init__(self, session: TrainingSession, job_manager: JobManager) -> None:
+    def __init__(
+        self,
+        session: TrainingSession,
+        job_manager: JobManager,
+        training_manager: TrainingManager,
+    ) -> None:
         self.session = session
         self.job_manager = job_manager
+        self.training_manager = training_manager
 
     # -------------------------------------------------------------------------
     def handle_training_progress(self, job_id: str, message: dict[str, Any]) -> None:
-        training_manager.handle_process_message(job_id, message)
+        self.training_manager.handle_process_message(job_id, message)
 
         if not job_id:
             return
 
-        state = training_manager.state.snapshot()
+        state = self.training_manager.state.snapshot()
         progress = state.get("progress", 0.0)
         if not isinstance(progress, (int, float)):
             progress = 0.0
@@ -224,16 +228,24 @@ class TrainingJobRunner:
             )
 
             if self.job_manager.should_stop(job_id):
-                training_manager.handle_job_completion(job_id, "cancelled", None, None)
+                self.training_manager.handle_job_completion(
+                    job_id, "cancelled", None, None
+                )
                 return {}
 
-            training_manager.handle_job_completion(job_id, "completed", result, None)
+            self.training_manager.handle_job_completion(
+                job_id, "completed", result, None
+            )
             return result
         except Exception as exc:  # noqa: BLE001
             if self.job_manager.should_stop(job_id):
-                training_manager.handle_job_completion(job_id, "cancelled", None, None)
+                self.training_manager.handle_job_completion(
+                    job_id, "cancelled", None, None
+                )
                 return {}
-            training_manager.handle_job_completion(job_id, "failed", None, str(exc))
+            self.training_manager.handle_job_completion(
+                job_id, "failed", None, str(exc)
+            )
             raise
         finally:
             if worker.is_alive():
@@ -252,10 +264,12 @@ class TrainingService:
         self,
         *,
         job_manager: JobManager,
+        training_manager: TrainingManager,
         training_session: TrainingSession,
         training_job_runner: TrainingJobRunner,
     ) -> None:
         self.job_manager = job_manager
+        self.training_manager = training_manager
         self.training_session = training_session
         self.training_job_runner = training_job_runner
 
@@ -303,7 +317,7 @@ class TrainingService:
         if request.reference_checkpoint:
             try:
                 checkpoint_path = (
-                    training_manager.model_serializer.resolve_checkpoint_path(
+                    self.training_manager.model_serializer.resolve_checkpoint_path(
                         request.reference_checkpoint
                     )
                 )
@@ -319,7 +333,7 @@ class TrainingService:
                 }
             try:
                 _, reference_metadata, _ = (
-                    training_manager.model_serializer.load_training_configuration(
+                    self.training_manager.model_serializer.load_training_configuration(
                         checkpoint_path
                     )
                 )
@@ -421,7 +435,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_dataset_info(self, dataset_label: str) -> DatasetInfoResponse:
-        resolved_label = training_manager.data_serializer.normalize_dataset_label(
+        resolved_label = self.training_manager.data_serializer.normalize_dataset_label(
             dataset_label
         )
         info = DatasetBuilder.get_training_dataset_info(resolved_label)
@@ -449,7 +463,7 @@ class TrainingService:
         dataset_label: str | None,
     ) -> OperationStatusResponse:
         resolved_label = (
-            training_manager.data_serializer.normalize_dataset_label(dataset_label)
+            self.training_manager.data_serializer.normalize_dataset_label(dataset_label)
             if dataset_label is not None
             else None
         )
@@ -469,8 +483,8 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         logger.info("Scanning for available checkpoints")
-        checkpoints = training_manager.model_serializer.scan_checkpoints_folder()
-        dataset_hashes = training_manager.data_serializer.collect_dataset_hashes()
+        checkpoints = self.training_manager.model_serializer.scan_checkpoints_folder()
+        dataset_hashes = self.training_manager.data_serializer.collect_dataset_hashes()
         detailed_checkpoints: list[CheckpointDetailInfo] = []
 
         for checkpoint in checkpoints:
@@ -483,7 +497,7 @@ class TrainingService:
 
             try:
                 training_configuration, metadata, session = (
-                    training_manager.model_serializer.load_training_configuration(
+                    self.training_manager.model_serializer.load_training_configuration(
                         checkpoint_path
                     )
                 )
@@ -553,14 +567,16 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_checkpoint_details(self, checkpoint_name: str) -> CheckpointFullDetailsResponse:
-        checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
+        checkpoint_path = self.training_manager.model_serializer.resolve_checkpoint_path(
             checkpoint_name
         )
         if not Path(checkpoint_path).is_dir():
             raise FileNotFoundError(f"Checkpoint {checkpoint_name} not found")
 
         configuration, metadata, history = (
-            training_manager.model_serializer.load_training_configuration(checkpoint_path)
+            self.training_manager.model_serializer.load_training_configuration(
+                checkpoint_path
+            )
         )
         return CheckpointFullDetailsResponse(
             name=checkpoint_name,
@@ -571,7 +587,9 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint_name: str) -> OperationStatusResponse:
-        success = training_manager.model_serializer.delete_checkpoint(checkpoint_name)
+        success = self.training_manager.model_serializer.delete_checkpoint(
+            checkpoint_name
+        )
         if not success:
             raise ValueError(f"Failed to delete checkpoint {checkpoint_name}.")
         return OperationStatusResponse(
@@ -581,13 +599,13 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
-        state = training_manager.state.snapshot()
+        state = self.training_manager.state.snapshot()
         if state["is_training"] or self.job_manager.is_job_running(
             self.TRAINING_JOB_TYPE
         ):
             raise ValueError("Training is already in progress. Stop it first.")
 
-        resolved_label = training_manager.data_serializer.normalize_dataset_label(
+        resolved_label = self.training_manager.data_serializer.normalize_dataset_label(
             config.dataset_label
         )
         configuration = config.model_dump()
@@ -595,7 +613,9 @@ class TrainingService:
         configuration["polling_interval"] = get_server_settings().jobs.polling_interval
 
         logger.info("Starting training with config: %s", configuration)
-        metadata = training_manager.data_serializer.load_training_metadata(resolved_label)
+        metadata = self.training_manager.data_serializer.load_training_metadata(
+            resolved_label
+        )
         requested_hash = configuration.get("dataset_hash")
         if requested_hash and metadata.dataset_hash and requested_hash != metadata.dataset_hash:
             raise ValueError(
@@ -621,7 +641,7 @@ class TrainingService:
             current_epoch=0,
             message="Starting training session",
         )
-        state_snapshot = training_manager.state.snapshot()
+        state_snapshot = self.training_manager.state.snapshot()
         self.job_manager.update_result(
             job_id,
             {
@@ -641,7 +661,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> TrainingStartResponse:
-        state = training_manager.state.snapshot()
+        state = self.training_manager.state.snapshot()
         if state["is_training"] or self.job_manager.is_job_running(
             self.TRAINING_JOB_TYPE
         ):
@@ -652,14 +672,14 @@ class TrainingService:
             request.checkpoint_name,
             request.additional_epochs,
         )
-        available = training_manager.model_serializer.scan_checkpoints_folder()
+        available = self.training_manager.model_serializer.scan_checkpoints_folder()
         if request.checkpoint_name not in available:
             raise FileNotFoundError(f"Checkpoint '{request.checkpoint_name}' not found.")
 
-        checkpoint_path = training_manager.model_serializer.resolve_checkpoint_path(
+        checkpoint_path = self.training_manager.model_serializer.resolve_checkpoint_path(
             request.checkpoint_name
         )
-        _, _, session = training_manager.model_serializer.load_training_configuration(
+        _, _, session = self.training_manager.model_serializer.load_training_configuration(
             checkpoint_path
         )
 
@@ -668,10 +688,10 @@ class TrainingService:
             from_epoch_value = session.get("epochs", 0)
             if isinstance(from_epoch_value, int):
                 from_epoch = from_epoch_value
-        history_entries = training_manager.build_history_entries(
+        history_entries = self.training_manager.build_history_entries(
             session if isinstance(session, dict) else {}
         )
-        last_metrics = training_manager.extract_last_metrics(history_entries)
+        last_metrics = self.training_manager.extract_last_metrics(history_entries)
 
         job_id = self.job_manager.start_job(
             job_type=self.TRAINING_JOB_TYPE,
@@ -694,7 +714,7 @@ class TrainingService:
             history=history_entries,
             metrics=last_metrics,
         )
-        state_snapshot = training_manager.state.snapshot()
+        state_snapshot = self.training_manager.state.snapshot()
         self.job_manager.update_result(
             job_id,
             {
@@ -717,7 +737,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def stop_training(self) -> OperationStatusResponse:
-        state = training_manager.state.snapshot()
+        state = self.training_manager.state.snapshot()
         if not state["is_training"]:
             return OperationStatusResponse(
                 status="stopped",
@@ -725,8 +745,8 @@ class TrainingService:
             )
 
         logger.info("Stop requested for current training session")
-        training_manager.state.update(stop_requested=True)
-        training_manager.state.add_log("Stop requested by user...")
+        self.training_manager.state.update(stop_requested=True)
+        self.training_manager.state.add_log("Stop requested by user...")
         if self.training_session.worker is not None:
             self.training_session.worker.stop()
         if self.training_session.current_job_id:
@@ -739,7 +759,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
-        state = training_manager.state.snapshot()
+        state = self.training_manager.state.snapshot()
         progress = state.get("progress", 0.0)
         if not isinstance(progress, (int, float)):
             progress = 0.0

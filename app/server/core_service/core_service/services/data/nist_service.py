@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import math
 import threading
+import uuid
 from datetime import datetime, timezone
 from time import monotonic
 from typing import Any, Literal
@@ -12,17 +13,35 @@ import pandas as pd
 
 from core_service.configurations import get_server_settings
 from core_service.common.utils.logger import logger
-from shared.repositories.queries.nist import NISTDataSerializer
+from core_service.domain.nist import (
+    NISTCategory,
+    NISTCategoryFetchRequest,
+    NISTFetchRequest,
+    NISTPropertiesRequest,
+)
 from core_service.services.data.nistads import (
     NISTApiClient,
     NISTDatasetBuilder,
     PubChemClient,
 )
-from core_service.services.jobs import JobManager
+from shared.models.jobs import (
+    JobCancelResponse,
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
+from shared.repositories.queries.nist import NISTDataSerializer
+from shared.services.job_responses import JobResponseFactory
+from shared.services.jobs import JobManager
 
 
 ###############################################################################
 class NISTDataService:
+    JOB_TYPE_FETCH = "nist_fetch"
+    JOB_TYPE_PROPERTIES = "nist_properties"
+    CATEGORY_INDEX_SUFFIX = "index"
+    CATEGORY_FETCH_SUFFIX = "fetch"
+    CATEGORY_ENRICH_SUFFIX = "enrich"
 
     # -------------------------------------------------------------------------
     def __init__(self, job_manager: JobManager) -> None:
@@ -86,6 +105,193 @@ class NISTDataService:
         if not text:
             return ""
         return text.lower()
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def build_category_job_type(category: NISTCategory, suffix: str) -> str:
+        return f"nist_{category}_{suffix}"
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def run_awaitable_sync(awaitable: Any) -> dict[str, Any]:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(awaitable)
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
+    # -------------------------------------------------------------------------
+    def start_background_job(
+        self,
+        job_type: str,
+        runner: Any,
+        args: tuple[Any, ...] = (),
+        message: str = "Job started.",
+    ) -> JobStartResponse:
+        if self.job_manager.is_job_running(job_type):
+            raise ValueError(f"A {job_type} job is already running.")
+
+        job_id = str(uuid.uuid4())[:8]
+        self.job_manager.start_job(
+            job_type=job_type,
+            runner=runner,
+            args=args,
+            job_id=job_id,
+        )
+        return JobResponseFactory.start(
+            job_id=job_id,
+            job_type=job_type,
+            message=message,
+            poll_interval=get_server_settings().jobs.polling_interval,
+        )
+
+    # -------------------------------------------------------------------------
+    def _run_fetch_sync(
+        self,
+        experiments_fraction: float,
+        guest_fraction: float,
+        host_fraction: float,
+        job_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self.run_awaitable_sync(
+            self.fetch_and_store(
+                experiments_fraction=experiments_fraction,
+                guest_fraction=guest_fraction,
+                host_fraction=host_fraction,
+                job_id=job_id,
+            )
+        )
+
+    # -------------------------------------------------------------------------
+    def _run_properties_sync(
+        self, target: str, job_id: str | None = None
+    ) -> dict[str, Any]:
+        return self.run_awaitable_sync(
+            self.enrich_properties(target=target, job_id=job_id)
+        )
+
+    # -------------------------------------------------------------------------
+    def _run_category_index_sync(
+        self, category: NISTCategory, job_id: str | None = None
+    ) -> dict[str, Any]:
+        if category == "experiments":
+            return self.run_awaitable_sync(self.fetch_experiments_index(job_id=job_id))
+        if category == "guest":
+            return self.run_awaitable_sync(self.fetch_guest_index(job_id=job_id))
+        return self.run_awaitable_sync(self.fetch_host_index(job_id=job_id))
+
+    # -------------------------------------------------------------------------
+    def _run_category_fetch_sync(
+        self, category: NISTCategory, fraction: float, job_id: str | None = None
+    ) -> dict[str, Any]:
+        if category == "experiments":
+            return self.run_awaitable_sync(
+                self.fetch_experiments_records(fraction=fraction, job_id=job_id)
+            )
+        if category == "guest":
+            return self.run_awaitable_sync(
+                self.fetch_guest_records(fraction=fraction, job_id=job_id)
+            )
+        return self.run_awaitable_sync(
+            self.fetch_host_records(fraction=fraction, job_id=job_id)
+        )
+
+    # -------------------------------------------------------------------------
+    def _run_category_enrich_sync(
+        self, category: NISTCategory, job_id: str | None = None
+    ) -> dict[str, Any]:
+        if category == "guest":
+            return self.run_awaitable_sync(self.enrich_guest_properties(job_id=job_id))
+        if category == "host":
+            return self.run_awaitable_sync(self.enrich_host_properties(job_id=job_id))
+        raise ValueError("Enrichment is not supported for experiments.")
+
+    # -------------------------------------------------------------------------
+    def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
+        return self.start_background_job(
+            job_type=self.JOB_TYPE_FETCH,
+            runner=self._run_fetch_sync,
+            args=(
+                request.experiments_fraction,
+                request.guest_fraction,
+                request.host_fraction,
+            ),
+            message="NIST fetch job started.",
+        )
+
+    # -------------------------------------------------------------------------
+    def start_properties_job(self, request: NISTPropertiesRequest) -> JobStartResponse:
+        return self.start_background_job(
+            job_type=self.JOB_TYPE_PROPERTIES,
+            runner=self._run_properties_sync,
+            args=(request.target,),
+            message=f"NIST properties enrichment job started for {request.target}.",
+        )
+
+    # -------------------------------------------------------------------------
+    def start_category_index_job(self, category: NISTCategory) -> JobStartResponse:
+        return self.start_background_job(
+            job_type=self.build_category_job_type(category, self.CATEGORY_INDEX_SUFFIX),
+            runner=self._run_category_index_sync,
+            args=(category,),
+            message=f"NIST {category} index job started.",
+        )
+
+    # -------------------------------------------------------------------------
+    def start_category_fetch_job(
+        self, category: NISTCategory, request: NISTCategoryFetchRequest
+    ) -> JobStartResponse:
+        return self.start_background_job(
+            job_type=self.build_category_job_type(category, self.CATEGORY_FETCH_SUFFIX),
+            runner=self._run_category_fetch_sync,
+            args=(category, request.fraction),
+            message=f"NIST {category} fetch job started.",
+        )
+
+    # -------------------------------------------------------------------------
+    def start_category_enrich_job(self, category: NISTCategory) -> JobStartResponse:
+        if category == "experiments":
+            raise ValueError("Enrichment is not supported for experiments.")
+
+        return self.start_background_job(
+            job_type=self.build_category_job_type(category, self.CATEGORY_ENRICH_SUFFIX),
+            runner=self._run_category_enrich_sync,
+            args=(category,),
+            message=f"NIST {category} enrichment job started.",
+        )
+
+    # -------------------------------------------------------------------------
+    def get_job_status(self, job_id: str) -> JobStatusResponse:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise LookupError(f"Job {job_id} not found.")
+        return JobResponseFactory.status(
+            job_status=job_status,
+            poll_interval=get_server_settings().jobs.polling_interval,
+        )
+
+    # -------------------------------------------------------------------------
+    def list_jobs(self) -> JobListResponse:
+        all_jobs = [
+            job
+            for job in self.job_manager.list_jobs()
+            if str(job.get("job_type", "")).startswith("nist_")
+        ]
+        return JobResponseFactory.list(
+            job_statuses=all_jobs,
+            poll_interval=get_server_settings().jobs.polling_interval,
+        )
+
+    # -------------------------------------------------------------------------
+    def cancel_job(self, job_id: str) -> JobCancelResponse:
+        success = self.job_manager.cancel_job(job_id)
+        if not success:
+            raise ValueError(
+                f"Job {job_id} cannot be cancelled (not found or already completed)."
+            )
+        return JobResponseFactory.cancelled(job_id)
 
     # -------------------------------------------------------------------------
     def ordered_identifiers(

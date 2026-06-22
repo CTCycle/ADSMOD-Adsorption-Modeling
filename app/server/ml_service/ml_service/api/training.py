@@ -2,12 +2,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
-from ml_service.domain.jobs import (
-    JobCancelResponse,
-    JobListResponse,
-    JobStartResponse,
-    JobStatusResponse,
-)
 from ml_service.domain.training import (
     CheckpointFullDetailsResponse,
     CheckpointsResponse,
@@ -26,6 +20,12 @@ from ml_service.domain.training import (
 from ml_service.common.utils.logger import logger
 from ml_service.services.container import MlServiceContainer
 from ml_service.services.training import TrainingService
+from shared.models.jobs import (
+    JobCancelResponse,
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
 
 ###############################################################################
 class TrainingEndpoint:

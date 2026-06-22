@@ -3,22 +3,22 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from core_service.domain.fitting import FittingRequest, NISTFittingDatasetResponse
-from core_service.domain.jobs import (
-    JobCancelResponse,
-    JobListResponse,
-    JobStartResponse,
-    JobStatusResponse,
-)
-from core_service.common.constants import (
+from core_service.common.utils.logger import logger
+from core_service.services.container import CoreServiceContainer
+from core_service.services.fitting import FittingService
+from shared.common.constants import (
     FITTING_JOBS_ENDPOINT,
     FITTING_JOB_STATUS_ENDPOINT,
     FITTING_NIST_DATASET_ENDPOINT,
     FITTING_ROUTER_PREFIX,
     FITTING_RUN_ENDPOINT,
 )
-from core_service.common.utils.logger import logger
-from core_service.services.container import CoreServiceContainer
-from core_service.services.fitting import FittingService
+from shared.models.jobs import (
+    JobCancelResponse,
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
 
 ###############################################################################
 class FittingEndpoint:
