@@ -5,7 +5,6 @@ import pytest
 from core_service.domain.fitting import FittingRequest
 from core_service.services.fitting import FittingService
 
-
 ###############################################################################
 def build_request() -> FittingRequest:
     return FittingRequest.model_validate(
@@ -30,7 +29,6 @@ def build_request() -> FittingRequest:
         }
     )
 
-
 ###############################################################################
 def test_start_fitting_job_returns_job_start_response(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
@@ -44,7 +42,6 @@ def test_start_fitting_job_returns_job_start_response(monkeypatch: pytest.Monkey
     assert response.job_type == "fitting"
     assert response.status == "running"
 
-
 ###############################################################################
 def test_cancel_job_returns_modeled_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     service = FittingService()
@@ -53,7 +50,6 @@ def test_cancel_job_returns_modeled_payload(monkeypatch: pytest.MonkeyPatch) -> 
     response = service.cancel_job("fit12345")
     assert response.status == "cancelled"
     assert response.job_id == "fit12345"
-
 
 ###############################################################################
 def test_cancel_job_raises_when_not_cancellable(monkeypatch: pytest.MonkeyPatch) -> None:

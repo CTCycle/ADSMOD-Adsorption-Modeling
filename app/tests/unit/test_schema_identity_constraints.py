@@ -16,7 +16,6 @@ from shared.repositories.schemas.models import (
     Dataset,
 )
 
-
 ###############################################################################
 def enable_foreign_keys_sqlite(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
     cursor = dbapi_connection.cursor()
@@ -24,7 +23,6 @@ def enable_foreign_keys_sqlite(dbapi_connection, connection_record) -> None:  # 
         cursor.execute("PRAGMA foreign_keys=ON")
     finally:
         cursor.close()
-
 
 ###############################################################################
 def test_adsorption_point_component_uses_composite_primary_key() -> None:
@@ -34,7 +32,6 @@ def test_adsorption_point_component_uses_composite_primary_key() -> None:
         "point_id",
         "component_id",
     ]
-
 
 ###############################################################################
 def test_adsorption_fit_keeps_surrogate_id_and_natural_uniqueness() -> None:
@@ -49,7 +46,6 @@ def test_adsorption_fit_keeps_surrogate_id_and_natural_uniqueness() -> None:
     }
     assert ("processed_id", "model_name", "optimization_method") in unique_constraints
 
-
 ###############################################################################
 def test_adsorption_point_component_ddl_compiles_for_postgresql() -> None:
     ddl = str(
@@ -59,7 +55,6 @@ def test_adsorption_point_component_ddl_compiles_for_postgresql() -> None:
     )
     assert "PRIMARY KEY (point_id, component_id)" in ddl
     assert " id " not in ddl.lower()
-
 
 ###############################################################################
 def test_sqlite_drop_and_recreate_restarts_identity() -> None:
@@ -80,7 +75,6 @@ def test_sqlite_drop_and_recreate_restarts_identity() -> None:
         session.commit()
         second_id = session.execute(select(Dataset.id)).scalar_one()
     assert second_id == 1
-
 
 ###############################################################################
 def test_point_component_enforces_composite_identity_and_cascade() -> None:

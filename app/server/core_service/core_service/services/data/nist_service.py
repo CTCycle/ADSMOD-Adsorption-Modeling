@@ -34,7 +34,6 @@ from shared.repositories.queries.nist import NISTDataSerializer
 from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
 
-
 ###############################################################################
 class NISTDataService:
     JOB_TYPE_FETCH = "nist_fetch"

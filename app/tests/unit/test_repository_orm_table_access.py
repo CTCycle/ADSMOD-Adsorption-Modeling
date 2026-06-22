@@ -7,7 +7,6 @@ from shared.repositories.database.postgres import PostgresRepository
 from shared.repositories.database.sqlite import SQLiteRepository
 from shared.repositories.schemas.models import Base, Dataset
 
-
 ###############################################################################
 def seed_datasets(engine) -> None:  # type: ignore[no-untyped-def]
     Base.metadata.create_all(engine)
@@ -19,7 +18,6 @@ def seed_datasets(engine) -> None:  # type: ignore[no-untyped-def]
             ]
         )
         session.commit()
-
 
 ###############################################################################
 def test_sqlite_repository_load_and_count_use_mapped_models() -> None:
@@ -37,7 +35,6 @@ def test_sqlite_repository_load_and_count_use_mapped_models() -> None:
     assert repository.count_rows("datasets") == 2
     assert repository.load_from_database("missing_table").empty
     assert repository.count_rows("missing_table") == 0
-
 
 ###############################################################################
 def test_postgres_repository_load_and_count_use_mapped_models() -> None:

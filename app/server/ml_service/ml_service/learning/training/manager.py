@@ -291,7 +291,6 @@ class TrainingProcessRunner:
             checkpoint_path, history, train_config, model_metadata
         )
 
-
 ###############################################################################
 def run_training_process(
     configuration: dict[str, Any] | None,

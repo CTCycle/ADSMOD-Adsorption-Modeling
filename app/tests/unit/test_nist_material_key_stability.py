@@ -5,7 +5,6 @@ import pandas as pd
 from shared.repositories.database.backend import database
 from shared.repositories.queries.nist import NISTDataSerializer
 
-
 ###############################################################################
 class UpsertCapture:
 

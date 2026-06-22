@@ -10,7 +10,6 @@ from keras.callbacks import Callback
 
 from ml_service.common.utils.logger import logger
 
-
 ###############################################################################
 class WorkerInterrupted(RuntimeError):
     """Raised to immediately interrupt training in a worker process."""

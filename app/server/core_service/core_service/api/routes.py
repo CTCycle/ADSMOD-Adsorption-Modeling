@@ -7,7 +7,6 @@ from core_service.api.fitting import create_fitting_router
 from core_service.api.nist import create_nist_router
 from core_service.services.container import CoreServiceContainer
 
-
 ###############################################################################
 def register_core_routes(
     app: FastAPI,

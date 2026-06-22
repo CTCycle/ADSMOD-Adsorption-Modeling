@@ -9,7 +9,6 @@ from ml_service.services.training import determine_checkpoint_compatibility
 from ml_service.domain.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
 
-
 ###############################################################################
 class TrainingMetadataQueries:
 
@@ -21,7 +20,6 @@ class TrainingMetadataQueries:
     def load_training_metadata(self, limit=None, offset=None):  # noqa: ANN001
         return self.metadata_frame
 
-
 ###############################################################################
 def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
     return TrainingMetadata(
@@ -32,7 +30,6 @@ def build_metadata(dataset_hash: str | None) -> TrainingMetadata:
         normalization_stats={"pressure_mean": 5.0},
     )
 
-
 ###############################################################################
 def test_checkpoint_compatibility_single_dataset_match() -> None:
     hash_one = "1" * 64
@@ -41,7 +38,6 @@ def test_checkpoint_compatibility_single_dataset_match() -> None:
         determine_checkpoint_compatibility("checkpoint-a", metadata, {hash_one})
         is True
     )
-
 
 ###############################################################################
 def test_checkpoint_compatibility_multiple_datasets_one_matches() -> None:
@@ -55,7 +51,6 @@ def test_checkpoint_compatibility_multiple_datasets_one_matches() -> None:
         is True
     )
 
-
 ###############################################################################
 def test_checkpoint_compatibility_multiple_datasets_none_match() -> None:
     hash_one = "1" * 64
@@ -68,7 +63,6 @@ def test_checkpoint_compatibility_multiple_datasets_none_match() -> None:
         is False
     )
 
-
 ###############################################################################
 def test_checkpoint_compatibility_missing_metadata_logs_warning(caplog) -> None:
     with caplog.at_level(logging.WARNING, logger="ADSMOD"):
@@ -79,7 +73,6 @@ def test_checkpoint_compatibility_missing_metadata_logs_warning(caplog) -> None:
     assert any(
         "metadata missing or invalid" in record.message for record in caplog.records
     )
-
 
 ###############################################################################
 def test_collect_dataset_hashes_skips_uncomputable_hash(caplog) -> None:
@@ -111,7 +104,6 @@ def test_collect_dataset_hashes_skips_uncomputable_hash(caplog) -> None:
         hashes = serializer.collect_dataset_hashes()
     assert hashes == set()
     assert any("unable to compute hash" in record.message for record in caplog.records)
-
 
 ###############################################################################
 def test_collect_dataset_hashes_computes_missing_hash() -> None:

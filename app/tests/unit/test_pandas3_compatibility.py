@@ -8,7 +8,6 @@ from shared.repositories.database.postgres import PostgresRepository
 from core_service.services.data.conversion import PressureConversion
 from ml_service.services.data.sanitizer import DataSanitizer
 
-
 ###############################################################################
 def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
     frame = pd.DataFrame({"name": ["zeolite\u200b-a", "na\u00a0y"]}).astype("string")
@@ -19,7 +18,6 @@ def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
     assert sanitized.loc[0, "name"] == "zeolite-a"
     assert sanitized.loc[1, "name"] == "na y"
 
-
 ###############################################################################
 def test_pressure_conversion_returns_frame_without_unit_column() -> None:
     converter = PressureConversion()
@@ -29,7 +27,6 @@ def test_pressure_conversion_returns_frame_without_unit_column() -> None:
 
     assert "pressure_units" not in converted.columns
     assert converted.loc[0, "pressure"] == 100000.0
-
 
 ###############################################################################
 def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
@@ -49,7 +46,6 @@ def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     assert filtered.iloc[0]["adsorbed_amount"] == [1.0]
     assert frame.loc[0, "pressure"] == [0.0, 12_000_000.0, 5.0]
 
-
 ###############################################################################
 def test_parse_json_column_value_converts_json_strings_for_jsonb() -> None:
     parsed = PostgresRepository.parse_json_column_value('{"T0": 1, "T1": 2}')
@@ -57,7 +53,6 @@ def test_parse_json_column_value_converts_json_strings_for_jsonb() -> None:
     assert isinstance(parsed, dict)
     assert parsed["T0"] == 1
     assert parsed["T1"] == 2
-
 
 ###############################################################################
 def test_coerce_missing_values_replaces_nan_and_pd_na_with_none() -> None:
@@ -75,7 +70,6 @@ def test_coerce_missing_values_replaces_nan_and_pd_na_with_none() -> None:
     assert records[1]["InChIKey"] is None
     assert records[0]["molecular_weight"] == 16.04
     assert records[1]["molecular_weight"] is None
-
 
 ###############################################################################
 def test_deduplicate_conflict_batch_keeps_last_conflict_record() -> None:

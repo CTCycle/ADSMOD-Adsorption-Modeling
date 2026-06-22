@@ -12,11 +12,9 @@ def build_postgres_create_database_sql(
         f"CREATE DATABASE \"{safe_database}\" WITH ENCODING 'UTF8' TEMPLATE template0"
     )
 
-
 ###############################################################################
 def build_postgres_database_exists_sql() -> TextClause:
     return sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname=:name")
-
 
 ###############################################################################
 def build_postgres_server_encoding_sql() -> TextClause:

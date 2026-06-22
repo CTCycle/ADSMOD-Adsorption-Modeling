@@ -10,12 +10,10 @@ from ml_service.configurations.management import (
 )
 from shared.common.paths import CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE
 
-
 ###############################################################################
 def write_config(path: str, payload: dict[str, object]) -> None:
     with Path(path).open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
-
 
 ###############################################################################
 def build_payload() -> dict[str, object]:
@@ -31,7 +29,6 @@ def build_payload() -> dict[str, object]:
         "training": {"use_jit": False, "dataloader_workers": 0},
     }
 
-
 ###############################################################################
 def test_manager_load_and_accessors(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -44,7 +41,6 @@ def test_manager_load_and_accessors(tmp_path) -> None:
     assert block.get("use_jit") is False
     assert manager.get_value("jobs", "polling_interval") == 1.0
     assert manager.get_value("jobs", "missing", 9) == 9
-
 
 ###############################################################################
 def test_manager_reload_reflects_file_changes(tmp_path) -> None:
@@ -61,7 +57,6 @@ def test_manager_reload_reflects_file_changes(tmp_path) -> None:
 
     assert reloaded.jobs.polling_interval == 2.5
 
-
 ###############################################################################
 def test_manager_update_persists_and_reloads(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -74,7 +69,6 @@ def test_manager_update_persists_and_reloads(tmp_path) -> None:
     assert updated.jobs.polling_interval == 3.0
     assert manager.get_value("jobs", "polling_interval") == 3.0
 
-
 ###############################################################################
 def test_manager_to_server_settings(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -86,12 +80,10 @@ def test_manager_to_server_settings(tmp_path) -> None:
     assert isinstance(server_settings, ServerSettings)
     assert server_settings.datasets.column_detection_cutoff == 0.65
 
-
 ###############################################################################
 def test_core_manager_defaults_to_core_runtime_file() -> None:
     manager = ConfigurationManager()
     assert manager.config_path == CORE_CONFIGURATION_FILE
-
 
 ###############################################################################
 def test_ml_manager_defaults_to_ml_runtime_file() -> None:
