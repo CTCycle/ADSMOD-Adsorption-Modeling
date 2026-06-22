@@ -10,7 +10,6 @@ from shared.common.settings import AppSettings, ServerSettings, get_server_setti
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
-
 ###############################################################################
 def get_env_value(*keys: str, default: str = "") -> str:
     for key in keys:
@@ -24,39 +23,32 @@ def get_env_value(*keys: str, default: str = "") -> str:
             return value.strip()
     return default
 
-
 ###############################################################################
 def get_core_host() -> str:
     return get_env_value("CORE_SERVICE_HOST", "FASTAPI_HOST", default="127.0.0.1")
-
 
 ###############################################################################
 def get_core_port() -> int:
     raw = get_env_value("CORE_SERVICE_PORT", "FASTAPI_PORT", default="6045")
     return int(raw)
 
-
 ###############################################################################
 def core_reload_enabled() -> bool:
     value = get_env_value("CORE_SERVICE_RELOAD", "RELOAD", default="true").lower()
     return value in {"1", "true", "yes", "on"}
 
-
 ###############################################################################
 def get_app_settings(config_path: str | None = None) -> AppSettings:
     return AppSettings.load(config_path or CORE_CONFIGURATION_FILE)
-
 
 ###############################################################################
 def get_server_settings_runtime(config_path: str | None = None) -> ServerSettings:
     return get_server_settings(config_path or CORE_CONFIGURATION_FILE)
 
-
 ###############################################################################
 def public_host_mode_enabled() -> bool:
     host = get_core_host().strip().lower()
     return bool(host and host not in LOOPBACK_HOSTS)
-
 
 ###############################################################################
 def resolve_spa_file_path(
@@ -77,17 +69,14 @@ def resolve_spa_file_path(
 def direct_api_enabled() -> bool:
     return not public_host_mode_enabled()
 
-
 ###############################################################################
 def tauri_mode_enabled() -> bool:
     value = get_env_value("ADSMOD_TAURI_MODE", default="false").lower()
     return value in {"1", "true", "yes", "on"}
 
-
 ###############################################################################
 def get_client_dist_path() -> str:
     return str(CLIENT_DIST_DIR)
-
 
 ###############################################################################
 def packaged_client_available() -> bool:

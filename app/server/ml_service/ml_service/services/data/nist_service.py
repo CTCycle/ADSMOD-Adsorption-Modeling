@@ -20,7 +20,6 @@ from ml_service.services.data.nistads import (
 )
 from shared.services.jobs import JobManager
 
-
 ###############################################################################
 class NISTDataService:
 

@@ -5,7 +5,6 @@ from shared.repositories.database.postgres import PostgresRepository
 from shared.repositories.database.sqlite import SQLiteRepository
 from shared.repositories.schemas.models import TrainingDataset
 
-
 ###############################################################################
 def test_sqlite_prepare_for_storage_parses_json_sequence_strings() -> None:
     repository = SQLiteRepository.__new__(SQLiteRepository)
@@ -24,7 +23,6 @@ def test_sqlite_prepare_for_storage_parses_json_sequence_strings() -> None:
     assert prepared.loc[0, "pressure"] == [1.0, 2.0, 3.0]
     assert prepared.loc[0, "adsorbed_amount"] == [0.1, 0.2, 0.3]
     assert prepared.loc[0, "adsorbate_encoded_smile"] == [6.0, 4.0, 5.0]
-
 
 ###############################################################################
 def test_sqlite_restore_after_load_decodes_double_encoded_sequences() -> None:
@@ -47,7 +45,6 @@ def test_sqlite_restore_after_load_decodes_double_encoded_sequences() -> None:
 
     converted = np.asarray(restored.loc[0, "adsorbate_encoded_smile"], dtype=np.int32)
     assert converted.tolist() == [6, 4, 5]
-
 
 ###############################################################################
 def test_sqlite_prepare_for_save_serializes_sequences_to_json_strings() -> None:
@@ -79,7 +76,6 @@ def test_sqlite_prepare_for_save_serializes_sequences_to_json_strings() -> None:
     assert SQLiteRepository.parse_json_column_value(
         prepared.loc[0, "adsorbate_encoded_smile"]
     ) == [6.0, 4.0, 5.0]
-
 
 ###############################################################################
 def test_sqlite_and_postgres_json_value_parsing_match_for_sequences() -> None:

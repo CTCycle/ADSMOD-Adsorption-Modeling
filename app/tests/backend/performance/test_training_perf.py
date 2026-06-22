@@ -154,7 +154,6 @@ def scenario_matrix() -> list[TrainingScenario]:
         ),
     ]
 
-
 ###############################################################################
 @pytest.mark.parametrize("scenario", scenario_matrix(), ids=lambda s: s.name)
 def test_training_pipeline_performance(scenario: TrainingScenario) -> None:

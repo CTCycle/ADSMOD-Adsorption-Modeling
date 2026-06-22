@@ -6,7 +6,6 @@ from core_service.services.data.nist_service import NISTDataService
 from core_service.services.fitting import FittingService
 from shared.services.jobs import JobManager
 
-
 ###############################################################################
 class CoreServiceContainer:
 

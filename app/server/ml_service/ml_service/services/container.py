@@ -9,7 +9,6 @@ from ml_service.services.training import (
 )
 from shared.services.jobs import JobManager
 
-
 ###############################################################################
 class MlServiceContainer:
 

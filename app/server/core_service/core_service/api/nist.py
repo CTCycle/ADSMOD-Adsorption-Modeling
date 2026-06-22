@@ -36,6 +36,7 @@ from shared.models.jobs import (
 
 ###############################################################################
 class NistEndpoint:
+
     # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: NISTDataService) -> None:
         self.router = router

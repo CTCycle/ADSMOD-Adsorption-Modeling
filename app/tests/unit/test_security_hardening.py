@@ -9,7 +9,6 @@ from core_service.configurations import public_host_mode_enabled, resolve_spa_fi
 from core_service.domain.fitting import DatasetPayload
 from ml_service.domain.training import TrainingConfigRequest
 
-
 ###############################################################################
 def test_resolve_spa_file_path_rejects_traversal() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -21,7 +20,6 @@ def test_resolve_spa_file_path_rejects_traversal() -> None:
         assert resolve_spa_file_path(temp_dir, "..\\secrets.txt") is None
         assert resolve_spa_file_path(Path(temp_dir), "../secrets.txt") is None
 
-
 ###############################################################################
 def test_resolve_checkpoint_path_accepts_path_inputs() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -29,7 +27,6 @@ def test_resolve_checkpoint_path_accepts_path_inputs() -> None:
         resolved = resolve_checkpoint_path(base_path, "checkpoint_01")
 
         assert resolved == str((base_path / "checkpoint_01").resolve())
-
 
 ###############################################################################
 def test_public_host_mode_enabled_detects_non_loopback_host(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -41,7 +38,6 @@ def test_public_host_mode_enabled_detects_non_loopback_host(monkeypatch: pytest.
     monkeypatch.setenv("CORE_SERVICE_HOST", "127.0.0.1")
     assert public_host_mode_enabled() is False
 
-
 ###############################################################################
 def test_dataset_payload_rejects_unsafe_dataset_name() -> None:
     with pytest.raises(ValidationError):
@@ -50,7 +46,6 @@ def test_dataset_payload_rejects_unsafe_dataset_name() -> None:
             columns=["temperature"],
             records=[{"temperature": 300}],
         )
-
 
 ###############################################################################
 def test_training_config_rejects_invalid_dataset_hash() -> None:

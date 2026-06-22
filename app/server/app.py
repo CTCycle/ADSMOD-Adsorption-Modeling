@@ -39,7 +39,6 @@ os.environ.setdefault("KERAS_BACKEND", "torch")
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
 ###############################################################################
 def _load_service_modules():
     from core_service.api.entrypoint import health_router
@@ -56,11 +55,9 @@ def _load_service_modules():
         MlServiceContainer,
     )
 
-
 ###############################################################################
 def _client_build_available() -> bool:
     return CLIENT_INDEX_FILE.is_file()
-
 
 ###############################################################################
 def _resolve_client_file(full_path: str) -> Path | None:
@@ -72,7 +69,6 @@ def _resolve_client_file(full_path: str) -> Path | None:
     if requested_path.is_file():
         return requested_path
     return None
-
 
 ###############################################################################
 def _build_cors_origins() -> list[str]:
@@ -92,17 +88,14 @@ def _build_cors_origins() -> list[str]:
 
     return sorted(f"http://{host}:{port}" for host in hosts for port in ports)
 
-
 ###############################################################################
 def _tauri_mode_enabled() -> bool:
     return os.getenv("ADSMOD_TAURI_MODE", "false").strip().lower() in TRUTHY_VALUES
-
 
 ###############################################################################
 def _ensure_runtime_directories() -> None:
     for path_value in (RESOURCES_DIR, LOGS_DIR, TEMPLATES_DIR, CHECKPOINTS_DIR):
         path_value.mkdir(parents=True, exist_ok=True)
-
 
 ###############################################################################
 def _run_startup_validations(settings: ServerSettings) -> None:
@@ -115,11 +108,9 @@ def _run_startup_validations(settings: ServerSettings) -> None:
             f"{CLIENT_INDEX_FILE}."
         )
 
-
 ###############################################################################
 def serve_client_root() -> FileResponse:
     return FileResponse(CLIENT_INDEX_FILE)
-
 
 ###############################################################################
 def serve_client_path(full_path: str) -> FileResponse:
@@ -128,11 +119,9 @@ def serve_client_path(full_path: str) -> FileResponse:
         return FileResponse(client_file)
     return FileResponse(CLIENT_INDEX_FILE)
 
-
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse("/docs")
-
 
 ###############################################################################
 @asynccontextmanager
@@ -142,7 +131,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     initialize_database()
     application.state.server_settings = settings
     yield
-
 
 ###############################################################################
 def create_app() -> FastAPI:

@@ -10,7 +10,6 @@ from shared.models.jobs import (
     JobStatusResponse,
 )
 
-
 ###############################################################################
 class JobResponseFactory:
 

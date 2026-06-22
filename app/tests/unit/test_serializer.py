@@ -3,7 +3,6 @@ import pandas as pd
 from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.domain.training import TrainingMetadata
 
-
 ###############################################################################
 class StubTrainingQueries:
 
@@ -43,14 +42,12 @@ def create_basis_metadata(**kwargs):
     defaults.update(kwargs)
     return TrainingMetadata(**defaults)
 
-
 ###############################################################################
 def test_validate_metadata_identical():
     """Verify that two identical metadata objects pass validation."""
     meta1 = create_basis_metadata()
     meta2 = create_basis_metadata()
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is True
-
 
 ###############################################################################
 def test_validate_metadata_param_mismatch():
@@ -59,7 +56,6 @@ def test_validate_metadata_param_mismatch():
     meta2 = create_basis_metadata(sample_size=0.5)
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
-
 ###############################################################################
 def test_validate_metadata_vocab_key_mismatch():
     """Verify that different vocabulary keys cause failure."""
@@ -67,14 +63,12 @@ def test_validate_metadata_vocab_key_mismatch():
     meta2 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
-
 ###############################################################################
 def test_validate_metadata_vocab_index_mismatch():
     """Verify that different vocabulary INDICES for same keys cause failure (strict check)."""
     meta1 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
     meta2 = create_basis_metadata(smile_vocabulary={"A": 2, "B": 1})
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
-
 
 ###############################################################################
 def test_validate_metadata_vocab_empty_vs_none():
@@ -84,14 +78,12 @@ def test_validate_metadata_vocab_empty_vs_none():
     # Both empty dicts -> Compatible
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is True
 
-
 ###############################################################################
 def test_validate_metadata_normalization_stats():
     """Verify that normalization stats differences cause failure."""
     meta1 = create_basis_metadata(normalization_stats={"mean": 0.0})
     meta2 = create_basis_metadata(normalization_stats={"mean": 0.1})
     assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
-
 
 ###############################################################################
 def test_compute_metadata_hash_determinism():
@@ -105,7 +97,6 @@ def test_compute_metadata_hash_determinism():
     hash1 = TrainingDataSerializer.compute_metadata_hash(meta1)
     hash2 = TrainingDataSerializer.compute_metadata_hash(meta2)
     assert hash1 == hash2
-
 
 ###############################################################################
 def test_save_training_dataset_deduplicates_sample_keys():

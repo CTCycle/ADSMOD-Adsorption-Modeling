@@ -6,7 +6,6 @@ import pandas as pd
 
 from ml_service.common.utils.logger import logger
 
-
 ###############################################################################
 def map_values(
     values: list[int | float] | int | float | None,

@@ -10,7 +10,6 @@ from shared.common.settings import (
     build_training_settings,
 )
 
-
 ###############################################################################
 def test_json_structure_matches_settings():
     """
@@ -30,7 +29,6 @@ def test_json_structure_matches_settings():
         assert hasattr(settings.training, key), (
             f"TrainingSettings missing field for JSON key: {key}"
         )
-
 
 ###############################################################################
 def test_config_values_are_respected():
@@ -62,7 +60,6 @@ def test_config_values_are_respected():
     assert training_settings.persistent_workers is True
     assert training_settings.plot_update_batch_interval == 10
 
-
 ###############################################################################
 def test_default_fallbacks():
     """
@@ -80,7 +77,6 @@ def test_default_fallbacks():
     assert training_settings.pin_memory is True
     assert training_settings.persistent_workers is False
     assert training_settings.plot_update_batch_interval == 10
-
 
 ###############################################################################
 def test_both_runtime_configuration_files_validate() -> None:

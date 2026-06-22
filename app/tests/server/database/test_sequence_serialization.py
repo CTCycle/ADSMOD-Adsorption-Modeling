@@ -6,13 +6,11 @@ from shared.repositories.schemas.types import JSONSequence
 
 Base = declarative_base()
 
-
 ###############################################################################
 class TestModel(Base):
     __tablename__ = "test_data"
     id = Column(Integer, primary_key=True)
     sequence = Column(JSONSequence)
-
 
 ###############################################################################
 @pytest.fixture
@@ -21,7 +19,6 @@ def session():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     yield Session()
-
 
 ###############################################################################
 def test_json_sequence_round_trip(session):
@@ -35,7 +32,6 @@ def test_json_sequence_round_trip(session):
     assert retrieved.sequence == data
     assert isinstance(retrieved.sequence, list)
 
-
 ###############################################################################
 def test_json_sequence_empty_list(session):
     """Verify empty lists are handled correctly."""
@@ -46,7 +42,6 @@ def test_json_sequence_empty_list(session):
     retrieved = session.query(TestModel).first()
     assert retrieved.sequence == []
 
-
 ###############################################################################
 def test_json_sequence_none(session):
     """Verify valid None storage."""
@@ -56,7 +51,6 @@ def test_json_sequence_none(session):
 
     retrieved = session.query(TestModel).first()
     assert retrieved.sequence is None
-
 
 ###############################################################################
 def test_string_payload_raises_for_json_sequence(session):

@@ -5,7 +5,6 @@ import importlib
 import json
 from pathlib import Path
 
-
 ###############################################################################
 def load_asgi_app(spec: str):
     module_name, _, app_name = spec.partition(":")
@@ -16,7 +15,6 @@ def load_asgi_app(spec: str):
     if app is None:
         raise ValueError(f"App attribute '{app_name}' not found in module '{module_name}'")
     return app
-
 
 ###############################################################################
 def main() -> int:

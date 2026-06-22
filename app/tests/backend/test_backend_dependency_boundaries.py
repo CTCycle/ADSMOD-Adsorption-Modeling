@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ###############################################################################
 def _iter_python_files(root: str):
     for path in Path(root).rglob("*.py"):
         if any(part in {".venv", "__pycache__", ".pytest_cache"} for part in path.parts):
             continue
         yield path
-
 
 ###############################################################################
 def test_core_has_no_ml_imports() -> None:
@@ -28,7 +26,6 @@ def test_core_has_no_ml_imports() -> None:
         hits = [item for item in forbidden if item in text]
         assert not hits, f"{path}: forbidden imports {hits}"
 
-
 ###############################################################################
 def test_shared_has_no_service_imports() -> None:
     forbidden = [
@@ -41,7 +38,6 @@ def test_shared_has_no_service_imports() -> None:
         text = path.read_text(encoding="utf-8")
         hits = [item for item in forbidden if item in text]
         assert not hits, f"{path}: forbidden imports {hits}"
-
 
 ###############################################################################
 def test_no_legacy_monolith_imports_remain() -> None:
