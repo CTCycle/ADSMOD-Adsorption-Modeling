@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from core_service.configurations import get_server_settings
-from core_service.common.constants import (
+from shared.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_BEST_MODEL,

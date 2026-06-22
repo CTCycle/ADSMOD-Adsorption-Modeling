@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core_service.common.constants import (
+from shared.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_OPTIMIZATION_METHOD,

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
 
-from ml_service.common.constants import PAD_VALUE
+from shared.common.constants import PAD_VALUE
 from ml_service.common.utils.logger import logger
 
 ###############################################################################

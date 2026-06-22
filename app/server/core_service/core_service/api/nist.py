@@ -1,18 +1,7 @@
 from __future__ import annotations
 
-import asyncio
-import uuid
-from collections.abc import Awaitable, Callable
-from typing import Any
-
 from fastapi import APIRouter, HTTPException, status
 
-from core_service.domain.jobs import (
-    JobCancelResponse,
-    JobListResponse,
-    JobStartResponse,
-    JobStatusResponse,
-)
 from core_service.domain.nist import (
     NISTCategory,
     NISTCategoryFetchRequest,
@@ -22,7 +11,10 @@ from core_service.domain.nist import (
     NISTPropertiesRequest,
     NISTStatusResponse,
 )
-from core_service.common.constants import (
+from core_service.common.utils.logger import logger
+from core_service.services.container import CoreServiceContainer
+from core_service.services.data.nist_service import NISTDataService
+from shared.common.constants import (
     NIST_CATEGORY_ENRICH_ENDPOINT,
     NIST_CATEGORY_FETCH_ENDPOINT,
     NIST_CATEGORY_INDEX_ENDPOINT,
@@ -35,172 +27,41 @@ from core_service.common.constants import (
     NIST_ROUTER_PREFIX,
     NIST_STATUS_ENDPOINT,
 )
-from core_service.common.utils.logger import logger
-from core_service.services.container import CoreServiceContainer
-from core_service.services.data.nist_service import NISTDataService
-from core_service.services.job_responses import JobResponseFactory
-from core_service.services.jobs import JobManager
-from core_service.configurations import get_server_settings
+from shared.models.jobs import (
+    JobCancelResponse,
+    JobListResponse,
+    JobStartResponse,
+    JobStatusResponse,
+)
 
 ###############################################################################
 class NistEndpoint:
-    JOB_TYPE_FETCH = "nist_fetch"
-    JOB_TYPE_PROPERTIES = "nist_properties"
-    CATEGORY_INDEX_SUFFIX = "index"
-    CATEGORY_FETCH_SUFFIX = "fetch"
-    CATEGORY_ENRICH_SUFFIX = "enrich"
-
     # -------------------------------------------------------------------------
-    def __init__(
-        self,
-        router: APIRouter,
-        service: NISTDataService,
-        job_manager: JobManager,
-    ) -> None:
+    def __init__(self, router: APIRouter, service: NISTDataService) -> None:
         self.router = router
         self.service = service
-        self.job_manager = job_manager
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def build_category_job_type(category: NISTCategory, suffix: str) -> str:
-        return f"nist_{category}_{suffix}"
-
-    # -------------------------------------------------------------------------
-    def start_background_job(
-        self,
-        job_type: str,
-        runner: Callable[..., dict[str, Any]],
-        args: tuple[Any, ...] = (),
-        message: str = "Job started.",
-    ) -> JobStartResponse:
-        if self.job_manager.is_job_running(job_type):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"A {job_type} job is already running.",
-            )
-
-        job_id = str(uuid.uuid4())[:8]
-        self.job_manager.start_job(
-            job_type=job_type,
-            runner=runner,
-            args=args,
-            job_id=job_id,
-        )
-        return JobResponseFactory.start(
-            job_id=job_id,
-            job_type=job_type,
-            message=message,
-            poll_interval=get_server_settings().jobs.polling_interval,
-        )
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def run_awaitable_sync(awaitable: Awaitable[dict[str, Any]]) -> dict[str, Any]:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            return loop.run_until_complete(awaitable)
-        finally:
-            asyncio.set_event_loop(None)
-            loop.close()
-
-    # -------------------------------------------------------------------------
-    def _run_fetch_sync(
-        self,
-        experiments_fraction: float,
-        guest_fraction: float,
-        host_fraction: float,
-        job_id: str | None = None,
-    ) -> dict:
-        return self.run_awaitable_sync(
-            self.service.fetch_and_store(
-                experiments_fraction=experiments_fraction,
-                guest_fraction=guest_fraction,
-                host_fraction=host_fraction,
-                job_id=job_id,
-            )
-        )
-
-    # -------------------------------------------------------------------------
-    def _run_properties_sync(self, target: str, job_id: str | None = None) -> dict:
-        return self.run_awaitable_sync(
-            self.service.enrich_properties(target=target, job_id=job_id)
-        )
-
-    # -------------------------------------------------------------------------
-    def _run_category_index_sync(
-        self, category: NISTCategory, job_id: str | None = None
-    ) -> dict:
-        if category == "experiments":
-            return self.run_awaitable_sync(
-                self.service.fetch_experiments_index(job_id=job_id)
-            )
-        if category == "guest":
-            return self.run_awaitable_sync(
-                self.service.fetch_guest_index(job_id=job_id)
-            )
-        return self.run_awaitable_sync(self.service.fetch_host_index(job_id=job_id))
-
-    # -------------------------------------------------------------------------
-    def _run_category_fetch_sync(
-        self, category: NISTCategory, fraction: float, job_id: str | None = None
-    ) -> dict:
-        if category == "experiments":
-            return self.run_awaitable_sync(
-                self.service.fetch_experiments_records(fraction=fraction, job_id=job_id)
-            )
-        if category == "guest":
-            return self.run_awaitable_sync(
-                self.service.fetch_guest_records(fraction=fraction, job_id=job_id)
-            )
-        return self.run_awaitable_sync(
-            self.service.fetch_host_records(fraction=fraction, job_id=job_id)
-        )
-
-    # -------------------------------------------------------------------------
-    def _run_category_enrich_sync(
-        self, category: NISTCategory, job_id: str | None = None
-    ) -> dict:
-        if category == "guest":
-            return self.run_awaitable_sync(
-                self.service.enrich_guest_properties(job_id=job_id)
-            )
-        if category == "host":
-            return self.run_awaitable_sync(
-                self.service.enrich_host_properties(job_id=job_id)
-            )
-        raise ValueError("Enrichment is not supported for experiments.")
 
     # -------------------------------------------------------------------------
     def start_fetch_job(self, request: NISTFetchRequest) -> JobStartResponse:
-        response = self.start_background_job(
-            job_type=self.JOB_TYPE_FETCH,
-            runner=self._run_fetch_sync,
-            args=(
-                request.experiments_fraction,
-                request.guest_fraction,
-                request.host_fraction,
-            ),
-            message="NIST fetch job started.",
-        )
-        logger.info("Started NIST fetch job %s", response.job_id)
-        return response
+        try:
+            response = self.service.start_fetch_job(request)
+            logger.info("Started NIST fetch job %s", response.job_id)
+            return response
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     def start_properties_job(self, request: NISTPropertiesRequest) -> JobStartResponse:
-        response = self.start_background_job(
-            job_type=self.JOB_TYPE_PROPERTIES,
-            runner=self._run_properties_sync,
-            args=(request.target,),
-            message=f"NIST properties enrichment job started for {request.target}.",
-        )
-        logger.info(
-            "Started NIST properties job %s (target=%s)",
-            response.job_id,
-            request.target,
-        )
-        return response
+        try:
+            response = self.service.start_properties_job(request)
+            logger.info(
+                "Started NIST properties job %s (target=%s)",
+                response.job_id,
+                request.target,
+            )
+            return response
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     async def ping_category_server(
@@ -229,47 +90,32 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     def start_category_index_job(self, category: NISTCategory) -> JobStartResponse:
-        job_type = self.build_category_job_type(category, self.CATEGORY_INDEX_SUFFIX)
-        response = self.start_background_job(
-            job_type=job_type,
-            runner=self._run_category_index_sync,
-            args=(category,),
-            message=f"NIST {category} index job started.",
-        )
-        logger.info("Started NIST %s index job %s", category, response.job_id)
-        return response
+        try:
+            response = self.service.start_category_index_job(category)
+            logger.info("Started NIST %s index job %s", category, response.job_id)
+            return response
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     def start_category_fetch_job(
         self, category: NISTCategory, request: NISTCategoryFetchRequest
     ) -> JobStartResponse:
-        job_type = self.build_category_job_type(category, self.CATEGORY_FETCH_SUFFIX)
-        response = self.start_background_job(
-            job_type=job_type,
-            runner=self._run_category_fetch_sync,
-            args=(category, request.fraction),
-            message=f"NIST {category} fetch job started.",
-        )
-        logger.info("Started NIST %s fetch job %s", category, response.job_id)
-        return response
+        try:
+            response = self.service.start_category_fetch_job(category, request)
+            logger.info("Started NIST %s fetch job %s", category, response.job_id)
+            return response
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     def start_category_enrich_job(self, category: NISTCategory) -> JobStartResponse:
-        if category == "experiments":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Enrichment is not supported for experiments.",
-            )
-
-        job_type = self.build_category_job_type(category, self.CATEGORY_ENRICH_SUFFIX)
-        response = self.start_background_job(
-            job_type=job_type,
-            runner=self._run_category_enrich_sync,
-            args=(category,),
-            message=f"NIST {category} enrichment job started.",
-        )
-        logger.info("Started NIST %s enrichment job %s", category, response.job_id)
-        return response
+        try:
+            response = self.service.start_category_enrich_job(category)
+            logger.info("Started NIST %s enrichment job %s", category, response.job_id)
+            return response
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     async def fetch_nist_category_status(self) -> NISTCategoryStatusResponse:
@@ -286,38 +132,21 @@ class NistEndpoint:
 
     # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job {job_id} not found.",
-            )
-        return JobResponseFactory.status(
-            job_status=job_status,
-            poll_interval=get_server_settings().jobs.polling_interval,
-        )
+        try:
+            return self.service.get_job_status(job_id)
+        except LookupError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     def list_jobs(self) -> JobListResponse:
-        all_jobs = [
-            job
-            for job in self.job_manager.list_jobs()
-            if str(job.get("job_type", "")).startswith("nist_")
-        ]
-        return JobResponseFactory.list(
-            job_statuses=all_jobs,
-            poll_interval=get_server_settings().jobs.polling_interval,
-        )
+        return self.service.list_jobs()
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> JobCancelResponse:
-        success = self.job_manager.cancel_job(job_id)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Job {job_id} cannot be cancelled (not found or already completed).",
-            )
-        return JobResponseFactory.cancelled(job_id)
+        try:
+            return self.service.cancel_job(job_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     async def fetch_nist_status(self) -> NISTStatusResponse:
@@ -422,11 +251,7 @@ class NistEndpoint:
 ###############################################################################
 def create_nist_router(container: CoreServiceContainer) -> APIRouter:
     router = APIRouter(prefix=NIST_ROUTER_PREFIX, tags=["nist"])
-    endpoint = NistEndpoint(
-        router=router,
-        service=container.nist_service,
-        job_manager=container.job_manager,
-    )
+    endpoint = NistEndpoint(router=router, service=container.nist_service)
     endpoint.add_routes()
     return router
 

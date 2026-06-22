@@ -5,7 +5,7 @@ from typing import Any
 import keras
 from keras import activations, layers
 
-from ml_service.common.constants import PAD_VALUE
+from shared.common.constants import PAD_VALUE
 from ml_service.learning.models.transformers import AddNorm, FeedForward
 
 

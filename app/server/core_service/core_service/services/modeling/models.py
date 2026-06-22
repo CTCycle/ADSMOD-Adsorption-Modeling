@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from core_service.common.constants import FITTING_MODEL_NAMES
+from shared.common.constants import FITTING_MODEL_NAMES
 
 ###############################################################################
 class AdsorptionModels:

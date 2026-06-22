@@ -11,7 +11,7 @@ import pandas as pd
 from scipy.optimize import curve_fit, minimize
 
 from core_service.configurations import get_server_settings
-from core_service.common.constants import (
+from shared.common.constants import (
     COLUMN_AIC,
     COLUMN_AICC,
     COLUMN_BEST_MODEL,

@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from ml_service.common.constants import PAD_VALUE
+from shared.common.constants import PAD_VALUE
 from ml_service.common.utils.logger import logger
 from shared.repositories.queries.nist import NISTDataSerializer
 from ml_service.services.data.sanitizer import AggregateDatasets

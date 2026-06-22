@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from core_service.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
+from shared.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
 from core_service.common.utils.logger import logger
 from core_service.domain.fitting import (
     NISTFittingDatasetPayload,
