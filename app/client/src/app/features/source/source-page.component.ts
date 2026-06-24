@@ -23,7 +23,7 @@ import { NistCollectionRowsComponent } from './nist-collection-rows.component';
             </aside>
 
             <section class="route-canvas route-canvas-source">
-                <div class="route-tabs-row">
+                <div class="route-tabs-row" aria-label="Source navigation header">
                     <adsmod-header-tabs />
                 </div>
 
@@ -69,10 +69,7 @@ import { NistCollectionRowsComponent } from './nist-collection-rows.component';
                             <div>
                                 <div class="section-title">NIST-A Collection</div>
                                 <div class="section-caption">
-                                    Fetch NIST-A records into the local database using sampling fractions.
-                                </div>
-                                <div class="section-caption section-caption-journey">
-                                    Use NIST data to benchmark coverage before moving to fitting and training.
+                                    Fetch NIST-A records into the local database using sampling fractions, then use NIST data to benchmark coverage before moving to fitting and training.
                                 </div>
                             </div>
                         </div>
