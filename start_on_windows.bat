@@ -445,7 +445,9 @@ pushd "%server_dir%" >nul
 "%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
-  "%uv_exe%" sync --all-packages --group dev
+  echo [WARN] Existing virtual environment may reference a previous repository location. Recreating it.
+  if exist "%server_dir%\.venv" rd /s /q "%server_dir%\.venv"
+  "%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
   set "sync_ec=%ERRORLEVEL%"
 )
 popd >nul
