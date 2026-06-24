@@ -1,4 +1,4 @@
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { SplitSelectionCardComponent } from './split-selection-card.component';
 import { DatasetProcessingWizardComponent } from './dataset-processing-wizard.component';
 import type { DatasetBuildConfig } from '../../../models/dataset-build.model';
@@ -138,8 +138,8 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
 })
 export class DatasetBuilderCardComponent {
     readonly showSectionHeading = input(true);
-    readonly datasetBuilt = input<(() => void) | undefined>(undefined);
-    readonly workspaceChanged = input<(() => void) | undefined>(undefined);
+    readonly datasetBuilt = output<void>();
+    readonly workspaceChanged = output<void>();
     protected readonly datasetSources = signal<DatasetSourceInfo[]>([]);
     protected readonly selectedKeys = signal<Set<string>>(new Set());
     protected readonly isWizardOpen = signal(false);
@@ -203,7 +203,7 @@ export class DatasetBuilderCardComponent {
             this.statusTone.set('info');
             this.statusMessage.set('Dataset cleared');
             await this.loadDatasetInfo();
-            this.workspaceChanged()?.();
+            this.workspaceChanged.emit();
         } else {
             this.statusTone.set('error');
             this.statusMessage.set(`ERROR: ${result.message}`);
@@ -220,8 +220,8 @@ export class DatasetBuilderCardComponent {
             this.statusTone.set('success');
             this.statusMessage.set(`OK: ${result.message} (${result.train_samples} train, ${result.validation_samples} val)`);
             await this.loadDatasetInfo();
-            this.datasetBuilt()?.();
-            this.workspaceChanged()?.();
+            this.datasetBuilt.emit();
+            this.workspaceChanged.emit();
         } else {
             this.statusTone.set('error');
             this.statusMessage.set(`ERROR: ${result.message}`);
@@ -243,7 +243,7 @@ export class DatasetBuilderCardComponent {
         const result = await deleteDatasetSource(dataset.source, dataset.dataset_name);
         if (result.success) {
             await this.loadDatasetSources();
-            this.workspaceChanged()?.();
+            this.workspaceChanged.emit();
         } else {
             this.statusTone.set('error');
             this.statusMessage.set(`ERROR: Failed to delete dataset: ${result.message}`);

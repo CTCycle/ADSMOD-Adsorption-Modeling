@@ -1,4 +1,5 @@
 import { Component, input, output, signal } from '@angular/core';
+import { SplitSelectionCardComponent } from './split-selection-card.component';
 import type { CheckpointInfo, ProcessedDatasetInfo } from '../../../models/training.model';
 
 type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
@@ -6,23 +7,17 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
 @Component({
     selector: 'adsmod-training-setup-row',
     standalone: true,
+    imports: [SplitSelectionCardComponent],
     template: `
         <div class="training-setup-container">
             @if (showDatasets()) {
-                <div class="section-container">
-                    @if (showSectionHeading()) {
-                        <h3 class="split-selection-title">Training Datasets</h3>
-                    }
-
-                    <div class="split-selection-card">
-                        <div class="split-selection-card-left">
-                            <div class="split-selection-card-toolbar">
-                                @if (onRefreshDatasets()) {
-                                    <button type="button" class="split-selection-refresh-button" (click)="onRefreshDatasets()!()">Refresh</button>
-                                }
-                            </div>
-
-                            <div class="split-selection-card-content">
+                <adsmod-split-selection-card
+                    title="Training Datasets"
+                    [hideHeader]="!showSectionHeading()"
+                    [showRefresh]="true"
+                    (refresh)="refreshDatasetsRequested.emit()"
+                >
+                    <div card-left>
                                 <table class="split-table">
                                     <thead class="split-table-head">
                                         <tr class="split-table-header-row">
@@ -64,10 +59,9 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                         }
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
+                    </div>
 
-                        <div class="split-selection-card-right">
+                    <div card-right>
                             <div class="split-selection-card-header-row">
                                 <div class="split-selection-card-icon-wrap">
                                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -101,26 +95,18 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                     Open Training Setup
                                 </button>
                             </div>
-                        </div>
                     </div>
-                </div>
+                </adsmod-split-selection-card>
             }
 
             @if (showCheckpoints()) {
-                <div class="section-container">
-                    @if (showSectionHeading()) {
-                        <h3 class="split-selection-title">Checkpoints</h3>
-                    }
-
-                    <div class="split-selection-card">
-                        <div class="split-selection-card-left">
-                            <div class="split-selection-card-toolbar">
-                                @if (onRefreshCheckpoints()) {
-                                    <button type="button" class="split-selection-refresh-button" (click)="onRefreshCheckpoints()!()">Refresh</button>
-                                }
-                            </div>
-
-                            <div class="split-selection-card-content">
+                <adsmod-split-selection-card
+                    title="Checkpoints"
+                    [hideHeader]="!showSectionHeading()"
+                    [showRefresh]="true"
+                    (refresh)="refreshCheckpointsRequested.emit()"
+                >
+                    <div card-left>
                                 <table class="split-table">
                                     <thead class="split-table-head">
                                         <tr class="split-table-header-row">
@@ -162,10 +148,9 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                         }
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
+                    </div>
 
-                        <div class="split-selection-card-right">
+                    <div card-right>
                             <div class="split-selection-card-header-row">
                                 <div class="split-selection-card-icon-wrap">
                                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -194,9 +179,8 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                     Resume Training
                                 </button>
                             </div>
-                        </div>
                     </div>
-                </div>
+                </adsmod-split-selection-card>
             }
         </div>
     `,
@@ -205,10 +189,10 @@ export class TrainingSetupRowComponent {
     readonly processedDatasets = input.required<ProcessedDatasetInfo[]>();
     readonly checkpoints = input.required<CheckpointInfo[]>();
     readonly isTraining = input(false);
-    readonly onRefreshDatasets = input<(() => void) | undefined>(undefined);
-    readonly onRefreshCheckpoints = input<(() => void) | undefined>(undefined);
     readonly viewMode = input<TrainingSetupViewMode>('all');
     readonly showSectionHeading = input(true);
+    readonly refreshDatasetsRequested = output<void>();
+    readonly refreshCheckpointsRequested = output<void>();
     readonly newTrainingRequested = output<string>();
     readonly resumeTrainingRequested = output<string>();
     readonly datasetMetadataRequested = output<string>();
