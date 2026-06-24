@@ -16,9 +16,12 @@ import { TrainingViewNavigationService } from '../services/training-view-navigat
 import type {
     CheckpointFullDetails,
     DatasetFullInfo,
+    ResumeTrainingConfig,
+    TrainingConfig,
     TrainingHistoryPoint,
     TrainingMetricKey,
     TrainingMetrics,
+    TrainingStatus,
 } from '../../../models/training.model';
 
 interface TrainingViewSpec {
@@ -111,8 +114,8 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                         <div class="training-view-widget">
                             <adsmod-dataset-builder-card
                                 [showSectionHeading]="false"
-                                [datasetBuilt]="refreshWorkspaceFn"
-                                [workspaceChanged]="refreshWorkspaceFn"
+                                (datasetBuilt)="refreshWorkspace()"
+                                (workspaceChanged)="refreshWorkspace()"
                             />
                         </div>
                     }
@@ -122,10 +125,10 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                                 [processedDatasets]="store.processedDatasets()"
                                 [checkpoints]="store.checkpoints()"
                                 [isTraining]="store.trainingStatus().is_training"
-                                [onRefreshDatasets]="refreshDatasetsFn"
-                                [onRefreshCheckpoints]="refreshCheckpointsFn"
                                 viewMode="datasets"
                                 [showSectionHeading]="false"
+                                (refreshDatasetsRequested)="refreshDatasets()"
+                                (refreshCheckpointsRequested)="refreshCheckpoints()"
                                 (newTrainingRequested)="openNewTrainingWizard($event)"
                                 (resumeTrainingRequested)="openResumeTrainingWizard($event)"
                                 (datasetMetadataRequested)="viewDatasetMetadata($event)"
@@ -141,10 +144,10 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                                 [processedDatasets]="store.processedDatasets()"
                                 [checkpoints]="store.checkpoints()"
                                 [isTraining]="store.trainingStatus().is_training"
-                                [onRefreshDatasets]="refreshDatasetsFn"
-                                [onRefreshCheckpoints]="refreshCheckpointsFn"
                                 viewMode="checkpoints"
                                 [showSectionHeading]="false"
+                                (refreshDatasetsRequested)="refreshDatasets()"
+                                (refreshCheckpointsRequested)="refreshCheckpoints()"
                                 (newTrainingRequested)="openNewTrainingWizard($event)"
                                 (resumeTrainingRequested)="openResumeTrainingWizard($event)"
                                 (datasetMetadataRequested)="viewDatasetMetadata($event)"
@@ -270,9 +273,6 @@ export class MachineLearningPageComponent {
     };
     protected readonly lossPrimaryLine = { dataKey: 'loss', color: this.chartColors.loss, name: 'Train Loss' } as const;
     protected readonly lossSecondaryLine = { dataKey: 'val_loss', color: this.chartColors.valLoss, name: 'Val Loss' } as const;
-    protected readonly refreshWorkspaceFn = () => void this.store.refreshWorkspace();
-    protected readonly refreshDatasetsFn = () => void this.store.loadProcessedDatasets();
-    protected readonly refreshCheckpointsFn = () => void this.store.loadCheckpoints();
     private readonly routeView = toSignal(
         this.route.paramMap.pipe(map((params) => params.get('view'))),
         { initialValue: 'processing' }
@@ -325,19 +325,27 @@ export class MachineLearningPageComponent {
         effect(() => {
             this.store.setActiveView(this.activeView().id);
         });
-        void this.statusPolling.checkStatus(
-            (status) => this.store.setTrainingStatus(status),
-            (error) => this.store.trainingStatusError.set(error),
-            () => void this.store.loadCheckpoints()
-        );
+        void this.refreshStatus();
     }
 
     protected async refreshStatus(): Promise<void> {
         await this.statusPolling.checkStatus(
-            (status) => this.store.setTrainingStatus(status),
-            (error) => this.store.trainingStatusError.set(error),
-            () => void this.store.loadCheckpoints()
+            (status) => this.handleTrainingStatus(status),
+            (error) => this.handleTrainingStatusError(error),
+            () => this.handleTrainingEnded()
         );
+    }
+
+    protected async refreshWorkspace(): Promise<void> {
+        await this.store.refreshWorkspace();
+    }
+
+    protected async refreshDatasets(): Promise<void> {
+        await this.store.loadProcessedDatasets();
+    }
+
+    protected async refreshCheckpoints(): Promise<void> {
+        await this.store.loadCheckpoints();
     }
 
     protected openNewTrainingWizard(datasetLabel: string): void {
@@ -348,7 +356,7 @@ export class MachineLearningPageComponent {
         this.store.showResumeTrainingWizardFor(checkpointName);
     }
 
-    protected async confirmTraining(config: import('../../../models/training.model').TrainingConfig): Promise<void> {
+    protected async confirmTraining(config: TrainingConfig): Promise<void> {
         this.store.setConfig(config);
         await this.actionRunner.runTrainingAction({
             action: () => this.store.startTraining(),
@@ -358,19 +366,14 @@ export class MachineLearningPageComponent {
             appendLog: (message) => this.store.appendTrainingLog(message),
             onSuccess: async (result) => {
                 this.store.closeNewTrainingWizard();
-                this.statusPolling.startPolling(
-                    result.poll_interval,
-                    (status) => this.store.setTrainingStatus(status),
-                    (error) => this.store.trainingStatusError.set(error),
-                    () => void this.store.loadCheckpoints()
-                );
+                this.startTrainingStatusPolling(result.poll_interval);
                 await this.refreshStatus();
                 await this.viewNavigation.navigateTo('dashboard');
             },
         });
     }
 
-    protected async confirmResume(config: import('../../../models/training.model').ResumeTrainingConfig): Promise<void> {
+    protected async confirmResume(config: ResumeTrainingConfig): Promise<void> {
         this.store.setResumeConfig(config);
         await this.actionRunner.runTrainingAction({
             action: () => this.store.resumeTraining(),
@@ -380,12 +383,7 @@ export class MachineLearningPageComponent {
             appendLog: (message) => this.store.appendTrainingLog(message),
             onSuccess: async (result) => {
                 this.store.closeResumeTrainingWizard();
-                this.statusPolling.startPolling(
-                    result.poll_interval,
-                    (status) => this.store.setTrainingStatus(status),
-                    (error) => this.store.trainingStatusError.set(error),
-                    () => void this.store.loadCheckpoints()
-                );
+                this.startTrainingStatusPolling(result.poll_interval);
                 await this.refreshStatus();
                 await this.viewNavigation.navigateTo('dashboard');
             },
@@ -452,6 +450,27 @@ export class MachineLearningPageComponent {
     private formatLossValue(value: number | undefined): string {
         const safeValue = typeof value === 'number' ? value : 0;
         return safeValue.toFixed(4);
+    }
+
+    private startTrainingStatusPolling(intervalSeconds: number | undefined): void {
+        this.statusPolling.startPolling(
+            intervalSeconds,
+            (status) => this.handleTrainingStatus(status),
+            (error) => this.handleTrainingStatusError(error),
+            () => this.handleTrainingEnded()
+        );
+    }
+
+    private handleTrainingStatus(status: TrainingStatus): void {
+        this.store.setTrainingStatus(status);
+    }
+
+    private handleTrainingStatusError(error: string | null): void {
+        this.store.trainingStatusError.set(error);
+    }
+
+    private handleTrainingEnded(): void {
+        void this.store.loadCheckpoints();
     }
 
     private formatMetricValue(value: number | undefined, asPercent: boolean): string {
