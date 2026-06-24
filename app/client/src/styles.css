@@ -4064,17 +4064,15 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  min-height: 4.2rem;
-  margin: -0.1rem -0.1rem 0.95rem;
-  padding: 0.45rem 0.75rem 0.55rem;
-  border: 1px solid rgba(220, 228, 241, 0.95);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 12px 30px -26px rgba(15, 23, 42, 0.26);
+  min-height: 3.35rem;
+  margin: -0.35rem 0 0.95rem;
+  padding: 0 0.2rem;
+  border-bottom: 1px solid rgba(220, 228, 241, 0.95);
 }
 
 .header-tabs {
-  gap: 0.22rem;
+  align-self: stretch;
+  gap: 0.35rem;
   margin-left: 0;
 }
 
@@ -4089,23 +4087,21 @@ body {
   position: relative;
   min-width: 86px;
   justify-content: center;
-  border-radius: 12px;
-  padding: 0.82rem 1.08rem 0.88rem;
-  border-color: transparent;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  padding: 0.78rem 1.08rem 0.72rem;
   background: transparent;
   color: #5d6980;
   box-shadow: none;
 }
 
 .header-tab:hover {
-  background: rgba(239, 245, 255, 0.74);
-  border-color: transparent;
+  background: rgba(239, 245, 255, 0.64);
   color: #2e5dd8;
 }
 
 .header-tab.active {
-  background: rgba(239, 245, 255, 0.94);
-  border-color: transparent;
+  background: transparent;
   color: #2457d6;
   box-shadow: none;
 }
@@ -4115,8 +4111,8 @@ body {
   position: absolute;
   left: 1rem;
   right: 1rem;
-  bottom: -0.55rem;
-  height: 4px;
+  bottom: -1px;
+  height: 3px;
   border-radius: 999px;
   background: #3b6ff5;
 }
@@ -4301,8 +4297,10 @@ button.secondary {
 
 .route-canvas-fitting .header-tab.active {
   color: #5f40e5;
-  border-color: #d9cffd;
-  background: #faf8ff;
+}
+
+.route-canvas-fitting .header-tab.active::after {
+  background: #6847e8;
 }
 
 .status-text {
