@@ -22,6 +22,11 @@ interface CategoryOperationState {
     progress: number;
 }
 
+interface NistActionIcon {
+    viewBox: string;
+    paths: string[];
+}
+
 const CATEGORY_ORDER: NISTCategoryKey[] = ['experiments', 'guest', 'host'];
 const CATEGORY_LABELS: Record<NISTCategoryKey, string> = {
     experiments: 'Adsorption experiments',
@@ -33,6 +38,39 @@ const OPERATION_LABELS: Record<CategoryOperation, string> = {
     index: 'Updating index',
     fetch: 'Fetching records',
     enrich: 'Enriching properties',
+};
+const ACTION_ICONS: Record<'server' | 'index' | 'fetch' | 'enrich', NistActionIcon> = {
+    server: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M2.25 8.25A2.25 2.25 0 0 1 4.5 6h15a2.25 2.25 0 0 1 2.25 2.25v2.25A2.25 2.25 0 0 1 19.5 12.75h-15A2.25 2.25 0 0 1 2.25 10.5V8.25Z',
+            'M2.25 15.75A2.25 2.25 0 0 1 4.5 13.5h15a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 19.5 20.25h-15A2.25 2.25 0 0 1 2.25 18v-2.25Z',
+            'M6.75 9.375h.008v.008H6.75v-.008Zm0 7.5h.008v.008H6.75v-.008Zm3-7.5h7.5m-7.5 7.5h7.5',
+        ],
+    },
+    index: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M4.5 5.25h15A1.5 1.5 0 0 1 21 6.75v10.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.25V6.75a1.5 1.5 0 0 1 1.5-1.5Z',
+            'M7.5 9h9M7.5 12h9M7.5 15h5.25',
+        ],
+    },
+    fetch: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M12 3.75v10.5',
+            'm8.25 10.5-6.75 6.75-6.75-6.75',
+            'M4.5 16.5v1.125A2.625 2.625 0 0 0 7.125 20.25h9.75A2.625 2.625 0 0 0 19.5 17.625V16.5',
+        ],
+    },
+    enrich: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M12 3.75c.947 2.08 2.597 3.73 4.677 4.677C14.597 9.374 12.947 11.024 12 13.104c-.947-2.08-2.597-3.73-4.677-4.677C9.403 7.48 11.053 5.83 12 3.75Z',
+            'M18 13.5c.552 1.213 1.537 2.198 2.75 2.75-1.213.552-2.198 1.537-2.75 2.75-.552-1.213-1.537-2.198-2.75-2.75 1.213-.552 2.198-1.537 2.75-2.75Z',
+            'M6 14.25c.745 1.636 2.114 3.005 3.75 3.75C8.114 18.745 6.745 20.114 6 21.75c-.745-1.636-2.114-3.005-3.75-3.75 1.636-.745 3.005-2.114 3.75-3.75Z',
+        ],
+    },
 };
 
 const FRACTION_MIN = 0.001;
@@ -132,17 +170,33 @@ const initialOperationMap = (): Record<NISTCategoryKey, CategoryOperationState> 
 
                         <div class="nist-category-row-actions">
                             <button class="nist-icon-button" [class]="serverStateClass(status)" title="Server Status" [attr.aria-label]="'Server status for ' + labels[category]" [disabled]="operation.running" (click)="handlePing(category)">
-                                <span aria-hidden="true">Wi</span>
+                                <svg aria-hidden="true" [attr.viewBox]="actionIcons.server.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    @for (path of actionIcons.server.paths; track path) {
+                                        <path [attr.d]="path"></path>
+                                    }
+                                </svg>
                             </button>
                             <button class="nist-icon-button" title="Update Index" [attr.aria-label]="'Update index for ' + labels[category]" [disabled]="operation.running" (click)="handleUpdateIndex(category)">
-                                <span aria-hidden="true">Idx</span>
+                                <svg aria-hidden="true" [attr.viewBox]="actionIcons.index.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    @for (path of actionIcons.index.paths; track path) {
+                                        <path [attr.d]="path"></path>
+                                    }
+                                </svg>
                             </button>
                             <button class="nist-icon-button" title="Get Records" [attr.aria-label]="'Get records for ' + labels[category]" [disabled]="operation.running" (click)="handleFetchRecords(category)">
-                                <span aria-hidden="true">Get</span>
+                                <svg aria-hidden="true" [attr.viewBox]="actionIcons.fetch.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    @for (path of actionIcons.fetch.paths; track path) {
+                                        <path [attr.d]="path"></path>
+                                    }
+                                </svg>
                             </button>
                             @if (status.supports_enrichment) {
                                 <button class="nist-icon-button" title="Enrich Molecular Properties" [attr.aria-label]="'Enrich properties for ' + labels[category]" [disabled]="operation.running" (click)="handleEnrich(category)">
-                                    <span aria-hidden="true">Enr</span>
+                                    <svg aria-hidden="true" [attr.viewBox]="actionIcons.enrich.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        @for (path of actionIcons.enrich.paths; track path) {
+                                            <path [attr.d]="path"></path>
+                                        }
+                                    </svg>
                                 </button>
                             } @else {
                                 <span class="nist-icon-button-placeholder" aria-hidden="true"></span>
@@ -173,6 +227,7 @@ export class NistCollectionRowsComponent implements OnInit {
     protected readonly fractionMin = FRACTION_MIN;
     protected readonly fractionMax = FRACTION_MAX;
     protected readonly fractionStep = FRACTION_STEP;
+    protected readonly actionIcons = ACTION_ICONS;
     protected readonly statuses = signal<Record<NISTCategoryKey, NISTCategoryRecordStatus>>(initialStatusMap());
     protected readonly operations = signal<Record<NISTCategoryKey, CategoryOperationState>>(initialOperationMap());
     protected readonly fractions = signal<Record<NISTCategoryKey, number>>({
