@@ -1,5 +1,6 @@
 @echo off
 setlocal EnableExtensions
+for %%I in ("%~dp0.") do set "repo_root=%%~fI"
 
 if /i "%~1"=="core" goto :install_core
 if /i "%~1"=="ml" goto :install_ml
