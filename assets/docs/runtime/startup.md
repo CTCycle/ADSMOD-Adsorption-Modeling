@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-06-16
+Last updated: 2026-07-01
 
 ## Recommended Local Web Startup
 
@@ -17,7 +17,6 @@ PowerShell:
 ```
 
 This menu-driven script:
-
 - ensures portable runtimes under `runtimes/`
 - syncs backend workspace dependencies into `app/server/.venv`
 - installs frontend dependencies when needed
