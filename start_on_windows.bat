@@ -41,7 +41,7 @@ set "nodejs_version=22.12.0"
 set "nodejs_zip_filename=node-v%nodejs_version%-win-x64.zip"
 set "nodejs_zip_url=https://nodejs.org/dist/v%nodejs_version%/%nodejs_zip_filename%"
 set "nodejs_zip_path=%nodejs_dir%\%nodejs_zip_filename%"
-set "startup_wait_seconds=30"
+set "startup_wait_seconds=90"
 set "interactive_mode=true"
 set "auto_open_browser=true"
 
@@ -716,8 +716,16 @@ set "frontend_dir=%~1"
 set "frontend_name=%~2"
 set "frontend_host=%~3"
 set "frontend_port=%~4"
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Start-Process -WindowStyle Hidden -WorkingDirectory '%frontend_dir%' -FilePath '%npm_cmd%' -ArgumentList 'run','dev','--','--host','%frontend_host%','--port','%frontend_port%' | Out-Null"
-if errorlevel 1 (
+set "frontend_ng=%frontend_dir%\node_modules\.bin\ng.cmd"
+if not exist "%frontend_ng%" (
+  echo [ERROR] Angular CLI launcher not found for %frontend_name% at "%frontend_ng%".
+  exit /b 1
+)
+pushd "%frontend_dir%" >nul
+start "%frontend_name%" /MIN cmd.exe /d /s /c ""%frontend_ng%" serve --host %frontend_host% --port %frontend_port% --proxy-config proxy.conf.cjs"
+set "frontend_ec=%ERRORLEVEL%"
+popd >nul
+if not "%frontend_ec%"=="0" (
   echo [ERROR] Failed to start %frontend_name% in the background.
   exit /b 1
 )

@@ -27,7 +27,13 @@ export async function pollFittingJobUntilComplete(
                 return { message: '[INFO] Fitting completed.', data: null };
             }
 
-            const lines: string[] = ['[INFO] Fitting completed successfully.'];
+            const defaultMessage =
+                result.status === 'error'
+                    ? '[ERROR] Fitting finished without any successful model fits.'
+                    : result.status === 'warning'
+                        ? '[WARN] Fitting completed with partial issues.'
+                        : '[INFO] Fitting completed successfully.';
+            const lines: string[] = [defaultMessage];
             if (typeof result.processed_rows === 'number') {
                 lines.push(`Processed experiments: ${result.processed_rows}`);
             }
