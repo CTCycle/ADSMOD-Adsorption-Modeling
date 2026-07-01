@@ -48,6 +48,7 @@ describe('fitting.service', () => {
                 status: 'completed',
                 progress: 100,
                 result: {
+                    status: 'success',
                     summary: 'Best model: Langmuir',
                     processed_rows: 42,
                 },
@@ -57,6 +58,7 @@ describe('fitting.service', () => {
         await expect(pollFittingJobUntilComplete('fit-42', 0)).resolves.toEqual({
             message: 'Best model: Langmuir',
             data: {
+                status: 'success',
                 summary: 'Best model: Langmuir',
                 processed_rows: 42,
             },
@@ -79,6 +81,50 @@ describe('fitting.service', () => {
         await expect(pollFittingJobUntilComplete('fit-99', 0)).resolves.toEqual({
             message: '[INFO] Job was cancelled.',
             data: null,
+        });
+    });
+
+    it('falls back to a warning message when a completed job reports partial issues', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'completed',
+                progress: 100,
+                result: {
+                    status: 'warning',
+                    processed_rows: 2,
+                },
+            }),
+        });
+
+        await expect(pollFittingJobUntilComplete('fit-warning', 0)).resolves.toEqual({
+            message: '[WARN] Fitting completed with partial issues.\nProcessed experiments: 2',
+            data: {
+                status: 'warning',
+                processed_rows: 2,
+            },
+        });
+    });
+
+    it('falls back to an error message when no model fits succeed', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                status: 'completed',
+                progress: 100,
+                result: {
+                    status: 'error',
+                    processed_rows: 0,
+                },
+            }),
+        });
+
+        await expect(pollFittingJobUntilComplete('fit-error', 0)).resolves.toEqual({
+            message: '[ERROR] Fitting finished without any successful model fits.\nProcessed experiments: 0',
+            data: {
+                status: 'error',
+                processed_rows: 0,
+            },
         });
     });
 });

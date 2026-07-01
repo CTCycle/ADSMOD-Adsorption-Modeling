@@ -23,7 +23,7 @@ export interface FittingPayload {
 }
 
 export interface FittingResponse {
-    status: string;
+    status: 'success' | 'warning' | 'error';
     summary?: string;
     detail?: string;
     message?: string;

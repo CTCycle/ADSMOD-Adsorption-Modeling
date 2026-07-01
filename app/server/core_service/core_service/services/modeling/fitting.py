@@ -598,38 +598,64 @@ class FittingPipeline:
                 "No valid experiments were available after fitting validation."
             )
 
+        experiment_count = int(processed.shape[0])
+        configured_models = sorted(model_configuration.keys())
+        model_outcomes = self.summarize_model_outcomes(results)
+        outcome_totals = self.aggregate_model_outcomes(model_outcomes)
+        overall_status = self.determine_overall_status(
+            outcome_totals,
+            skipped_experiments,
+            skipped_models,
+        )
+
         combined = self.adapter.combine_results(results, processed)
         storage_dataset = self.trim_fitting_dataset(combined, detected_columns)
         self.serializer.save_fitting_results(storage_dataset)
 
         ranking_metric = get_server_settings().fitting.best_model_metric
         normalized_metric = self.adapter.normalize_metric(ranking_metric)
-        best_frame = self.adapter.compute_best_models(
-            storage_dataset, normalized_metric
-        )
-        self.serializer.save_best_fit(best_frame)
+        best_frame: pd.DataFrame | None = None
+        best_model_saved = False
+        if outcome_totals["successes"] > 0:
+            best_frame = self.adapter.compute_best_models(
+                storage_dataset, normalized_metric
+            )
+            self.serializer.save_best_fit(best_frame)
+            best_model_saved = True
+        else:
+            logger.warning(
+                "Skipping best-model persistence because no fitting runs succeeded"
+            )
 
-        experiment_count = int(processed.shape[0])
-        configured_models = sorted(model_configuration.keys())
-        model_outcomes = self.summarize_model_outcomes(results)
         response: dict[str, Any] = {
-            "status": "success",
+            "status": overall_status,
             "processed_rows": experiment_count,
             "models": configured_models,
-            "best_model_saved": True,
+            "best_model_saved": best_model_saved,
         }
 
         if best_frame is not None:
             response["best_model_preview"] = self.build_preview(best_frame)
 
+        if overall_status == "error":
+            headline = "[ERROR] ADSMOD fitting finished without any successful model fits."
+        elif overall_status == "warning":
+            headline = "[WARN] ADSMOD fitting completed with partial issues."
+        else:
+            headline = "[INFO] ADSMOD fitting completed."
+
         summary_lines: list[str] = [
-            "[INFO] ADSMOD fitting completed.",
+            headline,
             f"Dataset: {dataset_name or 'unknown'}",
             f"Raw rows: {int(dataframe.shape[0])}",
             f"Experiments processed: {experiment_count}",
             f"Optimization method: {self.solver.normalize_method(optimization_method)}",
             f"Max iterations: {int(max_iterations)}",
             f"Ranking metric: {normalized_metric}",
+            (
+                f"Fit outcomes: {outcome_totals['successes']} successful, "
+                f"{outcome_totals['failures']} failed"
+            ),
         ]
         if skipped_experiments:
             summary_lines.append(
@@ -658,7 +684,12 @@ class FittingPipeline:
                     summary_lines.append(
                         f"[WARN] {model_name}: {failures} failures out of {total}"
                     )
-        summary_lines.append("Best model selection stored in database.")
+        if best_model_saved:
+            summary_lines.append("Best model selection stored in database.")
+        else:
+            summary_lines.append(
+                "[WARN] Best model selection was not stored because no successful fits were available."
+            )
         response["summary"] = "\n".join(summary_lines)
 
         return response
@@ -791,6 +822,42 @@ class FittingPipeline:
             failures = sum(1 for entry in entries if entry.get("exception"))
             summary[model_name] = {"total": total, "failures": failures}
         return summary
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def aggregate_model_outcomes(
+        summary: dict[str, dict[str, int]],
+    ) -> dict[str, int]:
+        totals = {
+            "total": 0,
+            "failures": 0,
+            "successes": 0,
+        }
+        for stats in summary.values():
+            total = int(stats.get("total", 0))
+            failures = min(int(stats.get("failures", 0)), total)
+            successes = max(0, total - failures)
+            totals["total"] += total
+            totals["failures"] += failures
+            totals["successes"] += successes
+        return totals
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def determine_overall_status(
+        outcome_totals: dict[str, int],
+        skipped_experiments: list[str],
+        skipped_models: list[str],
+    ) -> str:
+        if outcome_totals["successes"] <= 0:
+            return "error"
+        if (
+            outcome_totals["failures"] > 0
+            or bool(skipped_experiments)
+            or bool(skipped_models)
+        ):
+            return "warning"
+        return "success"
 
     # -------------------------------------------------------------------------
     def stringify_sequences(self, dataset: pd.DataFrame) -> pd.DataFrame:

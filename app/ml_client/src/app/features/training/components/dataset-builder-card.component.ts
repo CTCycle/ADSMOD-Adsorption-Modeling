@@ -30,7 +30,9 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                             <span class="dataset-actions-header">Actions</span>
                         </div>
                         <div class="dataset-table-body dataset-table-body-unbounded">
-                            @if (datasetSources().length === 0) {
+                            @if (isLoadingSources()) {
+                                <div class="dataset-table-empty dataset-table-empty-lg">Loading datasets...</div>
+                            } @else if (datasetSources().length === 0) {
                                 <div class="dataset-table-empty dataset-table-empty-lg">No datasets available yet.</div>
                             }
                             @for (dataset of datasetSources(); track datasetKey(dataset)) {
@@ -141,6 +143,7 @@ export class DatasetBuilderCardComponent {
     readonly datasetBuilt = output<void>();
     readonly workspaceChanged = output<void>();
     protected readonly datasetSources = signal<DatasetSourceInfo[]>([]);
+    protected readonly isLoadingSources = signal(true);
     protected readonly selectedKeys = signal<Set<string>>(new Set());
     protected readonly isWizardOpen = signal(false);
     protected readonly isBuilding = signal(false);
@@ -186,15 +189,18 @@ export class DatasetBuilderCardComponent {
     protected async loadDatasetSources(): Promise<void> {
         this.selectedKeys.set(new Set());
         this.statusMessage.set(null);
+        this.isLoadingSources.set(true);
         const result = await fetchDatasetSources();
         if (result.error) {
             this.datasetSources.set([]);
+            this.isLoadingSources.set(false);
             this.statusTone.set('error');
             this.statusMessage.set(`ERROR: ${result.error}`);
             return;
         }
 
         this.datasetSources.set(result.datasets);
+        this.isLoadingSources.set(false);
     }
 
     protected async clearDataset(): Promise<void> {
