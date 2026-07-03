@@ -27,8 +27,6 @@ By merging the capabilities of these systems into a single, cohesive platform, A
 
 The system is organized as a modern web application with a responsive user interface and a backend focused on data processing and machine learning tasks.
 
-> **Work in Progress**: This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features.
-
 ## 2. Model and Dataset
 
 This project utilizes deep learning techniques to model adsorption phenomena.
@@ -196,6 +194,10 @@ Database mode and backend defaults are loaded from `settings/configurations.json
 
 Single canonical runtime file:
 - `settings/.env`
+
+## 9. Development Status
+
+This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features. Tagged releases (currently v2.3.0) are stable for local evaluation and testing.
 
 ## 8. License
 

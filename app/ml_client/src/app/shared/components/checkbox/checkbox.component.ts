@@ -1,5 +1,7 @@
 import { Component, input, output } from '@angular/core';
 
+let checkboxIdCounter = 0;
+
 @Component({
     selector: 'adsmod-checkbox',
     standalone: true,
@@ -22,7 +24,7 @@ export class CheckboxComponent {
     readonly label = input.required<string>();
     readonly checked = input(false);
     readonly disabled = input(false);
-    readonly inputId = input(`checkbox-${Math.random().toString(36).slice(2, 9)}`);
+    readonly inputId = input(`adsmod-checkbox-${checkboxIdCounter++}`);
     readonly checkedChange = output<boolean>();
 
     protected handleChange(event: Event): void {
