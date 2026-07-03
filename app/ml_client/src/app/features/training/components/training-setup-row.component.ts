@@ -1,5 +1,6 @@
 import { Component, input, output, signal } from '@angular/core';
 import { SplitSelectionCardComponent } from './split-selection-card.component';
+import { TrainingTableActionsComponent } from './training-table-actions.component';
 import type { CheckpointInfo, ProcessedDatasetInfo } from '../../../models/training.model';
 
 type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
@@ -7,7 +8,7 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
 @Component({
     selector: 'adsmod-training-setup-row',
     standalone: true,
-    imports: [SplitSelectionCardComponent],
+    imports: [SplitSelectionCardComponent, TrainingTableActionsComponent],
     template: `
         <div class="training-setup-container">
             @if (showDatasets()) {
@@ -45,14 +46,12 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                                     <td class="split-table-cell">{{ dataset.train_samples }}</td>
                                                     <td class="split-table-cell">{{ dataset.validation_samples }}</td>
                                                     <td class="split-table-cell split-table-cell-right">
-                                                        <div class="split-table-actions-wrap">
-                                                            <button class="icon-action-button" type="button" title="View Metadata" (click)="viewDataset($event, dataset.dataset_label)">
-                                                                <span aria-hidden="true">i</span>
-                                                            </button>
-                                                            <button class="icon-action-button" type="button" title="Delete Dataset" (click)="deleteDataset($event, dataset.dataset_label)">
-                                                                <span aria-hidden="true">x</span>
-                                                            </button>
-                                                        </div>
+                                                        <adsmod-training-table-actions
+                                                            viewTitle="View Metadata"
+                                                            deleteTitle="Delete Dataset"
+                                                            (view)="datasetMetadataRequested.emit(dataset.dataset_label)"
+                                                            (delete)="datasetDeleteRequested.emit(dataset.dataset_label)"
+                                                        />
                                                     </td>
                                                 </tr>
                                             }
@@ -134,14 +133,12 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                                     <td class="split-table-cell">{{ checkpoint.epochs_trained ?? '-' }}</td>
                                                     <td class="split-table-cell">{{ checkpoint.final_loss?.toFixed(4) ?? '-' }}</td>
                                                     <td class="split-table-cell split-table-cell-right">
-                                                        <div class="split-table-actions-wrap">
-                                                            <button class="icon-action-button" type="button" title="View Details" (click)="viewCheckpoint($event, checkpoint.name)">
-                                                                <span aria-hidden="true">i</span>
-                                                            </button>
-                                                            <button class="icon-action-button" type="button" title="Delete Checkpoint" (click)="deleteCheckpointEntry($event, checkpoint.name)">
-                                                                <span aria-hidden="true">x</span>
-                                                            </button>
-                                                        </div>
+                                                        <adsmod-training-table-actions
+                                                            viewTitle="View Details"
+                                                            deleteTitle="Delete Checkpoint"
+                                                            (view)="checkpointDetailsRequested.emit(checkpoint.name)"
+                                                            (delete)="checkpointDeleteRequested.emit(checkpoint.name)"
+                                                        />
                                                     </td>
                                                 </tr>
                                             }
@@ -228,23 +225,4 @@ export class TrainingSetupRowComponent {
         this.toggleCheckpoint(name);
     }
 
-    protected viewDataset(event: Event, label: string): void {
-        event.stopPropagation();
-        this.datasetMetadataRequested.emit(label);
-    }
-
-    protected deleteDataset(event: Event, label: string): void {
-        event.stopPropagation();
-        this.datasetDeleteRequested.emit(label);
-    }
-
-    protected viewCheckpoint(event: Event, name: string): void {
-        event.stopPropagation();
-        this.checkpointDetailsRequested.emit(name);
-    }
-
-    protected deleteCheckpointEntry(event: Event, name: string): void {
-        event.stopPropagation();
-        this.checkpointDeleteRequested.emit(name);
-    }
 }

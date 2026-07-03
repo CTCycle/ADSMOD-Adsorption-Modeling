@@ -11,11 +11,10 @@ import { ResumeTrainingWizardComponent } from '../components/resume-training-wiz
 import { TrainingHistoryChartPanelComponent } from '../components/training-history-chart-panel.component';
 import { TrainingSetupRowComponent } from '../components/training-setup-row.component';
 import { TrainingActionRunnerService } from '../services/training-action-runner.service';
+import { buildCheckpointDetailsModalData, buildDatasetMetadataModalData } from '../services/training-modal-data';
 import { TrainingStatusPollingService } from '../services/training-status-polling.service';
 import { TrainingViewNavigationService } from '../services/training-view-navigation.service';
 import type {
-    CheckpointFullDetails,
-    DatasetFullInfo,
     ResumeTrainingConfig,
     TrainingConfig,
     TrainingHistoryPoint,
@@ -420,7 +419,7 @@ export class MachineLearningPageComponent {
         const info = await this.store.fetchDatasetMetadata(label);
         this.store.setActionLoading(false);
         if (info && info.available) {
-            this.store.openInfoModal('Dataset Metadata', this.buildDatasetMetadataModalData(info));
+            this.store.openInfoModal('Dataset Metadata', buildDatasetMetadataModalData(info));
         } else {
             this.store.openErrorModal('Dataset Metadata', `Could not fetch details for dataset '${label}'.`);
         }
@@ -443,7 +442,7 @@ export class MachineLearningPageComponent {
         if (error) {
             this.store.openErrorModal('Checkpoint Details', error);
         } else if (details) {
-            this.store.openInfoModal('Checkpoint Details', this.buildCheckpointDetailsModalData(details));
+            this.store.openInfoModal('Checkpoint Details', buildCheckpointDetailsModalData(details));
         }
     }
 
@@ -481,33 +480,4 @@ export class MachineLearningPageComponent {
         return safeValue.toFixed(4);
     }
 
-    private buildDatasetMetadataModalData(info: DatasetFullInfo) {
-        return {
-            'Dataset Label': info.dataset_label,
-            'Created At': info.created_at,
-            'Total Samples': info.total_samples,
-            'Train Samples': info.train_samples,
-            'Validation Samples': info.validation_samples,
-            'Sample Fraction': info.sample_size,
-            'Validation Fraction': info.validation_size,
-            'Min Measurements': info.min_measurements,
-            'Max Measurements': info.max_measurements,
-            'SMILES Length': info.smile_sequence_size,
-            'Max Pressure': info.max_pressure,
-            'Max Uptake': info.max_uptake,
-            'SMILES Vocabulary': info.smile_vocabulary_size,
-            'Adsorbents Count': info.adsorbent_vocabulary_size,
-            Normalization: info.normalization_stats,
-        };
-    }
-
-    private buildCheckpointDetailsModalData(details: CheckpointFullDetails) {
-        return {
-            Name: details.name,
-            'Epochs Trained': details.epochs_trained,
-            'Final Loss': details.final_loss?.toFixed(6) ?? 'N/A',
-            'Is Compatible': details.is_compatible ? 'Yes' : 'No',
-            'Created At': details.created_at || 'Unknown',
-        };
-    }
 }
