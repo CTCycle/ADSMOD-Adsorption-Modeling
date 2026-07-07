@@ -8,10 +8,10 @@ from ml_service.bootstrap import configure_environment
 
 configure_environment()
 
-from ml_service.api.entrypoint import health_router
-from ml_service.api.routes import register_ml_routes
-from ml_service.services.container import MlServiceContainer
-from shared.common.constants import (
+from ml_service.api.entrypoint import health_router  # noqa: E402
+from ml_service.api.routes import register_ml_routes  # noqa: E402
+from ml_service.services.container import MlServiceContainer  # noqa: E402
+from shared.common.constants import (  # noqa: E402
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
