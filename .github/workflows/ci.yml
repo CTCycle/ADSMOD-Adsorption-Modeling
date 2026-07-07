@@ -44,14 +44,14 @@ jobs:
       - name: Build core frontend
         run: |
           cd app/client
-          npm ci
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
           npm run lint
           npm run test
           npm run build
       - name: Build ML frontend
         run: |
           cd app/ml_client
-          npm ci
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
           npm run lint
           npm run test
           npm run build
