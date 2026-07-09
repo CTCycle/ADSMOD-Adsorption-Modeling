@@ -1,6 +1,6 @@
 # ADSMOD Persistence And Packages
 
-Last updated: 2026-06-04
+Last updated: 2026-07-09
 
 ## Backend Workspace Model
 
@@ -23,10 +23,19 @@ ML-specific model and checkpoint serialization remains under `ml_service`.
 
 ## Validation Expectations
 
-Stage 1 architecture validation requires:
+Core-only installation uses:
 
-- `uv sync --all-packages --group dev` in `app/server`
-- import checks for `core_service.app` and `ml_service.app`
+- `uv sync --package adsmod-core-service --group dev` in `app/server`
+- import checks for `core_service.app`
 - dependency-boundary checks for `core_service` and `shared`
+
+ML-enabled installation uses:
+
+- `uv sync --package adsmod-ml-service --group dev` for ML-only work
+- `uv sync --all-packages --group dev` only when both services are explicitly requested
+- import checks for `ml_service.app` only in ML-enabled validation
+
+Architecture validation requires:
+
 - route-separation checks for training endpoints
 - backend tests and generated OpenAPI artifacts for both services

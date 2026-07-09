@@ -13,6 +13,9 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
             <a class="header-tab" routerLink="/fitting" routerLinkActive="active">
                 <span class="header-tab-label">Fitting</span>
             </a>
+            <a class="header-tab" routerLink="/training" routerLinkActive="active">
+                <span class="header-tab-label">Training</span>
+            </a>
         </nav>
     `,
 })

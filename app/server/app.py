@@ -44,16 +44,23 @@ def _load_service_modules():
     from core_service.api.entrypoint import health_router
     from core_service.api.routes import register_core_routes
     from core_service.services.container import CoreServiceContainer
-    from ml_service.api.routes import register_ml_routes
-    from ml_service.services.container import MlServiceContainer
 
     return (
         health_router,
         register_core_routes,
         CoreServiceContainer,
-        register_ml_routes,
-        MlServiceContainer,
     )
+
+###############################################################################
+def _ml_registration_enabled() -> bool:
+    return os.getenv("ADSMOD_ENABLE_ML", "false").strip().lower() in TRUTHY_VALUES
+
+###############################################################################
+def _load_ml_service_modules():
+    from ml_service.api.routes import register_ml_routes
+    from ml_service.services.container import MlServiceContainer
+
+    return register_ml_routes, MlServiceContainer
 
 ###############################################################################
 def _client_build_available() -> bool:
@@ -81,7 +88,7 @@ def _build_cors_origins() -> list[str]:
         elif ui_host == "localhost":
             hosts.add("127.0.0.1")
 
-    ports = {5173, 5174}
+    ports = {5173}
     ui_port = os.getenv("UI_PORT", "").strip()
     if ui_port.isdigit():
         ports.add(int(ui_port))
@@ -134,13 +141,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 ###############################################################################
 def create_app() -> FastAPI:
-    (
-        health_router,
-        register_core_routes,
-        CoreServiceContainer,
-        register_ml_routes,
-        MlServiceContainer,
-    ) = _load_service_modules()
+    health_router, register_core_routes, CoreServiceContainer = _load_service_modules()
 
     application = FastAPI(
         title=FASTAPI_TITLE,
@@ -158,13 +159,15 @@ def create_app() -> FastAPI:
     )
 
     core_container = CoreServiceContainer()
-    ml_container = MlServiceContainer()
     application.state.core_container = core_container
-    application.state.ml_container = ml_container
 
     application.include_router(health_router)
     register_core_routes(application, core_container, prefix="/api", include_schema=False)
-    register_ml_routes(application, ml_container, prefix="/api", include_schema=True)
+    if _ml_registration_enabled():
+        register_ml_routes, MlServiceContainer = _load_ml_service_modules()
+        ml_container = MlServiceContainer()
+        application.state.ml_container = ml_container
+        register_ml_routes(application, ml_container, prefix="/api", include_schema=True)
 
     if _client_build_available():
         if CLIENT_ASSETS_DIR.is_dir():

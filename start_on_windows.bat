@@ -5,7 +5,6 @@ for %%I in ("%~dp0.") do set "repo_root=%%~fI"
 set "app_dir=%repo_root%\app"
 set "server_dir=%app_dir%\server"
 set "client_dir=%app_dir%\client"
-set "ml_client_dir=%app_dir%\ml_client"
 set "scripts_dir=%app_dir%\scripts"
 set "tests_dir=%app_dir%\tests"
 set "log_dir=%app_dir%\resources\logs"
@@ -55,8 +54,8 @@ echo ==========================================================================
 echo                               ADSMOD Menu
 echo ==========================================================================
 echo 1. Start core frontend + core service
-echo 2. Start ML frontend + ML service
-echo 3. Start both frontends + both services
+echo 2. Start unified frontend + ML service
+echo 3. Start unified frontend + both services
 echo 4. Exit
 echo.
 choice /c 1234 /n /m "Select an option (1-4): "
@@ -143,8 +142,6 @@ set "ML_SERVICE_HOST=127.0.0.1"
 set "ML_SERVICE_PORT=8001"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=5173"
-set "ML_UI_HOST=127.0.0.1"
-set "ML_UI_PORT=5174"
 set "OPTIONAL_DEPENDENCIES=false"
 
 if exist "%dotenv%" (
@@ -167,8 +164,6 @@ if exist "%dotenv%" (
         if /i "!k!"=="ML_SERVICE_PORT" set "ML_SERVICE_PORT=!v!"
         if /i "!k!"=="UI_HOST" set "UI_HOST=!v!"
         if /i "!k!"=="UI_PORT" set "UI_PORT=!v!"
-        if /i "!k!"=="ML_UI_HOST" set "ML_UI_HOST=!v!"
-        if /i "!k!"=="ML_UI_PORT" set "ML_UI_PORT=!v!"
         if /i "!k!"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=!v!"
       )
     )
@@ -181,8 +176,6 @@ if not defined ML_SERVICE_HOST set "ML_SERVICE_HOST=127.0.0.1"
 if not defined ML_SERVICE_PORT set "ML_SERVICE_PORT=8001"
 if not defined UI_HOST set "UI_HOST=127.0.0.1"
 if not defined UI_PORT set "UI_PORT=5173"
-if not defined ML_UI_HOST set "ML_UI_HOST=%UI_HOST%"
-if not defined ML_UI_PORT set "ML_UI_PORT=5174"
 exit /b 0
 
 :launch_scope
@@ -219,19 +212,19 @@ if /i "%scope%"=="core" (
 if /i "%scope%"=="ml" (
   call :assert_port_available "%ML_SERVICE_PORT%" "ML API"
   if errorlevel 1 goto :launch_failed
-  call :assert_port_available "%ML_UI_PORT%" "ML UI"
+  call :assert_port_available "%UI_PORT%" "Unified UI"
   if errorlevel 1 goto :launch_failed
 
   call :start_backend_process "ADSMOD ML API" "ml_service.app:app" "%ML_SERVICE_HOST%" "%ML_SERVICE_PORT%"
-  call :start_hidden_frontend "%ml_client_dir%" "ML UI" "%ML_UI_HOST%" "%ML_UI_PORT%"
+  call :start_hidden_frontend "%client_dir%" "Unified UI" "%UI_HOST%" "%UI_PORT%"
   call :wait_for_port_ready "%ML_SERVICE_PORT%" "ML API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :wait_for_http_ready "http://%ML_UI_HOST%:%ML_UI_PORT%/" "ML UI" "%startup_wait_seconds%"
+  call :wait_for_http_ready "http://%UI_HOST%:%UI_PORT%/training" "Unified UI" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :maybe_open_browser "http://%ML_UI_HOST%:%ML_UI_PORT%"
-  echo [SUCCESS] ML frontend and ML service started.
+  call :maybe_open_browser "http://%UI_HOST%:%UI_PORT%/training"
+  echo [SUCCESS] Unified frontend and ML service started.
   echo [INFO] ML API: http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
-  echo [INFO] ML UI : http://%ML_UI_HOST%:%ML_UI_PORT%
+  echo [INFO] UI    : http://%UI_HOST%:%UI_PORT%/training
   exit /b 0
 )
 
@@ -242,28 +235,21 @@ if /i "%scope%"=="both" (
   if errorlevel 1 goto :launch_failed
   call :assert_port_available "%UI_PORT%" "Core UI"
   if errorlevel 1 goto :launch_failed
-  call :assert_port_available "%ML_UI_PORT%" "ML UI"
-  if errorlevel 1 goto :launch_failed
 
   call :start_backend_process "ADSMOD Core API" "core_service.app:app" "%CORE_SERVICE_HOST%" "%CORE_SERVICE_PORT%"
   call :start_backend_process "ADSMOD ML API" "ml_service.app:app" "%ML_SERVICE_HOST%" "%ML_SERVICE_PORT%"
-  call :start_hidden_frontend "%client_dir%" "Core UI" "%UI_HOST%" "%UI_PORT%"
-  call :start_hidden_frontend "%ml_client_dir%" "ML UI" "%ML_UI_HOST%" "%ML_UI_PORT%"
+  call :start_hidden_frontend "%client_dir%" "Unified UI" "%UI_HOST%" "%UI_PORT%"
   call :wait_for_port_ready "%CORE_SERVICE_PORT%" "Core API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
   call :wait_for_port_ready "%ML_SERVICE_PORT%" "ML API" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
-  call :wait_for_http_ready "http://%UI_HOST%:%UI_PORT%/" "Core UI" "%startup_wait_seconds%"
-  if errorlevel 1 goto :launch_failed
-  call :wait_for_http_ready "http://%ML_UI_HOST%:%ML_UI_PORT%/" "ML UI" "%startup_wait_seconds%"
+  call :wait_for_http_ready "http://%UI_HOST%:%UI_PORT%/" "Unified UI" "%startup_wait_seconds%"
   if errorlevel 1 goto :launch_failed
   call :maybe_open_browser "http://%UI_HOST%:%UI_PORT%"
-  call :maybe_open_browser "http://%ML_UI_HOST%:%ML_UI_PORT%"
-  echo [SUCCESS] Both frontends and both services started.
+  echo [SUCCESS] Unified frontend and both services started.
   echo [INFO] Core API: http://%CORE_SERVICE_HOST%:%CORE_SERVICE_PORT%
   echo [INFO] ML API  : http://%ML_SERVICE_HOST%:%ML_SERVICE_PORT%
-  echo [INFO] Core UI : http://%UI_HOST%:%UI_PORT%
-  echo [INFO] ML UI   : http://%ML_UI_HOST%:%ML_UI_PORT%
+  echo [INFO] UI      : http://%UI_HOST%:%UI_PORT%
   exit /b 0
 )
 
@@ -297,7 +283,7 @@ call :ensure_uv_runtime
 if errorlevel 1 exit /b 1
 call :ensure_node_runtime
 if errorlevel 1 exit /b 1
-call :sync_backend_dependencies
+call :sync_backend_dependencies "%scope%"
 if errorlevel 1 exit /b 1
 call :install_frontend_scope "%scope%" "%build_frontends%"
 if errorlevel 1 exit /b 1
@@ -433,6 +419,7 @@ echo [OK] Node.js ready: !found_node_version!
 exit /b 0
 
 :sync_backend_dependencies
+set "scope=%~1"
 echo [STEP 4/4] Syncing backend dependencies
 if not exist "%pyproject%" (
   echo [ERROR] Missing pyproject: "%pyproject%"
@@ -442,12 +429,24 @@ if not exist "%pyproject%" (
 set "PYTHONHOME=%python_dir%"
 set "PYTHONNOUSERSITE=1"
 pushd "%server_dir%" >nul
-"%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
+if /i "%scope%"=="core" (
+  "%uv_exe%" sync --package adsmod-core-service --group dev --python "%python_exe%"
+) else if /i "%scope%"=="ml" (
+  "%uv_exe%" sync --package adsmod-ml-service --group dev --python "%python_exe%"
+) else (
+  "%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
+)
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] Existing virtual environment may reference a previous repository location. Recreating it.
   if exist "%server_dir%\.venv" rd /s /q "%server_dir%\.venv"
-  "%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
+  if /i "%scope%"=="core" (
+    "%uv_exe%" sync --package adsmod-core-service --group dev --python "%python_exe%"
+  ) else if /i "%scope%"=="ml" (
+    "%uv_exe%" sync --package adsmod-ml-service --group dev --python "%python_exe%"
+  ) else (
+    "%uv_exe%" sync --all-packages --group dev --python "%python_exe%"
+  )
   set "sync_ec=%ERRORLEVEL%"
 )
 popd >nul
@@ -475,13 +474,11 @@ if /i "%scope%"=="core" (
   exit /b !ERRORLEVEL!
 )
 if /i "%scope%"=="ml" (
-  call :install_frontend "%ml_client_dir%" "ML UI" "%build_frontends%"
+  call :install_frontend "%client_dir%" "Unified UI" "%build_frontends%"
   exit /b !ERRORLEVEL!
 )
 if /i "%scope%"=="both" (
-  call :install_frontend "%client_dir%" "Core UI" "%build_frontends%"
-  if errorlevel 1 exit /b 1
-  call :install_frontend "%ml_client_dir%" "ML UI" "%build_frontends%"
+  call :install_frontend "%client_dir%" "Unified UI" "%build_frontends%"
   exit /b !ERRORLEVEL!
 )
 
@@ -658,15 +655,14 @@ if /i "%scope%"=="core" (
 )
 
 if /i "%scope%"=="ml" (
-  call :remove_frontend_artifacts "%ml_client_dir%"
-  echo [SUCCESS] ML webapp artifacts removed.
+  call :remove_frontend_artifacts "%client_dir%"
+  echo [SUCCESS] Unified webapp artifacts removed.
   call :maybe_pause
   exit /b 0
 )
 
 if /i "%scope%"=="both" (
   call :remove_frontend_artifacts "%client_dir%"
-  call :remove_frontend_artifacts "%ml_client_dir%"
   if exist "%server_dir%\.venv" rd /s /q "%server_dir%\.venv"
   if exist "%server_dir%\uv.lock" del /q "%server_dir%\uv.lock"
   if exist "%repo_root%\uv.lock" del /q "%repo_root%\uv.lock"

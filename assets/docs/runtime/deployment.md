@@ -1,11 +1,11 @@
 # ADSMOD Deployment And Packaging
 
-Last updated: 2026-06-05
+Last updated: 2026-07-09
 
 ## Interoperability
 
-- Core frontend calls only non-training backend routes through `/api`.
-- ML frontend calls training routes through `/api/training`.
+- Unified frontend calls non-training backend routes through `/api`.
+- Unified frontend routes `/api/training/*` to the optional ML service.
 - Tauri waits for backend port readiness, then redirects the window to the backend root URL.
 
 ## Shared Runtime Resources
@@ -19,6 +19,7 @@ Last updated: 2026-06-05
 - Desktop packaging flows through `release/tauri/build_with_tauri.bat`.
 - Windows packaging outputs artifacts under `release/windows`.
 - The Tauri bundle stages server code, scripts, settings, Angular frontend dist assets, and runtime binaries.
+- ML registration in the unified packaged backend is conditional on `ADSMOD_ENABLE_ML=true`.
 - Backend dependency state is locked in `app/server/uv.lock`.
 
 ## Constraints

@@ -72,7 +72,6 @@ const ACTION_ICONS: Record<'server' | 'index' | 'fetch' | 'enrich', NistActionIc
         ],
     },
 };
-
 const FRACTION_MIN = 0.001;
 const FRACTION_MAX = 1.0;
 const FRACTION_STEP = 0.001;
@@ -139,82 +138,107 @@ const initialOperationMap = (): Record<NISTCategoryKey, CategoryOperationState> 
     selector: 'adsmod-nist-collection-rows',
     standalone: true,
     template: `
-        <div class="nist-rows-wrapper">
+        <div class="reference-nist-table">
+            <div class="reference-nist-header" role="row">
+                <span>Status</span>
+                <span>Category</span>
+                <span>Count</span>
+                <span>Last Updated</span>
+                <span>Fraction</span>
+                <span>Ping</span>
+                <span>Index</span>
+                <span>Fetch</span>
+                <span>Enrich</span>
+            </div>
             @for (category of categories; track category) {
                 @let status = statuses()[category];
                 @let operation = operations()[category];
-                <div class="nist-category-row">
-                    <div class="nist-category-row-main">
-                        <span class="nist-row-led-dot" [class.available]="status.local_count >= 1" [class.empty]="status.local_count < 1" aria-hidden="true"></span>
-                        <span class="nist-row-name">{{ labels[category] }}</span>
-                        <span class="nist-row-count">{{ status.local_count }} / {{ status.available_count }}</span>
-                        <span class="nist-row-updated">{{ formatDate(status.last_update) }}</span>
-                    </div>
-
-                    <div class="nist-category-row-controls">
-                        <div class="nist-row-fraction-wrap">
-                            <label [for]="'fraction-' + category">Fraction</label>
-                            <input
-                                [id]="'fraction-' + category"
-                                type="number"
-                                [min]="fractionMin"
-                                [max]="fractionMax"
-                                [step]="fractionStep"
-                                [value]="fractionInputs()[category]"
-                                [disabled]="operation.running"
-                                (input)="handleFractionInput(category, $event)"
-                                (blur)="commitFraction(category)"
-                                (keydown.enter)="commitFraction(category)"
-                            />
-                        </div>
-
-                        <div class="nist-category-row-actions">
-                            <button class="nist-icon-button" [class]="serverStateClass(status)" title="Server Status" [attr.aria-label]="'Server status for ' + labels[category]" [disabled]="operation.running" (click)="handlePing(category)">
-                                <svg aria-hidden="true" [attr.viewBox]="actionIcons.server.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    @for (path of actionIcons.server.paths; track path) {
-                                        <path [attr.d]="path"></path>
-                                    }
-                                </svg>
-                            </button>
-                            <button class="nist-icon-button" title="Update Index" [attr.aria-label]="'Update index for ' + labels[category]" [disabled]="operation.running" (click)="handleUpdateIndex(category)">
-                                <svg aria-hidden="true" [attr.viewBox]="actionIcons.index.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    @for (path of actionIcons.index.paths; track path) {
-                                        <path [attr.d]="path"></path>
-                                    }
-                                </svg>
-                            </button>
-                            <button class="nist-icon-button" title="Get Records" [attr.aria-label]="'Get records for ' + labels[category]" [disabled]="operation.running" (click)="handleFetchRecords(category)">
-                                <svg aria-hidden="true" [attr.viewBox]="actionIcons.fetch.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    @for (path of actionIcons.fetch.paths; track path) {
-                                        <path [attr.d]="path"></path>
-                                    }
-                                </svg>
-                            </button>
-                            @if (status.supports_enrichment) {
-                                <button class="nist-icon-button" title="Enrich Molecular Properties" [attr.aria-label]="'Enrich properties for ' + labels[category]" [disabled]="operation.running" (click)="handleEnrich(category)">
-                                    <svg aria-hidden="true" [attr.viewBox]="actionIcons.enrich.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        @for (path of actionIcons.enrich.paths; track path) {
-                                            <path [attr.d]="path"></path>
-                                        }
-                                    </svg>
-                                </button>
-                            } @else {
-                                <span class="nist-icon-button-placeholder" aria-hidden="true"></span>
+                <div class="reference-nist-row" role="row">
+                    <span
+                        class="reference-status-dot"
+                        [class.empty]="status.local_count < 1"
+                        [class.slow]="status.server_ok === false"
+                        aria-hidden="true"
+                    ></span>
+                    <span>{{ labels[category] }}</span>
+                    <span><em>{{ formatCount(status) }}</em></span>
+                    <span>{{ formatDate(status.last_update) }}</span>
+                    <input
+                        type="text"
+                        [id]="'fraction-' + category"
+                        [value]="fractionInputs()[category]"
+                        [attr.aria-label]="'Fraction for ' + labels[category]"
+                        [disabled]="operation.running"
+                        (input)="handleFractionInput(category, $event)"
+                        (blur)="commitFraction(category)"
+                        (keydown.enter)="commitFraction(category)"
+                    />
+                    <button
+                        class="nist-icon-button"
+                        type="button"
+                        [disabled]="operation.running"
+                        [attr.aria-label]="'Ping ' + labels[category]"
+                        (click)="handlePing(category)"
+                    >
+                        <svg aria-hidden="true" [attr.viewBox]="actionIcons.server.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            @for (path of actionIcons.server.paths; track path) {
+                                <path [attr.d]="path"></path>
                             }
-                        </div>
-                    </div>
-
-                    @if (operation.running) {
-                        <div class="nist-row-progress">
-                            <span class="nist-spinner" aria-hidden="true"></span>
-                            <span>{{ operationLabels[operation.operation] }} {{ operation.progress.toFixed(0) }}%</span>
-                            <div class="nist-row-progress-track" aria-hidden="true">
-                                <div class="nist-row-progress-fill" [style.width.%]="operation.progress"></div>
-                            </div>
-                        </div>
-                    }
+                        </svg>
+                    </button>
+                    <button
+                        class="nist-icon-button"
+                        type="button"
+                        [disabled]="operation.running"
+                        [attr.aria-label]="'Index ' + labels[category]"
+                        (click)="handleUpdateIndex(category)"
+                    >
+                        <svg aria-hidden="true" [attr.viewBox]="actionIcons.index.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            @for (path of actionIcons.index.paths; track path) {
+                                <path [attr.d]="path"></path>
+                            }
+                        </svg>
+                    </button>
+                    <button
+                        class="nist-icon-button"
+                        type="button"
+                        [disabled]="operation.running"
+                        [attr.aria-label]="'Fetch ' + labels[category]"
+                        (click)="handleFetchRecords(category)"
+                    >
+                        <svg aria-hidden="true" [attr.viewBox]="actionIcons.fetch.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            @for (path of actionIcons.fetch.paths; track path) {
+                                <path [attr.d]="path"></path>
+                            }
+                        </svg>
+                    </button>
+                    <button
+                        class="nist-icon-button"
+                        type="button"
+                        [disabled]="operation.running || !status.supports_enrichment"
+                        [attr.aria-label]="'Enrich ' + labels[category]"
+                        (click)="handleEnrich(category)"
+                    >
+                        <svg aria-hidden="true" [attr.viewBox]="actionIcons.enrich.viewBox" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            @for (path of actionIcons.enrich.paths; track path) {
+                                <path [attr.d]="path"></path>
+                            }
+                        </svg>
+                    </button>
                 </div>
+                @if (operation.running) {
+                    <div class="reference-nist-progress" role="status">
+                        <span>{{ operationLabels[operation.operation] }}</span>
+                        <progress max="100" [value]="operation.progress"></progress>
+                        <span>{{ operation.progress }}%</span>
+                    </div>
+                }
             }
+            <div class="reference-nist-footer">
+                <span>Total Categories: <strong>{{ categories.length }}</strong></span>
+                <span>Total Records: <strong>{{ totalLocalRecords() }}</strong></span>
+                <span>↻ Last refreshed: {{ lastRefreshedLabel() }}</span>
+            </div>
         </div>
     `,
 })
@@ -257,6 +281,29 @@ export class NistCollectionRowsComponent implements OnInit {
             return 'is-offline';
         }
         return 'is-unknown';
+    }
+
+    protected formatCount(status: NISTCategoryRecordStatus): string {
+        if (status.available_count > 0) {
+            return `${status.local_count.toLocaleString()} / ${status.available_count.toLocaleString()}`;
+        }
+        return status.local_count.toLocaleString();
+    }
+
+    protected totalLocalRecords(): string {
+        return this.categories
+            .reduce((total, category) => total + this.statuses()[category].local_count, 0)
+            .toLocaleString();
+    }
+
+    protected lastRefreshedLabel(): string {
+        const latestTimestamp = this.categories
+            .map((category) => this.statuses()[category].last_update)
+            .filter((value): value is string => Boolean(value))
+            .map((value) => new Date(value).getTime())
+            .filter((value) => !Number.isNaN(value))
+            .sort((left, right) => right - left)[0];
+        return typeof latestTimestamp === 'number' ? formatCompactDateTime(new Date(latestTimestamp).toISOString()) : 'N.A.';
     }
 
     protected handleFractionInput(category: NISTCategoryKey, event: Event): void {

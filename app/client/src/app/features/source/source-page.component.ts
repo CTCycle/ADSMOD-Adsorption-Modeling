@@ -1,95 +1,69 @@
 import { Component, inject } from '@angular/core';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
-import { FileUploadComponent } from '../../shared/components/file-upload/file-upload.component';
-import { MarkdownRendererComponent } from '../../shared/components/markdown-renderer/markdown-renderer.component';
-import { HeaderTabsComponent } from '../../layout/header-tabs.component';
 import { NistCollectionRowsComponent } from './nist-collection-rows.component';
 
 @Component({
     selector: 'adsmod-source-page',
     standalone: true,
-    imports: [FileUploadComponent, MarkdownRendererComponent, NistCollectionRowsComponent, HeaderTabsComponent],
+    imports: [NistCollectionRowsComponent],
     template: `
-        <div class="route-workspace route-workspace-source">
-            <aside class="route-rail route-rail-source" aria-label="Source overview">
-                <div class="route-rail-brand">
-                    <div class="route-rail-logo" aria-hidden="true">AD</div>
-                    <div class="route-rail-wordmark">ADSMOD</div>
+        <div class="source-console-grid">
+            <section class="console-card source-upload-card" aria-label="Dataset source section">
+                <div class="card-title-row">
+                    <h2>Load Experimental Data</h2>
+                    <button class="card-info-button" type="button" aria-label="Upload help">i</button>
                 </div>
-                <div class="route-rail-copy">
-                    <h1>Source</h1>
-                    <p>Prepare and manage experimental datasets.</p>
+                <label class="drop-zone" for="source-file-input">
+                    <input
+                        id="source-file-input"
+                        type="file"
+                        accept=".csv,.txt,.xlsx,.json"
+                        [disabled]="store.isDatasetUploading()"
+                        (change)="handleFileChange($event)"
+                    />
+                    <svg class="upload-cloud" aria-hidden="true" viewBox="0 0 64 48" fill="none">
+                        <path d="M18 36H14C8.5 36 4 31.5 4 26s4.5-10 10-10c1.3 0 2.5.2 3.6.7C20.4 9.2 27.4 4 35.5 4 46.3 4 55 12.7 55 23.5V24h1c4.4 0 8 3.6 8 8s-3.6 8-8 8H45" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M32 42V22m0 0-9 9m9-9 9 9" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <strong>Drag and drop files here</strong>
+                    <span>CSV, TXT, XLSX, JSON</span>
+                    <span>Max file size: 200 MB</span>
+                </label>
+                <div class="upload-divider"><span></span><em>or</em><span></span></div>
+                <button
+                    class="reference-upload-button"
+                    type="button"
+                    [disabled]="store.isDatasetUploading()"
+                    (click)="uploadSelectedFile()"
+                >
+                    <span aria-hidden="true">↥</span>
+                    {{ store.isDatasetUploading() ? 'Uploading...' : 'Upload Files' }}
+                </button>
+                <p class="upload-helper">You can upload multiple files.</p>
+            </section>
+
+            <section class="console-card source-nist-card" aria-label="NIST source section">
+                <div class="card-title-row">
+                    <h2>NIST-A Collection</h2>
+                    <button class="card-info-button" type="button" aria-label="NIST help">i</button>
                 </div>
-            </aside>
+                <adsmod-nist-collection-rows (statusUpdate)="store.setNistStatusMessage($event)" />
+            </section>
 
-            <section class="route-canvas route-canvas-source">
-                <div class="route-tabs-row" aria-label="Source navigation header">
-                    <adsmod-header-tabs />
+            <section class="console-card source-stats-card" aria-label="Uploaded dataset statistics">
+                <div class="card-title-row">
+                    <h2>Uploaded Data Statistics</h2>
+                    <button class="copy-icon-button" type="button" aria-label="Copy statistics">□</button>
                 </div>
+                <pre class="reference-markdown">{{ store.datasetStats() }}</pre>
+            </section>
 
-                <div class="source-card-grid">
-                    <section class="source-card source-card-primary" aria-label="Dataset source section">
-                        <div class="section-title">Load Experimental Data</div>
-                        <div class="section-caption">
-                            Upload adsorption data from local CSV or Excel files.
-                        </div>
-                        <div class="section-caption section-caption-journey">
-                            Load, validate, and prepare your baseline dataset before fitting and training.
-                        </div>
-                        <div class="source-inline-labels">
-                            <span class="inline-pill">{{ datasetBadge }}</span>
-                            <span class="inline-pill">{{ sampleBadge }}</span>
-                        </div>
-
-                        <div class="dataset-upload-toolbar">
-                            <adsmod-file-upload
-                                label="Load dataset"
-                                accept=".csv,.xls,.xlsx"
-                                [autoUpload]="false"
-                                [disabled]="store.isDatasetUploading()"
-                                (fileSelected)="store.setPendingFile($event)"
-                            />
-                            <button
-                                class="button primary dataset-upload-button"
-                                type="button"
-                                [disabled]="!store.pendingFile() || store.isDatasetUploading()"
-                                (click)="uploadSelectedFile()"
-                            >
-                                {{ store.isDatasetUploading() ? 'Uploading...' : 'Upload' }}
-                            </button>
-                        </div>
-                        <div class="source-inline-labels dataset-upload-meta">
-                            <span class="inline-pill">Dataset: {{ datasetDisplayName }}</span>
-                            <span class="inline-pill">Size: {{ datasetDisplaySize }}</span>
-                        </div>
-                    </section>
-
-                    <section class="source-card source-card-secondary" aria-label="NIST source section">
-                        <div class="source-card-topline">
-                            <div>
-                                <div class="section-title">NIST-A Collection</div>
-                                <div class="section-caption">
-                                    Fetch NIST-A records into the local database using sampling fractions, then use NIST data to benchmark coverage before moving to fitting and training.
-                                </div>
-                            </div>
-                        </div>
-                        <adsmod-nist-collection-rows (statusUpdate)="store.setNistStatusMessage($event)" />
-                    </section>
-
-                    <section class="source-card source-card-tertiary" aria-label="Uploaded dataset statistics">
-                        <div class="panel-title">Uploaded Data Statistics</div>
-                        <div class="source-card-text">
-                            <adsmod-markdown-renderer [content]="store.datasetStats()" />
-                        </div>
-                    </section>
-
-                    <section class="source-card source-card-tertiary" aria-label="NIST status updates">
-                        <div class="panel-title">NIST-A Status Updates</div>
-                        <div class="source-card-text">
-                            <adsmod-markdown-renderer [content]="store.nistStatusMessage()" />
-                        </div>
-                    </section>
+            <section class="console-card source-log-card" aria-label="NIST status updates">
+                <div class="card-title-row">
+                    <h2>NIST-A Status Updates</h2>
+                    <button class="clear-log-button" type="button">⌫ Clear</button>
                 </div>
+                <pre class="reference-log">{{ store.nistStatusMessage() }}</pre>
             </section>
         </div>
     `,
@@ -112,6 +86,15 @@ export class SourcePageComponent {
 
     protected get datasetDisplaySize(): string {
         return this.store.datasetSizeKb() || this.store.pendingFileSize() || 'N.A.';
+    }
+
+    protected handleFileChange(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (file) {
+            this.store.setPendingFile(file);
+        }
+        input.value = '';
     }
 
     protected async uploadSelectedFile(): Promise<void> {

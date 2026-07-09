@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-07-01
+Last updated: 2026-07-09
 
 ## Recommended Local Web Startup
 
@@ -18,12 +18,12 @@ PowerShell:
 
 This menu-driven script:
 - ensures portable runtimes under `runtimes/`
-- syncs backend workspace dependencies into `app/server/.venv`
+- syncs scoped backend dependencies into `app/server/.venv`
 - installs frontend dependencies when needed
-- exposes launch choices for core frontend + core service, ML frontend + ML service, or both stacks
+- exposes launch choices for unified frontend + core service, unified frontend + ML service, or unified frontend + both services
 - exits after handing launch control to the selected stack instead of returning to the menu
 - starts frontend dev servers in the background and opens the browser after the selected UI responds
-- respects `UI_PORT` and `ML_UI_PORT` overrides from `settings/.env` when launching frontend dev servers
+- respects `UI_PORT` overrides from `settings/.env` when launching the frontend dev server
 
 ## Setup And Maintenance
 
@@ -62,8 +62,6 @@ CMD:
 ```cmd
 cd ADSMOD\app\client
 npm run dev
-cd ADSMOD\app\ml_client
-npm run dev
 ```
 
 PowerShell:
@@ -71,11 +69,9 @@ PowerShell:
 ```powershell
 Set-Location ADSMOD/app/client
 npm run dev
-Set-Location ADSMOD/app/ml_client
-npm run dev
 ```
 
-Both frontend development servers are Angular CLI servers with API proxy configuration loaded from each app's `proxy.conf.cjs`.
+The frontend development server is an Angular CLI server with API proxy configuration loaded from `app/client/proxy.conf.cjs`.
 
 ## Test Startup
 

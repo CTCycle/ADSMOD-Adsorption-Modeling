@@ -1,13 +1,12 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-06-03
+Last updated: 2026-07-09
 
 ## Page Structure
 
-- Core frontend routes
+- Unified frontend routes
   - `source`
   - `fitting`
-- ML frontend route
   - `training`
 - Training sub-views
   - `Data Processing`

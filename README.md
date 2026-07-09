@@ -15,9 +15,9 @@ ADSMOD is a comprehensive web application designed for the collection, managemen
 - `app/server/core_service` (non-ML API workflows)
 - `app/server/ml_service` (training/ML workflows)
 - `app/server/shared` (shared persistence and repository layer)
-- Frontend split:
-- `app/client` (Angular core UI for source/fitting; talks only to `core_service`)
-- `app/ml_client` (Angular ML UI for training; talks only to `ml_service`)
+- Frontend:
+- `app/client` (Angular UI for source, fitting, and training)
+- `/api/training/*` is routed to the optional ML service; all other `/api/*` traffic is routed to the core service.
 
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
@@ -49,9 +49,9 @@ ADSMOD provides an automated menu-driven launcher and maintenance script for Win
 
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
-- Installs backend dependencies from `pyproject.toml` into `app/server/.venv`.
-- Installs frontend dependencies and can build the selected frontend bundle.
-- Exposes launch modes for the core webapp, ML webapp, or both.
+- Installs scoped backend dependencies into `app/server/.venv`.
+- Installs frontend dependencies and can build the unified frontend bundle.
+- Exposes launch modes for core-only, ML-only, or both backend services with one frontend.
 - Exposes setup and maintenance actions for core-only, ML-only, or shared operations.
 
 **First Run vs. Subsequent Runs:**
@@ -62,18 +62,19 @@ ADSMOD provides an automated menu-driven launcher and maintenance script for Win
 
 If you prefer manual setup or are running outside the launcher workflow:
 1. Install Python and Node.js.
-2. Run `uv sync --all-packages --group dev` from `app/server`.
-3. Install frontend dependencies in `app/client` and `app/ml_client`.
-4. Launch backend and frontend processes.
+2. For core-only usage, run `uv sync --package adsmod-core-service --group dev` from `app/server`.
+3. For ML/training support, run `uv sync --package adsmod-ml-service --group dev` from `app/server`, or `uv sync --all-packages --group dev` when explicitly validating both services.
+4. Install frontend dependencies in `app/client`.
+5. Launch backend and frontend processes.
 
 ### Backend startup commands (Stage 1)
 
 ```cmd
+set ADSMOD_ENABLE_ML=true
 app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
 app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 8000
 app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8001
 cd app\client && npm run dev
-cd app\ml_client && npm run dev
 ```
 
 ## 4. How to Use
@@ -81,7 +82,7 @@ cd app\ml_client && npm run dev
 ### 4.1 Launching the Application
 
 **Windows:**
-Double-click `start_on_windows.bat`. Use the menu to launch the core webapp, the ML webapp, or both.
+Double-click `start_on_windows.bat`. Use the menu to launch core-only, ML-only, or both services with the unified frontend.
 
 **Windows (Packaged Tauri App):**
 Build with `release\tauri\build_with_tauri.bat`, then launch from `release/windows/installers` or `release/windows/portable`.
@@ -96,9 +97,10 @@ Adjust host/port and runtime backend values in that file when needed.
 
 ### 4.3 Operational Workflow and UI Snapshots
 
-The application workflow is split across two frontends:
-- Core frontend: `source` and `fitting`.
-- ML frontend: `training`.
+The application workflow is exposed through one frontend:
+- `source`
+- `fitting`
+- `training`
 The snapshots below were captured from the current `develop` build (`v2.3.0` release preparation) and are intended to show representative product states without duplication.
 
 #### 4.3.1 Data Source Configuration
@@ -146,14 +148,14 @@ The snapshots below were captured from the current `develop` build (`v2.3.0` rel
 Run `start_on_windows.bat` to access setup and maintenance actions:
 
 - **Remove logs**: clears `.log` files under `app/resources/logs`.
-- **Install or update core, ML, or both webapps**: prepares shared runtimes plus the selected frontend scope.
+- **Install or update core, ML, or both service scopes**: prepares shared runtimes plus the unified frontend.
 - **Uninstall app artifacts**: removes core-only, ML-only, or full local runtime/build artifacts.
 - **Initialize database**: creates or resets the project database schema.
 - **Clean desktop build artifacts**: removes Tauri build output under release targets.
 
 ### 5.1 Frontend Development Commands
 
-From `app/client` and `app/ml_client`:
+From `app/client`:
 
 ```bash
 npm install
@@ -161,7 +163,7 @@ npm run dev
 npm run build
 ```
 
-Frontend API base path defaults to `/api`; Angular development servers proxy core and ML API routes through each app's `proxy.conf.cjs`.
+Frontend API base path defaults to `/api`; the Angular development server routes `/api/training/*` to the ML service and all other `/api/*` calls to the core service through `app/client/proxy.conf.cjs`.
 
 ## 6. Resources
 
