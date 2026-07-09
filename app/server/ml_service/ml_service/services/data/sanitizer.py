@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 class AggregateDatasets:
@@ -288,4 +288,3 @@ class TrainValidationSplit:
         dataset.loc[val_idx, "split"] = "validation"
 
         return dataset
-

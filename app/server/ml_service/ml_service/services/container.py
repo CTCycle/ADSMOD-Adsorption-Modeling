@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from ml_service.learning.training.manager import TrainingManager
 from ml_service.services.training import (
     TrainingJobRunner,

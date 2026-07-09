@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from core_service.configurations.management import ConfigurationManager
-from core_service.domain.settings import ServerSettings
+from shared.common.settings import ServerSettings
 from ml_service.configurations.management import (
     ConfigurationManager as MlConfigurationManager,
 )
@@ -89,5 +89,3 @@ def test_core_manager_defaults_to_core_runtime_file() -> None:
 def test_ml_manager_defaults_to_ml_runtime_file() -> None:
     manager = MlConfigurationManager()
     assert manager.config_path == ML_CONFIGURATION_FILE
-
-

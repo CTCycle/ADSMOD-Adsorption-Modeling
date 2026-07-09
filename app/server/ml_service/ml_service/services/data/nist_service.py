@@ -11,7 +11,7 @@ import httpx
 import pandas as pd
 
 from ml_service.configurations import get_server_settings
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from shared.repositories.queries.nist import NISTDataSerializer
 from ml_service.services.data.nistads import (
     NISTApiClient,
@@ -638,5 +638,3 @@ class NISTDataService:
             "data_available": data_available,
             **counts,
         }
-
-

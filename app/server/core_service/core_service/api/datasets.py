@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, File, HTTPException, Path, UploadFile, status
 
 from core_service.domain.datasets import DatasetLoadResponse, DatasetNamesResponse
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.services.container import CoreServiceContainer
 from core_service.services.data.datasets import DatasetService
 from shared.common.constants import (
@@ -106,4 +106,3 @@ def create_dataset_router(container: CoreServiceContainer) -> APIRouter:
     endpoint = DatasetEndpoint(router=router, service=container.dataset_service)
     endpoint.add_routes()
     return router
-

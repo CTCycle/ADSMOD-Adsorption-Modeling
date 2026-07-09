@@ -8,7 +8,7 @@ from typing import Any
 import keras
 from keras.callbacks import Callback
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 class WorkerInterrupted(RuntimeError):
@@ -272,4 +272,3 @@ def build_training_callbacks(
         )
 
     return callbacks_list
-

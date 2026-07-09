@@ -17,7 +17,7 @@ from ml_service.domain.training import (
     TrainingStartResponse,
     TrainingStatusResponse,
 )
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from ml_service.services.container import MlServiceContainer
 from ml_service.services.training import TrainingService
 from shared.models.jobs import (
@@ -409,4 +409,3 @@ def create_training_router(container: MlServiceContainer) -> APIRouter:
     endpoint = TrainingEndpoint(router=router, service=container.training_service)
     endpoint.add_routes()
     return router
-

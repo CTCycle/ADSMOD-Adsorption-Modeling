@@ -9,7 +9,7 @@ import signal
 import subprocess
 import time
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 class WorkerChannels:
@@ -198,4 +198,3 @@ def process_target(
     if os.name != "nt":
         os.setsid()
     target(worker=worker, **kwargs)
-

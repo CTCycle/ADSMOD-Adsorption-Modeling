@@ -26,7 +26,7 @@ from shared.common.constants import (
     COLUMN_WORST_MODEL,
     MODEL_PARAMETER_DEFAULTS,
 )
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.domain.datasets import DatasetColumns
 from shared.repositories.serialization.data import DataSerializer
 from core_service.services.modeling.models import AdsorptionModels
@@ -939,5 +939,3 @@ class FittingPipeline:
             for parameter, value in overrides.items():
                 backend_param = alias_map.get(parameter, parameter)
                 target[bound_type][backend_param] = float(value)
-
-

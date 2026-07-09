@@ -8,7 +8,7 @@ import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
 
 from shared.common.constants import PAD_VALUE
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 class PressureUptakeSeriesProcess:
@@ -363,4 +363,3 @@ class SMILETokenization:
         dataset = self.SMILE_series_padding(dataset)
 
         return dataset, smile_vocabulary
-

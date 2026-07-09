@@ -6,7 +6,7 @@ import torch
 
 from keras.mixed_precision import set_global_policy
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 class DeviceConfig:
@@ -69,4 +69,3 @@ class DeviceDataLoader:
         elif isinstance(data, dict):
             return {k: self._to_device(v) for k, v in data.items()}
         return data
-
