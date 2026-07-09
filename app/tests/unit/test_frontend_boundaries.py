@@ -12,62 +12,33 @@ def _iter_ts_like_files(root: Path):
         yield from root.rglob(pattern)
 
 ###############################################################################
-def test_core_frontend_has_no_ml_imports_or_endpoints() -> None:
+def test_unified_frontend_keeps_expected_training_routes() -> None:
+    text = Path('app/client/src/app/app.routes.ts').read_text(encoding='utf-8')
+    assert "path: 'training'" in text
+    assert "path: 'training/:view'" in text
+    assert 'MachineLearningPageComponent' in text
+
+###############################################################################
+def test_unified_frontend_keeps_core_and_training_pages() -> None:
     root = Path('app/client/src')
-    forbidden_tokens = [
-        'MachineLearningPage',
-        '/api/training',
-        '/training/',
-        'services/training',
-        'services/datasetBuilder',
-        'from \'./datasetBuilder\'',
-        'from "./datasetBuilder"',
-        'from \'./training\'',
-        'from "./training"',
+    required_tokens = [
+        'SourcePageComponent',
+        'ModelsPageComponent',
+        'MachineLearningPageComponent',
     ]
 
-    violations: list[str] = []
+    found = set()
     for path in _iter_ts_like_files(root):
         text = _read_text(path)
-        for token in forbidden_tokens:
+        for token in required_tokens:
             if token in text:
-                violations.append(f'{path}: {token}')
+                found.add(token)
 
-    assert not violations, '\n'.join(violations)
+    assert found == set(required_tokens)
 
 ###############################################################################
-def test_ml_frontend_has_no_core_page_imports() -> None:
-    root = Path('app/ml_client/src')
-    forbidden_tokens = [
-        'ConfigPage',
-        'ModelsPage',
-        'adsorptionModels',
-        'startFittingJob',
-        'pollFittingJobUntilComplete',
-        'fetchNistDataForFitting',
-        'fetchDatasetByName',
-        'fetchDatasetNames',
-        'loadDataset(',
-        'services/fitting',
-        'services/datasets',
-        'services/nist',
-    ]
-
-    violations: list[str] = []
-    for path in _iter_ts_like_files(root):
-        text = _read_text(path)
-        for token in forbidden_tokens:
-            if token in text:
-                violations.append(f'{path}: {token}')
-
-    assert not violations, '\n'.join(violations)
-
-###############################################################################
-def test_core_proxy_has_no_ml_routes() -> None:
+def test_unified_proxy_routes_training_before_core_api() -> None:
     text = Path('app/client/proxy.conf.cjs').read_text(encoding='utf-8')
-    assert '/api/training' not in text
-
-###############################################################################
-def test_ml_proxy_has_only_ml_routes() -> None:
-    text = Path('app/ml_client/proxy.conf.cjs').read_text(encoding='utf-8')
     assert '/api/training' in text
+    assert "'/api'" in text
+    assert text.index("'/api/training'") < text.index("'/api'")

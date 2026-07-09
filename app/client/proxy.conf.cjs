@@ -29,8 +29,16 @@ const settingsEnv = readEnvFile(path.resolve(__dirname, '../../settings/.env'));
 const env = { ...process.env, ...settingsEnv };
 const coreApiHost = env.CORE_SERVICE_HOST || env.FASTAPI_HOST || '127.0.0.1';
 const coreApiPort = Number(env.CORE_SERVICE_PORT || env.FASTAPI_PORT || 8000);
+const mlApiHost = env.ML_SERVICE_HOST || '127.0.0.1';
+const mlApiPort = Number(env.ML_SERVICE_PORT || 8001);
 
 module.exports = {
+  '/api/training': {
+    target: `http://${mlApiHost}:${mlApiPort}`,
+    changeOrigin: true,
+    secure: false,
+    logLevel: 'warn'
+  },
   '/api': {
     target: `http://${coreApiHost}:${coreApiPort}`,
     changeOrigin: true,

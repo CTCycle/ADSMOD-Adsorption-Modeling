@@ -15,5 +15,6 @@ export function normalizeApiBaseUrl(rawValue: string): string {
     return withLeadingSlash.replace(/\/+$/, '') || '/api';
 }
 
-const apiBaseEnv = import.meta.env.VITE_API_BASE_URL || '';
+const importMetaEnv = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env;
+const apiBaseEnv = importMetaEnv?.VITE_API_BASE_URL || '';
 export const API_BASE_URL = normalizeApiBaseUrl(apiBaseEnv);

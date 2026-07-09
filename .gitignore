@@ -6,6 +6,7 @@ app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
 app/client/*.local
+app/ml_client/
 app/ml_client/node_modules/
 app/ml_client/dist/
 app/ml_client/dist-ssr/

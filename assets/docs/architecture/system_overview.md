@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-06-04
+Last updated: 2026-07-09
 
 ## Platform Shape
 
@@ -10,9 +10,9 @@ ADSMOD is a Windows-first local application with:
   - `core_service` for non-ML API workflows such as health, datasets, fitting, and NIST.
   - `ml_service` for training datasets, checkpoints, and training lifecycle workflows.
   - `shared` for persistence, repositories, schemas, and common backend utilities.
-- Two frontends
-  - `app/client` for source and fitting workflows.
-  - `app/ml_client` for training workflows.
+- One frontend
+  - `app/client` for source, fitting, and training workflows.
+  - Training remains visible in the unified UI but depends on the optional ML service at runtime.
 - Optional desktop shell
   - Tauri under `app/client/src-tauri` and `release/tauri`.
 - Runtime bootstrap assets under `runtimes/`.
@@ -62,9 +62,9 @@ app/server/
 
 The unified entrypoint composes service routers; it does not own backend business handlers.
 
-## Frontend Responsibility Split
+## Frontend Responsibility
 
-- `app/client` owns `source` and `fitting`.
-- `app/ml_client` owns `training`.
-- The core frontend talks to non-training backend routes.
-- The ML frontend talks to `/api/training/*` routes.
+- `app/client` owns `source`, `fitting`, and `training`.
+- `/api/training/*` traffic is routed to `ml_service` in development proxy mode.
+- Other `/api/*` traffic is routed to `core_service`.
+- In core-only mode, training routes show an unavailable state instead of failing the Source and Fitting workflows.

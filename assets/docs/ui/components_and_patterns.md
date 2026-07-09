@@ -1,6 +1,6 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-06-05
+Last updated: 2026-07-09
 
 ## Layout Patterns
 
@@ -25,7 +25,7 @@ Last updated: 2026-06-05
 - Header tabs use `.header-tab` with active and hover states
 - Training sub-navigation uses `.training-view-tab` with explicit active states
 - Core navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/layout/header-tabs.component.ts`.
-- Training sub-navigation is routed through `app/ml_client/src/app/app.routes.ts` and rendered by `app/ml_client/src/app/features/training/pages/machine-learning-page.component.ts`.
+- Training sub-navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/features/training/pages/machine-learning-page.component.ts`.
 
 ## Data Views And Overlays
 

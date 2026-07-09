@@ -1,6 +1,6 @@
 # ADSMOD Operational Commands
 
-Last updated: 2026-06-03
+Last updated: 2026-07-09
 
 ## Launch And Maintenance
 
@@ -13,8 +13,8 @@ Last updated: 2026-06-03
 
 ## Frontend Development
 
-- Core frontend dev server: run `npm run dev` from `ADSMOD\app\client`
-- Frontend build: run `npm run build` from the relevant frontend directory
+- Unified frontend dev server: run `npm run dev` from `ADSMOD\app\client`
+- Frontend build: run `npm run build` from `ADSMOD\app\client`
 
 ## Desktop Packaging
 

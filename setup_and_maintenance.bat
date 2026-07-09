@@ -18,15 +18,15 @@ cls
 echo ==========================================================================
 echo                         ADSMOD Setup And Maintenance
 echo ==========================================================================
-echo 1. Install or update core frontend + core service
-echo 2. Install or update ML frontend + ML service
-echo 3. Install or update both frontend + service stacks
+echo 1. Install or update unified frontend + core service
+echo 2. Install or update unified frontend + ML service
+echo 3. Install or update unified frontend + both services
 echo 4. Initialize database
 echo 5. Run test suite
 echo 6. Remove logs
 echo 7. Clean desktop packages
-echo 8. Uninstall core webapp artifacts
-echo 9. Uninstall ML webapp artifacts
+echo 8. Uninstall unified webapp artifacts
+echo 9. Uninstall unified webapp artifacts
 echo A. Uninstall everything
 echo 0. Exit
 echo.

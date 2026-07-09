@@ -1,0 +1,173 @@
+import { API_BASE_URL } from '../core/config/api-base-url';
+import type { JobStatusResponse } from '../models/job.model';
+import type {
+    DatasetBuildConfig,
+    DatasetBuildResult,
+} from '../models/dataset-build.model';
+import type { DatasetFullInfo, ProcessedDatasetInfo } from '../models/training.model';
+import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
+import { pollJobStatus, resolvePollingIntervalMs, startJob } from './job.service';
+
+export async function startTrainingDatasetJob(
+    config: DatasetBuildConfig
+): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+    return startJob('/training/build-dataset', config, HTTP_TIMEOUT * 2);
+}
+
+export async function pollTrainingDatasetJobUntilComplete(
+    jobId: string,
+    pollInterval?: number,
+    onProgress?: (status: JobStatusResponse) => void
+): Promise<DatasetBuildResult> {
+    while (true) {
+        const status = await pollJobStatus('/training', jobId);
+        if (!status) {
+            return { success: false, message: 'Failed to poll dataset job status.' };
+        }
+
+        onProgress?.(status);
+
+        if (status.status === 'completed') {
+            const result = status.result as DatasetBuildResult | undefined;
+            if (!result) {
+                return { success: true, message: 'Dataset build completed.' };
+            }
+
+            return {
+                success: result.success ?? true,
+                message: result.message || 'Dataset built.',
+                total_samples: result.total_samples,
+                train_samples: result.train_samples,
+                validation_samples: result.validation_samples,
+            };
+        }
+
+        if (status.status === 'failed') {
+            return { success: false, message: status.error || 'Dataset build failed.' };
+        }
+
+        if (status.status === 'cancelled') {
+            return { success: false, message: 'Dataset build job was cancelled.' };
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval)));
+    }
+}
+
+export async function buildTrainingDataset(
+    config: DatasetBuildConfig,
+    onProgress?: (status: JobStatusResponse) => void
+): Promise<DatasetBuildResult> {
+    const { jobId, pollInterval, error } = await startTrainingDatasetJob(config);
+    if (error || !jobId) {
+        return { success: false, message: error || 'Failed to start dataset job.' };
+    }
+
+    return pollTrainingDatasetJobUntilComplete(jobId, pollInterval, onProgress);
+}
+
+export async function fetchProcessedDatasets(): Promise<{ datasets: ProcessedDatasetInfo[]; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/training/processed-datasets`, { method: 'GET' }, HTTP_TIMEOUT);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            return { datasets: [], error: extractErrorMessage(response, data) };
+        }
+
+        const result = (await response.json()) as { datasets?: ProcessedDatasetInfo[] };
+        return { datasets: result.datasets || [], error: null };
+    } catch (error) {
+        return { datasets: [], error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+    }
+}
+
+export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<DatasetFullInfo> {
+    try {
+        const url = datasetLabel
+            ? `${API_BASE_URL}/training/dataset-info?dataset_label=${encodeURIComponent(datasetLabel)}`
+            : `${API_BASE_URL}/training/dataset-info`;
+
+        const response = await fetchWithTimeout(url, { method: 'GET' }, HTTP_TIMEOUT);
+        if (!response.ok) {
+            return { available: false };
+        }
+
+        const result = (await response.json()) as DatasetFullInfo;
+        return {
+            available: result.available || false,
+            dataset_label: result.dataset_label,
+            created_at: result.created_at,
+            sample_size: result.sample_size,
+            validation_size: result.validation_size,
+            min_measurements: result.min_measurements,
+            max_measurements: result.max_measurements,
+            smile_sequence_size: result.smile_sequence_size,
+            max_pressure: result.max_pressure,
+            max_uptake: result.max_uptake,
+            total_samples: result.total_samples,
+            train_samples: result.train_samples,
+            validation_samples: result.validation_samples,
+            smile_vocabulary_size: result.smile_vocabulary_size,
+            adsorbent_vocabulary_size: result.adsorbent_vocabulary_size,
+            normalization_stats: result.normalization_stats,
+        };
+    } catch {
+        return { available: false };
+    }
+}
+
+export async function clearTrainingDataset(): Promise<{ success: boolean; message: string }> {
+    try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}/training/dataset`, { method: 'DELETE' }, HTTP_TIMEOUT);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            return { success: false, message: extractErrorMessage(response, data) };
+        }
+
+        const result = (await response.json()) as { status?: string; message?: string };
+        return { success: result.status === 'success', message: result.message || 'Dataset cleared.' };
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
+    }
+}
+
+export async function deleteDataset(datasetLabel: string): Promise<{ success: boolean; message: string }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/dataset?dataset_label=${encodeURIComponent(datasetLabel)}`,
+            { method: 'DELETE' },
+            HTTP_TIMEOUT
+        );
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            return { success: false, message: extractErrorMessage(response, data) };
+        }
+
+        const result = (await response.json()) as { status?: string; message?: string };
+        return { success: result.status === 'success', message: result.message || 'Dataset deleted.' };
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
+    }
+}
+
+export async function deleteDatasetSource(
+    source: string,
+    datasetName: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/training/dataset-source?source=${encodeURIComponent(source)}&dataset_name=${encodeURIComponent(datasetName)}`,
+            { method: 'DELETE' },
+            HTTP_TIMEOUT
+        );
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            return { success: false, message: extractErrorMessage(response, data) };
+        }
+
+        const result = (await response.json()) as { status?: string; message?: string };
+        return { success: result.status === 'success', message: result.message || 'Dataset deleted.' };
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
+    }
+}

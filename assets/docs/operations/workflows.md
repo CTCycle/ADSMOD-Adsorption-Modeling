@@ -1,13 +1,12 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-06-03
+Last updated: 2026-07-09
 
 ## Main Navigation
 
-The application is split into two frontends:
+The application uses one frontend:
 
-- Core UI in `app/client` for `source` and `fitting`
-- ML UI in `app/ml_client` for `training`
+- Unified UI in `app/client` for `source`, `fitting`, and `training`
 
 ## Upload And Fit A Local Dataset
 
@@ -29,14 +28,14 @@ The application is split into two frontends:
 
 ## Build Training Data And Run Training
 
-1. Open the ML UI in `app/ml_client`.
+1. Open the unified UI and navigate to `training`.
 2. In `Data Processing`, build processed datasets.
 3. In `Train datasets`, start a new training run.
 4. Use `Training Dashboard` to monitor progress, metrics, and logs.
 
 ## Resume From A Checkpoint
 
-1. Open the ML UI `Checkpoints` view.
+1. Open the unified UI `training/checkpoints` view.
 2. Select a checkpoint.
 3. Resume training with additional epochs.
 4. Validate resumed metrics in the dashboard.
