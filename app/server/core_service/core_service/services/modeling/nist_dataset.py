@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from shared.common.constants import DEFAULT_DATASET_COLUMN_MAPPING
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.domain.fitting import (
     NISTFittingDatasetPayload,
     NISTFittingDatasetResponse,
@@ -194,4 +194,3 @@ class FittingNISTDatasetService:
                 row_count=int(output_df.shape[0]),
             ),
         )
-

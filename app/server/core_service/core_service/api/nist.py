@@ -11,7 +11,7 @@ from core_service.domain.nist import (
     NISTPropertiesRequest,
     NISTStatusResponse,
 )
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.services.container import CoreServiceContainer
 from core_service.services.data.nist_service import NISTDataService
 from shared.common.constants import (
@@ -255,4 +255,3 @@ def create_nist_router(container: CoreServiceContainer) -> APIRouter:
     endpoint = NistEndpoint(router=router, service=container.nist_service)
     endpoint.add_routes()
     return router
-

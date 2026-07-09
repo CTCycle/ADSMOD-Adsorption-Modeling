@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from shared.common.paths import CORE_CONFIGURATION_FILE
-from core_service.domain.settings import AppSettings, ServerSettings
+from shared.common.settings import AppSettings, ServerSettings
 
 ###############################################################################
 class ConfigurationManager:
@@ -95,6 +95,3 @@ class ConfigurationManager:
         if not isinstance(data, dict):
             raise RuntimeError("Configuration must be a JSON object.")
         return data
-
-
-

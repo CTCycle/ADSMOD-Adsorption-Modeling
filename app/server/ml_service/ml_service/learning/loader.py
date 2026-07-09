@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from shared.common.constants import PAD_VALUE
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from shared.repositories.queries.nist import NISTDataSerializer
 from ml_service.services.data.sanitizer import AggregateDatasets
 
@@ -489,4 +489,3 @@ class SCADSAtomicDataLoader:
             loader_settings["persistent_workers"] = self.persistent_workers
 
         return DataLoader(dataset, **loader_settings)
-

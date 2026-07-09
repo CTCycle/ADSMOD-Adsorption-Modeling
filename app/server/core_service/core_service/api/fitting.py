@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from core_service.domain.fitting import FittingRequest, NISTFittingDatasetResponse
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.services.container import CoreServiceContainer
 from core_service.services.fitting import FittingService
 from shared.common.constants import (
@@ -125,5 +125,3 @@ def create_fitting_router(container: CoreServiceContainer) -> APIRouter:
     endpoint = FittingEndpoint(router=router, service=container.fitting_service)
     endpoint.add_routes()
     return router
-
-

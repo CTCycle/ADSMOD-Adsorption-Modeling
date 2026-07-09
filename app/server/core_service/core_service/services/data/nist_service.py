@@ -12,7 +12,7 @@ import httpx
 import pandas as pd
 
 from core_service.configurations import get_server_settings
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.domain.nist import (
     NISTCategory,
     NISTCategoryFetchRequest,
@@ -844,6 +844,3 @@ class NISTDataService:
             "data_available": data_available,
             **counts,
         }
-
-
-

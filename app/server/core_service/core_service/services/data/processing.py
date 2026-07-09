@@ -25,7 +25,7 @@ from shared.common.constants import (
     COLUMN_WORST_MODEL,
     DEFAULT_DATASET_COLUMN_MAPPING,
 )
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.domain.datasets import DatasetColumns
 
 ###############################################################################
@@ -326,6 +326,3 @@ class DatasetAdapter:
                 unique.append(metric)
                 seen.add(metric)
         return unique
-
-
-

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from core_service.common.utils.security import resolve_checkpoint_path
+from shared.common.utils.security import resolve_checkpoint_path
 from core_service.configurations import public_host_mode_enabled, resolve_spa_file_path
 from core_service.domain.fitting import DatasetPayload
 from ml_service.domain.training import TrainingConfigRequest
@@ -51,5 +51,3 @@ def test_dataset_payload_rejects_unsafe_dataset_name() -> None:
 def test_training_config_rejects_invalid_dataset_hash() -> None:
     with pytest.raises(ValidationError):
         TrainingConfigRequest(dataset_hash="not_a_sha256")
-
-

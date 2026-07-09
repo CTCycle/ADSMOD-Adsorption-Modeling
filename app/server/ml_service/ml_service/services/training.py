@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from ml_service.configurations import get_server_settings
 from ml_service.domain.training import (
     CheckpointDetailInfo,
@@ -776,7 +776,3 @@ class TrainingService:
             log=state["log"],
             poll_interval=get_server_settings().jobs.polling_interval,
         )
-
-
-
-

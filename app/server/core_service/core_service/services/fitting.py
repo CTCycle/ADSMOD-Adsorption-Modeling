@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.configurations import get_server_settings
 from core_service.domain.fitting import FittingRequest, NISTFittingDatasetResponse
 from core_service.services.modeling.fitting import FittingPipeline
@@ -111,5 +111,3 @@ class FittingService:
     # -------------------------------------------------------------------------
     def get_nist_dataset_for_fitting(self) -> NISTFittingDatasetResponse:
         return self.nist_dataset_service.load_for_fitting()
-
-

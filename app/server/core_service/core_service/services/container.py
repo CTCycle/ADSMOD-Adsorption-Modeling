@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from core_service.services.data.datasets import DatasetService
 from core_service.services.data.nist_service import NISTDataService
 from core_service.services.fitting import FittingService

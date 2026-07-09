@@ -12,7 +12,7 @@ from ml_service.learning.models.qmodel import SCADSAtomicModel, SCADSModel
 from ml_service.learning.serialization.model import ModelSerializer
 from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.learning.training.fitting import ModelTraining
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from ml_service.configurations import get_server_settings
 from ml_service.learning.training.state import TrainingState
 from shared.common.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
@@ -582,8 +582,3 @@ class TrainingManager:
         # Add to history for plotting
         history_entry = {"epoch": epoch, **metrics}
         self.state.add_history(history_entry)
-
-
-
-
-

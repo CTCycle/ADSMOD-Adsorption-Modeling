@@ -6,7 +6,7 @@ from typing import Iterable
 
 from dotenv import load_dotenv
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from shared.common.paths import ENV_FILE
 
 ###############################################################################
@@ -28,6 +28,3 @@ def load_environment(
 def reset_environment_for_tests(keys: Iterable[str]) -> None:
     for key in keys:
         os.environ.pop(str(key), None)
-
-
-

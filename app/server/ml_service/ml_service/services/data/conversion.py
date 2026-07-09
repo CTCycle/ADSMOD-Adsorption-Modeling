@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 def map_values(
@@ -263,4 +263,3 @@ def PQ_units_conversion(dataframe: pd.DataFrame) -> pd.DataFrame:
     converted_data = Q_converter.convert_uptake_data(converted_data)
 
     return converted_data
-

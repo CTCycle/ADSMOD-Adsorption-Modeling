@@ -10,11 +10,11 @@ import httpx
 import pandas as pd
 import pubchempy as pcp
 
-from ml_service.common.utils.encoding import (
+from shared.common.utils.encoding import (
     decode_json_response_bytes,
     sanitize_dataframe_strings,
 )
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 
 ###############################################################################
 class NISTDatasetBuilder:
@@ -599,5 +599,3 @@ __all__ = [
     "NISTApiClient",
     "PubChemClient",
 ]
-
-

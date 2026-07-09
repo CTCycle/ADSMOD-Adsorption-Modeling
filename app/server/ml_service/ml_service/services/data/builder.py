@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from ml_service.common.utils.logger import logger
+from shared.common.utils.logger import logger
 from ml_service.domain.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.services.data.conversion import PQ_units_conversion
@@ -437,5 +437,3 @@ class DatasetBuilder:
         except Exception as e:
             logger.error(f"Failed to list processed datasets: {e}")
             return []
-
-
