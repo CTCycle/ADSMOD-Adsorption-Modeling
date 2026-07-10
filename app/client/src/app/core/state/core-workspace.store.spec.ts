@@ -9,22 +9,22 @@ describe('CoreWorkspaceStore', () => {
         vi.stubGlobal('fetch', fetchMock);
     });
 
-    it('loads available dataset names during initialization', async () => {
+    it('loads available datasets during construction', async () => {
         fetchMock.mockResolvedValueOnce({
             ok: true,
-            json: async () => ({ names: ['dataset-a', 'dataset-b'] }),
+            json: async () => ({ datasets: [{ name: 'dataset-a' }, { name: 'dataset-b' }] }),
         });
         fetchMock.mockResolvedValueOnce({
             ok: true,
-            json: async () => ({ names: ['dataset-a', 'dataset-b'] }),
+            json: async () => ({ datasets: [{ name: 'dataset-a' }, { name: 'dataset-b' }] }),
         });
 
         const store = new CoreWorkspaceStore();
-        await store.initialize();
+        await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(store.availableDatasets()).toEqual(['dataset-a', 'dataset-b']);
         expect(fetchMock).toHaveBeenCalledWith(
-            '/api/datasets/names',
+            '/api/datasets',
             expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) })
         );
     });
@@ -32,29 +32,21 @@ describe('CoreWorkspaceStore', () => {
     it('requires at least one enabled model before starting fitting', async () => {
         fetchMock.mockResolvedValueOnce({
             ok: true,
-            json: async () => ({ names: [] }),
-        });
-        fetchMock.mockResolvedValueOnce({
-            ok: true,
-            json: async () => ({ names: [] }),
+            json: async () => ({ datasets: [] }),
         });
 
         const store = new CoreWorkspaceStore();
-        await store.initialize();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         fetchMock.mockClear();
 
         Object.keys(store.modelStates()).forEach((modelName) => {
             store.setModelEnabled(modelName, false);
         });
-        store.dataset.set({
-            dataset_name: 'loaded-set',
-            columns: ['pressure', 'uptake'],
-            records: [{ pressure: 1, uptake: 2 }],
-        });
+        store.setSelectedDataset('loaded-set');
 
         await store.startFitting();
 
-        expect(store.fittingStatus()).toBe('[ERROR] Please select at least one model before starting the fitting process.');
+        expect(store.fittingStatus()).toBe('[ERROR] Select at least one model.');
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -62,11 +54,7 @@ describe('CoreWorkspaceStore', () => {
         fetchMock
             .mockResolvedValueOnce({
                 ok: true,
-                json: async () => ({ names: ['loaded-set'] }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ names: ['loaded-set'] }),
+                json: async () => ({ datasets: [] }),
             })
             .mockResolvedValueOnce({
                 ok: true,
@@ -83,14 +71,10 @@ describe('CoreWorkspaceStore', () => {
             });
 
         const store = new CoreWorkspaceStore();
-        await store.initialize();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         fetchMock.mockClear();
 
-        store.dataset.set({
-            dataset_name: 'loaded-set',
-            columns: ['pressure', 'uptake'],
-            records: [{ pressure: 1, uptake: 2 }],
-        });
+        store.setSelectedDataset('loaded-set');
         store.setModelParameters('Langmuir', {
             k: { min: 4, max: 2 },
             qsat: { min: 0, max: 10 },

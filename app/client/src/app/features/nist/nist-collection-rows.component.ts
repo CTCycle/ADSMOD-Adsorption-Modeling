@@ -7,6 +7,7 @@ import {
     startNistCategoryFetchJob,
     startNistCategoryIndexJob,
 } from '../../services/nist.service';
+import type { JobStartResult } from '../../services/job.service';
 import type {
     NISTCategoryFetchRequest,
     NISTCategoryKey,
@@ -403,7 +404,7 @@ export class NistCollectionRowsComponent implements OnInit {
     private async runCategoryJob(
         category: NISTCategoryKey,
         operation: CategoryOperation,
-        startJob: () => Promise<{ jobId: string | null; pollInterval?: number; error: string | null }>,
+        startJob: () => Promise<JobStartResult>,
         onSuccess: (result: NISTCategoryOperationResponse) => void
     ): Promise<void> {
         if (this.operations()[category].running) {

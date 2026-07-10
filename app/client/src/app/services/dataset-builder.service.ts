@@ -6,11 +6,12 @@ import type {
 } from '../models/dataset-build.model';
 import type { DatasetFullInfo, ProcessedDatasetInfo } from '../models/training.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
-import { pollJobStatus, resolvePollingIntervalMs, startJob } from './job.service';
+import { pollJobUntilTerminal, startJob } from './job.service';
+import type { JobStartResult } from './job.service';
 
 export async function startTrainingDatasetJob(
     config: DatasetBuildConfig
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startJob('/training/build-dataset', config, HTTP_TIMEOUT * 2);
 }
 
@@ -19,41 +20,32 @@ export async function pollTrainingDatasetJobUntilComplete(
     pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<DatasetBuildResult> {
-    while (true) {
-        const status = await pollJobStatus('/training', jobId);
-        if (!status) {
-            return { success: false, message: 'Failed to poll dataset job status.' };
-        }
-
-        onProgress?.(status);
-
-        if (status.status === 'completed') {
-            const result = status.result as DatasetBuildResult | undefined;
-            if (!result) {
-                return { success: true, message: 'Dataset build completed.' };
-            }
-
-            return {
-                success: result.success ?? true,
-                message: result.message || 'Dataset built.',
-                total_samples: result.total_samples,
-                train_samples: result.train_samples,
-                validation_samples: result.validation_samples,
-            };
-        }
-
-        if (status.status === 'failed') {
-            return { success: false, message: status.error || 'Dataset build failed.' };
-        }
-
-        if (status.status === 'cancelled') {
-            return { success: false, message: 'Dataset build job was cancelled.' };
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval)));
+    const status = await pollJobUntilTerminal('/training', jobId, pollInterval, onProgress);
+    if (!status) {
+        return { success: false, message: 'Failed to poll dataset job status.' };
     }
-}
 
+    if (status.status === 'completed') {
+        const result = status.result as DatasetBuildResult | undefined;
+        if (!result) {
+            return { success: true, message: 'Dataset build completed.' };
+        }
+
+        return {
+            success: result.success ?? true,
+            message: result.message || 'Dataset built.',
+            total_samples: result.total_samples,
+            train_samples: result.train_samples,
+            validation_samples: result.validation_samples,
+        };
+    }
+
+    if (status.status === 'failed') {
+        return { success: false, message: status.error || 'Dataset build failed.' };
+    }
+
+    return { success: false, message: 'Dataset build job was cancelled.' };
+}
 export async function buildTrainingDataset(
     config: DatasetBuildConfig,
     onProgress?: (status: JobStatusResponse) => void
