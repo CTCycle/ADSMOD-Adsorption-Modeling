@@ -24,7 +24,7 @@ describe('fitting.service', () => {
             max_iterations: 100,
             optimization_method: 'LSS',
             parameter_bounds: {},
-            dataset: { dataset_name: 'set-a', columns: [], records: [] },
+            dataset: { source: 'uploaded', dataset_name: 'set-a' },
         })).resolves.toEqual({
             jobId: 'fit-1',
             pollInterval: 2,

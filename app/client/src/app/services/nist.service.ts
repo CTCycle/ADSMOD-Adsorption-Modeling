@@ -10,24 +10,25 @@ import type {
     NISTStatusResponse,
 } from '../models/nist.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
-import { pollJobStatus, resolvePollingIntervalMs, startJob } from './job.service';
+import { pollJobUntilTerminal, startJob } from './job.service';
+import type { JobStartResult } from './job.service';
 
 async function startCategoryJob(
     endpoint: string,
     payload?: unknown
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startJob(endpoint, payload || {});
 }
 
 export async function startNistFetchJob(
     payload: NISTFetchRequest
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startJob('/nist/fetch', payload);
 }
 
 export async function startNistPropertiesJob(
     payload: NISTPropertiesRequest
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startJob('/nist/properties', payload);
 }
 
@@ -36,28 +37,20 @@ export async function pollNistJobUntilComplete(
     pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ result: Record<string, unknown> | null; error: string | null }> {
-    while (true) {
-        const status = await pollJobStatus('/nist', jobId);
-        if (!status) {
-            return { result: null, error: 'Failed to poll job status.' };
-        }
-
-        onProgress?.(status);
-
-        if (status.status === 'completed') {
-            return { result: status.result || null, error: null };
-        }
-        if (status.status === 'failed') {
-            return { result: null, error: status.error || 'Job failed.' };
-        }
-        if (status.status === 'cancelled') {
-            return { result: null, error: 'Job was cancelled.' };
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval)));
+    const status = await pollJobUntilTerminal('/nist', jobId, pollInterval, onProgress);
+    if (!status) {
+        return { result: null, error: 'Failed to poll job status.' };
     }
-}
 
+    if (status.status === 'completed') {
+        return { result: status.result || null, error: null };
+    }
+    if (status.status === 'failed') {
+        return { result: null, error: status.error || 'Job failed.' };
+    }
+
+    return { result: null, error: 'Job was cancelled.' };
+}
 export async function fetchNistStatus(): Promise<{ data: NISTStatusResponse | null; error: string | null }> {
     try {
         const response = await fetchWithTimeout(`${API_BASE_URL}/nist/status`, { method: 'GET' }, HTTP_TIMEOUT);
@@ -119,19 +112,19 @@ export async function pingNistCategoryServer(category: NISTCategoryKey): Promise
 
 export async function startNistCategoryIndexJob(
     category: NISTCategoryKey
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startCategoryJob(`/nist/categories/${category}/index`);
 }
 
 export async function startNistCategoryFetchJob(
     category: NISTCategoryKey,
     payload: NISTCategoryFetchRequest
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startCategoryJob(`/nist/categories/${category}/fetch`, payload);
 }
 
 export async function startNistCategoryEnrichJob(
     category: NISTCategoryKey
-): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
+): Promise<JobStartResult> {
     return startCategoryJob(`/nist/categories/${category}/enrich`);
 }

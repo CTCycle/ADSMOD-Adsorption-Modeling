@@ -40,6 +40,27 @@ export async function pollJobStatus(endpoint: string, jobId: string): Promise<Jo
     }
 }
 
+export async function pollJobUntilTerminal(
+    endpoint: string,
+    jobId: string,
+    pollInterval?: number,
+    onProgress?: (status: JobStatusResponse) => void
+): Promise<JobStatusResponse | null> {
+    while (true) {
+        const status = await pollJobStatus(endpoint, jobId);
+        if (!status) {
+            return null;
+        }
+
+        onProgress?.(status);
+
+        if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
+            return status;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval)));
+    }
+}
 export async function startJob(
     endpoint: string,
     payload: unknown = {},
