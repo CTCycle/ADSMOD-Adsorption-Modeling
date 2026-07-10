@@ -1,88 +1,25 @@
 import { API_BASE_URL } from '../core/config/api-base-url';
-import type { DatasetPayload, DatasetResponse } from '../models/dataset.model';
+import type { DatasetMetadata, DatasetRowsPage, DatasetRowMutation, DatasetSummary, DatasetUploadResponse } from '../models/dataset.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 
-function normalizeDatasetPayload(dataset: DatasetPayload): DatasetPayload {
-    return {
-        dataset_name: dataset.dataset_name,
-        columns: Array.isArray(dataset.columns) ? dataset.columns : [],
-        records: Array.isArray(dataset.records) ? dataset.records : [],
-    };
-}
-
-export async function loadDataset(file: File): Promise<{ dataset: DatasetPayload | null; message: string }> {
-    const formData = new FormData();
-    formData.append('file', file);
-
+async function request<T>(path: string, init: RequestInit): Promise<{ data: T | null; error: string | null }> {
     try {
-        const response = await fetchWithTimeout(`${API_BASE_URL}/datasets/load`, { method: 'POST', body: formData }, HTTP_TIMEOUT);
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            return { dataset: null, message: `[ERROR] ${extractErrorMessage(response, data)}` };
-        }
-
-        const data = (await response.json()) as DatasetResponse;
-        if (data.status !== 'success') {
-            return { dataset: null, message: `[ERROR] ${data.detail || 'Failed to load dataset.'}` };
-        }
-        if (!data.dataset) {
-            return { dataset: null, message: '[ERROR] Backend returned an invalid dataset payload.' };
-        }
-
-        return {
-            dataset: normalizeDatasetPayload(data.dataset),
-            message: data.summary || '[INFO] Dataset loaded successfully.',
-        };
+        const response = await fetchWithTimeout(`${API_BASE_URL}/datasets${path}`, init, HTTP_TIMEOUT);
+        const data = await response.json().catch(() => ({}));
+        return response.ok ? { data: data as T, error: null } : { data: null, error: extractErrorMessage(response, data) };
     } catch (error) {
-        return {
-            dataset: null,
-            message: `[ERROR] Failed to reach ADSMOD backend: ${error instanceof Error ? error.message : 'Unknown error.'}`,
-        };
+        return { data: null, error: error instanceof Error ? error.message : 'Unable to reach the backend.' };
     }
 }
 
-export async function fetchDatasetNames(): Promise<{ names: string[]; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(`${API_BASE_URL}/datasets/names`, { method: 'GET' }, HTTP_TIMEOUT);
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            return { names: [], error: extractErrorMessage(response, data) };
-        }
-
-        const result = (await response.json()) as { names?: string[] };
-        return { names: result.names || [], error: null };
-    } catch (error) {
-        return { names: [], error: error instanceof Error ? error.message : 'An unknown error occurred.' };
-    }
+export async function uploadDataset(file: File) {
+    const form = new FormData(); form.append('file', file);
+    return request<DatasetUploadResponse>('', { method: 'POST', body: form });
 }
-
-export async function fetchDatasetByName(datasetName: string): Promise<{
-    dataset: DatasetPayload | null;
-    summary: string | null;
-    error: string | null;
-}> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/datasets/by-name/${encodeURIComponent(datasetName)}`,
-            { method: 'GET' },
-            HTTP_TIMEOUT
-        );
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            return { dataset: null, summary: null, error: extractErrorMessage(response, data) };
-        }
-
-        const data = (await response.json()) as DatasetResponse;
-        if (data.status !== 'success') {
-            return { dataset: null, summary: null, error: data.detail || data.message || 'Failed to load dataset.' };
-        }
-
-        return {
-            dataset: data.dataset ? normalizeDatasetPayload(data.dataset) : null,
-            summary: data.summary || null,
-            error: null,
-        };
-    } catch (error) {
-        return { dataset: null, summary: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
-    }
-}
+export async function fetchDatasets() { return request<{ datasets: DatasetSummary[] }>('', { method: 'GET' }); }
+export async function deleteDataset(name: string) { return request<unknown>(`/by-name/${encodeURIComponent(name)}`, { method: 'DELETE' }); }
+export async function renameDataset(name: string, newName: string) { return request<{ dataset: DatasetSummary }>(`/by-name/${encodeURIComponent(name)}/rename`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_name: newName }) }); }
+export async function getMetadata(name: string) { return request<DatasetMetadata>(`/by-name/${encodeURIComponent(name)}/metadata`, { method: 'GET' }); }
+export async function updateMetadata(name: string, metadata: DatasetMetadata) { return request<{ dataset: DatasetSummary }>(`/by-name/${encodeURIComponent(name)}/metadata`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(metadata) }); }
+export async function fetchRows(name: string, offset: number, limit: number) { return request<DatasetRowsPage>(`/by-name/${encodeURIComponent(name)}/rows?offset=${offset}&limit=${limit}`, { method: 'GET' }); }
+export async function mutateRows(name: string, operations: DatasetRowMutation[]) { return request<{ dataset: DatasetSummary }>(`/by-name/${encodeURIComponent(name)}/rows`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ operations }) }); }

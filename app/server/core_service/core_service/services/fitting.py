@@ -4,7 +4,7 @@ from typing import Any
 
 from shared.common.utils.logger import logger
 from core_service.configurations import get_server_settings
-from core_service.domain.fitting import FittingRequest, NISTFittingDatasetResponse
+from core_service.domain.fitting import FittingRequest
 from core_service.services.modeling.fitting import FittingPipeline
 from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
 from shared.models.jobs import (
@@ -15,6 +15,7 @@ from shared.models.jobs import (
 )
 from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
+from shared.repositories.serialization.data import DataSerializer
 
 ###############################################################################
 class FittingService:
@@ -47,6 +48,15 @@ class FittingService:
         )
 
     # -------------------------------------------------------------------------
+    def resolve_dataset(self, source: str, dataset_name: str | None) -> dict[str, Any]:
+        if source == "nist":
+            return self.nist_dataset_service.load_for_fitting().dataset.model_dump()
+        if not dataset_name:
+            raise ValueError("An uploaded dataset name is required.")
+        frame, _ = DataSerializer().get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
+        frame = frame.drop(columns=["row_id", "name"], errors="ignore")
+        return {"dataset_name": dataset_name, "columns": list(frame.columns), "records": frame.where(frame.notna(), None).to_dict(orient="records")}
+    # -------------------------------------------------------------------------
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running(self.JOB_TYPE):
             raise ValueError("A fitting job is already running.")
@@ -57,7 +67,7 @@ class FittingService:
             payload.optimization_method,
         )
 
-        dataset_dict = payload.dataset.model_dump()
+        dataset_dict = self.resolve_dataset(payload.dataset.source, payload.dataset.dataset_name)
         parameter_bounds_dict = {
             name: config.model_dump()
             for name, config in payload.parameter_bounds.items()
@@ -107,7 +117,3 @@ class FittingService:
                 f"Job {job_id} cannot be cancelled (not found or already completed)."
             )
         return JobResponseFactory.cancelled(job_id)
-
-    # -------------------------------------------------------------------------
-    def get_nist_dataset_for_fitting(self) -> NISTFittingDatasetResponse:
-        return self.nist_dataset_service.load_for_fitting()

@@ -1,11 +1,11 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-07-09
+Last updated: 2026-07-10
 
 ## Page Structure
 
 - Unified frontend routes
-  - `source`
+  - `source` (user dataset upload and management)`r`n  - `nist` (NIST collection)
   - `fitting`
   - `training`
 - Training sub-views

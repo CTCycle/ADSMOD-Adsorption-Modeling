@@ -121,12 +121,8 @@ FITTING_MODEL_NAMES = (
 
 ###############################################################################
 DATASETS_ROUTER_PREFIX = "/datasets"
-DATASETS_LOAD_ENDPOINT = "/load"
-DATASETS_NAMES_ENDPOINT = "/names"
-DATASETS_FETCH_ENDPOINT = "/by-name/{dataset_name}"
 FITTING_ROUTER_PREFIX = "/fitting"
 FITTING_RUN_ENDPOINT = "/run"
-FITTING_NIST_DATASET_ENDPOINT = "/nist-dataset"
 FITTING_JOBS_ENDPOINT = "/jobs"
 FITTING_JOB_STATUS_ENDPOINT = "/jobs/{job_id}"
 NIST_ROUTER_PREFIX = "/nist"

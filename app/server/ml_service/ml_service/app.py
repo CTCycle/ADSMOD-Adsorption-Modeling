@@ -4,19 +4,17 @@ import warnings
 
 from fastapi import FastAPI
 
+from ml_service.api.entrypoint import health_router
+from ml_service.api.routes import register_ml_routes
 from ml_service.bootstrap import configure_environment
-
-configure_environment()
-
-from ml_service.api.entrypoint import health_router  # noqa: E402
-from ml_service.api.routes import register_ml_routes  # noqa: E402
-from ml_service.services.container import MlServiceContainer  # noqa: E402
-from shared.common.constants import (  # noqa: E402
+from ml_service.services.container import MlServiceContainer
+from shared.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
 
+configure_environment()
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 ###############################################################################

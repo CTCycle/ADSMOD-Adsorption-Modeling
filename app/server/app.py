@@ -11,6 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from core_service.api.entrypoint import health_router
+from core_service.api.routes import register_core_routes
+from core_service.services.container import CoreServiceContainer
 from shared.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
@@ -38,18 +41,6 @@ os.environ.setdefault(SERVICE_CONFIG_PATH_ENV, str(CORE_CONFIGURATION_FILE))
 os.environ.setdefault("KERAS_BACKEND", "torch")
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)
-
-###############################################################################
-def _load_service_modules():
-    from core_service.api.entrypoint import health_router
-    from core_service.api.routes import register_core_routes
-    from core_service.services.container import CoreServiceContainer
-
-    return (
-        health_router,
-        register_core_routes,
-        CoreServiceContainer,
-    )
 
 ###############################################################################
 def _ml_registration_enabled() -> bool:
@@ -141,8 +132,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 ###############################################################################
 def create_app() -> FastAPI:
-    health_router, register_core_routes, CoreServiceContainer = _load_service_modules()
-
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
