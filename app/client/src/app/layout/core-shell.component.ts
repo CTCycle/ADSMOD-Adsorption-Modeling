@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 
@@ -24,7 +25,11 @@ import { filter } from 'rxjs';
                 <nav class="console-nav" aria-label="Primary">
                     <a class="console-nav-item" routerLink="/source" routerLinkActive="active">
                         <span class="console-nav-icon" aria-hidden="true">□</span>
-                        <span>Source</span>
+                        <span>User Data</span>
+                    </a>
+                    <a class="console-nav-item" routerLink="/nist" routerLinkActive="active">
+                        <span class="console-nav-icon" aria-hidden="true">⇣</span>
+                        <span>NIST Data</span>
                     </a>
                     <a class="console-nav-item" routerLink="/fitting" routerLinkActive="active">
                         <span class="console-nav-icon" aria-hidden="true">⌁</span>
@@ -82,31 +87,47 @@ import { filter } from 'rxjs';
 })
 export class CoreShellComponent {
     private readonly router = inject(Router);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
     protected readonly pageTitle = computed(() => {
         const url = this.currentUrl();
+        if (url.startsWith('/nist')) {
+            return 'NIST Data Fetch';
+        }
+        if (url.startsWith('/nist')) {
+            return 'Fetch and enrich NIST adsorption source data.';
+        }
         if (url.startsWith('/fitting')) {
             return 'Fitting';
         }
         if (url.startsWith('/training')) {
             return 'Training';
         }
-        return 'Source';
+        return 'User Data';
     });
     protected readonly pageDescription = computed(() => {
         const url = this.currentUrl();
+        if (url.startsWith('/nist')) {
+            return 'NIST Data Fetch';
+        }
+        if (url.startsWith('/nist')) {
+            return 'Fetch and enrich NIST adsorption source data.';
+        }
         if (url.startsWith('/fitting')) {
             return 'Configure and run adsorption model fitting workflows.';
         }
         if (url.startsWith('/training')) {
             return 'Prepare datasets, checkpoints, and model training workflows.';
         }
-        return 'Acquire and manage experimental data for adsorption modeling.';
+        return 'Upload, preview, edit, and manage user datasets.';
     });
 
     constructor() {
         this.router.events
-            .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+            .pipe(
+                filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+                takeUntilDestroyed(this.destroyRef)
+            )
             .subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
     }
 }

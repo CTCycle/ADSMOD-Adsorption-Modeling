@@ -1,5 +1,3 @@
-import type { DatasetPayload } from './dataset.model';
-
 export interface ParameterBound {
     min: number;
     max: number;
@@ -19,7 +17,7 @@ export interface FittingPayload {
     max_iterations: number;
     optimization_method: 'LSS' | 'BFGS' | 'L-BFGS-B' | 'Nelder-Mead' | 'Powell';
     parameter_bounds: Record<string, ModelConfiguration>;
-    dataset: DatasetPayload;
+    dataset: { source: 'uploaded'; dataset_name: string } | { source: 'nist' };
 }
 
 export interface FittingResponse {

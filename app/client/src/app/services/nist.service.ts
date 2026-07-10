@@ -1,5 +1,4 @@
 import { API_BASE_URL } from '../core/config/api-base-url';
-import type { DatasetPayload } from '../models/dataset.model';
 import type { JobStatusResponse } from '../models/job.model';
 import type {
     NISTCategoryFetchRequest,
@@ -18,35 +17,6 @@ async function startCategoryJob(
     payload?: unknown
 ): Promise<{ jobId: string | null; pollInterval?: number; error: string | null }> {
     return startJob(endpoint, payload || {});
-}
-
-export async function fetchNistDataForFitting(): Promise<{ dataset: DatasetPayload | null; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(`${API_BASE_URL}/fitting/nist-dataset`, { method: 'GET' }, HTTP_TIMEOUT);
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            return { dataset: null, error: extractErrorMessage(response, data) };
-        }
-
-        const result = (await response.json()) as { status?: string; detail?: string; message?: string; dataset?: DatasetPayload };
-        if (result.status !== 'success') {
-            return { dataset: null, error: result.detail || result.message || 'Failed to load NIST data.' };
-        }
-        if (!result.dataset || typeof result.dataset !== 'object') {
-            return { dataset: null, error: 'NIST dataset response did not include dataset records.' };
-        }
-
-        return {
-            dataset: {
-                dataset_name: result.dataset.dataset_name,
-                columns: Array.isArray(result.dataset.columns) ? result.dataset.columns : [],
-                records: Array.isArray(result.dataset.records) ? result.dataset.records : [],
-            },
-            error: null,
-        };
-    } catch (error) {
-        return { dataset: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
-    }
 }
 
 export async function startNistFetchJob(

@@ -391,3 +391,62 @@ class DatasetService:
 
 
 
+
+    # -------------------------------------------------------------------------
+    def upload_dataset(self, payload: bytes, filename: str | None) -> tuple[dict[str, Any], dict[str, Any], str]:
+        dataset, summary = self.load_from_bytes(payload, filename)
+        self.save_to_database(dataset)
+        serializer = DataSerializer()
+        return dataset, serializer.get_uploaded_dataset_summary(dataset["dataset_name"]), summary
+
+    # -------------------------------------------------------------------------
+    def list_uploaded_datasets(self) -> list[dict[str, Any]]:
+        return DataSerializer().list_uploaded_dataset_summaries()
+
+    # -------------------------------------------------------------------------
+    def get_dataset_metadata(self, dataset_name: str) -> dict[str, Any]:
+        summary = DataSerializer().get_uploaded_dataset_summary(dataset_name)
+        return {"tags": summary["tags"], "description": summary["description"]}
+
+    # -------------------------------------------------------------------------
+    def update_dataset_metadata(self, dataset_name: str, tags: list[str], description: str) -> dict[str, Any]:
+        return DataSerializer().update_uploaded_dataset_metadata(dataset_name, tags, description)
+
+    # -------------------------------------------------------------------------
+    def rename_dataset(self, dataset_name: str, new_name: str) -> dict[str, Any]:
+        return DataSerializer().rename_uploaded_dataset(dataset_name, new_name.strip())
+
+    # -------------------------------------------------------------------------
+    def delete_dataset(self, dataset_name: str) -> None:
+        if not DataSerializer().delete_raw_dataset(dataset_name):
+            raise ValueError(f"Dataset '{dataset_name}' was not found.")
+
+    # -------------------------------------------------------------------------
+    def get_dataset_rows(self, dataset_name: str, offset: int, limit: int) -> tuple[list[str], list[dict[str, Any]], int]:
+        frame, total = DataSerializer().get_uploaded_dataset_rows(dataset_name, offset, limit)
+        columns = list(frame.columns)
+        records = frame.where(pd.notna(frame), None).to_dict(orient="records")
+        return columns, records, total
+
+    # -------------------------------------------------------------------------
+    def mutate_dataset_rows(self, dataset_name: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
+        serializer = DataSerializer()
+        frame, _ = serializer.get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
+        working = frame.drop(columns=["row_id"])
+        for operation in operations:
+            if operation["operation"] == "insert":
+                working.loc[len(working)] = {column: operation["values"].get(column) for column in working.columns}
+            elif operation["operation"] == "delete":
+                row_id = operation.get("row_id")
+                if row_id is None or row_id >= len(working):
+                    raise ValueError("Invalid row_id.")
+                working = working.drop(index=row_id).reset_index(drop=True)
+            else:
+                row_id = operation.get("row_id")
+                if row_id is None or row_id >= len(working):
+                    raise ValueError("Invalid row_id.")
+                for key, value in operation["values"].items():
+                    if key in working.columns:
+                        working.loc[row_id, key] = value
+        self.normalize_adsorption_columns(working, require_complete=True)
+        return serializer.replace_uploaded_dataset_rows(dataset_name, operations)

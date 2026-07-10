@@ -26,6 +26,8 @@ class Dataset(Base):
     dataset_name: Mapped[str] = mapped_column(String, nullable=False)
     source: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False, default="")
+    tags: Mapped[list[Any]] = mapped_column(JSONSequence, nullable=False, default=list)
     __table_args__ = (
         UniqueConstraint("dataset_name"),
         CheckConstraint("source IN ('uploaded', 'nist')"),
@@ -83,6 +85,8 @@ class AdsorptionIsotherm(Base):
     pressure_units: Mapped[str | None] = mapped_column(String)
     adsorption_units: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False, default="")
+    tags: Mapped[list[Any]] = mapped_column(JSONSequence, nullable=False, default=list)
     __table_args__ = (
         UniqueConstraint("experiment_name"),
         UniqueConstraint(
@@ -194,6 +198,8 @@ class AdsorptionFit(Base):
     aic: Mapped[float | None] = mapped_column(Float)
     aicc: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False, default="")
+    tags: Mapped[list[Any]] = mapped_column(JSONSequence, nullable=False, default=list)
     __table_args__ = (
         UniqueConstraint("processed_id", "model_name", "optimization_method"),
         Index("ix_adsorption_fits_processed_id", "processed_id"),

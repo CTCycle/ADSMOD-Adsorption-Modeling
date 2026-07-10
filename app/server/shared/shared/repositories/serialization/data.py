@@ -946,3 +946,96 @@ class DataSerializer:
 
 
 
+
+    # -------------------------------------------------------------------------
+    def list_uploaded_dataset_summaries(self) -> list[dict[str, Any]]:
+        frame = self._load_uploaded_raw()
+        counts = frame.groupby(self.raw_name_column).size().to_dict() if not frame.empty else {}
+        with self.session_factory() as session:
+            datasets = session.query(Dataset).filter(
+                Dataset.source == "uploaded", ~Dataset.dataset_name.like("archived::%")
+            ).order_by(Dataset.created_at.desc()).all()
+            return [
+                {
+                    "name": dataset.dataset_name,
+                    "source": "uploaded",
+                    "created_at": dataset.created_at,
+                    "row_count": int(counts.get(dataset.dataset_name, 0)),
+                    "column_count": 6,
+                    "tags": list(dataset.tags or []),
+                    "description": dataset.description or "",
+                }
+                for dataset in datasets
+            ]
+
+    # -------------------------------------------------------------------------
+    def get_uploaded_dataset_summary(self, dataset_name: str) -> dict[str, Any]:
+        for summary in self.list_uploaded_dataset_summaries():
+            if summary["name"] == dataset_name:
+                return summary
+        raise ValueError(f"Dataset '{dataset_name}' was not found.")
+
+    # -------------------------------------------------------------------------
+    def update_uploaded_dataset_metadata(self, dataset_name: str, tags: list[str], description: str) -> dict[str, Any]:
+        with self.session_factory() as session:
+            dataset = self.queries.get_uploaded_dataset_by_name(session, dataset_name)
+            if dataset is None or dataset.dataset_name.startswith("archived::"):
+                raise ValueError(f"Dataset '{dataset_name}' was not found.")
+            dataset.tags = sorted({tag.strip() for tag in tags if tag.strip()})
+            dataset.description = description.strip()
+            session.commit()
+        return self.get_uploaded_dataset_summary(dataset_name)
+
+    # -------------------------------------------------------------------------
+    def rename_uploaded_dataset(self, dataset_name: str, new_name: str) -> dict[str, Any]:
+        if new_name == "__NIST_A_COLLECTION__":
+            raise ValueError("This dataset name is reserved.")
+        with self.session_factory() as session:
+            dataset = self.queries.get_uploaded_dataset_by_name(session, dataset_name)
+            if dataset is None or dataset.dataset_name.startswith("archived::"):
+                raise ValueError(f"Dataset '{dataset_name}' was not found.")
+            existing = self.queries.get_uploaded_dataset_by_name(session, new_name)
+            if existing is not None:
+                raise ValueError(f"Dataset '{new_name}' already exists.")
+            dataset.dataset_name = new_name
+            isotherms = session.query(AdsorptionIsotherm).filter(AdsorptionIsotherm.dataset_id == dataset.id).all()
+            for isotherm in isotherms:
+                isotherm.experiment_name = isotherm.experiment_name.replace(f"uploaded:{dataset_name}:", f"uploaded:{new_name}:", 1)
+            session.commit()
+        return self.get_uploaded_dataset_summary(new_name)
+
+    # -------------------------------------------------------------------------
+    def get_uploaded_dataset_rows(self, dataset_name: str, offset: int, limit: int) -> tuple[pd.DataFrame, int]:
+        frame = self._load_uploaded_raw()
+        frame = frame[frame[self.raw_name_column] == dataset_name].reset_index(drop=True)
+        if frame.empty:
+            self.get_uploaded_dataset_summary(dataset_name)
+        total = len(frame)
+        frame.insert(0, "row_id", frame.index.astype(int))
+        return frame.iloc[offset : offset + limit].copy(), total
+
+    # -------------------------------------------------------------------------
+    def replace_uploaded_dataset_rows(self, dataset_name: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
+        frame, _ = self.get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
+        if "row_id" in frame:
+            frame = frame.drop(columns=["row_id"])
+        for operation in operations:
+            action = operation["operation"]
+            values = operation.get("values", {})
+            row_id = operation.get("row_id")
+            if action == "insert":
+                frame.loc[len(frame)] = {column: values.get(column) for column in frame.columns}
+            elif row_id is None or row_id < 0 or row_id >= len(frame):
+                raise ValueError("A valid row_id is required for updates and deletes.")
+            elif action == "delete":
+                frame = frame.drop(index=row_id).reset_index(drop=True)
+            else:
+                for key, value in values.items():
+                    if key in frame.columns:
+                        frame.loc[row_id, key] = value
+        if frame.empty:
+            raise ValueError("A dataset must contain at least one row.")
+        frame[self.raw_name_column] = dataset_name
+        self.delete_raw_dataset(dataset_name)
+        self.save_raw_dataset(frame)
+        return self.get_uploaded_dataset_summary(dataset_name)

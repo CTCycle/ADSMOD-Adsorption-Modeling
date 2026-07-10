@@ -8,6 +8,7 @@ export const routes: Routes = [
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'source' },
             { path: 'source', loadComponent: () => import('./features/source/source-page.component').then((m) => m.SourcePageComponent) },
+            { path: 'nist', loadComponent: () => import('./features/nist/nist-data-page.component').then((m) => m.NistDataPageComponent) },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
             { path: 'training', pathMatch: 'full', redirectTo: 'training/processing' },
             {
