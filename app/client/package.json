@@ -1,7 +1,7 @@
 {
     "name": "adsmod-client",
     "private": true,
-    "version": "2.3.0",
+    "version": "3.0.0",
     "type": "module",
     "scripts": {
         "dev": "ng serve --host 127.0.0.1 --port 5173 --proxy-config proxy.conf.cjs",

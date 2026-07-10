@@ -1,18 +1,17 @@
 [project]
-name = "adsmod-shared"
+name = "adsmod-common"
 version = "3.0.0"
 requires-python = ">=3.14"
 dependencies = [
-    "SQLAlchemy==2.0.46",
-    "psycopg[binary]==3.3.1",
-    "python-dotenv==1.2.1",
-    "numpy==2.4.1",
-    "pandas==3.0.1"
+    "pydantic==2.12.5"
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["shared"]
+packages = ["src/adsmod_common"]
 
 [build-system]
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ['src']

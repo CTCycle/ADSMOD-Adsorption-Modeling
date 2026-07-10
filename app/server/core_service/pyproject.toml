@@ -1,6 +1,6 @@
 [project]
 name = "adsmod-core-service"
-version = "2.3.0"
+version = "3.0.0"
 requires-python = ">=3.14"
 dependencies = [
     "adsmod-shared",

@@ -3,7 +3,7 @@
   "info": {
     "title": "ADSMOD Model Fitting Backend ML Service",
     "description": "FastAPI backend Machine learning service for dataset preparation, training, checkpoint management, and model workflows.",
-    "version": "1.2.0"
+    "version": "3.0.0"
   },
   "paths": {
     "/api/health": {
