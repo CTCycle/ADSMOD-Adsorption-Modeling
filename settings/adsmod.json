@@ -1,0 +1,18 @@
+{
+  "version": "3.0.0",
+  "runtime": {
+    "mode": "core",
+    "host": "127.0.0.1",
+    "core_port": 6045,
+    "ml_port": 6046,
+    "frontend_port": 5173,
+    "ml_restart_attempts": 0
+  },
+  "storage": {
+    "root": "%LOCALAPPDATA%/ADSMOD",
+    "database": "data/database.db"
+  },
+  "security": {
+    "internal_token_required": true
+  }
+}

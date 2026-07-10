@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Last updated: 2026-06-04
+Last updated: 2026-07-10
 
 ## Scope
 

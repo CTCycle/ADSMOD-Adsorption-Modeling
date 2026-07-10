@@ -10,7 +10,7 @@ SERVICE_CONFIG_PATH_ENV = "ADSMOD_CONFIG_PATH"
 ###############################################################################
 FASTAPI_TITLE = "ADSMOD Model Fitting Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"
-FASTAPI_VERSION = "1.2.0"
+FASTAPI_VERSION = "3.0.0"
 
 
 ###############################################################################

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ADSMOD v3 configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "runtime", "storage", "security"],
+  "properties": {
+    "version": { "const": "3.0.0" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "host", "core_port", "ml_port", "frontend_port", "ml_restart_attempts"],
+      "properties": {
+        "mode": { "enum": ["core", "core-ml"] },
+        "host": { "enum": ["127.0.0.1", "localhost", "::1"] },
+        "core_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+        "ml_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+        "frontend_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+        "ml_restart_attempts": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "database"],
+      "properties": { "root": { "type": "string" }, "database": { "type": "string" } }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["internal_token_required"],
+      "properties": { "internal_token_required": { "type": "boolean" } }
+    }
+  }
+}
