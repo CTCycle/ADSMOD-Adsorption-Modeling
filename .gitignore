@@ -13,7 +13,6 @@ app/ml_client/dist-ssr/
 app/ml_client/logs/
 app/ml_client/*.local
 runtimes/**
-release/windows/
 assets/QA/**
 .playwright-mcp/
 
@@ -59,9 +58,3 @@ Thumbs.db
 *.sqlite*
 *.exe
 !.gitkeep
-
-# Tauri
-app/client/src-tauri/r/
-app/client/src-tauri/target/
-app/client/src-tauri/bundle/
-app/client/src-tauri/gen/

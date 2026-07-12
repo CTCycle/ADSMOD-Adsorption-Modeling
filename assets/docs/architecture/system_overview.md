@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-07-09
+Last updated: 2026-07-11
 
 ## Platform Shape
 
@@ -13,8 +13,6 @@ ADSMOD is a Windows-first local application with:
 - One frontend
   - `app/client` for source, fitting, and training workflows.
   - Training remains visible in the unified UI but depends on the optional ML service at runtime.
-- Optional desktop shell
-  - Tauri under `app/client/src-tauri` and `release/tauri`.
 - Runtime bootstrap assets under `runtimes/`.
 
 ## Backend Package Layout
@@ -58,7 +56,7 @@ app/server/
 
 - Core ASGI app: `core_service.app:app`
 - ML ASGI app: `ml_service.app:app`
-- Unified local-web/Tauri backend composition entrypoint: `app.server.app:app`
+- Unified local-web backend composition entrypoint: `app.server.app:app`
 
 The unified entrypoint composes service routers; it does not own backend business handlers.
 

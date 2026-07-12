@@ -1,6 +1,6 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-06-05
+Last updated: 2026-07-11
 
 ## Primary Runtime Files
 
@@ -23,6 +23,7 @@ Current launcher and runtime keys include:
 - `UI_HOST`
 - `UI_PORT`
 - `OPTIONAL_DEPENDENCIES`
+- `BACKEND_VISIBLE`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `VITE_API_BASE_URL`
@@ -58,9 +59,6 @@ Database mode and connection settings are sourced from `settings/.env` only.
 - API-only mode
   - requires no frontend process
   - is best suited for backend debugging
-- Tauri mode
-  - sets `ADSMOD_TAURI_MODE=true`
-  - serves packaged frontend assets inside the desktop shell
 - Test mode
   - reads `.env`
   - normalizes wildcard hosts such as `0.0.0.0` and `::` to `127.0.0.1` for client access

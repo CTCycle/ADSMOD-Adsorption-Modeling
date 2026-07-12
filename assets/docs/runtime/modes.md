@@ -1,19 +1,16 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-07-09
+Last updated: 2026-07-11
 
 ## Supported Modes
 
 ### Local Web App Mode
 
-- Backend launch choices:
-- `core_service.app:app` for the core webapp launcher mode.
-- `ml_service.app:app` for the ML webapp launcher mode.
-- Both services together for the combined launcher mode.
+- The unified backend composition entrypoint is `app.server.app:app`.
 - Frontend
-  - Unified UI in `app/client`, with dev default port `5173`.
+  - Unified UI in `app/client`, with preview default port `5173`.
   - `/api/training/*` proxy traffic targets the optional ML service.
-- Canonical launcher: `ADSMOD/start_on_windows.bat`.
+- Canonical launcher: `ADSMOD/start_on_windows.ps1`.
 
 ### Core Service Mode
 
@@ -35,13 +32,6 @@ Last updated: 2026-07-09
 
 - Scripted runtime via `tests/run_tests.bat`.
 - Starts backend or frontend only when not already running.
-
-### Desktop Mode
-
-- Tauri host process in `app/client/src-tauri/src/main.rs`.
-- Spawns and monitors `app.server.app:app`, then loads the local backend URL in the webview.
-- Backend serves packaged `app/client/dist` assets when `ADSMOD_TAURI_MODE=true`.
-- Packaged ML route registration is disabled unless `ADSMOD_ENABLE_ML=true`.
 
 ### Containerized Mode
 
