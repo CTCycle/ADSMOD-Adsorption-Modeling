@@ -278,7 +278,7 @@ function Sync-Dependencies {
     Write-Step "Syncing Python dependencies"
     Push-Location $ServerDir
     try {
-        $arguments = @('sync', '--python', $PythonExe)
+        $arguments = @('sync', '--all-packages', '--python', $PythonExe)
         if ($settings.OPTIONAL_DEPENDENCIES -eq 'true') {
             $arguments += '--all-extras'
         }
@@ -387,7 +387,7 @@ function Start-Application {
 
     Write-Step "Starting frontend preview"
     $frontendProcess = Start-Process -FilePath $NpmCmd `
-        -ArgumentList @('run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT, '--strictPort') `
+        -ArgumentList @('run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT) `
         -WorkingDirectory $ClientDir `
         -WindowStyle Hidden `
         -PassThru
