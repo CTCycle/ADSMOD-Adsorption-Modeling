@@ -1,6 +1,6 @@
 # ADSMOD Local Deployment
 
-Last updated: 2026-07-11
+Last updated: 2026-07-12
 
 ## Interoperability
 
@@ -19,7 +19,7 @@ Last updated: 2026-07-11
 - The supported end-user runtime is the Windows local web launcher at `start_on_windows.ps1`.
 - Portable Python, uv, and Node.js are provisioned under `runtimes/`.
 - The frontend is built before launch and served by the hidden preview process.
-- Backend visibility is controlled by `BACKEND_VISIBLE` in `settings/.env`.
+- Backend log visibility is controlled by `BACKEND_LOGS_VISIBLE` in `settings/.env` and defaults to `true` when absent.
 - Backend dependency state is locked in `app/server/uv.lock`.
 
 ## Constraints

@@ -1,6 +1,6 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-07-11
+Last updated: 2026-07-12
 
 ## Primary Runtime Files
 
@@ -23,7 +23,7 @@ Current launcher and runtime keys include:
 - `UI_HOST`
 - `UI_PORT`
 - `OPTIONAL_DEPENDENCIES`
-- `BACKEND_VISIBLE`
+- `BACKEND_LOGS_VISIBLE`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `VITE_API_BASE_URL`
@@ -52,6 +52,7 @@ Database mode and connection settings are sourced from `settings/.env` only.
 
 - Local launcher mode
   - uses `.env` host and port values
+  - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
   - core service reads `settings/core_service.json` for non-database settings
   - ML service reads `settings/ml_service.json` for non-database settings
   - both services read database settings from `settings/.env`

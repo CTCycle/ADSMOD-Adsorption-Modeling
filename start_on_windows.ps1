@@ -172,7 +172,7 @@ function Import-Settings {
         UI_HOST = "127.0.0.1"
         UI_PORT = "5173"
         OPTIONAL_DEPENDENCIES = "false"
-        BACKEND_VISIBLE = "false"
+        BACKEND_LOGS_VISIBLE = "true"
     }
 
     if (-not (Test-Path -LiteralPath $EnvFile)) {
@@ -202,6 +202,10 @@ function Import-Settings {
         if ($defaults.Contains($key)) {
             $defaults[$key] = $value
         }
+    }
+
+    if ($defaults.BACKEND_LOGS_VISIBLE -notmatch '^(true|false)$') {
+        throw "BACKEND_LOGS_VISIBLE must be true or false."
     }
 
     if (-not $defaults.CORE_SERVICE_HOST) { $defaults.CORE_SERVICE_HOST = $defaults.FASTAPI_HOST }
@@ -351,7 +355,7 @@ function Start-Application {
     )
     Write-Step "Starting backend"
     $backendProcess = $null
-    if ($settings.BACKEND_VISIBLE -eq 'true') {
+    if ($settings.BACKEND_LOGS_VISIBLE -eq 'true') {
         $launchCommand = 'start "Backend" cmd /c ""{0}" -m uvicorn app.server.app:app --host {1} --port {2}"' -f `
             $VenvPython, $settings.FASTAPI_HOST, $settings.FASTAPI_PORT
         Push-Location $RepoRoot
@@ -513,7 +517,7 @@ while (-not $exitMenu) {
         switch ($selection) {
             '1' {
                 Start-Application
-                $exitMenu = $true
+                exit 0
             }
             '2' { Install-OrUpdate; Wait-ForMenu }
             '3' { Initialize-Database; Wait-ForMenu }
