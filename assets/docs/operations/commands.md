@@ -1,10 +1,10 @@
 # ADSMOD Operational Commands
 
-Last updated: 2026-07-09
+Last updated: 2026-07-11
 
 ## Launch And Maintenance
 
-- Unified launcher and maintenance menu: `ADSMOD\start_on_windows.bat`
+- Unified launcher and maintenance menu: `powershell -ExecutionPolicy Bypass -File ADSMOD\start_on_windows.ps1`
 
 ## Tests
 
@@ -15,7 +15,3 @@ Last updated: 2026-07-09
 
 - Unified frontend dev server: run `npm run dev` from `ADSMOD\app\client`
 - Frontend build: run `npm run build` from `ADSMOD\app\client`
-
-## Desktop Packaging
-
-- Package desktop app: `release\tauri\build_with_tauri.bat`

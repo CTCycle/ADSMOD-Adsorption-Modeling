@@ -13,14 +13,7 @@
         "visual:baseline": "playwright test -c playwright.config.ts --update-snapshots",
         "visual:compare": "playwright test -c playwright.config.ts",
         "verify:angular-migration": "node scripts/verify-angular-migration.mjs",
-        "write:runtime-config": "node scripts/write-runtime-config.mjs",
-        "tauri:dev": "tauri dev --config src-tauri/tauri.conf.json",
-        "tauri:icon": "tauri icon public/favicon.png && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-tauri-icons.ps1",
-        "tauri:build": "tauri build --config src-tauri/tauri.conf.json",
-        "tauri:build:msi": "tauri build --bundles msi --config src-tauri/tauri.conf.json",
-        "tauri:export:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/export-windows-artifacts.ps1",
-        "tauri:build:release": "npm run tauri:build:msi && npm run tauri:export:windows",
-        "tauri:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/clean-tauri-build.ps1"
+        "write:runtime-config": "node scripts/write-runtime-config.mjs"
     },
     "dependencies": {
         "@angular/animations": "^21.2.9",
@@ -42,7 +35,6 @@
         "@angular/cli": "^21.2.9",
         "@angular/compiler-cli": "^21.2.9",
         "@playwright/test": "^1.54.2",
-        "@tauri-apps/cli": "^2.0.0",
         "@types/node": "^22.15.33",
         "@types/dompurify": "^3.2.0",
         "@typescript-eslint/eslint-plugin": "^8.15.0",

@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-06-04
+Last updated: 2026-07-11
 
 ## Purpose
 
@@ -58,7 +58,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 ### Runtime
 
 - [`runtime/overview.md`](runtime/overview.md)
-  - Index for runtime modes, startup, configuration, and packaging.
+  - Index for local web runtime modes, startup, configuration, and deployment constraints.
 - [`runtime/modes.md`](runtime/modes.md)
   - Supported execution modes and their responsibilities.
 - [`runtime/startup.md`](runtime/startup.md)
@@ -66,7 +66,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`runtime/configuration.md`](runtime/configuration.md)
   - Environment variables, structured settings, and mode-specific configuration behavior.
 - [`runtime/deployment.md`](runtime/deployment.md)
-  - Packaging, runtime dependencies, interoperability, and current constraints.
+  - Local deployment, runtime dependencies, interoperability, and current constraints.
 
 ### UI
 
@@ -86,9 +86,9 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`operations/workflows.md`](operations/workflows.md)
   - Primary user workflows across source, fitting, and training.
 - [`operations/commands.md`](operations/commands.md)
-  - Launch, test, frontend, maintenance, and packaging commands.
+  - Launch, test, frontend, and maintenance commands.
 - [`operations/troubleshooting.md`](operations/troubleshooting.md)
-  - Common runtime and packaging issues with expected checks.
+  - Common runtime and dependency issues with expected checks.
 
 ## Reading Order
 

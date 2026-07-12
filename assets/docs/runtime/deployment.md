@@ -1,12 +1,12 @@
-# ADSMOD Deployment And Packaging
+# ADSMOD Local Deployment
 
-Last updated: 2026-07-09
+Last updated: 2026-07-11
 
 ## Interoperability
 
 - Unified frontend calls non-training backend routes through `/api`.
 - Unified frontend routes `/api/training/*` to the optional ML service.
-- Tauri waits for backend port readiness, then redirects the window to the backend root URL.
+- The local launcher waits for backend health and frontend readiness before opening the browser.
 
 ## Shared Runtime Resources
 
@@ -14,17 +14,16 @@ Last updated: 2026-07-09
 - Checkpoints: `resources/checkpoints`
 - Runtime env and config files: `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json`
 
-## Packaging Notes
+## Local Deployment Notes
 
-- Desktop packaging flows through `release/tauri/build_with_tauri.bat`.
-- Windows packaging outputs artifacts under `release/windows`.
-- The Tauri bundle stages server code, scripts, settings, Angular frontend dist assets, and runtime binaries.
-- ML registration in the unified packaged backend is conditional on `ADSMOD_ENABLE_ML=true`.
+- The supported end-user runtime is the Windows local web launcher at `start_on_windows.ps1`.
+- Portable Python, uv, and Node.js are provisioned under `runtimes/`.
+- The frontend is built before launch and served by the hidden preview process.
+- Backend visibility is controlled by `BACKEND_VISIBLE` in `settings/.env`.
 - Backend dependency state is locked in `app/server/uv.lock`.
 
 ## Constraints
 
-- The repository is Windows-first and relies on `.bat` and PowerShell workflows.
+- The repository is Windows-first and uses a PowerShell launcher plus the batch test runner.
 - First launch can be slow because runtime binaries and dependencies may need provisioning.
-- Desktop packaging requires a working Rust and Cargo toolchain.
 - No container runtime target is currently implemented.

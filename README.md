@@ -46,14 +46,14 @@ This project utilizes deep learning techniques to model adsorption phenomena.
 ADSMOD provides an automated menu-driven launcher and maintenance script for Windows users.
 
 1. Navigate to the `ADSMOD` directory.
-2. Run `start_on_windows.bat`.
+2. Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`.
 
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
-- Installs scoped backend dependencies into `app/server/.venv`.
-- Installs frontend dependencies and can build the unified frontend bundle.
-- Exposes launch modes for core-only, ML-only, or both backend services with one frontend.
-- Exposes setup and maintenance actions for core-only, ML-only, or shared operations.
+- Installs backend dependencies into `app/server/.venv`.
+- Installs frontend dependencies and builds the unified frontend bundle.
+- Starts the unified local web backend and frontend preview.
+- Exposes setup, test, cleanup, database initialization, and uninstall actions.
 
 **First Run vs. Subsequent Runs:**
 - On the **first run**, setup may take time because runtimes and dependencies are downloaded.
@@ -83,14 +83,11 @@ cd app\client && npm run dev
 ### 4.1 Launching the Application
 
 **Windows:**
-Double-click `start_on_windows.bat`. Use the menu to launch core-only, ML-only, or both services with the unified frontend.
-
-**Windows (Packaged Tauri App):**
-Build with `release\tauri\build_with_tauri.bat`, then launch from `release/windows/installers` or `release/windows/portable`.
+Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select **Launch application**. The launcher starts the unified backend and frontend preview, waits for both to respond, and opens the local web UI.
 
 ### 4.2 Mode Switching
 
-Both local web mode and packaged Tauri mode use the same runtime file:
+Local web mode uses the runtime file:
 
 - `settings/.env`
 
@@ -146,13 +143,13 @@ The snapshots below were captured from the current `develop` build (`v2.3.0` rel
 
 ## 5. Setup and Maintenance
 
-Run `start_on_windows.bat` to access setup and maintenance actions:
+Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` to access setup and maintenance actions:
 
 - **Remove logs**: clears `.log` files under `app/resources/logs`.
-- **Install or update core, ML, or both service scopes**: prepares shared runtimes plus the unified frontend.
-- **Uninstall app artifacts**: removes core-only, ML-only, or full local runtime/build artifacts.
+- **Install or update dependencies**: prepares shared runtimes, backend dependencies, and the unified frontend.
+- **Uninstall application**: removes local runtime and build artifacts while preserving settings, resources, the database, and user data.
 - **Initialize database**: creates or resets the project database schema.
-- **Clean desktop build artifacts**: removes Tauri build output under release targets.
+- **Clear cache**: removes Python bytecode caches and the uv cache.
 
 ### 5.1 Frontend Development Commands
 
@@ -184,7 +181,7 @@ Runtime/process values are loaded from `settings/.env`.
 
 Database mode and backend defaults are loaded from `settings/configurations.json`.
 
-`.env` runtime keys used by launcher/tests/frontend/Tauri startup:
+`.env` runtime keys used by the launcher, tests, and frontend startup:
 
 | Variable | Description |
 |---|---|
@@ -193,6 +190,7 @@ Database mode and backend defaults are loaded from `settings/configurations.json
 | `KERAS_BACKEND`, `MPLBACKEND` | ML/scientific runtime backend configuration. |
 | `RELOAD` | Uvicorn reload toggle for local development. |
 | `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in launcher flow. |
+| `BACKEND_VISIBLE` | Set to `true` to show backend logs in a dedicated terminal. |
 | `VITE_API_BASE_URL` | Optional frontend API base path written into runtime config; same-origin `/api` is used by default. |
 
 Single canonical runtime file:

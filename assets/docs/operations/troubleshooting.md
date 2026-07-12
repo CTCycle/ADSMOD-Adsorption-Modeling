@@ -1,6 +1,6 @@
 # ADSMOD Troubleshooting
 
-Last updated: 2026-06-03
+Last updated: 2026-07-11
 
 ## Backend Or UI Unreachable
 
@@ -13,7 +13,7 @@ Last updated: 2026-06-03
 - Rerun the launcher so dependencies are provisioned.
 - Rerun the tests after the environment is updated.
 
-## Packaging Failure
+## Frontend Preview Unreachable
 
-- Confirm Rust and Cargo are installed and available.
-- Re-run `release\tauri\build_with_tauri.bat` after fixing the toolchain.
+- Confirm `npm run build` succeeds in `ADSMOD/app/client`.
+- Check `UI_HOST` and `UI_PORT` in `settings/.env`, then rerun `start_on_windows.ps1`.

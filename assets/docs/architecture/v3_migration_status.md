@@ -1,6 +1,6 @@
 # ADSMOD v3 Migration Status
 
-Last updated: 2026-07-10
+Last updated: 2026-07-11
 
 ## Canonical runtime boundary
 
@@ -16,7 +16,7 @@ Canonical configuration lives under `settings/adsmod.json` with its JSON schema 
 
 ## Transitional boundary
 
-The legacy `app/server` services remain active while routes, persistence, and jobs are migrated. The legacy combined ASGI entrypoint, shared backend environment, frontend proxy, launchers, and Tauri process manager are not yet part of the v3 runtime.
+The legacy `app/server` services remain active while routes, persistence, and jobs are migrated. The legacy combined ASGI entrypoint, shared backend environment, frontend proxy, and PowerShell launcher are not yet part of the v3 runtime.
 
 Do not describe the repository as fully migrated until those legacy paths are removed and core-plus-ML integration is validated.
 ## Core-owned snapshots

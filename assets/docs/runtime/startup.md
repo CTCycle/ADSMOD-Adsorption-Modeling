@@ -1,45 +1,33 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-07-09
+Last updated: 2026-07-11
 
 ## Recommended Local Web Startup
 
 CMD:
 
 ```cmd
-ADSMOD\start_on_windows.bat
+powershell -ExecutionPolicy Bypass -File ADSMOD\start_on_windows.ps1
 ```
 
 PowerShell:
 
 ```powershell
-.\ADSMOD\start_on_windows.bat
+& .\ADSMOD\start_on_windows.ps1
 ```
 
 This menu-driven script:
 - ensures portable runtimes under `runtimes/`
-- syncs scoped backend dependencies into `app/server/.venv`
-- installs frontend dependencies when needed
-- exposes launch choices for unified frontend + core service, unified frontend + ML service, or unified frontend + both services
-- exits after handing launch control to the selected stack instead of returning to the menu
-- starts frontend dev servers in the background and opens the browser after the selected UI responds
+- syncs backend dependencies into `app/server/.venv`
+- installs and builds frontend dependencies
+- starts the unified backend and frontend preview
+- exits after handing launch control to the local web stack instead of returning to the menu
+- starts the frontend preview in the background and opens the browser after the UI responds
 - respects `UI_PORT` overrides from `settings/.env` when launching the frontend dev server
 
 ## Setup And Maintenance
 
-CMD:
-
-```cmd
-ADSMOD\setup_and_maintenance.bat
-```
-
-PowerShell:
-
-```powershell
-.\ADSMOD\setup_and_maintenance.bat
-```
-
-This separate menu-driven script owns setup, test, cleanup, and uninstall operations.
+The same `start_on_windows.ps1` menu owns dependency installation, database initialization, tests, log removal, cache cleanup, and uninstall operations.
 
 ## API-Only Backend Startup
 
@@ -85,18 +73,4 @@ PowerShell:
 
 ```powershell
 .\tests\run_tests.bat
-```
-
-## Tauri Packaging Startup
-
-CMD:
-
-```cmd
-release\tauri\build_with_tauri.bat
-```
-
-PowerShell:
-
-```powershell
-.\release\tauri\build_with_tauri.bat
 ```
