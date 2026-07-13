@@ -8,10 +8,12 @@ from typing import Any
 import httpx
 
 
+###############################################################################
 class SnapshotClientError(RuntimeError):
     """Raised when core snapshot retrieval or verification fails."""
 
 
+###############################################################################
 @dataclass(frozen=True)
 class SnapshotPayload:
     snapshot_id: str
@@ -19,12 +21,16 @@ class SnapshotPayload:
     rows: tuple[dict[str, Any], ...]
 
 
+###############################################################################
 class CoreSnapshotClient:
+
+    # -------------------------------------------------------------------------
     def __init__(self, base_url: str, internal_token: str, transport: httpx.BaseTransport | None = None) -> None:
         self.base_url = base_url.rstrip("/")
         self.internal_token = internal_token
         self.transport = transport
 
+    # -------------------------------------------------------------------------
     def fetch_snapshot(self, snapshot_id: str, *, page_size: int = 1000) -> SnapshotPayload:
         headers = {"X-ADSMOD-Internal-Token": self.internal_token}
         rows: list[dict[str, Any]] = []

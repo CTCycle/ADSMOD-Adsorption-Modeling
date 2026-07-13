@@ -56,6 +56,7 @@ class FittingService:
         frame, _ = DataSerializer().get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
         frame = frame.drop(columns=["row_id", "name"], errors="ignore")
         return {"dataset_name": dataset_name, "columns": list(frame.columns), "records": frame.where(frame.notna(), None).to_dict(orient="records")}
+
     # -------------------------------------------------------------------------
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running(self.JOB_TYPE):

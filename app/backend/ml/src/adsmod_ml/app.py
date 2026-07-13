@@ -8,6 +8,7 @@ from adsmod_common.health import HealthResponse
 from adsmod_common.version import __version__
 
 
+###############################################################################
 def create_app(config: AdsmodConfig) -> FastAPI:
     application = FastAPI(title="ADSMOD ML Service", version=__version__)
     application.state.config = config

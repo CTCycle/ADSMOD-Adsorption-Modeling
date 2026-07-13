@@ -11,6 +11,7 @@ from adsmod_ml.clients.core_client import CoreSnapshotClient, SnapshotClientErro
 CONFIG_PATH = Path("settings/adsmod.json")
 
 
+###############################################################################
 def test_ml_runtime_contracts() -> None:
     config = load_config(CONFIG_PATH).model_copy(update={"runtime": load_config(CONFIG_PATH).runtime.model_copy(update={"mode": "core-ml", "ml_restart_attempts": 1})})
     with TestClient(create_app(config)) as client:
@@ -19,6 +20,7 @@ def test_ml_runtime_contracts() -> None:
         assert client.get("/api/v1/system/capabilities").json()["features"]["training"] is True
 
 
+###############################################################################
 def test_snapshot_client_fetches_pages_and_verifies_hash() -> None:
     pages = {
         1: {"content_hash": "", "page": 1, "page_size": 1, "total_rows": 2, "rows": [{"id": 1}]},
@@ -40,6 +42,7 @@ def test_snapshot_client_fetches_pages_and_verifies_hash() -> None:
     assert result.rows == ({"id": 1}, {"id": 2})
 
 
+###############################################################################
 def test_snapshot_client_rejects_hash_mismatch() -> None:
     transport = httpx.MockTransport(lambda request: httpx.Response(200, json={"content_hash": "bad", "total_rows": 1, "rows": [{"id": 1}]}))
     try:

@@ -9,10 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 RuntimeMode = Literal["core", "core-ml"]
 
 
+###############################################################################
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+###############################################################################
 class RuntimeConfig(StrictModel):
     mode: RuntimeMode = "core"
     host: str = "127.0.0.1"
@@ -21,6 +23,7 @@ class RuntimeConfig(StrictModel):
     frontend_port: int = Field(default=5173, ge=1024, le=65535)
     ml_restart_attempts: int = Field(default=0, ge=0, le=1)
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_runtime(self) -> "RuntimeConfig":
         ports = {"core_port": self.core_port, "ml_port": self.ml_port, "frontend_port": self.frontend_port}
@@ -35,21 +38,25 @@ class RuntimeConfig(StrictModel):
         return self
 
 
+###############################################################################
 class StorageConfig(StrictModel):
     root: Path = Path("%LOCALAPPDATA%/ADSMOD")
     database: str = "data/database.db"
 
 
+###############################################################################
 class SecurityConfig(StrictModel):
     internal_token_required: bool = True
 
 
+###############################################################################
 class AdsmodConfig(StrictModel):
     version: Literal["3.0.0"] = "3.0.0"
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_mode_security(self) -> "AdsmodConfig":
         if self.runtime.mode == "core-ml" and not self.security.internal_token_required:
@@ -57,6 +64,7 @@ class AdsmodConfig(StrictModel):
         return self
 
 
+###############################################################################
 def load_config(path: str | Path) -> AdsmodConfig:
     config_path = Path(path)
     try:
