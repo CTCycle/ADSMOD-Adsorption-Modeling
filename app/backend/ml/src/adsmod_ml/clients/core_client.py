@@ -7,11 +7,9 @@ from typing import Any
 
 import httpx
 
-
 ###############################################################################
 class SnapshotClientError(RuntimeError):
     """Raised when core snapshot retrieval or verification fails."""
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -19,7 +17,6 @@ class SnapshotPayload:
     snapshot_id: str
     content_hash: str
     rows: tuple[dict[str, Any], ...]
-
 
 ###############################################################################
 class CoreSnapshotClient:

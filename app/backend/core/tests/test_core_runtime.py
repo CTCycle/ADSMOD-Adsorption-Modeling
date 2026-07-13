@@ -9,7 +9,6 @@ from adsmod_core.app import create_app, create_app_from_path
 
 CONFIG_PATH = Path("settings/adsmod.json")
 
-
 ###############################################################################
 def test_core_runtime_contracts() -> None:
     with TestClient(create_app(load_config(CONFIG_PATH))) as client:
@@ -20,12 +19,10 @@ def test_core_runtime_contracts() -> None:
         assert capabilities["features"]["training"] is False
         assert capabilities["services"]["ml"]["readiness"] == "not-configured"
 
-
 ###############################################################################
 def test_core_factory_requires_explicit_config() -> None:
     application = create_app_from_path(CONFIG_PATH)
     assert application.state.config.runtime.mode == "core"
-
 
 ###############################################################################
 def test_snapshot_api_requires_token_and_preserves_hash() -> None:
@@ -54,7 +51,6 @@ def test_snapshot_api_requires_token_and_preserves_hash() -> None:
             assert payload["total_rows"] == 2
             assert payload["rows"] == [{"id": 1, "value": "alpha"}]
             assert payload["content_hash"] == metadata["content_hash"]
-
 
 ###############################################################################
 def test_snapshot_page_not_found() -> None:

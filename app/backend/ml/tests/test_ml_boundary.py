@@ -10,7 +10,6 @@ from adsmod_ml.clients.core_client import CoreSnapshotClient, SnapshotClientErro
 
 CONFIG_PATH = Path("settings/adsmod.json")
 
-
 ###############################################################################
 def test_ml_runtime_contracts() -> None:
     config = load_config(CONFIG_PATH).model_copy(update={"runtime": load_config(CONFIG_PATH).runtime.model_copy(update={"mode": "core-ml", "ml_restart_attempts": 1})})
@@ -18,7 +17,6 @@ def test_ml_runtime_contracts() -> None:
         assert client.get("/health/live").json()["service"] == "ml"
         assert client.get("/health/ready").json()["state"] == "ready"
         assert client.get("/api/v1/system/capabilities").json()["features"]["training"] is True
-
 
 ###############################################################################
 def test_snapshot_client_fetches_pages_and_verifies_hash() -> None:
@@ -40,7 +38,6 @@ def test_snapshot_client_fetches_pages_and_verifies_hash() -> None:
 
     result = CoreSnapshotClient("http://core", "secret", httpx.MockTransport(handler)).fetch_snapshot("snapshot")
     assert result.rows == ({"id": 1}, {"id": 2})
-
 
 ###############################################################################
 def test_snapshot_client_rejects_hash_mismatch() -> None:

@@ -15,7 +15,6 @@ from core_service.services.container import CoreServiceContainer
 from core_service.services.data.datasets import DatasetService
 from shared.common.constants import DATASETS_ROUTER_PREFIX
 
-
 ###############################################################################
 class DatasetEndpoint:
 
@@ -95,7 +94,6 @@ class DatasetEndpoint:
         self.router.add_api_route("/by-name/{dataset_name}/metadata", self.update_metadata, methods=["PATCH"], response_model=DatasetMutationResponse)
         self.router.add_api_route("/by-name/{dataset_name}/rows", self.get_rows, methods=["GET"], response_model=DatasetRowsPage)
         self.router.add_api_route("/by-name/{dataset_name}/rows", self.mutate_rows, methods=["PATCH"], response_model=DatasetMutationResponse)
-
 
 ###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:

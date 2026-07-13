@@ -7,7 +7,6 @@ import uvicorn
 
 from .app import create_app_from_path
 
-
 ###############################################################################
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="adsmod-core")
@@ -15,7 +14,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default=None)
     parser.add_argument("--port", default=None, type=int)
     return parser
-
 
 ###############################################################################
 def main() -> None:
