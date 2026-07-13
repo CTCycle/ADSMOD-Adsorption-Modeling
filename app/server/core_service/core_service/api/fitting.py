@@ -8,7 +8,6 @@ from core_service.services.fitting import FittingService
 from shared.common.constants import FITTING_JOBS_ENDPOINT, FITTING_JOB_STATUS_ENDPOINT, FITTING_ROUTER_PREFIX, FITTING_RUN_ENDPOINT
 from shared.models.jobs import JobCancelResponse, JobListResponse, JobStartResponse, JobStatusResponse
 
-
 ###############################################################################
 class FittingEndpoint:
 
@@ -48,7 +47,6 @@ class FittingEndpoint:
         self.router.add_api_route(FITTING_JOBS_ENDPOINT, self.list_jobs, methods=["GET"], response_model=JobListResponse)
         self.router.add_api_route(FITTING_JOB_STATUS_ENDPOINT, self.get_job_status, methods=["GET"], response_model=JobStatusResponse)
         self.router.add_api_route(FITTING_JOB_STATUS_ENDPOINT, self.cancel_job, methods=["DELETE"], response_model=JobCancelResponse)
-
 
 ###############################################################################
 def create_fitting_router(container: CoreServiceContainer) -> APIRouter:

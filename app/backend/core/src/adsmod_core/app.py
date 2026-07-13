@@ -14,7 +14,6 @@ from .api import SnapshotCreateRequest, SnapshotCreateResponse, SnapshotPageResp
 from .persistence.paths import resolve_database_path
 from .persistence.snapshots import SnapshotStore
 
-
 ###############################################################################
 def _capabilities(config: AdsmodConfig) -> CapabilitiesResponse:
     ml_configured = config.runtime.mode == "core-ml"
@@ -38,7 +37,6 @@ def _capabilities(config: AdsmodConfig) -> CapabilitiesResponse:
             ),
         },
     )
-
 
 ###############################################################################
 def create_app(config: AdsmodConfig, *, internal_token: str | None = None) -> FastAPI:
@@ -104,7 +102,6 @@ def create_app(config: AdsmodConfig, *, internal_token: str | None = None) -> Fa
         )
 
     return application
-
 
 ###############################################################################
 def create_app_from_path(config_path: str | Path, *, internal_token: str | None = None) -> FastAPI:

@@ -8,11 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RuntimeMode = Literal["core", "core-ml"]
 
-
 ###############################################################################
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-
 
 ###############################################################################
 class RuntimeConfig(StrictModel):
@@ -37,17 +35,14 @@ class RuntimeConfig(StrictModel):
             raise ValueError("runtime.ml_restart_attempts must be 0 in core mode")
         return self
 
-
 ###############################################################################
 class StorageConfig(StrictModel):
     root: Path = Path("%LOCALAPPDATA%/ADSMOD")
     database: str = "data/database.db"
 
-
 ###############################################################################
 class SecurityConfig(StrictModel):
     internal_token_required: bool = True
-
 
 ###############################################################################
 class AdsmodConfig(StrictModel):
@@ -62,7 +57,6 @@ class AdsmodConfig(StrictModel):
         if self.runtime.mode == "core-ml" and not self.security.internal_token_required:
             raise ValueError("security.internal_token_required must be true in core-ml mode")
         return self
-
 
 ###############################################################################
 def load_config(path: str | Path) -> AdsmodConfig:
