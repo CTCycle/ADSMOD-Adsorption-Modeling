@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
+###############################################################################
 @dataclass(frozen=True)
 class SnapshotRecord:
     snapshot_id: str
@@ -19,6 +20,7 @@ class SnapshotRecord:
     rows: tuple[dict[str, Any], ...]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class SnapshotPage:
     snapshot_id: str
@@ -29,9 +31,11 @@ class SnapshotPage:
     rows: tuple[dict[str, Any], ...]
 
 
+###############################################################################
 class SnapshotStore:
     """Core-owned immutable snapshot storage for ML consumption."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database_path: Path) -> None:
         self.database_path = database_path
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,17 +51,20 @@ class SnapshotStore:
                 """
             )
 
+    # -------------------------------------------------------------------------
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
         return connection
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _canonical_rows(rows: list[dict[str, Any]]) -> tuple[str, tuple[dict[str, Any], ...]]:
         frozen_rows = tuple(dict(row) for row in rows)
         payload = json.dumps(frozen_rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return payload, frozen_rows
 
+    # -------------------------------------------------------------------------
     def create(self, rows: list[dict[str, Any]]) -> SnapshotRecord:
         payload, frozen_rows = self._canonical_rows(rows)
         content_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
@@ -70,6 +77,7 @@ class SnapshotStore:
             )
         return SnapshotRecord(snapshot_id, content_hash, created_at, len(frozen_rows), frozen_rows)
 
+    # -------------------------------------------------------------------------
     def get_page(self, snapshot_id: str, page: int, page_size: int) -> SnapshotPage:
         if page < 1:
             raise ValueError("page must be >= 1")

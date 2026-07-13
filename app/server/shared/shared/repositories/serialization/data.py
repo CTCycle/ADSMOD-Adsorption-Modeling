@@ -941,12 +941,6 @@ class DataSerializer:
 
         return base.merge(merged, how="left", on=[COLUMN_ID, COLUMN_EXPERIMENT_NAME])
 
-
-###############################################################################
-
-
-
-
     # -------------------------------------------------------------------------
     def list_uploaded_dataset_summaries(self) -> list[dict[str, Any]]:
         frame = self._load_uploaded_raw()

@@ -9,6 +9,7 @@ from adsmod_common.config import AdsmodConfig
 _WINDOWS_VARIABLE = re.compile(r"%([^%]+)%")
 
 
+###############################################################################
 def resolve_storage_root(config: AdsmodConfig) -> Path:
     raw_root = str(config.storage.root)
 
@@ -19,6 +20,7 @@ def resolve_storage_root(config: AdsmodConfig) -> Path:
     return Path(os.path.expandvars(expanded)).expanduser().resolve()
 
 
+###############################################################################
 def resolve_database_path(config: AdsmodConfig) -> Path:
     database = Path(config.storage.database)
     if database.is_absolute():

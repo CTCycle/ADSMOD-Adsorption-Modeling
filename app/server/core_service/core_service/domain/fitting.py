@@ -67,11 +67,12 @@ class ModelParameterConfig(BaseModel):
     initial: dict[str, float] = Field(default_factory=dict)
 
 ###############################################################################
-
 class FittingDatasetReference(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source: Literal["uploaded", "nist"]
     dataset_name: str | None = Field(default=None, min_length=1, max_length=MAX_DATASET_NAME_LENGTH)
+
+###############################################################################
 class FittingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     max_iterations: int = Field(..., ge=1, le=MAX_FITTING_ITERATIONS)

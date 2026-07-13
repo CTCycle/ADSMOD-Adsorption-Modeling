@@ -15,6 +15,7 @@ from .persistence.paths import resolve_database_path
 from .persistence.snapshots import SnapshotStore
 
 
+###############################################################################
 def _capabilities(config: AdsmodConfig) -> CapabilitiesResponse:
     ml_configured = config.runtime.mode == "core-ml"
     return CapabilitiesResponse(
@@ -39,6 +40,7 @@ def _capabilities(config: AdsmodConfig) -> CapabilitiesResponse:
     )
 
 
+###############################################################################
 def create_app(config: AdsmodConfig, *, internal_token: str | None = None) -> FastAPI:
     application = FastAPI(title="ADSMOD Core Service", version=__version__)
     application.state.config = config
@@ -104,6 +106,7 @@ def create_app(config: AdsmodConfig, *, internal_token: str | None = None) -> Fa
     return application
 
 
+###############################################################################
 def create_app_from_path(config_path: str | Path, *, internal_token: str | None = None) -> FastAPI:
     return create_app(load_config(config_path), internal_token=internal_token)
 
