@@ -13,6 +13,20 @@ on:
 jobs:
   python-sanity:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adsmod_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d adsmod_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -28,6 +42,8 @@ jobs:
           uv sync --project app/server --all-packages --group dev
           uv run --project app/server python -c "import core_service.app; import ml_service.app; import app.server.app"
           uv run --project app/server ruff check app/server
+          DATABASE_EMBEDDED=true uv run --project app/server python -m pytest app/tests/persistence -v
+          DATABASE_EMBEDDED=false DATABASE_ENGINE=postgres DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_NAME=adsmod_test DATABASE_USERNAME=postgres DATABASE_PASSWORD=postgres uv run --project app/server python -m pytest app/tests/persistence -v
           uv run --project app/server python -m pytest app/tests/backend --ignore app/tests/backend/performance
           uv run --project app/server python -m pytest app/tests/unit
           uv run --project app/server python -m pytest app/tests/server

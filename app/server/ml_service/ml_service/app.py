@@ -6,7 +6,6 @@ from fastapi import FastAPI
 
 from ml_service.api.entrypoint import health_router
 from ml_service.api.routes import register_ml_routes
-from ml_service.bootstrap import configure_environment
 from ml_service.services.container import MlServiceContainer
 from shared.common.constants import (
     FASTAPI_DESCRIPTION,
@@ -14,7 +13,6 @@ from shared.common.constants import (
     FASTAPI_VERSION,
 )
 
-configure_environment()
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 ###############################################################################
