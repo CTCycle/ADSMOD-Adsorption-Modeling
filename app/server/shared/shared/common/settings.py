@@ -32,6 +32,7 @@ DATABASE_ENV_DEFAULTS: dict[str, Any] = {
     "ssl_ca": None,
     "connect_timeout": 30,
     "insert_batch_size": 5000,
+    "sqlite_path": None,
 }
 
 ###############################################################################
@@ -48,6 +49,7 @@ class DatabaseSettings:
     ssl_ca: str | None
     connect_timeout: int
     insert_batch_size: int
+    sqlite_path: str | None = None
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -112,6 +114,7 @@ class JsonDatabaseSettings(BaseModel):
     ssl_ca: str | None = None
     connect_timeout: int = Field(default=30, ge=1)
     insert_batch_size: int = Field(default=5000, ge=1)
+    sqlite_path: str | None = None
 
     # -------------------------------------------------------------------------
     @field_validator(
@@ -120,6 +123,7 @@ class JsonDatabaseSettings(BaseModel):
         "username",
         "password",
         "ssl_ca",
+        "sqlite_path",
         mode="before",
     )
     @classmethod
@@ -316,6 +320,7 @@ def _load_database_environment_payload() -> dict[str, Any]:
             "DATABASE_INSERT_BATCH_SIZE",
             DATABASE_ENV_DEFAULTS["insert_batch_size"],
         ),
+        "sqlite_path": _get_env_text("DATABASE_SQLITE_PATH"),
     }
 
 ###############################################################################
@@ -351,6 +356,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
             ssl_ca=None,
             connect_timeout=json_settings.connect_timeout,
             insert_batch_size=json_settings.insert_batch_size,
+            sqlite_path=json_settings.sqlite_path,
         )
 
     normalized_engine = json_settings.engine.strip().lower()
@@ -366,6 +372,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         ssl_ca=json_settings.ssl_ca,
         connect_timeout=json_settings.connect_timeout,
         insert_batch_size=json_settings.insert_batch_size,
+        sqlite_path=json_settings.sqlite_path,
     )
 
 ###############################################################################

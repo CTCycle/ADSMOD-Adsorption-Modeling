@@ -1,58 +1,79 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON, TypeDecorator
+from sqlalchemy.types import JSON, DateTime, TypeDecorator
 
-###############################################################################
-class JSONSequence(TypeDecorator):
-    """
-    SQLAlchemy type that stores lists as JSON.
-    Uses JSONB for PostgreSQL to allow indexing, and standard JSON for SQLite.
-    """
 
+def normalize_identity(value: str) -> str:
+    """Return the application-owned identity representation used by unique keys."""
+    normalized = " ".join(value.strip().casefold().split())
+    if not normalized:
+        raise ValueError("Identity values must not be empty.")
+    return normalized
+
+
+class UTCDateTime(TypeDecorator[datetime]):
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("UTCDateTime values must be timezone-aware.")
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
+        if value is None:
+            return None
+        return value.replace(tzinfo=timezone.utc)
+
+
+class _StrictJSON(TypeDecorator[Any]):
     impl = JSON
     cache_ok = True
 
-    # -------------------------------------------------------------------------
     def load_dialect_impl(self, dialect: Any) -> Any:
         if dialect.name == "postgresql":
             return dialect.type_descriptor(JSONB)
         return dialect.type_descriptor(JSON)
 
-    # -------------------------------------------------------------------------
-    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+
+class JSONList(_StrictJSON):
+    def process_bind_param(self, value: Any, dialect: Any) -> list[Any] | None:
         if value is None:
             return None
-        # Ensure we are storing a list/dict, or let SQLAlchemy JSON fail if invalid
+        if not isinstance(value, list):
+            raise TypeError("JSONList values must be lists.")
         return value
 
-    # -------------------------------------------------------------------------
-    def process_result_value(self, value: Any, dialect: Any) -> Any:
+    def process_result_value(self, value: Any, dialect: Any) -> list[Any] | None:
         if value is None:
             return None
-        if isinstance(value, list):
-            return normalize_sequence_values(value)
-        if isinstance(value, str):
-            raise ValueError(
-                "Invalid JSONSequence payload: expected JSON list, received string."
-            )
+        if not isinstance(value, list):
+            raise TypeError("JSONList values must be lists.")
         return value
 
-###############################################################################
-def normalize_sequence_values(values: list[Any]) -> list[Any]:
-    normalized: list[Any] = []
-    for item in values:
-        if isinstance(item, str):
-            trimmed = item.strip()
-            if trimmed == "":
-                continue
-            try:
-                normalized.append(float(trimmed))
-                continue
-            except ValueError:
-                normalized.append(trimmed)
-                continue
-        normalized.append(item)
-    return normalized
+
+class JSONMapping(_StrictJSON):
+    def process_bind_param(self, value: Any, dialect: Any) -> dict[str, Any] | None:
+        if value is None:
+            return None
+        if not isinstance(value, Mapping):
+            raise TypeError("JSONMapping values must be mappings.")
+        return dict(value)
+
+    def process_result_value(self, value: Any, dialect: Any) -> dict[str, Any] | None:
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise TypeError("JSONMapping values must be mappings.")
+        return value
+
+
+# Kept only while the service serializers are migrated to typed repositories.
+JSONSequence = JSONList
