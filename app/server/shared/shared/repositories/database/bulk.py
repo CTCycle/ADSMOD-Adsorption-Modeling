@@ -9,6 +9,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 
+###############################################################################
 def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> list[dict[str, Any]]:
     by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
     passthrough: list[dict[str, Any]] = []
@@ -21,6 +22,7 @@ def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[s
     return [*by_key.values(), *passthrough]
 
 
+###############################################################################
 def upsert_records(session: Session, table: Table, records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> int:
     """Upsert records using the caller-supplied conflict contract in one session transaction."""
     batch = _deduplicate(records, conflict_columns)

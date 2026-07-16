@@ -17,9 +17,11 @@ from shared.repositories.schemas.models import Base
 from shared.repositories.database.utils import normalize_postgres_engine
 
 
+###############################################################################
 class DatabaseManager:
     """Own the single engine, session factory, and transaction boundary."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, settings: DatabaseSettings, *, create_schema: bool = False) -> None:
         self.settings = settings
         self.backend = "sqlite" if settings.embedded_database else self._normalize_backend(settings.engine)
@@ -28,6 +30,7 @@ class DatabaseManager:
         if create_schema:
             Base.metadata.create_all(self.engine)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _normalize_backend(engine: str | None) -> str:
         value = (engine or "postgres").lower()
@@ -35,6 +38,7 @@ class DatabaseManager:
             return "postgres"
         raise ValueError(f"Unsupported database engine: {engine}")
 
+    # -------------------------------------------------------------------------
     def _create_engine(self) -> Engine:
         if self.backend == "sqlite":
             if self.settings.sqlite_path == ":memory:":
@@ -57,6 +61,7 @@ class DatabaseManager:
                 connect_args["sslrootcert"] = self.settings.ssl_ca
         return create_engine(url, future=True, connect_args=connect_args, pool_pre_ping=True)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _configure_sqlite(dbapi_connection: Any, connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
@@ -68,6 +73,7 @@ class DatabaseManager:
         finally:
             cursor.close()
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def transaction(self) -> Iterator[Session]:
         with self.session_factory() as session:
@@ -78,9 +84,11 @@ class DatabaseManager:
                 session.rollback()
                 raise
 
+    # -------------------------------------------------------------------------
     def session(self) -> Session:
         return self.session_factory()
 
+    # -------------------------------------------------------------------------
     def dispose(self) -> None:
         logger.debug("Disposing %s database engine", self.backend)
         self.engine.dispose()

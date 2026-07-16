@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, DateTime, TypeDecorator
 
 
+###############################################################################
 def normalize_identity(value: str) -> str:
     """Return the application-owned identity representation used by unique keys."""
     normalized = " ".join(value.strip().casefold().split())
@@ -16,10 +17,12 @@ def normalize_identity(value: str) -> str:
     return normalized
 
 
+###############################################################################
 class UTCDateTime(TypeDecorator[datetime]):
     impl = DateTime(timezone=True)
     cache_ok = True
 
+    # -------------------------------------------------------------------------
     def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None:
             return None
@@ -27,23 +30,29 @@ class UTCDateTime(TypeDecorator[datetime]):
             raise ValueError("UTCDateTime values must be timezone-aware.")
         return value.astimezone(timezone.utc).replace(tzinfo=None)
 
+    # -------------------------------------------------------------------------
     def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None:
             return None
         return value.replace(tzinfo=timezone.utc)
 
 
+###############################################################################
 class _StrictJSON(TypeDecorator[Any]):
     impl = JSON
     cache_ok = True
 
+    # -------------------------------------------------------------------------
     def load_dialect_impl(self, dialect: Any) -> Any:
         if dialect.name == "postgresql":
             return dialect.type_descriptor(JSONB)
         return dialect.type_descriptor(JSON)
 
 
+###############################################################################
 class JSONList(_StrictJSON):
+
+    # -------------------------------------------------------------------------
     def process_bind_param(self, value: Any, dialect: Any) -> list[Any] | None:
         if value is None:
             return None
@@ -51,6 +60,7 @@ class JSONList(_StrictJSON):
             raise TypeError("JSONList values must be lists.")
         return value
 
+    # -------------------------------------------------------------------------
     def process_result_value(self, value: Any, dialect: Any) -> list[Any] | None:
         if value is None:
             return None
@@ -59,7 +69,10 @@ class JSONList(_StrictJSON):
         return value
 
 
+###############################################################################
 class JSONMapping(_StrictJSON):
+
+    # -------------------------------------------------------------------------
     def process_bind_param(self, value: Any, dialect: Any) -> dict[str, Any] | None:
         if value is None:
             return None
@@ -67,6 +80,7 @@ class JSONMapping(_StrictJSON):
             raise TypeError("JSONMapping values must be mappings.")
         return dict(value)
 
+    # -------------------------------------------------------------------------
     def process_result_value(self, value: Any, dialect: Any) -> dict[str, Any] | None:
         if value is None:
             return None
