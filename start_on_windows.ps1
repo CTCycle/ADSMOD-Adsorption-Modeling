@@ -173,6 +173,7 @@ function Import-Settings {
         UI_PORT = "5173"
         OPTIONAL_DEPENDENCIES = "false"
         BACKEND_LOGS_VISIBLE = "true"
+        always_rebuild = "true"
     }
 
     if (-not (Test-Path -LiteralPath $EnvFile)) {
@@ -206,6 +207,9 @@ function Import-Settings {
 
     if ($defaults.BACKEND_LOGS_VISIBLE -notmatch '^(true|false)$') {
         throw "BACKEND_LOGS_VISIBLE must be true or false."
+    }
+    if ($defaults.always_rebuild -notmatch '^(true|false)$') {
+        throw "always_rebuild must be true or false."
     }
 
     if (-not $defaults.CORE_SERVICE_HOST) { $defaults.CORE_SERVICE_HOST = $defaults.FASTAPI_HOST }
@@ -339,8 +343,8 @@ function Get-ListenerPid([int]$Port) {
 }
 
 function Start-Application {
-    Sync-Dependencies -BuildFrontend
     $settings = Import-Settings
+    Sync-Dependencies -BuildFrontend:($settings.always_rebuild -eq 'true')
     Set-RuntimeEnvironment
 
     $backendPort = [int]$settings.FASTAPI_PORT
