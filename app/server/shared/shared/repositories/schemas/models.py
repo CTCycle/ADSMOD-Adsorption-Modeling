@@ -9,14 +9,17 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, foreign, mapped_column, rela
 from shared.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime, normalize_identity
 
 
+###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+###############################################################################
 class Base(DeclarativeBase):
     pass
 
 
+###############################################################################
 class Dataset(Base):
     __tablename__ = "datasets"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -30,12 +33,14 @@ class Dataset(Base):
     isotherms: Mapped[list[Isotherm]] = relationship(back_populates="dataset", cascade="all, delete-orphan", passive_deletes=True, lazy="raise")
     __table_args__ = (UniqueConstraint("normalized_name", name="uq_datasets_normalized_name"), CheckConstraint("source IN ('uploaded', 'nist')", name="ck_datasets_source"), CheckConstraint("length(normalized_name) > 0", name="ck_datasets_name"), Index("ix_datasets_source_created_at", "source", "created_at"))
 
+    # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(kwargs["name"])
         super().__init__(**kwargs)
 
 
+###############################################################################
 class Adsorbate(Base):
     __tablename__ = "adsorbates"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -53,6 +58,7 @@ class Adsorbate(Base):
     __table_args__ = (UniqueConstraint("adsorbate_key", name="uq_adsorbates_key"), Index("ix_adsorbates_normalized_name", "normalized_name"))
 
 
+###############################################################################
 class Adsorbent(Base):
     __tablename__ = "adsorbents"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -69,6 +75,7 @@ class Adsorbent(Base):
     __table_args__ = (UniqueConstraint("adsorbent_key", name="uq_adsorbents_key"), Index("ix_adsorbents_normalized_name", "normalized_name"))
 
 
+###############################################################################
 class Isotherm(Base):
     __tablename__ = "isotherms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -92,6 +99,7 @@ class Isotherm(Base):
     __table_args__ = (Index("ix_isotherms_dataset_source", "dataset_id", "source_record_key"), Index("ix_isotherms_adsorbent_temperature", "adsorbent_id", "temperature_k"), CheckConstraint("temperature_k > 0", name="ck_isotherms_temperature"))
 
 
+###############################################################################
 class IsothermComponent(Base):
     __tablename__ = "isotherm_components"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -105,6 +113,7 @@ class IsothermComponent(Base):
     __table_args__ = (UniqueConstraint("isotherm_id", "position", name="uq_components_position"), UniqueConstraint("isotherm_id", "adsorbate_id", name="uq_components_adsorbate"), UniqueConstraint("id", "isotherm_id", name="uq_components_ownership"), CheckConstraint("position >= 1", name="ck_components_position"), CheckConstraint("mole_fraction IS NULL OR (mole_fraction >= 0 AND mole_fraction <= 1)", name="ck_components_fraction"))
 
 
+###############################################################################
 class IsothermMeasurement(Base):
     __tablename__ = "isotherm_measurements"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -120,6 +129,7 @@ class IsothermMeasurement(Base):
     __table_args__ = (ForeignKeyConstraint(["component_id", "isotherm_id"], ["isotherm_components.id", "isotherm_components.isotherm_id"], ondelete="CASCADE"), UniqueConstraint("isotherm_id", "point_index", "component_id", name="uq_measurements_identity"), Index("ix_measurements_isotherm_point", "isotherm_id", "point_index"), Index("ix_measurements_component", "component_id"), CheckConstraint("partial_pressure_pa >= 0", name="ck_measurements_pressure"))
 
 
+###############################################################################
 class ProcessedIsotherm(Base):
     __tablename__ = "processed_isotherms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -140,6 +150,7 @@ class ProcessedIsotherm(Base):
     __table_args__ = (UniqueConstraint("isotherm_id", "processing_version", name="uq_processed_identity"),)
 
 
+###############################################################################
 class Fit(Base):
     __tablename__ = "fits"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -156,6 +167,7 @@ class Fit(Base):
     __table_args__ = (UniqueConstraint("processed_isotherm_id", "model_name", "model_version", "optimization_method", name="uq_fits_identity"), Index("ix_fits_processed_aicc", "processed_isotherm_id", "aicc"))
 
 
+###############################################################################
 class FitParameter(Base):
     __tablename__ = "fit_parameters"
     fit_id: Mapped[int] = mapped_column(ForeignKey("fits.id", ondelete="CASCADE"), primary_key=True)
@@ -165,6 +177,7 @@ class FitParameter(Base):
     fit: Mapped[Fit] = relationship(back_populates="parameters", lazy="raise")
 
 
+###############################################################################
 class TrainingDataset(Base):
     __tablename__ = "training_datasets"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -186,6 +199,7 @@ class TrainingDataset(Base):
     __table_args__ = (CheckConstraint("sample_fraction >= 0 AND sample_fraction <= 1", name="ck_training_sample_fraction"), CheckConstraint("validation_fraction >= 0 AND validation_fraction <= 1", name="ck_training_validation_fraction"), CheckConstraint("min_measurements IS NULL OR max_measurements IS NULL OR min_measurements <= max_measurements", name="ck_training_measurement_bounds"))
 
 
+###############################################################################
 class TrainingSample(Base):
     __tablename__ = "training_samples"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

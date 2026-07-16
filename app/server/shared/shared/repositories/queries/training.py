@@ -12,16 +12,20 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import TrainingDataset, TrainingSample
 
 
+###############################################################################
 class TrainingRepositoryQueries:
     """DataFrame boundary backed by the canonical typed training repository."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager | None = None) -> None:
         self.database = database or DatabaseManager(get_server_settings().database, create_schema=True)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _content_hash(label: str) -> str:
         return hashlib.sha256(label.encode("utf-8")).hexdigest()
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _sample_frame(rows: list[TrainingSample], label: str, content_hash: str) -> pd.DataFrame:
         values = [
@@ -42,6 +46,7 @@ class TrainingRepositoryQueries:
         ]
         return pd.DataFrame(values)
 
+    # -------------------------------------------------------------------------
     def _get_or_create_parent(self, session: Any, label: str, content_hash: str) -> TrainingDataset:
         parent = session.scalar(select(TrainingDataset).where(TrainingDataset.content_hash == content_hash))
         if parent is None:
@@ -52,6 +57,7 @@ class TrainingRepositoryQueries:
             parent.label = label
         return parent
 
+    # -------------------------------------------------------------------------
     def load_training_dataset(self, limit: int | None = None) -> pd.DataFrame:
         statement = select(TrainingDataset, TrainingSample).join(TrainingSample, TrainingSample.training_dataset_id == TrainingDataset.id).order_by(TrainingSample.id)
         if limit is not None:
@@ -61,6 +67,7 @@ class TrainingRepositoryQueries:
             frames = [self._sample_frame([sample], parent.label, parent.content_hash) for parent, sample in rows]
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
+    # -------------------------------------------------------------------------
     def upsert_training_dataset(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
             return
@@ -79,6 +86,7 @@ class TrainingRepositoryQueries:
 
     save_training_dataset = upsert_training_dataset
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _sample_record(row: dict[str, Any], parent_id: int) -> dict[str, Any]:
         payload = {key: row.get(key) for key in ("split", "temperature", "pressure", "adsorbed_amount", "encoded_adsorbent", "adsorbate_molecular_weight", "adsorbate_encoded_smile")}
@@ -95,6 +103,7 @@ class TrainingRepositoryQueries:
             "encoded_smiles": row.get("adsorbate_encoded_smile"),
         }
 
+    # -------------------------------------------------------------------------
     def load_training_metadata(self) -> pd.DataFrame:
         with self.database.session_factory() as session:
             rows = session.scalars(select(TrainingDataset).order_by(TrainingDataset.id)).all()
@@ -115,6 +124,7 @@ class TrainingRepositoryQueries:
             for row in rows
         ])
 
+    # -------------------------------------------------------------------------
     def save_training_metadata(self, metadata: pd.DataFrame) -> None:
         if metadata.empty:
             return

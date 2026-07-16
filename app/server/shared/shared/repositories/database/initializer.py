@@ -10,6 +10,7 @@ from shared.repositories.database.sql import build_postgres_create_database_sql,
 from shared.repositories.database.utils import normalize_postgres_engine
 
 
+###############################################################################
 def clone_settings_with_database(settings: DatabaseSettings, database_name: str) -> DatabaseSettings:
     return DatabaseSettings(
         embedded_database=False,
@@ -27,6 +28,7 @@ def clone_settings_with_database(settings: DatabaseSettings, database_name: str)
     )
 
 
+###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     manager = DatabaseManager(settings, create_schema=True)
     try:
@@ -35,6 +37,7 @@ def initialize_sqlite_database(settings: DatabaseSettings) -> None:
         manager.dispose()
 
 
+###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
     if not settings.host or not settings.username or not settings.database_name:
         raise ValueError("PostgreSQL host, database name, and username are required.")
@@ -59,6 +62,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     return target
 
 
+###############################################################################
 def run_database_initialization() -> None:
     settings = get_server_settings().database
     if settings.embedded_database:
@@ -67,6 +71,7 @@ def run_database_initialization() -> None:
         ensure_postgres_database(settings)
 
 
+###############################################################################
 def initialize_database() -> None:
     try:
         run_database_initialization()
