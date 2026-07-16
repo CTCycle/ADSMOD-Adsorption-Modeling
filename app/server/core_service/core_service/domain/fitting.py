@@ -69,8 +69,10 @@ class ModelParameterConfig(BaseModel):
 ###############################################################################
 class FittingDatasetReference(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    source: Literal["uploaded", "nist"]
+    source: Literal["uploaded", "nist"] = "uploaded"
     dataset_name: str | None = Field(default=None, min_length=1, max_length=MAX_DATASET_NAME_LENGTH)
+    columns: list[str] = Field(default_factory=list, max_length=MAX_DATASET_COLUMNS)
+    records: list[dict[str, Any]] = Field(default_factory=list, max_length=MAX_DATASET_RECORDS)
 
 ###############################################################################
 class FittingRequest(BaseModel):
