@@ -48,9 +48,21 @@ class FittingService:
         )
 
     # -------------------------------------------------------------------------
-    def resolve_dataset(self, source: str, dataset_name: str | None) -> dict[str, Any]:
+    def resolve_dataset(
+        self,
+        source: str,
+        dataset_name: str | None,
+        columns: list[str] | None = None,
+        records: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         if source == "nist":
             return self.nist_dataset_service.load_for_fitting().dataset.model_dump()
+        if records:
+            return {
+                "dataset_name": dataset_name or "inline_dataset",
+                "columns": columns or list(records[0]),
+                "records": records,
+            }
         if not dataset_name:
             raise ValueError("An uploaded dataset name is required.")
         frame, _ = DataSerializer().get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
@@ -68,7 +80,12 @@ class FittingService:
             payload.optimization_method,
         )
 
-        dataset_dict = self.resolve_dataset(payload.dataset.source, payload.dataset.dataset_name)
+        dataset_dict = self.resolve_dataset(
+            payload.dataset.source,
+            payload.dataset.dataset_name,
+            payload.dataset.columns,
+            payload.dataset.records,
+        )
         parameter_bounds_dict = {
             name: config.model_dump()
             for name, config in payload.parameter_bounds.items()

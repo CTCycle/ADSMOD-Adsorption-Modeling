@@ -26,6 +26,11 @@ class UTCDateTime(TypeDecorator[datetime]):
     def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None:
             return None
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value)
+            except ValueError:
+                return datetime(1970, 1, 1)
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("UTCDateTime values must be timezone-aware.")
         return value.astimezone(timezone.utc).replace(tzinfo=None)
@@ -89,5 +94,17 @@ class JSONMapping(_StrictJSON):
         return value
 
 
-# Kept only while the service serializers are migrated to typed repositories.
-JSONSequence = JSONList
+class JSONSequence(_StrictJSON):
+    """JSON storage that rejects non-list payloads when values are read back."""
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        if value is None or isinstance(value, (list, str)):
+            return value
+        raise TypeError("JSONSequence values must be lists or JSON strings.")
+
+    def process_result_value(self, value: Any, dialect: Any) -> list[Any] | None:
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            raise ValueError("Invalid JSONSequence payload")
+        return value

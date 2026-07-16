@@ -25,7 +25,13 @@ def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[s
 ###############################################################################
 def upsert_records(session: Session, table: Table, records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> int:
     """Upsert records using the caller-supplied conflict contract in one session transaction."""
-    batch = _deduplicate(records, conflict_columns)
+    normalized_records = []
+    for record in records:
+        normalized = dict(record)
+        if table.name == "datasets" and "name" in normalized:
+            normalized["dataset_name"] = normalized.pop("name")
+        normalized_records.append(normalized)
+    batch = _deduplicate(normalized_records, conflict_columns)
     if not batch:
         return 0
     dialect_name = session.get_bind().dialect.name
@@ -37,7 +43,11 @@ def upsert_records(session: Session, table: Table, records: Iterable[dict[str, A
         raise ValueError(f"Unsupported upsert dialect: {dialect_name}")
     excluded = statement.excluded
     conflict_set = set(conflict_columns)
-    update_columns = {column: getattr(excluded, column) for column in batch[0] if column not in conflict_set}
+    update_columns = {
+        column: excluded[column]
+        for column in batch[0]
+        if column not in conflict_set and column in table.c
+    }
     if update_columns:
         statement = statement.on_conflict_do_update(index_elements=list(conflict_columns), set_=update_columns)
     else:

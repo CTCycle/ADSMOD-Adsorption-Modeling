@@ -102,11 +102,14 @@ class SQLiteRepository:
     def get_json_sequence_columns(table_cls: Any | None) -> list[str]:
         if table_cls is None:
             return []
-        return [
+        columns = [
             column.name
             for column in table_cls.__table__.columns
             if isinstance(column.type, JSONSequence)
         ]
+        if table_cls.__name__ == "TrainingDataset":
+            columns.extend(("pressure", "adsorbed_amount", "adsorbate_encoded_smile"))
+        return columns
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -235,7 +238,12 @@ class SQLiteRepository:
             logger.warning("Table %s does not map to an ORM model.", table_name)
             return pd.DataFrame()
 
-        statement = select(table_cls)
+        if table_cls.__name__ == "Dataset":
+            statement = select(table_cls.id, table_cls.name, table_cls.source, table_cls.created_at)
+            column_names = ["id", "dataset_name", "source", "created_at"]
+        else:
+            statement = select(table_cls)
+            column_names = [column.name for column in table_cls.__table__.columns]
         primary_key_columns = [column.name for column in table_cls.__table__.primary_key]
         if primary_key_columns:
             statement = statement.order_by(
@@ -246,13 +254,17 @@ class SQLiteRepository:
         if safe_limit is not None:
             statement = statement.limit(safe_limit)
 
-        column_names = [column.name for column in table_cls.__table__.columns]
         with self.session_factory() as session:
-            rows = session.execute(statement).scalars().all()
-        data = pd.DataFrame.from_records(
-            [{column: getattr(row, column) for column in column_names} for row in rows],
-            columns=column_names,
-        )
+            if table_cls.__name__ == "Dataset":
+                rows = session.execute(statement).all()
+                records = [dict(zip(column_names, row, strict=True)) for row in rows]
+            else:
+                rows = session.execute(statement).scalars().all()
+                records = [
+                    {column: getattr(row, column) for column in column_names}
+                    for row in rows
+                ]
+        data = pd.DataFrame.from_records(records, columns=column_names)
         return self.restore_after_load(data, table_cls)
 
     # -------------------------------------------------------------------------
