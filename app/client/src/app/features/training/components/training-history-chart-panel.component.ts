@@ -23,8 +23,8 @@ interface ChartPoint {
         <div class="chart-panel">
             <div class="chart-title">{{ title() }}</div>
             @if (hasHistory() && chartPoints().length > 0) {
-                <div class="chart-wrapper" style="width: 100%; height: 250px;">
-                    <svg viewBox="0 0 640 250" preserveAspectRatio="none" style="width: 100%; height: 250px;">
+                <div class="chart-wrapper">
+                    <svg viewBox="0 0 640 250" preserveAspectRatio="none">
                         @for (grid of yGridLines(); track grid.value) {
                             <line
                                 x1="52"
@@ -65,7 +65,7 @@ interface ChartPoint {
 
                         @if (tooltipPoint()) {
                             <g>
-                                <rect x="410" y="24" width="190" height="62" rx="6" fill="rgba(255,255,255,0.95)" style="filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));"></rect>
+                                <rect class="chart-tooltip" x="410" y="24" width="190" height="62" rx="6" fill="rgba(255,255,255,0.95)"></rect>
                                 <text x="424" y="45" font-size="12" fill="#0f172a">Epoch {{ tooltipPoint()!.epoch }}</text>
                                 <text x="424" y="62" font-size="12" [attr.fill]="primaryLine().color">
                                     {{ primaryLine().name }}: {{ formatMetric(tooltipPoint()!.primaryValue) }}
@@ -77,13 +77,13 @@ interface ChartPoint {
                         }
                     </svg>
 
-                    <div style="display: flex; gap: 1rem; padding: 0 0.75rem 0.75rem;">
-                        <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--slate-600);">
-                            <span style="width: 0.75rem; height: 0.75rem; border-radius: 999px;" [style.background]="primaryLine().color"></span>
+                    <div class="chart-legend">
+                        <span class="chart-legend-item">
+                            <span class="chart-legend-swatch" [style.background]="primaryLine().color"></span>
                             {{ primaryLine().name }}
                         </span>
-                        <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; color: var(--slate-600);">
-                            <span style="width: 0.75rem; height: 0.75rem; border-radius: 999px;" [style.background]="secondaryLine().color"></span>
+                        <span class="chart-legend-item">
+                            <span class="chart-legend-swatch" [style.background]="secondaryLine().color"></span>
                             {{ secondaryLine().name }}
                         </span>
                     </div>

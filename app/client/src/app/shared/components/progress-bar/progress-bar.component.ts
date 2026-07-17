@@ -13,7 +13,14 @@ import { Component, computed, input } from '@angular/core';
                     }
                 </div>
             }
-            <div class="inline-progress-bar-track">
+            <div
+                class="inline-progress-bar-track"
+                role="progressbar"
+                [attr.aria-label]="label() || 'Progress'"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                [attr.aria-valuenow]="clampedValue()"
+            >
                 <div
                     class="inline-progress-bar-fill"
                     [style.width.%]="clampedValue()"

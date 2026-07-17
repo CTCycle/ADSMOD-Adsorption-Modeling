@@ -5139,3 +5139,184 @@ body {
 .nist-fetch-card, .nist-log-card { overflow: auto; }
 @media (max-width: 1100px) { .user-data-page { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .source-upload-card { padding: 1rem; } .source-upload-dropzone { min-height: 150px; } .dataset-empty-state { align-items: flex-start; } .dataset-management-table { display: block; overflow-x: auto; } }
+
+/* Focused UI audit refinements. Keep these primitives token-driven and shared. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.console-footer-link {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.console-footer-link:focus-visible,
+.header-icon-button:focus-visible,
+.header-chevron:focus-visible {
+  outline: 3px solid var(--primary-300);
+  outline-offset: 3px;
+}
+
+.table-actions,
+.editor-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.table-actions button,
+.editor-actions button {
+  min-height: 2.5rem;
+}
+
+.spreadsheet-table input {
+  min-height: 2.5rem;
+}
+
+.reference-nist-table {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.reference-nist-header,
+.reference-nist-row,
+.reference-nist-progress {
+  min-width: 900px;
+}
+
+.inline-progress-bar-track {
+  position: relative;
+}
+
+.model-card-header svg {
+  transition: transform 160ms ease;
+}
+
+.model-card-header svg.expanded {
+  transform: rotate(180deg);
+}
+
+.wizard-model-type-field {
+  grid-column: span 2;
+  min-width: 160px;
+  width: 100%;
+}
+
+.wizard-model-type-field .select-input {
+  width: 100%;
+}
+
+.wizard-name-card {
+  margin-bottom: var(--spacing-md);
+  border-color: var(--primary-200);
+}
+
+.wizard-name-field {
+  padding: var(--spacing-xs) 0;
+}
+
+.wizard-name-field .field-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.wizard-name-field .number-input-field {
+  width: 100%;
+  height: auto;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.checkpoint-details-card {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background: var(--slate-50);
+}
+
+.checkpoint-details-list {
+  margin: var(--spacing-xs) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chart-wrapper {
+  width: 100%;
+  height: 250px;
+}
+
+.chart-wrapper > svg {
+  width: 100%;
+  height: 250px;
+}
+
+.chart-tooltip {
+  filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.1));
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  padding: 0 var(--spacing-sm) var(--spacing-sm);
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--slate-600);
+  font-size: 0.82rem;
+}
+
+.chart-legend-swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
+@media (max-width: 600px) {
+  .console-header {
+    padding: var(--spacing-md);
+  }
+
+  .console-main {
+    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-lg);
+  }
+
+  .reference-nist-header,
+  .reference-nist-row,
+  .reference-nist-progress {
+    min-width: 840px;
+  }
+
+  .wizard-model-type-field {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-card-header svg,
+  .source-upload-dropzone,
+  button,
+  a {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

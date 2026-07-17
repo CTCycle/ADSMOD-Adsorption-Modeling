@@ -44,8 +44,7 @@ import { ModelConfigFormComponent } from './model-config-form.component';
                             fill="none"
                             stroke="currentColor"
                             stroke-width="2"
-                            [style.transform]="isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'"
-                            style="transition: transform 0.3s;"
+                            [class.expanded]="isExpanded"
                             aria-hidden="true"
                         >
                             <polyline points="6 9 12 15 18 9" />

@@ -71,9 +71,9 @@ const LAST_PAGE_INDEX = 4;
                                         <adsmod-number-input label="Attention Heads" [value]="numAttentionHeads()" [min]="1" [max]="16" [step]="1" [precision]="0" (valueChange)="numAttentionHeadsControl.setValue($event)" />
                                         <adsmod-number-input label="Embedding Dims" [value]="molecularEmbeddingSize()" [min]="64" [max]="1024" [step]="64" [precision]="0" (valueChange)="molecularEmbeddingSizeControl.setValue($event)" />
                                         <adsmod-number-input label="Dropout Rate" [value]="dropoutRate()" [min]="0" [max]="0.5" [step]="0.05" [precision]="2" (valueChange)="dropoutRateControl.setValue($event)" />
-                                        <div style="min-width: 160px; grid-column: span 2; width: 100%;">
+                                        <div class="wizard-model-type-field">
                                             <label class="field-label">Model Type</label>
-                                            <select class="select-input" style="width: 100%;" [formControl]="selectedModelControl">
+                                            <select class="select-input" [formControl]="selectedModelControl">
                                                 <option value="SCADS Series">SCADS Series</option>
                                                 <option value="SCADS Atomic">SCADS Atomic</option>
                                             </select>
@@ -175,12 +175,12 @@ const LAST_PAGE_INDEX = 4;
 
                     @if (currentPage() === 4) {
                         <div class="wizard-page">
-                            <div class="wizard-card" style="margin-bottom: 1rem; border: 1px solid var(--primary-200);">
+                            <div class="wizard-card wizard-name-card">
                                 <div class="wizard-card-header"><span class="wizard-card-icon">🏷️</span><span>Training Name</span></div>
                                 <div class="wizard-card-body">
-                                    <div style="padding: 0.5rem 0;">
-                                        <label class="field-label" style="margin-bottom: 0.5rem; display: block;">Custom Name (Optional)</label>
-                                        <input type="text" [formControl]="customNameControl" placeholder="e.g. Experiment_A" class="number-input-field" style="width: 100%; text-align: left; padding: 0.5rem 0.75rem; font-size: 0.95rem; border-radius: 8px; border: 1px solid var(--slate-300); height: auto;" />
+                                    <div class="wizard-name-field">
+                                        <label class="field-label" for="custom-training-name">Custom Name (Optional)</label>
+                                        <input id="custom-training-name" type="text" [formControl]="customNameControl" placeholder="e.g. Experiment_A" class="number-input-field" />
                                     </div>
                                 </div>
                             </div>

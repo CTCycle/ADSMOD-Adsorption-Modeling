@@ -47,20 +47,20 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                         </div>
                     } @else {
                         <div class="wizard-page">
-                            <div class="wizard-card" style="margin-bottom: 1rem; border: 1px solid var(--primary-200);">
+                            <div class="wizard-card wizard-name-card">
                                 <div class="wizard-card-header">
                                     <span class="wizard-card-icon">🏷️</span>
                                     <span>Dataset Name</span>
                                 </div>
                                 <div class="wizard-card-body">
-                                    <div style="padding: 0.5rem 0;">
-                                        <label class="field-label" style="margin-bottom: 0.5rem; display: block;">Custom Name</label>
+                                    <div class="wizard-name-field">
+                                        <label class="field-label" for="processed-dataset-name">Custom Name</label>
                                         <input
+                                            id="processed-dataset-name"
                                             type="text"
                                             [formControl]="datasetNameControl"
                                             placeholder="e.g. my_dataset_v1"
                                             class="number-input-field"
-                                            style="width: 100%; text-align: left; padding: 0.5rem 0.75rem; font-size: 0.95rem; border-radius: 8px; border: 1px solid var(--slate-300); height: auto;"
                                         />
                                     </div>
                                 </div>

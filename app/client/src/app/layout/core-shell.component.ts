@@ -42,14 +42,14 @@ import { filter } from 'rxjs';
                 </nav>
 
                 <div class="console-sidebar-footer">
-                    <a class="console-footer-link" href="#" aria-label="Docs">
+                    <button class="console-footer-link" type="button" aria-label="Docs (not available)">
                         <span aria-hidden="true">?</span>
                         <span>Docs</span>
-                    </a>
-                    <a class="console-footer-link" href="#" aria-label="Settings">
+                    </button>
+                    <button class="console-footer-link" type="button" aria-label="Settings (not available)">
                         <span aria-hidden="true">⚙</span>
                         <span>Settings</span>
-                    </a>
+                    </button>
                     <div class="console-user">
                         <span class="console-avatar" aria-hidden="true">RS</span>
                         <span>rsmith</span>
@@ -94,9 +94,6 @@ export class CoreShellComponent {
         if (url.startsWith('/nist')) {
             return 'NIST Data Fetch';
         }
-        if (url.startsWith('/nist')) {
-            return 'Fetch and enrich NIST adsorption source data.';
-        }
         if (url.startsWith('/fitting')) {
             return 'Fitting';
         }
@@ -107,9 +104,6 @@ export class CoreShellComponent {
     });
     protected readonly pageDescription = computed(() => {
         const url = this.currentUrl();
-        if (url.startsWith('/nist')) {
-            return 'NIST Data Fetch';
-        }
         if (url.startsWith('/nist')) {
             return 'Fetch and enrich NIST adsorption source data.';
         }
