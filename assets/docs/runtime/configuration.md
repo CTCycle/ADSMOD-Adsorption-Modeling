@@ -24,7 +24,7 @@ Current launcher and runtime keys include:
 - `UI_PORT`
 - `OPTIONAL_DEPENDENCIES`
 - `BACKEND_LOGS_VISIBLE`
-- `always_rebuild`
+- `ALWAYS_REBUILD`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `VITE_API_BASE_URL`
@@ -54,7 +54,7 @@ Database mode and connection settings are sourced from `settings/.env` only.
 - Local launcher mode
   - uses `.env` host and port values
   - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
-  - rebuilds the frontend at application start when `always_rebuild=true`; defaults to rebuilding when absent
+  - rebuilds the frontend at application start when `ALWAYS_REBUILD=true`; defaults to rebuilding when absent
   - core service reads `settings/core_service.json` for non-database settings
   - ML service reads `settings/ml_service.json` for non-database settings
   - both services read database settings from `settings/.env`
