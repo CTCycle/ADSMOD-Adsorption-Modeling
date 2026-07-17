@@ -12,6 +12,7 @@ $TestsDir = Join-Path $AppDir "tests"
 $LogDir = Join-Path $AppDir "resources\logs"
 $SettingsDir = Join-Path $RepoRoot "settings"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
+$StartupTempDir = Join-Path $ServerDir ".startup-temp"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
 $NodeDir = Join-Path $RuntimesDir "nodejs"
@@ -23,7 +24,7 @@ $UvExe = Join-Path $UvDir "uv.exe"
 $NodeExe = Join-Path $NodeDir "node.exe"
 $NpmCmd = Join-Path $NodeDir "npm.cmd"
 $VenvPython = Join-Path $ServerDir ".venv\Scripts\python.exe"
-$UvCacheDir = Join-Path $ServerDir ".uv-cache"
+$UvCacheDir = Join-Path $StartupTempDir "uv-cache"
 $EnvFile = Join-Path $SettingsDir ".env"
 $EnvExample = Join-Path $SettingsDir ".env.example"
 
@@ -68,6 +69,17 @@ function Remove-RepoPath([string]$Path) {
     }
     if (Test-Path -LiteralPath $fullPath) {
         Remove-Item -LiteralPath $fullPath -Recurse -Force
+    }
+}
+
+function Remove-UvCache {
+    $expectedCachePath = [System.IO.Path]::GetFullPath((Join-Path $ServerDir ".startup-temp\uv-cache"))
+    $actualCachePath = [System.IO.Path]::GetFullPath($UvCacheDir)
+    if ($actualCachePath -ne $expectedCachePath) {
+        throw "Refusing to remove an unexpected uv cache path: $actualCachePath"
+    }
+    if (Test-Path -LiteralPath $actualCachePath) {
+        Remove-Item -LiteralPath $actualCachePath -Recurse -Force
     }
 }
 
@@ -218,8 +230,12 @@ function Import-Settings {
 }
 
 function Set-RuntimeEnvironment {
+    New-Item -ItemType Directory -Path $StartupTempDir -Force | Out-Null
     $env:UV_CACHE_DIR = $UvCacheDir
+    $env:UV_NO_CACHE = "1"
     $env:UV_PROJECT_ENVIRONMENT = Join-Path $ServerDir ".venv"
+    $env:TEMP = $StartupTempDir
+    $env:TMP = $StartupTempDir
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
     Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
     Remove-Item Env:PYTHONNOUSERSITE -ErrorAction SilentlyContinue
@@ -273,7 +289,10 @@ function Initialize-Runtimes {
 }
 
 function Sync-Dependencies {
-    param([switch]$BuildFrontend)
+    param(
+        [switch]$BuildFrontend,
+        [switch]$AllowExistingEnvironmentFallback
+    )
 
     $settings = Import-Settings
     Initialize-Runtimes
@@ -282,12 +301,19 @@ function Sync-Dependencies {
     Write-Step "Syncing Python dependencies"
     Push-Location $ServerDir
     try {
-        $arguments = @('sync', '--all-packages', '--python', $PythonExe)
+        $arguments = @('sync', '--all-packages', '--python', $PythonExe, '--no-cache')
         if ($settings.OPTIONAL_DEPENDENCIES -eq 'true') {
             $arguments += '--all-extras'
         }
-        & $UvExe @arguments
-        Assert-LastExitCode "uv sync"
+        try {
+            & $UvExe @arguments
+            Assert-LastExitCode "uv sync"
+        } catch {
+            if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath $VenvPython)) {
+                throw
+            }
+            Write-Warn "uv sync could not write its temporary files; reusing the existing backend environment for startup. Run Install / update dependencies after resolving the filesystem permission issue."
+        }
     } finally {
         Pop-Location
     }
@@ -299,17 +325,32 @@ function Sync-Dependencies {
     Write-Step "Installing frontend dependencies"
     Push-Location $ClientDir
     try {
-        if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) {
-            & $NpmCmd ci
-        } else {
-            & $NpmCmd install
+        try {
+            if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) {
+                & $NpmCmd ci
+            } else {
+                & $NpmCmd install
+            }
+            Assert-LastExitCode "npm dependency installation"
+        } catch {
+            if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath (Join-Path $ClientDir 'node_modules'))) {
+                throw
+            }
+            Write-Warn "npm dependency installation could not update the existing node_modules tree; reusing it for startup. Run Install / update dependencies after resolving the filesystem lock."
         }
-        Assert-LastExitCode "npm dependency installation"
 
         if ($BuildFrontend) {
             Write-Step "Building frontend"
-            & $NpmCmd run build
-            Assert-LastExitCode "frontend build"
+            try {
+                & $NpmCmd run build
+                Assert-LastExitCode "frontend build"
+            } catch {
+                $existingFrontend = Join-Path $ClientDir "dist\browser\index.html"
+                if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath $existingFrontend)) {
+                    throw
+                }
+                Write-Warn "Frontend rebuild could not update the existing checkout; reusing the existing dist bundle for startup. Run Install / update dependencies after resolving the filesystem lock."
+            }
         }
     } finally {
         Pop-Location
@@ -344,7 +385,7 @@ function Get-ListenerPid([int]$Port) {
 
 function Start-Application {
     $settings = Import-Settings
-    Sync-Dependencies -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true')
+    Sync-Dependencies -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -AllowExistingEnvironmentFallback
     Set-RuntimeEnvironment
 
     $backendPort = [int]$settings.FASTAPI_PORT
@@ -414,9 +455,7 @@ function Start-Application {
 
 function Install-OrUpdate {
     Sync-Dependencies -BuildFrontend
-    if (Test-Path -LiteralPath $UvCacheDir) {
-        Remove-RepoPath $UvCacheDir
-    }
+    Remove-UvCache
     Write-Ok "Dependencies installed and frontend built successfully."
 }
 
@@ -460,9 +499,7 @@ function Clear-Cache {
     Get-ChildItem -LiteralPath $RepoRoot -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
         Sort-Object FullName -Descending |
         ForEach-Object { Remove-RepoPath $_.FullName }
-    if (Test-Path -LiteralPath $UvCacheDir) {
-        Remove-RepoPath $UvCacheDir
-    }
+    Remove-UvCache
     Write-Ok "Caches cleared."
 }
 

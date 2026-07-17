@@ -28,9 +28,9 @@ import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.co
                                     <div class="wizard-settings-grid">
                                         <adsmod-number-input label="Additional Epochs" [value]="additionalEpochs()" [min]="1" [max]="100" [step]="1" [precision]="0" (valueChange)="additionalEpochsControl.setValue($event)" />
                                     </div>
-                                    <div style="margin-top: 20px; padding: 15px; background-color: var(--slate-50); border-radius: 8px;">
+                                    <div class="checkpoint-details-card">
                                         <strong>Checkpoint Details:</strong>
-                                        <ul style="list-style: none; padding: 0; margin-top: 10px;">
+                                        <ul class="checkpoint-details-list">
                                             <li>Compatibility: {{ compatibilityLabel() }}</li>
                                             <li>Epochs Trained: {{ selectedCheckpoint()?.epochs_trained ?? '--' }}</li>
                                             <li>Final Loss: {{ selectedCheckpoint()?.final_loss?.toFixed(4) ?? '--' }}</li>

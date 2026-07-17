@@ -9,9 +9,15 @@ from shared.common.paths import LOGS_DIR
 
 
 ###############################################################################
-LOGS_DIR.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_filename = LOGS_DIR / f"ADSMOD_{current_timestamp}.log"
+
+try:
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_filename.touch(exist_ok=True)
+    file_log_available = True
+except OSError:
+    file_log_available = False
 
 ###############################################################################
 class UnicodeSafeFormatter(logging.Formatter):
@@ -43,14 +49,6 @@ LOG_CONFIG = {
             "level": "INFO",
             "formatter": "minimal",
         },
-        "file": {
-            "class": "logging.FileHandler",
-            "level": "DEBUG",
-            "formatter": "default",
-            "filename": str(log_filename),
-            "mode": "a",
-            "encoding": "utf-8",
-        },
     },
     "loggers": {
         "httpx": {"level": "WARNING"},
@@ -58,9 +56,20 @@ LOG_CONFIG = {
     },
     "root": {
         "level": "DEBUG",
-        "handlers": ["console", "file"],
+        "handlers": ["console"],
     },
 }
+
+if file_log_available:
+    LOG_CONFIG["handlers"]["file"] = {
+        "class": "logging.FileHandler",
+        "level": "DEBUG",
+        "formatter": "default",
+        "filename": str(log_filename),
+        "mode": "a",
+        "encoding": "utf-8",
+    }
+    LOG_CONFIG["root"]["handlers"].append("file")
 
 logging.config.dictConfig(LOG_CONFIG)
 logger = logging.getLogger("ADSMOD")

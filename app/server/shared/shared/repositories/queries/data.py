@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 from sqlalchemy import and_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from shared.repositories.database.backend import ADSMODDatabase, database
 from shared.repositories.schemas.models import (
@@ -153,6 +153,11 @@ class DataRepositoryQueries:
     # -------------------------------------------------------------------------
     @staticmethod
     def load_uploaded_raw_rows(session: Session) -> list[Any]:
+        point_measurement = aliased(AdsorptionPoint, name="point_measurement")
+        component_measurement = aliased(
+            AdsorptionPointComponent,
+            name="component_measurement",
+        )
         return session.execute(
             select(
                 Dataset.dataset_name,
@@ -160,11 +165,11 @@ class DataRepositoryQueries:
                 Adsorbent.name,
                 Adsorbate.name,
                 AdsorptionIsotherm.temperature_k,
-                AdsorptionPoint.point_index,
-                AdsorptionPointComponent.original_pressure,
-                AdsorptionPointComponent.original_uptake,
-                AdsorptionPointComponent.partial_pressure_pa,
-                AdsorptionPointComponent.uptake_mol_g,
+                point_measurement.point_index,
+                component_measurement.original_pressure,
+                component_measurement.original_uptake,
+                component_measurement.partial_pressure_pa,
+                component_measurement.uptake_mol_g,
             )
             .join(AdsorptionIsotherm, AdsorptionIsotherm.dataset_id == Dataset.id)
             .join(
@@ -177,14 +182,14 @@ class DataRepositoryQueries:
             .join(Adsorbate, Adsorbate.id == AdsorptionIsothermComponent.adsorbate_id)
             .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
             .join(
-                AdsorptionPoint,
-                AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
+                point_measurement,
+                point_measurement.isotherm_id == AdsorptionIsotherm.id,
             )
             .join(
-                AdsorptionPointComponent,
+                component_measurement,
                 and_(
-                    AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                    AdsorptionPointComponent.component_id
+                    component_measurement.point_id == point_measurement.id,
+                    component_measurement.component_id
                     == AdsorptionIsothermComponent.id,
                 ),
             )
@@ -197,7 +202,7 @@ class DataRepositoryQueries:
             .order_by(
                 Dataset.dataset_name,
                 AdsorptionIsotherm.source_record_id,
-                AdsorptionPoint.point_index,
+                point_measurement.point_index,
             )
         ).all()
 

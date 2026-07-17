@@ -11,7 +11,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                 [checked]="checked"
                 (change)="handleChange($event)"
             />
-            <label [for]="checkboxId" style="margin-bottom: 0; cursor: pointer;">
+            <label class="checkbox-label" [for]="checkboxId">
                 {{ label }}
             </label>
         </div>
