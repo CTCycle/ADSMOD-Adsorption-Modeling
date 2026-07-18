@@ -531,22 +531,57 @@ function Wait-ForMenu {
     [Console]::ReadKey($true) | Out-Null
 }
 
+function Write-MenuItem {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Number,
+        [Parameter(Mandatory)][string]$Label,
+        [string]$Hint,
+        [ConsoleColor]$NumberColor = [ConsoleColor]::Cyan
+    )
+    Write-Host ("  [{0}] " -f $Number) -ForegroundColor $NumberColor -NoNewline
+    Write-Host $Label -NoNewline
+    if ($Hint) {
+        Write-Host ("  {0}" -f $Hint) -ForegroundColor DarkGray
+    } else {
+        Write-Host ""
+    }
+}
+
+function Show-MainMenu {
+    try { Clear-Host } catch { }
+
+    $menuWidth = 62
+    $rule = "=" * $menuWidth
+    $subtleRule = "-" * $menuWidth
+
+    Write-Host ""
+    Write-Host $rule -ForegroundColor DarkCyan
+    Write-Host "  ADSMOD" -ForegroundColor Cyan -NoNewline
+    Write-Host "  |  Adsorption Modeling" -ForegroundColor White
+    Write-Host "  Local workspace launcher and maintenance console" -ForegroundColor DarkGray
+    Write-Host $rule -ForegroundColor DarkCyan
+    Write-Host ""
+    Write-Host "  WORKSPACE" -ForegroundColor DarkCyan
+    Write-MenuItem -Number '1' -Label 'Launch application' -Hint 'Start the local web workspace'
+    Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Hint 'Refresh local runtimes and packages'
+    Write-MenuItem -Number '3' -Label 'Initialize database' -Hint 'Prepare the local data store'
+    Write-MenuItem -Number '4' -Label 'Run test suite' -Hint 'Execute the repository checks'
+    Write-Host ""
+    Write-Host "  MAINTENANCE" -ForegroundColor DarkCyan
+    Write-MenuItem -Number '5' -Label 'Remove logs' -Hint 'Delete generated log files' -NumberColor Yellow
+    Write-MenuItem -Number '6' -Label 'Clear cache' -Hint 'Remove Python and uv caches' -NumberColor Yellow
+    Write-MenuItem -Number '7' -Label 'Uninstall application' -Hint 'Remove local runtimes and build artifacts' -NumberColor Yellow
+    Write-Host ""
+    Write-Host $subtleRule -ForegroundColor DarkGray
+    Write-MenuItem -Number '8' -Label 'Exit' -Hint 'Close this console' -NumberColor DarkGray
+    Write-Host $rule -ForegroundColor DarkCyan
+}
+
 $exitMenu = $false
 while (-not $exitMenu) {
-    try { Clear-Host } catch { }
-    Write-Host "=========================================" -ForegroundColor DarkCyan
-    Write-Host "    ADSMOD -- Adsorption Modeling" -ForegroundColor Cyan
-    Write-Host "=========================================" -ForegroundColor DarkCyan
-    Write-Host "1.  Launch application"
-    Write-Host "2.  Install / update dependencies"
-    Write-Host "3.  Initialize database"
-    Write-Host "4.  Run test suite"
-    Write-Host "5.  Remove logs"
-    Write-Host "6.  Clear cache"
-    Write-Host "7.  Uninstall application"
-    Write-Host "8.  Exit"
-    Write-Host "=========================================" -ForegroundColor DarkCyan
-    $selection = Read-Host "Select an option (1-8)"
+    Show-MainMenu
+    $selection = Read-Host "  Select an option [1-8]"
 
     if ($selection -notmatch '^[1-8]$') {
         Write-Warn "Please select a number from 1 to 8."
