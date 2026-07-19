@@ -21,20 +21,17 @@ EXPECTED_TABLES = {
     "training_datasets", "training_samples",
 }
 
-
 ###############################################################################
 def test_canonical_schema_has_only_expected_tables() -> None:
     assert set(Base.metadata.tables) == EXPECTED_TABLES
     assert isinstance(Dataset.__table__.c.tags.type, JSONList)
     assert isinstance(Dataset.__table__.c.created_at.type, UTCDateTime)
 
-
 ###############################################################################
 @pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
 def test_every_canonical_table_compiles_for_both_backends(dialect) -> None:  # type: ignore[no-untyped-def]
     for table in Base.metadata.sorted_tables:
         CreateTable(table).compile(dialect=dialect)
-
 
 ###############################################################################
 def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
@@ -54,7 +51,6 @@ def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
             assert session.execute(select(Dataset.name)).scalars().all() == ["Water"]
     finally:
         manager.dispose()
-
 
 ###############################################################################
 def test_explicit_bulk_upsert_uses_declared_conflict_key() -> None:

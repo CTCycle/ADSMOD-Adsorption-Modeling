@@ -16,7 +16,6 @@ from shared.common.utils.logger import logger
 from shared.repositories.schemas.models import Base
 from shared.repositories.database.utils import normalize_postgres_engine
 
-
 ###############################################################################
 class DatabaseManager:
     """Own the single engine, session factory, and transaction boundary."""

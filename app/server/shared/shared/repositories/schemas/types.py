@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, DateTime, TypeDecorator
 
-
 ###############################################################################
 def normalize_identity(value: str) -> str:
     """Return the application-owned identity representation used by unique keys."""
@@ -15,7 +14,6 @@ def normalize_identity(value: str) -> str:
     if not normalized:
         raise ValueError("Identity values must not be empty.")
     return normalized
-
 
 ###############################################################################
 class UTCDateTime(TypeDecorator[datetime]):
@@ -41,7 +39,6 @@ class UTCDateTime(TypeDecorator[datetime]):
             return None
         return value.replace(tzinfo=timezone.utc)
 
-
 ###############################################################################
 class _StrictJSON(TypeDecorator[Any]):
     impl = JSON
@@ -52,7 +49,6 @@ class _StrictJSON(TypeDecorator[Any]):
         if dialect.name == "postgresql":
             return dialect.type_descriptor(JSONB)
         return dialect.type_descriptor(JSON)
-
 
 ###############################################################################
 class JSONList(_StrictJSON):
@@ -72,7 +68,6 @@ class JSONList(_StrictJSON):
         if not isinstance(value, list):
             raise TypeError("JSONList values must be lists.")
         return value
-
 
 ###############################################################################
 class JSONMapping(_StrictJSON):
@@ -94,14 +89,17 @@ class JSONMapping(_StrictJSON):
         return value
 
 
+###############################################################################
 class JSONSequence(_StrictJSON):
     """JSON storage that rejects non-list payloads when values are read back."""
 
+    # -------------------------------------------------------------------------
     def process_bind_param(self, value: Any, dialect: Any) -> Any:
         if value is None or isinstance(value, (list, str)):
             return value
         raise TypeError("JSONSequence values must be lists or JSON strings.")
 
+    # -------------------------------------------------------------------------
     def process_result_value(self, value: Any, dialect: Any) -> list[Any] | None:
         if value is None:
             return None

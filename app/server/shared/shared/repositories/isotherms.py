@@ -9,7 +9,6 @@ from shared.repositories.database.bulk import upsert_records
 from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Isotherm, IsothermComponent, IsothermMeasurement
 
-
 ###############################################################################
 class IsothermRepository:
 

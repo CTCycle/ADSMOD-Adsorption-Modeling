@@ -9,7 +9,6 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.database.sql import build_postgres_create_database_sql, build_postgres_database_exists_sql
 from shared.repositories.database.utils import normalize_postgres_engine
 
-
 ###############################################################################
 def clone_settings_with_database(settings: DatabaseSettings, database_name: str) -> DatabaseSettings:
     return DatabaseSettings(
@@ -27,7 +26,6 @@ def clone_settings_with_database(settings: DatabaseSettings, database_name: str)
         sqlite_path=settings.sqlite_path,
     )
 
-
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     manager = DatabaseManager(settings, create_schema=True)
@@ -35,7 +33,6 @@ def initialize_sqlite_database(settings: DatabaseSettings) -> None:
         logger.info("Initialized SQLite database schema")
     finally:
         manager.dispose()
-
 
 ###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
@@ -61,7 +58,6 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
             manager.dispose()
     return target
 
-
 ###############################################################################
 def run_database_initialization() -> None:
     settings = get_server_settings().database
@@ -69,7 +65,6 @@ def run_database_initialization() -> None:
         initialize_sqlite_database(settings)
     else:
         ensure_postgres_database(settings)
-
 
 ###############################################################################
 def initialize_database() -> None:
