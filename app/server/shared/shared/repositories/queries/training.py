@@ -11,7 +11,6 @@ from shared.common.settings import get_server_settings
 from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import TrainingDataset, TrainingSample
 
-
 ###############################################################################
 class TrainingRepositoryQueries:
     """DataFrame boundary backed by the canonical typed training repository."""

@@ -10,7 +10,6 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Adsorbate, Adsorbent
 from shared.repositories.schemas.types import normalize_identity
 
-
 ###############################################################################
 class MaterialRepository:
 

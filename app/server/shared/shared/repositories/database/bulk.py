@@ -8,7 +8,6 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-
 ###############################################################################
 def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> list[dict[str, Any]]:
     by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
@@ -20,7 +19,6 @@ def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[s
         else:
             by_key[key] = record
     return [*by_key.values(), *passthrough]
-
 
 ###############################################################################
 def upsert_records(session: Session, table: Table, records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> int:

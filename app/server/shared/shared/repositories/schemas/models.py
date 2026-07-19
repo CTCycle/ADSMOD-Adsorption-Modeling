@@ -8,16 +8,13 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, foreign, mapped_column, rela
 
 from shared.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime, normalize_identity
 
-
 ###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
-
 ###############################################################################
 class Base(DeclarativeBase):
     pass
-
 
 ###############################################################################
 class Dataset(Base):
@@ -48,7 +45,6 @@ class Dataset(Base):
             kwargs["normalized_name"] = normalize_identity(kwargs["name"])
         super().__init__(**kwargs)
 
-
 ###############################################################################
 class Adsorbate(Base):
     __tablename__ = "adsorbates"
@@ -72,11 +68,11 @@ class Adsorbate(Base):
     components: Mapped[list[IsothermComponent]] = relationship(back_populates="adsorbate", lazy="raise")
     __table_args__ = (UniqueConstraint("adsorbate_key", name="uq_adsorbates_key"), Index("ix_adsorbates_normalized_name", "normalized_name"))
 
+    # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(kwargs["name"])
         super().__init__(**kwargs)
-
 
 ###############################################################################
 class Adsorbent(Base):
@@ -98,7 +94,6 @@ class Adsorbent(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False)
     isotherms: Mapped[list[Isotherm]] = relationship(back_populates="adsorbent", lazy="raise")
     __table_args__ = (UniqueConstraint("adsorbent_key", name="uq_adsorbents_key"), Index("ix_adsorbents_normalized_name", "normalized_name"))
-
 
 ###############################################################################
 class Isotherm(Base):
@@ -128,13 +123,13 @@ class Isotherm(Base):
     pressure_units = synonym("pressure_unit")
     adsorption_units = synonym("uptake_unit")
 
+    # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
         if "source_record_key" not in kwargs:
             kwargs["source_record_key"] = kwargs.get("source_record_id") or kwargs.get("experiment_name") or "record"
         if "isotherm_key" not in kwargs:
             kwargs["isotherm_key"] = normalize_identity(kwargs["source_record_key"])
         super().__init__(**kwargs)
-
 
 ###############################################################################
 class IsothermComponent(Base):
@@ -150,7 +145,6 @@ class IsothermComponent(Base):
     __table_args__ = (UniqueConstraint("isotherm_id", "position", name="uq_components_position"), UniqueConstraint("isotherm_id", "adsorbate_id", name="uq_components_adsorbate"), UniqueConstraint("id", "isotherm_id", name="uq_components_ownership"), CheckConstraint("position >= 1", name="ck_components_position"), CheckConstraint("mole_fraction IS NULL OR (mole_fraction >= 0 AND mole_fraction <= 1)", name="ck_components_fraction"))
 
     component_index = synonym("position")
-
 
 ###############################################################################
 class IsothermMeasurement(Base):
@@ -172,7 +166,6 @@ class IsothermMeasurement(Base):
 
     point_id = synonym("point_id_value")
 
-
 ###############################################################################
 class ProcessedIsotherm(Base):
     __tablename__ = "processed_isotherms"
@@ -193,7 +186,6 @@ class ProcessedIsotherm(Base):
     fits: Mapped[list[Fit]] = relationship(back_populates="processed_isotherm", cascade="all, delete-orphan", passive_deletes=True, lazy="raise")
     __table_args__ = (UniqueConstraint("isotherm_id", "processing_version", name="uq_processed_identity"),)
 
-
 ###############################################################################
 class Fit(Base):
     __tablename__ = "fits"
@@ -210,7 +202,6 @@ class Fit(Base):
     parameters: Mapped[list[FitParameter]] = relationship(back_populates="fit", cascade="all, delete-orphan", passive_deletes=True, lazy="raise")
     __table_args__ = (UniqueConstraint("processed_id", "model_name", "optimization_method", name="uq_fits_identity"), Index("ix_fits_processed_aicc", "processed_id", "aicc"))
 
-
 ###############################################################################
 class FitParameter(Base):
     __tablename__ = "fit_parameters"
@@ -219,7 +210,6 @@ class FitParameter(Base):
     parameter_value: Mapped[float] = mapped_column(Float, nullable=False)
     standard_error: Mapped[float | None] = mapped_column(Float)
     fit: Mapped[Fit] = relationship(back_populates="parameters", lazy="raise")
-
 
 ###############################################################################
 class TrainingDataset(Base):
@@ -241,7 +231,6 @@ class TrainingDataset(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     samples: Mapped[list[TrainingSample]] = relationship(back_populates="training_dataset", cascade="all, delete-orphan", passive_deletes=True, lazy="raise")
     __table_args__ = (CheckConstraint("sample_fraction >= 0 AND sample_fraction <= 1", name="ck_training_sample_fraction"), CheckConstraint("validation_fraction >= 0 AND validation_fraction <= 1", name="ck_training_validation_fraction"), CheckConstraint("min_measurements IS NULL OR max_measurements IS NULL OR min_measurements <= max_measurements", name="ck_training_measurement_bounds"))
-
 
 ###############################################################################
 class TrainingSample(Base):
@@ -278,10 +267,12 @@ _compatibility_point_component_table = Table(
 )
 
 
+###############################################################################
 class _CompatibilityBase(DeclarativeBase):
     pass
 
 
+###############################################################################
 class AdsorptionPointComponent(_CompatibilityBase):
     __table__ = _compatibility_point_component_table
 AdsorptionProcessedIsotherm = ProcessedIsotherm
