@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-07-11
+Last updated: 2026-07-20
 
 ## Purpose
 
@@ -41,6 +41,8 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
   - Core-service and ML-service route ownership.
 - [`architecture/persistence_and_packages.md`](architecture/persistence_and_packages.md)
   - Shared backend workspace, persistence ownership, and validation expectations.
+- [`architecture/v3_migration_status.md`](architecture/v3_migration_status.md)
+  - Canonical v3 package boundaries, snapshot contracts, configuration, and transitional legacy runtime.
 
 ### Coding
 
@@ -64,7 +66,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`runtime/startup.md`](runtime/startup.md)
   - Launcher and manual startup procedures.
 - [`runtime/configuration.md`](runtime/configuration.md)
-  - Environment variables, structured settings, and mode-specific configuration behavior.
+  - Canonical v3 JSON configuration, legacy environment variables, and mode-specific configuration behavior.
 - [`runtime/deployment.md`](runtime/deployment.md)
   - Local deployment, runtime dependencies, interoperability, and current constraints.
 
@@ -78,6 +80,8 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
   - Buttons, forms, navigation, data views, dialogs, and status-heavy interaction patterns.
 - [`ui/experience.md`](ui/experience.md)
   - Page structure, workflow UX, responsiveness, accessibility, and design principles.
+- [`ui/standards.md`](ui/standards.md)
+  - Current visual, interaction, accessibility, and responsive implementation standards.
 
 ### Operations
 

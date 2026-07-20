@@ -1,6 +1,18 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
+
+## Canonical v3 Configuration
+
+- Configuration file: `settings/adsmod.json`
+- Validation schema: `settings/adsmod.schema.json`
+- Required sections: `version`, `runtime`, `storage`, and `security`
+- Supported runtime modes: `core` and `core-ml`
+- The v3 core CLI receives the configuration explicitly through `--config`.
+
+The v3 packages do not read the legacy `.env`, `core_service.json`, or
+`ml_service.json` files. Those files remain documented below for the transitional
+`app/server` runtime.
 
 ## Primary Runtime Files
 

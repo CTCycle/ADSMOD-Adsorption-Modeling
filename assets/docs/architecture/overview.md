@@ -1,12 +1,15 @@
 # Architecture Overview
 
-Last updated: 2026-07-10
+Last updated: 2026-07-20
 
 ## Scope
 
 This section covers system structure, ownership boundaries, API routing, and backend workspace organization.
 
-`app/server/app.py` is the unified composition entrypoint. Business route ownership stays inside `core_service` and `ml_service`.
+The canonical v3 boundary is split into independent packages under `app/backend`:
+`adsmod-common`, `adsmod-core`, and `adsmod-ml`. The transitional `app/server`
+workspace remains the unified local-web runtime until service extraction and launcher
+migration are complete.
 
 ## Documents
 
@@ -25,3 +28,4 @@ This section covers system structure, ownership boundaries, API routing, and bac
 - Read [`service_boundaries.md`](service_boundaries.md) before changing package imports or moving backend code.
 - Read [`api_surface.md`](api_surface.md) before adding, relocating, or reviewing endpoints.
 - Read [`persistence_and_packages.md`](persistence_and_packages.md) before changing repositories, models, sessions, or backend packaging.
+- Read [`v3_migration_status.md`](v3_migration_status.md) before changing the canonical v3 packages, snapshots, or configuration boundary.
