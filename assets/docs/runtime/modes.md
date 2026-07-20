@@ -1,8 +1,21 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-07-11
+Last updated: 2026-07-20
 
 ## Supported Modes
+
+### v3 Core Mode
+
+- Uses the canonical `settings/adsmod.json` configuration.
+- Runs the independent `adsmod-core` package and its health, capability, and internal snapshot endpoints.
+- Does not require the ML package.
+
+### v3 Core-ML Mode
+
+- Uses the canonical v3 configuration with both `core` and `ml` services.
+- ML consumes core-owned snapshots through the internal contract and must not access the core database directly.
+
+The v3 modes are implemented package boundaries; launcher integration is still pending.
 
 ### Local Web App Mode
 

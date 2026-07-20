@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-06-04
+Last updated: 2026-07-20
 
 Canonical architecture details live in:
 
@@ -9,5 +9,8 @@ Canonical architecture details live in:
 - [`architecture/service_boundaries.md`](service_boundaries.md)
 - [`architecture/api_surface.md`](api_surface.md)
 - [`architecture/persistence_and_packages.md`](persistence_and_packages.md)
+- [`architecture/v3_migration_status.md`](v3_migration_status.md)
+  - Canonical v3 packages, internal snapshot contract, and migration boundary.
 
-Backend ownership is split between `core_service`, `ml_service`, and `shared`.
+The repository currently contains two backend generations: the canonical v3 packages
+under `app/backend` and the transitional service workspace under `app/server`.

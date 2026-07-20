@@ -1,12 +1,16 @@
 # ADSMOD System Overview
 
-Last updated: 2026-07-11
+Last updated: 2026-07-20
 
 ## Platform Shape
 
 ADSMOD is a Windows-first local application with:
 
-- Backend services under `app/server`
+- Canonical v3 backend packages under `app/backend`
+  - `common` for versioned configuration, health, capability, and error contracts.
+  - `core` for the core ASGI application, CLI, and immutable snapshot store.
+  - `ml` for the independent ML health/capability service and core snapshot client.
+- Transitional backend services under `app/server`
   - `core_service` for non-ML API workflows such as health, datasets, fitting, and NIST.
   - `ml_service` for training datasets, checkpoints, and training lifecycle workflows.
   - `shared` for persistence, repositories, schemas, and common backend utilities.
@@ -14,6 +18,10 @@ ADSMOD is a Windows-first local application with:
   - `app/client` for source, fitting, and training workflows.
   - Training remains visible in the unified UI but depends on the optional ML service at runtime.
 - Runtime bootstrap assets under `runtimes/`.
+
+Canonical v3 configuration is `settings/adsmod.json`, validated by
+`settings/adsmod.schema.json`. The `.env` and service-specific JSON files remain
+legacy inputs for the transitional `app/server` runtime.
 
 ## Backend Package Layout
 
@@ -50,6 +58,11 @@ app/server/
       persistence/
       models/
       common/
+
+app/backend/
+  common/       # adsmod-common
+  core/         # adsmod-core
+  ml/           # adsmod-ml
 ```
 
 ## Service Entry Points
@@ -57,6 +70,9 @@ app/server/
 - Core ASGI app: `core_service.app:app`
 - ML ASGI app: `ml_service.app:app`
 - Unified local-web backend composition entrypoint: `app.server.app:app`
+
+v3 entrypoints are created through `adsmod_core.create_app_from_path(...)` and
+`adsmod_ml.create_app(...)`; the core CLI accepts an explicit `--config` path.
 
 The unified entrypoint composes service routers; it does not own backend business handlers.
 
