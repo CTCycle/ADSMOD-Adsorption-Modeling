@@ -35,7 +35,7 @@ $UvUrl = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
 } else {
     "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip"
 }
-$NodeVersion = "22.12.0"
+$NodeVersion = "22.13.0"
 $NodeArchive = "node-v$NodeVersion-win-x64.zip"
 $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 
@@ -272,7 +272,16 @@ function Initialize-Runtimes {
     Write-Ok $uvVersion
 
     Write-Step "Ensuring portable Node.js $NodeVersion"
-    if (-not (Test-Path -LiteralPath $NodeExe)) {
+    $nodeNeedsInstall = -not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)
+    if (-not $nodeNeedsInstall) {
+        $existingNodeVersion = (& $NodeExe --version).Trim()
+        $nodeNeedsInstall = $LASTEXITCODE -ne 0 -or $existingNodeVersion -ne "v$NodeVersion"
+        if ($nodeNeedsInstall) {
+            Write-Warn "Replacing portable Node.js $existingNodeVersion with v$NodeVersion."
+            Remove-RepoPath $NodeDir
+        }
+    }
+    if ($nodeNeedsInstall) {
         Download-AndExtract `
             -Url $NodeUrl `
             -ArchivePath (Join-Path $NodeDir $NodeArchive) `
@@ -505,9 +514,15 @@ function Clear-Cache {
 
 function Uninstall-Application {
     Write-Step "Removing local application runtimes and build artifacts"
-    $paths = @(
-        $RuntimesDir,
+    $runtimeContents = @()
+    if (Test-Path -LiteralPath $RuntimesDir) {
+        $runtimeContents = @(Get-ChildItem -LiteralPath $RuntimesDir -Force |
+            Where-Object { $_.Name -ne '.gitkeep' } |
+            Select-Object -ExpandProperty FullName)
+    }
+    $paths = @($runtimeContents) + @(
         (Join-Path $ServerDir '.venv'),
+        $StartupTempDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
         (Join-Path $ClientDir '.angular'),
