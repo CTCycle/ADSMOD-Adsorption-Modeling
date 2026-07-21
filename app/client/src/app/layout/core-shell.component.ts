@@ -41,6 +41,11 @@ import { filter } from 'rxjs';
                     </a>
                 </nav>
 
+                <div class="console-sidebar-services" aria-label="Service status">
+                    <div class="sidebar-service-row"><span class="service-dot core" aria-hidden="true"></span><span><strong>Core Service</strong><em>Online</em></span></div>
+                    <div class="sidebar-service-row"><span class="service-dot ml" aria-hidden="true"></span><span><strong>ML Service</strong><em>Optional / Available</em></span></div>
+                </div>
+
                 <div class="console-sidebar-footer">
                     <button class="console-footer-link" type="button" aria-label="Docs (not available)">
                         <span aria-hidden="true">?</span>
@@ -50,11 +55,6 @@ import { filter } from 'rxjs';
                         <span aria-hidden="true">⚙</span>
                         <span>Settings</span>
                     </button>
-                    <div class="console-user">
-                        <span class="console-avatar" aria-hidden="true">RS</span>
-                        <span>rsmith</span>
-                        <span aria-hidden="true">⌄</span>
-                    </div>
                 </div>
             </aside>
 
@@ -64,18 +64,8 @@ import { filter } from 'rxjs';
                         <h1>{{ pageTitle() }}</h1>
                         <p>{{ pageDescription() }}</p>
                     </div>
-                    <div class="service-status-row" aria-label="Service status">
-                        <div class="service-chip">
-                            <span class="service-dot core" aria-hidden="true"></span>
-                            <span><strong>Core Service</strong><br /><em>Online</em></span>
-                        </div>
-                        <div class="service-chip">
-                            <span class="service-dot ml" aria-hidden="true"></span>
-                            <span><strong>ML Service</strong><br /><em>Optional / Available</em></span>
-                        </div>
+                    <div class="service-status-row">
                         <button class="header-icon-button" type="button" aria-label="Help">?</button>
-                        <button class="header-icon-button user" type="button" aria-label="User profile">○</button>
-                        <button class="header-chevron" type="button" aria-label="Open user menu">⌄</button>
                     </div>
                 </header>
                 <main class="app-main console-main">

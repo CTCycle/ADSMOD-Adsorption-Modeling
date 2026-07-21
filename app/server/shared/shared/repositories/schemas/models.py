@@ -266,11 +266,9 @@ _compatibility_point_component_table = Table(
     Column("original_uptake", Float),
 )
 
-
 ###############################################################################
 class _CompatibilityBase(DeclarativeBase):
     pass
-
 
 ###############################################################################
 class AdsorptionPointComponent(_CompatibilityBase):
