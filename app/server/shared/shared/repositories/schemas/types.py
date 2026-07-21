@@ -88,7 +88,6 @@ class JSONMapping(_StrictJSON):
             raise TypeError("JSONMapping values must be mappings.")
         return value
 
-
 ###############################################################################
 class JSONSequence(_StrictJSON):
     """JSON storage that rejects non-list payloads when values are read back."""

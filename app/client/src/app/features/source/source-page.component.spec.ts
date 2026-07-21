@@ -14,19 +14,20 @@ function storeMock() {
 }
 
 describe('SourcePageComponent', () => {
-    it('shows upload guidance and a compact statistics placeholder without datasets', async () => {
+    it('shows the compact add action and statistics placeholder without datasets', async () => {
         const store = storeMock();
         await TestBed.configureTestingModule({ imports: [SourcePageComponent], providers: [{ provide: CoreWorkspaceStore, useValue: store }] }).compileComponents();
         const fixture = TestBed.createComponent(SourcePageComponent);
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
 
-        expect(root.textContent).toContain('Choose a dataset file');
+        expect(root.querySelector('button[aria-label="Add dataset"]')).not.toBeNull();
+        expect(root.textContent).not.toContain('Choose a dataset file');
         expect(root.textContent).toContain('Select a dataset to see row and column summaries.');
         expect(root.querySelector('[role="alert"]')).toBeNull();
     });
 
-    it('shows selected-file feedback and accessible status feedback', async () => {
+    it('shows accessible status feedback', async () => {
         const store = storeMock();
         store.pendingFile.set(new File(['pressure,capacity'], 'measurements.csv', { type: 'text/csv' }));
         store.managementStatus.set('Upload failed.');
@@ -35,12 +36,11 @@ describe('SourcePageComponent', () => {
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
 
-        expect(root.textContent).toContain('measurements.csv');
         expect(root.querySelector('[role="alert"]')?.textContent).toContain('Upload failed.');
-        expect(root.querySelector<HTMLButtonElement>('.source-upload-submit')?.disabled).toBe(false);
+        expect(root.querySelector('.source-upload-submit')).toBeNull();
     });
 
-    it('renders selected dataset statistics and preserves the upload action', async () => {
+    it('renders selected dataset statistics without the removed upload card', async () => {
         const store = storeMock();
         store.userDatasets.set([{ name: 'measurements.csv', source: 'uploaded', created_at: '', row_count: 1, column_count: 2, tags: [], description: '' }]);
         store.selectedDataset.set('measurements.csv');
@@ -52,6 +52,6 @@ describe('SourcePageComponent', () => {
 
         expect(root.textContent).toContain('Rows: 1');
         expect(root.textContent).not.toContain('Select a dataset to see row and column summaries.');
-        expect(root.querySelector('.source-upload-submit')).not.toBeNull();
+        expect(root.querySelector('.source-upload-card')).toBeNull();
     });
 });
