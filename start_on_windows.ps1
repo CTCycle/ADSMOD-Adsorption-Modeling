@@ -116,10 +116,14 @@ function Patch-PythonPth {
         throw "Python path configuration was not found: $Path"
     }
     $content = Get-Content -LiteralPath $Path -Raw
+    if ($content -notmatch '(?m)^python314\.zip\s*$') {
+        $content = "python314.zip`r`n$content"
+    }
     if ($content -match '(?m)^#import site\s*$') {
         $content = $content -replace '(?m)^#import site\s*$', 'import site'
-        Set-Content -LiteralPath $Path -Value $content -Encoding utf8
     }
+    # The embedded interpreter rejects a UTF-8 BOM before the first ._pth path.
+    Set-Content -LiteralPath $Path -Value $content -Encoding ascii
 }
 
 function Get-PythonVersion {

@@ -170,13 +170,13 @@ class DataSerializer:
         if adsorbate is None:
             adsorbate = Adsorbate(
                 adsorbate_key=key,
-                InChIKey=normalized_inchi or None,
+                inchi_key=normalized_inchi or None,
                 name=normalized_name or None,
-                InChICode=self.normalize_text(inchi_code) or None,
+                inchi=self.normalize_text(inchi_code) or None,
                 formula=self.normalize_text(formula) or None,
-                molecular_weight=molecular_weight,
+                molar_mass_g_mol=molecular_weight,
                 molecular_formula=self.normalize_text(molecular_formula) or None,
-                smile_code=self.normalize_text(smile_code) or None,
+                smiles=self.normalize_text(smile_code) or None,
             )
             session.add(adsorbate)
             session.flush()
@@ -184,16 +184,16 @@ class DataSerializer:
 
         if normalized_name and not adsorbate.name:
             adsorbate.name = normalized_name
-        if inchi_code and not adsorbate.InChICode:
-            adsorbate.InChICode = self.normalize_text(inchi_code)
+        if inchi_code and not adsorbate.inchi:
+            adsorbate.inchi = self.normalize_text(inchi_code)
         if formula and not adsorbate.formula:
             adsorbate.formula = self.normalize_text(formula)
-        if molecular_weight is not None and adsorbate.molecular_weight is None:
-            adsorbate.molecular_weight = molecular_weight
+        if molecular_weight is not None and adsorbate.molar_mass_g_mol is None:
+            adsorbate.molar_mass_g_mol = molecular_weight
         if molecular_formula and not adsorbate.molecular_formula:
             adsorbate.molecular_formula = self.normalize_text(molecular_formula)
-        if smile_code and not adsorbate.smile_code:
-            adsorbate.smile_code = self.normalize_text(smile_code)
+        if smile_code and not adsorbate.smiles:
+            adsorbate.smiles = self.normalize_text(smile_code)
         return adsorbate
 
     # -------------------------------------------------------------------------
@@ -218,12 +218,11 @@ class DataSerializer:
         if adsorbent is None:
             adsorbent = Adsorbent(
                 adsorbent_key=key,
-                hashkey=normalized_hash or None,
+                external_hash=normalized_hash or None,
                 name=normalized_name or None,
                 formula=self.normalize_text(formula) or None,
-                molecular_weight=molecular_weight,
-                molecular_formula=self.normalize_text(molecular_formula) or None,
-                smile_code=self.normalize_text(smile_code) or None,
+                molar_mass_g_mol=molecular_weight,
+                smiles=self.normalize_text(smile_code) or None,
             )
             session.add(adsorbent)
             session.flush()
@@ -233,12 +232,10 @@ class DataSerializer:
             adsorbent.name = normalized_name
         if formula and not adsorbent.formula:
             adsorbent.formula = self.normalize_text(formula)
-        if molecular_weight is not None and adsorbent.molecular_weight is None:
-            adsorbent.molecular_weight = molecular_weight
-        if molecular_formula and not adsorbent.molecular_formula:
-            adsorbent.molecular_formula = self.normalize_text(molecular_formula)
-        if smile_code and not adsorbent.smile_code:
-            adsorbent.smile_code = self.normalize_text(smile_code)
+        if molecular_weight is not None and adsorbent.molar_mass_g_mol is None:
+            adsorbent.molar_mass_g_mol = molecular_weight
+        if smile_code and not adsorbent.smiles:
+            adsorbent.smiles = self.normalize_text(smile_code)
         return adsorbent
 
     # -------------------------------------------------------------------------
@@ -953,7 +950,7 @@ class DataSerializer:
                 {
                     "name": dataset.dataset_name,
                     "source": "uploaded",
-                    "created_at": dataset.created_at,
+                    "created_at": dataset.created_at.isoformat(),
                     "row_count": int(counts.get(dataset.dataset_name, 0)),
                     "column_count": 6,
                     "tags": list(dataset.tags or []),

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import aliased, sessionmaker
 
 from shared.common.constants import COLUMN_ADSORBATE, COLUMN_ADSORBENT
 from shared.common.utils.logger import logger
@@ -15,9 +15,8 @@ from shared.repositories.schemas.models import (
     Adsorbent,
     AdsorptionIsotherm,
     AdsorptionIsothermComponent,
-    AdsorptionPoint,
-    AdsorptionPointComponent,
     Dataset,
+    IsothermMeasurement,
 )
 
 ###############################################################################
@@ -109,6 +108,12 @@ class NISTDataSerializer:
     # -------------------------------------------------------------------------
     def _load_single_component_rows(self) -> pd.DataFrame:
         with self.session_factory() as session:
+            measurement_points = aliased(
+                IsothermMeasurement, name="measurement_points"
+            )
+            measurement_components = aliased(
+                IsothermMeasurement, name="measurement_components"
+            )
             component_count = (
                 select(
                     AdsorptionIsothermComponent.isotherm_id,
@@ -125,11 +130,11 @@ class NISTDataSerializer:
                     AdsorptionIsotherm.pressure_units,
                     Adsorbent.name,
                     Adsorbate.name,
-                    AdsorptionPoint.point_index,
-                    AdsorptionPointComponent.original_pressure,
-                    AdsorptionPointComponent.original_uptake,
-                    AdsorptionPointComponent.partial_pressure_pa,
-                    AdsorptionPointComponent.uptake_mol_g,
+                    measurement_points.point_index,
+                    measurement_components.original_pressure,
+                    measurement_components.original_uptake,
+                    measurement_components.partial_pressure_pa,
+                    measurement_components.uptake_mol_g,
                 )
                 .join(Dataset, Dataset.id == AdsorptionIsotherm.dataset_id)
                 .join(
@@ -149,14 +154,14 @@ class NISTDataSerializer:
                 )
                 .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
                 .join(
-                    AdsorptionPoint,
-                    AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
+                    measurement_points,
+                    measurement_points.isotherm_id == AdsorptionIsotherm.id,
                 )
                 .join(
-                    AdsorptionPointComponent,
+                    measurement_components,
                     and_(
-                        AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                        AdsorptionPointComponent.component_id
+                        measurement_components.point_id == measurement_points.id,
+                        measurement_components.component_id
                         == AdsorptionIsothermComponent.id,
                     ),
                 )
@@ -166,7 +171,7 @@ class NISTDataSerializer:
                     )
                 )
                 .order_by(
-                    AdsorptionIsotherm.source_record_id, AdsorptionPoint.point_index
+                    AdsorptionIsotherm.source_record_id, measurement_points.point_index
                 )
             ).all()
 
@@ -198,6 +203,12 @@ class NISTDataSerializer:
     # -------------------------------------------------------------------------
     def _load_binary_rows(self) -> pd.DataFrame:
         with self.session_factory() as session:
+            measurement_points = aliased(
+                IsothermMeasurement, name="measurement_points"
+            )
+            measurement_components = aliased(
+                IsothermMeasurement, name="measurement_components"
+            )
             component_count = (
                 select(
                     AdsorptionIsothermComponent.isotherm_id,
@@ -215,11 +226,11 @@ class NISTDataSerializer:
                     Adsorbent.name,
                     Adsorbate.name,
                     AdsorptionIsothermComponent.component_index,
-                    AdsorptionPoint.point_index,
-                    AdsorptionPointComponent.original_pressure,
-                    AdsorptionPointComponent.original_uptake,
-                    AdsorptionPointComponent.partial_pressure_pa,
-                    AdsorptionPointComponent.uptake_mol_g,
+                    measurement_points.point_index,
+                    measurement_components.original_pressure,
+                    measurement_components.original_uptake,
+                    measurement_components.partial_pressure_pa,
+                    measurement_components.uptake_mol_g,
                 )
                 .join(Dataset, Dataset.id == AdsorptionIsotherm.dataset_id)
                 .join(
@@ -235,14 +246,14 @@ class NISTDataSerializer:
                 )
                 .join(Adsorbent, Adsorbent.id == AdsorptionIsotherm.adsorbent_id)
                 .join(
-                    AdsorptionPoint,
-                    AdsorptionPoint.isotherm_id == AdsorptionIsotherm.id,
+                    measurement_points,
+                    measurement_points.isotherm_id == AdsorptionIsotherm.id,
                 )
                 .join(
-                    AdsorptionPointComponent,
+                    measurement_components,
                     and_(
-                        AdsorptionPointComponent.point_id == AdsorptionPoint.id,
-                        AdsorptionPointComponent.component_id
+                        measurement_components.point_id == measurement_points.id,
+                        measurement_components.component_id
                         == AdsorptionIsothermComponent.id,
                     ),
                 )
@@ -253,7 +264,7 @@ class NISTDataSerializer:
                 )
                 .order_by(
                     AdsorptionIsotherm.source_record_id,
-                    AdsorptionPoint.point_index,
+                    measurement_points.point_index,
                     AdsorptionIsothermComponent.component_index,
                 )
             ).all()

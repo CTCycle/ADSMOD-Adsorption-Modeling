@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from playwright.sync_api import APIRequestContext
 
 ###############################################################################
@@ -52,7 +54,11 @@ class TestNistFetch:
         }
 
         # Act
-        response = api_context.post("/api/nist/fetch", data=payload)
+        response = api_context.post(
+            "/api/nist/fetch",
+            data=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+        )
 
         # Assert
         # May succeed or fail depending on network/NIST API availability
