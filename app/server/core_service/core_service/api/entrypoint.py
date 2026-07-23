@@ -4,12 +4,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-
 from core_service.configurations.startup import (
     direct_api_enabled,
     get_client_dist_path,
-    packaged_client_available,
     resolve_spa_file_path,
 )
 from core_service.domain.bootstrap import ServiceStatusResponse
@@ -53,28 +50,6 @@ class SpaEntrypointHandlers:
 
 ###############################################################################
 def register_root_routes(app: FastAPI) -> None:
-    if packaged_client_available():
-        client_dist_path = get_client_dist_path()
-        assets_path = Path(client_dist_path) / "assets"
-        handlers = SpaEntrypointHandlers(client_dist_path=client_dist_path)
-
-        if assets_path.is_dir():
-            app.mount("/assets", StaticFiles(directory=str(assets_path)), name="spa-assets")
-
-        app.add_api_route(
-            "/",
-            handlers.serve_spa_root,
-            methods=["GET"],
-            include_in_schema=False,
-        )
-        app.add_api_route(
-            "/{full_path:path}",
-            handlers.serve_spa_entrypoint,
-            methods=["GET"],
-            include_in_schema=False,
-        )
-        return
-
     if direct_api_enabled():
         app.add_api_route("/", redirect_to_docs, methods=["GET"])
         return
