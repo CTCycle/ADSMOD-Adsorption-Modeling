@@ -70,14 +70,5 @@ def direct_api_enabled() -> bool:
     return not public_host_mode_enabled()
 
 ###############################################################################
-def tauri_mode_enabled() -> bool:
-    value = get_env_value("ADSMOD_TAURI_MODE", default="false").lower()
-    return value in {"1", "true", "yes", "on"}
-
-###############################################################################
 def get_client_dist_path() -> str:
     return str(CLIENT_DIST_DIR)
-
-###############################################################################
-def packaged_client_available() -> bool:
-    return tauri_mode_enabled() and Path(get_client_dist_path()).is_dir()

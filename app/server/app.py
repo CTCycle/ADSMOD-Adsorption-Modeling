@@ -87,10 +87,6 @@ def _build_cors_origins() -> list[str]:
     return sorted(f"http://{host}:{port}" for host in hosts for port in ports)
 
 ###############################################################################
-def _tauri_mode_enabled() -> bool:
-    return os.getenv("ADSMOD_TAURI_MODE", "false").strip().lower() in TRUTHY_VALUES
-
-###############################################################################
 def _ensure_runtime_directories() -> None:
     for path_value in (RESOURCES_DIR, LOGS_DIR, TEMPLATES_DIR, CHECKPOINTS_DIR):
         path_value.mkdir(parents=True, exist_ok=True)
@@ -99,12 +95,6 @@ def _ensure_runtime_directories() -> None:
 def _run_startup_validations(settings: ServerSettings) -> None:
     _ = settings
     _ensure_runtime_directories()
-
-    if _tauri_mode_enabled() and not _client_build_available():
-        raise RuntimeError(
-            "Tauri mode requires a built frontend bundle at "
-            f"{CLIENT_INDEX_FILE}."
-        )
 
 ###############################################################################
 def serve_client_root() -> FileResponse:
