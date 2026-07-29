@@ -11,6 +11,7 @@ $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
 $LogDir = Join-Path $AppDir "resources\logs"
 $SettingsDir = Join-Path $RepoRoot "settings"
+$ConfigFile = Join-Path $AppDir "resources\adsmod.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
 $StartupTempDir = Join-Path $ServerDir ".startup-temp"
 $PythonDir = Join-Path $RuntimesDir "python"
@@ -178,15 +179,18 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
+    if (-not (Test-Path -LiteralPath $ConfigFile)) {
+        throw "Missing canonical configuration: $ConfigFile"
+    }
+    $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
+    if (-not $canonical.runtime) {
+        throw "Canonical configuration is missing the runtime section: $ConfigFile"
+    }
     $defaults = [ordered]@{
-        FASTAPI_HOST = "127.0.0.1"
-        FASTAPI_PORT = "6045"
-        CORE_SERVICE_HOST = "127.0.0.1"
-        CORE_SERVICE_PORT = "8000"
-        ML_SERVICE_HOST = "127.0.0.1"
-        ML_SERVICE_PORT = "8001"
-        UI_HOST = "127.0.0.1"
-        UI_PORT = "5173"
+        BACKEND_HOST = [string]$canonical.runtime.host
+        BACKEND_PORT = [string]$canonical.runtime.core_port
+        UI_HOST = [string]$canonical.runtime.host
+        UI_PORT = [string]$canonical.runtime.frontend_port
         BACKEND_LOGS_VISIBLE = "true"
         ALWAYS_REBUILD = "true"
     }
@@ -214,9 +218,13 @@ function Import-Settings {
             ($value.StartsWith("'") -and $value.EndsWith("'"))) {
             $value = $value.Substring(1, $value.Length - 2)
         }
-        [Environment]::SetEnvironmentVariable($key, $value, 'Process')
         if ($defaults.Contains($key)) {
             $defaults[$key] = $value
+            [Environment]::SetEnvironmentVariable($key, $value, 'Process')
+        } elseif ($key -notin @('RELOAD', 'MPLBACKEND', 'KERAS_BACKEND', 'VITE_API_BASE_URL')) {
+            throw "Unsupported setting '$key'. Runtime hosts and ports belong in app/resources/adsmod.json."
+        } else {
+            [Environment]::SetEnvironmentVariable($key, $value, 'Process')
         }
     }
 
@@ -227,8 +235,6 @@ function Import-Settings {
         throw "ALWAYS_REBUILD must be true or false."
     }
 
-    if (-not $defaults.CORE_SERVICE_HOST) { $defaults.CORE_SERVICE_HOST = $defaults.FASTAPI_HOST }
-    if (-not $defaults.CORE_SERVICE_PORT) { $defaults.CORE_SERVICE_PORT = $defaults.FASTAPI_PORT }
     return $defaults
 }
 
@@ -444,21 +450,21 @@ function Start-Application {
     }
     Set-RuntimeEnvironment
 
-    $backendPort = [int]$settings.FASTAPI_PORT
+    $backendPort = [int]$settings.BACKEND_PORT
     $uiPort = [int]$settings.UI_PORT
     Stop-ListenerOnPort -Port $backendPort
     Stop-ListenerOnPort -Port $uiPort
 
     $backendArguments = @(
         '-m', 'uvicorn', 'app.server.app:app',
-        '--host', $settings.FASTAPI_HOST,
-        '--port', $settings.FASTAPI_PORT
+        '--host', $settings.BACKEND_HOST,
+        '--port', $settings.BACKEND_PORT
     )
     Write-Step "Starting backend"
     $backendProcess = $null
     if ($settings.BACKEND_LOGS_VISIBLE -eq 'true') {
         $launchCommand = 'start "Backend" cmd /c ""{0}" -m uvicorn app.server.app:app --host {1} --port {2}"' -f `
-            $VenvPython, $settings.FASTAPI_HOST, $settings.FASTAPI_PORT
+            $VenvPython, $settings.BACKEND_HOST, $settings.BACKEND_PORT
         Push-Location $RepoRoot
         try {
             & cmd.exe /d /c $launchCommand
@@ -474,7 +480,7 @@ function Start-Application {
             -PassThru
     }
 
-    $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
+    $healthUrl = "http://$($settings.BACKEND_HOST):$($settings.BACKEND_PORT)/api/health"
     Write-Step "Waiting for backend health at $healthUrl"
     try {
         Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60

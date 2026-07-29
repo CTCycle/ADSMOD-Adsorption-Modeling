@@ -7,18 +7,14 @@ set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
-set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
+set "CANONICAL_CONFIG=%APP_DIR%\resources\adsmod.json"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
 
-set "FASTAPI_HOST=127.0.0.1"
-set "FASTAPI_PORT=6045"
-set "CORE_SERVICE_HOST=127.0.0.1"
-set "CORE_SERVICE_PORT=6045"
-set "ML_SERVICE_HOST=127.0.0.1"
-set "ML_SERVICE_PORT=6046"
-set "UI_HOST=127.0.0.1"
-set "UI_PORT=7861"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.host"`) do set "BACKEND_HOST=%%A"& set "ML_HOST=%%A"& set "UI_HOST=%%A"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.core_port"`) do set "BACKEND_PORT=%%A"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.ml_port"`) do set "ML_PORT=%%A"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.frontend_port"`) do set "UI_PORT=%%A"
 set "TEST_RESULT=0"
 set "BACKEND_PHASE=SKIPPED"
 set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
@@ -29,32 +25,12 @@ set "LIVE_SERVER_PHASE=SKIPPED"
 set "STARTED_BACKEND=0"
 set "STARTED_FRONTEND=0"
 
-if exist "%SETTINGS_ENV%" (
-  for /f "usebackq tokens=* delims=" %%L in ("%SETTINGS_ENV%") do (
-    set "line=%%L"
-    if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
-      for /f "tokens=1,* delims==" %%A in ("!line!") do (
-        if /i "%%A"=="FASTAPI_HOST" set "FASTAPI_HOST=%%B"
-        if /i "%%A"=="FASTAPI_PORT" set "FASTAPI_PORT=%%B"
-        if /i "%%A"=="CORE_SERVICE_HOST" set "CORE_SERVICE_HOST=%%B"
-        if /i "%%A"=="CORE_SERVICE_PORT" set "CORE_SERVICE_PORT=%%B"
-        if /i "%%A"=="ML_SERVICE_HOST" set "ML_SERVICE_HOST=%%B"
-        if /i "%%A"=="ML_SERVICE_PORT" set "ML_SERVICE_PORT=%%B"
-        if /i "%%A"=="UI_HOST" set "UI_HOST=%%B"
-        if /i "%%A"=="UI_PORT" set "UI_PORT=%%B"
-      )
-    )
-  )
-)
-
-if "%CORE_SERVICE_HOST%"=="" set "CORE_SERVICE_HOST=%FASTAPI_HOST%"
-if "%CORE_SERVICE_PORT%"=="" set "CORE_SERVICE_PORT=%FASTAPI_PORT%"
-set "TEST_FASTAPI_HOST=%CORE_SERVICE_HOST%"
-set "TEST_ML_HOST=%ML_SERVICE_HOST%"
+set "TEST_BACKEND_HOST=%BACKEND_HOST%"
+set "TEST_ML_HOST=%ML_HOST%"
 set "TEST_UI_HOST=%UI_HOST%"
-if /i "%TEST_FASTAPI_HOST%"=="0.0.0.0" set "TEST_FASTAPI_HOST=127.0.0.1"
-if /i "%TEST_FASTAPI_HOST%"=="::" set "TEST_FASTAPI_HOST=127.0.0.1"
-if /i "%TEST_FASTAPI_HOST%"=="[::]" set "TEST_FASTAPI_HOST=127.0.0.1"
+if /i "%TEST_BACKEND_HOST%"=="0.0.0.0" set "TEST_BACKEND_HOST=127.0.0.1"
+if /i "%TEST_BACKEND_HOST%"=="::" set "TEST_BACKEND_HOST=127.0.0.1"
+if /i "%TEST_BACKEND_HOST%"=="[::]" set "TEST_BACKEND_HOST=127.0.0.1"
 if /i "%TEST_ML_HOST%"=="0.0.0.0" set "TEST_ML_HOST=127.0.0.1"
 if /i "%TEST_ML_HOST%"=="::" set "TEST_ML_HOST=127.0.0.1"
 if /i "%TEST_ML_HOST%"=="[::]" set "TEST_ML_HOST=127.0.0.1"
@@ -62,8 +38,8 @@ if /i "%TEST_UI_HOST%"=="0.0.0.0" set "TEST_UI_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="::" set "TEST_UI_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="[::]" set "TEST_UI_HOST=127.0.0.1"
 
-set "APP_TEST_BACKEND_URL=http://%TEST_FASTAPI_HOST%:%CORE_SERVICE_PORT%"
-set "APP_TEST_ML_BACKEND_URL=http://%TEST_ML_HOST%:%ML_SERVICE_PORT%"
+set "APP_TEST_BACKEND_URL=http://%TEST_BACKEND_HOST%:%BACKEND_PORT%"
+set "APP_TEST_ML_BACKEND_URL=http://%TEST_ML_HOST%:%ML_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
 set "API_BASE_URL=%APP_TEST_BACKEND_URL%"
 set "UI_BASE_URL=%APP_TEST_FRONTEND_URL%"
@@ -130,13 +106,13 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %CORE_SERVICE_HOST% --port %CORE_SERVICE_PORT% --log-level warning
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %BACKEND_HOST% --port %BACKEND_PORT% --log-level warning
     set "STARTED_BACKEND=1"
   )
   curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/api/health" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting ML backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %ML_UVICORN_APP% --host %ML_SERVICE_HOST% --port %ML_SERVICE_PORT% --log-level warning
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %ML_UVICORN_APP% --host %ML_HOST% --port %ML_PORT% --log-level warning
   )
 
   if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%CLIENT_DIR%\package.json" (
@@ -274,8 +250,8 @@ echo.
 
 :cleanup
 if "%STARTED_BACKEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%CORE_SERVICE_PORT% "') do taskkill /PID %%P /F >nul 2>&1
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%ML_SERVICE_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%BACKEND_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%ML_PORT% "') do taskkill /PID %%P /F >nul 2>&1
 )
 if "%STARTED_FRONTEND%"=="1" (
   for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /F >nul 2>&1

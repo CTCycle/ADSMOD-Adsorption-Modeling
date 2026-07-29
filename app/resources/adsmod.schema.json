@@ -3,7 +3,7 @@
   "title": "ADSMOD v3 configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "runtime", "storage", "security"],
+  "required": ["version", "runtime", "storage", "security", "application"],
   "properties": {
     "version": { "const": "3.0.0" },
     "runtime": {
@@ -30,6 +30,66 @@
       "additionalProperties": false,
       "required": ["internal_token_required"],
       "properties": { "internal_token_required": { "type": "boolean" } }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database", "datasets", "nist", "fitting", "jobs", "training"],
+      "properties": {
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["embedded_database", "sqlite_path"],
+          "properties": {
+            "embedded_database": { "type": "boolean" },
+            "sqlite_path": { "type": "string" }
+          }
+        },
+        "datasets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["allowed_extensions", "column_detection_cutoff"],
+          "properties": {
+            "allowed_extensions": { "type": "array", "items": { "type": "string" } },
+            "column_detection_cutoff": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "nist": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["parallel_tasks", "pubchem_parallel_tasks"],
+          "properties": {
+            "parallel_tasks": { "type": "integer", "minimum": 1 },
+            "pubchem_parallel_tasks": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "fitting": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["default_max_iterations", "max_iterations_upper_bound", "default_parameter_initial", "default_parameter_min", "default_parameter_max", "preview_row_limit", "best_model_metric"],
+          "properties": {
+            "default_max_iterations": { "type": "integer", "minimum": 1 },
+            "max_iterations_upper_bound": { "type": "integer", "minimum": 1 },
+            "default_parameter_initial": { "type": "number", "minimum": 0 },
+            "default_parameter_min": { "type": "number", "minimum": 0 },
+            "default_parameter_max": { "type": "number", "minimum": 0 },
+            "preview_row_limit": { "type": "integer", "minimum": 1 },
+            "best_model_metric": { "type": "string" }
+          }
+        },
+        "jobs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["polling_interval"],
+          "properties": { "polling_interval": { "type": "number", "minimum": 0 } }
+        },
+        "training": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["persistent_workers"],
+          "properties": { "persistent_workers": { "type": "boolean" } }
+        }
+      }
     }
   }
 }

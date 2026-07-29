@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from shared.common.paths import ML_CONFIGURATION_FILE
+from shared.common.paths import CANONICAL_CONFIGURATION_FILE
 from shared.common.settings import AppSettings, ServerSettings
 
 ###############################################################################
@@ -14,7 +14,7 @@ class ConfigurationManager:
 
     # -------------------------------------------------------------------------
     def __init__(self, config_path: str | None = None) -> None:
-        self.config_path = Path(config_path) if config_path is not None else ML_CONFIGURATION_FILE
+        self.config_path = Path(config_path) if config_path is not None else CANONICAL_CONFIGURATION_FILE
         self.settings: AppSettings | None = None
 
     # -------------------------------------------------------------------------
@@ -33,7 +33,9 @@ class ConfigurationManager:
     def update(self, payload: dict[str, Any]) -> AppSettings:
         current = self.load_configuration_data(self.config_path)
         updated = self._ensure_mapping(current)
-        updated.update(self._ensure_mapping(payload))
+        application = self._ensure_mapping(updated.get("application"))
+        application.update(self._ensure_mapping(payload))
+        updated["application"] = application
         with open(self.config_path, "w", encoding="utf-8") as handle:
             json.dump(updated, handle, indent=2, ensure_ascii=False)
             handle.write("\n")
@@ -42,7 +44,8 @@ class ConfigurationManager:
     # -------------------------------------------------------------------------
     def get_block(self, section: str) -> dict[str, Any]:
         loaded = self.load_configuration_data(self.config_path)
-        block = loaded.get(section, {})
+        application = self._ensure_mapping(loaded.get("application"))
+        block = application.get(section, {})
         return self._ensure_mapping(block)
 
     # -------------------------------------------------------------------------
@@ -62,15 +65,10 @@ class ConfigurationManager:
     @staticmethod
     def _load_settings_from_path(config_path: str | Path) -> AppSettings:
         payload = ConfigurationManager.load_configuration_data(config_path)
-        values: dict[str, Any] = {
-            "database": payload.get("database", {}),
-            "datasets": payload.get("datasets", {}),
-            "nist": payload.get("nist", {}),
-            "fitting": payload.get("fitting", {}),
-            "jobs": payload.get("jobs", {}),
-            "training": payload.get("training", {}),
-        }
-        return AppSettings.model_validate(values)
+        application = payload.get("application", {})
+        if not isinstance(application, dict):
+            raise RuntimeError("Canonical configuration is missing the application section.")
+        return AppSettings.model_validate(application)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -82,7 +80,7 @@ class ConfigurationManager:
     # -------------------------------------------------------------------------
     @staticmethod
     def load_configuration_data(path: str | Path | None = None) -> dict[str, Any]:
-        resolved_path = Path(path) if path is not None else ML_CONFIGURATION_FILE
+        resolved_path = Path(path) if path is not None else CANONICAL_CONFIGURATION_FILE
         if not resolved_path.exists():
             raise RuntimeError(f"Configuration file not found: {resolved_path}")
         try:

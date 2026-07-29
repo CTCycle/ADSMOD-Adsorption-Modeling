@@ -23,7 +23,7 @@ This menu-driven script:
 - starts the unified backend and frontend preview
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds
-- respects `UI_PORT` overrides from `settings/.env` when launching the frontend dev server
+- uses `runtime.frontend_port` from `app/resources/adsmod.json` when launching the frontend dev server
 
 ## Setup And Maintenance
 

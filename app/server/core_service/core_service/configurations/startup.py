@@ -1,49 +1,27 @@
 from __future__ import annotations
 
-import os
 from os import PathLike
 from pathlib import Path
 
-from shared.common.env import load_environment
-from shared.common.paths import CLIENT_DIST_DIR, CORE_CONFIGURATION_FILE
-from shared.common.settings import AppSettings, ServerSettings, get_server_settings
+from shared.common.paths import CANONICAL_CONFIGURATION_FILE, CLIENT_DIST_DIR
+from shared.common.settings import AppSettings, ServerSettings, get_runtime_config, get_server_settings
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 ###############################################################################
-def get_env_value(*keys: str, default: str = "") -> str:
-    for key in keys:
-        value = os.getenv(key)
-        if value is not None and value.strip():
-            return value.strip()
-    load_environment()
-    for key in keys:
-        value = os.getenv(key)
-        if value is not None and value.strip():
-            return value.strip()
-    return default
-
-###############################################################################
 def get_core_host() -> str:
-    return get_env_value("CORE_SERVICE_HOST", "FASTAPI_HOST", default="127.0.0.1")
+    return str(get_runtime_config().get("host", "127.0.0.1"))
 
 ###############################################################################
 def get_core_port() -> int:
-    raw = get_env_value("CORE_SERVICE_PORT", "FASTAPI_PORT", default="6045")
-    return int(raw)
+    return int(get_runtime_config()["core_port"])
 
-###############################################################################
-def core_reload_enabled() -> bool:
-    value = get_env_value("CORE_SERVICE_RELOAD", "RELOAD", default="true").lower()
-    return value in {"1", "true", "yes", "on"}
-
-###############################################################################
 def get_app_settings(config_path: str | None = None) -> AppSettings:
-    return AppSettings.load(config_path or CORE_CONFIGURATION_FILE)
+    return AppSettings.load(config_path or CANONICAL_CONFIGURATION_FILE)
 
 ###############################################################################
 def get_server_settings_runtime(config_path: str | None = None) -> ServerSettings:
-    return get_server_settings(config_path or CORE_CONFIGURATION_FILE)
+    return get_server_settings(config_path or CANONICAL_CONFIGURATION_FILE)
 
 ###############################################################################
 def public_host_mode_enabled() -> bool:

@@ -42,7 +42,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`architecture/persistence_and_packages.md`](architecture/persistence_and_packages.md)
   - Shared backend workspace, persistence ownership, and validation expectations.
 - [`architecture/v3_migration_status.md`](architecture/v3_migration_status.md)
-  - Canonical v3 package boundaries, snapshot contracts, configuration, and transitional legacy runtime.
+  - Canonical v3 package boundaries, snapshot contracts, and configuration.
 
 ### Coding
 
@@ -66,7 +66,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`runtime/startup.md`](runtime/startup.md)
   - Launcher and manual startup procedures.
 - [`runtime/configuration.md`](runtime/configuration.md)
-  - Canonical v3 JSON configuration, legacy environment variables, and mode-specific configuration behavior.
+  - Canonical v3 JSON configuration, operational environment toggles, and mode-specific behavior.
 - [`runtime/deployment.md`](runtime/deployment.md)
   - Local deployment, runtime dependencies, interoperability, and current constraints.
 

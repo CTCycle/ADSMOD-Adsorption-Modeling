@@ -1,5 +1,4 @@
 from core_service.configurations.startup import (
-    core_reload_enabled,
     get_app_settings,
     get_core_host,
     get_core_port,
@@ -9,7 +8,6 @@ from core_service.configurations.startup import (
 )
 
 __all__ = [
-    "core_reload_enabled",
     "get_app_settings",
     "get_core_host",
     "get_core_port",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
@@ -18,34 +19,8 @@ TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
 APP_ROOT = TESTS_DIR.parent
 PROJECT_ROOT = APP_ROOT.parent
-SETTINGS_ENV = PROJECT_ROOT / "settings" / ".env"
+CANONICAL_CONFIG = APP_ROOT / "resources" / "adsmod.json"
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
-
-###############################################################################
-def load_env_values(path: str | Path) -> dict[str, str]:
-    path = Path(path)
-    values: dict[str, str] = {}
-    if not path.exists():
-        return values
-
-    with path.open("r", encoding="utf-8") as handle:
-        for raw_line in handle:
-            line = raw_line.strip()
-            if not line or line.startswith("#") or line.startswith(";"):
-                continue
-            key, separator, value = line.partition("=")
-            if not separator:
-                continue
-            cleaned_key = key.strip()
-            cleaned_value = value.strip()
-            if (
-                len(cleaned_value) >= 2
-                and cleaned_value[0] == cleaned_value[-1]
-                and cleaned_value[0] in {'"', "'"}
-            ):
-                cleaned_value = cleaned_value[1:-1]
-            values[cleaned_key] = cleaned_value
-    return values
 
 ###############################################################################
 def normalize_client_host(bind_host: str) -> str:
@@ -57,13 +32,14 @@ def normalize_client_host(bind_host: str) -> str:
 
 ###############################################################################
 def resolve_test_urls() -> tuple[str, str, str]:
-    env_values = load_env_values(SETTINGS_ENV)
-    frontend_host = normalize_client_host(env_values.get("UI_HOST", "127.0.0.1"))
-    frontend_port = env_values.get("UI_PORT", "7861")
-    backend_host = normalize_client_host(env_values.get("FASTAPI_HOST", "127.0.0.1"))
-    backend_port = env_values.get("FASTAPI_PORT", "8000")
-    ml_host = normalize_client_host(env_values.get("ML_SERVICE_HOST", "127.0.0.1"))
-    ml_port = env_values.get("ML_SERVICE_PORT", "6046")
+    with CANONICAL_CONFIG.open("r", encoding="utf-8") as handle:
+        runtime = json.load(handle)["runtime"]
+    frontend_host = normalize_client_host(runtime["host"])
+    frontend_port = str(runtime["frontend_port"])
+    backend_host = normalize_client_host(runtime["host"])
+    backend_port = str(runtime["core_port"])
+    ml_host = normalize_client_host(runtime["host"])
+    ml_port = str(runtime["ml_port"])
 
     frontend_url = os.getenv(
         "ADSMOD_TEST_FRONTEND_URL", f"http://{frontend_host}:{frontend_port}"
