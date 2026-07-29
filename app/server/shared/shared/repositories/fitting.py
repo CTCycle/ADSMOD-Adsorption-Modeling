@@ -1,40 +1,101 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from shared.repositories.database.bulk import upsert_records
 from shared.repositories.database.manager import DatabaseManager
-from shared.repositories.schemas.models import Fit, FitParameter, ProcessedIsotherm
+from shared.repositories.schemas.models import (
+    FitParameter,
+    FitResult,
+    FittingRun,
+)
 
-###############################################################################
+
 class FittingRepository:
-
-    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
 
-    # -------------------------------------------------------------------------
-    def upsert_processed(self, records: Iterable[dict[str, Any]]) -> int:
+    def create_run(
+        self,
+        *,
+        dataset_id: int,
+        isotherm_id: int,
+        component_id: int,
+        input_sha256: str,
+        optimizer: str,
+        max_evaluations: int,
+        pressure_display_unit: str,
+        uptake_display_unit: str,
+        configuration: dict[str, Any],
+    ) -> int:
         with self.database.transaction() as session:
-            return upsert_records(session, ProcessedIsotherm.__table__, records, ["isotherm_id", "processing_version"])
+            run = FittingRun(
+                dataset_id=dataset_id,
+                isotherm_id=isotherm_id,
+                component_id=component_id,
+                input_sha256=input_sha256,
+                optimizer=optimizer,
+                max_evaluations=max_evaluations,
+                pressure_display_unit=pressure_display_unit,
+                uptake_display_unit=uptake_display_unit,
+                configuration=configuration,
+                status="running",
+            )
+            session.add(run)
+            session.flush()
+            return run.id
 
-    # -------------------------------------------------------------------------
-    def upsert_fits(self, records: Iterable[dict[str, Any]]) -> int:
+    def complete_run(
+        self,
+        run_id: int,
+        *,
+        status: str,
+        message: str,
+        results: list[dict[str, Any]],
+    ) -> None:
         with self.database.transaction() as session:
-            return upsert_records(session, Fit.__table__, records, ["processed_isotherm_id", "model_name", "model_version", "optimization_method"])
+            run = session.get(FittingRun, run_id)
+            if run is None:
+                raise LookupError(f"Fitting run {run_id} does not exist.")
+            best_result_id = None
+            for result_record in results:
+                record = dict(result_record)
+                parameters = record.pop("parameters")
+                result = FitResult(run_id=run_id, **record)
+                session.add(result)
+                session.flush()
+                for parameter in parameters:
+                    session.add(FitParameter(result_id=result.id, **parameter))
+                if result.rank == 1:
+                    best_result_id = result.id
+            run.status = status
+            run.message = message
+            run.best_result_id = best_result_id
+            run.completed_at = datetime.now(timezone.utc)
 
-    # -------------------------------------------------------------------------
-    def upsert_parameters(self, records: Iterable[dict[str, Any]]) -> int:
+    def fail_run(self, run_id: int, message: str) -> None:
         with self.database.transaction() as session:
-            return upsert_records(session, FitParameter.__table__, records, ["fit_id", "parameter_name"])
+            run = session.get(FittingRun, run_id)
+            if run is None:
+                return
+            run.status = "failed"
+            run.message = message
+            run.completed_at = datetime.now(timezone.utc)
 
-    # -------------------------------------------------------------------------
-    def ranked_fits(self, processed_id: int, metric: str = "aicc") -> list[Fit]:
-        if metric not in {"aicc", "objective_score"}:
-            raise ValueError("Unsupported fit ranking metric.")
+    def get_run(self, run_id: int) -> FittingRun:
         with self.database.session_factory() as session:
-            column = getattr(Fit, metric)
-            return list(session.scalars(select(Fit).where(Fit.processed_isotherm_id == processed_id).order_by(column.is_(None), column.asc(), Fit.id)))
+            run = session.scalar(
+                select(FittingRun)
+                .where(FittingRun.id == run_id)
+                .options(
+                    selectinload(FittingRun.results).selectinload(
+                        FitResult.parameters
+                    )
+                )
+            )
+            if run is None:
+                raise LookupError(f"Fitting run {run_id} does not exist.")
+            return run

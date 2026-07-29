@@ -397,15 +397,5 @@ __all__ = [
 
 ###############################################################################
 def get_server_settings(config_path: str | Path | None = None) -> ServerSettings:
-    resolved_config_path = _resolve_configuration_path(config_path)
-    payload = _load_configuration_payload(resolved_config_path)
-    values: dict[str, Any] = {
-        'database': payload.get('database', {}),
-        'datasets': payload.get('datasets', {}),
-        'nist': payload.get('nist', {}),
-        'fitting': payload.get('fitting', {}),
-        'jobs': payload.get('jobs', {}),
-        'training': payload.get('training', {}),
-    }
-    return AppSettings.model_validate(values).to_server_settings()
+    return AppSettings.load(config_path).to_server_settings()
 

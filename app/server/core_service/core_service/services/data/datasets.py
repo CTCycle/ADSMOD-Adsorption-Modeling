@@ -1,449 +1,161 @@
 from __future__ import annotations
 
-import io
-import re
-from difflib import get_close_matches
+import json
+import hashlib
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 from fastapi import HTTPException, UploadFile, status
+from pydantic import ValidationError
 
-from core_service.configurations import get_server_settings
-from shared.common.constants import (
-    COLUMN_EXPERIMENT,
-    COLUMN_TEMPERATURE_K,
-    COLUMN_PRESSURE_PA,
-    COLUMN_UPTAKE_MOL_G,
-    COLUMN_ADSORBATE,
-    COLUMN_ADSORBENT,
-    DATASET_FALLBACK_DELIMITERS,
+from core_service.domain.datasets import (
+    DatasetImportResponse,
+    DatasetListResponse,
+    DatasetMetadata,
+    DatasetMutationResponse,
+    DatasetSummary,
+    ExperimentListResponse,
+    ImportMapping,
+    ImportPreviewResponse,
+    ImportValidationResponse,
+    ObservationPage,
 )
-from shared.repositories.serialization.data import DataSerializer
+from core_service.services.data.importer import AdsorptionImportEngine, PARSER_VERSION
+from shared.repositories.datasets import DatasetRepository
 
-###############################################################################
+
 class DatasetService:
     MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
-    DATASET_NAME_SANITIZER = re.compile(r"[^A-Za-z0-9_. -]+")
-    MAX_DATASET_NAME_LENGTH = 128
 
-    ADSORPTION_SCHEMA_COLUMNS = [
-        COLUMN_EXPERIMENT,
-        COLUMN_ADSORBENT,
-        COLUMN_ADSORBATE,
-        COLUMN_TEMPERATURE_K,
-        COLUMN_PRESSURE_PA,
-        COLUMN_UPTAKE_MOL_G,
-    ]
-    ADSORPTION_COLUMN_ALIASES = {
-        COLUMN_EXPERIMENT: [
-            COLUMN_EXPERIMENT,
-            "experiment_name",
-            "experiment name",
-        ],
-        COLUMN_ADSORBATE: [
-            COLUMN_ADSORBATE,
-            "adsorbates",
-            "adsorbate_name",
-            "adsorbate name",
-            "guest",
-            "gas",
-        ],
-        COLUMN_ADSORBENT: [
-            COLUMN_ADSORBENT,
-            "adsorbents",
-            "adsorbent_name",
-            "adsorbent name",
-            "host",
-            "material",
-        ],
-        COLUMN_TEMPERATURE_K: [
-            COLUMN_TEMPERATURE_K,
-            "temperature",
-            "temperature_k",
-            "temperature [k]",
-            "temp",
-        ],
-        COLUMN_PRESSURE_PA: [
-            COLUMN_PRESSURE_PA,
-            "pressure",
-            "pressure_pa",
-            "pressure [pa]",
-        ],
-        COLUMN_UPTAKE_MOL_G: [
-            COLUMN_UPTAKE_MOL_G,
-            "uptake",
-            "uptake_mol_g",
-            "uptake [mol/g]",
-            "adsorbed_amount",
-            "adsorbed amount",
-        ],
-    }
+    def __init__(
+        self,
+        repository: DatasetRepository,
+        importer: AdsorptionImportEngine | None = None,
+    ) -> None:
+        self.repository = repository
+        self.importer = importer or AdsorptionImportEngine()
 
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.allowed_extensions = set(get_server_settings().datasets.allowed_extensions)
-
-    # -------------------------------------------------------------------------
-    async def load_uploaded_file(
-        self, file: UploadFile
-    ) -> tuple[dict[str, Any], str]:
-        payload = await self.read_upload_bytes(file)
-        return self.load_from_bytes(payload, file.filename)
-
-    # -------------------------------------------------------------------------
     async def read_upload_bytes(self, file: UploadFile) -> bytes:
-        chunk_size = 1024 * 1024
         payload = bytearray()
         try:
-            while True:
-                chunk = await file.read(chunk_size)
-                if not chunk:
-                    break
+            while chunk := await file.read(1024 * 1024):
                 payload.extend(chunk)
                 if len(payload) > self.MAX_UPLOAD_SIZE_BYTES:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=(
-                            "Uploaded dataset exceeds "
-                            f"{self.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB limit."
-                        ),
+                        detail="Uploaded dataset exceeds the 25 MB limit.",
                     )
         finally:
             await file.close()
-
-        return bytes(payload)
-
-    # -------------------------------------------------------------------------
-    def derive_dataset_name(self, filename: str | None) -> str:
-        if isinstance(filename, str):
-            base = Path(filename).stem.strip()
-            if base:
-                normalized = self.DATASET_NAME_SANITIZER.sub("_", base)
-                normalized = normalized.strip(" ._-")
-                normalized = normalized[: self.MAX_DATASET_NAME_LENGTH]
-                if normalized:
-                    return normalized
-        return "uploaded_dataset"
-
-    # -------------------------------------------------------------------------
-    def escape_markdown_table_cell(self, value: object) -> str:
-        text = str(value)
-        return text.replace("|", "\\|").replace("\n", " ")
-
-    # -------------------------------------------------------------------------
-    def load_from_bytes(
-        self, payload: bytes, filename: str | None
-    ) -> tuple[dict[str, Any], str]:
-        """Load an uploaded dataset payload and provide a serialized representation.
-
-        Keyword arguments:
-        payload -- Raw file bytes obtained from the upload endpoint.
-        filename -- Original filename that hints at the file extension, if available.
-
-        Return value:
-        Tuple containing a JSON-serializable dataset description and a human-readable
-        summary.
-        """
         if not payload:
             raise ValueError("Uploaded dataset is empty.")
-        if len(payload) > self.MAX_UPLOAD_SIZE_BYTES:
+        return bytes(payload)
+
+    @staticmethod
+    def parse_mapping(mapping_json: str) -> ImportMapping:
+        try:
+            decoded = json.loads(mapping_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Import mapping must be valid JSON.") from exc
+        try:
+            return ImportMapping.model_validate(decoded)
+        except ValidationError as exc:
+            first = exc.errors()[0]
+            raise ValueError(str(first.get("msg", "Invalid import mapping."))) from exc
+
+    def preview(
+        self, payload: bytes, filename: str | None
+    ) -> ImportPreviewResponse:
+        return self.importer.preview(payload, filename)
+
+    def validate(
+        self, payload: bytes, filename: str | None, mapping: ImportMapping
+    ) -> ImportValidationResponse:
+        return self.importer.validate(payload, filename, mapping).response
+
+    def commit(
+        self, payload: bytes, filename: str | None, mapping: ImportMapping
+    ) -> DatasetImportResponse:
+        bundle = self.importer.validate(payload, filename, mapping)
+        if bundle.response.status != "valid":
             raise ValueError(
-                f"Uploaded dataset exceeds {self.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB limit."
+                "Dataset validation must succeed and all required confirmations "
+                "must be acknowledged before saving."
             )
-
-        dataframe = self.read_dataframe(payload, filename)
-        normalized = self.normalize_adsorption_columns(dataframe, require_complete=True)
-        serializable_frame = self.select_schema_columns(normalized)
-        serializable = serializable_frame.where(pd.notna(serializable_frame), None)
-        dataset_name = self.derive_dataset_name(filename)
-        dataset_payload: dict[str, Any] = {
-            "dataset_name": dataset_name,
-            "columns": list(serializable.columns),
-            "records": serializable.to_dict(orient="records"),
-            "row_count": int(serializable.shape[0]),
+        manifest = {
+            "original_filename": Path(filename or "dataset").name,
+            "source_sha256": bundle.response.source_sha256,
+            "source_structure": mapping.structure,
+            "parser_version": PARSER_VERSION,
+            "column_mapping": mapping.model_dump(mode="json"),
+            "validation_result": bundle.response.model_dump(mode="json"),
+            "warnings": [
+                issue.model_dump(mode="json")
+                for issue in bundle.response.issues
+                if issue.severity == "warning"
+            ],
         }
-        summary = self.format_dataset_summary(serializable_frame)
-        return dataset_payload, summary
-
-    # -------------------------------------------------------------------------
-    def read_dataframe(self, payload: bytes, filename: str | None) -> pd.DataFrame:
-        """Decode the uploaded file into a Pandas DataFrame, handling CSV and Excel inputs.
-
-        Keyword arguments:
-        payload -- Raw bytes representing the uploaded file contents.
-        filename -- Provided filename used to infer the file format.
-
-        Return value:
-        DataFrame containing the parsed dataset ready for further processing.
-        """
-        extension = ""
-        if isinstance(filename, str):
-            extension = Path(filename).suffix.lower()
-
-        if extension and extension not in self.allowed_extensions:
-            raise ValueError(f"Unsupported file type: {extension}")
-
-        buffer = io.BytesIO(payload)
-
-        if extension in {".xls", ".xlsx"}:
-            buffer.seek(0)
-            dataframe = pd.read_excel(buffer, sheet_name=0)
-        else:
-            buffer.seek(0)
-            dataframe = pd.read_csv(buffer, comment="#")
-
-            if dataframe.shape[1] == 1:
-                column_name = dataframe.columns[0]
-                first_value = None
-                if not dataframe.empty:
-                    first_value = dataframe.iloc[0, 0]
-
-                # When the parser reports a single column we attempt alternative
-                # delimiters to handle semi-colon, tab, or pipe separated files.
-                for delimiter in DATASET_FALLBACK_DELIMITERS:
-                    if (isinstance(column_name, str) and delimiter in column_name) or (
-                        isinstance(first_value, str) and delimiter in first_value
-                    ):
-                        buffer.seek(0)
-                        dataframe = pd.read_csv(buffer, sep=delimiter, comment="#")
-                        break
-
-        if dataframe.empty:
-            raise ValueError("Uploaded dataset is empty.")
-
-        return dataframe
-
-    # -------------------------------------------------------------------------
-    def format_dataset_summary(self, dataframe: pd.DataFrame) -> str:
-        """Produce a markdown overview of the dataset dimensions and missing values.
-
-        Keyword arguments:
-        dataframe -- Parsed dataset whose characteristics should be summarized.
-
-        Return value:
-        Multi-line markdown string describing dataset size and per-column missing
-        value statistics.
-        """
-        rows, columns = dataframe.shape
-        total_nans = int(dataframe.isna().sum().sum())
-        column_lines: list[str] = []
-        for name, series in dataframe.items():
-            dtype = self.escape_markdown_table_cell(series.dtype)
-            missing = int(series.isna().sum())
-            safe_name = self.escape_markdown_table_cell(name)
-            column_lines.append(f"| `{safe_name}` | `{dtype}` | {missing} |")
-
-        summary_lines = [
-            "### Dataset overview",
-            "",
-            "| Metric | Value |",
-            "|---|---:|",
-            f"| Rows | {rows} |",
-            f"| Columns | {columns} |",
-            f"| NaN cells | {total_nans} |",
-            "",
-            "### Column details",
-            "",
-            "| Column | Dtype | Missing |",
-            "|---|---|---:|",
-            *column_lines,
-        ]
-        return "\n".join(summary_lines)
-
-    # -------------------------------------------------------------------------
-    def load_from_database(self, dataset_name: str) -> tuple[dict[str, Any], str]:
-        if not isinstance(dataset_name, str) or not dataset_name.strip():
-            raise ValueError("Dataset name is required.")
-        dataset_name = dataset_name.strip()
-
-        serializer = DataSerializer()
-        dataframe = serializer.load_table("adsorption_data")
-        if dataframe.empty:
-            raise ValueError("No datasets found in the database.")
-
-        if "name" in dataframe.columns:
-            filtered = dataframe[dataframe["name"] == dataset_name].copy()
-        else:
-            filtered = dataframe.copy()
-
-        if filtered.empty:
-            raise ValueError(f"Dataset '{dataset_name}' was not found.")
-
-        cleaned = filtered.drop(columns=["name", "id"], errors="ignore")
-        normalized = self.normalize_adsorption_columns(cleaned, require_complete=False)
-        ordered = self.order_dataset_columns(normalized)
-        serializable = ordered.where(pd.notna(ordered), None)
-        dataset_payload: dict[str, Any] = {
-            "dataset_name": dataset_name,
-            "columns": list(serializable.columns),
-            "records": serializable.to_dict(orient="records"),
-            "row_count": int(serializable.shape[0]),
-        }
-        summary = self.format_dataset_summary(ordered)
-        return dataset_payload, summary
-
-    # -------------------------------------------------------------------------
-    def get_dataset_names(self) -> list[str]:
-        serializer = DataSerializer()
-        dataframe = serializer.load_table("adsorption_data")
-        if dataframe.empty or "name" not in dataframe.columns:
-            return []
-        names = dataframe["name"].dropna().unique().tolist()
-        cleaned = [str(name).strip() for name in names if str(name).strip()]
-        return sorted(cleaned)
-
-    # -------------------------------------------------------------------------
-    def resolve_column_alias(
-        self, columns: list[str], aliases: list[str]
-    ) -> str | None:
-        normalized = {column: str(column).strip().lower() for column in columns}
-        for alias in aliases:
-            alias_normalized = alias.strip().lower()
-            for column, value in normalized.items():
-                if value == alias_normalized:
-                    return column
-        for alias in aliases:
-            alias_normalized = alias.strip().lower()
-            for column, value in normalized.items():
-                if alias_normalized in value:
-                    return column
-        if not aliases:
-            return None
-        close_matches = get_close_matches(
-            aliases[0].strip().lower(),
-            list(normalized.values()),
-            cutoff=0.78,
+        mapping_sha256 = hashlib.sha256(json.dumps(mapping.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        manifest["mapping_sha256"] = mapping_sha256
+        dataset_id = self.repository.persist_canonical(
+            name=mapping.dataset_name,
+            source="uploaded",
+            provenance={
+                "origin": "user_upload",
+                "original_filename": Path(filename or "dataset").name,
+                "source_sha256": bundle.response.source_sha256,
+                "mapping_sha256": mapping_sha256,
+            },
+            experiments=bundle.experiments,
+            import_manifest=manifest,
         )
-        if not close_matches:
-            return None
-        best_match = close_matches[0]
-        for column, value in normalized.items():
-            if value == best_match:
-                return column
-        return None
+        return DatasetImportResponse(
+            dataset=DatasetSummary(**self.repository.summary(dataset_id)),
+            validation=bundle.response,
+        )
 
-    # -------------------------------------------------------------------------
-    def normalize_adsorption_columns(
-        self, dataset: pd.DataFrame, require_complete: bool = True
-    ) -> pd.DataFrame:
-        normalized = dataset.copy()
-        stripped_names = {column: str(column).strip() for column in normalized.columns}
-        if any(source != target for source, target in stripped_names.items()):
-            normalized = normalized.rename(columns=stripped_names)
-        rename_map: dict[str, str] = {}
-        for target, aliases in self.ADSORPTION_COLUMN_ALIASES.items():
-            if target in normalized.columns:
-                continue
-            match = self.resolve_column_alias(list(normalized.columns), aliases)
-            if match is not None and match != target:
-                rename_map[match] = target
-        if rename_map:
-            normalized = normalized.rename(columns=rename_map)
-        missing_columns = [
-            column
-            for column in self.ADSORPTION_SCHEMA_COLUMNS
-            if column not in normalized.columns
-        ]
-        if require_complete and missing_columns:
-            missing = ", ".join(missing_columns)
-            raise ValueError(
-                "Uploaded dataset is missing required columns after normalization: "
-                f"{missing}"
-            )
-        return normalized
+    def list_datasets(self) -> DatasetListResponse:
+        return DatasetListResponse(
+            datasets=[
+                DatasetSummary(**record) for record in self.repository.list_summaries()
+            ]
+        )
 
-    # -------------------------------------------------------------------------
-    def select_schema_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        return dataset.loc[:, self.ADSORPTION_SCHEMA_COLUMNS].copy()
+    def list_experiments(self, dataset_id: int) -> ExperimentListResponse:
+        return ExperimentListResponse(
+            experiments=self.repository.experiments(dataset_id)
+        )
 
-    # -------------------------------------------------------------------------
-    def order_dataset_columns(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        preferred = [
-            column
-            for column in self.ADSORPTION_SCHEMA_COLUMNS
-            if column in dataset.columns
-        ]
-        extras = [column for column in dataset.columns if column not in preferred]
-        ordered = [*preferred, *extras]
-        return dataset.loc[:, ordered].copy()
+    def get_observations(
+        self, dataset_id: int, isotherm_id: int, offset: int, limit: int
+    ) -> ObservationPage:
+        rows, total = self.repository.observations(
+            dataset_id, isotherm_id, offset, limit
+        )
+        return ObservationPage(
+            dataset_id=dataset_id,
+            isotherm_id=isotherm_id,
+            offset=offset,
+            limit=limit,
+            total=total,
+            rows=rows,
+        )
 
-    # -------------------------------------------------------------------------
-    def save_to_database(self, payload: dict[str, Any]) -> None:
-        """Persist uploaded dataset to adsorption_data table.
+    def rename(self, dataset_id: int, new_name: str) -> DatasetMutationResponse:
+        self.repository.rename(dataset_id, new_name)
+        return DatasetMutationResponse(
+            dataset=DatasetSummary(**self.repository.summary(dataset_id))
+        )
 
-        Keyword arguments:
-        payload -- Dataset payload containing records, columns, and dataset_name.
-        """
-        records = payload.get("records", [])
-        columns = payload.get("columns", [])
-        dataset_name = payload.get("dataset_name", "uploaded_dataset")
+    def update_metadata(
+        self, dataset_id: int, metadata: DatasetMetadata
+    ) -> DatasetMutationResponse:
+        self.repository.update_metadata(
+            dataset_id, metadata.tags, metadata.description
+        )
+        return DatasetMutationResponse(
+            dataset=DatasetSummary(**self.repository.summary(dataset_id))
+        )
 
-        if not records:
-            return
-
-        df = pd.DataFrame.from_records(records, columns=columns)
-        df = self.normalize_adsorption_columns(df, require_complete=True)
-        df = self.select_schema_columns(df)
-        df["name"] = dataset_name
-        serializer = DataSerializer()
-        serializer.save_raw_dataset(df)
-
-    # -------------------------------------------------------------------------
-    def upload_dataset(self, payload: bytes, filename: str | None) -> tuple[dict[str, Any], dict[str, Any], str]:
-        dataset, summary = self.load_from_bytes(payload, filename)
-        self.save_to_database(dataset)
-        serializer = DataSerializer()
-        return dataset, serializer.get_uploaded_dataset_summary(dataset["dataset_name"]), summary
-
-    # -------------------------------------------------------------------------
-    def list_uploaded_datasets(self) -> list[dict[str, Any]]:
-        return DataSerializer().list_uploaded_dataset_summaries()
-
-    # -------------------------------------------------------------------------
-    def get_dataset_metadata(self, dataset_name: str) -> dict[str, Any]:
-        summary = DataSerializer().get_uploaded_dataset_summary(dataset_name)
-        return {"tags": summary["tags"], "description": summary["description"]}
-
-    # -------------------------------------------------------------------------
-    def update_dataset_metadata(self, dataset_name: str, tags: list[str], description: str) -> dict[str, Any]:
-        return DataSerializer().update_uploaded_dataset_metadata(dataset_name, tags, description)
-
-    # -------------------------------------------------------------------------
-    def rename_dataset(self, dataset_name: str, new_name: str) -> dict[str, Any]:
-        return DataSerializer().rename_uploaded_dataset(dataset_name, new_name.strip())
-
-    # -------------------------------------------------------------------------
-    def delete_dataset(self, dataset_name: str) -> None:
-        if not DataSerializer().delete_raw_dataset(dataset_name):
-            raise ValueError(f"Dataset '{dataset_name}' was not found.")
-
-    # -------------------------------------------------------------------------
-    def get_dataset_rows(self, dataset_name: str, offset: int, limit: int) -> tuple[list[str], list[dict[str, Any]], int]:
-        frame, total = DataSerializer().get_uploaded_dataset_rows(dataset_name, offset, limit)
-        columns = list(frame.columns)
-        records = frame.where(pd.notna(frame), None).to_dict(orient="records")
-        return columns, records, total
-
-    # -------------------------------------------------------------------------
-    def mutate_dataset_rows(self, dataset_name: str, operations: list[dict[str, Any]]) -> dict[str, Any]:
-        serializer = DataSerializer()
-        frame, _ = serializer.get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
-        working = frame.drop(columns=["row_id"])
-        for operation in operations:
-            if operation["operation"] == "insert":
-                working.loc[len(working)] = {column: operation["values"].get(column) for column in working.columns}
-            elif operation["operation"] == "delete":
-                row_id = operation.get("row_id")
-                if row_id is None or row_id >= len(working):
-                    raise ValueError("Invalid row_id.")
-                working = working.drop(index=row_id).reset_index(drop=True)
-            else:
-                row_id = operation.get("row_id")
-                if row_id is None or row_id >= len(working):
-                    raise ValueError("Invalid row_id.")
-                for key, value in operation["values"].items():
-                    if key in working.columns:
-                        working.loc[row_id, key] = value
-        self.normalize_adsorption_columns(working, require_complete=True)
-        return serializer.replace_uploaded_dataset_rows(dataset_name, operations)
+    def delete(self, dataset_id: int) -> None:
+        self.repository.delete(dataset_id)

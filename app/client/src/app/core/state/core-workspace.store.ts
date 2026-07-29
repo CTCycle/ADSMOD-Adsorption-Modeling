@@ -1,258 +1,254 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { ADSORPTION_MODELS } from '../constants/adsorption-models';
-import type { DatasetMetadata, DatasetRowMutation, DatasetRowsPage, DatasetSummary } from '../../models/dataset.model';
-import type { FittingPayload, ModelConfiguration, ModelParameters } from '../../models/fitting.model';
-import { deleteDataset, fetchDatasets, fetchRows, mutateRows, renameDataset, updateMetadata, uploadDataset } from '../../services/dataset.service';
-import { pollFittingJobUntilComplete, startFittingJob } from '../../services/fitting.service';
+import type {
+    DatasetMetadata,
+    DatasetSummary,
+    ExperimentSummary,
+} from '../../models/dataset.model';
+import type {
+    FittingPayload,
+    FittingResponse,
+    ModelParameters,
+    ModelCatalogResponse,
+} from '../../models/fitting.model';
+import {
+    deleteDataset,
+    fetchDatasets,
+    fetchExperiments,
+    renameDataset,
+    updateMetadata,
+} from '../../services/dataset.service';
+import {
+    pollFittingJobUntilComplete,
+    startFittingJob, fetchModelCatalog,
+} from '../../services/fitting.service';
 
 export type CorePageId = 'datasets' | 'fitting';
-export type OptimizationMethod = FittingPayload['optimization_method'];
+export type OptimizationMethod = FittingPayload['optimizer'];
 
 interface ModelState {
     enabled: boolean;
     config: ModelParameters;
 }
 
-const NIST_DATASET_OPTION = '__NIST_A_COLLECTION__';
-
-const initialModels = (): Record<string, ModelState> => Object.fromEntries(
-    ADSORPTION_MODELS.map((model) => [
-        model.name,
-        {
-            enabled: true,
-            config: Object.fromEntries(
-                Object.entries(model.parameterDefaults).map(([name, [min, max]]) => [name, { min, max }])
-            ),
-        },
-    ])
-);
+const initialModels = (): Record<string, ModelState> => ({});
 
 @Injectable({ providedIn: 'root' })
 export class CoreWorkspaceStore {
     readonly currentPage = signal<CorePageId>('datasets');
-    readonly maxIterations = signal(10000);
-    readonly optimizationMethod = signal<OptimizationMethod>('LSS');
+    readonly maxEvaluations = signal(10_000);
+    readonly optimizationMethod = signal<OptimizationMethod>('trf');
+    readonly weighting = signal<FittingPayload['weighting']>('unweighted');
     readonly fittingStatus = signal('');
-    readonly pendingFile = signal<File | null>(null);
-    readonly isDatasetUploading = signal(false);
+    readonly fittingResult = signal<FittingResponse | null>(null);
+    readonly fittingRunning = signal(false);
     readonly userDatasets = signal<DatasetSummary[]>([]);
-    readonly selectedDataset = signal<string | null>(null);
-    readonly editorPage = signal<DatasetRowsPage | null>(null);
-    readonly editorLimit = signal(100);
-    readonly editorLoading = signal(false);
+    readonly selectedDatasetId = signal<number | null>(null);
+    readonly experiments = signal<ExperimentSummary[]>([]);
+    readonly selectedExperimentId = signal<number | null>(null);
+    readonly experimentsLoading = signal(false);
     readonly managementStatus = signal('');
     readonly modelStates = signal<Record<string, ModelState>>(initialModels());
-    readonly nistDatasetOption = NIST_DATASET_OPTION;
+    readonly modelCatalog = signal<ModelCatalogResponse | null>(null);
 
-    readonly availableDatasets = computed(() => this.userDatasets().map((dataset) => dataset.name));
-    readonly selectedModelCount = computed(() => Object.values(this.modelStates()).filter((state) => state.enabled).length);
+    readonly selectedDataset = computed(() =>
+        this.userDatasets().find(
+            (dataset) => dataset.id === this.selectedDatasetId(),
+        ),
+    );
+    readonly selectedExperiment = computed(() =>
+        this.experiments().find(
+            (experiment) => experiment.id === this.selectedExperimentId(),
+        ),
+    );
+    readonly selectedModelCount = computed(
+        () =>
+            Object.values(this.modelStates()).filter((state) => state.enabled)
+                .length,
+    );
 
     constructor() {
-        void this.refreshUserDatasets();
+        void this.refreshDatasets();
+        void this.loadCatalog();
     }
+
+    async loadCatalog(): Promise<void> { const catalog = await fetchModelCatalog(); if (catalog) { this.modelCatalog.set(catalog); this.modelStates.set(Object.fromEntries(catalog.models.map((model) => [model.key, { enabled: true, config: Object.fromEntries(model.parameters.map((parameter) => [parameter.name, { min: parameter.lower, max: parameter.upper }])) }]))); } }
 
     setCurrentPage(page: CorePageId): void {
         this.currentPage.set(page);
     }
 
-    setPendingFile(file: File): void {
-        this.pendingFile.set(file);
-    }
-
-    async uploadPendingDataset(): Promise<void> {
-        const file = this.pendingFile();
-        if (!file) {
-            this.managementStatus.set('Choose a file first.');
-            return;
-        }
-
-        this.isDatasetUploading.set(true);
-        const result = await uploadDataset(file);
-        this.isDatasetUploading.set(false);
-        if (result.error || !result.data) {
-            this.managementStatus.set(result.error || 'Upload failed.');
-            return;
-        }
-
-        this.pendingFile.set(null);
-        await this.refreshUserDatasets();
-        await this.openDataset(result.data.dataset.name);
-    }
-
-    async refreshUserDatasets(): Promise<void> {
+    async refreshDatasets(selectId?: number): Promise<void> {
         const result = await fetchDatasets();
         if (result.error || !result.data) {
-            this.managementStatus.set(result.error || 'Failed to load datasets.');
+            this.managementStatus.set(
+                result.error || 'Failed to load datasets.',
+            );
             return;
         }
-
         this.userDatasets.set(result.data.datasets);
+        if (selectId !== undefined) {
+            await this.selectDataset(selectId);
+        } else if (
+            this.selectedDatasetId() !== null &&
+            !result.data.datasets.some(
+                (dataset) => dataset.id === this.selectedDatasetId(),
+            )
+        ) {
+            this.selectedDatasetId.set(null);
+            this.experiments.set([]);
+            this.selectedExperimentId.set(null);
+        }
     }
 
-    async openDataset(name: string): Promise<void> {
-        this.selectedDataset.set(name);
-        await this.loadDatasetPage(0, this.editorLimit());
-    }
-
-    async loadDatasetPage(offset: number, limit = this.editorLimit()): Promise<void> {
-        const name = this.selectedDataset();
-        if (!name) {
+    async selectDataset(datasetId: number | null): Promise<void> {
+        this.selectedDatasetId.set(datasetId);
+        this.selectedExperimentId.set(null);
+        this.experiments.set([]);
+        this.fittingResult.set(null);
+        if (datasetId === null) {
             return;
         }
-
-        this.editorLoading.set(true);
-        const result = await fetchRows(name, offset, limit);
-        this.editorLoading.set(false);
+        this.experimentsLoading.set(true);
+        const result = await fetchExperiments(datasetId);
+        this.experimentsLoading.set(false);
         if (result.error || !result.data) {
-            this.managementStatus.set(result.error || 'Failed to load rows.');
+            this.managementStatus.set(
+                result.error || 'Failed to load experiments.',
+            );
             return;
         }
-
-        this.editorLimit.set(limit);
-        this.editorPage.set(result.data);
+        this.experiments.set(result.data.experiments);
+        if (result.data.experiments.length === 1) {
+            this.selectedExperimentId.set(result.data.experiments[0].id);
+        }
     }
 
-    async deleteDataset(name: string): Promise<void> {
-        const result = await deleteDataset(name);
+    setSelectedExperiment(experimentId: number | null): void {
+        this.selectedExperimentId.set(experimentId);
+        this.fittingResult.set(null);
+    }
+
+    async deleteDataset(datasetId: number): Promise<void> {
+        const result = await deleteDataset(datasetId);
         if (result.error) {
             this.managementStatus.set(result.error);
             return;
         }
-
-        if (this.selectedDataset() === name) {
-            this.selectedDataset.set(null);
-            this.editorPage.set(null);
+        if (this.selectedDatasetId() === datasetId) {
+            await this.selectDataset(null);
         }
-        await this.refreshUserDatasets();
+        await this.refreshDatasets();
     }
 
-    async renameDataset(name: string, newName: string): Promise<void> {
-        const result = await renameDataset(name, newName);
-        if (result.error || !result.data) {
-            this.managementStatus.set(result.error || 'Rename failed.');
-            return;
-        }
-
-        if (this.selectedDataset() === name) {
-            this.selectedDataset.set(newName);
-        }
-        await this.refreshUserDatasets();
-    }
-
-    async saveMetadata(metadata: DatasetMetadata): Promise<void> {
-        const name = this.selectedDataset();
-        if (!name) {
-            return;
-        }
-
-        const result = await updateMetadata(name, metadata);
+    async renameDataset(datasetId: number, newName: string): Promise<void> {
+        const result = await renameDataset(datasetId, newName);
         if (result.error) {
             this.managementStatus.set(result.error);
             return;
         }
-        await this.refreshUserDatasets();
+        await this.refreshDatasets();
     }
 
-    async saveMutations(operations: DatasetRowMutation[]): Promise<void> {
-        const name = this.selectedDataset();
-        const page = this.editorPage();
-        if (!name || !page || !operations.length) {
-            return;
-        }
-
-        const result = await mutateRows(name, operations);
+    async saveMetadata(
+        datasetId: number,
+        metadata: DatasetMetadata,
+    ): Promise<void> {
+        const result = await updateMetadata(datasetId, metadata);
         if (result.error) {
             this.managementStatus.set(result.error);
             return;
         }
-
-        await this.refreshUserDatasets();
-        await this.loadDatasetPage(page.offset, page.limit);
-    }
-
-    setSelectedDataset(name: string): void {
-        this.selectedDataset.set(name || null);
+        await this.refreshDatasets();
     }
 
     setOptimizationMethod(method: OptimizationMethod): void {
         this.optimizationMethod.set(method);
     }
 
-    setMaxIterations(value: number): void {
-        this.maxIterations.set(Math.max(1, Math.round(value)));
+    setMaxEvaluations(value: number): void {
+        this.maxEvaluations.set(
+            Math.min(1_000_000, Math.max(10, Math.round(value))),
+        );
     }
 
     resetFittingStatus(): void {
         this.fittingStatus.set('');
+        this.fittingResult.set(null);
     }
 
-    setModelEnabled(name: string, enabled: boolean): void {
+    setModelEnabled(modelId: string, enabled: boolean): void {
         this.modelStates.update((current) => {
-            const model = current[name];
-            if (!model) {
-                return current;
-            }
-
-            return { ...current, [name]: { ...model, enabled } };
+            const model = current[modelId];
+            return model
+                ? { ...current, [modelId]: { ...model, enabled } }
+                : current;
         });
     }
 
-    setModelParameters(name: string, config: ModelParameters): void {
+    setModelParameters(modelId: string, config: ModelParameters): void {
         this.modelStates.update((current) => {
-            const model = current[name];
-            if (!model) {
-                return current;
-            }
-
-            return { ...current, [name]: { ...model, config } };
+            const model = current[modelId];
+            return model
+                ? { ...current, [modelId]: { ...model, config } }
+                : current;
         });
     }
 
     async startFitting(): Promise<void> {
-        const name = this.selectedDataset();
-        if (!name) {
-            this.fittingStatus.set('[ERROR] Select a dataset.');
+        const datasetId = this.selectedDatasetId();
+        const experiment = this.selectedExperiment();
+        if (datasetId === null) {
+            this.fittingStatus.set('[ERROR] Select one dataset.');
             return;
         }
-
-        const enabledModels = Object.entries(this.modelStates()).filter(([, state]) => state.enabled);
-        if (!enabledModels.length) {
+        if (!experiment) {
+            this.fittingStatus.set('[ERROR] Select one experiment or isotherm.');
+            return;
+        }
+        if (!experiment.fitting_eligible) {
+            this.fittingStatus.set(
+                `[ERROR] ${experiment.ineligibility_reason || 'This experiment is not eligible for fitting.'}`,
+            );
+            return;
+        }
+        const models = Object.entries(this.modelStates())
+            .filter(([, state]) => state.enabled)
+            .map(([model]) => model);
+        if (!models.length) {
             this.fittingStatus.set('[ERROR] Select at least one model.');
             return;
         }
 
-        const parameter_bounds: Record<string, ModelConfiguration> = {};
-        for (const [modelName, modelState] of enabledModels) {
-            const min: Record<string, number> = {};
-            const max: Record<string, number> = {};
-            const initial: Record<string, number> = {};
-
-            for (const [parameterName, bounds] of Object.entries(modelState.config)) {
-                const lower = Math.min(bounds.min, bounds.max);
-                const upper = Math.max(bounds.min, bounds.max);
-                min[parameterName] = lower;
-                max[parameterName] = upper;
-                initial[parameterName] = (lower + upper) / 2;
-            }
-
-            parameter_bounds[modelName] = { min, max, initial };
-        }
-
-        const dataset: FittingPayload['dataset'] = name === NIST_DATASET_OPTION
-            ? { source: 'nist' }
-            : { source: 'uploaded', dataset_name: name };
-        const started = await startFittingJob({
-            max_iterations: this.maxIterations(),
-            optimization_method: this.optimizationMethod(),
-            parameter_bounds,
-            dataset,
-        });
+        const payload: FittingPayload = {
+            dataset_id: datasetId,
+            isotherm_id: experiment.id,
+            models,
+            optimizer: this.optimizationMethod(),
+            max_evaluations: this.maxEvaluations(),
+            weighting: this.weighting(),
+            parameter_configuration: {},
+            display_units: {
+                pressure: experiment.pressure_basis === 'relative' ? '1' : 'bar',
+                uptake: 'mmol/g',
+            },
+        };
+        this.fittingRunning.set(true);
+        this.fittingStatus.set('[INFO] Fitting canonical observation series…');
+        this.fittingResult.set(null);
+        const started = await startFittingJob(payload);
         if (started.error || !started.jobId) {
-            this.fittingStatus.set(`[ERROR] ${started.error || 'Failed to start fitting.'}`);
+            this.fittingRunning.set(false);
+            this.fittingStatus.set(
+                `[ERROR] ${started.error || 'Failed to start fitting.'}`,
+            );
             return;
         }
-
-        const result = await pollFittingJobUntilComplete(started.jobId, started.pollInterval);
+        const result = await pollFittingJobUntilComplete(
+            started.jobId,
+            started.pollInterval,
+        );
+        this.fittingRunning.set(false);
         this.fittingStatus.set(result.message);
+        this.fittingResult.set(result.data);
     }
 }

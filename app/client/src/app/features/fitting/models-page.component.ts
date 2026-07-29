@@ -1,5 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
-import { ADSORPTION_MODELS } from '../../core/constants/adsorption-models';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CoreWorkspaceStore, OptimizationMethod } from '../../core/state/core-workspace.store';
 import { HeaderTabsComponent } from '../../layout/header-tabs.component';
 import type { ModelParameters } from '../../models/fitting.model';
@@ -12,11 +11,8 @@ interface OptimizationMethodOption {
 }
 
 const OPTIMIZATION_METHOD_OPTIONS: readonly OptimizationMethodOption[] = [
-    { value: 'LSS', label: 'Least Squares (LSS)' },
-    { value: 'BFGS', label: 'BFGS' },
-    { value: 'L-BFGS-B', label: 'L-BFGS-B' },
-    { value: 'Nelder-Mead', label: 'Nelder-Mead' },
-    { value: 'Powell', label: 'Powell' },
+    { value: 'trf', label: 'Trust Region Reflective (TRF)' },
+    { value: 'dogbox', label: 'Dogbox' },
 ];
 
 const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
@@ -65,23 +61,29 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                                 (change)="selectDataset($event)"
                                                 class="select-input fitting-dataset-select"
                                             >
-                                                <option value="">{{ store.availableDatasets().length === 0 ? 'No datasets available' : 'Select a dataset' }}</option>
-                                                <option [value]="store.nistDatasetOption">NIST-A Collection</option>
-                                                @for (datasetName of store.availableDatasets(); track datasetName) {
-                                                    <option [value]="datasetName">{{ datasetName }}</option>
+                                                <option value="">{{ store.userDatasets().length === 0 ? 'No datasets available' : 'Select a dataset' }}</option>
+                                                @for (dataset of store.userDatasets(); track dataset.id) {
+                                                    <option [value]="dataset.id">{{ dataset.name }}</option>
                                                 }
                                             </select>
                                         </div>
                                     </div>
                                     <div class="control-group">
+                                        <label class="field-label">Weighting</label>
+                                        <select class="select-input" [value]="store.weighting()" (change)="selectWeighting($event)">
+                                            <option value="unweighted">Unweighted</option>
+                                            <option value="inverse_sigma">Inverse sigma (complete uncertainties)</option>
+                                        </select>
+                                    </div>
+                                    <div class="control-group">
                                         <adsmod-number-input
                                             label="Max iterations"
-                                            [value]="store.maxIterations()"
+                                            [value]="store.maxEvaluations()"
                                             [min]="1"
                                             [max]="1000000"
                                             [step]="1"
                                             [precision]="0"
-                                            (valueChange)="store.setMaxIterations($event)"
+                                            (valueChange)="store.setMaxEvaluations($event)"
                                         />
                                     </div>
                                     <div class="control-group">
@@ -125,15 +127,15 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                     </div>
 
                     <div class="models-grid">
-                        @for (model of models; track model.id) {
+                        @for (model of models(); track model.id) {
                             <adsmod-model-card
                                 [model]="model"
                                 [isExpanded]="expandedModel() === model.id"
-                                [isEnabled]="store.modelStates()[model.name].enabled"
-                                [currentConfig]="store.modelStates()[model.name].config"
+                                [isEnabled]="store.modelStates()[model.id]?.enabled ?? false"
+                                [currentConfig]="store.modelStates()[model.id]?.config ?? {}"
                                 (toggle)="toggleExpanded($event)"
-                                (enabledChange)="store.setModelEnabled(model.name, $event)"
-                                (configChange)="updateModelConfig(model.name, $event)"
+                                (enabledChange)="store.setModelEnabled(model.id, $event)"
+                                (configChange)="updateModelConfig(model.id, $event)"
                             />
                         }
                     </div>
@@ -144,7 +146,7 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
 })
 export class ModelsPageComponent {
     protected readonly store = inject(CoreWorkspaceStore);
-    protected readonly models = ADSORPTION_MODELS;
+    protected readonly models = computed(() => (this.store.modelCatalog()?.models ?? []).map((model) => ({ id: model.key, name: model.name, shortDescription: model.assumptions, equationLatex: model.equation_latex, parameterDefaults: Object.fromEntries(model.parameters.map((parameter) => [parameter.name, [parameter.lower, parameter.upper] as [number, number]])) })));
     protected readonly optimizationOptions = OPTIMIZATION_METHOD_OPTIONS;
     protected readonly expandedModel = signal<string | null>(null);
 
@@ -154,7 +156,8 @@ export class ModelsPageComponent {
 
     protected selectDataset(event: Event): void {
         const select = event.target as HTMLSelectElement;
-        this.store.setSelectedDataset(select.value);
+        const id = Number(select.value);
+        void this.store.selectDataset(Number.isFinite(id) && id > 0 ? id : null);
     }
 
     protected selectOptimizer(event: Event): void {
@@ -163,6 +166,11 @@ export class ModelsPageComponent {
         if (method) {
             this.store.setOptimizationMethod(method);
         }
+    }
+
+    protected selectWeighting(event: Event): void {
+        const value = (event.target as HTMLSelectElement).value;
+        if (value === 'unweighted' || value === 'inverse_sigma') this.store.weighting.set(value);
     }
 
     protected updateModelConfig(modelName: string, config: ModelParameters): void {

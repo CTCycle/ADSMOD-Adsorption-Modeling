@@ -30,7 +30,7 @@ from shared.models.jobs import (
     JobStartResponse,
     JobStatusResponse,
 )
-from shared.repositories.queries.nist import NISTDataSerializer
+from core_service.services.data.nist_repository import NISTCanonicalRepository
 from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
 
@@ -43,9 +43,11 @@ class NISTDataService:
     CATEGORY_ENRICH_SUFFIX = "enrich"
 
     # -------------------------------------------------------------------------
-    def __init__(self, job_manager: JobManager) -> None:
+    def __init__(
+        self, job_manager: JobManager, repository: NISTCanonicalRepository
+    ) -> None:
         self.job_manager = job_manager
-        self.serializer = NISTDataSerializer()
+        self.repository = repository
         self.builder = NISTDatasetBuilder()
         self.state_lock = threading.Lock()
         self.category_state: dict[str, dict[str, Any]] = {
@@ -467,15 +469,15 @@ class NISTDataService:
 
             if category == "experiments":
                 existing_ids = await asyncio.to_thread(
-                    self.serializer.list_nist_experiment_ids
+                    self.repository.list_nist_experiment_ids
                 )
             elif category == "guest":
                 existing_ids = await asyncio.to_thread(
-                    self.serializer.list_adsorbate_inchi_keys
+                    self.repository.list_adsorbate_inchi_keys
                 )
             else:
                 existing_ids = await asyncio.to_thread(
-                    self.serializer.list_adsorbent_hash_keys
+                    self.repository.list_adsorbent_hash_keys
                 )
 
             if job_id:
@@ -510,7 +512,7 @@ class NISTDataService:
                     self.job_manager.update_progress(job_id, 80.0)
 
                 await asyncio.to_thread(
-                    self.serializer.save_adsorption_datasets,
+                    self.repository.save_adsorption_datasets,
                     single_component,
                     binary_mixture,
                     False,
@@ -528,7 +530,7 @@ class NISTDataService:
                 if job_id:
                     self.job_manager.update_progress(job_id, 70.0)
                 await asyncio.to_thread(
-                    self.serializer.save_materials_datasets,
+                    self.repository.save_materials_datasets,
                     guest_data,
                     None,
                 )
@@ -545,13 +547,13 @@ class NISTDataService:
                 if job_id:
                     self.job_manager.update_progress(job_id, 70.0)
                 await asyncio.to_thread(
-                    self.serializer.save_materials_datasets,
+                    self.repository.save_materials_datasets,
                     None,
                     host_data,
                 )
 
         local_counts = await asyncio.to_thread(
-            self.serializer.count_local_records_by_category
+            self.repository.count_local_records_by_category
         )
         local_count = int(local_counts.get(category, 0))
 
@@ -634,7 +636,7 @@ class NISTDataService:
     ) -> dict[str, int | str]:
         logger.info("NIST properties enrichment starting (target=%s)", target)
         adsorption_data, guest_data, host_data = await asyncio.to_thread(
-            self.serializer.load_adsorption_datasets
+            self.repository.load_adsorption_datasets
         )
 
         if target == "guest":
@@ -674,7 +676,7 @@ class NISTDataService:
             .tolist()
         )
         local_counts = await asyncio.to_thread(
-            self.serializer.count_local_records_by_category
+            self.repository.count_local_records_by_category
         )
 
         if not names or data.empty:
@@ -762,11 +764,11 @@ class NISTDataService:
 
         if target == "guest":
             await asyncio.to_thread(
-                self.serializer.save_materials_datasets, updated, None
+                self.repository.save_materials_datasets, updated, None
             )
         else:
             await asyncio.to_thread(
-                self.serializer.save_materials_datasets, None, updated
+                self.repository.save_materials_datasets, None, updated
             )
 
         matched = int(
@@ -783,7 +785,7 @@ class NISTDataService:
             rows_updated,
         )
         local_counts = await asyncio.to_thread(
-            self.serializer.count_local_records_by_category
+            self.repository.count_local_records_by_category
         )
         self.update_category_state(category, last_update=self.now_iso())
         if job_id:
@@ -818,7 +820,7 @@ class NISTDataService:
     # -------------------------------------------------------------------------
     async def get_category_status(self) -> list[dict[str, Any]]:
         local_counts = await asyncio.to_thread(
-            self.serializer.count_local_records_by_category
+            self.repository.count_local_records_by_category
         )
         status_entries: list[dict[str, Any]] = []
         for category in ("experiments", "guest", "host"):
@@ -838,7 +840,7 @@ class NISTDataService:
 
     # -------------------------------------------------------------------------
     async def get_status(self) -> dict[str, int | bool]:
-        counts = await asyncio.to_thread(self.serializer.count_nist_rows)
+        counts = await asyncio.to_thread(self.repository.count_nist_rows)
         data_available = any(value > 0 for value in counts.values())
         return {
             "data_available": data_available,
