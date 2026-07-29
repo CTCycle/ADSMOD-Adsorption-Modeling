@@ -25,8 +25,8 @@ def test_core_factory_requires_explicit_config() -> None:
     assert application.state.config.runtime.mode == "core"
 
 ###############################################################################
-def test_snapshot_api_requires_token_and_preserves_hash() -> None:
-    with TemporaryDirectory(dir="assets/QA") as directory:
+def test_snapshot_api_requires_token_and_preserves_hash(tmp_path: Path) -> None:
+    with TemporaryDirectory(dir=tmp_path) as directory:
         config = load_config(CONFIG_PATH).model_copy(
             update={"storage": StorageConfig(root=Path(directory), database="core.db")}
         )
@@ -53,8 +53,8 @@ def test_snapshot_api_requires_token_and_preserves_hash() -> None:
             assert payload["content_hash"] == metadata["content_hash"]
 
 ###############################################################################
-def test_snapshot_page_not_found() -> None:
-    with TemporaryDirectory(dir="assets/QA") as directory:
+def test_snapshot_page_not_found(tmp_path: Path) -> None:
+    with TemporaryDirectory(dir=tmp_path) as directory:
         config = load_config(CONFIG_PATH).model_copy(
             update={"storage": StorageConfig(root=Path(directory), database="core.db")}
         )

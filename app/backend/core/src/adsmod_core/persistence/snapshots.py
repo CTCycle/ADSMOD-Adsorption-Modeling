@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,17 +37,18 @@ class SnapshotStore:
     def __init__(self, database_path: Path) -> None:
         self.database_path = database_path
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS training_snapshots (
-                    snapshot_id TEXT PRIMARY KEY,
-                    content_hash TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    payload TEXT NOT NULL
+        with closing(self._connect()) as connection:
+            with connection:
+                connection.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS training_snapshots (
+                        snapshot_id TEXT PRIMARY KEY,
+                        content_hash TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        payload TEXT NOT NULL
+                    )
+                    """
                 )
-                """
-            )
 
     # -------------------------------------------------------------------------
     def _connect(self) -> sqlite3.Connection:
@@ -67,11 +69,12 @@ class SnapshotStore:
         content_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         snapshot_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
-        with self._connect() as connection:
-            connection.execute(
-                "INSERT INTO training_snapshots(snapshot_id, content_hash, created_at, payload) VALUES (?, ?, ?, ?)",
-                (snapshot_id, content_hash, created_at, payload),
-            )
+        with closing(self._connect()) as connection:
+            with connection:
+                connection.execute(
+                    "INSERT INTO training_snapshots(snapshot_id, content_hash, created_at, payload) VALUES (?, ?, ?, ?)",
+                    (snapshot_id, content_hash, created_at, payload),
+                )
         return SnapshotRecord(snapshot_id, content_hash, created_at, len(frozen_rows), frozen_rows)
 
     # -------------------------------------------------------------------------
@@ -80,11 +83,12 @@ class SnapshotStore:
             raise ValueError("page must be >= 1")
         if not 1 <= page_size <= 1000:
             raise ValueError("page_size must be between 1 and 1000")
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT content_hash, payload FROM training_snapshots WHERE snapshot_id = ?",
-                (snapshot_id,),
-            ).fetchone()
+        with closing(self._connect()) as connection:
+            with connection:
+                row = connection.execute(
+                    "SELECT content_hash, payload FROM training_snapshots WHERE snapshot_id = ?",
+                    (snapshot_id,),
+                ).fetchone()
         if row is None:
             raise KeyError(snapshot_id)
         rows = tuple(json.loads(row["payload"]))

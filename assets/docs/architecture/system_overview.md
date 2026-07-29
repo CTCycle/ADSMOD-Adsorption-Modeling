@@ -20,8 +20,8 @@ ADSMOD is a Windows-first local application with:
 - Runtime bootstrap assets under `runtimes/`.
 
 Canonical v3 configuration is `app/resources/adsmod.json`, validated by
-`app/resources/adsmod.schema.json`. The `.env` and service-specific JSON files remain
-legacy inputs for the transitional `app/server` runtime.
+`app/resources/adsmod.schema.json`. Operational environment toggles remain in
+`settings/.env.example`; service-specific JSON configuration is not supported.
 
 ## Backend Package Layout
 

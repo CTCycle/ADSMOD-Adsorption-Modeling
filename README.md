@@ -89,7 +89,7 @@ Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select
 
 Local web mode uses the runtime file:
 
-- `settings/.env`
+- `settings/.env.example` for optional operational toggles
 
 Adjust host/port and runtime backend values in that file when needed.
 
@@ -177,23 +177,20 @@ The application stores data and artifacts in specific directories:
 
 ## 7. Configuration
 
-Runtime/process values are loaded from `settings/.env`.
-
-Database mode and backend defaults are loaded from `settings/configurations.json`.
+Runtime hosts, ports, database mode, and backend defaults are loaded from
+`app/resources/adsmod.json`.
 
 `.env` runtime keys used by the launcher, tests, and frontend startup:
 
 | Variable | Description |
 |---|---|
-| `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host and port. |
-| `UI_HOST`, `UI_PORT` | Frontend host and port for local web mode and tests. |
 | `KERAS_BACKEND`, `MPLBACKEND` | ML/scientific runtime backend configuration. |
 | `RELOAD` | Uvicorn reload toggle for local development. |
 | `BACKEND_LOGS_VISIBLE` | Set to `true` to show backend logs in a dedicated terminal; defaults to `true` when absent. |
 | `VITE_API_BASE_URL` | Optional frontend API base path written into runtime config; same-origin `/api` is used by default. |
 
 Single canonical runtime file:
-- `settings/.env`
+- `app/resources/adsmod.json`
 
 ## 9. Development Status
 

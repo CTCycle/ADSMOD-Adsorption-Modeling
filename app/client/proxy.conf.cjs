@@ -1,36 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const readEnvFile = (filePath) => {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-
-  return fs
-    .readFileSync(filePath, 'utf8')
-    .split(/\r?\n/)
-    .reduce((acc, line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) {
-        return acc;
-      }
-
-      const separatorIndex = trimmed.indexOf('=');
-      if (separatorIndex < 0) {
-        return acc;
-      }
-
-      acc[trimmed.slice(0, separatorIndex).trim()] = trimmed.slice(separatorIndex + 1).trim();
-      return acc;
-    }, {});
-};
-
-const settingsEnv = readEnvFile(path.resolve(__dirname, '../../settings/.env'));
-const env = { ...process.env, ...settingsEnv };
-const coreApiHost = env.CORE_SERVICE_HOST || env.FASTAPI_HOST || '127.0.0.1';
-const coreApiPort = Number(env.CORE_SERVICE_PORT || env.FASTAPI_PORT || 8000);
-const mlApiHost = env.ML_SERVICE_HOST || '127.0.0.1';
-const mlApiPort = Number(env.ML_SERVICE_PORT || 8001);
+const canonicalConfig = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, '../resources/adsmod.json'), 'utf8')
+);
+const runtime = canonicalConfig.runtime;
+const coreApiHost = runtime.host;
+const coreApiPort = Number(runtime.core_port);
+const mlApiHost = runtime.host;
+const mlApiPort = Number(runtime.ml_port);
 
 module.exports = {
   '/api/training': {

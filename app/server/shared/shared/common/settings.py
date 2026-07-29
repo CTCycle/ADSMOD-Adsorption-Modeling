@@ -1,40 +1,19 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from shared.common.constants import (
-    SERVICE_CONFIG_PATH_ENV,
-)
-from shared.common.env import load_environment
-from shared.common.paths import CORE_CONFIGURATION_FILE
+from shared.common.paths import CANONICAL_CONFIGURATION_FILE
 
 
 DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
 DEFAULT_PREFETCH_FACTOR = 1
 DEFAULT_PIN_MEMORY = True
 DEFAULT_PLOT_UPDATE_BATCH_INTERVAL = 10
-TRUTHY_VALUES = {"1", "true", "yes", "on"}
-DATABASE_ENV_DEFAULTS: dict[str, Any] = {
-    "embedded_database": True,
-    "engine": "postgres",
-    "host": None,
-    "port": 5432,
-    "database_name": None,
-    "username": None,
-    "password": None,
-    "ssl": False,
-    "ssl_ca": None,
-    "connect_timeout": 30,
-    "insert_batch_size": 5000,
-    "sqlite_path": None,
-}
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -247,14 +226,17 @@ class AppSettings(BaseModel):
     @classmethod
     def load(cls, config_path: str | Path | None = None) -> "AppSettings":
         payload = _load_configuration_payload(_resolve_configuration_path(config_path, getattr(cls, "_configuration_file")))
+        application = payload.get("application")
+        if not isinstance(application, dict):
+            raise RuntimeError("Canonical configuration is missing the application section.")
 
         values: dict[str, Any] = {
-            "database": payload.get("database", {}),
-            "datasets": payload.get("datasets", {}),
-            "nist": payload.get("nist", {}),
-            "fitting": payload.get("fitting", {}),
-            "jobs": payload.get("jobs", {}),
-            "training": payload.get("training", {}),
+            "database": application.get("database", {}),
+            "datasets": application.get("datasets", {}),
+            "nist": application.get("nist", {}),
+            "fitting": application.get("fitting", {}),
+            "jobs": application.get("jobs", {}),
+            "training": application.get("training", {}),
         }
         return cls.model_validate(values)
 
@@ -275,55 +257,6 @@ def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
         return value
     return {}
 
-###############################################################################
-def _get_env_text(key: str) -> str | None:
-    value = os.getenv(key)
-    if value is None:
-        return None
-    text = value.strip()
-    return text or None
-
-###############################################################################
-def _get_env_bool(key: str, default: bool) -> bool:
-    value = _get_env_text(key)
-    if value is None:
-        return default
-    return value.lower() in TRUTHY_VALUES
-
-###############################################################################
-def _get_env_int(key: str, default: int) -> int:
-    value = _get_env_text(key)
-    if value is None:
-        return default
-    return int(value)
-
-###############################################################################
-def _load_database_environment_payload() -> dict[str, Any]:
-    load_environment()
-    return {
-        "embedded_database": _get_env_bool(
-            "DATABASE_EMBEDDED", DATABASE_ENV_DEFAULTS["embedded_database"]
-        ),
-        "engine": _get_env_text("DATABASE_ENGINE")
-        or DATABASE_ENV_DEFAULTS["engine"],
-        "host": _get_env_text("DATABASE_HOST"),
-        "port": _get_env_int("DATABASE_PORT", DATABASE_ENV_DEFAULTS["port"]),
-        "database_name": _get_env_text("DATABASE_NAME"),
-        "username": _get_env_text("DATABASE_USERNAME"),
-        "password": os.getenv("DATABASE_PASSWORD"),
-        "ssl": _get_env_bool("DATABASE_SSL", DATABASE_ENV_DEFAULTS["ssl"]),
-        "ssl_ca": _get_env_text("DATABASE_SSL_CA"),
-        "connect_timeout": _get_env_int(
-            "DATABASE_CONNECT_TIMEOUT", DATABASE_ENV_DEFAULTS["connect_timeout"]
-        ),
-        "insert_batch_size": _get_env_int(
-            "DATABASE_INSERT_BATCH_SIZE",
-            DATABASE_ENV_DEFAULTS["insert_batch_size"],
-        ),
-        "sqlite_path": _get_env_text("DATABASE_SQLITE_PATH"),
-    }
-
-###############################################################################
 def _resolve_configuration_path(
     config_path: str | Path | None = None,
     default_path: str | Path | None = None,
@@ -331,14 +264,18 @@ def _resolve_configuration_path(
     if config_path:
         return Path(config_path)
 
-    configured_path = os.getenv(SERVICE_CONFIG_PATH_ENV, "").strip()
-    if configured_path:
-        return Path(configured_path)
-
     if default_path:
         return Path(default_path)
 
-    return CORE_CONFIGURATION_FILE
+    return CANONICAL_CONFIGURATION_FILE
+
+###############################################################################
+def get_runtime_config(config_path: str | Path | None = None) -> dict[str, Any]:
+    payload = _load_configuration_payload(config_path or CANONICAL_CONFIGURATION_FILE)
+    runtime = payload.get("runtime")
+    if not isinstance(runtime, dict):
+        raise RuntimeError("Canonical configuration is missing the runtime section.")
+    return runtime
 
 ###############################################################################
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
@@ -454,6 +391,7 @@ __all__ = [
     "build_job_settings",
     "build_training_settings",
     "build_server_settings",
+    "get_runtime_config",
     "ValidationError",
 ]
 

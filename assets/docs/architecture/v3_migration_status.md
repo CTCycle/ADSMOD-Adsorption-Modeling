@@ -13,16 +13,13 @@ package. It accepts one explicit JSON configuration through `--config` and expos
 
 The shared contract package is `app/backend/common`, published as `adsmod-common`. It contains only version, configuration, health, capability, and error-envelope contracts.
 
-Canonical configuration lives under `app/resources/adsmod.json` with its JSON schema in `app/resources/adsmod.schema.json`. The old `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json` remain legacy inputs until the service extraction and launcher migration phases are complete; the new core runtime does not read them.
+Canonical configuration lives under `app/resources/adsmod.json` with its JSON schema in `app/resources/adsmod.schema.json`. The unified backend, extracted core/ML packages, launcher, proxy, and tests read this resource; no older service configuration files or path aliases remain.
 
-## Transitional boundary
+## Runtime boundary
 
-The legacy `app/server` services remain active while routes, persistence, jobs, and
-launcher integration are migrated. The legacy combined ASGI entrypoint, shared
-backend environment, frontend proxy, and PowerShell launcher are not yet part of
-the v3 runtime.
-
-Do not describe the repository as fully migrated until those legacy paths are removed and core-plus-ML integration is validated.
+The unified backend remains the application route owner, while the extracted core
+and ML packages own their versioned contracts. They share the canonical resource
+without compatibility loaders, redirects, or fallback configuration paths.
 ## Core-owned snapshots
 
 Core now owns an immutable SQLite-backed snapshot store and exposes authenticated internal endpoints:

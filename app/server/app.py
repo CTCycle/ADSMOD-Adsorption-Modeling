@@ -18,26 +18,21 @@ from shared.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
-    SERVICE_CONFIG_PATH_ENV,
 )
-from shared.common.env import load_environment
 from shared.common.paths import (
     CHECKPOINTS_DIR,
     CLIENT_ASSETS_DIR,
     CLIENT_DIST_DIR,
     CLIENT_INDEX_FILE,
-    CORE_CONFIGURATION_FILE,
     LOGS_DIR,
     RESOURCES_DIR,
     TEMPLATES_DIR,
 )
-from shared.common.settings import ServerSettings, get_server_settings
+from shared.common.settings import ServerSettings, get_runtime_config, get_server_settings
 from shared.repositories.database.initializer import initialize_database
 
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
-load_environment()
-os.environ.setdefault(SERVICE_CONFIG_PATH_ENV, str(CORE_CONFIGURATION_FILE))
 os.environ.setdefault("KERAS_BACKEND", "torch")
 os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -70,19 +65,10 @@ def _resolve_client_file(full_path: str) -> Path | None:
 
 ###############################################################################
 def _build_cors_origins() -> list[str]:
-    hosts = {"127.0.0.1", "localhost"}
-    ui_host = os.getenv("UI_HOST", "").strip()
-    if ui_host:
-        hosts.add(ui_host)
-        if ui_host == "127.0.0.1":
-            hosts.add("localhost")
-        elif ui_host == "localhost":
-            hosts.add("127.0.0.1")
-
-    ports = {5173}
-    ui_port = os.getenv("UI_PORT", "").strip()
-    if ui_port.isdigit():
-        ports.add(int(ui_port))
+    runtime = get_runtime_config()
+    ui_host = str(runtime.get("host", "127.0.0.1"))
+    hosts = {ui_host, "127.0.0.1", "localhost"}
+    ports = {int(runtime["frontend_port"])}
 
     return sorted(f"http://{host}:{port}" for host in hosts for port in ports)
 

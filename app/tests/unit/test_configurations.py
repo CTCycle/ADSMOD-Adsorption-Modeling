@@ -4,7 +4,7 @@ from pathlib import Path
 from core_service.configurations import (
     get_server_settings,
 )
-from shared.common.paths import CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE
+from shared.common.paths import CANONICAL_CONFIGURATION_FILE
 from shared.common.settings import (
     AppSettings,
     build_training_settings,
@@ -17,10 +17,10 @@ def test_json_structure_matches_settings():
     are correctly loaded into the TrainingSettings dataclass.
     """
     settings = get_server_settings()
-    with Path(CORE_CONFIGURATION_FILE).open("r", encoding="utf-8") as handle:
+    with Path(CANONICAL_CONFIGURATION_FILE).open("r", encoding="utf-8") as handle:
         config_dict = json.load(handle)
 
-    training_json = config_dict.get("training", {})
+    training_json = config_dict.get("application", {}).get("training", {})
 
     # Assert all keys in JSON training section exist in TrainingSettings
     # We won't assert exact values because user might change JSON,
@@ -79,12 +79,11 @@ def test_default_fallbacks():
     assert training_settings.plot_update_batch_interval == 10
 
 ###############################################################################
-def test_both_runtime_configuration_files_validate() -> None:
-    for config_path in (CORE_CONFIGURATION_FILE, ML_CONFIGURATION_FILE):
-        settings = AppSettings.load(config_path)
-        server_settings = settings.to_server_settings()
+def test_canonical_runtime_configuration_validates() -> None:
+    settings = AppSettings.load(CANONICAL_CONFIGURATION_FILE)
+    server_settings = settings.to_server_settings()
 
-        assert server_settings.datasets.allowed_extensions
-        assert server_settings.jobs.polling_interval > 0
+    assert server_settings.datasets.allowed_extensions
+    assert server_settings.jobs.polling_interval > 0
 
 

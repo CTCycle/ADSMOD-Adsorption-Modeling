@@ -1,10 +1,10 @@
 # ADSMOD Troubleshooting
 
-Last updated: 2026-07-11
+Last updated: 2026-07-29
 
 ## Backend Or UI Unreachable
 
-- Check `FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, and `UI_PORT` in `ADSMOD/settings/.env`.
+- Check the `runtime` host and port values in `app/resources/adsmod.json`.
 - Confirm the launcher or backend process is running on the expected ports.
 
 ## Missing Test Dependencies
@@ -16,4 +16,4 @@ Last updated: 2026-07-11
 ## Frontend Preview Unreachable
 
 - Confirm `npm run build` succeeds in `ADSMOD/app/client`.
-- Check `UI_HOST` and `UI_PORT` in `settings/.env`, then rerun `start_on_windows.ps1`.
+- Check `runtime.frontend_port` in `app/resources/adsmod.json`, then rerun `start_on_windows.ps1`.

@@ -6,73 +6,44 @@ Last updated: 2026-07-29
 
 - Configuration file: `app/resources/adsmod.json`
 - Validation schema: `app/resources/adsmod.schema.json`
-- Required sections: `version`, `runtime`, `storage`, and `security`
+- Required sections: `version`, `runtime`, `storage`, `security`, and `application`
 - Supported runtime modes: `core` and `core-ml`
 - The v3 core CLI receives the configuration explicitly through `--config`.
 
-The v3 packages do not read the legacy `.env`, `core_service.json`, or
-`ml_service.json` files. Those files remain documented below for the transitional
-`app/server` runtime.
-
-## Primary Runtime Files
-
-- Environment file: `ADSMOD/settings/.env`
-- Core service settings file: `ADSMOD/settings/core_service.json`
-- ML service settings file: `ADSMOD/settings/ml_service.json`
+All backend packages and the launcher read this file. There are no service-specific
+configuration files or configuration-path aliases.
 
 ## Environment Variables
 
-Current launcher and runtime keys include:
+Operational environment keys are limited to:
 
-- `CORE_SERVICE_HOST`
-- `CORE_SERVICE_PORT`
-- `CORE_SERVICE_RELOAD`
-- `ML_SERVICE_HOST`
-- `ML_SERVICE_PORT`
-- `ML_SERVICE_RELOAD`
-- `FASTAPI_HOST`
-- `FASTAPI_PORT`
-- `UI_HOST`
-- `UI_PORT`
 - `BACKEND_LOGS_VISIBLE`
 - `ALWAYS_REBUILD`
+- `RELOAD`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `VITE_API_BASE_URL`
-- `DATABASE_EMBEDDED`
-- `DATABASE_ENGINE`
-- `DATABASE_HOST`
-- `DATABASE_PORT`
-- `DATABASE_NAME`
-- `DATABASE_USERNAME`
-- `DATABASE_PASSWORD`
-- `DATABASE_SSL`
-- `DATABASE_SSL_CA`
-- `DATABASE_CONNECT_TIMEOUT`
-- `DATABASE_INSERT_BATCH_SIZE`
 
 ## Structured Settings Coverage
 
-Each backend runtime JSON contains:
+The canonical `application` section contains:
 
-- job polling interval
-- dataset, NIST, fitting, and training defaults
+- database settings
+- dataset, NIST, fitting, job, and training defaults
 
-Database mode and connection settings are sourced from `settings/.env` only.
+The `runtime` section is the only source for backend, ML, and frontend hosts and ports.
 
 ## Mode-Specific Configuration Behavior
 
 - Local launcher mode
-  - uses `.env` host and port values
+  - uses `app/resources/adsmod.json` for hosts, ports, and application defaults
   - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
   - rebuilds the frontend at application start when `ALWAYS_REBUILD=true`; defaults to rebuilding when absent
-  - core service reads `settings/core_service.json` for non-database settings
-  - ML service reads `settings/ml_service.json` for non-database settings
-  - both services read database settings from `settings/.env`
+  - reads only the canonical configuration resource
   - runs backend and frontend as separate processes
 - API-only mode
   - requires no frontend process
   - is best suited for backend debugging
 - Test mode
-  - reads `.env`
+  - reads the canonical runtime resource
   - normalizes wildcard hosts such as `0.0.0.0` and `::` to `127.0.0.1` for client access

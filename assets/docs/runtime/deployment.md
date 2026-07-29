@@ -12,7 +12,7 @@ Last updated: 2026-07-29
 
 - Database: `resources/database.db` for embedded mode
 - Checkpoints: `resources/checkpoints`
-- Runtime env and config files: `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json`
+- Operational environment template: `settings/.env.example`
 - Canonical v3 configuration: `app/resources/adsmod.json` with `app/resources/adsmod.schema.json`
 
 ## Local Deployment Notes
@@ -20,7 +20,7 @@ Last updated: 2026-07-29
 - The supported end-user runtime is the Windows local web launcher at `start_on_windows.ps1`.
 - Portable Python, uv, and Node.js are provisioned under `runtimes/`.
 - The frontend is built before launch and served by the hidden preview process.
-- Backend log visibility is controlled by `BACKEND_LOGS_VISIBLE` in `settings/.env` and defaults to `true` when absent.
+- Backend log visibility is controlled by `BACKEND_LOGS_VISIBLE` in the local operational environment and defaults to `true` when absent.
 - Backend dependency state is locked in `app/server/uv.lock`.
 - v3 package dependencies are declared independently in `app/backend/common/pyproject.toml`, `app/backend/core/pyproject.toml`, and `app/backend/ml/pyproject.toml`.
 

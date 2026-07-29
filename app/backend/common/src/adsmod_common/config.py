@@ -45,11 +45,21 @@ class SecurityConfig(StrictModel):
     internal_token_required: bool = True
 
 ###############################################################################
+class ApplicationConfig(StrictModel):
+    database: dict[str, Any] = Field(default_factory=dict)
+    datasets: dict[str, Any] = Field(default_factory=dict)
+    nist: dict[str, Any] = Field(default_factory=dict)
+    fitting: dict[str, Any] = Field(default_factory=dict)
+    jobs: dict[str, Any] = Field(default_factory=dict)
+    training: dict[str, Any] = Field(default_factory=dict)
+
+###############################################################################
 class AdsmodConfig(StrictModel):
     version: Literal["3.0.0"] = "3.0.0"
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    application: ApplicationConfig = Field(default_factory=ApplicationConfig)
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
@@ -69,7 +79,7 @@ def load_config(path: str | Path) -> AdsmodConfig:
         raise ValueError(f"configuration is not valid JSON: {config_path}") from exc
     if not isinstance(payload, dict):
         raise ValueError("configuration root must be a JSON object")
-    required_sections = {"version", "runtime", "storage", "security"}
+    required_sections = {"version", "runtime", "storage", "security", "application"}
     missing_sections = required_sections.difference(payload)
     if missing_sections:
         missing = ", ".join(sorted(missing_sections))
@@ -77,4 +87,4 @@ def load_config(path: str | Path) -> AdsmodConfig:
     return AdsmodConfig.model_validate(payload)
 
 
-__all__ = ["AdsmodConfig", "RuntimeConfig", "RuntimeMode", "SecurityConfig", "StorageConfig", "load_config"]
+__all__ = ["AdsmodConfig", "ApplicationConfig", "RuntimeConfig", "RuntimeMode", "SecurityConfig", "StorageConfig", "load_config"]
