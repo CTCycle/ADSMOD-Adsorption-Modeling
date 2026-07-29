@@ -56,9 +56,7 @@ import { ModelConfigFormComponent } from './model-config-form.component';
             @if (!isExpanded && isEnabled) {
                 <div class="model-card-collapsed-content">
                     <p class="model-description">{{ model.shortDescription }}</p>
-                    <div class="model-equation">
-                        <adsmod-equation-renderer [latex]="model.equationLatex" />
-                    </div>
+                    <adsmod-equation-renderer class="model-equation" [latex]="model.equationLatex" />
                 </div>
             }
 

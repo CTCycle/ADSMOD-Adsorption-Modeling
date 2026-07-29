@@ -1,6 +1,6 @@
 # ADSMOD Local Deployment
 
-Last updated: 2026-07-20
+Last updated: 2026-07-29
 
 ## Interoperability
 
@@ -13,7 +13,7 @@ Last updated: 2026-07-20
 - Database: `resources/database.db` for embedded mode
 - Checkpoints: `resources/checkpoints`
 - Runtime env and config files: `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json`
-- Canonical v3 configuration: `settings/adsmod.json` with `settings/adsmod.schema.json`
+- Canonical v3 configuration: `app/resources/adsmod.json` with `app/resources/adsmod.schema.json`
 
 ## Local Deployment Notes
 

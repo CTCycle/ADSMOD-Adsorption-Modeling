@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-07-20
+Last updated: 2026-07-29
 
 ## Platform Shape
 
@@ -19,8 +19,8 @@ ADSMOD is a Windows-first local application with:
   - Training remains visible in the unified UI but depends on the optional ML service at runtime.
 - Runtime bootstrap assets under `runtimes/`.
 
-Canonical v3 configuration is `settings/adsmod.json`, validated by
-`settings/adsmod.schema.json`. The `.env` and service-specific JSON files remain
+Canonical v3 configuration is `app/resources/adsmod.json`, validated by
+`app/resources/adsmod.schema.json`. The `.env` and service-specific JSON files remain
 legacy inputs for the transitional `app/server` runtime.
 
 ## Backend Package Layout

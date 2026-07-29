@@ -189,7 +189,6 @@ Database mode and backend defaults are loaded from `settings/configurations.json
 | `UI_HOST`, `UI_PORT` | Frontend host and port for local web mode and tests. |
 | `KERAS_BACKEND`, `MPLBACKEND` | ML/scientific runtime backend configuration. |
 | `RELOAD` | Uvicorn reload toggle for local development. |
-| `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in launcher flow. |
 | `BACKEND_LOGS_VISIBLE` | Set to `true` to show backend logs in a dedicated terminal; defaults to `true` when absent. |
 | `VITE_API_BASE_URL` | Optional frontend API base path written into runtime config; same-origin `/api` is used by default. |
 

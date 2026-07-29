@@ -1,6 +1,6 @@
 # ADSMOD v3 Migration Status
 
-Last updated: 2026-07-20
+Last updated: 2026-07-29
 
 ## Canonical runtime boundary
 
@@ -13,7 +13,7 @@ package. It accepts one explicit JSON configuration through `--config` and expos
 
 The shared contract package is `app/backend/common`, published as `adsmod-common`. It contains only version, configuration, health, capability, and error-envelope contracts.
 
-Canonical configuration lives under `settings/adsmod.json` with its JSON schema in `settings/adsmod.schema.json`. The old `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json` remain legacy inputs until the service extraction and launcher migration phases are complete; the new core runtime does not read them.
+Canonical configuration lives under `app/resources/adsmod.json` with its JSON schema in `app/resources/adsmod.schema.json`. The old `settings/.env`, `settings/core_service.json`, and `settings/ml_service.json` remain legacy inputs until the service extraction and launcher migration phases are complete; the new core runtime does not read them.
 
 ## Transitional boundary
 

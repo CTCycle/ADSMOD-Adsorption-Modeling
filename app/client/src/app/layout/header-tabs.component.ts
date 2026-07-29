@@ -7,8 +7,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
     imports: [RouterLink, RouterLinkActive],
     template: `
         <nav class="header-tabs header-tabs-embedded" aria-label="Primary">
-            <a class="header-tab" routerLink="/source" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-                <span class="header-tab-label">Source</span>
+            <a class="header-tab" routerLink="/datasets" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+                <span class="header-tab-label">Datasets</span>
             </a>
             <a class="header-tab" routerLink="/fitting" routerLinkActive="active">
                 <span class="header-tab-label">Fitting</span>

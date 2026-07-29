@@ -187,7 +187,6 @@ function Import-Settings {
         ML_SERVICE_PORT = "8001"
         UI_HOST = "127.0.0.1"
         UI_PORT = "5173"
-        OPTIONAL_DEPENDENCIES = "false"
         BACKEND_LOGS_VISIBLE = "true"
         ALWAYS_REBUILD = "true"
     }
@@ -304,7 +303,9 @@ function Initialize-Runtimes {
 function Sync-Dependencies {
     param(
         [switch]$BuildFrontend,
-        [switch]$AllowExistingEnvironmentFallback
+        [switch]$AllowExistingEnvironmentFallback,
+        [ValidateSet('Standard', 'Development')]
+        [string]$InstallationType = 'Standard'
     )
 
     $settings = Import-Settings
@@ -315,8 +316,11 @@ function Sync-Dependencies {
     Push-Location $ServerDir
     try {
         $arguments = @('sync', '--all-packages', '--python', $PythonExe, '--no-cache')
-        if ($settings.OPTIONAL_DEPENDENCIES -eq 'true') {
-            $arguments += '--all-extras'
+        if ($InstallationType -eq 'Development') {
+            $arguments += '--group', 'dev'
+        }
+        else {
+            $arguments += '--no-dev'
         }
         try {
             & $UvExe @arguments
@@ -371,6 +375,39 @@ function Sync-Dependencies {
     Write-Ok "Frontend dependencies are ready."
 }
 
+function Test-DependenciesReady {
+    $frontendPackage = Join-Path $ClientDir 'package.json'
+    $frontendLock = Join-Path $ClientDir 'package-lock.json'
+    $frontendModules = Join-Path $ClientDir 'node_modules'
+    $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
+    $frontendRunner = Join-Path $frontendModules '@angular/cli/bin/ng.js'
+    $backendEntrypoint = Join-Path $AppDir 'server/app.py'
+
+    if (-not (Test-Path -LiteralPath $PythonExe) -or
+        -not (Test-Path -LiteralPath $UvExe) -or
+        -not (Test-Path -LiteralPath $NodeExe) -or
+        -not (Test-Path -LiteralPath $NpmCmd) -or
+        -not (Test-Path -LiteralPath $VenvPython) -or
+        -not (Test-Path -LiteralPath $backendEntrypoint) -or
+        -not (Test-Path -LiteralPath $frontendPackage) -or
+        -not (Test-Path -LiteralPath $frontendLock) -or
+        -not (Test-Path -LiteralPath $frontendInstallState) -or
+        -not (Test-Path -LiteralPath $frontendRunner)) {
+        return $false
+    }
+
+    & $PythonExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $UvExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $NodeExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    & $VenvPython -c 'import fastapi, uvicorn' *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+
+    return $true
+}
+
 function Stop-ListenerOnPort([int]$Port) {
     $lines = netstat -ano | Select-String -Pattern ":$Port\s+.*LISTENING\s+(\d+)\s*$"
     $processIds = @($lines | ForEach-Object {
@@ -398,7 +435,13 @@ function Get-ListenerPid([int]$Port) {
 
 function Start-Application {
     $settings = Import-Settings
-    Sync-Dependencies -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -AllowExistingEnvironmentFallback
+    Set-RuntimeEnvironment
+    if (-not (Test-DependenciesReady)) {
+        Write-Step "Required application environments are missing or unusable; installing dependencies."
+        Sync-Dependencies -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -AllowExistingEnvironmentFallback
+    } else {
+        Write-Ok "Application environments are ready; skipped dependency installation."
+    }
     Set-RuntimeEnvironment
 
     $backendPort = [int]$settings.FASTAPI_PORT
@@ -467,9 +510,19 @@ function Start-Application {
 }
 
 function Install-OrUpdate {
-    Sync-Dependencies -BuildFrontend
+    $installationType = Read-InstallationType
+    Sync-Dependencies -BuildFrontend -InstallationType $installationType
     Remove-UvCache
     Write-Ok "Dependencies installed and frontend built successfully."
+}
+
+function Read-InstallationType {
+    $selection = (Read-Host "Installation type [1=Development, 2=Standard]").Trim()
+    switch ($selection) {
+        '1' { return 'Development' }
+        '2' { return 'Standard' }
+        default { throw "Invalid installation type. Enter 1 for Development or 2 for Standard." }
+    }
 }
 
 function Initialize-Database {
