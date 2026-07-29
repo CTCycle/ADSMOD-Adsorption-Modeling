@@ -8,7 +8,7 @@ from adsmod_ml.app import create_app
 from adsmod_ml.clients.core_client import CoreSnapshotClient, SnapshotClientError
 
 
-CONFIG_PATH = Path("settings/adsmod.json")
+CONFIG_PATH = Path("app/resources/adsmod.json")
 
 ###############################################################################
 def test_ml_runtime_contracts() -> None:

@@ -9,7 +9,7 @@ Last updated: 2026-07-11
 
 ## Missing Test Dependencies
 
-- Set `OPTIONAL_DEPENDENCIES=true` in `ADSMOD/settings/.env`.
+- Choose `Development` when selecting `Install / update dependencies` in the launcher.
 - Rerun the launcher so dependencies are provisioned.
 - Rerun the tests after the environment is updated.
 

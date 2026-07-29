@@ -7,14 +7,14 @@ import { SourcePageComponent } from './source-page.component';
 function storeMock() {
     return {
         pendingFile: signal<File | null>(null), isDatasetUploading: signal(false), userDatasets: signal([]),
-        selectedDataset: signal<string | null>(null), editorPage: signal(null), datasetStats: signal('Select a dataset to view its summary.'),
+        selectedDataset: signal<string | null>(null), editorPage: signal(null),
         managementStatus: signal(''), setPendingFile: vi.fn(), uploadPendingDataset: vi.fn(), refreshUserDatasets: vi.fn(),
         openDataset: vi.fn(), deleteDataset: vi.fn(), renameDataset: vi.fn(), saveMetadata: vi.fn(), loadDatasetPage: vi.fn(), saveMutations: vi.fn(),
     } as unknown as CoreWorkspaceStore;
 }
 
 describe('SourcePageComponent', () => {
-    it('shows the compact add action and statistics placeholder without datasets', async () => {
+    it('shows the compact add action without the removed statistics panel', async () => {
         const store = storeMock();
         await TestBed.configureTestingModule({ imports: [SourcePageComponent], providers: [{ provide: CoreWorkspaceStore, useValue: store }] }).compileComponents();
         const fixture = TestBed.createComponent(SourcePageComponent);
@@ -23,7 +23,7 @@ describe('SourcePageComponent', () => {
 
         expect(root.querySelector('button[aria-label="Add dataset"]')).not.toBeNull();
         expect(root.textContent).not.toContain('Choose a dataset file');
-        expect(root.textContent).toContain('Select a dataset to see row and column summaries.');
+        expect(root.querySelector('.source-stats-card')).toBeNull();
         expect(root.querySelector('[role="alert"]')).toBeNull();
     });
 
@@ -44,14 +44,12 @@ describe('SourcePageComponent', () => {
         const store = storeMock();
         store.userDatasets.set([{ name: 'measurements.csv', source: 'uploaded', created_at: '', row_count: 1, column_count: 2, tags: [], description: '' }]);
         store.selectedDataset.set('measurements.csv');
-        store.datasetStats.set('Rows: 1\nColumns: 2');
         await TestBed.configureTestingModule({ imports: [SourcePageComponent], providers: [{ provide: CoreWorkspaceStore, useValue: store }] }).compileComponents();
         const fixture = TestBed.createComponent(SourcePageComponent);
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
 
-        expect(root.textContent).toContain('Rows: 1');
-        expect(root.textContent).not.toContain('Select a dataset to see row and column summaries.');
         expect(root.querySelector('.source-upload-card')).toBeNull();
+        expect(root.querySelector('.source-stats-card')).toBeNull();
     });
 });

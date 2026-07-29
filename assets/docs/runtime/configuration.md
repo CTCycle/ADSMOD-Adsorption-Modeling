@@ -1,11 +1,11 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-07-20
+Last updated: 2026-07-29
 
 ## Canonical v3 Configuration
 
-- Configuration file: `settings/adsmod.json`
-- Validation schema: `settings/adsmod.schema.json`
+- Configuration file: `app/resources/adsmod.json`
+- Validation schema: `app/resources/adsmod.schema.json`
 - Required sections: `version`, `runtime`, `storage`, and `security`
 - Supported runtime modes: `core` and `core-ml`
 - The v3 core CLI receives the configuration explicitly through `--config`.
@@ -34,7 +34,6 @@ Current launcher and runtime keys include:
 - `FASTAPI_PORT`
 - `UI_HOST`
 - `UI_PORT`
-- `OPTIONAL_DEPENDENCIES`
 - `BACKEND_LOGS_VISIBLE`
 - `ALWAYS_REBUILD`
 - `MPLBACKEND`

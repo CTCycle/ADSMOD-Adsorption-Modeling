@@ -5,7 +5,7 @@ import type { FittingPayload, ModelConfiguration, ModelParameters } from '../../
 import { deleteDataset, fetchDatasets, fetchRows, mutateRows, renameDataset, updateMetadata, uploadDataset } from '../../services/dataset.service';
 import { pollFittingJobUntilComplete, startFittingJob } from '../../services/fitting.service';
 
-export type CorePageId = 'source' | 'fitting';
+export type CorePageId = 'datasets' | 'fitting';
 export type OptimizationMethod = FittingPayload['optimization_method'];
 
 interface ModelState {
@@ -29,11 +29,10 @@ const initialModels = (): Record<string, ModelState> => Object.fromEntries(
 
 @Injectable({ providedIn: 'root' })
 export class CoreWorkspaceStore {
-    readonly currentPage = signal<CorePageId>('source');
+    readonly currentPage = signal<CorePageId>('datasets');
     readonly maxIterations = signal(10000);
     readonly optimizationMethod = signal<OptimizationMethod>('LSS');
     readonly fittingStatus = signal('');
-    readonly datasetStats = signal('Select a dataset to view its summary.');
     readonly pendingFile = signal<File | null>(null);
     readonly isDatasetUploading = signal(false);
     readonly userDatasets = signal<DatasetSummary[]>([]);
@@ -76,7 +75,6 @@ export class CoreWorkspaceStore {
         }
 
         this.pendingFile.set(null);
-        this.datasetStats.set(result.data.summary);
         await this.refreshUserDatasets();
         await this.openDataset(result.data.dataset.name);
     }
@@ -112,12 +110,6 @@ export class CoreWorkspaceStore {
 
         this.editorLimit.set(limit);
         this.editorPage.set(result.data);
-        const summary = this.userDatasets().find((dataset) => dataset.name === name);
-        if (summary) {
-            this.datasetStats.set(
-                `### Dataset overview\n\n| Metric | Value |\n|---|---:|\n| Rows | ${summary.row_count} |\n| Columns | ${summary.column_count} |`
-            );
-        }
     }
 
     async deleteDataset(name: string): Promise<void> {

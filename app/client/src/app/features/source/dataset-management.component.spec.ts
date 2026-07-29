@@ -14,7 +14,7 @@ async function createComponent(): Promise<ReturnType<typeof TestBed.createCompon
 }
 
 describe('DatasetManagementComponent', () => {
-    it('explains how to begin when the dataset list is empty and keeps refresh available', async () => {
+    it('explains how to begin when the dataset list is empty', async () => {
         const fixture = await createComponent();
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
@@ -22,7 +22,7 @@ describe('DatasetManagementComponent', () => {
         expect(root.textContent).toContain('Your workspace is ready');
         expect(root.textContent).toContain('Use + to add a CSV, TXT, XLSX, or JSON dataset.');
         expect(root.querySelector('button[aria-label="Add dataset"]')).not.toBeNull();
-        expect(root.querySelector('button')?.textContent).toContain('Refresh');
+        expect(root.querySelector('button[aria-label="Refresh datasets"]')).toBeNull();
         expect(root.textContent).not.toContain('No user datasets uploaded yet');
     });
 
@@ -33,6 +33,8 @@ describe('DatasetManagementComponent', () => {
         const root = fixture.nativeElement as HTMLElement;
 
         expect(root.querySelector('.dataset-record')).not.toBeNull();
+        expect(root.querySelector('button[aria-label="Add dataset"]')).not.toBeNull();
+        expect(root.textContent).toContain('Add another dataset');
         expect(root.textContent).toContain('silica.csv');
         expect(root.textContent).toContain('2 rows');
         expect(root.textContent).toContain('2 columns');

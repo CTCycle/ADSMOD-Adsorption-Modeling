@@ -53,6 +53,7 @@ yarn.lock
 Thumbs.db
 
 # Misc
+*.env
 *.lock
 *.log
 *.db

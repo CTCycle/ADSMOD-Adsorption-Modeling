@@ -1,12 +1,12 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-07-20
+Last updated: 2026-07-29
 
 ## Supported Modes
 
 ### v3 Core Mode
 
-- Uses the canonical `settings/adsmod.json` configuration.
+- Uses the canonical `app/resources/adsmod.json` configuration.
 - Runs the independent `adsmod-core` package and its health, capability, and internal snapshot endpoints.
 - Does not require the ML package.
 

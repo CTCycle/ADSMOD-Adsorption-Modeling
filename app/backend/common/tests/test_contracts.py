@@ -8,7 +8,7 @@ from adsmod_common.capabilities import CapabilitiesResponse
 from adsmod_common.config import AdsmodConfig, load_config
 
 
-CONFIG_PATH = Path("settings/adsmod.json")
+CONFIG_PATH = Path("app/resources/adsmod.json")
 
 ###############################################################################
 def test_canonical_core_config_loads() -> None:
@@ -24,8 +24,8 @@ def test_core_ml_config_loads() -> None:
     assert AdsmodConfig.model_validate(payload).runtime.mode == "core-ml"
 
 ###############################################################################
-def test_missing_canonical_sections_are_rejected() -> None:
-    config_path = Path("settings/_test_invalid_config.json")
+def test_missing_canonical_sections_are_rejected(tmp_path: Path) -> None:
+    config_path = tmp_path / "invalid_config.json"
     config_path.write_text(json.dumps({"version": "3.0.0"}), encoding="utf-8")
     try:
         with pytest.raises(ValueError, match="missing required sections"):

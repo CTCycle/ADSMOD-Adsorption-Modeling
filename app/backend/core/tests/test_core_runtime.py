@@ -7,7 +7,7 @@ from adsmod_common.config import StorageConfig, load_config
 from adsmod_core.app import create_app, create_app_from_path
 
 
-CONFIG_PATH = Path("settings/adsmod.json")
+CONFIG_PATH = Path("app/resources/adsmod.json")
 
 ###############################################################################
 def test_core_runtime_contracts() -> None:
