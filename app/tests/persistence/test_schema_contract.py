@@ -17,7 +17,7 @@ from shared.repositories.schemas.types import JSONList, UTCDateTime
 
 EXPECTED_TABLES = {
     "datasets", "adsorbates", "adsorbents", "isotherms", "isotherm_components",
-    "isotherm_measurements", "processed_isotherms", "fits", "fit_parameters",
+    "observations", "dataset_imports", "fitting_runs", "fit_results", "fit_parameters",
     "training_datasets", "training_samples",
 }
 

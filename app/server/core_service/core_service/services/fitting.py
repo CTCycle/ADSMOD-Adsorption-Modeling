@@ -2,114 +2,243 @@ from __future__ import annotations
 
 from typing import Any
 
-from shared.common.utils.logger import logger
+import numpy as np
+
 from core_service.configurations import get_server_settings
-from core_service.domain.fitting import FittingRequest
-from core_service.services.modeling.fitting import FittingPipeline
-from core_service.services.modeling.nist_dataset import FittingNISTDatasetService
+from core_service.domain.fitting import (
+    FittingRequest,
+    FittingResponse,
+    ModelCatalogResponse,
+)
+from core_service.services.modeling.fitting import (
+    MODEL_VERSION,
+    FitComputation,
+    FittingPipeline,
+    parameter_unit,
+)
+from shared.common.utils.logger import logger
 from shared.models.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
+from shared.repositories.datasets import DatasetRepository
+from shared.repositories.fitting import FittingRepository
 from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
-from shared.repositories.serialization.data import DataSerializer
 
-###############################################################################
+
 class FittingService:
     JOB_TYPE = "fitting"
 
-    # -------------------------------------------------------------------------
     def __init__(
         self,
+        *,
+        datasets: DatasetRepository,
+        results: FittingRepository,
         job_manager: JobManager | None = None,
         pipeline: FittingPipeline | None = None,
-        nist_dataset_service: FittingNISTDatasetService | None = None,
     ) -> None:
+        self.datasets = datasets
+        self.results = results
         self.job_manager = job_manager or JobManager(logger=logger)
         self.pipeline = pipeline or FittingPipeline()
-        self.nist_dataset_service = nist_dataset_service or FittingNISTDatasetService()
 
-    # -------------------------------------------------------------------------
-    def _run_fitting_sync(
-        self,
-        dataset_dict: dict[str, Any],
-        parameter_bounds_dict: dict[str, Any],
-        max_iterations: int,
-        optimization_method: str,
-    ) -> dict[str, Any]:
-        return self.pipeline.run(
-            dataset_dict,
-            parameter_bounds_dict,
-            max_iterations,
-            optimization_method,
+    def model_catalog(
+        self, pressure_unit: str = "bar", uptake_unit: str = "mmol/g", dataset_id: int | None = None, isotherm_id: int | None = None
+    ) -> ModelCatalogResponse:
+        pressure_basis = "absolute"
+        molar_mass = None
+        if dataset_id is not None and isotherm_id is not None:
+            context = next((item for item in self.datasets.experiments(dataset_id) if item["id"] == isotherm_id), None)
+            if context is None:
+                raise LookupError(f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}.")
+            pressure_basis = context["pressure_basis"]
+            if not context["fitting_eligible"]:
+                return ModelCatalogResponse(pressure_unit=pressure_unit, uptake_unit=uptake_unit, models=[])
+        return ModelCatalogResponse(
+            pressure_unit=pressure_unit,
+            uptake_unit=uptake_unit,
+            models=self.pipeline.catalog(
+                pressure_unit=pressure_unit, uptake_unit=uptake_unit, pressure_basis=pressure_basis, molar_mass_g_mol=molar_mass
+            ),
         )
 
-    # -------------------------------------------------------------------------
-    def resolve_dataset(
-        self,
-        source: str,
-        dataset_name: str | None,
-        columns: list[str] | None = None,
-        records: list[dict[str, Any]] | None = None,
+    @staticmethod
+    def _persistence_record(
+        computation: FitComputation, observation_count: int, pressure_basis: str
     ) -> dict[str, Any]:
-        if source == "nist":
-            return self.nist_dataset_service.load_for_fitting().dataset.model_dump()
-        if records:
-            return {
-                "dataset_name": dataset_name or "inline_dataset",
-                "columns": columns or list(records[0]),
-                "records": records,
+        metrics = computation.metrics.values
+        parameters: list[dict[str, Any]] = []
+        if computation.parameters is not None:
+            related = {
+                parameter.name: computation.parameters[index]
+                for index, parameter in enumerate(computation.spec.parameters)
             }
-        if not dataset_name:
-            raise ValueError("An uploaded dataset name is required.")
-        frame, _ = DataSerializer().get_uploaded_dataset_rows(dataset_name, 0, 1_000_000)
-        frame = frame.drop(columns=["row_id", "name"], errors="ignore")
-        return {"dataset_name": dataset_name, "columns": list(frame.columns), "records": frame.where(frame.notna(), None).to_dict(orient="records")}
+            related_value = float(related.get("n", related.get("beta", 1.0)))
+            for index, parameter in enumerate(computation.spec.parameters):
+                parameters.append(
+                    {
+                        "name": parameter.name,
+                        "position": index,
+                        "value_canonical": float(computation.parameters[index]),
+                        "standard_error_canonical": (
+                            float(computation.standard_errors[index])
+                            if computation.standard_errors is not None
+                            else None
+                        ),
+                        "ci95_low_canonical": (
+                            float(computation.ci95_low[index])
+                            if computation.ci95_low is not None
+                            else None
+                        ),
+                        "ci95_high_canonical": (
+                            float(computation.ci95_high[index])
+                            if computation.ci95_high is not None
+                            else None
+                        ),
+                        "unit_canonical": parameter_unit(
+                            parameter,
+                            pressure_unit="Pa",
+                            uptake_unit="mol/kg",
+                            related_value=related_value,
+                        ),
+                    }
+                )
+        return {
+            "model_name": computation.spec.key,
+            "model_version": MODEL_VERSION,
+            "status": computation.status,
+            "convergence_message": computation.message,
+            "function_evaluations": computation.function_evaluations,
+            "jacobian_rank": computation.jacobian_rank,
+            "condition_number": computation.condition_number,
+            "observation_count": observation_count,
+            "parameter_count": len(computation.spec.parameters),
+            **metrics,
+            "predicted_observations": [
+                float(value) for value in computation.predicted
+            ],
+            "predicted_curve": [
+                {
+                    "pressure": float(pressure),
+                    "pressure_unit": "1" if pressure_basis == "relative" else "Pa",
+                    "uptake_mol_kg": float(uptake),
+                }
+                for pressure, uptake in zip(
+                    computation.curve_pressure,
+                    computation.curve_uptake,
+                    strict=True,
+                )
+            ],
+            "warnings": computation.warnings,
+            "rank": computation.rank,
+            "parameters": parameters,
+        }
 
-    # -------------------------------------------------------------------------
+    def _run_fitting_sync(
+        self, payload_dict: dict[str, Any], run_id: int
+    ) -> dict[str, Any]:
+        payload = FittingRequest.model_validate(payload_dict)
+        try:
+            series = self.datasets.fitting_series(
+                payload.dataset_id, payload.isotherm_id
+            )
+            computations = self.pipeline.run(series, payload)
+            pressure = np.asarray(series["pressure"], dtype=np.float64)
+            uptake = np.asarray(series["uptake"], dtype=np.float64)
+            response_results = [
+                self.pipeline.to_response_result(
+                    computation,
+                    pressure=pressure,
+                    uptake=uptake,
+                    pressure_basis=series["pressure_basis"],
+                    pressure_unit=payload.display_units.pressure,
+                    uptake_unit=payload.display_units.uptake,
+                    molar_mass_g_mol=series.get("adsorbate_molar_mass_g_mol"),
+                )
+                for computation in computations
+            ]
+            successful = [item for item in response_results if item.status != "failed"]
+            run_status = (
+                "completed"
+                if successful and all(item.status == "success" for item in successful)
+                else "warning"
+                if successful
+                else "failed"
+            )
+            best = next((item.model for item in response_results if item.rank == 1), None)
+            summary = (
+                f"{len(successful)} of {len(response_results)} models fitted; "
+                f"best model: {best}."
+                if best
+                else "No selected model produced a valid fitted result."
+            )
+            self.results.complete_run(
+                run_id,
+                status=run_status,
+                message=summary,
+                results=[
+                    self._persistence_record(item, len(pressure), series["pressure_basis"])
+                    for item in computations
+                ],
+            )
+            return FittingResponse(
+                status=(
+                    "success"
+                    if run_status == "completed"
+                    else "warning"
+                    if run_status == "warning"
+                    else "error"
+                ),
+                run_id=run_id,
+                dataset_id=series["dataset_id"],
+                isotherm_id=series["isotherm_id"],
+                dataset_name=series["dataset_name"],
+                experiment_name=series["isotherm_name"],
+                adsorbent=series["adsorbent"],
+                adsorbate=series["adsorbate"],
+                temperature_k=series["temperature_k"],
+                pressure_basis=series["pressure_basis"],
+                pressure_unit=payload.display_units.pressure,
+                uptake_unit=payload.display_units.uptake,
+                observation_count=len(pressure),
+                best_model=best,
+                results=response_results,
+                summary=summary,
+            ).model_dump(mode="json")
+        except Exception as exc:
+            self.results.fail_run(run_id, str(exc))
+            raise
+
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running(self.JOB_TYPE):
             raise ValueError("A fitting job is already running.")
-
-        logger.info(
-            "Received fitting request: iterations=%s, method=%s",
-            payload.max_iterations,
-            payload.optimization_method,
+        series = self.datasets.fitting_series(payload.dataset_id, payload.isotherm_id)
+        run_id = self.results.create_run(
+            dataset_id=payload.dataset_id,
+            isotherm_id=payload.isotherm_id,
+            component_id=series["component_id"],
+            input_sha256=self.pipeline.input_hash(series),
+            optimizer=payload.optimizer,
+            max_evaluations=payload.max_evaluations,
+            pressure_display_unit=payload.display_units.pressure,
+            uptake_display_unit=payload.display_units.uptake,
+            configuration=payload.model_dump(mode="json"),
         )
-
-        dataset_dict = self.resolve_dataset(
-            payload.dataset.source,
-            payload.dataset.dataset_name,
-            payload.dataset.columns,
-            payload.dataset.records,
-        )
-        parameter_bounds_dict = {
-            name: config.model_dump()
-            for name, config in payload.parameter_bounds.items()
-        }
-
         job_id = self.job_manager.start_job(
             job_type=self.JOB_TYPE,
             runner=self._run_fitting_sync,
-            args=(
-                dataset_dict,
-                parameter_bounds_dict,
-                payload.max_iterations,
-                payload.optimization_method,
-            ),
+            args=(payload.model_dump(mode="json"), run_id),
         )
-        logger.info("Started fitting job %s", job_id)
         return JobResponseFactory.start(
             job_id=job_id,
             job_type=self.JOB_TYPE,
-            message="Fitting job started.",
+            message=f"Fitting run {run_id} started.",
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-    # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -119,19 +248,44 @@ class FittingService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-    # -------------------------------------------------------------------------
     def list_jobs(self) -> JobListResponse:
-        all_jobs = self.job_manager.list_jobs(self.JOB_TYPE)
         return JobResponseFactory.list(
-            job_statuses=all_jobs,
+            job_statuses=self.job_manager.list_jobs(self.JOB_TYPE),
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-    # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> JobCancelResponse:
-        success = self.job_manager.cancel_job(job_id)
-        if not success:
+        if not self.job_manager.cancel_job(job_id):
             raise ValueError(
                 f"Job {job_id} cannot be cancelled (not found or already completed)."
             )
         return JobResponseFactory.cancelled(job_id)
+
+    def get_persisted_run(self, run_id: int) -> dict[str, Any]:
+        run = self.results.get_run(run_id)
+        return {
+            "status": "success",
+            "run_id": run.id,
+            "dataset_id": run.dataset_id,
+            "isotherm_id": run.isotherm_id,
+            "optimizer": run.optimizer,
+            "weighting": run.configuration.get("weighting", "unweighted"),
+            "status_detail": run.status,
+            "message": run.message,
+            "created_at": run.created_at.isoformat() if run.created_at else None,
+            "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+            "results": [
+                {
+                    "id": result.id,
+                    "model": result.model_name,
+                    "status": result.status,
+                    "convergence_message": result.convergence_message,
+                    "metrics": {key: getattr(result, key) for key in ("sse", "rmse", "mae", "r_squared", "adjusted_r_squared", "chi_square", "aic", "aicc", "bic")},
+                    "predicted_observations": result.predicted_observations,
+                    "predicted_curve": result.predicted_curve,
+                    "warnings": result.warnings,
+                    "parameters": [{"name": parameter.name, "value": parameter.value_canonical, "unit": parameter.unit_canonical, "standard_error": parameter.standard_error_canonical} for parameter in result.parameters],
+                }
+                for result in run.results
+            ],
+        }

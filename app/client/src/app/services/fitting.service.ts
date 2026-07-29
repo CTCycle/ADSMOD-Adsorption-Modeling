@@ -1,4 +1,5 @@
-import type { FittingPayload, FittingResponse } from '../models/fitting.model';
+import type { FittingPayload, FittingResponse, ModelCatalogResponse } from '../models/fitting.model';
+import { API_BASE_URL } from '../core/config/api-base-url';
 import type { JobStatusResponse } from '../models/job.model';
 import { pollJobUntilTerminal, startJob } from './job.service';
 import type { JobStartResult } from './job.service';
@@ -32,10 +33,6 @@ export async function pollFittingJobUntilComplete(
                     ? '[WARN] Fitting completed with partial issues.'
                     : '[INFO] Fitting completed successfully.';
         const lines: string[] = [defaultMessage];
-        if (typeof result.processed_rows === 'number') {
-            lines.push(`Processed experiments: ${result.processed_rows}`);
-        }
-
         return { message: result.summary || lines.join('\n'), data: result };
     }
 
@@ -44,4 +41,8 @@ export async function pollFittingJobUntilComplete(
     }
 
     return { message: '[INFO] Job was cancelled.', data: null };
+}
+
+export async function fetchModelCatalog(pressure = 'bar', uptake = 'mmol/g'): Promise<ModelCatalogResponse | null> {
+    try { const response = await fetch(`${API_BASE_URL}/fitting/models?pressure_unit=${encodeURIComponent(pressure)}&uptake_unit=${encodeURIComponent(uptake)}`); return response.ok ? await response.json() as ModelCatalogResponse : null; } catch { return null; }
 }

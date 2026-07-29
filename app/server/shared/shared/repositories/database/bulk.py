@@ -26,8 +26,6 @@ def upsert_records(session: Session, table: Table, records: Iterable[dict[str, A
     normalized_records = []
     for record in records:
         normalized = dict(record)
-        if table.name == "datasets" and "name" in normalized:
-            normalized["dataset_name"] = normalized.pop("name")
         normalized_records.append(normalized)
     batch = _deduplicate(normalized_records, conflict_columns)
     if not batch:
