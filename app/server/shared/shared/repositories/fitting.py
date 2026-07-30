@@ -14,10 +14,14 @@ from shared.repositories.schemas.models import (
 )
 
 
+###############################################################################
 class FittingRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
 
+    # -------------------------------------------------------------------------
     def create_run(
         self,
         *,
@@ -48,6 +52,7 @@ class FittingRepository:
             session.flush()
             return run.id
 
+    # -------------------------------------------------------------------------
     def complete_run(
         self,
         run_id: int,
@@ -76,6 +81,7 @@ class FittingRepository:
             run.best_result_id = best_result_id
             run.completed_at = datetime.now(timezone.utc)
 
+    # -------------------------------------------------------------------------
     def fail_run(self, run_id: int, message: str) -> None:
         with self.database.transaction() as session:
             run = session.get(FittingRun, run_id)
@@ -85,6 +91,7 @@ class FittingRepository:
             run.message = message
             run.completed_at = datetime.now(timezone.utc)
 
+    # -------------------------------------------------------------------------
     def get_run(self, run_id: int) -> FittingRun:
         with self.database.session_factory() as session:
             run = session.scalar(

@@ -19,21 +19,27 @@ from shared.common.constants import DATASETS_ROUTER_PREFIX
 from core_service.services.data.units import UnitRegistry
 
 
+###############################################################################
 class DatasetEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: DatasetService) -> None:
         self.router = router
         self.service = service
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def bad_request(exc: ValueError) -> HTTPException:
         return HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def not_found(exc: LookupError) -> HTTPException:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
+    # -------------------------------------------------------------------------
     async def preview_import(
         self, file: UploadFile = File(...)
     ) -> ImportPreviewResponse:
@@ -43,6 +49,7 @@ class DatasetEndpoint:
         except ValueError as exc:
             raise self.bad_request(exc) from exc
 
+    # -------------------------------------------------------------------------
     async def validate_import(
         self,
         mapping: str = Form(...),
@@ -56,6 +63,7 @@ class DatasetEndpoint:
         except ValueError as exc:
             raise self.bad_request(exc) from exc
 
+    # -------------------------------------------------------------------------
     async def commit_import(
         self,
         mapping: str = Form(...),
@@ -69,12 +77,15 @@ class DatasetEndpoint:
         except ValueError as exc:
             raise self.bad_request(exc) from exc
 
+    # -------------------------------------------------------------------------
     def list_datasets(self) -> DatasetListResponse:
         return self.service.list_datasets()
 
+    # -------------------------------------------------------------------------
     def supported_units(self) -> dict[str, list[str]]:
         return {"pressure": sorted(UnitRegistry.PRESSURE_ALIASES), "uptake": sorted(UnitRegistry.UPTAKE_ALIASES), "temperature": sorted(UnitRegistry.TEMPERATURE_ALIASES)}
 
+    # -------------------------------------------------------------------------
     def list_experiments(
         self, dataset_id: int = Path(..., ge=1)
     ) -> ExperimentListResponse:
@@ -83,6 +94,7 @@ class DatasetEndpoint:
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
+    # -------------------------------------------------------------------------
     def get_observations(
         self,
         dataset_id: int = Path(..., ge=1),
@@ -97,6 +109,7 @@ class DatasetEndpoint:
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
+    # -------------------------------------------------------------------------
     def rename_dataset(
         self,
         request: DatasetRenameRequest,
@@ -109,6 +122,7 @@ class DatasetEndpoint:
         except ValueError as exc:
             raise self.bad_request(exc) from exc
 
+    # -------------------------------------------------------------------------
     def update_metadata(
         self,
         request: DatasetMetadata,
@@ -119,12 +133,14 @@ class DatasetEndpoint:
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
+    # -------------------------------------------------------------------------
     def delete_dataset(self, dataset_id: int = Path(..., ge=1)) -> None:
         try:
             self.service.delete(dataset_id)
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route("/supported-units", self.supported_units, methods=["GET"])
         self.router.add_api_route(
@@ -184,6 +200,7 @@ class DatasetEndpoint:
         )
 
 
+###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:
     router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["datasets"])
     DatasetEndpoint(router, container.dataset_service).add_routes()

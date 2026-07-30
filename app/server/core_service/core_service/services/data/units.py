@@ -10,10 +10,12 @@ from typing import Any, Literal
 PressureBasis = Literal["absolute", "partial", "relative"]
 
 
+###############################################################################
 class UnitConversionError(ValueError):
     pass
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ConvertedValue:
     original_value: float
@@ -23,12 +25,14 @@ class ConvertedValue:
     rule: str
 
 
+###############################################################################
 def normalize_token(value: object) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).strip().casefold()
     text = text.replace("−", "-").replace("·", " ").replace("³", "3")
     return " ".join(text.split())
 
 
+###############################################################################
 def parse_number(value: Any, decimal_separator: str = "auto") -> float:
     if isinstance(value, bool):
         raise ValueError("Boolean values are not valid measurements.")
@@ -79,6 +83,7 @@ def parse_number(value: Any, decimal_separator: str = "auto") -> float:
     return result
 
 
+###############################################################################
 class UnitRegistry:
     GAS_CONSTANT_J_MOL_K = 8.31446261815324
     STP_MOLAR_VOLUME_L_MOL = 22.41396954
@@ -149,6 +154,7 @@ class UnitRegistry:
         "fahrenheit": "degF",
     }
 
+    # -------------------------------------------------------------------------
     @classmethod
     def pressure_unit(cls, unit: object) -> str:
         normalized = normalize_token(unit).replace(" ", "")
@@ -158,6 +164,7 @@ class UnitRegistry:
             raise UnitConversionError(f"Unsupported pressure unit '{unit}'.")
         return resolved
 
+    # -------------------------------------------------------------------------
     @classmethod
     def uptake_unit(cls, unit: object) -> str:
         normalized = normalize_token(unit).replace(" ", "")
@@ -167,6 +174,7 @@ class UnitRegistry:
             raise UnitConversionError(f"Unsupported uptake unit '{unit}'.")
         return resolved
 
+    # -------------------------------------------------------------------------
     @classmethod
     def temperature_unit(cls, unit: object) -> str:
         normalized = normalize_token(unit).replace(" ", "")
@@ -176,6 +184,7 @@ class UnitRegistry:
             raise UnitConversionError(f"Unsupported temperature unit '{unit}'.")
         return resolved
 
+    # -------------------------------------------------------------------------
     @classmethod
     def convert_pressure(
         cls, value: float, unit: object, basis: PressureBasis
@@ -206,6 +215,7 @@ class UnitRegistry:
             raise UnitConversionError("Pressure must not be negative.")
         return ConvertedValue(value, resolved, canonical, "Pa", f"{resolved} * {factor:g}")
 
+    # -------------------------------------------------------------------------
     @classmethod
     def convert_temperature(cls, value: float, unit: object) -> ConvertedValue:
         resolved = cls.temperature_unit(unit)
@@ -222,6 +232,7 @@ class UnitRegistry:
             raise UnitConversionError("Temperature must be above absolute zero.")
         return ConvertedValue(value, resolved, canonical, "K", rule)
 
+    # -------------------------------------------------------------------------
     @classmethod
     def uptake_factor_to_mol_kg(
         cls, unit: object, molar_mass_g_mol: float | None = None
@@ -252,6 +263,7 @@ class UnitRegistry:
             return resolved, 10.0 / molar_mass_g_mol, "wt% * 10 / molar mass"
         raise UnitConversionError(f"Unsupported uptake unit '{unit}'.")
 
+    # -------------------------------------------------------------------------
     @classmethod
     def convert_uptake(
         cls, value: float, unit: object, molar_mass_g_mol: float | None = None
@@ -262,6 +274,7 @@ class UnitRegistry:
             raise UnitConversionError("Adsorption uptake must not be negative.")
         return ConvertedValue(value, resolved, canonical, "mol/kg", rule)
 
+    # -------------------------------------------------------------------------
     @classmethod
     def pressure_from_pa(cls, value_pa: float, unit: object) -> float:
         resolved = cls.pressure_unit(unit)
@@ -269,6 +282,7 @@ class UnitRegistry:
             raise UnitConversionError("A dimensional display pressure unit is required.")
         return value_pa / cls.PRESSURE_TO_PA[resolved]
 
+    # -------------------------------------------------------------------------
     @classmethod
     def uptake_from_mol_kg(
         cls, value: float, unit: object, molar_mass_g_mol: float | None = None
@@ -280,6 +294,7 @@ class UnitRegistry:
 HEADER_UNIT_PATTERN = re.compile(r"(?:\[|\()([^\])]+)(?:\]|\))")
 
 
+###############################################################################
 def detect_header_unit(header: str, quantity: str) -> str | None:
     candidates = [match.strip() for match in HEADER_UNIT_PATTERN.findall(header)]
     candidates.extend(

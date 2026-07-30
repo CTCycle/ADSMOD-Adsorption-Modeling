@@ -183,6 +183,7 @@ ROLE_ALIASES: dict[str, set[str]] = {
 }
 
 
+###############################################################################
 def normalize_header(value: object) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
     text = "".join(char for char in text if not unicodedata.combining(char))
@@ -192,6 +193,7 @@ def normalize_header(value: object) -> str:
     return " ".join(text.split())
 
 
+###############################################################################
 def safe_cell(value: Any) -> Any:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return None
@@ -200,10 +202,12 @@ def safe_cell(value: Any) -> Any:
     return str(value)
 
 
+###############################################################################
 def source_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+###############################################################################
 def read_tabular(payload: bytes, filename: str | None, *, header_row: int = 0, field_delimiter: str | None = None, encoding: str = "utf-8", worksheet: str | int | None = None) -> pd.DataFrame:
     if not payload:
         raise ValueError("Uploaded dataset is empty.")
@@ -249,6 +253,7 @@ def read_tabular(payload: bytes, filename: str | None, *, header_row: int = 0, f
     return frame
 
 
+###############################################################################
 def parse_series_cell(
     value: Any,
     *,
@@ -294,6 +299,7 @@ def parse_series_cell(
     return [parse_number(item, decimal_separator) for item in raw]
 
 
+###############################################################################
 def is_array_like(value: Any) -> bool:
     if isinstance(value, (list, tuple)):
         return True
@@ -306,6 +312,7 @@ def is_array_like(value: Any) -> bool:
     )
 
 
+###############################################################################
 def infer_column(column: str, series: pd.Series) -> ColumnDetection:
     header = normalize_header(column)
     non_empty = [safe_cell(value) for value in series.dropna().head(20).tolist()]
@@ -387,6 +394,7 @@ def infer_column(column: str, series: pd.Series) -> ColumnDetection:
     )
 
 
+###############################################################################
 def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
     pressure = next(
         (column for column in columns if column.proposed_role == "pressure"), None
@@ -415,6 +423,7 @@ def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
     return "ambiguous", 0.25
 
 
+###############################################################################
 def infer_pressure_basis(columns: list[ColumnDetection]) -> str | None:
     column = next(
         (item for item in columns if item.proposed_role == "pressure"), None
@@ -431,13 +440,17 @@ def infer_pressure_basis(columns: list[ColumnDetection]) -> str | None:
     return None
 
 
+###############################################################################
 @dataclass
 class ValidationBundle:
     response: ImportValidationResponse
     experiments: list[dict[str, Any]]
 
 
+###############################################################################
 class AdsorptionImportEngine:
+
+    # -------------------------------------------------------------------------
     def preview(self, payload: bytes, filename: str | None) -> ImportPreviewResponse:
         frame = read_tabular(payload, filename)
         columns = [infer_column(name, frame[name]) for name in frame.columns]
@@ -494,6 +507,7 @@ class AdsorptionImportEngine:
             ],
         )
 
+    # -------------------------------------------------------------------------
     def validate(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> ValidationBundle:
@@ -693,6 +707,7 @@ class AdsorptionImportEngine:
 
         return self._bundle(mapping, payload, experiments, issues)
 
+    # -------------------------------------------------------------------------
     def _normalize_row(
         self,
         row: pd.Series,
@@ -845,6 +860,7 @@ class AdsorptionImportEngine:
             "source_rows": [source_row],
         }
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _unit_for(
         quantity: str,
@@ -873,6 +889,7 @@ class AdsorptionImportEngine:
             f"The {quantity.replace('_', ' ')} unit is unknown; choose it explicitly."
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _average_duplicates(
         observations: list[dict[str, Any]],
@@ -902,6 +919,7 @@ class AdsorptionImportEngine:
             averaged.append(base)
         return averaged
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _bundle(
         mapping: ImportMapping,

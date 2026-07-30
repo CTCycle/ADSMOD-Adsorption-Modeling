@@ -21,16 +21,21 @@ from shared.repositories.schemas.models import (
 from shared.repositories.schemas.types import normalize_identity
 
 
+###############################################################################
 def stable_material_key(kind: str, name: str, external: str | None = None) -> str:
     identity = normalize_identity(external or name)
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
     return f"{kind}:{digest}"
 
 
+###############################################################################
 class DatasetRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
 
+    # -------------------------------------------------------------------------
     def list_summaries(self) -> list[dict[str, Any]]:
         statement = (
             select(
@@ -59,12 +64,14 @@ class DatasetRepository:
                 for dataset, experiment_count, observation_count in rows
             ]
 
+    # -------------------------------------------------------------------------
     def summary(self, dataset_id: int) -> dict[str, Any]:
         for item in self.list_summaries():
             if item["id"] == dataset_id:
                 return item
         raise LookupError(f"Dataset {dataset_id} does not exist.")
 
+    # -------------------------------------------------------------------------
     def rename(self, dataset_id: int, name: str) -> None:
         normalized = normalize_identity(name)
         with self.database.transaction() as session:
@@ -81,6 +88,7 @@ class DatasetRepository:
             dataset.name = name.strip()
             dataset.normalized_name = normalized
 
+    # -------------------------------------------------------------------------
     def update_metadata(
         self, dataset_id: int, tags: Iterable[str], description: str
     ) -> None:
@@ -91,12 +99,14 @@ class DatasetRepository:
             dataset.tags = sorted({tag.strip() for tag in tags if tag.strip()})
             dataset.description = description.strip()
 
+    # -------------------------------------------------------------------------
     def delete(self, dataset_id: int) -> None:
         with self.database.transaction() as session:
             result = session.execute(delete(Dataset).where(Dataset.id == dataset_id))
             if not result.rowcount:
                 raise LookupError(f"Dataset {dataset_id} does not exist.")
 
+    # -------------------------------------------------------------------------
     def experiments(self, dataset_id: int) -> list[dict[str, Any]]:
         statement = (
             select(Isotherm)
@@ -143,6 +153,7 @@ class DatasetRepository:
                 )
             return output
 
+    # -------------------------------------------------------------------------
     def observations(
         self, dataset_id: int, isotherm_id: int, offset: int = 0, limit: int = 100
     ) -> tuple[list[dict[str, Any]], int]:
@@ -189,6 +200,7 @@ class DatasetRepository:
                 total,
             )
 
+    # -------------------------------------------------------------------------
     def fitting_series(self, dataset_id: int, isotherm_id: int) -> dict[str, Any]:
         statement = (
             select(Isotherm)
@@ -267,6 +279,7 @@ class DatasetRepository:
                 "duplicate_policy": isotherm.duplicate_policy,
             }
 
+    # -------------------------------------------------------------------------
     def persist_canonical(
         self,
         *,

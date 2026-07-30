@@ -14,6 +14,7 @@ DEFAULT_ALLOWED_EXTENSIONS = (".csv", ".xls", ".xlsx")
 DEFAULT_PREFETCH_FACTOR = 1
 DEFAULT_PIN_MEMORY = True
 DEFAULT_PLOT_UPDATE_BATCH_INTERVAL = 10
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -257,6 +258,7 @@ def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
         return value
     return {}
 
+###############################################################################
 def _resolve_configuration_path(
     config_path: str | Path | None = None,
     default_path: str | Path | None = None,

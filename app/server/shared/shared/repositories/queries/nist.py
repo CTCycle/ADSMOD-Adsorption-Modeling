@@ -8,12 +8,15 @@ from shared.repositories.schemas.models import Adsorbate, Adsorbent, Dataset, Is
 from sqlalchemy import func, select
 
 
+###############################################################################
 class NISTDataSerializer:
     """Read the canonical NIST collection for training/inference consumers."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager | None = None) -> None:
         self.database = database or DatabaseManager(get_server_settings().database, create_schema=True)
 
+    # -------------------------------------------------------------------------
     def count_nist_rows(self) -> dict[str, int]:
         with self.database.session_factory() as session:
             experiments_count = session.scalar(
@@ -49,6 +52,7 @@ class NISTDataSerializer:
             "host_rows": int(host_rows or 0),
         }
 
+    # -------------------------------------------------------------------------
     def load_adsorption_datasets(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         with self.database.session_factory() as session:
             rows = session.execute(

@@ -29,9 +29,11 @@ from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
 
 
+###############################################################################
 class FittingService:
     JOB_TYPE = "fitting"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -45,6 +47,7 @@ class FittingService:
         self.job_manager = job_manager or JobManager(logger=logger)
         self.pipeline = pipeline or FittingPipeline()
 
+    # -------------------------------------------------------------------------
     def model_catalog(
         self, pressure_unit: str = "bar", uptake_unit: str = "mmol/g", dataset_id: int | None = None, isotherm_id: int | None = None
     ) -> ModelCatalogResponse:
@@ -65,6 +68,7 @@ class FittingService:
             ),
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _persistence_record(
         computation: FitComputation, observation_count: int, pressure_basis: str
@@ -137,6 +141,7 @@ class FittingService:
             "parameters": parameters,
         }
 
+    # -------------------------------------------------------------------------
     def _run_fitting_sync(
         self, payload_dict: dict[str, Any], run_id: int
     ) -> dict[str, Any]:
@@ -212,6 +217,7 @@ class FittingService:
             self.results.fail_run(run_id, str(exc))
             raise
 
+    # -------------------------------------------------------------------------
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running(self.JOB_TYPE):
             raise ValueError("A fitting job is already running.")
@@ -239,6 +245,7 @@ class FittingService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
+    # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -248,12 +255,14 @@ class FittingService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
+    # -------------------------------------------------------------------------
     def list_jobs(self) -> JobListResponse:
         return JobResponseFactory.list(
             job_statuses=self.job_manager.list_jobs(self.JOB_TYPE),
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
+    # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> JobCancelResponse:
         if not self.job_manager.cancel_job(job_id):
             raise ValueError(
@@ -261,6 +270,7 @@ class FittingService:
             )
         return JobResponseFactory.cancelled(job_id)
 
+    # -------------------------------------------------------------------------
     def get_persisted_run(self, run_id: int) -> dict[str, Any]:
         run = self.results.get_run(run_id)
         return {

@@ -12,6 +12,7 @@ PressureBasis = Literal["absolute", "partial", "relative"]
 ModelFunction = Callable[..., np.ndarray]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ParameterSpec:
     name: str
@@ -21,6 +22,7 @@ class ParameterSpec:
     unit_kind: str
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ModelSpec:
     key: str
@@ -34,11 +36,13 @@ class ModelSpec:
     function: ModelFunction
 
 
+###############################################################################
 def langmuir(pressure: np.ndarray, k: float, qsat: float) -> np.ndarray:
     kp = k * pressure
     return qsat * kp / (1.0 + kp)
 
 
+###############################################################################
 def sips(
     pressure: np.ndarray, k: float, qsat: float, n: float
 ) -> np.ndarray:
@@ -46,14 +50,17 @@ def sips(
     return qsat * kp_n / (1.0 + kp_n)
 
 
+###############################################################################
 def freundlich(pressure: np.ndarray, k: float, n: float) -> np.ndarray:
     return k * np.power(pressure, 1.0 / n)
 
 
+###############################################################################
 def temkin(pressure: np.ndarray, k: float, beta: float) -> np.ndarray:
     return beta * np.log(k * pressure)
 
 
+###############################################################################
 def toth(
     pressure: np.ndarray, k: float, qsat: float, t: float
 ) -> np.ndarray:
@@ -61,6 +68,7 @@ def toth(
     return qsat * kp / np.power(1.0 + np.power(kp, t), 1.0 / t)
 
 
+###############################################################################
 def dubinin_radushkevich(
     relative_pressure: np.ndarray,
     qsat: float,
@@ -80,6 +88,7 @@ def dubinin_radushkevich(
     return output
 
 
+###############################################################################
 def dual_site_langmuir(
     pressure: np.ndarray,
     k1: float,
@@ -90,20 +99,24 @@ def dual_site_langmuir(
     return langmuir(pressure, k1, qsat1) + langmuir(pressure, k2, qsat2)
 
 
+###############################################################################
 def redlich_peterson(
     pressure: np.ndarray, k: float, a: float, beta: float
 ) -> np.ndarray:
     return k * pressure / (1.0 + a * np.power(pressure, beta))
 
 
+###############################################################################
 def jovanovic(pressure: np.ndarray, k: float, qsat: float) -> np.ndarray:
     return qsat * (1.0 - np.exp(-k * pressure))
 
 
+###############################################################################
 def _affinity(name: str = "k") -> ParameterSpec:
     return ParameterSpec(name, "Affinity coefficient", 1e-16, 1.0, "pressure^-1")
 
 
+###############################################################################
 def _capacity(name: str = "qsat", label: str = "Saturation capacity") -> ParameterSpec:
     return ParameterSpec(name, label, 1e-16, 1e6, "uptake")
 
@@ -246,9 +259,11 @@ MODEL_SPECS: dict[str, ModelSpec] = {
 }
 
 
+###############################################################################
 class AdsorptionModels:
     model_names = tuple(MODEL_SPECS)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def get_spec(model_name: str) -> ModelSpec:
         key = model_name.strip().casefold().replace("-", "_").replace(" ", "_")
@@ -259,6 +274,7 @@ class AdsorptionModels:
         except KeyError as exc:
             raise ValueError(f"Model '{model_name}' is not supported.") from exc
 
+    # -------------------------------------------------------------------------
     @classmethod
     def evaluate(
         cls,

@@ -24,9 +24,11 @@ from core_service.services.data.importer import AdsorptionImportEngine, PARSER_V
 from shared.repositories.datasets import DatasetRepository
 
 
+###############################################################################
 class DatasetService:
     MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         repository: DatasetRepository,
@@ -35,6 +37,7 @@ class DatasetService:
         self.repository = repository
         self.importer = importer or AdsorptionImportEngine()
 
+    # -------------------------------------------------------------------------
     async def read_upload_bytes(self, file: UploadFile) -> bytes:
         payload = bytearray()
         try:
@@ -51,6 +54,7 @@ class DatasetService:
             raise ValueError("Uploaded dataset is empty.")
         return bytes(payload)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def parse_mapping(mapping_json: str) -> ImportMapping:
         try:
@@ -63,16 +67,19 @@ class DatasetService:
             first = exc.errors()[0]
             raise ValueError(str(first.get("msg", "Invalid import mapping."))) from exc
 
+    # -------------------------------------------------------------------------
     def preview(
         self, payload: bytes, filename: str | None
     ) -> ImportPreviewResponse:
         return self.importer.preview(payload, filename)
 
+    # -------------------------------------------------------------------------
     def validate(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> ImportValidationResponse:
         return self.importer.validate(payload, filename, mapping).response
 
+    # -------------------------------------------------------------------------
     def commit(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> DatasetImportResponse:
@@ -114,6 +121,7 @@ class DatasetService:
             validation=bundle.response,
         )
 
+    # -------------------------------------------------------------------------
     def list_datasets(self) -> DatasetListResponse:
         return DatasetListResponse(
             datasets=[
@@ -121,11 +129,13 @@ class DatasetService:
             ]
         )
 
+    # -------------------------------------------------------------------------
     def list_experiments(self, dataset_id: int) -> ExperimentListResponse:
         return ExperimentListResponse(
             experiments=self.repository.experiments(dataset_id)
         )
 
+    # -------------------------------------------------------------------------
     def get_observations(
         self, dataset_id: int, isotherm_id: int, offset: int, limit: int
     ) -> ObservationPage:
@@ -141,12 +151,14 @@ class DatasetService:
             rows=rows,
         )
 
+    # -------------------------------------------------------------------------
     def rename(self, dataset_id: int, new_name: str) -> DatasetMutationResponse:
         self.repository.rename(dataset_id, new_name)
         return DatasetMutationResponse(
             dataset=DatasetSummary(**self.repository.summary(dataset_id))
         )
 
+    # -------------------------------------------------------------------------
     def update_metadata(
         self, dataset_id: int, metadata: DatasetMetadata
     ) -> DatasetMutationResponse:
@@ -157,5 +169,6 @@ class DatasetService:
             dataset=DatasetSummary(**self.repository.summary(dataset_id))
         )
 
+    # -------------------------------------------------------------------------
     def delete(self, dataset_id: int) -> None:
         self.repository.delete(dataset_id)

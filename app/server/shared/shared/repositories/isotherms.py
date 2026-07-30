@@ -6,12 +6,15 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Observation
 
 
+###############################################################################
 class IsothermRepository:
     """Read-only atomic-observation access outside the dataset aggregate."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
 
+    # -------------------------------------------------------------------------
     def observation_page(
         self, isotherm_id: int, offset: int = 0, limit: int = 100
     ) -> list[Observation]:

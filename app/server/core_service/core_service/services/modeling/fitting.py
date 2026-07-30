@@ -28,12 +28,14 @@ CURVE_POINT_COUNT = 200
 MODEL_VERSION = "2.0"
 
 
+###############################################################################
 @dataclass
 class MetricResult:
     values: dict[str, float | None]
     warnings: list[str] = field(default_factory=list)
 
 
+###############################################################################
 @dataclass
 class FitComputation:
     spec: ModelSpec
@@ -54,10 +56,12 @@ class FitComputation:
     rank: int | None = None
 
 
+###############################################################################
 def finite_or_none(value: float) -> float | None:
     return float(value) if math.isfinite(float(value)) else None
 
 
+###############################################################################
 def compute_metrics(
     observed: np.ndarray,
     predicted: np.ndarray,
@@ -145,6 +149,7 @@ def compute_metrics(
     )
 
 
+###############################################################################
 def pressure_factor(unit: str, pressure_basis: str) -> float:
     resolved = UnitRegistry.pressure_unit(unit)
     if pressure_basis == "relative":
@@ -160,6 +165,7 @@ def pressure_factor(unit: str, pressure_basis: str) -> float:
     return UnitRegistry.PRESSURE_TO_PA[resolved]
 
 
+###############################################################################
 def parameter_unit(
     parameter: ParameterSpec,
     *,
@@ -191,6 +197,7 @@ def parameter_unit(
     return "1"
 
 
+###############################################################################
 def parameter_to_display(
     parameter: ParameterSpec,
     value: float,
@@ -219,6 +226,7 @@ def parameter_to_display(
     return value
 
 
+###############################################################################
 def parameter_from_display(
     parameter: ParameterSpec,
     value: float,
@@ -247,10 +255,14 @@ def parameter_from_display(
     return value
 
 
+###############################################################################
 class ModelSolver:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.models = AdsorptionModels()
 
+    # -------------------------------------------------------------------------
     def initial_configuration(
         self, spec: ModelSpec, pressure: np.ndarray, uptake: np.ndarray, temperature_k: float
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -304,6 +316,7 @@ class ModelSolver:
             initial[2] = min(upper[2], max(lower[2], 0.1 / p_median))
         return np.asarray(initial), np.asarray(lower), np.asarray(upper)
 
+    # -------------------------------------------------------------------------
     def fit(
         self,
         *,
@@ -534,6 +547,7 @@ class ModelSolver:
         except (ValueError, UnitConversionError, FloatingPointError) as exc:
             return self.failure(spec, pressure, str(exc))
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def curve_grid(pressure: np.ndarray, spec: ModelSpec) -> np.ndarray:
         minimum = float(np.min(pressure))
@@ -556,6 +570,7 @@ class ModelSolver:
             start = float(np.min(positive))
         return np.linspace(start, maximum, CURVE_POINT_COUNT)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def failure(
         spec: ModelSpec,
@@ -598,10 +613,14 @@ class ModelSolver:
         )
 
 
+###############################################################################
 class FittingPipeline:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.solver = ModelSolver()
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def input_hash(series: dict[str, Any]) -> str:
         payload = {
@@ -621,6 +640,7 @@ class FittingPipeline:
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
+    # -------------------------------------------------------------------------
     def run(
         self, series: dict[str, Any], request: FittingRequest
     ) -> list[FitComputation]:
@@ -689,6 +709,7 @@ class FittingPipeline:
             item.rank = rank
         return computations
 
+    # -------------------------------------------------------------------------
     def catalog(
         self,
         *,
@@ -751,6 +772,7 @@ class FittingPipeline:
             )
         return definitions
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def to_response_result(
         computation: FitComputation,

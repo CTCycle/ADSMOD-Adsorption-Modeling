@@ -23,6 +23,7 @@ from shared.repositories.schemas.models import (
 NIST_DATASET_PREFIX = "NIST ISODB"
 
 
+###############################################################################
 def _text(value: object) -> str:
     if value is None:
         return ""
@@ -34,6 +35,7 @@ def _text(value: object) -> str:
     return str(value).strip()
 
 
+###############################################################################
 def _material_records(frame: pd.DataFrame, kind: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for row in frame.where(frame.notna(), None).to_dict(orient="records"):
@@ -64,9 +66,11 @@ def _material_records(frame: pd.DataFrame, kind: str) -> list[dict[str, Any]]:
     return records
 
 
+###############################################################################
 class NISTCanonicalRepository:
     """Deterministic NIST-schema ingestion into the canonical dataset aggregate."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -78,6 +82,7 @@ class NISTCanonicalRepository:
         self.datasets = datasets
         self.materials = materials
 
+    # -------------------------------------------------------------------------
     def list_nist_experiment_ids(self) -> set[str]:
         with self.database.session_factory() as session:
             values = session.scalars(
@@ -87,6 +92,7 @@ class NISTCanonicalRepository:
             )
             return {value.casefold() for value in values}
 
+    # -------------------------------------------------------------------------
     def list_adsorbate_inchi_keys(self) -> set[str]:
         with self.database.session_factory() as session:
             values = session.scalars(
@@ -94,6 +100,7 @@ class NISTCanonicalRepository:
             )
             return {str(value).casefold() for value in values}
 
+    # -------------------------------------------------------------------------
     def list_adsorbent_hash_keys(self) -> set[str]:
         with self.database.session_factory() as session:
             values = session.scalars(
@@ -103,6 +110,7 @@ class NISTCanonicalRepository:
             )
             return {str(value).casefold() for value in values}
 
+    # -------------------------------------------------------------------------
     def count_local_records_by_category(self) -> dict[str, int]:
         with self.database.session_factory() as session:
             experiments = session.scalar(
@@ -118,6 +126,7 @@ class NISTCanonicalRepository:
             "host": int(hosts or 0),
         }
 
+    # -------------------------------------------------------------------------
     def count_nist_rows(self) -> dict[str, int]:
         with self.database.session_factory() as session:
             rows = session.execute(
@@ -144,6 +153,7 @@ class NISTCanonicalRepository:
             "component_count": int(components or 0),
         }
 
+    # -------------------------------------------------------------------------
     def save_materials_datasets(
         self,
         guest_data: pd.DataFrame | None,
@@ -158,6 +168,7 @@ class NISTCanonicalRepository:
                 _material_records(host_data, "adsorbent")
             )
 
+    # -------------------------------------------------------------------------
     def load_adsorption_datasets(
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -213,6 +224,7 @@ class NISTCanonicalRepository:
             )
         return adsorption, guest, host
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _single_experiment(
         source_id: str, rows: pd.DataFrame
@@ -268,6 +280,7 @@ class NISTCanonicalRepository:
             "observations": observations,
         }
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _binary_experiment(
         source_id: str, rows: pd.DataFrame
@@ -327,6 +340,7 @@ class NISTCanonicalRepository:
             "observations": observations,
         }
 
+    # -------------------------------------------------------------------------
     def save_adsorption_datasets(
         self,
         single_component: pd.DataFrame,
