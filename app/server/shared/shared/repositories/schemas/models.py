@@ -17,14 +17,17 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from shared.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime, normalize_identity
 
 
+###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+###############################################################################
 class Base(DeclarativeBase):
     pass
 
 
+###############################################################################
 class Dataset(Base):
     __tablename__ = "datasets"
 
@@ -60,12 +63,14 @@ class Dataset(Base):
         Index("ix_datasets_source_created_at", "source", "created_at"),
     )
 
+    # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
 
+###############################################################################
 class DatasetImport(Base):
     __tablename__ = "dataset_imports"
 
@@ -94,6 +99,7 @@ class DatasetImport(Base):
     )
 
 
+###############################################################################
 class Adsorbate(Base):
     __tablename__ = "adsorbates"
 
@@ -117,12 +123,14 @@ class Adsorbate(Base):
 
     __table_args__ = (Index("ix_adsorbates_normalized_name", "normalized_name"),)
 
+    # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
 
+###############################################################################
 class Adsorbent(Base):
     __tablename__ = "adsorbents"
 
@@ -145,12 +153,14 @@ class Adsorbent(Base):
 
     __table_args__ = (Index("ix_adsorbents_normalized_name", "normalized_name"),)
 
+    # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
 
+###############################################################################
 class Isotherm(Base):
     __tablename__ = "isotherms"
 
@@ -213,6 +223,7 @@ class Isotherm(Base):
     )
 
 
+###############################################################################
 class IsothermComponent(Base):
     __tablename__ = "isotherm_components"
 
@@ -243,6 +254,7 @@ class IsothermComponent(Base):
     )
 
 
+###############################################################################
 class Observation(Base):
     __tablename__ = "observations"
 
@@ -300,6 +312,7 @@ class Observation(Base):
     )
 
 
+###############################################################################
 class FittingRun(Base):
     __tablename__ = "fitting_runs"
 
@@ -343,6 +356,7 @@ class FittingRun(Base):
     )
 
 
+###############################################################################
 class FitResult(Base):
     __tablename__ = "fit_results"
 
@@ -393,6 +407,7 @@ class FitResult(Base):
     )
 
 
+###############################################################################
 class FitParameter(Base):
     __tablename__ = "fit_parameters"
 
@@ -415,6 +430,7 @@ class FitParameter(Base):
     )
 
 
+###############################################################################
 class TrainingDataset(Base):
     __tablename__ = "training_datasets"
 
@@ -462,6 +478,7 @@ class TrainingDataset(Base):
     )
 
 
+###############################################################################
 class TrainingSample(Base):
     __tablename__ = "training_samples"
 

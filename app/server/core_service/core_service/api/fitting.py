@@ -23,6 +23,7 @@ class FittingEndpoint:
         except (ValueError, LookupError) as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+    # -------------------------------------------------------------------------
     def model_catalog(
         self, pressure_unit: str = "bar", uptake_unit: str = "mmol/g", dataset_id: int | None = None, isotherm_id: int | None = None
     ) -> ModelCatalogResponse:
@@ -51,6 +52,7 @@ class FittingEndpoint:
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+    # -------------------------------------------------------------------------
     def get_persisted_run(self, run_id: int) -> dict:
         try:
             return self.service.get_persisted_run(run_id)

@@ -16,6 +16,7 @@ def get_core_host() -> str:
 def get_core_port() -> int:
     return int(get_runtime_config()["core_port"])
 
+###############################################################################
 def get_app_settings(config_path: str | None = None) -> AppSettings:
     return AppSettings.load(config_path or CANONICAL_CONFIGURATION_FILE)
 

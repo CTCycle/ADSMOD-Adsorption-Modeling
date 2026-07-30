@@ -25,6 +25,7 @@ ColumnRole = Literal[
 ]
 
 
+###############################################################################
 class ImportIssue(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -37,6 +38,7 @@ class ImportIssue(BaseModel):
     remediation: str | None = None
 
 
+###############################################################################
 class ColumnDetection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -50,6 +52,7 @@ class ColumnDetection(BaseModel):
     array_like: bool = False
 
 
+###############################################################################
 class WidePair(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -57,6 +60,7 @@ class WidePair(BaseModel):
     uptake_column: str
 
 
+###############################################################################
 class ImportMapping(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -79,6 +83,7 @@ class ImportMapping(BaseModel):
     duplicate_policy: Literal["keep", "average", "reject"] = "reject"
     confirmed_issue_codes: list[str] = Field(default_factory=list)
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_unique_roles(self) -> ImportMapping:
         single_roles = {
@@ -102,6 +107,7 @@ class ImportMapping(BaseModel):
         return self
 
 
+###############################################################################
 class ImportPreviewResponse(BaseModel):
     status: Literal["success"] = "success"
     filename: str
@@ -118,6 +124,7 @@ class ImportPreviewResponse(BaseModel):
     guidance: list[str] = Field(default_factory=list)
 
 
+###############################################################################
 class NormalizedObservationPreview(BaseModel):
     source_row: int | None
     sequence_index: int
@@ -130,6 +137,7 @@ class NormalizedObservationPreview(BaseModel):
     uptake_mol_kg: float
 
 
+###############################################################################
 class NormalizedExperimentPreview(BaseModel):
     external_key: str
     name: str
@@ -141,6 +149,7 @@ class NormalizedExperimentPreview(BaseModel):
     observations: list[NormalizedObservationPreview]
 
 
+###############################################################################
 class ImportValidationResponse(BaseModel):
     status: Literal["valid", "invalid", "confirmation_required"]
     source_sha256: str
@@ -151,6 +160,7 @@ class ImportValidationResponse(BaseModel):
     issues: list[ImportIssue]
 
 
+###############################################################################
 class DatasetSummary(BaseModel):
     id: int
     name: str
@@ -162,17 +172,20 @@ class DatasetSummary(BaseModel):
     description: str = ""
 
 
+###############################################################################
 class DatasetListResponse(BaseModel):
     status: Literal["success"] = "success"
     datasets: list[DatasetSummary] = Field(default_factory=list)
 
 
+###############################################################################
 class DatasetImportResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary
     validation: ImportValidationResponse
 
 
+###############################################################################
 class ExperimentSummary(BaseModel):
     id: int
     dataset_id: int
@@ -187,11 +200,13 @@ class ExperimentSummary(BaseModel):
     ineligibility_reason: str | None = None
 
 
+###############################################################################
 class ExperimentListResponse(BaseModel):
     status: Literal["success"] = "success"
     experiments: list[ExperimentSummary] = Field(default_factory=list)
 
 
+###############################################################################
 class DatasetMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -199,17 +214,20 @@ class DatasetMetadata(BaseModel):
     description: str = Field(default="", max_length=2000)
 
 
+###############################################################################
 class DatasetRenameRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     new_name: str = Field(min_length=1, max_length=255)
 
 
+###############################################################################
 class DatasetMutationResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary
 
 
+###############################################################################
 class ObservationPage(BaseModel):
     status: Literal["success"] = "success"
     dataset_id: int

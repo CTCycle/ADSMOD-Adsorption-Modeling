@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+###############################################################################
 class ParameterConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -12,6 +13,7 @@ class ParameterConfiguration(BaseModel):
     upper: float
     initial: float
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_order(self) -> ParameterConfiguration:
         if self.lower >= self.upper:
@@ -21,6 +23,7 @@ class ParameterConfiguration(BaseModel):
         return self
 
 
+###############################################################################
 class DisplayUnits(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -28,6 +31,7 @@ class DisplayUnits(BaseModel):
     uptake: str = "mmol/g"
 
 
+###############################################################################
 class FittingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -43,6 +47,7 @@ class FittingRequest(BaseModel):
     display_units: DisplayUnits = Field(default_factory=DisplayUnits)
 
 
+###############################################################################
 class ModelParameterDefinition(BaseModel):
     name: str
     label: str
@@ -52,6 +57,7 @@ class ModelParameterDefinition(BaseModel):
     unit: str
 
 
+###############################################################################
 class ModelDefinition(BaseModel):
     key: str
     name: str
@@ -63,6 +69,7 @@ class ModelDefinition(BaseModel):
     parameters: list[ModelParameterDefinition]
 
 
+###############################################################################
 class ModelCatalogResponse(BaseModel):
     status: Literal["success"] = "success"
     pressure_unit: str
@@ -70,6 +77,7 @@ class ModelCatalogResponse(BaseModel):
     models: list[ModelDefinition]
 
 
+###############################################################################
 class FittedParameter(BaseModel):
     name: str
     label: str
@@ -80,6 +88,7 @@ class FittedParameter(BaseModel):
     unit: str
 
 
+###############################################################################
 class FitMetrics(BaseModel):
     sse: float | None
     rmse: float | None
@@ -92,6 +101,7 @@ class FitMetrics(BaseModel):
     bic: float | None
 
 
+###############################################################################
 class PredictionPoint(BaseModel):
     pressure: float
     observed: float | None = None
@@ -99,6 +109,7 @@ class PredictionPoint(BaseModel):
     residual: float | None = None
 
 
+###############################################################################
 class ModelFitResult(BaseModel):
     model: str
     name: str
@@ -115,6 +126,7 @@ class ModelFitResult(BaseModel):
     rank: int | None = None
 
 
+###############################################################################
 class FittingResponse(BaseModel):
     status: Literal["success", "warning", "error"]
     run_id: int | None
@@ -134,6 +146,7 @@ class FittingResponse(BaseModel):
     summary: str
 
 
+###############################################################################
 class FittingRunResultResponse(BaseModel):
     status: Literal["success"] = "success"
     result: FittingResponse
