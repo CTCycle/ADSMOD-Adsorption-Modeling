@@ -54,10 +54,11 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                             <div class="fitting-controls-column">
                                 <div class="fitting-controls-row">
                                     <div class="control-group">
-                                        <label class="field-label">Dataset</label>
+                                        <label class="field-label" for="fitting-dataset-control">Dataset</label>
                                         <div class="fitting-dataset-row">
                                             <select
-                                                [value]="store.selectedDataset() || ''"
+                                                id="fitting-dataset-control"
+                                                [value]="store.selectedDatasetId() || ''"
                                                 (change)="selectDataset($event)"
                                                 class="select-input fitting-dataset-select"
                                             >
@@ -69,8 +70,8 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                         </div>
                                     </div>
                                     <div class="control-group">
-                                        <label class="field-label">Weighting</label>
-                                        <select class="select-input" [value]="store.weighting()" (change)="selectWeighting($event)">
+                                        <label class="field-label" for="fitting-weighting-control">Weighting</label>
+                                        <select id="fitting-weighting-control" class="select-input" [value]="store.weighting()" (change)="selectWeighting($event)">
                                             <option value="unweighted">Unweighted</option>
                                             <option value="inverse_sigma">Inverse sigma (complete uncertainties)</option>
                                         </select>
@@ -87,8 +88,9 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                         />
                                     </div>
                                     <div class="control-group">
-                                        <label class="field-label">Optimization method</label>
+                                        <label class="field-label" for="fitting-optimization-control">Optimization method</label>
                                         <select
+                                            id="fitting-optimization-control"
                                             [value]="store.optimizationMethod()"
                                             (change)="selectOptimizer($event)"
                                             class="select-input"
