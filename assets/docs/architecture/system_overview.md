@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 ## Platform Shape
 
@@ -15,7 +15,7 @@ ADSMOD is a Windows-first local application with:
   - `ml_service` for training datasets, checkpoints, and training lifecycle workflows.
   - `shared` for persistence, repositories, schemas, and common backend utilities.
 - One frontend
-  - `app/client` for source, fitting, and training workflows.
+  - `app/client` for datasets, dashboards, fitting, and training workflows.
   - Training remains visible in the unified UI but depends on the optional ML service at runtime.
 - Runtime bootstrap assets under `runtimes/`.
 
@@ -74,11 +74,15 @@ app/backend/
 v3 entrypoints are created through `adsmod_core.create_app_from_path(...)` and
 `adsmod_ml.create_app(...)`; the core CLI accepts an explicit `--config` path.
 
-The unified entrypoint composes service routers; it does not own backend business handlers.
+The unified entrypoint composes transitional service routers; it does not own
+backend business handlers. The extracted v3 packages currently provide the
+versioned health/capability and snapshot boundary, not the full datasets/NIST/
+fitting/training route set.
 
 ## Frontend Responsibility
 
-- `app/client` owns `source`, `fitting`, and `training`.
+- `app/client` routes `datasets`, `dashboards`, `fitting`, and `training`.
+- The Datasets page embeds the source-management and NIST collection workflows.
 - `/api/training/*` traffic is routed to `ml_service` in development proxy mode.
 - Other `/api/*` traffic is routed to `core_service`.
 - In core-only mode, training routes show an unavailable state instead of failing the Source and Fitting workflows.

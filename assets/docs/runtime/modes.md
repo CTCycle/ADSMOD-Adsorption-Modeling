@@ -1,6 +1,6 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 ## Supported Modes
 
@@ -21,9 +21,9 @@ The v3 modes are implemented package boundaries; launcher integration is still p
 
 - The unified backend composition entrypoint is `app.server.app:app`.
 - Frontend
-  - Unified UI in `app/client`, with preview default port `5173`.
+  - Unified UI in `app/client`; the launcher uses the configured `5173` preview port.
   - `/api/training/*` proxy traffic targets the optional ML service.
-- Canonical launcher: `ADSMOD/start_on_windows.ps1`.
+- Canonical launcher: `start_on_windows.ps1` from the repository root.
 
 ### Core Service Mode
 
@@ -43,7 +43,7 @@ The v3 modes are implemented package boundaries; launcher integration is still p
 
 ### Test Execution Mode
 
-- Scripted runtime via `tests/run_tests.bat`.
+- Scripted runtime via `app/tests/run_tests.bat`.
 - Starts backend or frontend only when not already running.
 
 ### Containerized Mode

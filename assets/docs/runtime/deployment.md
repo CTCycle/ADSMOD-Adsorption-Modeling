@@ -1,6 +1,6 @@
 # ADSMOD Local Deployment
 
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 ## Interoperability
 
@@ -10,8 +10,8 @@ Last updated: 2026-07-29
 
 ## Shared Runtime Resources
 
-- Database: `resources/database.db` for embedded mode
-- Checkpoints: `resources/checkpoints`
+- Database: `app/resources/database.db` for embedded mode
+- Checkpoints: `app/resources/checkpoints`
 - Operational environment template: `settings/.env.example`
 - Canonical v3 configuration: `app/resources/adsmod.json` with `app/resources/adsmod.schema.json`
 
@@ -19,7 +19,7 @@ Last updated: 2026-07-29
 
 - The supported end-user runtime is the Windows local web launcher at `start_on_windows.ps1`.
 - Portable Python, uv, and Node.js are provisioned under `runtimes/`.
-- The frontend is built before launch and served by the hidden preview process.
+- The frontend is built before launch and served by the hidden Angular production-preview process.
 - Backend log visibility is controlled by `BACKEND_LOGS_VISIBLE` in the local operational environment and defaults to `true` when absent.
 - Backend dependency state is locked in `app/server/uv.lock`.
 - v3 package dependencies are declared independently in `app/backend/common/pyproject.toml`, `app/backend/core/pyproject.toml`, and `app/backend/ml/pyproject.toml`.

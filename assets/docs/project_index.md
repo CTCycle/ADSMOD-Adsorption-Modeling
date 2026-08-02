@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-07-20
+Last updated: 2026-08-02
 
 ## Purpose
 
@@ -88,7 +88,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`operations/overview.md`](operations/overview.md)
   - Index for end-user workflows, common commands, and troubleshooting.
 - [`operations/workflows.md`](operations/workflows.md)
-  - Primary user workflows across source, fitting, and training.
+  - Primary user workflows across datasets, fitting, dashboards, and training.
 - [`operations/commands.md`](operations/commands.md)
   - Launch, test, frontend, and maintenance commands.
 - [`operations/troubleshooting.md`](operations/troubleshooting.md)

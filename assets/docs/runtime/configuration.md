@@ -1,6 +1,6 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 ## Canonical v3 Configuration
 
@@ -17,12 +17,11 @@ configuration files or configuration-path aliases.
 
 Operational environment keys are limited to:
 
-- `BACKEND_LOGS_VISIBLE`
-- `ALWAYS_REBUILD`
-- `RELOAD`
-- `MPLBACKEND`
-- `KERAS_BACKEND`
-- `VITE_API_BASE_URL`
+- `BACKEND_LOGS_VISIBLE` and `ALWAYS_REBUILD` control launcher behavior.
+- `RELOAD`, `MPLBACKEND`, and `KERAS_BACKEND` control local process behavior.
+- `VITE_API_BASE_URL` controls the generated frontend runtime API base path.
+
+The environment file does not override runtime hosts or ports.
 
 ## Structured Settings Coverage
 

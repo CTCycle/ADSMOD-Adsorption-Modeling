@@ -1,11 +1,12 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-07-10
+Last updated: 2026-08-02
 
 ## Page Structure
 
 - Unified frontend routes
-  - `source` (user dataset upload and management)`r`n  - `nist` (NIST collection)
+  - `datasets` (user dataset upload, management, and NIST collection)
+  - `dashboards` (current placeholder workspace view)
   - `fitting`
   - `training`
 - Training sub-views
@@ -17,7 +18,7 @@ Last updated: 2026-07-10
 ## Workflow UX
 
 - Core workflows are long-running and status-heavy.
-- Keep behavior consistent across dataset ingestion, fitting, NIST collection, and training.
+- Keep behavior consistent across dataset ingestion, fitting, NIST collection, dashboards, and training.
 - Preserve non-blocking UX by polling backend job endpoints for progress.
 
 ## Responsiveness

@@ -10,15 +10,18 @@
 
 ADSMOD is a comprehensive web application designed for the collection, management, and modeling of adsorption data. This project represents the evolution and unification of two predecessor projects: **ADSORFIT** and **NISTADS Adsorption Modeling** (the former name of this repository).
 
-### Service and frontend split
+### Current service and frontend split
 
-- Backend split:
-- `app/server/core_service` (non-ML API workflows)
-- `app/server/ml_service` (training/ML workflows)
-- `app/server/shared` (shared persistence and repository layer)
-- Frontend:
-- `app/client` (Angular UI for source, fitting, and training)
-- `/api/training/*` is routed to the optional ML service; all other `/api/*` traffic is routed to the core service.
+- Transitional application runtime:
+  - `app/server/core_service` (health, datasets, NIST, and fitting workflows)
+  - `app/server/ml_service` (training datasets, checkpoints, and training lifecycle)
+  - `app/server/shared` (shared persistence, schemas, and repositories)
+- Canonical v3 packages:
+  - `app/backend/common` (`adsmod-common` contracts)
+  - `app/backend/core` (`adsmod-core` health, capabilities, and snapshots)
+  - `app/backend/ml` (`adsmod-ml` ML health, capabilities, and snapshot client)
+- Frontend: `app/client` (Angular UI for datasets, fitting, dashboards, and training)
+- In development proxy mode, `/api/training/*` targets the optional ML service and other `/api/*` traffic targets the core service.
 
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
@@ -68,15 +71,18 @@ If you prefer manual setup or are running outside the launcher workflow:
 4. Install frontend dependencies in `app/client`.
 5. Launch backend and frontend processes.
 
-### Backend startup commands (Stage 1)
+### Backend startup commands
 
 ```cmd
-set ADSMOD_ENABLE_ML=true
 app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
-app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 8000
-app\server\.venv\Scripts\python.exe -m uvicorn ml_service.app:app --host 127.0.0.1 --port 8001
-cd app\client && npm run dev
+cd app\client
+npm run dev
 ```
+
+The optional ML service uses port `6046` from `app/resources/adsmod.json`. The
+Windows launcher starts the unified core web runtime; training becomes available
+when the ML service is also running or the unified backend is started with
+`ADSMOD_ENABLE_ML=true`.
 
 ## 4. How to Use
 
@@ -85,21 +91,26 @@ cd app\client && npm run dev
 **Windows:**
 Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select **Launch application**. The launcher starts the unified backend and frontend preview, waits for both to respond, and opens the local web UI.
 
-### 4.2 Mode Switching
+### 4.2 Runtime configuration
 
-Local web mode uses the runtime file:
+Hosts, ports, storage, and application defaults are read from the canonical file:
 
-- `settings/.env.example` for optional operational toggles
+- `app/resources/adsmod.json`
 
-Adjust host/port and runtime backend values in that file when needed.
+Use `settings/.env` only for operational toggles such as log visibility, rebuild
+behavior, reload, and scientific backend selection. Runtime hosts and ports do
+not belong in `.env`.
 
 ### 4.3 Operational Workflow and UI Snapshots
 
 The application workflow is exposed through one frontend:
-- `source`
+- `datasets` (workspace datasets, file import, and NIST-A collection)
+- `dashboards` (current placeholder workspace view)
 - `fitting`
-- `training`
-The snapshots below were captured from the current `develop` build (`v2.3.0` release preparation) and are intended to show representative product states without duplication.
+- `training` with `processing`, `datasets`, `checkpoints`, and `dashboard` views
+
+The snapshots below are representative UI documentation images; they are not a
+release-status claim.
 
 #### 4.3.1 Data Source Configuration
 
@@ -113,7 +124,7 @@ The snapshots below were captured from the current `develop` build (`v2.3.0` rel
 
 #### 4.3.2 Models and Fitting
 
-- Select a dataset (uploaded or NIST).
+- Select a workspace dataset created by upload or NIST collection.
 - Configure optimizer settings and fitting iterations.
 - Select adsorption models and run fitting.
 - Review fit status and logs.
@@ -167,13 +178,13 @@ Frontend API base path defaults to `/api`; the Angular development server routes
 
 The application stores data and artifacts in specific directories:
 
-- **checkpoints**: trained model weights, training history, and model configuration files.
-- **database**: local SQLite database for metadata, cached responses, and experiment indexes.
-- **logs**: application logs for troubleshooting and monitoring.
+- **checkpoints**: trained model weights, training history, and model configuration files under `app/resources/checkpoints`.
+- **database**: local SQLite database at `app/resources/database.db` for metadata and experiment indexes.
+- **logs**: application logs under `app/resources/logs`.
 - **runtimes**: portable Python/uv/Node.js downloaded by the Windows launcher.
 - **runtime venv**: backend virtual environment at `app/server/.venv`.
 - **runtime lockfile**: backend lockfile at `app/server/uv.lock`.
-- **templates**: starter assets such as the `.env` scaffold.
+- **templates**: starter assets under `app/resources/templates`.
 
 ## 7. Configuration
 
@@ -192,11 +203,14 @@ Runtime hosts, ports, database mode, and backend defaults are loaded from
 Single canonical runtime file:
 - `app/resources/adsmod.json`
 
-## 9. Development Status
+## 8. Development Status
 
-This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features. Tagged releases (currently v2.3.0) are stable for local evaluation and testing.
+The repository and canonical configuration are versioned `3.0.0`. The extracted
+v3 packages are present, while the Windows launcher still starts the transitional
+`app/server` web runtime. The project remains under active development, and the
+v3 launcher/service integration is not yet complete.
 
-## 8. License
+## 9. License
 
 This project is licensed under the **MIT License**. See `LICENSE` for full terms.
 

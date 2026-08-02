@@ -1,10 +1,10 @@
 # ADSMOD TypeScript Rules
 
-Last updated: 2026-06-05
+Last updated: 2026-08-02
 
 ## Baseline
 
-- Frontend stack: Angular standalone applications, TypeScript 5, and Angular CLI build tooling.
+- Frontend stack: Angular 21 standalone components, TypeScript 5.9, and Angular CLI build tooling.
 - Keep strict typing behavior aligned with the frontend `tsconfig.json` and `tsconfig.app.json` files.
 
 ## Types And Contracts
@@ -15,7 +15,7 @@ Last updated: 2026-06-05
 
 ## Structure
 
-- Page-level orchestration belongs in `src/app/features/**/pages` when a feature has multiple subviews.
+- Page-level orchestration belongs in `src/app/features/**/pages` when a feature has multiple subviews; the current training workspace follows this pattern.
 - Reusable UI belongs in `src/app/shared/components`.
 - Feature-specific logic belongs in `src/app/features`.
 - API and polling logic belongs in `src/app/services` or feature-owned Angular services.
