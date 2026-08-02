@@ -1,17 +1,16 @@
 # ADSMOD Quality Gates
 
-Last updated: 2026-06-03
+Last updated: 2026-08-02
 
 ## Python Validation
 
-- Lint and format with Ruff, or the project-standard formatter and linter when configured.
-- Type-check with Pylance.
-- Test with pytest, including relevant `tests/unit` and `tests/e2e` or `tests/server` coverage for changed behavior.
+- Run Ruff through the backend workspace (`ruff check app/server` in CI).
+- Test with pytest, including the relevant `app/tests` unit, backend, server, persistence, and E2E scopes.
 
 ## Frontend Validation
 
-- Keep `npm run build` passing for touched frontend applications.
-- Update frontend tests when behavior changes.
+- Keep `npm run lint`, `npm run test`, and `npm run build` passing for touched frontend behavior.
+- Run `npm run visual:compare` when changing layout, responsive behavior, or visual states.
 
 ## Cross-Cutting Expectation
 

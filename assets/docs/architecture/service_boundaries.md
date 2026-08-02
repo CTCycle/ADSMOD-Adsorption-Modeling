@@ -1,6 +1,6 @@
 # ADSMOD Service Boundaries
 
-Last updated: 2026-06-04
+Last updated: 2026-08-02
 
 ## Dependency Direction
 
@@ -10,7 +10,8 @@ Last updated: 2026-06-04
 
 ## Prohibited Imports
 
-- `core_service` must not import `ml_service`.
+- `core_service` must not import `ml_service` directly. The unified composition
+  entrypoint may conditionally register ML routes when explicitly enabled.
 - `shared` must not import `core_service` or `ml_service`.
 - `core_service` must not import ML-heavy dependencies such as `torch`, `keras`, or `scikit-learn`.
 

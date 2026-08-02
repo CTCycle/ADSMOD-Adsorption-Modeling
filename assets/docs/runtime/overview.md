@@ -1,6 +1,6 @@
 # Runtime Overview
 
-Last updated: 2026-07-20
+Last updated: 2026-08-02
 
 ## Scope
 
@@ -13,7 +13,7 @@ This section covers supported local web runtime modes, startup procedures, confi
 - [`startup.md`](startup.md)
   - Launcher and manual startup procedures.
 - [`configuration.md`](configuration.md)
-  - Canonical v3 JSON configuration, legacy environment variables, and mode-specific configuration behavior.
+  - Canonical v3 JSON configuration, operational environment toggles, and mode-specific behavior.
 - [`deployment.md`](deployment.md)
   - Local deployment, interoperability, shared resources, and current limits.
 

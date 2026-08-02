@@ -1,11 +1,12 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-07-09
+Last updated: 2026-08-02
 
 ## Layout Patterns
 
-- Sticky top header with tab navigation
-- `source` page uses a two-column panel layout
+- Console shell with a persistent sidebar, page header, and bottom service-status bar
+- `datasets` page embeds workspace dataset management, import, and NIST collection panels
+- `dashboards` page currently presents a placeholder workspace view
 - `fitting` page uses controls plus status or log columns and model card grids
 - `training` uses a left toolbar with a right active-workspace panel
 
@@ -24,7 +25,7 @@ Last updated: 2026-07-09
 
 - Header tabs use `.header-tab` with active and hover states
 - Training sub-navigation uses `.training-view-tab` with explicit active states
-- Core navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/layout/header-tabs.component.ts`.
+- Core navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/layout/core-shell.component.ts`.
 - Training sub-navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/features/training/pages/machine-learning-page.component.ts`.
 
 ## Data Views And Overlays

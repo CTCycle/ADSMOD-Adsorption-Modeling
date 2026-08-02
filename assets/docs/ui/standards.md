@@ -1,6 +1,6 @@
 # ADSMOD UI standards
 
-Last updated: 2026-07-17
+Last updated: 2026-08-02
 
 These standards refine the current console UI without changing its information architecture.
 
@@ -43,4 +43,3 @@ Use the existing Space Grotesk stack for interface text and a monospace stack on
 | Prefer named classes for static presentation. | Add inline layout/style declarations to templates. |
 | Pair color with text, icon, or state copy. | Use a colored dot as the sole status explanation. |
 | Validate desktop and narrow layouts plus keyboard focus. | Treat a successful TypeScript build as proof of visual correctness. |
-

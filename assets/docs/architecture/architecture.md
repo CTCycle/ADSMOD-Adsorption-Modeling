@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-20
+Last updated: 2026-08-02
 
 Canonical architecture details live in:
 

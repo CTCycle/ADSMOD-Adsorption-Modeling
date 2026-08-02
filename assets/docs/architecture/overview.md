@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Last updated: 2026-07-20
+Last updated: 2026-08-02
 
 ## Scope
 
@@ -8,8 +8,8 @@ This section covers system structure, ownership boundaries, API routing, and bac
 
 The canonical v3 boundary is split into independent packages under `app/backend`:
 `adsmod-common`, `adsmod-core`, and `adsmod-ml`. The transitional `app/server`
-workspace remains the unified local-web runtime until service extraction and launcher
-migration are complete.
+workspace still owns the full local-web feature runtime until service extraction
+and launcher migration are complete.
 
 ## Documents
 

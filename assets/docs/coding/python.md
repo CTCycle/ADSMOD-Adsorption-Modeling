@@ -1,6 +1,6 @@
 # ADSMOD Python Rules
 
-Last updated: 2026-06-03
+Last updated: 2026-08-02
 
 ## Runtime And Environment
 
@@ -8,6 +8,9 @@ Last updated: 2026-06-03
 - Use the backend workspace environment at `app/server/.venv`.
 - Do not create new virtual environments for normal development.
 - Keep dependency state aligned with `uv` and `app/server/uv.lock`.
+- The current backend workspace packages are versioned `3.0.0`; the extracted
+  v3 packages under `app/backend` use the same Python floor and independent
+  package manifests.
 
 ## Typing
 

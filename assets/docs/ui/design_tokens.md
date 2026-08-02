@@ -1,6 +1,6 @@
 # ADSMOD Design Tokens
 
-Last updated: 2026-06-03
+Last updated: 2026-08-02
 
 ## Typography
 
@@ -15,7 +15,7 @@ Last updated: 2026-06-03
 
 ## Spacing And Radius
 
-- Spacing tokens from `index.css`
+- Spacing tokens from `app/client/src/styles.css`
   - `--spacing-xs: 0.5rem`
   - `--spacing-sm: 0.75rem`
   - `--spacing-md: 1rem`

@@ -1,19 +1,19 @@
 # ADSMOD Operational Commands
 
-Last updated: 2026-07-11
+Last updated: 2026-08-02
 
 ## Launch And Maintenance
 
-- Unified launcher and maintenance menu: `powershell -ExecutionPolicy Bypass -File ADSMOD\start_on_windows.ps1`
+- Unified launcher and maintenance menu: `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
 
 ## Tests
 
-- Full runner: `tests\run_tests.bat`
+- Full runner: `app\tests\run_tests.bat`
 - Direct pytest: `.\app\server\.venv\Scripts\python.exe -m pytest app\tests -v`
-- SQLite persistence contract: `$env:DATABASE_EMBEDDED="true"; uv run --project app/server python -m pytest app/tests/persistence -v`
-- PostgreSQL persistence contract: set `DATABASE_EMBEDDED=false`, `DATABASE_ENGINE=postgres`, and the `DATABASE_*` connection variables before running the same command.
+- SQLite persistence contract: `.\app\server\.venv\Scripts\python.exe -m pytest app\tests\persistence -v`
 
 ## Frontend Development
 
-- Unified frontend dev server: run `npm run dev` from `ADSMOD\app\client`
-- Frontend build: run `npm run build` from `ADSMOD\app\client`
+- Unified frontend dev server: run `npm run dev` from `app\client`
+- Frontend build: run `npm run build` from `app\client`
+- Frontend visual comparison: run `npm run visual:compare` from `app\client`

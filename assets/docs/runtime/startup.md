@@ -1,19 +1,19 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-07-11
+Last updated: 2026-08-02
 
 ## Recommended Local Web Startup
 
 CMD:
 
 ```cmd
-powershell -ExecutionPolicy Bypass -File ADSMOD\start_on_windows.ps1
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
 ```
 
 PowerShell:
 
 ```powershell
-& .\ADSMOD\start_on_windows.ps1
+& .\start_on_windows.ps1
 ```
 
 This menu-driven script:
@@ -23,13 +23,33 @@ This menu-driven script:
 - starts the unified backend and frontend preview
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds
-- uses `runtime.frontend_port` from `app/resources/adsmod.json` when launching the frontend dev server
+- uses `runtime.core_port`, `runtime.ml_port`, and `runtime.frontend_port` from `app/resources/adsmod.json`
 
 ## Setup And Maintenance
 
 The same `start_on_windows.ps1` menu owns dependency installation, database initialization, tests, log removal, cache cleanup, and uninstall operations.
 
-## API-Only Backend Startup
+## Unified Backend Startup
+
+From the repository root:
+
+CMD:
+
+```cmd
+app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
+```
+
+PowerShell:
+
+```powershell
+.\app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
+```
+
+Set `ADSMOD_ENABLE_ML=true` before starting the unified backend when the ML
+routes should be mounted in the same process. Otherwise, the core-only runtime
+keeps training unavailable while datasets and fitting remain usable.
+
+## Core Service Startup
 
 CMD:
 
@@ -55,7 +75,7 @@ npm run dev
 PowerShell:
 
 ```powershell
-Set-Location ADSMOD/app/client
+Set-Location app/client
 npm run dev
 ```
 
@@ -66,11 +86,11 @@ The frontend development server is an Angular CLI server with API proxy configur
 CMD:
 
 ```cmd
-tests\run_tests.bat
+app\tests\run_tests.bat
 ```
 
 PowerShell:
 
 ```powershell
-.\tests\run_tests.bat
+.\app\tests\run_tests.bat
 ```

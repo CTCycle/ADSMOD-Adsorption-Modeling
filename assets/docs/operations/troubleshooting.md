@@ -1,6 +1,6 @@
 # ADSMOD Troubleshooting
 
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 ## Backend Or UI Unreachable
 
@@ -15,5 +15,13 @@ Last updated: 2026-07-29
 
 ## Frontend Preview Unreachable
 
-- Confirm `npm run build` succeeds in `ADSMOD/app/client`.
+- Confirm `npm run build` succeeds in `app/client`.
 - Check `runtime.frontend_port` in `app/resources/adsmod.json`, then rerun `start_on_windows.ps1`.
+
+## Training unavailable
+
+- Core-only mode intentionally leaves Training unavailable.
+- Start the ML service on `runtime.ml_port` (`6046` in the canonical file), or
+  start the unified backend with `ADSMOD_ENABLE_ML=true`.
+- Confirm the frontend proxy still lists `/api/training` before the catch-all
+  `/api` target in `app/client/proxy.conf.cjs`.
