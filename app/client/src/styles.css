@@ -5170,7 +5170,14 @@ body {
   .user-data-page, .nist-data-page { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) { .dataset-record { grid-template-columns: 1fr; gap: 14px; } .dataset-record-stats { justify-content: flex-start; } .dataset-record-actions { justify-content: flex-start; } }
-@media (max-width: 600px) { .dataset-add-row { align-items: flex-start; } .dataset-record { padding: 15px; } .dataset-record-actions .button { flex: 1 1 calc(50% - 8px); } }
+@media (max-width: 600px) {
+  .dataset-add-row { align-items: flex-start; }
+  .dataset-record { padding: 15px; }
+  .dataset-record-actions .button { flex: 1 1 calc(50% - 8px); }
+  .fitting-action-buttons { flex-direction: column; }
+  .fitting-action-primary,
+  .fitting-action-secondary { width: 100%; }
+}
 
 /* Focused UI audit refinements. Keep these primitives token-driven and shared. */
 .sr-only {

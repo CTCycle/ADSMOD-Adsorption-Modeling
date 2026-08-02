@@ -1,4 +1,4 @@
-import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, HostListener, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
@@ -66,7 +66,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
         <div class="console-shell">
             <aside class="console-sidebar" aria-label="Primary navigation">
                 <div class="console-brand">
-                    <img class="console-brand-logo" src="/adsmod-logo.png" alt="" aria-hidden="true" />
+                    <img class="console-brand-logo" src="/adsmod-logo-96.png" width="43" height="43" alt="" aria-hidden="true" />
                     <div>
                         <div class="console-brand-name">ADSMOD</div>
                         <div class="console-brand-subtitle">Adsorption Modeling<br />Unified Console</div>
@@ -111,7 +111,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <p>{{ pageDescription() }}</p>
                     </div>
                     <div class="service-status-row">
-                        <button class="header-icon-button" type="button" aria-label="Help" (click)="helpOpen.set(true)">?</button>
+                        <button #helpTrigger class="header-icon-button" type="button" aria-label="Help" (click)="openHelp()">?</button>
                     </div>
                 </header>
                 <main class="app-main console-main">
@@ -132,7 +132,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                             <h2 id="help-modal-title">{{ helpContent().title }}</h2>
                             <p>{{ helpContent().intro }}</p>
                         </div>
-                        <button class="button quiet help-modal-close" type="button" aria-label="Close help" title="Close help" (click)="closeHelp()"><span aria-hidden="true">×</span></button>
+                        <button #helpCloseButton class="button quiet help-modal-close" type="button" aria-label="Close help" title="Close help" autofocus (click)="closeHelp()"><span aria-hidden="true">×</span></button>
                     </div>
                     <div class="help-modal-body">
                         <h3>How to use this page</h3>
@@ -157,6 +157,8 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
     `,
 })
 export class CoreShellComponent {
+    @ViewChild('helpTrigger') private helpTrigger?: ElementRef<HTMLButtonElement>;
+    @ViewChild('helpCloseButton') private helpCloseButton?: ElementRef<HTMLButtonElement>;
     private readonly router = inject(Router);
     private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
@@ -202,6 +204,16 @@ export class CoreShellComponent {
         return 'Manage workspace datasets and public adsorption source data.';
     });
 
+    protected openHelp(): void {
+        this.helpOpen.set(true);
+        setTimeout(() => this.helpCloseButton?.nativeElement.focus());
+    }
+
+    protected closeHelp(): void {
+        this.helpOpen.set(false);
+        queueMicrotask(() => this.helpTrigger?.nativeElement.focus());
+    }
+
     constructor() {
         this.router.events
             .pipe(
@@ -209,10 +221,6 @@ export class CoreShellComponent {
                 takeUntilDestroyed(this.destroyRef)
             )
                 .subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
-    }
-
-    protected closeHelp(): void {
-        this.helpOpen.set(false);
     }
 
     @HostListener('document:keydown.escape')

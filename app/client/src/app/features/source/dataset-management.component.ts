@@ -14,7 +14,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
             @else { <div class="dataset-record-list" role="list" aria-label="Workspace datasets">@for (dataset of datasets; track dataset.id) {
                 <article class="dataset-record" role="listitem" [class.selected]="dataset.id === selected">
                     <div class="dataset-record-copy"><div class="dataset-record-heading"><h3>{{ dataset.name }}</h3><span class="dataset-source">{{ dataset.source }}</span></div><p>{{ dataset.description || 'No description added yet.' }}</p></div>
-                    <div class="dataset-record-info"><span>{{ dataset.experiment_count }} experiments</span><span>{{ dataset.observation_count }} observations</span><span>{{ dataset.tags.join(', ') || 'No tags' }}</span></div>
+                    <div class="dataset-record-stats"><span>{{ dataset.experiment_count }} experiments</span><span>{{ dataset.observation_count }} observations</span><span>{{ dataset.tags.join(', ') || 'No tags' }}</span></div>
                     <div class="dataset-record-actions"><button class="button primary" type="button" (click)="opened.emit(dataset.id)">Select</button><button class="button secondary" type="button" (click)="editMetadata(dataset.id)">Edit metadata</button><button class="button quiet" type="button" (click)="rename(dataset)">Rename</button><button class="button quiet danger" type="button" (click)="deleted.emit(dataset.id)">Delete</button></div>
                 </article>
             }</div> }
