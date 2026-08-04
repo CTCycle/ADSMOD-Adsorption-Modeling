@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
     testDir: './tests/visual',
-    outputDir: '../../QA/core-visual-artifacts',
+    outputDir: '../../assets/QA/core-visual-artifacts',
     fullyParallel: false,
     workers: 1,
     reporter: [['line']],
@@ -28,7 +28,7 @@ export default defineConfig({
     },
     webServer: {
         command: 'npm run dev',
-        url: 'http://127.0.0.1:5173/source',
+        url: 'http://127.0.0.1:5173/datasets',
         reuseExistingServer: !process.env.CI,
         stdout: 'pipe',
         stderr: 'pipe',

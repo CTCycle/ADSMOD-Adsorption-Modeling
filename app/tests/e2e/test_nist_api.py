@@ -47,7 +47,10 @@ class TestNistFetch:
             headers={"Content-Type": "application/json"},
         )
 
-        assert response.status in (200, 500)
+        assert response.status in (200, 400, 500)
+        if response.status == 400:
+            detail = response.json().get("detail", "").lower()
+            assert "job is already running" in detail
         if response.ok:
             assert isinstance(response.json(), dict)
 

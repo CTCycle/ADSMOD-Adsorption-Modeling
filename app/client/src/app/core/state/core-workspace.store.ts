@@ -41,7 +41,8 @@ export class CoreWorkspaceStore {
     readonly fittingStatus = signal('');
     readonly fittingResult = signal<FittingResponse | null>(null);
     readonly fittingRunning = signal(false);
-    readonly userDatasets = signal<DatasetSummary[]>([]);
+    readonly datasets = signal<DatasetSummary[]>([]);
+    readonly customDatasets = computed(() => this.datasets().filter((dataset) => dataset.source === 'uploaded'));
     readonly selectedDatasetId = signal<number | null>(null);
     readonly experiments = signal<ExperimentSummary[]>([]);
     readonly selectedExperimentId = signal<number | null>(null);
@@ -51,7 +52,7 @@ export class CoreWorkspaceStore {
     readonly modelCatalog = signal<ModelCatalogResponse | null>(null);
 
     readonly selectedDataset = computed(() =>
-        this.userDatasets().find(
+        this.datasets().find(
             (dataset) => dataset.id === this.selectedDatasetId(),
         ),
     );
@@ -85,7 +86,7 @@ export class CoreWorkspaceStore {
             );
             return;
         }
-        this.userDatasets.set(result.data.datasets);
+        this.datasets.set(result.data.datasets);
         if (selectId !== undefined) {
             await this.selectDataset(selectId);
         } else if (

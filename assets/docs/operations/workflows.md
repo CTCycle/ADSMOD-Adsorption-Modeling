@@ -1,22 +1,24 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Main Navigation
 
 The application uses one frontend with these primary routes:
 
-- `datasets` for workspace datasets, file import, and NIST-A collection
+- `datasets` for custom workspace datasets and file import
+- `public-data` for NIST-A adsorption experiments
+- `public-materials` for NIST adsorbates, adsorbent materials, and existing PubChem enrichment
 - `dashboards` for the current dashboard placeholder
 - `fitting` for adsorption model fitting
 - `training` for processing, training datasets, checkpoints, and the dashboard
 
-The source-management and NIST screens are embedded within `datasets`; they are
-not standalone top-level routes.
+Custom dataset management, public adsorption data, and public materials/adsorbates
+are standalone top-level routes.
 
 ## Upload And Fit A Local Dataset
 
-1. Open `datasets`.
+1. Open `datasets` and import a local file.
 2. Upload a `.csv`, `.xls`, or `.xlsx` dataset.
 3. Confirm the dataset statistics.
 4. Open `fitting`.
@@ -25,12 +27,20 @@ not standalone top-level routes.
 
 ## Use NIST Data For Fitting
 
-1. Open `datasets`.
-2. Run NIST category actions such as ping, index, fetch, or enrich as needed.
+1. Open `public-data`.
+2. Run the NIST experiments ping, index, and fetch actions as needed.
 3. Confirm status updates.
 4. Open `fitting`.
 5. Select the resulting workspace dataset.
 6. Start fitting and monitor job status.
+
+## Retrieve Public Materials And Adsorbates
+
+1. Open `public-materials`.
+2. Use the Adsorbates section for NIST guest-species index and fetch actions.
+3. Use the Adsorbent Materials section for NIST host-material index and fetch actions.
+4. Run the existing PubChem enrichment action only after records are available locally.
+5. Treat NIST retrieval and PubChem enrichment as separate status and provenance steps.
 
 ## Build Training Data And Run Training
 

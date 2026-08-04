@@ -1,11 +1,13 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Page Structure
 
 - Unified frontend routes
-  - `datasets` (user dataset upload, management, and NIST collection)
+  - `datasets` (custom user dataset upload and management)
+  - `public-data` (NIST public adsorption experiments)
+  - `public-materials` (NIST adsorbates and adsorbent materials)
   - `dashboards` (current placeholder workspace view)
   - `fitting`
   - `training`

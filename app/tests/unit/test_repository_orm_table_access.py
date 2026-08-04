@@ -13,8 +13,8 @@ def seed_datasets(engine) -> None:  # type: ignore[no-untyped-def]
     with Session(engine) as session:
         session.add_all(
             [
-                Dataset(dataset_name="dataset_a", source="uploaded", created_at="t1"),
-                Dataset(dataset_name="dataset_b", source="uploaded", created_at="t2"),
+                Dataset(name="dataset_a", source="uploaded", created_at="t1"),
+                Dataset(name="dataset_b", source="uploaded", created_at="t2"),
             ]
         )
         session.commit()

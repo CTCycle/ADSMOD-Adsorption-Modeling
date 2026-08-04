@@ -227,22 +227,22 @@ def main() -> int:
                 failures.append({"step": name, "error": str(exc)})
 
         goto_with_retry(page, BASE_URL, "frontend root")
-        expect_visible(page, "nav[aria-label='Main navigation']")
+        expect_visible(page, "nav[aria-label='Primary']")
 
         safe_step(
-            "landing-source",
+            "landing-custom-datasets",
             lambda: capture_view(
                 page=page,
-                title="Landing / Source",
-                route="/ (source tab)",
+                title="Custom Datasets",
+                route="/datasets",
                 output_name="home.png",
-                wait_selector=".source-page",
+                wait_selector=".custom-datasets-page",
                 notes="No login required.",
             ),
         )
 
         click_with_retry(
-            lambda: page.locator("nav[aria-label='Main navigation'] button[title='Fitting']").click(timeout=6000),
+            lambda: page.get_by_role("link", name="Fitting").click(timeout=6000),
             "open fitting tab",
         )
         safe_step(
@@ -258,7 +258,7 @@ def main() -> int:
         )
 
         click_with_retry(
-            lambda: page.locator("nav[aria-label='Main navigation'] button[title='Training']").click(timeout=6000),
+            lambda: page.get_by_role("link", name="Training").click(timeout=6000),
             "open training tab",
         )
 

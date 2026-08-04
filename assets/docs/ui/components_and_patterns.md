@@ -1,11 +1,13 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Layout Patterns
 
 - Console shell with a persistent sidebar, page header, and bottom service-status bar
-- `datasets` page embeds workspace dataset management, import, and NIST collection panels
+- `datasets` page contains only custom uploaded-dataset management and import
+- `public-data` page contains NIST adsorption-experiment retrieval and activity
+- `public-materials` page separates NIST adsorbate and adsorbent-material retrieval, with existing PubChem enrichment
 - `dashboards` page currently presents a placeholder workspace view
 - `fitting` page uses controls plus status or log columns and model card grids
 - `training` uses a left toolbar with a right active-workspace panel

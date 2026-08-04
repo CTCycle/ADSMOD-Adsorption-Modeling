@@ -60,4 +60,21 @@ describe('NistCollectionRowsComponent', () => {
         expect(window.localStorage.getItem('adsmod.nist.fraction.experiments')).toBe('1.000');
         expect(experimentsInput!.value).toBe('1.000');
     });
+
+    it('renders only the requested public category subset', async () => {
+        await TestBed.configureTestingModule({
+            imports: [NistCollectionRowsComponent],
+        }).compileComponents();
+
+        const fixture = TestBed.createComponent(NistCollectionRowsComponent);
+        fixture.componentRef.setInput('categories', ['experiments']);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('.reference-nist-row');
+        expect(rows).toHaveLength(1);
+        expect((rows[0] as HTMLElement).textContent).toContain('Adsorption experiments');
+        expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Adsorbate species');
+    });
 });

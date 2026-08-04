@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Platform Shape
 
@@ -81,8 +81,9 @@ fitting/training route set.
 
 ## Frontend Responsibility
 
-- `app/client` routes `datasets`, `dashboards`, `fitting`, and `training`.
-- The Datasets page embeds the source-management and NIST collection workflows.
+- `app/client` routes `datasets`, `public-data`, `public-materials`, `dashboards`, `fitting`, and `training`.
+- `datasets` is limited to user-uploaded custom datasets.
+- `public-data` owns NIST adsorption experiments; `public-materials` owns NIST adsorbates and adsorbent materials plus the existing PubChem enrichment action.
 - `/api/training/*` traffic is routed to `ml_service` in development proxy mode.
 - Other `/api/*` traffic is routed to `core_service`.
-- In core-only mode, training routes show an unavailable state instead of failing the Source and Fitting workflows.
+- In core-only mode, training routes show an unavailable state instead of failing the Custom Datasets, Public Data, Public Materials, or Fitting workflows.

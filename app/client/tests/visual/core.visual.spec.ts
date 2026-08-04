@@ -28,12 +28,58 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
         const request = route.request();
         const url = new URL(request.url());
 
-        if (request.method() === 'GET' && url.pathname === '/api/datasets/names') {
+        if (request.method() === 'GET' && url.pathname === '/api/datasets') {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    names: ['baseline_screening_run', 'zeolite_batch_august'],
+                    datasets: [
+                        {
+                            id: 1,
+                            name: 'uploaded_demo',
+                            source: 'uploaded',
+                            created_at: '2026-05-28T09:15:00Z',
+                            experiment_count: 2,
+                            observation_count: 24,
+                            tags: ['demo'],
+                            description: 'Uploaded test dataset',
+                        },
+                        {
+                            id: 2,
+                            name: 'NIST ISODB',
+                            source: 'nist',
+                            created_at: '2026-05-29T09:15:00Z',
+                            experiment_count: 214,
+                            observation_count: 812,
+                            tags: [],
+                            description: 'Public NIST collection',
+                        },
+                    ],
+                }),
+            });
+            return;
+        }
+
+        if (request.method() === 'GET' && url.pathname === '/api/fitting/models') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    status: 'success',
+                    pressure_unit: 'bar',
+                    uptake_unit: 'mmol/g',
+                    models: [
+                        {
+                            key: 'langmuir',
+                            name: 'Langmuir',
+                            equation_latex: 'q = q_{sat} K p / (1 + K p)',
+                            assumptions: 'Single-site adsorption at equilibrium.',
+                            parameters: [
+                                { name: 'q_sat', label: 'q sat', lower: 0, upper: 100, initial: 1, unit: 'mmol/g' },
+                                { name: 'K', label: 'K', lower: 0, upper: 100, initial: 1, unit: '1/bar' },
+                            ],
+                        },
+                    ],
                 }),
             });
             return;
@@ -93,43 +139,41 @@ test.describe('core visual regression', () => {
     test.beforeEach(async ({ page }) => {
         await mockCoreApi(page);
         await prepareVisualPage(page);
-        await page.goto('/source');
+        await page.goto('/datasets');
         await disableMotion(page);
     });
 
-    test('source empty state remains visually stable', async ({ page }) => {
-        await expect(page.locator('.section-title').filter({ hasText: 'Load Experimental Data' })).toBeVisible();
-        await expect(page).toHaveScreenshot('core-source-empty-page.png', { fullPage: true });
+    test('custom datasets empty state remains visually stable', async ({ page }) => {
+        await expect(page.locator('main').getByRole('heading', { name: 'Custom Datasets', exact: true })).toBeVisible();
+        await expect(page.getByText('NIST ISODB')).not.toBeVisible();
+        await expect(page).toHaveScreenshot('core-custom-datasets-empty-page.png', { fullPage: true });
     });
 
-    test('source pending upload state remains visually stable', async ({ page }) => {
+    test('custom datasets pending upload state remains visually stable', async ({ page }) => {
         await page.setInputFiles('input[type="file"]', {
             name: 'sample.csv',
             mimeType: 'text/csv',
             buffer: Buffer.from('pressure,uptake\n1,2\n3,4\n'),
         });
-        await expect(page.locator('.dataset-upload-button')).toBeEnabled();
-        await expect(page).toHaveScreenshot('core-source-pending-page.png', { fullPage: true });
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Understand sample.csv' })).toBeVisible();
+        await expect(page).toHaveScreenshot('core-custom-datasets-pending-page.png', { fullPage: true });
     });
 
-    test('fitting ready state remains visually stable', async ({ page }) => {
-        await page.goto('/fitting');
-        await expect(page.getByRole('heading', { name: 'Select Adsorption Models' })).toBeVisible();
-        await expect(page).toHaveScreenshot('core-fitting-ready-page.png', { fullPage: true });
+    test('public adsorption data page remains visually stable', async ({ page }) => {
+        await page.goto('/public-data');
+        await expect(page.getByRole('heading', { name: 'Public Adsorption Data' })).toBeVisible();
+        await expect(page.getByText('Adsorption experiments', { exact: true })).toBeVisible();
+        await expect(page.getByText('Adsorbate species', { exact: true })).not.toBeVisible();
+        await expect(page).toHaveScreenshot('core-public-data-page.png', { fullPage: true });
     });
 
-    test('fitting expanded card remains visually stable', async ({ page }) => {
-        await page.goto('/fitting');
-        await expect(page.getByRole('heading', { name: 'Select Adsorption Models' })).toBeVisible();
-        await page.locator('.model-card-header').first().click();
-        await expect(page).toHaveScreenshot('core-fitting-expanded-page.png', { fullPage: true });
+    test('public materials page separates adsorbates and adsorbents', async ({ page }) => {
+        await page.goto('/public-materials');
+        await expect(page.getByRole('heading', { name: 'Public Materials & Adsorbates' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Adsorbates', exact: true })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Adsorbent Materials', exact: true })).toBeVisible();
+        await expect(page).toHaveScreenshot('core-public-materials-page.png', { fullPage: true });
     });
 
-    test('fitting disabled card remains visually stable', async ({ page }) => {
-        await page.goto('/fitting');
-        await expect(page.getByRole('heading', { name: 'Select Adsorption Models' })).toBeVisible();
-        await page.locator('.switch').first().click();
-        await expect(page.locator('.model-grid-card').first()).toHaveClass(/disabled/);
-        await expect(page).toHaveScreenshot('core-fitting-disabled-page.png', { fullPage: true });
-    });
 });

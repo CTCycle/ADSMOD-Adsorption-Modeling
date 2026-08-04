@@ -1,6 +1,6 @@
 # ADSMOD Persistence And Packages
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Backend Workspace Model
 
@@ -15,20 +15,20 @@ Persistence and data access shared by multiple services live in `app/server/shar
 
 - `DatabaseManager` owns the engine, session factory, SQLite pragmas, disposal, and transaction context.
 - Typed repositories (`datasets`, `materials`, `isotherms`, `fitting`, and `training`) own explicit conflict targets and SQL projections.
-- `schemas/models.py` is the canonical relationship-aware 11-table ORM schema.
+- `schemas/models.py` is the canonical relationship-aware 12-table ORM schema.
 - Persistence-safe serializers and shared helpers remain here; SQL and session ownership are being removed from serializers.
 - shared infrastructure services that do not depend on `core_service` or `ml_service`
 
-The canonical tables are `datasets`, `adsorbates`, `adsorbents`, `isotherms`,
-`isotherm_components`, `isotherm_measurements`, `processed_isotherms`, `fits`,
+The canonical tables are `datasets`, `dataset_imports`, `adsorbates`, `adsorbents`,
+`isotherms`, `isotherm_components`, `observations`, `fitting_runs`, `fit_results`,
 `fit_parameters`, `training_datasets`, and `training_samples`. Dataset deletion is
 a hard delete with database cascades. Public identities are normalized or hashed
 in application code, timestamps are UTC-aware, and relationship loading defaults
 to `lazy="raise"` so accidental N+1 access fails during development.
 
-The schema and typed repositories are implemented in the current migration slice.
-The legacy generic facade and consumer query/serializer paths remain transitional
-until their callers are migrated; they are not part of the canonical API.
+The schema and typed repositories are the canonical persistence path for dataset,
+NIST, fitting, and training workflows. Public-source pages reuse this persistence
+boundary without adding provider-specific tables.
 
 ML-specific model and checkpoint serialization remains under `ml_service`.
 
