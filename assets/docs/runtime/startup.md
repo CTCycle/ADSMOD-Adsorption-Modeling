@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-08-02
+Last updated: 2026-08-04
 
 ## Recommended Local Web Startup
 
@@ -24,6 +24,21 @@ This menu-driven script:
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds
 - uses `runtime.core_port`, `runtime.ml_port`, and `runtime.frontend_port` from `app/resources/adsmod.json`
+
+Before launch, the script creates `settings/.env` from
+`settings/.env.example` only when the file is missing. Existing environment
+files are preserved.
+
+## Database Startup Rules
+
+- SQLite startup checks the configured `.db` file. A missing file is created
+  once with the existing schema; an existing file is not recreated, reset,
+  reseeded, or schema-validated.
+- PostgreSQL startup performs a read-only connection/schema readiness check and
+  fails fast if the database has not been initialized.
+- The menu's **Initialize database** command is the explicit initialization
+  path. It creates the PostgreSQL database/schema when needed and is
+  non-destructive for an existing SQLite file.
 
 ## Setup And Maintenance
 

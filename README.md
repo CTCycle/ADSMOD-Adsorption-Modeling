@@ -99,7 +99,9 @@ Hosts, ports, storage, and application defaults are read from the canonical file
 
 Use `settings/.env` only for operational toggles such as log visibility, rebuild
 behavior, reload, and scientific backend selection. Runtime hosts and ports do
-not belong in `.env`.
+not belong in `.env`. The launcher creates `settings/.env` from
+`settings/.env.example` when it is missing and never overwrites an existing
+file. Local `.env` files are ignored by Git.
 
 ### 4.3 Operational Workflow and UI Snapshots
 
@@ -159,7 +161,8 @@ Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` to access 
 - **Remove logs**: clears `.log` files under `app/resources/logs`.
 - **Install or update dependencies**: prepares shared runtimes, backend dependencies, and the unified frontend.
 - **Uninstall application**: removes local runtime and build artifacts while preserving settings, resources, the database, and user data.
-- **Initialize database**: creates or resets the project database schema.
+- **Initialize database**: explicitly initializes PostgreSQL, or creates a
+  missing SQLite database. Existing SQLite files are left unchanged.
 - **Clear cache**: removes Python bytecode caches and the uv cache.
 
 ### 5.1 Frontend Development Commands
@@ -179,7 +182,7 @@ Frontend API base path defaults to `/api`; the Angular development server routes
 The application stores data and artifacts in specific directories:
 
 - **checkpoints**: trained model weights, training history, and model configuration files under `app/resources/checkpoints`.
-- **database**: local SQLite database at `app/resources/database.db` for metadata and experiment indexes.
+- **database**: local SQLite database at `app/resources/database.db` for metadata and experiment indexes when embedded mode is selected. PostgreSQL is initialized only through the explicit launcher command.
 - **logs**: application logs under `app/resources/logs`.
 - **runtimes**: portable Python/uv/Node.js downloaded by the Windows launcher.
 - **runtime venv**: backend virtual environment at `app/server/.venv`.

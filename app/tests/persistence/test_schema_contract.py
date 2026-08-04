@@ -40,8 +40,9 @@ def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
         database_name=None, username=None, password=None, ssl=False,
         ssl_ca=None, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
     )
-    manager = DatabaseManager(settings, create_schema=True)
+    manager = DatabaseManager(settings)
     try:
+        Base.metadata.create_all(manager.engine)
         with manager.transaction() as session:
             session.add(Dataset(name="Water", source="uploaded", created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)))
         with pytest.raises(IntegrityError):
@@ -59,8 +60,9 @@ def test_explicit_bulk_upsert_uses_declared_conflict_key() -> None:
         database_name=None, username=None, password=None, ssl=False,
         ssl_ca=None, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
     )
-    manager = DatabaseManager(settings, create_schema=True)
+    manager = DatabaseManager(settings)
     try:
+        Base.metadata.create_all(manager.engine)
         with manager.transaction() as session:
             assert upsert_records(session, Dataset.__table__, [{"name": "A", "normalized_name": "a", "source": "uploaded", "description": "one", "tags": []}], ["normalized_name"]) == 1
         with manager.transaction() as session:

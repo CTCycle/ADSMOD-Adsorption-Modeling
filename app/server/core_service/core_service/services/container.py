@@ -20,9 +20,7 @@ class CoreServiceContainer:
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.job_manager = JobManager(logger=logger)
-        self.database = DatabaseManager(
-            get_server_settings().database, create_schema=True
-        )
+        self.database = DatabaseManager(get_server_settings().database)
         self.datasets = DatasetRepository(self.database)
         self.materials = MaterialRepository(self.database)
         self.isotherms = IsothermRepository(self.database)

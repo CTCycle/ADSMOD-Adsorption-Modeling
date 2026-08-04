@@ -5,6 +5,9 @@ Last updated: 2026-08-02
 ## Launch And Maintenance
 
 - Unified launcher and maintenance menu: `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
+- Database initialization: select **Initialize database** in the launcher. This
+  creates missing SQLite storage or explicitly initializes PostgreSQL; it does
+  not reset an existing SQLite database.
 
 ## Tests
 
