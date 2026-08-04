@@ -29,7 +29,7 @@ from shared.common.paths import (
     TEMPLATES_DIR,
 )
 from shared.common.settings import ServerSettings, get_runtime_config, get_server_settings
-from shared.repositories.database.initializer import initialize_database
+from shared.repositories.database.initializer import prepare_database_for_startup
 
 TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
@@ -102,7 +102,7 @@ def redirect_root_to_docs() -> RedirectResponse:
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
     _run_startup_validations(settings)
-    initialize_database()
+    prepare_database_for_startup(settings.database)
     application.state.server_settings = settings
     yield
 

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
-import json
 import time
 
 from shared.common.settings import get_server_settings
@@ -12,12 +10,10 @@ from shared.common.utils.logger import logger
 ###############################################################################
 if __name__ == "__main__":
     start = time.perf_counter()
-    logger.info("Starting database initialization")
-    logger.info(
-        "Current database configuration: %s",
-        json.dumps(asdict(get_server_settings().database), ensure_ascii=False),
-    )
-    initialize_database()
+    settings = get_server_settings().database
+    mode = "SQLite" if settings.embedded_database else "PostgreSQL"
+    logger.info("Starting explicit %s database initialization.", mode)
+    initialize_database(settings)
     elapsed = time.perf_counter() - start
-    logger.info("Database initialization completed in %.2f seconds", elapsed)
+    logger.info("Database initialization completed in %.2f seconds.", elapsed)
 

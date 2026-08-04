@@ -33,7 +33,6 @@ class PostgresRepository:
     def __init__(
         self,
         settings: DatabaseSettings,
-        initialize_schema: bool = False,
     ) -> None:
         if not settings.host:
             raise ValueError("Database host must be provided for external database.")
@@ -63,12 +62,6 @@ class PostgresRepository:
         self.session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
         self._ensure_server_utf8()
-        if initialize_schema:
-            Base.metadata.create_all(self.engine, checkfirst=True)
-            logger.info(
-                "Initialized PostgreSQL schema for database %s",
-                settings.database_name,
-            )
 
     # -------------------------------------------------------------------------
     @staticmethod

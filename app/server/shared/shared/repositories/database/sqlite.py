@@ -12,11 +12,10 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from shared.common.settings import DatabaseSettings
-from shared.common.constants import DATABASE_FILENAME
-from shared.common.paths import RESOURCES_DIR
 from shared.common.utils.encoding import sanitize_dataframe_strings
 from shared.common.utils.security import ensure_safe_sql_identifier
 from shared.common.utils.logger import logger
+from shared.repositories.database.manager import resolve_sqlite_path
 from shared.repositories.database.sql import sqlite_enable_foreign_keys_sql
 from shared.repositories.database.upsert import resolve_conflict_columns
 from shared.repositories.schemas.models import Base
@@ -32,13 +31,9 @@ class SQLiteRepository:
     def __init__(
         self,
         settings: DatabaseSettings,
-        initialize_schema: bool | None = None,
     ) -> None:
-        self.db_path = RESOURCES_DIR / DATABASE_FILENAME
+        self.db_path = resolve_sqlite_path(settings)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        db_file_exists = self.db_path.exists()
-        if initialize_schema is None:
-            initialize_schema = not db_file_exists
 
         self.engine: Engine = sqlalchemy.create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
@@ -46,9 +41,6 @@ class SQLiteRepository:
         event.listen(self.engine, "connect", self._enable_foreign_keys)
         self.session_factory = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
-        if initialize_schema:
-            Base.metadata.create_all(self.engine, checkfirst=True)
-            logger.info("Initialized SQLite schema at %s", self.db_path)
 
     # -------------------------------------------------------------------------
     @staticmethod

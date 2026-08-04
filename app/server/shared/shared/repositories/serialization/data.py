@@ -4,7 +4,6 @@ import pandas as pd
 
 from shared.common.settings import get_server_settings
 from shared.repositories.database.manager import DatabaseManager
-from shared.repositories.database.sqlite import SQLiteRepository
 from shared.repositories.queries.nist import NISTDataSerializer
 from shared.repositories.schemas.models import Dataset
 
@@ -19,7 +18,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager | None = None) -> None:
-        self.database = database or DatabaseManager(get_server_settings().database, create_schema=True)
+        self.database = database or DatabaseManager(get_server_settings().database)
         self.nist = NISTDataSerializer(self.database)
 
     # -------------------------------------------------------------------------

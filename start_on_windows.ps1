@@ -4,6 +4,8 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "app\scripts\ensure_environment.ps1")
+
 $RepoRoot = $PSScriptRoot
 $AppDir = Join-Path $RepoRoot "app"
 $ServerDir = Join-Path $AppDir "server"
@@ -195,11 +197,7 @@ function Import-Settings {
         ALWAYS_REBUILD = "true"
     }
 
-    if (-not (Test-Path -LiteralPath $EnvFile)) {
-        if (-not (Test-Path -LiteralPath $EnvExample)) {
-            throw "Missing environment template: $EnvExample"
-        }
-        Copy-Item -LiteralPath $EnvExample -Destination $EnvFile
+    if (Ensure-EnvironmentFile -EnvFile $EnvFile -EnvExample $EnvExample) {
         Write-Ok "Created settings/.env from settings/.env.example."
     }
 
@@ -538,8 +536,7 @@ function Initialize-Database {
     Write-Step "Initializing database"
     Push-Location $RepoRoot
     try {
-        & $UvExe run --project app/server --python $PythonExe python app/scripts/initialize_database.py `
-            --drop-existing --seed-catalogs --force-reseed-catalogs
+        & $UvExe run --project app/server --python $PythonExe python app/scripts/initialize_database.py
         Assert-LastExitCode "database initialization"
     } finally {
         Pop-Location

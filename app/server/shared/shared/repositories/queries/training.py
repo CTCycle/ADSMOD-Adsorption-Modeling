@@ -17,7 +17,7 @@ class TrainingRepositoryQueries:
 
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager | None = None) -> None:
-        self.database = database or DatabaseManager(get_server_settings().database, create_schema=True)
+        self.database = database or DatabaseManager(get_server_settings().database)
 
     # -------------------------------------------------------------------------
     @staticmethod
