@@ -3088,77 +3088,6 @@ input:checked+.slider:before {
   padding: 1.2rem 1.6rem 1.8rem;
 }
 
-.source-page {
-  max-width: 1780px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.source-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2rem;
-  align-items: stretch;
-}
-
-.source-column {
-  display: grid;
-  grid-template-rows: auto auto minmax(180px, 1fr);
-  border: 1px solid var(--slate-200);
-  background: #f7f9fd;
-  border-radius: 12px;
-  min-width: 0;
-}
-
-.source-column-row {
-  padding: 1rem 1.1rem;
-  min-width: 0;
-}
-
-.source-column-row + .source-column-row {
-  border-top: 1px solid var(--slate-200);
-}
-
-.source-column-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.source-column-header .section-title {
-  margin-bottom: 0.2rem;
-}
-
-.source-inline-labels {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.source-column-widget {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
-.source-column-log {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  min-height: 0;
-}
-
-.source-markdown-scroll {
-  min-height: 180px;
-  max-height: 360px;
-  overflow: auto;
-  background: #ffffff;
-  border: 1px solid var(--slate-200);
-  border-radius: 10px;
-  padding: 0.85rem 0.95rem;
-}
-
 .models-page {
   max-width: 1880px;
 }
@@ -3338,10 +3267,6 @@ input:checked+.slider:before {
 }
 
 @media (max-width: 1180px) {
-  .source-columns {
-    grid-template-columns: 1fr;
-  }
-
   .training-workspace {
     grid-template-columns: 1fr;
   }
@@ -4148,33 +4073,6 @@ body {
   font-weight: 600;
 }
 
-.source-card-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.68fr);
-  gap: 0.82rem 0.95rem;
-  flex: 1;
-  align-content: stretch;
-}
-
-.source-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(252, 253, 255, 0.96));
-  border: 1px solid #e2eaf8;
-  border-radius: 16px;
-  padding: 1.08rem 1.18rem;
-  box-shadow: 0 12px 30px -26px rgba(30, 41, 59, 0.24);
-}
-
-.source-card-primary,
-.source-card-secondary {
-  min-height: 224px;
-}
-
-.source-card-tertiary {
-  min-height: 102px;
-  height: 100%;
-}
-
-.source-card .section-title,
 .models-title-block h3,
 .panel-title {
   font-size: 1.01rem;
@@ -4182,56 +4080,16 @@ body {
   color: #15233f;
 }
 
-.source-card .section-caption,
 .models-title-block p {
   font-size: 0.86rem;
   line-height: 1.45;
   color: #5a6885;
 }
 
-.source-card .section-caption-journey {
-  margin-top: 0.5rem;
-  max-width: 34rem;
-}
-
-.source-inline-labels {
-  gap: 0.45rem;
-}
-
-.inline-pill {
-  padding: 0.25rem 0.62rem;
-  border-radius: 999px;
-  border: 1px solid #e3eaf8;
-  background: #f4f7fd;
-  color: #4b5873;
-  font-size: 0.78rem;
-  font-weight: 500;
-}
-
-.dataset-upload-toolbar {
-  margin-top: 0.7rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 106px;
-  gap: 0.75rem;
-}
-
-.dataset-upload-button,
 .fitting-action-primary {
   border-radius: 10px;
   min-height: 42px;
   font-size: 0.9rem;
-}
-
-.source-card-text {
-  margin-top: 0.35rem;
-  color: #5a6885;
-  font-size: 0.92rem;
-}
-
-.source-card-text .markdown-content {
-  background: transparent;
-  border: 0;
-  padding: 0;
 }
 
 .models-page {
@@ -4465,8 +4323,7 @@ button.secondary {
 }
 
 @media (max-width: 1180px) {
-  .route-workspace,
-  .source-card-grid {
+  .route-workspace {
     grid-template-columns: 1fr;
   }
 
@@ -4780,15 +4637,6 @@ body {
   background: #f5f8fc;
 }
 
-.source-console-grid {
-  display: grid;
-  grid-template-columns: 365px minmax(0, 1fr);
-  grid-template-rows: 492px 404px;
-  gap: 25px 21px;
-  max-width: 1196px;
-  margin: 0 auto;
-}
-
 .console-card {
   background: #ffffff;
   border: 1px solid #d9e2ee;
@@ -4829,10 +4677,6 @@ body {
   font-size: 15px;
   font-weight: 700;
   line-height: 18px;
-}
-
-.source-nist-card {
-  overflow: hidden;
 }
 
 .reference-nist-table {
@@ -4951,10 +4795,6 @@ body {
   white-space: nowrap;
 }
 
-.source-log-card {
-  overflow: hidden;
-}
-
 .reference-markdown {
   height: calc(100% - 58px);
   margin: 0 19px 18px;
@@ -5067,7 +4907,6 @@ body {
 
   .console-stage,
   .console-main,
-  .user-data-page,
   .console-card {
     min-width: 0;
     max-width: 100%;
@@ -5078,18 +4917,8 @@ body {
     flex-wrap: wrap;
   }
 
-  .source-console-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-  }
 }
 
-.user-data-page, .nist-data-page { display: grid; gap: 18px; }
-.datasets-page { display: grid; align-content: start; gap: 18px; min-height: 100%; }
-.datasets-page > .nist-data-page { grid-template-rows: auto auto; height: auto; min-height: 0; }
-.datasets-page > .nist-data-page .nist-log-card { min-height: 190px; }
-.user-data-page { min-height: 0; max-height: 100%; overflow: hidden; }
-.nist-data-page { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); min-height: 0; height: 100%; }
 .eyebrow { margin: 0 0 0.3rem; color: var(--console-text-muted, #657386); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .empty-state-icon { display: grid; place-items: center; width: 2.35rem; height: 2.35rem; border-radius: 50%; background: #e1edff; color: var(--console-accent, #075bd5); font-size: 1.55rem; font-weight: 600; }
 .source-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
@@ -5166,9 +4995,6 @@ body {
 .help-step-list span { display: block; }
 .help-tip-list { gap: 0.45rem; }
 .help-modal-footer { display: flex; justify-content: flex-end; padding: 0 1.4rem 1.3rem; }
-@media (max-width: 1100px) {
-  .user-data-page, .nist-data-page { grid-template-columns: 1fr; }
-}
 @media (max-width: 900px) { .dataset-record { grid-template-columns: 1fr; gap: 14px; } .dataset-record-stats { justify-content: flex-start; } .dataset-record-actions { justify-content: flex-start; } }
 @media (max-width: 600px) {
   .dataset-add-row { align-items: flex-start; }
@@ -5177,6 +5003,105 @@ body {
   .fitting-action-buttons { flex-direction: column; }
   .fitting-action-primary,
   .fitting-action-secondary { width: 100%; }
+}
+
+/* Data-area split: retain the console surfaces while making each source workflow self-contained. */
+.data-page {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+  max-width: 1520px;
+  margin: 0 auto;
+}
+
+.page-intro-card,
+.public-source-card,
+.public-category-card {
+  padding: 20px 22px;
+}
+
+.page-intro-card h2,
+.public-source-heading h2,
+.public-category-card h2 {
+  margin: 0;
+  color: var(--console-text, #1c2a45);
+  font-size: 1.28rem;
+}
+
+.page-intro-card > p:last-child,
+.public-source-heading p:last-child,
+.public-category-card .card-title-row p:last-child {
+  margin-top: 7px;
+  color: var(--console-text-muted, #657386);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.public-source-heading,
+.public-category-card .card-title-row {
+  align-items: flex-start;
+}
+
+.public-source-heading > div,
+.public-category-card .card-title-row > div {
+  min-width: 0;
+}
+
+.source-badge {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid #cbdcf4;
+  border-radius: 999px;
+  background: #f1f6ff;
+  color: #3768ad;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.public-source-card .reference-nist-table,
+.public-category-card .reference-nist-table {
+  margin-top: 16px;
+  border: 1px solid #d9e2ee;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.public-source-log {
+  min-height: 220px;
+}
+
+.public-materials-page .public-category-card {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .console-nav-item {
+    line-height: 1.25;
+  }
+
+  .data-page {
+    max-width: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-intro-card,
+  .public-source-card,
+  .public-category-card {
+    padding: 16px;
+  }
+
+  .public-source-heading,
+  .public-category-card .card-title-row {
+    flex-direction: column;
+  }
+
+  .source-badge {
+    align-self: flex-start;
+  }
 }
 
 /* Focused UI audit refinements. Keep these primitives token-driven and shared. */

@@ -62,8 +62,8 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                                 (change)="selectDataset($event)"
                                                 class="select-input fitting-dataset-select"
                                             >
-                                                <option value="">{{ store.userDatasets().length === 0 ? 'No datasets available' : 'Select a dataset' }}</option>
-                                                @for (dataset of store.userDatasets(); track dataset.id) {
+                                                <option value="">{{ store.datasets().length === 0 ? 'No datasets available' : 'Select a dataset' }}</option>
+                                                @for (dataset of store.datasets(); track dataset.id) {
                                                     <option [value]="dataset.id">{{ dataset.name }}</option>
                                                 }
                                             </select>

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, signal } from '@angular/core';
 import {
     fetchNistCategoryStatus,
     pingNistCategoryServer,
@@ -244,9 +244,9 @@ const initialOperationMap = (): Record<NISTCategoryKey, CategoryOperationState> 
     `,
 })
 export class NistCollectionRowsComponent implements OnInit {
+    @Input() categories: readonly NISTCategoryKey[] = CATEGORY_ORDER;
     @Output() readonly statusUpdate = new EventEmitter<string>();
 
-    protected readonly categories = CATEGORY_ORDER;
     protected readonly labels = CATEGORY_LABELS;
     protected readonly operationLabels = OPERATION_LABELS;
     protected readonly fractionMin = FRACTION_MIN;

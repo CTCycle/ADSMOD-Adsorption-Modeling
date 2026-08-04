@@ -7,7 +7,9 @@ export const routes: Routes = [
         component: CoreShellComponent,
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'datasets' },
-            { path: 'datasets', loadComponent: () => import('./features/datasets/datasets-page.component').then((m) => m.DatasetsPageComponent) },
+            { path: 'datasets', loadComponent: () => import('./features/datasets/custom-datasets-page.component').then((m) => m.CustomDatasetsPageComponent) },
+            { path: 'public-data', loadComponent: () => import('./features/public-data/public-adsorption-data-page.component').then((m) => m.PublicAdsorptionDataPageComponent) },
+            { path: 'public-materials', loadComponent: () => import('./features/public-materials/public-materials-page.component').then((m) => m.PublicMaterialsPageComponent) },
             { path: 'dashboards', loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent) },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
             { path: 'training', pathMatch: 'full', redirectTo: 'training/processing' },
