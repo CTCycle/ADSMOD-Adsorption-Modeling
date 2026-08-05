@@ -5,7 +5,6 @@ from sqlalchemy import select
 from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Observation
 
-
 ###############################################################################
 class IsothermRepository:
     """Read-only atomic-observation access outside the dataset aggregate."""

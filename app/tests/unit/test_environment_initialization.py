@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 HELPER = PROJECT_ROOT / "app" / "scripts" / "ensure_environment.ps1"
 
 
+###############################################################################
 def run_environment_helper(env_file: Path, env_example: Path) -> subprocess.CompletedProcess[str]:
     shell = shutil.which("pwsh") or shutil.which("powershell")
     if shell is None:
@@ -41,6 +42,7 @@ def run_environment_helper(env_file: Path, env_example: Path) -> subprocess.Comp
     )
 
 
+###############################################################################
 def test_missing_environment_file_is_copied_without_value_changes(tmp_path: Path) -> None:
     env_example = tmp_path / ".env.example"
     env_file = tmp_path / ".env"
@@ -53,6 +55,7 @@ def test_missing_environment_file_is_copied_without_value_changes(tmp_path: Path
     assert env_file.read_bytes() == expected
 
 
+###############################################################################
 def test_existing_environment_file_is_preserved(tmp_path: Path) -> None:
     env_example = tmp_path / ".env.example"
     env_file = tmp_path / ".env"

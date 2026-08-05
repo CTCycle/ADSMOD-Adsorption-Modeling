@@ -7,7 +7,6 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.queries.nist import NISTDataSerializer
 from shared.repositories.schemas.models import Dataset
 
-
 ###############################################################################
 class DataSerializer:
     """Canonical DataFrame boundary for training readers.
