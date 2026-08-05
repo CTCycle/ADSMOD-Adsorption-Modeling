@@ -20,13 +20,11 @@ from shared.repositories.schemas.models import (
 )
 from shared.repositories.schemas.types import normalize_identity
 
-
 ###############################################################################
 def stable_material_key(kind: str, name: str, external: str | None = None) -> str:
     identity = normalize_identity(external or name)
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
     return f"{kind}:{digest}"
-
 
 ###############################################################################
 class DatasetRepository:

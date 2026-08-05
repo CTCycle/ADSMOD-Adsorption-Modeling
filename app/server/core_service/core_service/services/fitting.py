@@ -28,7 +28,6 @@ from shared.repositories.fitting import FittingRepository
 from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
 
-
 ###############################################################################
 class FittingService:
     JOB_TYPE = "fitting"

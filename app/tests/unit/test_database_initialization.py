@@ -11,6 +11,7 @@ from shared.common.settings import DatabaseSettings
 from shared.repositories.database import initializer
 
 
+###############################################################################
 def sqlite_settings(path: Path) -> DatabaseSettings:
     return DatabaseSettings(
         embedded_database=True,
@@ -28,6 +29,7 @@ def sqlite_settings(path: Path) -> DatabaseSettings:
     )
 
 
+###############################################################################
 def postgres_settings() -> DatabaseSettings:
     return DatabaseSettings(
         embedded_database=False,
@@ -44,10 +46,12 @@ def postgres_settings() -> DatabaseSettings:
     )
 
 
+###############################################################################
 def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+###############################################################################
 def test_sqlite_startup_creates_missing_database_once(tmp_path: Path) -> None:
     database_path = tmp_path / "database.db"
     settings = sqlite_settings(database_path)
@@ -72,6 +76,7 @@ def test_sqlite_startup_creates_missing_database_once(tmp_path: Path) -> None:
     assert database_path.stat().st_mtime_ns == mtime_before
 
 
+###############################################################################
 def test_existing_sqlite_file_is_not_initialized_or_repaired(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -90,6 +95,7 @@ def test_existing_sqlite_file_is_not_initialized_or_repaired(
     assert database_path.stat().st_size == 0
 
 
+###############################################################################
 def test_postgres_startup_uses_readiness_check_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -111,34 +117,50 @@ def test_postgres_startup_uses_readiness_check_only(
     assert calls == [settings]
 
 
+###############################################################################
 def test_postgres_readiness_checks_connection_and_required_table(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     statements: list[str] = []
 
+    ###############################################################################
     class Result:
+
+        # -------------------------------------------------------------------------
         def scalar(self) -> int:
             return 1
 
+    ###############################################################################
     class Connection:
+
+        # -------------------------------------------------------------------------
         def __enter__(self) -> "Connection":
             return self
 
+        # -------------------------------------------------------------------------
         def __exit__(self, *args: object) -> None:
             return None
 
+        # -------------------------------------------------------------------------
         def execute(self, statement: object) -> Result:
             statements.append(str(statement))
             return Result()
 
+    ###############################################################################
     class Engine:
+
+        # -------------------------------------------------------------------------
         def connect(self) -> Connection:
             return Connection()
 
+    ###############################################################################
     class Manager:
+
+        # -------------------------------------------------------------------------
         def __init__(self, settings: DatabaseSettings) -> None:
             self.engine = Engine()
 
+        # -------------------------------------------------------------------------
         def dispose(self) -> None:
             return None
 
@@ -150,33 +172,49 @@ def test_postgres_readiness_checks_connection_and_required_table(
     assert any("information_schema.tables" in statement for statement in statements)
 
 
+###############################################################################
 def test_postgres_readiness_rejects_missing_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     values = iter([None])
 
+    ###############################################################################
     class Result:
+
+        # -------------------------------------------------------------------------
         def scalar(self) -> int | None:
             return next(values)
 
+    ###############################################################################
     class Connection:
+
+        # -------------------------------------------------------------------------
         def __enter__(self) -> "Connection":
             return self
 
+        # -------------------------------------------------------------------------
         def __exit__(self, *args: object) -> None:
             return None
 
+        # -------------------------------------------------------------------------
         def execute(self, statement: object) -> Result:
             return Result()
 
+    ###############################################################################
     class Engine:
+
+        # -------------------------------------------------------------------------
         def connect(self) -> Connection:
             return Connection()
 
+    ###############################################################################
     class Manager:
+
+        # -------------------------------------------------------------------------
         def __init__(self, settings: DatabaseSettings) -> None:
             self.engine = Engine()
 
+        # -------------------------------------------------------------------------
         def dispose(self) -> None:
             return None
 
@@ -186,40 +224,57 @@ def test_postgres_readiness_rejects_missing_schema(
         initializer.verify_postgres_database(postgres_settings())
 
 
+###############################################################################
 def test_explicit_postgres_initialization_creates_database_and_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     statements: list[str] = []
     database_names: list[str | None] = []
 
+    ###############################################################################
     class Result:
+
+        # -------------------------------------------------------------------------
         def scalar(self) -> int:
             return 0
 
+    ###############################################################################
     class Connection:
+
+        # -------------------------------------------------------------------------
         def __enter__(self) -> "Connection":
             return self
 
+        # -------------------------------------------------------------------------
         def __exit__(self, *args: object) -> None:
             return None
 
+        # -------------------------------------------------------------------------
         def execute(self, statement: object, params: object = None) -> Result:
             statements.append(str(statement))
             return Result()
 
+    ###############################################################################
     class Engine:
+
+        # -------------------------------------------------------------------------
         def execution_options(self, **kwargs: object) -> "Engine":
             assert kwargs == {"isolation_level": "AUTOCOMMIT"}
             return self
 
+        # -------------------------------------------------------------------------
         def connect(self) -> Connection:
             return Connection()
 
+    ###############################################################################
     class Manager:
+
+        # -------------------------------------------------------------------------
         def __init__(self, settings: DatabaseSettings) -> None:
             database_names.append(settings.database_name)
             self.engine = Engine()
 
+        # -------------------------------------------------------------------------
         def dispose(self) -> None:
             return None
 
@@ -237,10 +292,15 @@ def test_explicit_postgres_initialization_creates_database_and_schema(
     assert any("CREATE DATABASE" in statement for statement in statements)
 
 
+###############################################################################
 def test_postgres_startup_failure_does_not_expose_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+
+    ###############################################################################
     class FailingManager:
+
+        # -------------------------------------------------------------------------
         def __init__(self, *args: object, **kwargs: object) -> None:
             raise SQLAlchemyError("postgresql://postgres:secret@host/database")
 
@@ -253,6 +313,7 @@ def test_postgres_startup_failure_does_not_expose_credentials(
     assert "not initialized" in str(error.value)
 
 
+###############################################################################
 def test_database_initialization_failure_is_sanitized(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

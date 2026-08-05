@@ -9,11 +9,13 @@ from typing import Any
 from playwright.sync_api import APIRequestContext
 
 
+###############################################################################
 def _read_sample(sample_csv_path: str) -> bytes:
     with open(sample_csv_path, "rb") as handle:
         return handle.read()
 
 
+###############################################################################
 def _build_mapping(
     api_context: APIRequestContext,
     sample_csv_path: str,
@@ -59,6 +61,7 @@ def _build_mapping(
     return file_content, mapping
 
 
+###############################################################################
 def _commit_sample(
     api_context: APIRequestContext,
     sample_csv_path: str,
@@ -95,11 +98,11 @@ def _commit_sample(
     assert commit_response.ok, f"Commit failed: {commit_response.text()}"
     return commit_response.json()["dataset"]
 
-
 ###############################################################################
 class TestDatasetImport:
     """Tests for the four-stage canonical dataset import flow."""
 
+    # -------------------------------------------------------------------------
     def test_import_csv_dataset(
         self, api_context: APIRequestContext, sample_csv_path: str
     ) -> None:
@@ -111,11 +114,11 @@ class TestDatasetImport:
         assert dataset["experiment_count"] > 0
         assert dataset["observation_count"] > 0
 
-
 ###############################################################################
 class TestDatasetList:
     """Tests for listing canonical dataset summaries."""
 
+    # -------------------------------------------------------------------------
     def test_get_dataset_list(self, api_context: APIRequestContext) -> None:
         response = api_context.get("/api/datasets")
 
@@ -124,11 +127,11 @@ class TestDatasetList:
         assert data["status"] == "success"
         assert isinstance(data["datasets"], list)
 
-
 ###############################################################################
 class TestDatasetExperiments:
     """Tests for fetching experiments from an imported dataset."""
 
+    # -------------------------------------------------------------------------
     def test_get_experiments_after_import(
         self, api_context: APIRequestContext, sample_csv_path: str
     ) -> None:
@@ -145,6 +148,7 @@ class TestDatasetExperiments:
         assert len(data["experiments"]) > 0
         assert data["experiments"][0]["dataset_id"] == dataset["id"]
 
+    # -------------------------------------------------------------------------
     def test_get_nonexistent_dataset_experiments(
         self, api_context: APIRequestContext
     ) -> None:

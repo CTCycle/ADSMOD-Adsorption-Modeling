@@ -22,7 +22,6 @@ from shared.repositories.schemas.models import (
 
 NIST_DATASET_PREFIX = "NIST ISODB"
 
-
 ###############################################################################
 def _text(value: object) -> str:
     if value is None:
@@ -33,7 +32,6 @@ def _text(value: object) -> str:
     except (TypeError, ValueError):
         pass
     return str(value).strip()
-
 
 ###############################################################################
 def _material_records(frame: pd.DataFrame, kind: str) -> list[dict[str, Any]]:
@@ -64,7 +62,6 @@ def _material_records(frame: pd.DataFrame, kind: str) -> list[dict[str, Any]]:
             }
         )
     return records
-
 
 ###############################################################################
 class NISTCanonicalRepository:

@@ -18,7 +18,6 @@ from core_service.services.data.datasets import DatasetService
 from shared.common.constants import DATASETS_ROUTER_PREFIX
 from core_service.services.data.units import UnitRegistry
 
-
 ###############################################################################
 class DatasetEndpoint:
 
@@ -198,7 +197,6 @@ class DatasetEndpoint:
             methods=["DELETE"],
             status_code=status.HTTP_204_NO_CONTENT,
         )
-
 
 ###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:

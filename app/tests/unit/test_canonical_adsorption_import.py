@@ -3,7 +3,6 @@ from __future__ import annotations
 from core_service.domain.datasets import ImportMapping
 from core_service.services.data.importer import AdsorptionImportEngine
 
-
 ###############################################################################
 def test_atomic_import_groups_rows_and_normalizes_units() -> None:
     payload = b"experiment_id,Pressure [bar],Uptake [mmol/g],Temperature [K],Adsorbate,Adsorbent\nEXP-1,0.1,0.42,298.15,CO2,13X\nEXP-1,0.2,0.73,298.15,CO2,13X\n"
@@ -22,7 +21,6 @@ def test_atomic_import_groups_rows_and_normalizes_units() -> None:
     assert bundle.response.observation_count == 2
     assert bundle.experiments[0]["observations"][0]["pressure_canonical"] == 10_000
     assert bundle.experiments[0]["observations"][0]["uptake_mol_kg"] == 0.42
-
 
 ###############################################################################
 def test_aggregated_arrays_require_equal_lengths() -> None:

@@ -13,7 +13,6 @@ from shared.repositories.schemas.models import (
     FittingRun,
 )
 
-
 ###############################################################################
 class FittingRepository:
 

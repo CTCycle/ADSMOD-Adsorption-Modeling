@@ -40,7 +40,6 @@ def clone_settings_with_database(
         sqlite_path=settings.sqlite_path,
     )
 
-
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     database_path = resolve_sqlite_path(settings)
@@ -49,7 +48,6 @@ def initialize_sqlite_database(settings: DatabaseSettings) -> None:
         return
 
     _create_schema(settings, "SQLite")
-
 
 ###############################################################################
 def _create_schema(settings: DatabaseSettings, database_label: str) -> None:
@@ -60,12 +58,10 @@ def _create_schema(settings: DatabaseSettings, database_label: str) -> None:
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def _validate_postgres_settings(settings: DatabaseSettings) -> None:
     if not settings.host or not settings.username or not settings.database_name:
         raise ValueError("PostgreSQL host, database name, and username are required.")
-
 
 ###############################################################################
 def verify_postgres_database(settings: DatabaseSettings) -> None:
@@ -88,7 +84,6 @@ def verify_postgres_database(settings: DatabaseSettings) -> None:
     finally:
         if manager is not None:
             manager.dispose()
-
 
 ###############################################################################
 def initialize_postgres_database(settings: DatabaseSettings) -> None:
@@ -115,7 +110,6 @@ def initialize_postgres_database(settings: DatabaseSettings) -> None:
         if admin_manager is not None:
             admin_manager.dispose()
 
-
 ###############################################################################
 def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
     database_settings = settings or get_server_settings().database
@@ -124,7 +118,6 @@ def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> No
     else:
         verify_postgres_database(database_settings)
 
-
 ###############################################################################
 def run_database_initialization(settings: DatabaseSettings | None = None) -> None:
     database_settings = settings or get_server_settings().database
@@ -132,7 +125,6 @@ def run_database_initialization(settings: DatabaseSettings | None = None) -> Non
         initialize_sqlite_database(database_settings)
     else:
         initialize_postgres_database(database_settings)
-
 
 ###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> None:
