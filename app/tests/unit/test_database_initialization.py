@@ -10,7 +10,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from shared.common.settings import DatabaseSettings
 from shared.repositories.database import initializer
 
-
 ###############################################################################
 def sqlite_settings(path: Path) -> DatabaseSettings:
     return DatabaseSettings(
@@ -28,7 +27,6 @@ def sqlite_settings(path: Path) -> DatabaseSettings:
         sqlite_path=str(path),
     )
 
-
 ###############################################################################
 def postgres_settings() -> DatabaseSettings:
     return DatabaseSettings(
@@ -45,11 +43,9 @@ def postgres_settings() -> DatabaseSettings:
         insert_batch_size=100,
     )
 
-
 ###############################################################################
 def file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
 
 ###############################################################################
 def test_sqlite_startup_creates_missing_database_once(tmp_path: Path) -> None:
@@ -75,7 +71,6 @@ def test_sqlite_startup_creates_missing_database_once(tmp_path: Path) -> None:
     assert file_sha256(database_path) == digest_before
     assert database_path.stat().st_mtime_ns == mtime_before
 
-
 ###############################################################################
 def test_existing_sqlite_file_is_not_initialized_or_repaired(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -93,7 +88,6 @@ def test_existing_sqlite_file_is_not_initialized_or_repaired(
     initializer.initialize_database(settings)
 
     assert database_path.stat().st_size == 0
-
 
 ###############################################################################
 def test_postgres_startup_uses_readiness_check_only(
@@ -115,7 +109,6 @@ def test_postgres_startup_uses_readiness_check_only(
     initializer.prepare_database_for_startup(settings)
 
     assert calls == [settings]
-
 
 ###############################################################################
 def test_postgres_readiness_checks_connection_and_required_table(
@@ -171,7 +164,6 @@ def test_postgres_readiness_checks_connection_and_required_table(
     assert any(statement.strip() == "SELECT 1" for statement in statements)
     assert any("information_schema.tables" in statement for statement in statements)
 
-
 ###############################################################################
 def test_postgres_readiness_rejects_missing_schema(
     monkeypatch: pytest.MonkeyPatch,
@@ -222,7 +214,6 @@ def test_postgres_readiness_rejects_missing_schema(
 
     with pytest.raises(RuntimeError, match="not initialized"):
         initializer.verify_postgres_database(postgres_settings())
-
 
 ###############################################################################
 def test_explicit_postgres_initialization_creates_database_and_schema(
@@ -291,7 +282,6 @@ def test_explicit_postgres_initialization_creates_database_and_schema(
     assert any("pg_database" in statement for statement in statements)
     assert any("CREATE DATABASE" in statement for statement in statements)
 
-
 ###############################################################################
 def test_postgres_startup_failure_does_not_expose_credentials(
     monkeypatch: pytest.MonkeyPatch,
@@ -311,7 +301,6 @@ def test_postgres_startup_failure_does_not_expose_credentials(
 
     assert "secret" not in str(error.value)
     assert "not initialized" in str(error.value)
-
 
 ###############################################################################
 def test_database_initialization_failure_is_sanitized(
