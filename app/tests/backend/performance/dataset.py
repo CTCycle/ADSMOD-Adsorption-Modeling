@@ -6,9 +6,13 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+from sqlalchemy import delete, select
 
 from ml_service.domain.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
+from shared.common.settings import get_server_settings
+from shared.repositories.database.manager import DatabaseManager
+from shared.repositories.schemas.models import TrainingDataset, TrainingSample
 
 ###############################################################################
 @dataclass
@@ -152,7 +156,23 @@ def create_and_save_synthetic_training_dataset(
 
 ###############################################################################
 def clear_synthetic_training_dataset(dataset_label: str) -> None:
-    serializer = TrainingDataSerializer()
-    serializer.clear_training_dataset(dataset_label)
+    database = DatabaseManager(get_server_settings().database)
+    archived_prefix = f"archived::{dataset_label}::%"
+    try:
+        with database.transaction() as session:
+            parent_ids = select(TrainingDataset.id).where(
+                (TrainingDataset.label == dataset_label)
+                | TrainingDataset.label.like(archived_prefix)
+            )
+            session.execute(
+                delete(TrainingSample).where(
+                    TrainingSample.training_dataset_id.in_(parent_ids)
+                )
+            )
+            session.execute(
+                delete(TrainingDataset).where(TrainingDataset.id.in_(parent_ids))
+            )
+    finally:
+        database.dispose()
 
 

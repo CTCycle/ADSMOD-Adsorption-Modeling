@@ -22,6 +22,14 @@ class StubTrainingQueries:
     def upsert_training_dataset(self, dataset):  # noqa: ANN001
         self.captured["upsert"] = dataset.copy()
 
+    # -------------------------------------------------------------------------
+    def save_training_metadata(self, metadata):  # noqa: ANN001
+        self.captured["metadata"] = metadata.copy()
+
+    # -------------------------------------------------------------------------
+    def load_training_metadata(self):
+        return pd.DataFrame()
+
 
 # Helper to create a basis metadata object
 
@@ -124,3 +132,29 @@ def test_save_training_dataset_deduplicates_sample_keys():
     upserted = captured["upsert"]
     assert len(upserted) == 1
     assert upserted["sample_key"].nunique() == 1
+    assert upserted.iloc[0]["pressure"] == [1.0, 2.0]
+    assert upserted.iloc[0]["adsorbed_amount"] == [0.1, 0.2]
+    assert upserted.iloc[0]["adsorbate_encoded_smile"] == [1, 2, 3]
+
+###############################################################################
+def test_save_training_metadata_normalizes_json_mappings():
+    captured: dict[str, pd.DataFrame] = {}
+    serializer = TrainingDataSerializer(queries=StubTrainingQueries(captured))
+    metadata = pd.DataFrame(
+        [
+            {
+                "dataset_label": "small_dataset",
+                "dataset_hash": "hash",
+                "smile_vocabulary": '{"C": 1}',
+                "adsorbent_vocabulary": '{"MOF-1": 0}',
+                "normalization_stats": '{"pressure_mean": 1.0}',
+            }
+        ]
+    )
+
+    serializer.save_training_metadata(metadata, dataset_label="small_dataset")
+
+    saved = captured["metadata"].iloc[0]
+    assert saved["smile_vocabulary"] == {"C": 1}
+    assert saved["adsorbent_vocabulary"] == {"MOF-1": 0}
+    assert saved["normalization_stats"] == {"pressure_mean": 1.0}

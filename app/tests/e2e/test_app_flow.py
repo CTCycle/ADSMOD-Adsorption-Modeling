@@ -16,7 +16,7 @@ class TestHomepage:
         page.goto(base_url)
 
         expect(page).to_have_title("ADSMOD Adsorption Modeling")
-        expect(page.locator(".app-header h1")).to_have_text("ADSMOD")
+        expect(page.locator(".console-brand-name")).to_have_text("ADSMOD")
         expect(page.locator("nav[aria-label='Primary']").first).to_be_visible()
         expect(page.locator(".custom-datasets-page")).to_be_visible()
         expect(page.locator("input[type='file']").first).to_be_attached()
@@ -42,4 +42,5 @@ class TestHeaderNavigation:
         page.goto(base_url)
         page.get_by_role("link", name="Training").click()
 
-        expect(page.locator("section:not([hidden]) .ml-page")).to_be_visible()
+        expect(page.locator(".route-workspace-training")).to_be_visible()
+        expect(page.get_by_role("heading", name="Data Processing")).to_be_visible()

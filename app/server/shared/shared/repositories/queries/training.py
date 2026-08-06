@@ -47,13 +47,33 @@ class TrainingRepositoryQueries:
 
     # -------------------------------------------------------------------------
     def _get_or_create_parent(self, session: Any, label: str, content_hash: str) -> TrainingDataset:
-        parent = session.scalar(select(TrainingDataset).where(TrainingDataset.content_hash == content_hash))
+        parent = session.scalar(
+            select(TrainingDataset)
+            .where(
+                TrainingDataset.label == label,
+                TrainingDataset.content_hash == content_hash,
+            )
+            .order_by(TrainingDataset.id)
+        )
+        if parent is None:
+            parent = session.scalar(
+                select(TrainingDataset)
+                .where(TrainingDataset.label == label)
+                .order_by(TrainingDataset.id)
+            )
+        if parent is None:
+            parent = session.scalar(
+                select(TrainingDataset).where(
+                    TrainingDataset.content_hash == content_hash
+                )
+            )
         if parent is None:
             parent = TrainingDataset(content_hash=content_hash, label=label, sample_fraction=1.0, validation_fraction=0.0)
             session.add(parent)
             session.flush()
         else:
             parent.label = label
+            parent.content_hash = content_hash
         return parent
 
     # -------------------------------------------------------------------------
@@ -73,15 +93,29 @@ class TrainingRepositoryQueries:
         with self.database.transaction() as session:
             for label, group in dataset.groupby("name", dropna=False):
                 normalized_label = str(label or "default")
-                content_hash = self._content_hash(normalized_label)
+                records = group.to_dict(orient="records")
+                content_hash = next(
+                    (
+                        str(value).strip()
+                        for value in (
+                            row.get("training_hashcode") for row in records
+                        )
+                        if isinstance(value, str) and value.strip()
+                    ),
+                    self._content_hash(normalized_label),
+                )
                 parent = self._get_or_create_parent(session, normalized_label, content_hash)
                 session.execute(delete(TrainingSample).where(TrainingSample.training_dataset_id == parent.id))
-                records = [self._sample_record(row, parent.id) for row in group.to_dict(orient="records")]
-                session.add_all(TrainingSample(**record) for record in records)
-                parent.total_samples = len(records)
-                parent.train_samples = sum(record["split"] == "train" for record in records)
-                parent.validation_samples = sum(record["split"] == "validation" for record in records)
-                parent.test_samples = sum(record["split"] == "test" for record in records)
+                sample_records_by_key = {
+                    record["sample_key"]: record
+                    for record in (self._sample_record(row, parent.id) for row in records)
+                }
+                sample_records = list(sample_records_by_key.values())
+                session.add_all(TrainingSample(**record) for record in sample_records)
+                parent.total_samples = len(sample_records)
+                parent.train_samples = sum(record["split"] == "train" for record in sample_records)
+                parent.validation_samples = sum(record["split"] == "validation" for record in sample_records)
+                parent.test_samples = sum(record["split"] == "test" for record in sample_records)
 
     save_training_dataset = upsert_training_dataset
 
@@ -110,6 +144,12 @@ class TrainingRepositoryQueries:
             {
                 "dataset_label": row.label,
                 "hashcode": row.content_hash,
+                "created_at": row.created_at,
+                "min_measurements": row.min_measurements or 1,
+                "max_measurements": row.max_measurements or 30,
+                "smile_sequence_size": row.configuration.get("smile_sequence_size", 20),
+                "max_pressure": row.configuration.get("max_pressure", 10000.0),
+                "max_uptake": row.configuration.get("max_uptake", 20.0),
                 "total_samples": row.total_samples,
                 "train_samples": row.train_samples,
                 "validation_samples": row.validation_samples,
@@ -134,6 +174,13 @@ class TrainingRepositoryQueries:
                 parent = self._get_or_create_parent(session, label, content_hash)
                 parent.sample_fraction = float(row.get("sample_size") or 1.0)
                 parent.validation_fraction = float(row.get("validation_size") or 0.0)
+                parent.min_measurements = int(row.get("min_measurements") or 1)
+                parent.max_measurements = int(row.get("max_measurements") or 30)
+                parent.configuration = {
+                    "smile_sequence_size": int(row.get("smile_sequence_size") or 20),
+                    "max_pressure": float(row.get("max_pressure") or 10000.0),
+                    "max_uptake": float(row.get("max_uptake") or 20.0),
+                }
                 parent.total_samples = int(row.get("total_samples") or 0)
                 parent.train_samples = int(row.get("train_samples") or 0)
                 parent.validation_samples = int(row.get("validation_samples") or 0)

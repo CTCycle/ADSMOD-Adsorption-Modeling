@@ -83,8 +83,13 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     @staticmethod
     def build_archived_label(dataset_label: str) -> str:
-        timestamp = pd.Timestamp.utcnow().strftime("%Y%m%d%H%M%S%f")
+        timestamp = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d%H%M%S%f")
         return f"archived::{dataset_label}::{timestamp}"
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def build_archived_hash(archived_label: str) -> str:
+        return hashlib.sha256(archived_label.encode("utf-8")).hexdigest()
 
     # -------------------------------------------------------------------------
     def archive_training_dataset_rows(self, dataset_label: str | None = None) -> None:
@@ -105,8 +110,12 @@ class TrainingDataSerializer:
         if not bool(mask.any()):
             return
 
-        archived_data.loc[mask, self.dataset_label_column] = self.build_archived_label(
-            self.normalize_dataset_label(label_seed)
+        archived_label = self.build_archived_label(self.normalize_dataset_label(label_seed))
+        archived_data.loc[mask, self.dataset_label_column] = archived_label
+        if self.training_hash_column not in archived_data.columns:
+            archived_data[self.training_hash_column] = pd.NA
+        archived_data.loc[mask, self.training_hash_column] = self.build_archived_hash(
+            archived_label
         )
         self.queries.upsert_training_dataset(archived_data)
 
@@ -126,8 +135,12 @@ class TrainingDataSerializer:
         if not bool(mask.any()):
             return
 
-        archived_meta.loc[mask, "dataset_label"] = self.build_archived_label(
-            self.normalize_dataset_label(label_seed)
+        archived_label = self.build_archived_label(self.normalize_dataset_label(label_seed))
+        archived_meta.loc[mask, "dataset_label"] = archived_label
+        if self.metadata_hash_column not in archived_meta.columns:
+            archived_meta[self.metadata_hash_column] = pd.NA
+        archived_meta.loc[mask, self.metadata_hash_column] = self.build_archived_hash(
+            archived_label
         )
         self.queries.save_training_metadata(archived_meta)
 
@@ -136,7 +149,8 @@ class TrainingDataSerializer:
         self, dataset: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
         dataset_label = self.normalize_dataset_label(dataset_label)
-        storage_dataset = self.prepare_dataset_for_storage(dataset)
+        normalized_dataset = self.coerce_sequence_columns(dataset)
+        storage_dataset = self.prepare_dataset_for_storage(normalized_dataset)
         if self.dataset_label_column not in storage_dataset.columns:
             storage_dataset[self.dataset_label_column] = dataset_label
         if self.training_hash_column not in storage_dataset.columns:
@@ -164,6 +178,11 @@ class TrainingDataSerializer:
         storage_metadata = self.prepare_metadata_for_storage(metadata)
         if "dataset_label" not in storage_metadata.columns:
             storage_metadata["dataset_label"] = dataset_label
+        for column in ("smile_vocabulary", "adsorbent_vocabulary", "normalization_stats"):
+            if column in storage_metadata.columns:
+                storage_metadata[column] = storage_metadata[column].apply(
+                    self._parse_json
+                )
 
         self.archive_training_metadata_rows(dataset_label)
         self.queries.save_training_metadata(storage_metadata)

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import os
 import time
+import uuid
 
 from playwright.sync_api import APIRequestContext
+
+from .test_datasets_api import _commit_sample
 
 ###############################################################################
 class TestFittingRun:
@@ -13,8 +16,8 @@ class TestFittingRun:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _max_iterations(default_value: int) -> int:
-        value = os.getenv("TEST_MAX_FITTING_ITERATIONS")
+    def _max_evaluations(default_value: int) -> int:
+        value = os.getenv("TEST_MAX_FITTING_EVALUATIONS")
         if value is None:
             return default_value
         try:
@@ -24,11 +27,20 @@ class TestFittingRun:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _fitting_dataset(dataset: dict) -> dict:
-        """Align upload payload with fitting schema expectations."""
-        filtered_dataset = dict(dataset)
-        filtered_dataset.pop("row_count", None)
-        return filtered_dataset
+    def _fitting_target(
+        api_context: APIRequestContext, sample_csv_path: str
+    ) -> tuple[int, int]:
+        dataset = _commit_sample(
+            api_context,
+            sample_csv_path,
+            f"fitting_test_{uuid.uuid4().hex[:8]}",
+        )
+        response = api_context.get(f"/api/datasets/{dataset['id']}/experiments")
+        assert response.ok, response.text()
+        experiment = next(
+            item for item in response.json()["experiments"] if item["fitting_eligible"]
+        )
+        return dataset["id"], experiment["id"]
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -57,35 +69,14 @@ class TestFittingRun:
         self, api_context: APIRequestContext, sample_csv_path: str
     ) -> None:
         """Verify fitting with Langmuir model succeeds."""
-        # Arrange - first upload a dataset
-        with open(sample_csv_path, "rb") as f:
-            file_content = f.read()
+        dataset_id, isotherm_id = self._fitting_target(api_context, sample_csv_path)
 
-        upload_response = api_context.post(
-            "/api/datasets/load",
-            multipart={
-                "file": {
-                    "name": "fitting_test.csv",
-                    "mimeType": "text/csv",
-                    "buffer": file_content,
-                }
-            },
-        )
-        assert upload_response.ok
-        dataset = upload_response.json()["dataset"]
-
-        # Build fitting request
         payload = {
-            "dataset": self._fitting_dataset(dataset),
-            "parameter_bounds": {
-                "Langmuir": {
-                    "min": {"k": 1e-06, "qsat": 0.0},
-                    "max": {"k": 10.0, "qsat": 100.0},
-                    "initial": {"k": 0.5, "qsat": 50.0},
-                }
-            },
-            "max_iterations": self._max_iterations(100),
-            "optimization_method": "LSS",
+            "dataset_id": dataset_id,
+            "isotherm_id": isotherm_id,
+            "models": ["langmuir"],
+            "optimizer": "trf",
+            "max_evaluations": self._max_evaluations(100),
         }
 
         # Act
@@ -104,39 +95,14 @@ class TestFittingRun:
         self, api_context: APIRequestContext, sample_csv_path: str
     ) -> None:
         """Verify fitting with multiple models succeeds."""
-        # Arrange
-        with open(sample_csv_path, "rb") as f:
-            file_content = f.read()
-
-        upload_response = api_context.post(
-            "/api/datasets/load",
-            multipart={
-                "file": {
-                    "name": "fitting_test.csv",
-                    "mimeType": "text/csv",
-                    "buffer": file_content,
-                }
-            },
-        )
-        assert upload_response.ok
-        dataset = upload_response.json()["dataset"]
+        dataset_id, isotherm_id = self._fitting_target(api_context, sample_csv_path)
 
         payload = {
-            "dataset": self._fitting_dataset(dataset),
-            "parameter_bounds": {
-                "Langmuir": {
-                    "min": {"k": 1e-06, "qsat": 0.0},
-                    "max": {"k": 10.0, "qsat": 100.0},
-                    "initial": {"k": 0.5, "qsat": 50.0},
-                },
-                "Freundlich": {
-                    "min": {"k": 1e-06, "exponent": 0.1},
-                    "max": {"k": 10.0, "exponent": 10.0},
-                    "initial": {"k": 0.5, "exponent": 1.0},
-                },
-            },
-            "max_iterations": self._max_iterations(120),
-            "optimization_method": "LSS",
+            "dataset_id": dataset_id,
+            "isotherm_id": isotherm_id,
+            "models": ["langmuir", "freundlich"],
+            "optimizer": "trf",
+            "max_evaluations": self._max_evaluations(120),
         }
 
         # Act
@@ -151,38 +117,17 @@ class TestFittingRun:
             raise AssertionError(f"Job did not complete successfully: {job_status}")
 
     # -------------------------------------------------------------------------
-    def test_run_fitting_invalid_method(
+    def test_run_fitting_invalid_optimizer(
         self, api_context: APIRequestContext, sample_csv_path: str
     ) -> None:
-        """Verify fitting with invalid optimization method returns error."""
-        # Arrange
-        with open(sample_csv_path, "rb") as f:
-            file_content = f.read()
-
-        upload_response = api_context.post(
-            "/api/datasets/load",
-            multipart={
-                "file": {
-                    "name": "invalid_method_test.csv",
-                    "mimeType": "text/csv",
-                    "buffer": file_content,
-                }
-            },
-        )
-        assert upload_response.ok
-        dataset = upload_response.json()["dataset"]
+        """Verify an unsupported optimizer is rejected by request validation."""
+        dataset_id, isotherm_id = self._fitting_target(api_context, sample_csv_path)
 
         payload = {
-            "dataset": self._fitting_dataset(dataset),
-            "parameter_bounds": {
-                "Langmuir": {
-                    "min": {"k": 1e-06, "qsat": 0.0},
-                    "max": {"k": 10.0, "qsat": 100.0},
-                    "initial": {"k": 0.5, "qsat": 50.0},
-                }
-            },
-            "max_iterations": self._max_iterations(40),
-            "optimization_method": "INVALID_METHOD",
+            "dataset_id": dataset_id,
+            "isotherm_id": isotherm_id,
+            "models": ["langmuir"],
+            "optimizer": "INVALID_METHOD",
         }
 
         # Act
@@ -192,27 +137,21 @@ class TestFittingRun:
         assert response.status == 422  # Pydantic validation error
 
 ###############################################################################
-class TestNistDatasetForFitting:
-    """Tests for the NIST dataset endpoint."""
+class TestModelCatalog:
+    """Tests for the current fitting model catalog endpoint."""
 
     # -------------------------------------------------------------------------
-    def test_get_nist_dataset_for_fitting(self, api_context: APIRequestContext) -> None:
-        """Verify NIST dataset endpoint returns data when available."""
-        # Act
-        response = api_context.get("/api/fitting/nist-dataset")
+    def test_get_model_catalog(self, api_context: APIRequestContext) -> None:
+        response = api_context.get("/api/fitting/models")
 
-        # Assert
-        # May return 200 with data or 400 if no NIST data available
-        assert response.status in (200, 400)
-        if response.ok:
-            data = response.json()
-            assert data.get("status") == "success"
-            assert "dataset" in data
-            dataset = data["dataset"]
-            assert "dataset_name" in dataset
-            assert "columns" in dataset
-            assert "records" in dataset
-            assert "row_count" in dataset
+        assert response.ok, response.text()
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["pressure_unit"] == "bar"
+        assert data["uptake_unit"] == "mmol/g"
+        models = {model["key"]: model for model in data["models"]}
+        assert {"langmuir", "freundlich"}.issubset(models)
+        assert {parameter["name"] for parameter in models["langmuir"]["parameters"]} == {"k", "qsat"}
 
 ###############################################################################
 class TestFittingJobs:
