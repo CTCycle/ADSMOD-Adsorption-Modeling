@@ -308,12 +308,15 @@ function Sync-Dependencies {
     param(
         [switch]$BuildFrontend,
         [switch]$AllowExistingEnvironmentFallback,
+        [switch]$RuntimesReady,
         [ValidateSet('Standard', 'Development')]
         [string]$InstallationType = 'Standard'
     )
 
     $settings = Import-Settings
-    Initialize-Runtimes
+    if (-not $RuntimesReady) {
+        Initialize-Runtimes
+    }
     Set-RuntimeEnvironment
 
     Write-Step "Syncing Python dependencies"
@@ -514,18 +517,22 @@ function Start-Application {
 }
 
 function Install-OrUpdate {
+    Initialize-Runtimes
+    Write-Ok "Portable runtimes ready."
     $installationType = Read-InstallationType
-    Sync-Dependencies -BuildFrontend -InstallationType $installationType
+    Sync-Dependencies -BuildFrontend -RuntimesReady -InstallationType $installationType
     Remove-UvCache
     Write-Ok "Dependencies installed and frontend built successfully."
 }
 
 function Read-InstallationType {
-    $selection = (Read-Host "Installation type [1=Development, 2=Standard]").Trim()
+    Write-Host "  [1] Development - include Ruff, Pyright, and pytest"
+    Write-Host "  [2] Standard    - install runtime dependencies only"
+    $selection = (Read-Host "  Select installation profile [1-2]").Trim()
     switch ($selection) {
         '1' { return 'Development' }
         '2' { return 'Standard' }
-        default { throw "Invalid installation type. Enter 1 for Development or 2 for Standard." }
+        default { throw "Invalid installation profile. Enter 1 for Development or 2 for Standard." }
     }
 }
 
