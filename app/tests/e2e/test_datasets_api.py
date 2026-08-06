@@ -8,12 +8,10 @@ from typing import Any
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 def _read_sample(sample_csv_path: str) -> bytes:
     with open(sample_csv_path, "rb") as handle:
         return handle.read()
-
 
 ###############################################################################
 def _build_mapping(
@@ -59,7 +57,6 @@ def _build_mapping(
         "duplicate_policy": "keep",
     }
     return file_content, mapping
-
 
 ###############################################################################
 def _commit_sample(
