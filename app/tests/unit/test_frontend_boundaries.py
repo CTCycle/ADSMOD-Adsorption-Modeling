@@ -22,7 +22,7 @@ def test_unified_frontend_keeps_expected_training_routes() -> None:
 def test_unified_frontend_keeps_core_and_training_pages() -> None:
     root = Path('app/client/src')
     required_tokens = [
-        'SourcePageComponent',
+        'CustomDatasetsPageComponent',
         'ModelsPageComponent',
         'MachineLearningPageComponent',
     ]

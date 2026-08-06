@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError, InterfaceError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from shared.repositories.database.bulk import upsert_records
 from shared.repositories.database.upsert import resolve_conflict_columns
 from shared.repositories.schemas.models import Adsorbate, Base
 
@@ -69,43 +70,35 @@ def upsert_adsorbate(
     conflict_columns: list[str],
 ) -> None:
     with Session(engine) as session:
-        statement = insert(Adsorbate.__table__).values([payload])
-        update_columns = {
-            key: getattr(statement.excluded, key)
-            for key in payload
-            if key not in conflict_columns
-        }
-        statement = statement.on_conflict_do_update(
-            index_elements=conflict_columns,
-            set_=update_columns,
-        )
-        session.execute(statement)
+        upsert_records(session, Adsorbate.__table__, [payload], conflict_columns)
         session.commit()
 
 ###############################################################################
-def test_wrong_conflict_target_can_raise_duplicate_adsorbate_key() -> None:
+def test_wrong_conflict_target_can_raise_duplicate_adsorbate_identity() -> None:
     engine = build_sqlite_engine()
 
     first = {
-        "adsorbate_key": "name:0001",
-        "InChIKey": None,
+        "key": "name:0001",
         "name": "methane",
+        "normalized_name": "methane",
+        "inchi_key": None,
         "formula": "CH4",
     }
     second = {
-        "adsorbate_key": "name:0001",
-        "InChIKey": None,
+        "key": "name:0001",
         "name": "methane",
+        "normalized_name": "methane",
+        "inchi_key": None,
         "formula": "CH4-updated",
     }
 
-    upsert_adsorbate(engine, first, ["InChIKey"])
+    upsert_adsorbate(engine, first, ["inchi_key"])
     with Session(engine) as session:
         statement = (
             insert(Adsorbate.__table__)
             .values([second])
             .on_conflict_do_update(
-                index_elements=["InChIKey"],
+                index_elements=["inchi_key"],
                 set_={"formula": "CH4-updated"},
             )
         )
@@ -119,19 +112,22 @@ def test_wrong_conflict_target_can_raise_duplicate_adsorbate_key() -> None:
 def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
     engine = build_sqlite_engine()
     conflict_columns = resolve_conflict_columns(Adsorbate.__table__)
+    assert conflict_columns == ["key"]
 
     first = {
-        "adsorbate_key": "name:0002",
-        "InChIKey": None,
+        "key": "name:0002",
         "name": "ethane",
+        "normalized_name": "ethane",
+        "inchi_key": None,
         "formula": "C2H6",
     }
     second = {
-        "adsorbate_key": "name:0002",
-        "InChIKey": None,
+        "key": "name:0002",
         "name": "ethane",
+        "normalized_name": "ethane",
+        "inchi_key": None,
         "formula": "C2H6-updated",
-        "molecular_formula": "C2H6",
+        "molar_mass_g_mol": 30.07,
     }
 
     upsert_adsorbate(engine, first, conflict_columns)
@@ -140,7 +136,7 @@ def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
     with Session(engine) as session:
         rows = (
             session.execute(
-                select(Adsorbate).where(Adsorbate.adsorbate_key == "name:0002")
+                select(Adsorbate).where(Adsorbate.key == "name:0002")
             )
             .scalars()
             .all()
@@ -148,7 +144,7 @@ def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
         assert len(rows) == 1
         assert rows[0].id is not None
         assert rows[0].formula == "C2H6-updated"
-        assert rows[0].molecular_formula == "C2H6"
+        assert rows[0].molar_mass_g_mol == 30.07
 
     engine.dispose()
 
@@ -159,15 +155,17 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
     barrier = threading.Barrier(2)
 
     payload_a = {
-        "adsorbate_key": "name:0003",
-        "InChIKey": None,
+        "key": "name:0003",
         "name": "propane",
+        "normalized_name": "propane",
+        "inchi_key": None,
         "formula": "C3H8-a",
     }
     payload_b = {
-        "adsorbate_key": "name:0003",
-        "InChIKey": None,
+        "key": "name:0003",
         "name": "propane",
+        "normalized_name": "propane",
+        "inchi_key": None,
         "formula": "C3H8-b",
     }
 
@@ -194,7 +192,7 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
     with Session(engine) as session:
         rows = (
             session.execute(
-                select(Adsorbate).where(Adsorbate.adsorbate_key == "name:0003")
+                select(Adsorbate).where(Adsorbate.key == "name:0003")
             )
             .scalars()
             .all()

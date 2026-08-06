@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+GENERATED_DIRS = {".venv", "__pycache__", ".pytest_cache", ".startup-temp", ".uv-cache"}
+
 ###############################################################################
 def _iter_python_files(root: str):
     for path in Path(root).rglob("*.py"):
-        if any(part in {".venv", "__pycache__", ".pytest_cache"} for part in path.parts):
+        if any(part in GENERATED_DIRS for part in path.parts):
             continue
         yield path
 
