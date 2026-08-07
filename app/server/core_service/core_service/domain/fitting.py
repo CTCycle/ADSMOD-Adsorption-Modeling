@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -135,6 +135,52 @@ class FittingResponse(BaseModel):
     summary: str
 
 ###############################################################################
-class FittingRunResultResponse(BaseModel):
+class PersistedRunMetricsResponse(BaseModel):
+    sse: float | None
+    rmse: float | None
+    mae: float | None
+    r_squared: float | None
+    adjusted_r_squared: float | None
+    chi_square: float | None
+    aic: float | None
+    aicc: float | None
+    bic: float | None
+
+###############################################################################
+class PersistedRunParameterResponse(BaseModel):
+    name: str
+    value: float
+    unit: str
+    standard_error: float | None
+
+###############################################################################
+class PersistedRunCurvePointResponse(BaseModel):
+    pressure: float
+    pressure_unit: str
+    uptake_mol_kg: float
+
+###############################################################################
+class PersistedRunModelResponse(BaseModel):
+    id: int
+    model: str
+    status: str
+    convergence_message: str
+    metrics: PersistedRunMetricsResponse
+    predicted_observations: list[float]
+    predicted_curve: list[PersistedRunCurvePointResponse]
+    warnings: list[str]
+    parameters: list[PersistedRunParameterResponse]
+
+###############################################################################
+class PersistedRunResponse(BaseModel):
     status: Literal["success"] = "success"
-    result: FittingResponse
+    run_id: int
+    dataset_id: int
+    isotherm_id: int
+    optimizer: str
+    weighting: str
+    status_detail: str
+    message: str
+    created_at: str | None
+    completed_at: str | None
+    results: list[PersistedRunModelResponse]

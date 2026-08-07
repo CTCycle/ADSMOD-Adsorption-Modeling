@@ -3,7 +3,7 @@ from __future__ import annotations
 from os import PathLike
 from pathlib import Path
 
-from shared.common.paths import CANONICAL_CONFIGURATION_FILE, CLIENT_DIST_DIR
+from shared.common.paths import CANONICAL_CONFIGURATION_FILE
 from shared.common.settings import AppSettings, ServerSettings, get_runtime_config, get_server_settings
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
@@ -47,7 +47,3 @@ def resolve_spa_file_path(
 ###############################################################################
 def direct_api_enabled() -> bool:
     return not public_host_mode_enabled()
-
-###############################################################################
-def get_client_dist_path() -> str:
-    return str(CLIENT_DIST_DIR)

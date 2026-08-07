@@ -219,6 +219,25 @@ def parameter_to_display(
     return value
 
 ###############################################################################
+def display_parameter_value(
+    value: float | None,
+    parameter: ParameterSpec,
+    *,
+    pressure_factor_value: float,
+    uptake_factor_value: float,
+    related_value: float,
+) -> float | None:
+    if value is None:
+        return None
+    return parameter_to_display(
+        parameter,
+        float(value),
+        pressure_factor_value=pressure_factor_value,
+        uptake_factor_value=uptake_factor_value,
+        related_value=related_value,
+    )
+
+###############################################################################
 def parameter_from_display(
     parameter: ParameterSpec,
     value: float,
@@ -245,6 +264,29 @@ def parameter_from_display(
             / pressure_factor_value ** (1.0 / float(related_value or 1.0))
         )
     return value
+
+###############################################################################
+def _fit_residual(
+    parameters: np.ndarray,
+    models: AdsorptionModels,
+    model_name: str,
+    pressure: np.ndarray,
+    uptake: np.ndarray,
+    temperature_k: float,
+    pressure_basis: str,
+    saturation_pressure_pa: float | None,
+    sigma: np.ndarray | None,
+) -> np.ndarray:
+    predicted = models.evaluate(
+        model_name,
+        pressure,
+        parameters,
+        temperature_k=temperature_k,
+        pressure_basis=pressure_basis,  # type: ignore[arg-type]
+        saturation_pressure_pa=saturation_pressure_pa,
+    )
+    values = uptake - predicted
+    return values / sigma if sigma is not None else values
 
 ###############################################################################
 class ModelSolver:
@@ -392,18 +434,6 @@ class ModelSolver:
             if weighting == "inverse_sigma" and sigma is None:
                 raise ValueError("Inverse-sigma weighting requires a complete positive uncertainty series.")
 
-            def residual(parameters: np.ndarray) -> np.ndarray:
-                predicted = self.models.evaluate(
-                    spec.key,
-                    pressure,
-                    parameters,
-                    temperature_k=temperature_k,
-                    pressure_basis=pressure_basis,  # type: ignore[arg-type]
-                    saturation_pressure_pa=saturation_pressure_pa,
-                )
-                values = uptake - predicted
-                return values / sigma if sigma is not None else values
-
             starts = [initial]
             if parameter_count >= 3:
                 starts.extend(
@@ -415,8 +445,18 @@ class ModelSolver:
             candidates = []
             for start in starts:
                 result = least_squares(
-                    residual,
+                    _fit_residual,
                     start,
+                    args=(
+                        self.models,
+                        spec.key,
+                        pressure,
+                        uptake,
+                        temperature_k,
+                        pressure_basis,
+                        saturation_pressure_pa,
+                        sigma,
+                    ),
                     bounds=(lower, upper),
                     method=optimizer,
                     loss="linear",
@@ -786,36 +826,45 @@ class FittingPipeline:
             }
             related_value = related.get("n", related.get("beta", 1.0))
             for index, parameter in enumerate(computation.spec.parameters):
-                convert = lambda value: (
-                    None
-                    if value is None
-                    else parameter_to_display(
-                        parameter,
-                        float(value),
-                        pressure_factor_value=p_factor,
-                        uptake_factor_value=q_factor,
-                        related_value=float(related_value),
-                    )
-                )
                 parameters.append(
                     FittedParameter(
                         name=parameter.name,
                         label=parameter.label,
-                        value=float(convert(computation.parameters[index])),
-                        standard_error=convert(
+                        value=float(
+                            display_parameter_value(
+                                computation.parameters[index],
+                                parameter,
+                                pressure_factor_value=p_factor,
+                                uptake_factor_value=q_factor,
+                                related_value=float(related_value),
+                            )
+                        ),
+                        standard_error=display_parameter_value(
                             computation.standard_errors[index]
                             if computation.standard_errors is not None
-                            else None
+                            else None,
+                            parameter,
+                            pressure_factor_value=p_factor,
+                            uptake_factor_value=q_factor,
+                            related_value=float(related_value),
                         ),
-                        ci95_low=convert(
+                        ci95_low=display_parameter_value(
                             computation.ci95_low[index]
                             if computation.ci95_low is not None
-                            else None
+                            else None,
+                            parameter,
+                            pressure_factor_value=p_factor,
+                            uptake_factor_value=q_factor,
+                            related_value=float(related_value),
                         ),
-                        ci95_high=convert(
+                        ci95_high=display_parameter_value(
                             computation.ci95_high[index]
                             if computation.ci95_high is not None
-                            else None
+                            else None,
+                            parameter,
+                            pressure_factor_value=p_factor,
+                            uptake_factor_value=q_factor,
+                            related_value=float(related_value),
                         ),
                         unit=parameter_unit(
                             parameter,

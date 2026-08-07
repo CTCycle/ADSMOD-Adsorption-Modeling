@@ -17,12 +17,12 @@ from shared.common.constants import (
     COLUMN_ADSORBATE,
     COLUMN_ADSORBENT,
     DATASET_FALLBACK_DELIMITERS,
+    MAX_UPLOAD_SIZE_BYTES,
 )
 from shared.repositories.serialization.data import DataSerializer
 
 ###############################################################################
 class DatasetService:
-    MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
     DATASET_NAME_SANITIZER = re.compile(r"[^A-Za-z0-9_. -]+")
     MAX_DATASET_NAME_LENGTH = 128
 
@@ -116,9 +116,9 @@ class DatasetService:
         """
         if not payload:
             raise ValueError("Uploaded dataset is empty.")
-        if len(payload) > self.MAX_UPLOAD_SIZE_BYTES:
+        if len(payload) > MAX_UPLOAD_SIZE_BYTES:
             raise ValueError(
-                f"Uploaded dataset exceeds {self.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB limit."
+                f"Uploaded dataset exceeds {MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB limit."
             )
 
         dataframe = self.read_dataframe(payload, filename)

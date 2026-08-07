@@ -12,11 +12,11 @@ from core_service.domain.datasets import (
     ImportPreviewResponse,
     ImportValidationResponse,
     ObservationPage,
+    SupportedUnitsResponse,
 )
 from core_service.services.container import CoreServiceContainer
 from core_service.services.data.datasets import DatasetService
-from shared.common.constants import DATASETS_ROUTER_PREFIX
-from core_service.services.data.units import UnitRegistry
+from shared.common.constants import DATASETS_ROUTER_PREFIX, MAX_UPLOAD_SIZE_BYTES
 
 ###############################################################################
 class DatasetEndpoint:
@@ -39,11 +39,32 @@ class DatasetEndpoint:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    async def read_upload_bytes(file: UploadFile) -> bytes:
+        payload = bytearray()
+        try:
+            while chunk := await file.read(1024 * 1024):
+                payload.extend(chunk)
+                if len(payload) > MAX_UPLOAD_SIZE_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail="Uploaded dataset exceeds the 25 MB limit.",
+                    )
+        finally:
+            await file.close()
+        if not payload:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded dataset is empty.",
+            )
+        return bytes(payload)
+
+    # -------------------------------------------------------------------------
     async def preview_import(
         self, file: UploadFile = File(...)
     ) -> ImportPreviewResponse:
         try:
-            payload = await self.service.read_upload_bytes(file)
+            payload = await self.read_upload_bytes(file)
             return self.service.preview(payload, file.filename)
         except ValueError as exc:
             raise self.bad_request(exc) from exc
@@ -55,7 +76,7 @@ class DatasetEndpoint:
         file: UploadFile = File(...),
     ) -> ImportValidationResponse:
         try:
-            payload = await self.service.read_upload_bytes(file)
+            payload = await self.read_upload_bytes(file)
             return self.service.validate(
                 payload, file.filename, self.service.parse_mapping(mapping)
             )
@@ -69,7 +90,7 @@ class DatasetEndpoint:
         file: UploadFile = File(...),
     ) -> DatasetImportResponse:
         try:
-            payload = await self.service.read_upload_bytes(file)
+            payload = await self.read_upload_bytes(file)
             return self.service.commit(
                 payload, file.filename, self.service.parse_mapping(mapping)
             )
@@ -81,8 +102,8 @@ class DatasetEndpoint:
         return self.service.list_datasets()
 
     # -------------------------------------------------------------------------
-    def supported_units(self) -> dict[str, list[str]]:
-        return {"pressure": sorted(UnitRegistry.PRESSURE_ALIASES), "uptake": sorted(UnitRegistry.UPTAKE_ALIASES), "temperature": sorted(UnitRegistry.TEMPERATURE_ALIASES)}
+    def supported_units(self) -> SupportedUnitsResponse:
+        return self.service.supported_units()
 
     # -------------------------------------------------------------------------
     def list_experiments(
@@ -141,7 +162,12 @@ class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
-        self.router.add_api_route("/supported-units", self.supported_units, methods=["GET"])
+        self.router.add_api_route(
+            "/supported-units",
+            self.supported_units,
+            methods=["GET"],
+            response_model=SupportedUnitsResponse,
+        )
         self.router.add_api_route(
             "/import/preview",
             self.preview_import,

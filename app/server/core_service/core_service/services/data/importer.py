@@ -26,7 +26,6 @@ from core_service.services.data.units import (
     UnitConversionError,
     UnitRegistry,
     detect_header_unit,
-    normalize_token,
     parse_number,
 )
 
@@ -697,6 +696,19 @@ class AdsorptionImportEngine:
         return self._bundle(mapping, payload, experiments, issues)
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _mapped_value(
+        row: pd.Series,
+        role: str,
+        roles: dict[str, str],
+        mapping: ImportMapping,
+    ) -> Any:
+        column = roles.get(role)
+        if column is not None:
+            return row.get(column)
+        return mapping.constants.get(role)
+
+    # -------------------------------------------------------------------------
     def _normalize_row(
         self,
         row: pd.Series,
@@ -705,21 +717,16 @@ class AdsorptionImportEngine:
         mapping: ImportMapping,
         detected: dict[str, ColumnDetection],
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        def mapped_value(role: str) -> Any:
-            column = roles.get(role)
-            if column is not None:
-                return row.get(column)
-            return mapping.constants.get(role)
-
-        adsorbent = str(mapped_value("adsorbent") or "").strip()
-        adsorbate = str(mapped_value("adsorbate") or "").strip()
+        adsorbent = str(self._mapped_value(row, "adsorbent", roles, mapping) or "").strip()
+        adsorbate = str(self._mapped_value(row, "adsorbate", roles, mapping) or "").strip()
         if not adsorbent or adsorbent.casefold() in {"nan", "none"}:
             raise ValueError("Adsorbent material is missing.")
         if not adsorbate or adsorbate.casefold() in {"nan", "none"}:
             raise ValueError("Adsorbate species is missing.")
 
         temperature_value = parse_number(
-            mapped_value("temperature"), mapping.decimal_separator
+            self._mapped_value(row, "temperature", roles, mapping),
+            mapping.decimal_separator,
         )
         temperature_unit = self._unit_for(
             "temperature", row, roles, mapping, detected
@@ -737,7 +744,9 @@ class AdsorptionImportEngine:
         if molar_mass is None:
             molar_mass = known_molar_masses.get(adsorbate.casefold())
         molar_mass_value = float(molar_mass) if molar_mass not in (None, "") else None
-        name = str(mapped_value("experiment_name") or "").strip()
+        name = str(
+            self._mapped_value(row, "experiment_name", roles, mapping) or ""
+        ).strip()
         if not name or name.casefold() in {"nan", "none"}:
             name = " | ".join(
                 str(row.get(column, "")).strip()
@@ -745,9 +754,13 @@ class AdsorptionImportEngine:
             )
 
         saturation_pressure_pa = None
-        if mapped_value("saturation_pressure") not in (None, ""):
+        if self._mapped_value(row, "saturation_pressure", roles, mapping) not in (
+            None,
+            "",
+        ):
             saturation_value = parse_number(
-                mapped_value("saturation_pressure"), mapping.decimal_separator
+                self._mapped_value(row, "saturation_pressure", roles, mapping),
+                mapping.decimal_separator,
             )
             saturation_unit = mapping.unit_overrides.get(
                 "saturation_pressure", pressure_unit
@@ -757,8 +770,8 @@ class AdsorptionImportEngine:
             ).canonical_value
 
         pairs: list[tuple[float, float, int]] = []
-        pressure_raw = mapped_value("pressure")
-        uptake_raw = mapped_value("uptake")
+        pressure_raw = self._mapped_value(row, "pressure", roles, mapping)
+        uptake_raw = self._mapped_value(row, "uptake", roles, mapping)
         if mapping.wide_pairs:
             for pair_index, pair in enumerate(mapping.wide_pairs):
                 pressure = parse_number(
@@ -770,12 +783,12 @@ class AdsorptionImportEngine:
                 pairs.append((pressure, uptake, pair_index))
         else:
             pressure_values = parse_series_cell(
-                mapped_value("pressure"),
+                pressure_raw,
                 delimiter=mapping.series_delimiter,
                 decimal_separator=mapping.decimal_separator,
             )
             uptake_values = parse_series_cell(
-                mapped_value("uptake"),
+                uptake_raw,
                 delimiter=mapping.series_delimiter,
                 decimal_separator=mapping.decimal_separator,
             )
@@ -803,9 +816,13 @@ class AdsorptionImportEngine:
             )
             uptake = UnitRegistry.convert_uptake(uptake_value, uptake_unit, molar_mass_value)
             stddev = None
-            if mapped_value("uptake_stddev") not in (None, ""):
+            if self._mapped_value(row, "uptake_stddev", roles, mapping) not in (
+                None,
+                "",
+            ):
                 stddev_value = parse_number(
-                    mapped_value("uptake_stddev"), mapping.decimal_separator
+                    self._mapped_value(row, "uptake_stddev", roles, mapping),
+                    mapping.decimal_separator,
                 )
                 stddev = UnitRegistry.convert_uptake(
                     stddev_value, uptake_unit, molar_mass_value

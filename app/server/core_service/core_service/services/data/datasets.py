@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 from pathlib import Path
-from typing import Any
 
-from fastapi import HTTPException, UploadFile, status
 from pydantic import ValidationError
 
 from core_service.domain.datasets import (
@@ -19,14 +17,14 @@ from core_service.domain.datasets import (
     ImportPreviewResponse,
     ImportValidationResponse,
     ObservationPage,
+    SupportedUnitsResponse,
 )
 from core_service.services.data.importer import AdsorptionImportEngine, PARSER_VERSION
+from core_service.services.data.units import UnitRegistry
 from shared.repositories.datasets import DatasetRepository
 
 ###############################################################################
 class DatasetService:
-    MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -35,23 +33,6 @@ class DatasetService:
     ) -> None:
         self.repository = repository
         self.importer = importer or AdsorptionImportEngine()
-
-    # -------------------------------------------------------------------------
-    async def read_upload_bytes(self, file: UploadFile) -> bytes:
-        payload = bytearray()
-        try:
-            while chunk := await file.read(1024 * 1024):
-                payload.extend(chunk)
-                if len(payload) > self.MAX_UPLOAD_SIZE_BYTES:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="Uploaded dataset exceeds the 25 MB limit.",
-                    )
-        finally:
-            await file.close()
-        if not payload:
-            raise ValueError("Uploaded dataset is empty.")
-        return bytes(payload)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -126,6 +107,14 @@ class DatasetService:
             datasets=[
                 DatasetSummary(**record) for record in self.repository.list_summaries()
             ]
+        )
+
+    # -------------------------------------------------------------------------
+    def supported_units(self) -> SupportedUnitsResponse:
+        return SupportedUnitsResponse(
+            pressure=sorted(UnitRegistry.PRESSURE_ALIASES),
+            uptake=sorted(UnitRegistry.UPTAKE_ALIASES),
+            temperature=sorted(UnitRegistry.TEMPERATURE_ALIASES),
         )
 
     # -------------------------------------------------------------------------

@@ -13,7 +13,7 @@ def register_core_routes(
     container: CoreServiceContainer,
     *,
     prefix: str = "/api",
-    include_schema: bool = False,
+    include_schema: bool = True,
 ) -> None:
     for router_factory in (
         create_dataset_router,
