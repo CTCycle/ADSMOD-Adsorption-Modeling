@@ -23,8 +23,6 @@ from shared.repositories.database.initializer import prepare_database_for_startu
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-PUBLIC_HOST_MODE = public_host_mode_enabled()
-
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -35,14 +33,15 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 ###############################################################################
 def create_app(container: CoreServiceContainer | None = None) -> FastAPI:
+    public_host_mode = public_host_mode_enabled()
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
         description=FASTAPI_DESCRIPTION,
         lifespan=app_lifespan,
-        docs_url=None if PUBLIC_HOST_MODE else "/docs",
-        redoc_url=None if PUBLIC_HOST_MODE else "/redoc",
-        openapi_url=None if PUBLIC_HOST_MODE else "/openapi.json",
+        docs_url=None if public_host_mode else "/docs",
+        redoc_url=None if public_host_mode else "/redoc",
+        openapi_url=None if public_host_mode else "/openapi.json",
     )
     resolved_container = container or CoreServiceContainer()
     application.state.container = resolved_container
@@ -57,7 +56,6 @@ app = create_app()
 __all__ = [
     "app",
     "create_app",
-    "PUBLIC_HOST_MODE",
     "public_host_mode_enabled",
     "resolve_spa_file_path",
 ]

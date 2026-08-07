@@ -9,13 +9,13 @@ from adsmod_common.config import AdsmodConfig
 _WINDOWS_VARIABLE = re.compile(r"%([^%]+)%")
 
 ###############################################################################
+def _replace_windows_variable(match: re.Match[str]) -> str:
+    return os.environ.get(match.group(1), match.group(0))
+
+###############################################################################
 def resolve_storage_root(config: AdsmodConfig) -> Path:
     raw_root = str(config.storage.root)
-
-    def replace_variable(match: re.Match[str]) -> str:
-        return os.environ.get(match.group(1), match.group(0))
-
-    expanded = _WINDOWS_VARIABLE.sub(replace_variable, raw_root)
+    expanded = _WINDOWS_VARIABLE.sub(_replace_windows_variable, raw_root)
     return Path(os.path.expandvars(expanded)).expanduser().resolve()
 
 ###############################################################################

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from core_service.domain.fitting import FittingRequest, ModelCatalogResponse
+from core_service.domain.fitting import (
+    FittingRequest,
+    ModelCatalogResponse,
+    PersistedRunResponse,
+)
 from core_service.services.container import CoreServiceContainer
 from core_service.services.fitting import FittingService
 from shared.common.constants import FITTING_JOBS_ENDPOINT, FITTING_JOB_STATUS_ENDPOINT, FITTING_ROUTER_PREFIX, FITTING_RUN_ENDPOINT
@@ -53,7 +57,7 @@ class FittingEndpoint:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
-    def get_persisted_run(self, run_id: int) -> dict:
+    def get_persisted_run(self, run_id: int) -> PersistedRunResponse:
         try:
             return self.service.get_persisted_run(run_id)
         except LookupError as exc:
@@ -71,7 +75,12 @@ class FittingEndpoint:
         self.router.add_api_route(FITTING_JOBS_ENDPOINT, self.list_jobs, methods=["GET"], response_model=JobListResponse)
         self.router.add_api_route(FITTING_JOB_STATUS_ENDPOINT, self.get_job_status, methods=["GET"], response_model=JobStatusResponse)
         self.router.add_api_route(FITTING_JOB_STATUS_ENDPOINT, self.cancel_job, methods=["DELETE"], response_model=JobCancelResponse)
-        self.router.add_api_route("/runs/{run_id}", self.get_persisted_run, methods=["GET"])
+        self.router.add_api_route(
+            "/runs/{run_id}",
+            self.get_persisted_run,
+            methods=["GET"],
+            response_model=PersistedRunResponse,
+        )
 
 ###############################################################################
 def create_fitting_router(container: CoreServiceContainer) -> APIRouter:

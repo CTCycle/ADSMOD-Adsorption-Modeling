@@ -168,6 +168,12 @@ class DatasetListResponse(BaseModel):
     datasets: list[DatasetSummary] = Field(default_factory=list)
 
 ###############################################################################
+class SupportedUnitsResponse(BaseModel):
+    pressure: list[str]
+    uptake: list[str]
+    temperature: list[str]
+
+###############################################################################
 class DatasetImportResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary

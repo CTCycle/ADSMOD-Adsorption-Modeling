@@ -18,6 +18,7 @@ from shared.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
+    TRUTHY_VALUES,
 )
 from shared.common.paths import (
     CHECKPOINTS_DIR,
@@ -28,13 +29,9 @@ from shared.common.paths import (
     RESOURCES_DIR,
     TEMPLATES_DIR,
 )
-from shared.common.settings import ServerSettings, get_runtime_config, get_server_settings
+from shared.common.settings import get_runtime_config, get_server_settings
 from shared.repositories.database.initializer import prepare_database_for_startup
 
-TRUTHY_VALUES = {"1", "true", "yes", "on"}
-
-os.environ.setdefault("KERAS_BACKEND", "torch")
-os.environ.setdefault("MPLBACKEND", "Agg")
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 ###############################################################################
@@ -78,11 +75,6 @@ def _ensure_runtime_directories() -> None:
         path_value.mkdir(parents=True, exist_ok=True)
 
 ###############################################################################
-def _run_startup_validations(settings: ServerSettings) -> None:
-    _ = settings
-    _ensure_runtime_directories()
-
-###############################################################################
 def serve_client_root() -> FileResponse:
     return FileResponse(CLIENT_INDEX_FILE)
 
@@ -101,7 +93,7 @@ def redirect_root_to_docs() -> RedirectResponse:
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
-    _run_startup_validations(settings)
+    _ensure_runtime_directories()
     prepare_database_for_startup(settings.database)
     application.state.server_settings = settings
     yield
@@ -127,7 +119,7 @@ def create_app() -> FastAPI:
     application.state.core_container = core_container
 
     application.include_router(health_router)
-    register_core_routes(application, core_container, prefix="/api", include_schema=False)
+    register_core_routes(application, core_container, prefix="/api", include_schema=True)
     if _ml_registration_enabled():
         register_ml_routes, MlServiceContainer = _load_ml_service_modules()
         ml_container = MlServiceContainer()

@@ -7,6 +7,8 @@ DATABASE_FILENAME = "database.db"
 FASTAPI_TITLE = "ADSMOD Model Fitting Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"
 FASTAPI_VERSION = "3.0.0"
+MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
+TRUTHY_VALUES = frozenset({"1", "true", "yes", "on"})
 
 
 ###############################################################################

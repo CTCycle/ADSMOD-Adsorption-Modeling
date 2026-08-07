@@ -6,7 +6,6 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from core_service.configurations.startup import (
     direct_api_enabled,
-    get_client_dist_path,
     resolve_spa_file_path,
 )
 from core_service.domain.bootstrap import ServiceStatusResponse

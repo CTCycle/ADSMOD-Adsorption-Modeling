@@ -9,6 +9,11 @@ from core_service.domain.fitting import (
     FittingRequest,
     FittingResponse,
     ModelCatalogResponse,
+    PersistedRunMetricsResponse,
+    PersistedRunModelResponse,
+    PersistedRunParameterResponse,
+    PersistedRunResponse,
+    PersistedRunCurvePointResponse,
 )
 from core_service.services.modeling.fitting import (
     MODEL_VERSION,
@@ -270,31 +275,54 @@ class FittingService:
         return JobResponseFactory.cancelled(job_id)
 
     # -------------------------------------------------------------------------
-    def get_persisted_run(self, run_id: int) -> dict[str, Any]:
+    def get_persisted_run(self, run_id: int) -> PersistedRunResponse:
         run = self.results.get_run(run_id)
-        return {
-            "status": "success",
-            "run_id": run.id,
-            "dataset_id": run.dataset_id,
-            "isotherm_id": run.isotherm_id,
-            "optimizer": run.optimizer,
-            "weighting": run.configuration.get("weighting", "unweighted"),
-            "status_detail": run.status,
-            "message": run.message,
-            "created_at": run.created_at.isoformat() if run.created_at else None,
-            "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-            "results": [
-                {
-                    "id": result.id,
-                    "model": result.model_name,
-                    "status": result.status,
-                    "convergence_message": result.convergence_message,
-                    "metrics": {key: getattr(result, key) for key in ("sse", "rmse", "mae", "r_squared", "adjusted_r_squared", "chi_square", "aic", "aicc", "bic")},
-                    "predicted_observations": result.predicted_observations,
-                    "predicted_curve": result.predicted_curve,
-                    "warnings": result.warnings,
-                    "parameters": [{"name": parameter.name, "value": parameter.value_canonical, "unit": parameter.unit_canonical, "standard_error": parameter.standard_error_canonical} for parameter in result.parameters],
-                }
+        metric_names = (
+            "sse",
+            "rmse",
+            "mae",
+            "r_squared",
+            "adjusted_r_squared",
+            "chi_square",
+            "aic",
+            "aicc",
+            "bic",
+        )
+        return PersistedRunResponse(
+            run_id=run.id,
+            dataset_id=run.dataset_id,
+            isotherm_id=run.isotherm_id,
+            optimizer=run.optimizer,
+            weighting=run.configuration.get("weighting", "unweighted"),
+            status_detail=run.status,
+            message=run.message,
+            created_at=run.created_at.isoformat() if run.created_at else None,
+            completed_at=run.completed_at.isoformat() if run.completed_at else None,
+            results=[
+                PersistedRunModelResponse(
+                    id=result.id,
+                    model=result.model_name,
+                    status=result.status,
+                    convergence_message=result.convergence_message,
+                    metrics=PersistedRunMetricsResponse(
+                        **{name: getattr(result, name) for name in metric_names}
+                    ),
+                    predicted_observations=result.predicted_observations,
+                    predicted_curve=[
+                        PersistedRunCurvePointResponse(**point)
+                        for point in result.predicted_curve
+                    ],
+                    warnings=result.warnings,
+                    parameters=[
+                        PersistedRunParameterResponse(
+                            name=parameter.name,
+                            value=parameter.value_canonical,
+                            unit=parameter.unit_canonical,
+                            standard_error=parameter.standard_error_canonical,
+                        )
+                        for parameter in result.parameters
+                    ],
+                )
                 for result in run.results
             ],
-        }
+        )
