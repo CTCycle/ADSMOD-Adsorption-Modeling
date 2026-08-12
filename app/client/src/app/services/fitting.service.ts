@@ -32,8 +32,16 @@ export async function pollFittingJobUntilComplete(
                 : result.status === 'warning'
                     ? '[WARN] Fitting completed with partial issues.'
                     : '[INFO] Fitting completed successfully.';
-        const lines: string[] = [defaultMessage];
-        return { message: result.summary || lines.join('\n'), data: result };
+        const summary = result.summary?.trim();
+        if (!summary) {
+            return { message: defaultMessage, data: result };
+        }
+        const prefix = result.status === 'error'
+            ? '[ERROR]'
+            : result.status === 'warning'
+                ? '[WARN]'
+                : '[INFO]';
+        return { message: `${prefix} ${summary}`, data: result };
     }
 
     if (status.status === 'failed') {

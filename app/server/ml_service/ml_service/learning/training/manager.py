@@ -13,7 +13,7 @@ from ml_service.learning.serialization.model import ModelSerializer
 from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.learning.training.fitting import ModelTraining
 from shared.common.utils.logger import logger
-from ml_service.configurations import get_server_settings
+from shared.common.settings import get_server_settings
 from ml_service.learning.training.state import TrainingState
 from shared.common.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
 

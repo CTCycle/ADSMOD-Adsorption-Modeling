@@ -77,12 +77,10 @@ set "UVICORN_APP=core_service.app:app"
 set "ML_UVICORN_APP=ml_service.app:app"
 set "BACKEND_WORKDIR=%PROJECT_ROOT%"
 set "PYTHONPATH=%PROJECT_ROOT%\app\server\core_service;%PROJECT_ROOT%\app\server\ml_service;%PROJECT_ROOT%\app\server\shared;%APP_DIR%;%PROJECT_ROOT%"
-"%PYTHON_CMD%" -c "import importlib; importlib.import_module('core_service.app')" >nul 2>&1
+"%PYTHON_CMD%" -c "import importlib; importlib.import_module('core_service.app'); importlib.import_module('ml_service.app')" >nul 2>&1
 if errorlevel 1 (
-  set "UVICORN_APP=server.app:app"
-  set "ML_UVICORN_APP=ml_service.app:app"
-  set "BACKEND_WORKDIR=%SERVER_DIR%"
-  set "PYTHONPATH=%APP_DIR%"
+  echo [ERROR] Canonical core_service.app or ml_service.app could not be imported.
+  exit /b 1
 )
 
 echo.

@@ -149,7 +149,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
         </div>
         <div class="console-status-bar" aria-label="Service status">
             <div class="console-status-item"><span class="service-dot core" aria-hidden="true"></span><strong>Core Service</strong><em>Online</em></div>
-            <div class="console-status-item"><span class="service-dot ml" aria-hidden="true"></span><strong>ML Service</strong><em>Optional / Available</em></div>
+            <div class="console-status-item"><span class="service-dot ml" aria-hidden="true"></span><strong>ML Service</strong><em>Optional</em></div>
         </div>
         @if (helpOpen()) {
             <div class="help-modal-backdrop" (click)="closeHelp()">

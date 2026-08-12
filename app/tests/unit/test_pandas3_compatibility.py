@@ -5,7 +5,7 @@ from pandas.api.types import is_string_dtype
 
 from shared.common.utils.encoding import sanitize_dataframe_strings
 from shared.repositories.database.postgres import PostgresRepository
-from core_service.services.data.conversion import PressureConversion
+from ml_service.services.data.conversion import PressureConversion
 from ml_service.services.data.sanitizer import DataSanitizer
 
 ###############################################################################

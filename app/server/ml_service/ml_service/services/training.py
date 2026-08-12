@@ -5,14 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from shared.common.utils.logger import logger
-from ml_service.configurations import get_server_settings
+from shared.common.settings import get_server_settings
 from ml_service.domain.training import (
     CheckpointDetailInfo,
     CheckpointFullDetailsResponse,
     CheckpointsResponse,
     DatasetBuildRequest,
     DatasetInfoResponse,
-    DatasetSourceDeleteResponse,
     DatasetSourceInfo,
     DatasetSourcesResponse,
     OperationStatusResponse,
@@ -296,17 +295,6 @@ class TrainingService:
         composer = DatasetCompositionService()
         datasets = [DatasetSourceInfo(**entry) for entry in composer.list_sources()]
         return DatasetSourcesResponse(datasets=datasets)
-
-    # -------------------------------------------------------------------------
-    def delete_dataset_source(
-        self,
-        source: str,
-        dataset_name: str,
-    ) -> DatasetSourceDeleteResponse:
-        composer = DatasetCompositionService()
-        success, message = composer.delete_source(source, dataset_name)
-        response_status = "success" if success else "error"
-        return DatasetSourceDeleteResponse(status=response_status, message=message)
 
     # -------------------------------------------------------------------------
     def run_dataset_build(self, request_data: dict[str, Any]) -> dict[str, Any]:

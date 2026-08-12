@@ -97,7 +97,7 @@ class TestDatasetBuild:
             "max_pressure": 5000.0,
             "max_uptake": 10.0,
             "datasets": [
-                {"source": "nist", "dataset_name": "nist_single_component_adsorption"}
+                {"source": "nist", "dataset_name": "NIST ISODB"}
             ],
         }
 
@@ -116,7 +116,7 @@ class TestDatasetBuild:
             "sample_size": 2.0,
             "validation_size": 0.2,
             "datasets": [
-                {"source": "nist", "dataset_name": "nist_single_component_adsorption"}
+                {"source": "nist", "dataset_name": "NIST ISODB"}
             ],
         }
 
@@ -140,20 +140,17 @@ class TestClearDataset:
 
 ###############################################################################
 class TestDatasetSources:
-    """Tests for dataset source management endpoints."""
+    """Tests for the training source catalog."""
 
     # -------------------------------------------------------------------------
-    def test_delete_dataset_source_response_shape(
+    def test_legacy_dataset_source_delete_route_is_removed(
         self, ml_api_context: APIRequestContext
     ) -> None:
         response = ml_api_context.delete(
             "/api/training/dataset-source?source=uploaded&dataset_name=missing-dataset"
         )
 
-        assert response.ok
-        payload = response.json()
-        assert payload.get("status") in {"success", "error"}
-        assert isinstance(payload.get("message"), str)
+        assert response.status == 404
 
 ###############################################################################
 class TestTrainingLifecycle:

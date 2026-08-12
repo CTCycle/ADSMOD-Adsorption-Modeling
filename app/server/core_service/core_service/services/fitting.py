@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from core_service.configurations import get_server_settings
+from shared.common.settings import get_server_settings
 from core_service.domain.fitting import (
     FittingRequest,
     FittingResponse,

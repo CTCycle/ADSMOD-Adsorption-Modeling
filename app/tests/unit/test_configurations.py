@@ -1,13 +1,11 @@
 import json
 from pathlib import Path
 
-from core_service.configurations import (
-    get_server_settings,
-)
 from shared.common.paths import CANONICAL_CONFIGURATION_FILE
 from shared.common.settings import (
     AppSettings,
     build_training_settings,
+    get_server_settings,
 )
 
 ###############################################################################

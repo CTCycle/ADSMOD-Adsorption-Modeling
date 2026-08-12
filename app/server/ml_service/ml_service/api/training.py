@@ -7,7 +7,6 @@ from ml_service.domain.training import (
     CheckpointsResponse,
     DatasetBuildRequest,
     DatasetInfoResponse,
-    DatasetSourceDeleteResponse,
     DatasetSourcesResponse,
     OperationStatusResponse,
     ProcessedDatasetsResponse,
@@ -55,26 +54,6 @@ class TrainingEndpoint:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to list dataset sources.",
-            ) from exc
-
-    # -------------------------------------------------------------------------
-    def delete_dataset_source(
-        self,
-        source: str = Query(..., pattern=r"^(nist|uploaded)$"),
-        dataset_name: str = Query(
-            ...,
-            min_length=1,
-            max_length=128,
-            pattern=r"^[A-Za-z0-9_. -]+$",
-        ),
-    ) -> DatasetSourceDeleteResponse:
-        try:
-            return self.service.delete_dataset_source(source, dataset_name)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Error deleting dataset source: %s", exc)
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to delete dataset source.",
             ) from exc
 
     # -------------------------------------------------------------------------
@@ -295,13 +274,6 @@ class TrainingEndpoint:
             self.get_dataset_sources,
             methods=["GET"],
             response_model=DatasetSourcesResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/dataset-source",
-            self.delete_dataset_source,
-            methods=["DELETE"],
-            response_model=DatasetSourceDeleteResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
