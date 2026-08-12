@@ -4862,13 +4862,15 @@ body {
 
   .console-shell {
     min-height: calc(100vh - var(--console-status-height));
-    height: calc(100vh - var(--console-status-height));
+    height: auto;
     grid-template-columns: 1fr;
   }
 
   .console-sidebar {
     min-height: auto;
     box-sizing: border-box;
+    height: auto;
+    overflow: visible;
   }
 
   .console-sidebar-footer {

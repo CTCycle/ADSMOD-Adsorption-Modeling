@@ -4,6 +4,7 @@ import hashlib
 from collections.abc import Iterable
 from typing import Any
 
+import pandas as pd
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 import numpy as np
@@ -68,6 +69,34 @@ class DatasetRepository:
             if item["id"] == dataset_id:
                 return item
         raise LookupError(f"Dataset {dataset_id} does not exist.")
+
+    # -------------------------------------------------------------------------
+    def observation_frame(self, dataset_id: int) -> pd.DataFrame:
+        """Return one canonical row per persisted adsorption observation."""
+        statement = (
+            select(
+                Dataset.id.label("dataset_id"),
+                Dataset.name.label("dataset_name"),
+                Isotherm.external_key.label("experiment"),
+                Isotherm.temperature_k.label("temperature"),
+                Adsorbent.name.label("adsorbent_name"),
+                Adsorbate.name.label("adsorbate_name"),
+                Observation.pressure_canonical.label("pressure"),
+                Observation.uptake_mol_kg.label("adsorbed_amount"),
+            )
+            .join(Isotherm, Isotherm.dataset_id == Dataset.id)
+            .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
+            .join(Observation, Observation.isotherm_id == Isotherm.id)
+            .join(IsothermComponent, IsothermComponent.id == Observation.component_id)
+            .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
+            .where(Dataset.id == dataset_id)
+            .order_by(Isotherm.id, Observation.sequence_index, Observation.id)
+        )
+        with self.database.session_factory() as session:
+            if session.get(Dataset, dataset_id) is None:
+                raise LookupError(f"Dataset {dataset_id} does not exist.")
+            rows = session.execute(statement).mappings()
+            return pd.DataFrame([dict(row) for row in rows])
 
     # -------------------------------------------------------------------------
     def rename(self, dataset_id: int, name: str) -> None:

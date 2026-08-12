@@ -11,7 +11,7 @@ from typing import Any, Literal
 import httpx
 import pandas as pd
 
-from core_service.configurations import get_server_settings
+from shared.common.settings import get_server_settings
 from shared.common.utils.logger import logger
 from core_service.domain.nist import (
     NISTCategory,
@@ -22,8 +22,8 @@ from core_service.domain.nist import (
 from core_service.services.data.nistads import (
     NISTApiClient,
     NISTDatasetBuilder,
-    PubChemClient,
 )
+from shared.services.pubchem import PubChemClient
 from shared.models.jobs import (
     JobCancelResponse,
     JobListResponse,

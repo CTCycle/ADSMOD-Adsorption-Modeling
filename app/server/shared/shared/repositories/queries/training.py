@@ -21,24 +21,18 @@ class TrainingRepositoryQueries:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _content_hash(label: str) -> str:
-        return hashlib.sha256(label.encode("utf-8")).hexdigest()
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def _sample_frame(rows: list[TrainingSample], label: str, content_hash: str) -> pd.DataFrame:
         values = [
             {
-                "name": label,
-                "source_dataset": None,
+                "dataset_label": label,
+                "dataset_hash": content_hash,
                 "split": row.split,
                 "temperature": row.temperature_k,
                 "pressure": row.pressure_values,
                 "adsorbed_amount": row.uptake_values,
                 "encoded_adsorbent": row.encoded_adsorbent,
                 "adsorbate_molecular_weight": row.adsorbate_molar_mass,
-                "adsorbate_encoded_smile": row.encoded_smiles,
-                "training_hashcode": content_hash,
+                "adsorbate_encoded_SMILE": row.encoded_smiles,
                 "sample_key": row.sample_key,
             }
             for row in rows
@@ -90,20 +84,30 @@ class TrainingRepositoryQueries:
     def upsert_training_dataset(self, dataset: pd.DataFrame) -> None:
         if dataset.empty:
             return
+        required_columns = {"dataset_label", "dataset_hash"}
+        missing_columns = required_columns.difference(dataset.columns)
+        if missing_columns:
+            raise ValueError(
+                "Training dataset is missing required columns: "
+                + ", ".join(sorted(missing_columns))
+            )
         with self.database.transaction() as session:
-            for label, group in dataset.groupby("name", dropna=False):
-                normalized_label = str(label or "default")
+            for label, group in dataset.groupby("dataset_label", dropna=False):
+                normalized_label = str(label).strip()
+                if not normalized_label:
+                    raise ValueError("Training dataset label must not be empty.")
                 records = group.to_dict(orient="records")
-                content_hash = next(
-                    (
-                        str(value).strip()
-                        for value in (
-                            row.get("training_hashcode") for row in records
-                        )
-                        if isinstance(value, str) and value.strip()
-                    ),
-                    self._content_hash(normalized_label),
-                )
+                hashes = {
+                    str(row["dataset_hash"]).strip()
+                    for row in records
+                    if isinstance(row.get("dataset_hash"), str)
+                    and row["dataset_hash"].strip()
+                }
+                if len(hashes) != 1:
+                    raise ValueError(
+                        f"Training dataset '{normalized_label}' must contain one non-empty dataset_hash."
+                    )
+                content_hash = hashes.pop()
                 parent = self._get_or_create_parent(session, normalized_label, content_hash)
                 session.execute(delete(TrainingSample).where(TrainingSample.training_dataset_id == parent.id))
                 sample_records_by_key = {
@@ -116,8 +120,6 @@ class TrainingRepositoryQueries:
                 parent.train_samples = sum(record["split"] == "train" for record in sample_records)
                 parent.validation_samples = sum(record["split"] == "validation" for record in sample_records)
                 parent.test_samples = sum(record["split"] == "test" for record in sample_records)
-
-    save_training_dataset = upsert_training_dataset
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -133,7 +135,7 @@ class TrainingRepositoryQueries:
             "uptake_values": row.get("adsorbed_amount") or [],
             "encoded_adsorbent": row.get("encoded_adsorbent"),
             "adsorbate_molar_mass": row.get("adsorbate_molecular_weight"),
-            "encoded_smiles": row.get("adsorbate_encoded_smile"),
+            "encoded_smiles": row.get("adsorbate_encoded_SMILE"),
         }
 
     # -------------------------------------------------------------------------
@@ -143,7 +145,7 @@ class TrainingRepositoryQueries:
         return pd.DataFrame([
             {
                 "dataset_label": row.label,
-                "hashcode": row.content_hash,
+                "dataset_hash": row.content_hash,
                 "created_at": row.created_at,
                 "min_measurements": row.min_measurements or 1,
                 "max_measurements": row.max_measurements or 30,
@@ -169,8 +171,12 @@ class TrainingRepositoryQueries:
             return
         with self.database.transaction() as session:
             for row in metadata.to_dict(orient="records"):
-                label = str(row.get("dataset_label") or "default")
-                content_hash = str(row.get("hashcode") or self._content_hash(label))
+                label = str(row.get("dataset_label") or "").strip()
+                content_hash = str(row.get("dataset_hash") or "").strip()
+                if not label or not content_hash:
+                    raise ValueError(
+                        "Training metadata requires dataset_label and dataset_hash."
+                    )
                 parent = self._get_or_create_parent(session, label, content_hash)
                 parent.sample_fraction = float(row.get("sample_size") or 1.0)
                 parent.validation_fraction = float(row.get("validation_size") or 0.0)

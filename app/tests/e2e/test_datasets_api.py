@@ -152,3 +152,24 @@ class TestDatasetExperiments:
         response = api_context.get("/api/datasets/999999/experiments")
 
         assert response.status == 404
+
+###############################################################################
+class TestDatasetDeletion:
+    """Tests for deletion through the canonical dataset API."""
+
+    # -------------------------------------------------------------------------
+    def test_delete_uploaded_dataset_by_canonical_id(
+        self, api_context: APIRequestContext, sample_csv_path: str
+    ) -> None:
+        dataset = _commit_sample(
+            api_context,
+            sample_csv_path,
+            f"delete_test_{uuid.uuid4().hex[:8]}",
+        )
+
+        response = api_context.delete(f"/api/datasets/{dataset['id']}")
+
+        assert response.status == 204
+        listing = api_context.get("/api/datasets")
+        assert listing.ok
+        assert dataset["id"] not in {item["id"] for item in listing.json()["datasets"]}

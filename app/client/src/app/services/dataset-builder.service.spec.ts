@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    deleteDatasetSource,
     fetchProcessedDatasets,
     getTrainingDatasetInfo,
 } from './dataset-builder.service';
@@ -65,22 +64,4 @@ describe('dataset-builder.service', () => {
         );
     });
 
-    it('passes both source and dataset name when deleting a dataset source', async () => {
-        fetchMock.mockResolvedValue({
-            ok: true,
-            json: async () => ({
-                status: 'success',
-                message: 'Removed.',
-            }),
-        });
-
-        await expect(deleteDatasetSource('nist source', 'dataset one')).resolves.toEqual({
-            success: true,
-            message: 'Removed.',
-        });
-        expect(fetchMock).toHaveBeenCalledWith(
-            '/api/training/dataset-source?source=nist%20source&dataset_name=dataset%20one',
-            expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) })
-        );
-    });
 });

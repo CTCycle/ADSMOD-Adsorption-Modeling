@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchCheckpoints, getTrainingStatus, startTraining } from './training.service';
+import { fetchCheckpoints, fetchDatasetSources, getTrainingStatus, startTraining } from './training.service';
 
 describe('training.service', () => {
     const fetchMock = vi.fn();
@@ -69,6 +69,27 @@ describe('training.service', () => {
             checkpoints: [
                 { name: 'cp-1', epochs_trained: 4, final_loss: 0.12, final_accuracy: null, is_compatible: true },
                 { name: 'Unknown checkpoint', epochs_trained: null, final_loss: null, final_accuracy: 0.88, is_compatible: false },
+            ],
+            error: null,
+        });
+    });
+
+    it('preserves canonical uploaded dataset IDs in source listings', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                datasets: [
+                    { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST Single Component', row_count: 12 },
+                    { source: 'uploaded', dataset_name: 'uploaded-a', display_name: 'uploaded-a', row_count: 4, dataset_id: 17 },
+                    { source: 'uploaded', dataset_name: 'missing-id', display_name: 'missing-id', row_count: 4 },
+                ],
+            }),
+        });
+
+        await expect(fetchDatasetSources()).resolves.toEqual({
+            datasets: [
+                { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST Single Component', row_count: 12, dataset_id: null },
+                { source: 'uploaded', dataset_name: 'uploaded-a', display_name: 'uploaded-a', row_count: 4, dataset_id: 17 },
             ],
             error: null,
         });

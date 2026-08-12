@@ -106,7 +106,6 @@ def create_synthetic_training_frame(
         smile_vocabulary=smile_vocab,
         adsorbent_vocabulary=adsorbent_vocab,
         normalization_stats={},
-        normalization={},
     )
     metadata.dataset_hash = TrainingDataSerializer.compute_metadata_hash(metadata)
 
@@ -119,7 +118,7 @@ def save_synthetic_training_dataset(
     dataset_label: str,
 ) -> None:
     serializer = TrainingDataSerializer()
-    serializer.save_training_dataset(dataset, dataset_label)
+    serializer.save_training_dataset(dataset, dataset_label, metadata.dataset_hash or "")
 
     metadata_df = pd.DataFrame(
         [

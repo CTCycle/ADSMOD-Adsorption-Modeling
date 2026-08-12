@@ -3,8 +3,7 @@ from __future__ import annotations
 from os import PathLike
 from pathlib import Path
 
-from shared.common.paths import CANONICAL_CONFIGURATION_FILE
-from shared.common.settings import AppSettings, ServerSettings, get_runtime_config, get_server_settings
+from shared.common.settings import get_runtime_config
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
@@ -15,14 +14,6 @@ def get_core_host() -> str:
 ###############################################################################
 def get_core_port() -> int:
     return int(get_runtime_config()["core_port"])
-
-###############################################################################
-def get_app_settings(config_path: str | None = None) -> AppSettings:
-    return AppSettings.load(config_path or CANONICAL_CONFIGURATION_FILE)
-
-###############################################################################
-def get_server_settings_runtime(config_path: str | None = None) -> ServerSettings:
-    return get_server_settings(config_path or CANONICAL_CONFIGURATION_FILE)
 
 ###############################################################################
 def public_host_mode_enabled() -> bool:

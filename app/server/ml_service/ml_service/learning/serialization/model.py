@@ -132,12 +132,6 @@ class ModelSerializer:
             configuration = json.load(f)
         with metadata_path.open(encoding="utf-8") as f:
             metadata_dict = json.load(f)
-            if "dataset_hash" not in metadata_dict:
-                alias_value = metadata_dict.get("hashcode") or metadata_dict.get(
-                    "hash_code"
-                )
-                if alias_value:
-                    metadata_dict["dataset_hash"] = alias_value
             metadata = TrainingMetadata(**metadata_dict)
         with history_path.open(encoding="utf-8") as f:
             history = json.load(f)

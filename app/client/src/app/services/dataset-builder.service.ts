@@ -141,25 +141,3 @@ export async function deleteDataset(datasetLabel: string): Promise<{ success: bo
         return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
     }
 }
-
-export async function deleteDatasetSource(
-    source: string,
-    datasetName: string
-): Promise<{ success: boolean; message: string }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/training/dataset-source?source=${encodeURIComponent(source)}&dataset_name=${encodeURIComponent(datasetName)}`,
-            { method: 'DELETE' },
-            HTTP_TIMEOUT
-        );
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            return { success: false, message: extractErrorMessage(response, data) };
-        }
-
-        const result = (await response.json()) as { status?: string; message?: string };
-        return { success: result.status === 'success', message: result.message || 'Dataset deleted.' };
-    } catch (error) {
-        return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
-    }
-}

@@ -84,6 +84,7 @@ export interface DatasetSourceInfo {
     dataset_name: string;
     display_name: string;
     row_count: number;
+    dataset_id: number | null;
 }
 
 export interface DatasetFullInfo {

@@ -66,61 +66,6 @@
         }
       }
     },
-    "/api/training/dataset-source": {
-      "delete": {
-        "tags": [
-          "training"
-        ],
-        "summary": "Delete Dataset Source",
-        "operationId": "delete_dataset_source_api_training_dataset_source_delete",
-        "parameters": [
-          {
-            "name": "source",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^(nist|uploaded)$",
-              "title": "Source"
-            }
-          },
-          {
-            "name": "dataset_name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128,
-              "pattern": "^[A-Za-z0-9_. -]+$",
-              "title": "Dataset Name"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetSourceDeleteResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/training/build-dataset": {
       "post": {
         "tags": [
@@ -1028,24 +973,6 @@
         ],
         "title": "DatasetSelection"
       },
-      "DatasetSourceDeleteResponse": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          }
-        },
-        "type": "object",
-        "required": [
-          "status",
-          "message"
-        ],
-        "title": "DatasetSourceDeleteResponse"
-      },
       "DatasetSourceInfo": {
         "properties": {
           "source": {
@@ -1067,6 +994,17 @@
           "row_count": {
             "type": "integer",
             "title": "Row Count"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
           }
         },
         "type": "object",
@@ -1740,6 +1678,7 @@
             "default": 0
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "TrainingMetadata"
       },

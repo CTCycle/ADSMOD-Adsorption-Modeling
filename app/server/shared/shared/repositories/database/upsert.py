@@ -18,7 +18,7 @@ class ConflictCandidateRanker:
         lowered = tuple(column.lower() for column in columns)
         all_not_nullable = all(not self.table.c[column].nullable for column in columns)
         contains_key_marker = any(
-            column.endswith("_key") or column == "hashcode" for column in lowered
+            column.endswith("_key") or column == "content_hash" for column in lowered
         )
         ordered_positions = tuple(
             self.column_positions.get(column, 10000) for column in columns

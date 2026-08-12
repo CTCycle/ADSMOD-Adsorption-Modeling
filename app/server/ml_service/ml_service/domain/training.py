@@ -8,8 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 ###############################################################################
 # Shared Pydantic config
 STRICT_STRIPPED_CONFIG = ConfigDict(extra="forbid", str_strip_whitespace=True)
-METADATA_MODEL_CONFIG = ConfigDict(populate_by_name=True, extra="ignore")
-
 # Shared regex patterns
 REGEX_HEX_SHA256 = r"^[A-Fa-f0-9]{64}$"
 REGEX_LABEL = r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$"
@@ -177,6 +175,7 @@ class DatasetSourceInfo(BaseModel):
     dataset_name: str
     display_name: str
     row_count: int
+    dataset_id: int | None = None
 
 ###############################################################################
 class DatasetSourcesResponse(BaseModel):
@@ -184,11 +183,6 @@ class DatasetSourcesResponse(BaseModel):
 
 ###############################################################################
 class OperationStatusResponse(BaseModel):
-    status: str
-    message: str
-
-###############################################################################
-class DatasetSourceDeleteResponse(BaseModel):
     status: str
     message: str
 
@@ -241,7 +235,7 @@ class ProcessedDatasetsResponse(BaseModel):
 
 ###############################################################################
 class TrainingMetadata(BaseModel):
-    model_config = METADATA_MODEL_CONFIG
+    model_config = ConfigDict(extra="forbid")
 
     created_at: str | None = None
     sample_size: float = 1.0

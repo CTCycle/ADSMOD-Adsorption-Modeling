@@ -2,55 +2,32 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from difflib import get_close_matches
 from typing import Any
-from collections.abc import Sequence
 
 import pandas as pd
 
-from ml_service.configurations import get_server_settings
-from shared.repositories.queries.nist import NISTDataSerializer
-from shared.repositories.serialization.data import DataSerializer
+from shared.common.settings import get_server_settings
+from shared.repositories.database.manager import DatabaseManager
+from shared.repositories.datasets import DatasetRepository
+from shared.repositories.queries.nist import NISTDataSerializer, NIST_DATASET_NAME
 from ml_service.services.data.conversion import PQ_units_conversion
-from ml_service.services.data.nistads import PubChemClient
+from shared.services.pubchem import PubChemClient
 
 ###############################################################################
 class DatasetCompositionService:
     ADSORPTION_UNITS_MOL_G = "mol/g"
-    RAW_DATASET_NAME_COLUMN = "name"
+    RAW_DATASET_NAME_COLUMN = "dataset_name"
 
     # -------------------------------------------------------------------------
-    def __init__(self, allow_pubchem_fetch: bool = False) -> None:
-        self.serializer = DataSerializer()
-        self.nist_serializer = NISTDataSerializer()
+    def __init__(
+        self,
+        allow_pubchem_fetch: bool = False,
+        database: DatabaseManager | None = None,
+    ) -> None:
+        self.database = database or DatabaseManager(get_server_settings().database)
+        self.datasets = DatasetRepository(self.database)
+        self.nist_serializer = NISTDataSerializer(self.database)
         self.allow_pubchem_fetch = allow_pubchem_fetch
-        self.upload_column_aliases = {
-            "filename": ["filename", "experiment", "experiment name", "sample", "run"],
-            "temperature": ["temperature", "temp", "temperature [k]", "temp [k]"],
-            "pressure": ["pressure", "pressure [pa]", "pressure(pa)", "p"],
-            "adsorbed_amount": [
-                "uptake",
-                "adsorbed_amount",
-                "adsorbed amount",
-                "adsorption",
-                "q",
-                "uptake [mol/g]",
-            ],
-            "adsorbate_name": [
-                "adsorbate",
-                "adsorbate name",
-                "adsorbate_name",
-                "guest",
-                "gas",
-            ],
-            "adsorbent_name": [
-                "adsorbent",
-                "adsorbent name",
-                "adsorbent_name",
-                "host",
-                "material",
-            ],
-        }
         self.required_columns = [
             "filename",
             "temperature",
@@ -70,32 +47,25 @@ class DatasetCompositionService:
             sources.append(
                 {
                     "source": "nist",
-                    "dataset_name": "nist_single_component_adsorption",
+                    "dataset_name": NIST_DATASET_NAME,
                     "display_name": "NIST Single Component",
                     "row_count": nist_rows,
+                    "dataset_id": None,
                 }
             )
 
-        adsorption = self.serializer.load_table("adsorption_data")
-        if not adsorption.empty and self.RAW_DATASET_NAME_COLUMN in adsorption.columns:
-            name_series = (
-                adsorption[self.RAW_DATASET_NAME_COLUMN]
-                .fillna("")
-                .astype("string")
-                .str.strip()
+        for dataset in self.datasets.list_summaries():
+            if dataset["source"] != "uploaded":
+                continue
+            sources.append(
+                {
+                    "source": "uploaded",
+                    "dataset_name": dataset["name"],
+                    "display_name": dataset["name"],
+                    "row_count": dataset["observation_count"],
+                    "dataset_id": dataset["id"],
+                }
             )
-            counts = name_series.value_counts()
-            for name, count in counts.items():
-                if not name:
-                    continue
-                sources.append(
-                    {
-                        "source": "uploaded",
-                        "dataset_name": str(name),
-                        "display_name": str(name),
-                        "row_count": int(count),
-                    }
-                )
 
         nist_entries = [entry for entry in sources if entry["source"] == "nist"]
         upload_entries = sorted(
@@ -104,23 +74,6 @@ class DatasetCompositionService:
         )
         return nist_entries + upload_entries
 
-    # -------------------------------------------------------------------------
-    def delete_source(self, source: str, dataset_name: str) -> tuple[bool, str]:
-        source = str(source or "").strip().lower()
-        dataset_name = str(dataset_name or "").strip()
-        if not dataset_name:
-            return False, "Dataset name is required."
-        if source == "nist":
-            return False, "NIST datasets cannot be removed."
-        if source != "uploaded":
-            return False, f"Unsupported dataset source: {source or 'unknown'}."
-
-        removed = self.serializer.delete_raw_dataset(dataset_name)
-        if not removed:
-            return False, f"Dataset '{dataset_name}' was not found."
-        return True, f"Dataset '{dataset_name}' archived."
-
-    # -------------------------------------------------------------------------
     def compose_datasets(
         self, selections: list[dict[str, Any]]
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
@@ -160,17 +113,22 @@ class DatasetCompositionService:
 
     # -------------------------------------------------------------------------
     def standardize_uploaded_dataset(self, dataset_name: str) -> pd.DataFrame:
-        raw = self.serializer.load_table("adsorption_data")
-        if raw.empty or self.RAW_DATASET_NAME_COLUMN not in raw.columns:
+        dataset = next(
+            (
+                item
+                for item in self.datasets.list_summaries()
+                if item["source"] == "uploaded" and item["name"] == dataset_name
+            ),
+            None,
+        )
+        if dataset is None:
             raise ValueError("No uploaded datasets are available.")
 
-        filtered = raw[raw[self.RAW_DATASET_NAME_COLUMN] == dataset_name].copy()
-        if filtered.empty:
-            raise ValueError(f"Uploaded dataset '{dataset_name}' was not found.")
-
-        resolved = self.resolve_uploaded_columns(filtered.columns)
-        rename_map = {value: key for key, value in resolved.items() if value}
-        standardized = filtered.rename(columns=rename_map).copy()
+        standardized = self.datasets.observation_frame(dataset["id"]).rename(
+            columns={"experiment": "filename"}
+        )
+        if standardized.empty:
+            raise ValueError(f"Uploaded dataset '{dataset_name}' contains no observations.")
 
         if "filename" not in standardized.columns:
             standardized["filename"] = [
@@ -236,35 +194,6 @@ class DatasetCompositionService:
             cleaned, self.build_dataset_tag("nist", dataset_name)
         )
         return cleaned
-
-    # -------------------------------------------------------------------------
-    def resolve_uploaded_columns(self, columns: Sequence[str]) -> dict[str, str | None]:
-        resolved: dict[str, str | None] = {}
-        for key, aliases in self.upload_column_aliases.items():
-            resolved[key] = self.match_column(columns, aliases)
-        return resolved
-
-    # -------------------------------------------------------------------------
-    def match_column(self, columns: Sequence[str], aliases: list[str]) -> str | None:
-        normalized = {column: str(column).strip().lower() for column in columns}
-        for alias in aliases:
-            for column, value in normalized.items():
-                if value == alias:
-                    return column
-        for alias in aliases:
-            for column, value in normalized.items():
-                if alias in value:
-                    return column
-        if aliases:
-            matches = get_close_matches(
-                aliases[0], list(normalized.values()), cutoff=0.78
-            )
-            if matches:
-                match = matches[0]
-                for column, value in normalized.items():
-                    if value == match:
-                        return column
-        return None
 
     # -------------------------------------------------------------------------
     def normalize_measurements(self, dataframe: pd.DataFrame) -> pd.DataFrame:

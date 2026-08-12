@@ -3,7 +3,8 @@ import { SplitSelectionCardComponent } from './split-selection-card.component';
 import { DatasetProcessingWizardComponent } from './dataset-processing-wizard.component';
 import type { DatasetBuildConfig } from '../../../models/dataset-build.model';
 import type { DatasetFullInfo, DatasetSourceInfo } from '../../../models/training.model';
-import { buildTrainingDataset, clearTrainingDataset, deleteDatasetSource, getTrainingDatasetInfo } from '../../../services/dataset-builder.service';
+import { buildTrainingDataset, clearTrainingDataset, getTrainingDatasetInfo } from '../../../services/dataset-builder.service';
+import { deleteDataset } from '../../../services/dataset.service';
 import { fetchDatasetSources } from '../../../services/training.service';
 
 const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.source}:${dataset.dataset_name}`;
@@ -246,13 +247,19 @@ export class DatasetBuilderCardComponent {
             return;
         }
 
-        const result = await deleteDatasetSource(dataset.source, dataset.dataset_name);
-        if (result.success) {
+        if (dataset.dataset_id === null) {
+            this.statusTone.set('error');
+            this.statusMessage.set('ERROR: This dataset has no canonical dataset ID.');
+            return;
+        }
+
+        const result = await deleteDataset(dataset.dataset_id);
+        if (!result.error) {
             await this.loadDatasetSources();
             this.workspaceChanged.emit();
         } else {
             this.statusTone.set('error');
-            this.statusMessage.set(`ERROR: Failed to delete dataset: ${result.message}`);
+            this.statusMessage.set(`ERROR: Failed to delete dataset: ${result.error}`);
         }
     }
 

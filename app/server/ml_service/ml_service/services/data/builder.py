@@ -155,14 +155,15 @@ class DatasetBuilder:
 
         training_data = self._serialize_sequence_columns(training_data)
 
-        self.save_training_dataset(training_data)
-        self.save_training_metadata(
+        metadata = self.build_training_metadata(
             train_samples=len(train_samples),
             validation_samples=len(validation_samples),
             smile_vocab=smile_vocab,
             adsorbent_vocab=adsorbent_vocab,
             statistics=normalizer.statistics,
         )
+        self.save_training_dataset(training_data, metadata.dataset_hash or "")
+        self.save_training_metadata(metadata)
 
         logger.info(f"Saved train dataset with {len(train_samples)} records")
         logger.info(f"Saved validation dataset with {len(validation_samples)} records")
@@ -297,7 +298,7 @@ class DatasetBuilder:
         return training_data
 
     # -------------------------------------------------------------------------
-    def save_training_dataset(self, training_data: pd.DataFrame) -> None:
+    def save_training_dataset(self, training_data: pd.DataFrame, dataset_hash: str) -> None:
         columns_to_save = [
             "dataset_label",
             "dataset_name",
@@ -317,18 +318,19 @@ class DatasetBuilder:
         available_columns = [c for c in columns_to_save if c in training_data.columns]
         data_to_save = training_data[available_columns].copy()
 
-        self.serializer.save_training_dataset(data_to_save, self.dataset_label)
+        self.serializer.save_training_dataset(
+            data_to_save, self.dataset_label, dataset_hash
+        )
 
     # -------------------------------------------------------------------------
-    def save_training_metadata(
+    def build_training_metadata(
         self,
         train_samples: int,
         validation_samples: int,
         smile_vocab: dict,
         adsorbent_vocab: dict,
         statistics: dict | None,
-    ) -> None:
-        # Construct the metadata object first
+    ) -> TrainingMetadata:
         metadata = TrainingMetadata(
             created_at=datetime.now().isoformat(),
             sample_size=self.config.sample_size,
@@ -349,6 +351,11 @@ class DatasetBuilder:
         # Compute hash using the centralized logic in serializer
         dataset_hash = TrainingDataSerializer.compute_metadata_hash(metadata)
         metadata.dataset_hash = dataset_hash
+
+        return metadata
+
+    # -------------------------------------------------------------------------
+    def save_training_metadata(self, metadata: TrainingMetadata) -> None:
 
         metadata_df = pd.DataFrame(
             [

@@ -7,6 +7,8 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Adsorbate, Adsorbent, Dataset, Isotherm, IsothermComponent, Observation
 from sqlalchemy import func, select
 
+NIST_DATASET_NAME = "NIST ISODB"
+
 ###############################################################################
 class NISTDataSerializer:
     """Read the canonical NIST collection for training/inference consumers."""

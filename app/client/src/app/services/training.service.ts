@@ -184,11 +184,21 @@ export async function fetchDatasetSources(): Promise<{ datasets: DatasetSourceIn
                 const datasetName = getString(datasetRecord, 'dataset_name');
                 const displayName = getString(datasetRecord, 'display_name');
                 const rowCount = getNumber(datasetRecord, 'row_count');
+                const datasetId = getNumber(datasetRecord, 'dataset_id');
                 if (!datasetName || !displayName || rowCount === undefined) {
                     return null;
                 }
+                if (source === 'uploaded' && datasetId === undefined) {
+                    return null;
+                }
 
-                return { source, dataset_name: datasetName, display_name: displayName, row_count: rowCount };
+                return {
+                    source,
+                    dataset_name: datasetName,
+                    display_name: displayName,
+                    row_count: rowCount,
+                    dataset_id: datasetId ?? null,
+                };
             })
             .filter((dataset): dataset is DatasetSourceInfo => dataset !== null);
 

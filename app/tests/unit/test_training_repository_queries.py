@@ -36,25 +36,27 @@ def test_training_dataset_metadata_round_trip_keeps_one_parent() -> None:
         dataset = pd.DataFrame(
             [
                 {
-                    "name": "round_trip",
+                    "dataset_label": "round_trip",
+                    "dataset_hash": "a" * 64,
                     "split": "train",
                     "temperature": 298.15,
                     "pressure": [1.0, 2.0],
                     "adsorbed_amount": [0.1, 0.2],
                     "encoded_adsorbent": 1,
                     "adsorbate_molecular_weight": 44.0,
-                    "adsorbate_encoded_smile": [1, 2],
+                    "adsorbate_encoded_SMILE": [1, 2],
                     "sample_key": "sample-1",
                 },
                 {
-                    "name": "round_trip",
+                    "dataset_label": "round_trip",
+                    "dataset_hash": "a" * 64,
                     "split": "validation",
                     "temperature": 298.15,
                     "pressure": [3.0, 4.0],
                     "adsorbed_amount": [0.3, 0.4],
                     "encoded_adsorbent": 1,
                     "adsorbate_molecular_weight": 44.0,
-                    "adsorbate_encoded_smile": [1, 2],
+                    "adsorbate_encoded_SMILE": [1, 2],
                     "sample_key": "sample-2",
                 },
             ]
@@ -65,7 +67,7 @@ def test_training_dataset_metadata_round_trip_keeps_one_parent() -> None:
             [
                 {
                     "dataset_label": "round_trip",
-                    "hashcode": "a" * 64,
+                    "dataset_hash": "a" * 64,
                     "sample_size": 1.0,
                     "validation_size": 0.5,
                     "min_measurements": 1,

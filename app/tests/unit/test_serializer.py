@@ -1,7 +1,10 @@
 import pandas as pd
+import pytest
+from pydantic import ValidationError
 
-from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.domain.training import TrainingMetadata
+from ml_service.learning.serialization.model import ModelSerializer
+from ml_service.learning.serialization.training import TrainingDataSerializer
 
 ###############################################################################
 class StubTrainingQueries:
@@ -13,10 +16,6 @@ class StubTrainingQueries:
     # -------------------------------------------------------------------------
     def load_training_dataset(self, limit=None):  # noqa: ANN001
         return pd.DataFrame()
-
-    # -------------------------------------------------------------------------
-    def save_training_dataset(self, dataset):  # noqa: ANN001
-        self.captured["saved"] = dataset.copy()
 
     # -------------------------------------------------------------------------
     def upsert_training_dataset(self, dataset):  # noqa: ANN001
@@ -105,7 +104,7 @@ def test_save_training_dataset_deduplicates_sample_keys():
     dataset = pd.DataFrame(
         [
             {
-                "dataset_name": "nist_single_component_adsorption",
+                "dataset_name": "NIST ISODB",
                 "split": "train",
                 "temperature": 298.15,
                 "pressure": "[1.0,2.0]",
@@ -115,7 +114,7 @@ def test_save_training_dataset_deduplicates_sample_keys():
                 "adsorbate_encoded_SMILE": "[1,2,3]",
             },
             {
-                "dataset_name": "nist_single_component_adsorption",
+                "dataset_name": "NIST ISODB",
                 "split": "train",
                 "temperature": 298.15,
                 "pressure": "[1.0,2.0]",
@@ -127,14 +126,18 @@ def test_save_training_dataset_deduplicates_sample_keys():
         ]
     )
 
-    serializer.save_training_dataset(dataset, dataset_label="small_dataset")
+    serializer.save_training_dataset(
+        dataset,
+        dataset_label="small_dataset",
+        dataset_hash="a" * 64,
+    )
 
     upserted = captured["upsert"]
     assert len(upserted) == 1
     assert upserted["sample_key"].nunique() == 1
     assert upserted.iloc[0]["pressure"] == [1.0, 2.0]
     assert upserted.iloc[0]["adsorbed_amount"] == [0.1, 0.2]
-    assert upserted.iloc[0]["adsorbate_encoded_smile"] == [1, 2, 3]
+    assert upserted.iloc[0]["adsorbate_encoded_SMILE"] == [1, 2, 3]
 
 ###############################################################################
 def test_save_training_metadata_normalizes_json_mappings():
@@ -144,7 +147,7 @@ def test_save_training_metadata_normalizes_json_mappings():
         [
             {
                 "dataset_label": "small_dataset",
-                "dataset_hash": "hash",
+                "dataset_hash": "a" * 64,
                 "smile_vocabulary": '{"C": 1}',
                 "adsorbent_vocabulary": '{"MOF-1": 0}',
                 "normalization_stats": '{"pressure_mean": 1.0}',
@@ -158,3 +161,31 @@ def test_save_training_metadata_normalizes_json_mappings():
     assert saved["smile_vocabulary"] == {"C": 1}
     assert saved["adsorbent_vocabulary"] == {"MOF-1": 0}
     assert saved["normalization_stats"] == {"pressure_mean": 1.0}
+
+###############################################################################
+def test_training_dataset_persistence_requires_canonical_hash():
+    serializer = TrainingDataSerializer(queries=StubTrainingQueries({}))
+
+    with pytest.raises(ValueError, match="dataset_hash"):
+        serializer.save_training_dataset(
+            pd.DataFrame({"split": ["train"]}),
+            dataset_label="small_dataset",
+        )
+
+###############################################################################
+def test_training_metadata_rejects_legacy_fields():
+    with pytest.raises(ValidationError):
+        TrainingMetadata(hashcode="a" * 64)
+
+###############################################################################
+def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path):
+    configuration_dir = tmp_path / "configuration"
+    configuration_dir.mkdir()
+    (configuration_dir / "configuration.json").write_text("{}", encoding="utf-8")
+    (configuration_dir / "metadata.json").write_text(
+        '{"hash_code": "' + ("a" * 64) + '"}', encoding="utf-8"
+    )
+    (configuration_dir / "session_history.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        ModelSerializer().load_training_configuration(str(tmp_path))

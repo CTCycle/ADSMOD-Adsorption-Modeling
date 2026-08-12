@@ -233,6 +233,18 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                                         </select>
                                     </label>
                                     <label>
+                                        <span>Decimal separator</span>
+                                        <select
+                                            class="select-input"
+                                            [value]="mapping().decimal_separator"
+                                            (change)="setDecimalSeparator($event)"
+                                        >
+                                            <option value="auto">Detect automatically</option>
+                                            <option value=".">Decimal point (.)</option>
+                                            <option value=",">Comma decimal (,)</option>
+                                        </select>
+                                    </label>
+                                    <label>
                                         <span>Pressure unit override</span>
                                         <input
                                             class="select-input"
@@ -1092,6 +1104,16 @@ export class DatasetImportWizardComponent implements OnInit {
             duplicate_policy: (event.target as HTMLSelectElement)
                 .value as ImportMapping['duplicate_policy'],
         }));
+    }
+
+    protected setDecimalSeparator(event: Event): void {
+        const value = (event.target as HTMLSelectElement).value;
+        if (value === 'auto' || value === '.' || value === ',') {
+            this.mapping.update((current) => ({
+                ...current,
+                decimal_separator: value,
+            }));
+        }
     }
 
     protected setSeriesDelimiter(event: Event): void {

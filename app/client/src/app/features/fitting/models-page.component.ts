@@ -70,6 +70,25 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                         </div>
                                     </div>
                                     <div class="control-group">
+                                        <label class="field-label" for="fitting-experiment-control">Experiment / isotherm</label>
+                                        <select
+                                            id="fitting-experiment-control"
+                                            class="select-input"
+                                            [value]="store.selectedExperimentId() || ''"
+                                            [disabled]="store.experimentsLoading() || !store.experiments().length"
+                                            (change)="selectExperiment($event)"
+                                        >
+                                            <option value="">
+                                                {{ store.experimentsLoading() ? 'Loading experiments…' : store.experiments().length ? 'Select an experiment' : 'Select a dataset first' }}
+                                            </option>
+                                            @for (experiment of store.experiments(); track experiment.id) {
+                                                <option [value]="experiment.id">
+                                                    {{ experiment.name }} · {{ experiment.observation_count }} points
+                                                </option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="control-group">
                                         <label class="field-label" for="fitting-weighting-control">Weighting</label>
                                         <select id="fitting-weighting-control" class="select-input" [value]="store.weighting()" (change)="selectWeighting($event)">
                                             <option value="unweighted">Unweighted</option>
@@ -160,6 +179,11 @@ export class ModelsPageComponent {
         const select = event.target as HTMLSelectElement;
         const id = Number(select.value);
         void this.store.selectDataset(Number.isFinite(id) && id > 0 ? id : null);
+    }
+
+    protected selectExperiment(event: Event): void {
+        const id = Number((event.target as HTMLSelectElement).value);
+        this.store.setSelectedExperiment(Number.isFinite(id) && id > 0 ? id : null);
     }
 
     protected selectOptimizer(event: Event): void {

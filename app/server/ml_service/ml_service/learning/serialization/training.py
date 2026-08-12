@@ -13,47 +13,15 @@ from shared.repositories.queries.training import TrainingRepositoryQueries
 
 ###############################################################################
 class TrainingDataSerializer:
-    dataset_table = "training_dataset"
-    metadata_table = "training_metadata"
-    dataset_label_column = "name"
-    dataset_source_column = "source_dataset"
-    metadata_hash_column = "hashcode"
+    dataset_label_column = "dataset_label"
+    dataset_hash_column = "dataset_hash"
+    dataset_name_column = "dataset_name"
     sample_key_column = "sample_key"
-    training_hash_column = "training_hashcode"
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     # -------------------------------------------------------------------------
     def __init__(self, queries: TrainingRepositoryQueries | None = None) -> None:
         self.queries = queries or TrainingRepositoryQueries()
-
-    # -------------------------------------------------------------------------
-    @classmethod
-    def prepare_dataset_for_storage(cls, dataset: pd.DataFrame) -> pd.DataFrame:
-        return dataset.copy().rename(
-            columns={
-                "dataset_label": cls.dataset_label_column,
-                "dataset_name": cls.dataset_source_column,
-                "adsorbate_encoded_SMILE": "adsorbate_encoded_smile",
-            }
-        )
-
-    # -------------------------------------------------------------------------
-    @classmethod
-    def restore_dataset_from_storage(cls, dataset: pd.DataFrame) -> pd.DataFrame:
-        return dataset.copy().rename(
-            columns={
-                cls.dataset_label_column: "dataset_label",
-                cls.dataset_source_column: "dataset_name",
-                "adsorbate_encoded_smile": "adsorbate_encoded_SMILE",
-            }
-        )
-
-    # -------------------------------------------------------------------------
-    @classmethod
-    def prepare_metadata_for_storage(cls, metadata: pd.DataFrame) -> pd.DataFrame:
-        return metadata.copy().rename(
-            columns={"dataset_hash": cls.metadata_hash_column}
-        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -68,14 +36,14 @@ class TrainingDataSerializer:
     def build_sample_key(cls, row: pd.Series) -> str:
         payload = {
             cls.dataset_label_column: row.get(cls.dataset_label_column),
-            cls.dataset_source_column: row.get(cls.dataset_source_column),
+            cls.dataset_name_column: row.get(cls.dataset_name_column),
             "split": row.get("split"),
             "temperature": row.get("temperature"),
             "pressure": row.get("pressure"),
             "adsorbed_amount": row.get("adsorbed_amount"),
             "encoded_adsorbent": row.get("encoded_adsorbent"),
             "adsorbate_molecular_weight": row.get("adsorbate_molecular_weight"),
-            "adsorbate_encoded_smile": row.get("adsorbate_encoded_smile"),
+            "adsorbate_encoded_SMILE": row.get("adsorbate_encoded_SMILE"),
         }
         serialized = json.dumps(payload, sort_keys=True, default=str)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
@@ -112,9 +80,9 @@ class TrainingDataSerializer:
 
         archived_label = self.build_archived_label(self.normalize_dataset_label(label_seed))
         archived_data.loc[mask, self.dataset_label_column] = archived_label
-        if self.training_hash_column not in archived_data.columns:
-            archived_data[self.training_hash_column] = pd.NA
-        archived_data.loc[mask, self.training_hash_column] = self.build_archived_hash(
+        if self.dataset_hash_column not in archived_data.columns:
+            raise ValueError("Stored training data is missing dataset_hash.")
+        archived_data.loc[mask, self.dataset_hash_column] = self.build_archived_hash(
             archived_label
         )
         self.queries.upsert_training_dataset(archived_data)
@@ -137,24 +105,24 @@ class TrainingDataSerializer:
 
         archived_label = self.build_archived_label(self.normalize_dataset_label(label_seed))
         archived_meta.loc[mask, "dataset_label"] = archived_label
-        if self.metadata_hash_column not in archived_meta.columns:
-            archived_meta[self.metadata_hash_column] = pd.NA
-        archived_meta.loc[mask, self.metadata_hash_column] = self.build_archived_hash(
+        if self.dataset_hash_column not in archived_meta.columns:
+            raise ValueError("Stored training metadata is missing dataset_hash.")
+        archived_meta.loc[mask, self.dataset_hash_column] = self.build_archived_hash(
             archived_label
         )
         self.queries.save_training_metadata(archived_meta)
 
     # -------------------------------------------------------------------------
     def save_training_dataset(
-        self, dataset: pd.DataFrame, dataset_label: str = "default"
+        self, dataset: pd.DataFrame, dataset_label: str = "default", dataset_hash: str = ""
     ) -> None:
         dataset_label = self.normalize_dataset_label(dataset_label)
+        dataset_hash = self.require_dataset_hash(dataset_hash)
         normalized_dataset = self.coerce_sequence_columns(dataset)
-        storage_dataset = self.prepare_dataset_for_storage(normalized_dataset)
+        storage_dataset = normalized_dataset.copy()
         if self.dataset_label_column not in storage_dataset.columns:
             storage_dataset[self.dataset_label_column] = dataset_label
-        if self.training_hash_column not in storage_dataset.columns:
-            storage_dataset[self.training_hash_column] = pd.NA
+        storage_dataset[self.dataset_hash_column] = dataset_hash
         storage_dataset[self.sample_key_column] = storage_dataset.apply(
             self.build_sample_key, axis=1
         )
@@ -175,9 +143,14 @@ class TrainingDataSerializer:
         self, metadata: pd.DataFrame, dataset_label: str = "default"
     ) -> None:
         dataset_label = self.normalize_dataset_label(dataset_label)
-        storage_metadata = self.prepare_metadata_for_storage(metadata)
+        storage_metadata = metadata.copy()
         if "dataset_label" not in storage_metadata.columns:
             storage_metadata["dataset_label"] = dataset_label
+        if self.dataset_hash_column not in storage_metadata.columns:
+            raise ValueError("Training metadata requires dataset_hash.")
+        storage_metadata[self.dataset_hash_column] = storage_metadata[
+            self.dataset_hash_column
+        ].apply(self.require_dataset_hash)
         for column in ("smile_vocabulary", "adsorbent_vocabulary", "normalization_stats"):
             if column in storage_metadata.columns:
                 storage_metadata[column] = storage_metadata[column].apply(
@@ -186,28 +159,6 @@ class TrainingDataSerializer:
 
         self.archive_training_metadata_rows(dataset_label)
         self.queries.save_training_metadata(storage_metadata)
-
-        metadata_hash = None
-        if self.metadata_hash_column in storage_metadata.columns:
-            hash_values = (
-                storage_metadata[self.metadata_hash_column]
-                .dropna()
-                .astype("string")
-                .str.strip()
-            )
-            metadata_hash = hash_values.iloc[0] if not hash_values.empty else None
-        if metadata_hash:
-            training_data = self.queries.load_training_dataset()
-            if (
-                not training_data.empty
-                and self.dataset_label_column in training_data.columns
-            ):
-                updated = training_data.copy()
-                updated.loc[
-                    updated[self.dataset_label_column] == dataset_label,
-                    self.training_hash_column,
-                ] = metadata_hash
-                self.queries.upsert_training_dataset(updated)
 
     # -------------------------------------------------------------------------
     def clear_training_dataset(self, dataset_label: str | None = None) -> None:
@@ -281,6 +232,19 @@ class TrainingDataSerializer:
         return None
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def require_dataset_hash(dataset_hash: Any) -> str:
+        if dataset_hash is None or pd.isna(dataset_hash):
+            normalized = ""
+        else:
+            normalized = str(dataset_hash).strip()
+        if len(normalized) != 64 or any(
+            character not in "0123456789abcdefABCDEF" for character in normalized
+        ):
+            raise ValueError("dataset_hash must be a 64-character hexadecimal digest.")
+        return normalized
+
+    # -------------------------------------------------------------------------
     def _select_metadata_row(
         self, metadata_df: pd.DataFrame, dataset_label: str
     ) -> pd.Series | None:
@@ -298,7 +262,7 @@ class TrainingDataSerializer:
         max_smile_index = max(smile_vocabulary.values()) if smile_vocabulary else 0
         smile_vocab_size = int(max_smile_index) + 1
         normalization_stats = self._parse_json(row.get("normalization_stats"))
-        dataset_hash_value = row.get(self.metadata_hash_column)
+        dataset_hash_value = row.get(self.dataset_hash_column)
 
         return TrainingMetadata(
             created_at=str(row.get("created_at", "")),
@@ -352,20 +316,11 @@ class TrainingDataSerializer:
             metadata = self.load_training_metadata(dataset_label)
             dataset_hash = metadata.dataset_hash
             if not dataset_hash:
-                if not metadata or metadata.total_samples == 0:
-                    logger.warning(
-                        "Training metadata missing or empty for dataset '%s'; unable to compute hash.",
-                        dataset_label,
-                    )
-                    continue
-                computed_hash = TrainingDataSerializer.compute_metadata_hash(metadata)
-                if not computed_hash:
-                    logger.warning(
-                        "Training metadata hash could not be computed for dataset '%s'.",
-                        dataset_label,
-                    )
-                    continue
-                dataset_hash = computed_hash
+                logger.warning(
+                    "Training metadata missing dataset_hash for dataset '%s'.",
+                    dataset_label,
+                )
+                continue
             dataset_hashes.add(dataset_hash)
 
         return dataset_hashes
@@ -388,7 +343,6 @@ class TrainingDataSerializer:
                 training_data[self.dataset_label_column] == dataset_label
             ]
 
-        training_data = self.restore_dataset_from_storage(training_data)
         training_data = self.coerce_sequence_columns(training_data)
 
         train_data = training_data[training_data["split"] == "train"]
@@ -405,7 +359,7 @@ class TrainingDataSerializer:
 
         datasets = []
         for _, row in metadata_df.iterrows():
-            dataset_hash_value = row.get(TrainingDataSerializer.metadata_hash_column)
+            dataset_hash_value = row.get(TrainingDataSerializer.dataset_hash_column)
             datasets.append(
                 {
                     "dataset_label": str(row.get("dataset_label", "default")),
