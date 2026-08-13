@@ -74,6 +74,7 @@ class DatasetCompositionService:
         )
         return nist_entries + upload_entries
 
+    # -------------------------------------------------------------------------
     def compose_datasets(
         self, selections: list[dict[str, Any]]
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
