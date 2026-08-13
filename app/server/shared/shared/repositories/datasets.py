@@ -406,6 +406,8 @@ class DatasetRepository:
                         )
                         session.add(adsorbate)
                         session.flush()
+                    elif adsorbate_record.get("smiles") and not adsorbate.smiles:
+                        adsorbate.smiles = adsorbate_record["smiles"]
                     adsorbates_by_key[adsorbate_key] = adsorbate
                     component = IsothermComponent(
                         isotherm_id=isotherm.id,

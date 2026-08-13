@@ -39,3 +39,22 @@ def test_aggregated_arrays_require_equal_lengths() -> None:
     bundle = engine.validate(payload, "sample.csv", mapping)
     assert bundle.response.status == "invalid"
     assert any(issue.code == "invalid_row" for issue in bundle.response.issues)
+
+###############################################################################
+def test_atomic_import_preserves_adsorbate_smiles_for_training() -> None:
+    payload = b"experiment_id,pressure [kPa],uptake [mol/g],temperature [K],adsorbate,adsorbate_smiles,adsorbent\nEXP-1,10,0.10,298.15,CO2,O=C=O,Activated carbon\nEXP-1,20,0.18,298.15,CO2,O=C=O,Activated carbon\n"
+    engine = AdsorptionImportEngine()
+    preview = engine.preview(payload, "smiles.csv")
+    mapping = ImportMapping(
+        dataset_name="smiles",
+        structure="atomic",
+        column_roles={column.name: column.proposed_role for column in preview.columns},
+        grouping_columns=["experiment_id"],
+        pressure_basis="absolute",
+    )
+
+    bundle = engine.validate(payload, "smiles.csv", mapping)
+
+    assert bundle.response.status == "valid"
+    assert bundle.experiments[0]["adsorbates"][0]["smiles"] == "O=C=O"
+    assert bundle.response.experiments[0].adsorbate_smiles == "O=C=O"

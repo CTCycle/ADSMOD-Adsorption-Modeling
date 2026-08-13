@@ -13,6 +13,7 @@ ColumnRole = Literal[
     "pressure",
     "uptake",
     "adsorbate",
+    "adsorbate_smiles",
     "adsorbent",
     "temperature",
     "pressure_unit",
@@ -86,6 +87,7 @@ class ImportMapping(BaseModel):
             "pressure",
             "uptake",
             "temperature",
+            "adsorbate_smiles",
             "pressure_unit",
             "uptake_unit",
             "temperature_unit",
@@ -136,6 +138,7 @@ class NormalizedExperimentPreview(BaseModel):
     name: str
     adsorbent: str
     adsorbate: str
+    adsorbate_smiles: str | None = None
     temperature_k: float
     pressure_basis: PressureBasis
     observation_count: int

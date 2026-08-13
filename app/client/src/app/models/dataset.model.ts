@@ -8,6 +8,7 @@ export type ColumnRole =
     | 'pressure'
     | 'uptake'
     | 'adsorbate'
+    | 'adsorbate_smiles'
     | 'adsorbent'
     | 'temperature'
     | 'pressure_unit'
@@ -112,6 +113,7 @@ export interface NormalizedExperimentPreview {
     name: string;
     adsorbent: string;
     adsorbate: string;
+    adsorbate_smiles: string | null;
     temperature_k: number;
     pressure_basis: PressureBasis;
     observation_count: number;

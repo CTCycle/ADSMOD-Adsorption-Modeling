@@ -117,6 +117,17 @@ ROLE_ALIASES: dict[str, set[str]] = {
         "gast",
         "adsorvato",
     },
+    "adsorbate_smiles": {
+        "smile",
+        "smiles",
+        "smile code",
+        "smile_code",
+        "adsorbate smile",
+        "adsorbate smiles",
+        "adsorbate smile code",
+        "canonical smile",
+        "canonical smiles",
+    },
     "adsorbent": {
         "adsorbent",
         "material",
@@ -588,6 +599,7 @@ class AdsorptionImportEngine:
                 for key in (
                     "adsorbent",
                     "adsorbate",
+                    "adsorbate_smiles",
                     "temperature_k",
                     "pressure_basis",
                 ):
@@ -678,7 +690,7 @@ class AdsorptionImportEngine:
                     "external_key": group_key,
                     "name": metadata["name"],
                     "adsorbent": {"name": metadata["adsorbent"]},
-                    "adsorbates": [{"name": metadata["adsorbate"], "molar_mass_g_mol": metadata.get("adsorbate_molar_mass_g_mol")}],
+                    "adsorbates": [{"name": metadata["adsorbate"], "molar_mass_g_mol": metadata.get("adsorbate_molar_mass_g_mol"), "smiles": metadata.get("adsorbate_smiles")}],
                     "temperature_original": metadata["temperature_original"],
                     "temperature_original_unit": metadata[
                         "temperature_original_unit"
@@ -719,6 +731,16 @@ class AdsorptionImportEngine:
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         adsorbent = str(self._mapped_value(row, "adsorbent", roles, mapping) or "").strip()
         adsorbate = str(self._mapped_value(row, "adsorbate", roles, mapping) or "").strip()
+        adsorbate_smiles_value = safe_cell(
+            self._mapped_value(row, "adsorbate_smiles", roles, mapping)
+        )
+        adsorbate_smiles = (
+            str(adsorbate_smiles_value).strip()
+            if adsorbate_smiles_value is not None
+            else None
+        )
+        if adsorbate_smiles and adsorbate_smiles.casefold() in {"nan", "none"}:
+            adsorbate_smiles = None
         if not adsorbent or adsorbent.casefold() in {"nan", "none"}:
             raise ValueError("Adsorbent material is missing.")
         if not adsorbate or adsorbate.casefold() in {"nan", "none"}:
@@ -857,6 +879,7 @@ class AdsorptionImportEngine:
             "name": name,
             "adsorbent": adsorbent,
             "adsorbate": adsorbate,
+            "adsorbate_smiles": adsorbate_smiles,
             "adsorbate_molar_mass_g_mol": molar_mass_value,
             "temperature_original": temperature.original_value,
             "temperature_original_unit": temperature.original_unit,
@@ -947,6 +970,7 @@ class AdsorptionImportEngine:
                 name=experiment["name"],
                 adsorbent=experiment["adsorbent"]["name"],
                 adsorbate=experiment["adsorbates"][0]["name"],
+                adsorbate_smiles=experiment["adsorbates"][0].get("smiles"),
                 temperature_k=experiment["temperature_k"],
                 pressure_basis=experiment["pressure_basis"],
                 observation_count=len(experiment["observations"]),
