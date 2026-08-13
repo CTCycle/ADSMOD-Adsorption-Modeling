@@ -84,7 +84,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
     imports: [RouterLink, RouterLinkActive, RouterOutlet],
     template: `
         <div class="console-shell">
-            <aside class="console-sidebar" aria-label="Primary navigation">
+            <aside #sidebar class="console-sidebar" aria-label="Primary navigation">
                 <div class="console-brand">
                     <img class="console-brand-logo" src="/adsmod-logo-96.png" width="43" height="43" alt="" aria-hidden="true" />
                     <div>
@@ -142,14 +142,14 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <button #helpTrigger class="header-icon-button" type="button" aria-label="Help" (click)="openHelp()">?</button>
                     </div>
                 </header>
-                <main class="app-main console-main">
+                <main #mainContent class="app-main console-main">
                     <router-outlet />
                 </main>
             </section>
         </div>
-        <div class="console-status-bar" aria-label="Service status">
-            <div class="console-status-item"><span class="service-dot core" aria-hidden="true"></span><strong>Core Service</strong><em>Online</em></div>
-            <div class="console-status-item"><span class="service-dot ml" aria-hidden="true"></span><strong>ML Service</strong><em>Optional</em></div>
+        <div class="console-status-bar" aria-label="Service status" aria-live="polite">
+            <div class="console-status-item"><span class="service-dot core" [class.offline]="coreServiceStatus() === 'Offline'" aria-hidden="true"></span><strong>Core Service</strong><em>{{ coreServiceStatus() }}</em></div>
+            <div class="console-status-item"><span class="service-dot ml" [class.offline]="mlServiceStatus() === 'Unavailable'" aria-hidden="true"></span><strong>ML Service</strong><em>{{ mlServiceStatus() }}</em></div>
         </div>
         @if (helpOpen()) {
             <div class="help-modal-backdrop" (click)="closeHelp()">
@@ -187,10 +187,14 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
 export class CoreShellComponent {
     @ViewChild('helpTrigger') private helpTrigger?: ElementRef<HTMLButtonElement>;
     @ViewChild('helpCloseButton') private helpCloseButton?: ElementRef<HTMLButtonElement>;
+    @ViewChild('mainContent') private mainContent?: ElementRef<HTMLElement>;
+    @ViewChild('sidebar') private sidebar?: ElementRef<HTMLElement>;
     private readonly router = inject(Router);
     private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
     protected readonly helpOpen = signal(false);
+    protected readonly coreServiceStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
+    protected readonly mlServiceStatus = signal<'Checking' | 'Online' | 'Unavailable'>('Checking');
     protected readonly currentPage = computed<HelpPage>(() => {
         const url = this.currentUrl();
         if (url.startsWith('/dashboards')) {
@@ -261,12 +265,37 @@ export class CoreShellComponent {
     }
 
     constructor() {
+        void this.refreshServiceStatus();
+        const serviceStatusTimer = window.setInterval(() => void this.refreshServiceStatus(), 10_000);
+        this.destroyRef.onDestroy(() => window.clearInterval(serviceStatusTimer));
         this.router.events
             .pipe(
                 filter((event): event is NavigationEnd => event instanceof NavigationEnd),
                 takeUntilDestroyed(this.destroyRef)
             )
-                .subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
+                .subscribe((event) => {
+                    this.currentUrl.set(event.urlAfterRedirects);
+                    void this.refreshServiceStatus();
+                    queueMicrotask(() => {
+                        if (this.mainContent) {
+                            this.mainContent.nativeElement.scrollTop = 0;
+                            this.mainContent.nativeElement.scrollLeft = 0;
+                        }
+                        if (this.sidebar) {
+                            this.sidebar.nativeElement.scrollTop = 0;
+                            this.sidebar.nativeElement.scrollLeft = 0;
+                        }
+                    });
+                });
+    }
+
+    private async refreshServiceStatus(): Promise<void> {
+        const [core, ml] = await Promise.allSettled([
+            fetch('/api/health', { signal: AbortSignal.timeout(3_000) }),
+            fetch('/api/training/status', { signal: AbortSignal.timeout(3_000) }),
+        ]);
+        this.coreServiceStatus.set(core.status === 'fulfilled' && core.value.ok ? 'Online' : 'Offline');
+        this.mlServiceStatus.set(ml.status === 'fulfilled' && ml.value.ok ? 'Online' : 'Unavailable');
     }
 
     @HostListener('document:keydown.escape')
