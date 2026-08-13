@@ -9,6 +9,7 @@ from shared.repositories.queries.training import TrainingRepositoryQueries
 from shared.repositories.schemas.models import Base, TrainingDataset, TrainingSample
 
 
+###############################################################################
 def build_in_memory_database() -> DatabaseManager:
     settings = DatabaseSettings(
         embedded_database=True,
@@ -29,6 +30,7 @@ def build_in_memory_database() -> DatabaseManager:
     return manager
 
 
+###############################################################################
 def test_training_dataset_metadata_round_trip_keeps_one_parent() -> None:
     manager = build_in_memory_database()
     try:
