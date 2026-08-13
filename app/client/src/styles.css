@@ -4923,7 +4923,54 @@ body {
 
 .eyebrow { margin: 0 0 0.3rem; color: var(--console-text-muted, #657386); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .empty-state-icon { display: grid; place-items: center; width: 2.35rem; height: 2.35rem; border-radius: 50%; background: #e1edff; color: var(--console-accent, #075bd5); font-size: 1.55rem; font-weight: 600; }
-.source-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+input.source-file-input {
+  position: absolute;
+  width: 1px;
+  min-height: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  opacity: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.route-workspace-training .route-rail-training {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.service-dot.offline {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+}
+
+.route-workspace-training .route-rail-training::before,
+.route-workspace-training .route-rail-training::after,
+.route-workspace-training .route-rail-brand {
+  display: none;
+}
+
+.route-workspace-training .training-view-toolbar {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: var(--spacing-sm);
+}
+
+@media (max-width: 700px) {
+  .route-workspace-training .training-view-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .dataset-status { margin: 0; padding: 0.75rem 1rem; border: 1px solid currentColor; border-radius: 0.45rem; }
 .dataset-status.error { color: #a3232d; background: #fff5f5; }
 .user-dataset-list-card { min-height: 0; overflow: hidden; }

@@ -78,11 +78,11 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                             [disabled]="store.experimentsLoading() || !store.experiments().length"
                                             (change)="selectExperiment($event)"
                                         >
-                                            <option value="">
+                                            <option value="" [selected]="store.selectedExperimentId() === null">
                                                 {{ store.experimentsLoading() ? 'Loading experiments…' : store.experiments().length ? 'Select an experiment' : 'Select a dataset first' }}
                                             </option>
                                             @for (experiment of store.experiments(); track experiment.id) {
-                                                <option [value]="experiment.id">
+                                                <option [value]="experiment.id" [selected]="experiment.id === store.selectedExperimentId()">
                                                     {{ experiment.name }} · {{ experiment.observation_count }} points
                                                 </option>
                                             }

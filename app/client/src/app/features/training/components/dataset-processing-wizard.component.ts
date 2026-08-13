@@ -39,7 +39,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                                         <adsmod-number-input label="SMILE Length" [value]="smileSequenceSize()" [min]="5" [max]="100" [step]="5" [precision]="0" (valueChange)="smileSequenceSizeControl.setValue($event)" />
                                         <adsmod-number-input label="Min Measurements" [value]="minMeasurements()" [min]="1" [max]="50" [step]="1" [precision]="0" (valueChange)="minMeasurementsControl.setValue($event)" />
                                         <adsmod-number-input label="Max Measurements" [value]="maxMeasurements()" [min]="5" [max]="500" [step]="5" [precision]="0" (valueChange)="maxMeasurementsControl.setValue($event)" />
-                                        <adsmod-number-input label="Max Pressure (kPa)" [value]="maxPressure()" [min]="100" [max]="100000" [step]="1000" [precision]="0" (valueChange)="maxPressureControl.setValue($event)" />
+                                        <adsmod-number-input label="Max Pressure (kPa)" [value]="maxPressure()" [min]="100" [max]="100000" [step]="100" [precision]="0" (valueChange)="maxPressureControl.setValue($event)" />
                                         <adsmod-number-input label="Max Uptake (mol/g)" [value]="maxUptake()" [min]="1" [max]="1000" [step]="1" [precision]="1" (valueChange)="maxUptakeControl.setValue($event)" />
                                     </div>
                                 </div>
