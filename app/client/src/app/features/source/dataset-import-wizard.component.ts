@@ -29,6 +29,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
     { value: 'pressure', label: 'Pressure series' },
     { value: 'uptake', label: 'Adsorbed amount / uptake' },
     { value: 'adsorbate', label: 'Adsorbate species' },
+    { value: 'adsorbate_smiles', label: 'Adsorbate SMILES' },
     { value: 'adsorbent', label: 'Adsorbent material' },
     { value: 'temperature', label: 'Temperature' },
     { value: 'pressure_unit', label: 'Pressure unit' },
@@ -980,6 +981,7 @@ export class DatasetImportWizardComponent implements OnInit {
     protected readonly roles = COLUMN_ROLES;
     protected readonly constantFields = [
         { key: 'adsorbate', label: 'Constant adsorbate' },
+        { key: 'adsorbate_smiles', label: 'Constant adsorbate SMILES' },
         { key: 'adsorbent', label: 'Constant adsorbent' },
         { key: 'temperature', label: 'Constant temperature' },
         { key: 'pressure_unit', label: 'Constant pressure unit' },
