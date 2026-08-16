@@ -1222,6 +1222,7 @@
               "pressure",
               "uptake",
               "adsorbate",
+              "adsorbate_smiles",
               "adsorbent",
               "temperature",
               "pressure_unit",
@@ -2346,6 +2347,17 @@
           "adsorbate": {
             "type": "string",
             "title": "Adsorbate"
+          },
+          "adsorbate_smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbate Smiles"
           },
           "temperature_k": {
             "type": "number",

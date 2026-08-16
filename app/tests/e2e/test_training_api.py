@@ -143,7 +143,7 @@ class TestDatasetSources:
     """Tests for the training source catalog."""
 
     # -------------------------------------------------------------------------
-    def test_legacy_dataset_source_delete_route_is_removed(
+    def test_unregistered_dataset_source_delete_route_returns_not_found(
         self, ml_api_context: APIRequestContext
     ) -> None:
         response = ml_api_context.delete(

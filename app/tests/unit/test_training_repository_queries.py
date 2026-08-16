@@ -104,3 +104,38 @@ def test_training_dataset_metadata_round_trip_keeps_one_parent() -> None:
         assert loaded_metadata["max_pressure"] == 4.0
     finally:
         manager.dispose()
+
+###############################################################################
+def test_training_dataset_hash_change_does_not_reuse_parent_by_label() -> None:
+    manager = build_in_memory_database()
+    try:
+        queries = TrainingRepositoryQueries(database=manager)
+        first = pd.DataFrame(
+            [
+                {
+                    "dataset_label": "replacement",
+                    "dataset_hash": "a" * 64,
+                    "split": "train",
+                    "temperature": 298.15,
+                    "pressure": [1.0],
+                    "adsorbed_amount": [0.1],
+                    "sample_key": "first",
+                }
+            ]
+        )
+        second = first.copy()
+        second["dataset_hash"] = "b" * 64
+        second["sample_key"] = "second"
+
+        queries.upsert_training_dataset(first)
+        queries.upsert_training_dataset(second)
+
+        with manager.session_factory() as session:
+            parents = session.scalars(select(TrainingDataset)).all()
+
+        assert {(parent.label, parent.content_hash) for parent in parents} == {
+            ("replacement", "a" * 64),
+            ("replacement", "b" * 64),
+        }
+    finally:
+        manager.dispose()

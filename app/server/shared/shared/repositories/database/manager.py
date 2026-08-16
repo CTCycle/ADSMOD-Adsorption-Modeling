@@ -35,7 +35,7 @@ class DatabaseManager:
     @staticmethod
     def _normalize_backend(engine: str | None) -> str:
         value = (engine or "postgres").lower()
-        if value in {"postgres", "postgresql", "postgresql+psycopg", "postgresql+psycopg2"}:
+        if value in {"postgres", "postgresql", "postgresql+psycopg"}:
             return "postgres"
         raise ValueError(f"Unsupported database engine: {engine}")
 

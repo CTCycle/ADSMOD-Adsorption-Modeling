@@ -14,7 +14,7 @@ Last updated: 2026-08-03
 Persistence and data access shared by multiple services live in `app/server/shared/shared`:
 
 - `DatabaseManager` owns the engine, session factory, SQLite pragmas, disposal, and transaction context.
-- Typed repositories (`datasets`, `materials`, `isotherms`, `fitting`, and `training`) own explicit conflict targets and SQL projections.
+- Typed repositories (`datasets`, `materials`, and `fitting`) own explicit conflict targets and SQL projections; DataFrame query boundaries for NIST and training live under `repositories/queries`.
 - `schemas/models.py` is the canonical relationship-aware 12-table ORM schema.
 - Persistence-safe serializers and shared helpers remain here; SQL and session ownership are being removed from serializers.
 - shared infrastructure services that do not depend on `core_service` or `ml_service`
@@ -26,9 +26,9 @@ a hard delete with database cascades. Public identities are normalized or hashed
 in application code, timestamps are UTC-aware, and relationship loading defaults
 to `lazy="raise"` so accidental N+1 access fails during development.
 
-The schema and typed repositories are the canonical persistence path for dataset,
-NIST, fitting, and training workflows. Public-source pages reuse this persistence
-boundary without adding provider-specific tables.
+The schema, typed repositories, and query boundaries are the canonical persistence
+path for dataset, NIST, fitting, and training workflows. Public-source pages reuse
+this persistence boundary without adding provider-specific tables.
 
 ML-specific model and checkpoint serialization remains under `ml_service`.
 

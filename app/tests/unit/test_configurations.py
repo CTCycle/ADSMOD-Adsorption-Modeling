@@ -66,7 +66,7 @@ def test_default_fallbacks():
     empty_payload = {}
     training_settings = build_training_settings(empty_payload)
 
-    # Defaults defined in server.py
+    # Defaults defined by the settings models
     assert training_settings.use_jit is False
     assert training_settings.jit_backend == "inductor"
     assert training_settings.use_mixed_precision is False

@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, FastAPI
-from fastapi.responses import FileResponse, RedirectResponse
-from core_service.configurations.startup import (
-    direct_api_enabled,
-    resolve_spa_file_path,
-)
+from fastapi.responses import RedirectResponse
+
+from core_service.configurations.startup import public_host_mode_enabled
 from core_service.domain.bootstrap import ServiceStatusResponse
 
 health_router = APIRouter()
@@ -30,26 +26,8 @@ def service_root() -> ServiceStatusResponse:
     return ServiceStatusResponse(status="ok")
 
 ###############################################################################
-class SpaEntrypointHandlers:
-
-    # -------------------------------------------------------------------------
-    def __init__(self, client_dist_path: str) -> None:
-        self.client_dist_path = Path(client_dist_path)
-
-    # -------------------------------------------------------------------------
-    def serve_spa_root(self) -> FileResponse:
-        return FileResponse(self.client_dist_path / "index.html")
-
-    # -------------------------------------------------------------------------
-    def serve_spa_entrypoint(self, full_path: str) -> FileResponse:
-        requested_path = resolve_spa_file_path(self.client_dist_path, full_path)
-        if requested_path is not None:
-            return FileResponse(requested_path)
-        return FileResponse(self.client_dist_path / "index.html")
-
-###############################################################################
 def register_root_routes(app: FastAPI) -> None:
-    if direct_api_enabled():
+    if not public_host_mode_enabled():
         app.add_api_route("/", redirect_to_docs, methods=["GET"])
         return
 

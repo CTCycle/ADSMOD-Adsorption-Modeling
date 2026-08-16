@@ -37,7 +37,6 @@ ML service owns training workflows:
 
 - `/api/training/datasets`
 - `/api/training/dataset-sources`
-- `/api/training/dataset-source`
 - `/api/training/build-dataset`
 - `/api/training/processed-datasets`
 - `/api/training/dataset-info`

@@ -30,6 +30,28 @@ class StubTrainingQueries:
         return pd.DataFrame()
 
 
+###############################################################################
+class FrameTrainingQueries(StubTrainingQueries):
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        metadata: pd.DataFrame | None = None,
+        dataset: pd.DataFrame | None = None,
+    ) -> None:
+        super().__init__({})
+        self.metadata = metadata if metadata is not None else pd.DataFrame()
+        self.dataset = dataset if dataset is not None else pd.DataFrame()
+
+    # -------------------------------------------------------------------------
+    def load_training_metadata(self):
+        return self.metadata.copy()
+
+    # -------------------------------------------------------------------------
+    def load_training_dataset(self, limit=None):  # noqa: ANN001
+        return self.dataset.copy()
+
+
 # Helper to create a basis metadata object
 
 ###############################################################################
@@ -176,6 +198,31 @@ def test_training_dataset_persistence_requires_canonical_hash():
 def test_training_metadata_rejects_legacy_fields():
     with pytest.raises(ValidationError):
         TrainingMetadata(hashcode="a" * 64)
+
+###############################################################################
+def test_training_metadata_read_requires_canonical_columns():
+    serializer = TrainingDataSerializer(
+        queries=FrameTrainingQueries(
+            metadata=pd.DataFrame([{"dataset_hash": "a" * 64}])
+        )
+    )
+
+    with pytest.raises(ValueError, match="dataset_label"):
+        serializer.load_training_metadata()
+
+###############################################################################
+def test_training_data_read_requires_canonical_columns():
+    serializer = TrainingDataSerializer(
+        queries=FrameTrainingQueries(
+            metadata=pd.DataFrame(
+                [{"dataset_label": "default", "dataset_hash": "a" * 64}]
+            ),
+            dataset=pd.DataFrame([{"split": "train"}]),
+        )
+    )
+
+    with pytest.raises(ValueError, match="dataset_label"):
+        serializer.load_training_data()
 
 ###############################################################################
 def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path):

@@ -22,6 +22,19 @@ EXPECTED_TABLES = {
 }
 
 ###############################################################################
+@pytest.mark.parametrize(
+    "engine",
+    ["postgres", "postgresql", "postgresql+psycopg"],
+)
+def test_manager_accepts_supported_postgres_engines(engine: str) -> None:
+    assert DatabaseManager._normalize_backend(engine) == "postgres"
+
+###############################################################################
+def test_manager_rejects_removed_psycopg2_engine() -> None:
+    with pytest.raises(ValueError, match="Unsupported database engine"):
+        DatabaseManager._normalize_backend("postgresql+psycopg2")
+
+###############################################################################
 def test_canonical_schema_has_only_expected_tables() -> None:
     assert set(Base.metadata.tables) == EXPECTED_TABLES
     assert isinstance(Dataset.__table__.c.tags.type, JSONList)

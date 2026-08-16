@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from shared.common.paths import CANONICAL_CONFIGURATION_FILE
 
@@ -214,8 +214,6 @@ def _load_configuration_payload(path: str | Path) -> dict[str, Any]:
 
 ###############################################################################
 class AppSettings(BaseModel):
-    _configuration_file: ClassVar[Path | None] = None
-
     database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
     datasets: JsonDatasetSettings = Field(default_factory=JsonDatasetSettings)
     nist: JsonNISTSettings = Field(default_factory=JsonNISTSettings)
@@ -226,7 +224,7 @@ class AppSettings(BaseModel):
     # -------------------------------------------------------------------------
     @classmethod
     def load(cls, config_path: str | Path | None = None) -> "AppSettings":
-        payload = _load_configuration_payload(_resolve_configuration_path(config_path, getattr(cls, "_configuration_file")))
+        payload = _load_configuration_payload(_resolve_configuration_path(config_path))
         application = payload.get("application")
         if not isinstance(application, dict):
             raise RuntimeError("Canonical configuration is missing the application section.")
@@ -261,14 +259,9 @@ def _ensure_mapping(value: dict[str, Any] | Any) -> dict[str, Any]:
 ###############################################################################
 def _resolve_configuration_path(
     config_path: str | Path | None = None,
-    default_path: str | Path | None = None,
 ) -> Path:
     if config_path:
         return Path(config_path)
-
-    if default_path:
-        return Path(default_path)
-
     return CANONICAL_CONFIGURATION_FILE
 
 ###############################################################################
@@ -365,18 +358,6 @@ def build_training_settings(payload: dict[str, Any] | Any) -> TrainingSettings:
     )
 
 ###############################################################################
-def build_server_settings(payload: dict[str, Any] | Any) -> ServerSettings:
-    section_payload = _ensure_mapping(payload)
-    return ServerSettings(
-        database=build_database_settings(section_payload.get("database")),
-        datasets=build_dataset_settings(section_payload.get("datasets")),
-        nist=build_nist_settings(section_payload.get("nist")),
-        fitting=build_fitting_settings(section_payload.get("fitting")),
-        jobs=build_job_settings(section_payload.get("jobs")),
-        training=build_training_settings(section_payload.get("training")),
-    )
-
-
 __all__ = [
     "AppSettings",
     "DatabaseSettings",
@@ -392,9 +373,7 @@ __all__ = [
     "build_fitting_settings",
     "build_job_settings",
     "build_training_settings",
-    "build_server_settings",
     "get_runtime_config",
-    "ValidationError",
 ]
 
 ###############################################################################
