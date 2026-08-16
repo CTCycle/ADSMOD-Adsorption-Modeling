@@ -51,12 +51,6 @@ class TrainingRepositoryQueries:
         )
         if parent is None:
             parent = session.scalar(
-                select(TrainingDataset)
-                .where(TrainingDataset.label == label)
-                .order_by(TrainingDataset.id)
-            )
-        if parent is None:
-            parent = session.scalar(
                 select(TrainingDataset).where(
                     TrainingDataset.content_hash == content_hash
                 )
@@ -67,7 +61,6 @@ class TrainingRepositoryQueries:
             session.flush()
         else:
             parent.label = label
-            parent.content_hash = content_hash
         return parent
 
     # -------------------------------------------------------------------------

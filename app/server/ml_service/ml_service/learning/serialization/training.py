@@ -62,15 +62,17 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     def archive_training_dataset_rows(self, dataset_label: str | None = None) -> None:
         existing_data = self.queries.load_training_dataset()
-        if (
-            existing_data.empty
-            or self.dataset_label_column not in existing_data.columns
-        ):
+        if existing_data.empty:
             return
+        self._require_columns(
+            existing_data,
+            {self.dataset_label_column, self.dataset_hash_column},
+            "Stored training data",
+        )
 
         archived_data = existing_data.copy()
         if dataset_label is None:
-            mask = archived_data[self.dataset_label_column].notna()
+            mask = pd.Series(True, index=archived_data.index)
             label_seed = "all"
         else:
             mask = archived_data[self.dataset_label_column] == dataset_label
@@ -80,8 +82,6 @@ class TrainingDataSerializer:
 
         archived_label = self.build_archived_label(self.normalize_dataset_label(label_seed))
         archived_data.loc[mask, self.dataset_label_column] = archived_label
-        if self.dataset_hash_column not in archived_data.columns:
-            raise ValueError("Stored training data is missing dataset_hash.")
         archived_data.loc[mask, self.dataset_hash_column] = self.build_archived_hash(
             archived_label
         )
@@ -90,23 +90,26 @@ class TrainingDataSerializer:
     # -------------------------------------------------------------------------
     def archive_training_metadata_rows(self, dataset_label: str | None = None) -> None:
         existing_meta = self.queries.load_training_metadata()
-        if existing_meta.empty or "dataset_label" not in existing_meta.columns:
+        if existing_meta.empty:
             return
+        self._require_columns(
+            existing_meta,
+            {self.dataset_label_column, self.dataset_hash_column},
+            "Stored training metadata",
+        )
 
         archived_meta = existing_meta.copy()
         if dataset_label is None:
-            mask = archived_meta["dataset_label"].notna()
+            mask = pd.Series(True, index=archived_meta.index)
             label_seed = "all"
         else:
-            mask = archived_meta["dataset_label"] == dataset_label
+            mask = archived_meta[self.dataset_label_column] == dataset_label
             label_seed = dataset_label
         if not bool(mask.any()):
             return
 
         archived_label = self.build_archived_label(self.normalize_dataset_label(label_seed))
-        archived_meta.loc[mask, "dataset_label"] = archived_label
-        if self.dataset_hash_column not in archived_meta.columns:
-            raise ValueError("Stored training metadata is missing dataset_hash.")
+        archived_meta.loc[mask, self.dataset_label_column] = archived_label
         archived_meta.loc[mask, self.dataset_hash_column] = self.build_archived_hash(
             archived_label
         )
@@ -233,6 +236,18 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _require_columns(
+        frame: pd.DataFrame, required_columns: set[str], context: str
+    ) -> None:
+        missing_columns = required_columns.difference(frame.columns)
+        if missing_columns:
+            raise ValueError(
+                f"{context} is missing required columns: "
+                + ", ".join(sorted(missing_columns))
+            )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def require_dataset_hash(dataset_hash: Any) -> str:
         if dataset_hash is None or pd.isna(dataset_hash):
             normalized = ""
@@ -248,12 +263,15 @@ class TrainingDataSerializer:
     def _select_metadata_row(
         self, metadata_df: pd.DataFrame, dataset_label: str
     ) -> pd.Series | None:
-        if "dataset_label" in metadata_df.columns:
-            filtered = metadata_df[metadata_df["dataset_label"] == dataset_label]
-            if filtered.empty:
-                return None
-            return filtered.iloc[0]
-        return metadata_df.iloc[0]
+        self._require_columns(
+            metadata_df,
+            {self.dataset_label_column},
+            "Training metadata",
+        )
+        filtered = metadata_df[metadata_df[self.dataset_label_column] == dataset_label]
+        if filtered.empty:
+            return None
+        return filtered.iloc[0]
 
     # -------------------------------------------------------------------------
     def _build_training_metadata(self, row: pd.Series) -> TrainingMetadata:
@@ -293,6 +311,11 @@ class TrainingDataSerializer:
         if metadata_df.empty:
             return TrainingMetadata()
 
+        self._require_columns(
+            metadata_df,
+            {self.dataset_label_column, self.dataset_hash_column},
+            "Training metadata",
+        )
         row = self._select_metadata_row(metadata_df, dataset_label)
         if row is None:
             return TrainingMetadata()
@@ -304,12 +327,14 @@ class TrainingDataSerializer:
         if metadata_df.empty:
             return set()
 
+        self._require_columns(
+            metadata_df,
+            {self.dataset_label_column, self.dataset_hash_column},
+            "Training metadata",
+        )
         dataset_labels: set[str] = set()
-        if "dataset_label" in metadata_df.columns:
-            for label in metadata_df["dataset_label"].tolist():
-                dataset_labels.add(self.normalize_dataset_label(label))
-        else:
-            dataset_labels.add("default")
+        for label in metadata_df[self.dataset_label_column].tolist():
+            dataset_labels.add(self.normalize_dataset_label(label))
 
         dataset_hashes: set[str] = set()
         for dataset_label in sorted(dataset_labels):
@@ -338,10 +363,14 @@ class TrainingDataSerializer:
         if training_data.empty:
             return training_data, training_data, metadata
 
-        if self.dataset_label_column in training_data.columns:
-            training_data = training_data[
-                training_data[self.dataset_label_column] == dataset_label
-            ]
+        self._require_columns(
+            training_data,
+            {self.dataset_label_column, self.dataset_hash_column},
+            "Training data",
+        )
+        training_data = training_data[
+            training_data[self.dataset_label_column] == dataset_label
+        ]
 
         training_data = self.coerce_sequence_columns(training_data)
 
@@ -357,12 +386,20 @@ class TrainingDataSerializer:
         if metadata_df.empty:
             return []
 
+        TrainingDataSerializer._require_columns(
+            metadata_df,
+            {
+                TrainingDataSerializer.dataset_label_column,
+                TrainingDataSerializer.dataset_hash_column,
+            },
+            "Training metadata",
+        )
         datasets = []
         for _, row in metadata_df.iterrows():
             dataset_hash_value = row.get(TrainingDataSerializer.dataset_hash_column)
             datasets.append(
                 {
-                    "dataset_label": str(row.get("dataset_label", "default")),
+                    "dataset_label": str(row[TrainingDataSerializer.dataset_label_column]),
                     "dataset_hash": str(dataset_hash_value).strip()
                     if pd.notna(dataset_hash_value) and str(dataset_hash_value).strip()
                     else None,

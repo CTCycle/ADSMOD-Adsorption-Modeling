@@ -8,10 +8,7 @@ from fastapi import FastAPI
 
 from core_service.api.entrypoint import health_router, register_root_routes
 from core_service.api.routes import register_core_routes
-from core_service.configurations.startup import (
-    public_host_mode_enabled,
-    resolve_spa_file_path,
-)
+from core_service.configurations.startup import public_host_mode_enabled
 from core_service.services.container import CoreServiceContainer
 from shared.common.constants import (
     FASTAPI_DESCRIPTION,
@@ -56,6 +53,4 @@ app = create_app()
 __all__ = [
     "app",
     "create_app",
-    "public_host_mode_enabled",
-    "resolve_spa_file_path",
 ]
