@@ -31,7 +31,6 @@ dist/
 build/
 .coverage
 htmlcov/
-app/server/uv.lock
 
 # Node / JS
 **/node_modules/
@@ -61,3 +60,7 @@ Thumbs.db
 *.sqlite*
 *.exe
 !.gitkeep
+
+# Commit dependency lockfiles for reproducible installs.
+!app/server/uv.lock
+!app/client/package-lock.json
