@@ -8,8 +8,12 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from shared.common.constants import PAD_VALUE
+from shared.common.settings import get_server_settings
 from shared.common.utils.logger import logger
-from shared.repositories.queries.nist import NISTDataSerializer
+from shared.repositories.database.manager import DatabaseManager
+from shared.repositories.datasets import DatasetRepository
+from shared.repositories.materials import MaterialRepository
+from shared.repositories.nist import NISTRepository
 from ml_service.services.data.sanitizer import AggregateDatasets
 
 
@@ -56,7 +60,12 @@ class DataLoaderProcessor:
         self.smile_length = metadata.get("smile_sequence_size", 30)
         self.smile_vocab = metadata.get("smile_vocabulary", {})
         self.adsorbent_vocab = metadata.get("adsorbent_vocabulary", {})
-        self.serializer = NISTDataSerializer()
+        database = DatabaseManager(get_server_settings().database)
+        self.serializer = NISTRepository(
+            database=database,
+            datasets=DatasetRepository(database),
+            materials=MaterialRepository(database),
+        )
         self.configuration = configuration
 
     # -------------------------------------------------------------------------

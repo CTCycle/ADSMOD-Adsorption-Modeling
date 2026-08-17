@@ -23,6 +23,8 @@ from core_service.services.data.nistads import (
     NISTApiClient,
     NISTDatasetBuilder,
 )
+from core_service.services.data.nist_mapper import NISTCanonicalMapper
+from shared.repositories.nist import NISTRepository
 from shared.services.pubchem import PubChemClient
 from shared.models.jobs import (
     JobCancelResponse,
@@ -30,7 +32,6 @@ from shared.models.jobs import (
     JobStartResponse,
     JobStatusResponse,
 )
-from core_service.services.data.nist_repository import NISTCanonicalRepository
 from shared.services.job_responses import JobResponseFactory
 from shared.services.jobs import JobManager
 
@@ -44,10 +45,14 @@ class NISTDataService:
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, job_manager: JobManager, repository: NISTCanonicalRepository
+        self,
+        job_manager: JobManager,
+        repository: NISTRepository,
+        mapper: NISTCanonicalMapper,
     ) -> None:
         self.job_manager = job_manager
         self.repository = repository
+        self.mapper = mapper
         self.builder = NISTDatasetBuilder()
         self.state_lock = threading.Lock()
         self.category_state: dict[str, dict[str, Any]] = {
@@ -511,10 +516,12 @@ class NISTDataService:
                 if job_id:
                     self.job_manager.update_progress(job_id, 80.0)
 
+                experiments = self.mapper.experiment_records(
+                    single_component, binary_mixture
+                )
                 await asyncio.to_thread(
-                    self.repository.save_adsorption_datasets,
-                    single_component,
-                    binary_mixture,
+                    self.repository.save_experiments,
+                    experiments,
                     False,
                 )
             elif category == "guest":
@@ -529,10 +536,11 @@ class NISTDataService:
                 fetched_count = int(len(guest_data))
                 if job_id:
                     self.job_manager.update_progress(job_id, 70.0)
+                guest_records = self.mapper.material_records(guest_data, "adsorbate")
                 await asyncio.to_thread(
-                    self.repository.save_materials_datasets,
-                    guest_data,
-                    None,
+                    self.repository.save_materials,
+                    guest_records,
+                    [],
                 )
             else:
                 host_data = await api_client.fetch_material_dataset_by_identifiers(
@@ -546,10 +554,11 @@ class NISTDataService:
                 fetched_count = int(len(host_data))
                 if job_id:
                     self.job_manager.update_progress(job_id, 70.0)
+                host_records = self.mapper.material_records(host_data, "adsorbent")
                 await asyncio.to_thread(
-                    self.repository.save_materials_datasets,
-                    None,
-                    host_data,
+                    self.repository.save_materials,
+                    [],
+                    host_records,
                 )
 
         local_counts = await asyncio.to_thread(
@@ -763,12 +772,14 @@ class NISTDataService:
             self.job_manager.update_progress(job_id, 80.0)
 
         if target == "guest":
+            guest_records = self.mapper.material_records(updated, "adsorbate")
             await asyncio.to_thread(
-                self.repository.save_materials_datasets, updated, None
+                self.repository.save_materials, guest_records, []
             )
         else:
+            host_records = self.mapper.material_records(updated, "adsorbent")
             await asyncio.to_thread(
-                self.repository.save_materials_datasets, None, updated
+                self.repository.save_materials, [], host_records
             )
 
         matched = int(
