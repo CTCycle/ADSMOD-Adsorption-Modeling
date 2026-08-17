@@ -1,6 +1,6 @@
 # ADSMOD System Overview
 
-Last updated: 2026-08-03
+Last updated: 2026-08-16
 
 ## Platform Shape
 
@@ -10,7 +10,7 @@ ADSMOD is a Windows-first local application with:
   - `common` for versioned configuration, health, capability, and error contracts.
   - `core` for the core ASGI application, CLI, and immutable snapshot store.
   - `ml` for the independent ML health/capability service and core snapshot client.
-- Transitional backend services under `app/server`
+- Active backend services under `app/server`
   - `core_service` for non-ML API workflows such as health, datasets, fitting, and NIST.
   - `ml_service` for training datasets, checkpoints, and training lifecycle workflows.
   - `shared` for persistence, repositories, schemas, and common backend utilities.
@@ -38,26 +38,33 @@ app/server/
       configurations/
       domain/
       services/
-      common/
+        data/
+          import_parser.py
+          nist_mapper.py
 
   ml_service/
     pyproject.toml
     ml_service/
       app.py
       api/
-      configurations/
       domain/
       services/
       learning/
-      common/
 
   shared/
     pyproject.toml
     shared/
-      repositories/
-      persistence/
-      models/
       common/
+      models/
+      repositories/
+        database/
+        queries/       # training queries only
+        schemas/
+        datasets.py
+        fitting.py
+        materials.py
+        nist.py        # sole NIST persistence/query owner
+      services/
 
 app/backend/
   common/       # adsmod-common
@@ -74,10 +81,14 @@ app/backend/
 v3 entrypoints are created through `adsmod_core.create_app_from_path(...)` and
 `adsmod_ml.create_app(...)`; the core CLI accepts an explicit `--config` path.
 
-The unified entrypoint composes transitional service routers; it does not own
-backend business handlers. The extracted v3 packages currently provide the
-versioned health/capability and snapshot boundary, not the full datasets/NIST/
-fitting/training route set.
+The unified entrypoint composes core routes and, when explicitly enabled, ML
+routes; it does not own backend business handlers. Core-only construction keeps
+ML packages out of the import graph through the documented lazy ML composition
+loader.
+
+NIST provider frames are mapped by
+`core_service.services.data.nist_mapper.NISTCanonicalMapper`. Canonical NIST
+reads and writes are owned by `shared.repositories.nist.NISTRepository`.
 
 ## Frontend Responsibility
 

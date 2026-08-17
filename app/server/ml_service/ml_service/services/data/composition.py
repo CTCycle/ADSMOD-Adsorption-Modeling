@@ -9,7 +9,8 @@ import pandas as pd
 from shared.common.settings import get_server_settings
 from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.datasets import DatasetRepository
-from shared.repositories.queries.nist import NISTDataSerializer, NIST_DATASET_NAME
+from shared.repositories.materials import MaterialRepository
+from shared.repositories.nist import NIST_DATASET_NAME, NISTRepository
 from ml_service.services.data.conversion import PQ_units_conversion
 from shared.services.pubchem import PubChemClient
 
@@ -26,7 +27,11 @@ class DatasetCompositionService:
     ) -> None:
         self.database = database or DatabaseManager(get_server_settings().database)
         self.datasets = DatasetRepository(self.database)
-        self.nist_serializer = NISTDataSerializer(self.database)
+        self.nist_repository = NISTRepository(
+            database=self.database,
+            datasets=self.datasets,
+            materials=MaterialRepository(self.database),
+        )
         self.allow_pubchem_fetch = allow_pubchem_fetch
         self.required_columns = [
             "filename",
@@ -40,7 +45,7 @@ class DatasetCompositionService:
     # -------------------------------------------------------------------------
     def list_sources(self) -> list[dict[str, Any]]:
         sources: list[dict[str, Any]] = []
-        nist_rows = self.nist_serializer.count_nist_rows().get(
+        nist_rows = self.nist_repository.count_nist_rows().get(
             "single_component_rows", 0
         )
         if nist_rows > 0:
@@ -90,7 +95,7 @@ class DatasetCompositionService:
                 raise ValueError("Dataset selection is missing a dataset name.")
 
             if source == "nist":
-                adsorption = self.nist_serializer.load_adsorption_datasets()[0]
+                adsorption = self.nist_repository.load_adsorption_datasets()[0]
                 if adsorption.empty:
                     raise ValueError("NIST single-component dataset is not available.")
                 dataset_frame = self.standardize_nist_dataset(adsorption, dataset_name)
@@ -255,7 +260,7 @@ class DatasetCompositionService:
     def ensure_materials(
         self, adsorption_data: pd.DataFrame
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        _, guest_data, host_data = self.nist_serializer.load_adsorption_datasets()
+        _, guest_data, host_data = self.nist_repository.load_adsorption_datasets()
         adsorbate_names = self.collect_names(adsorption_data, "adsorbate_name")
         adsorbent_names = self.collect_names(adsorption_data, "adsorbent_name")
 
@@ -280,8 +285,6 @@ class DatasetCompositionService:
             allow_pubchem_fetch=self.allow_pubchem_fetch,
         )
 
-        if self.allow_pubchem_fetch:
-            self.nist_serializer.save_materials_datasets(guest_data, host_data)
         return guest_data, host_data
 
     # -------------------------------------------------------------------------
