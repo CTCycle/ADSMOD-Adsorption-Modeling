@@ -181,16 +181,17 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
 
 echo [STEP] Running Python tests...
 set "PYTEST_IGNORE_E2E="
+set "PYTEST_CACHE_OPTION=-o cache_dir=app/server/.startup-temp/pytest-cache"
 if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" if "!HAS_E2E!"=="1" set "PYTEST_IGNORE_E2E=true"
 
 if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" if /i "%PYTEST_IGNORE_E2E%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short %PYTEST_CACHE_OPTION% %*
 ) else if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %PYTEST_CACHE_OPTION% %*
 ) else if /i "%PYTEST_IGNORE_E2E%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" %PYTEST_CACHE_OPTION% %*
 ) else (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" %PYTEST_CACHE_OPTION% %*
 )
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (

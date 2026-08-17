@@ -3,10 +3,12 @@ name = "adsmod-shared"
 version = "3.0.0"
 requires-python = ">=3.14"
 dependencies = [
-    "SQLAlchemy==2.0.46",
-    "psycopg[binary]==3.3.1",
-    "numpy==2.4.1",
-    "pandas==3.0.1"
+    "SQLAlchemy==2.0.52",
+    "psycopg[binary]==3.3.4",
+    "numpy==2.5.2",
+    "pandas==3.0.5",
+    "pydantic==2.13.4",
+    "PubChemPy==1.0.5"
 ]
 
 [tool.hatch.build.targets.wheel]

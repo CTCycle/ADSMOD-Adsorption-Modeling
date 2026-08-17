@@ -6,7 +6,7 @@ dependencies = [
     "adsmod-common",
     "fastapi==0.128.0",
     "uvicorn[standard]==0.40.0",
-    "httpx==0.27.2"
+    "httpx==0.28.1"
 ]
 
 [tool.uv.sources]
