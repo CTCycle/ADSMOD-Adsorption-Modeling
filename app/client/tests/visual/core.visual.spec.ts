@@ -28,15 +28,6 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
         const request = route.request();
         const url = new URL(request.url());
 
-        if (request.method() === 'GET' && url.pathname === '/api/health') {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ status: 'ok' }),
-            });
-            return;
-        }
-
         if (request.method() === 'GET' && url.pathname === '/api/datasets') {
             await route.fulfill({
                 status: 200,
