@@ -436,6 +436,7 @@ function Test-DependenciesReady {
     $frontendModules = Join-Path $ClientDir 'node_modules'
     $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
     $frontendRunner = Join-Path $frontendModules '@angular/cli/bin/ng.js'
+    $frontendBuild = Join-Path $ClientDir 'dist\browser\index.html'
     $backendEntrypoint = Join-Path $AppDir 'server/app.py'
 
     if (-not (Test-Path -LiteralPath $PythonExe) -or
@@ -447,7 +448,8 @@ function Test-DependenciesReady {
         -not (Test-Path -LiteralPath $frontendPackage) -or
         -not (Test-Path -LiteralPath $frontendLock) -or
         -not (Test-Path -LiteralPath $frontendInstallState) -or
-        -not (Test-Path -LiteralPath $frontendRunner)) {
+        -not (Test-Path -LiteralPath $frontendRunner) -or
+        -not (Test-Path -LiteralPath $frontendBuild -PathType Leaf)) {
         return $false
     }
 
@@ -492,8 +494,8 @@ function Start-Application {
     $settings = Import-Settings
     Set-RuntimeEnvironment
     if (-not (Test-DependenciesReady)) {
-        Write-Step "Required application environments are missing or unusable; installing dependencies."
-        Sync-Dependencies -AllowExistingEnvironmentFallback
+        Write-Step "Required application environments or frontend build output are missing or unusable; repairing dependencies and frontend build."
+        Sync-Dependencies -BuildFrontend -AllowExistingEnvironmentFallback
     } else {
         Write-Ok "Application environments are ready; skipped dependency installation."
     }
