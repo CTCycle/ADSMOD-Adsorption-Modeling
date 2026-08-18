@@ -1,6 +1,6 @@
 # ADSMOD Operational Commands
 
-Last updated: 2026-08-02
+Last updated: 2026-08-18
 
 ## Launch And Maintenance
 
@@ -14,6 +14,10 @@ Last updated: 2026-08-02
 - Full runner: `app\tests\run_tests.bat`
 - Direct pytest: `.\app\server\.venv\Scripts\python.exe -m pytest app\tests -v`
 - SQLite persistence contract: `.\app\server\.venv\Scripts\python.exe -m pytest app\tests\persistence -v`
+
+## OpenAPI Snapshots
+
+- Unified schema: `$env:ADSMOD_ENABLE_ML="true"; .\app\server\.venv\Scripts\python.exe -m app.scripts.generate_openapi --app app.server.app:app --output app\shared\openapi.json`
 
 ## Frontend Development
 

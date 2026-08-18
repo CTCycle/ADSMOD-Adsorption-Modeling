@@ -28,7 +28,7 @@ def main() -> int:
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(schema, indent=2), encoding="utf-8")
+    output_path.write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
     print(f"OpenAPI written to {output_path}")
     return 0
 

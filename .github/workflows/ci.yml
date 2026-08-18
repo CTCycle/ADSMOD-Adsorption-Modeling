@@ -49,6 +49,8 @@ jobs:
           uv run --project app/server python -m pytest app/tests/server
           uv run --project app/server python app/scripts/generate_openapi.py --app core_service.app:app --output app/shared/core_openapi.json
           uv run --project app/server python app/scripts/generate_openapi.py --app ml_service.app:app --output app/shared/ml_openapi.json
+          ADSMOD_ENABLE_ML=true uv run --project app/server python -m app.scripts.generate_openapi --app app.server.app:app --output app/shared/openapi.json
+          git diff --exit-code -- app/shared/core_openapi.json app/shared/ml_openapi.json app/shared/openapi.json
 
   frontend-build:
     runs-on: ubuntu-latest

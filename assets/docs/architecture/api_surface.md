@@ -1,6 +1,6 @@
 # ADSMOD API Surface
 
-Last updated: 2026-08-02
+Last updated: 2026-08-18
 
 ## Core Service Scope
 
@@ -54,3 +54,10 @@ Training routes belong only to `ml_service`, even when they are mounted by the u
 Core-only launch paths must not import `ml_service`. The extracted v3 packages
 currently expose their separate `/health/*`, `/api/v1/system/capabilities`, and
 core snapshot contracts; they do not replace this transitional `/api` surface.
+
+## Shared OpenAPI Snapshot
+
+`app/shared/openapi.json` is the tracked OpenAPI snapshot for the unified
+`app.server.app:app` entrypoint with `ADSMOD_ENABLE_ML=true`. It contains both
+core and training routes. The service-specific `core_openapi.json` and
+`ml_openapi.json` snapshots remain available for isolated service consumers.
