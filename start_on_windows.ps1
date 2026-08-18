@@ -11,9 +11,11 @@ $AppDir = Join-Path $RepoRoot "app"
 $ServerDir = Join-Path $AppDir "server"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
-$LogDir = Join-Path $AppDir "resources\logs"
+$DefaultResourcesDir = Join-Path $AppDir "resources"
+$ResourcesDir = $DefaultResourcesDir
+$LogDir = Join-Path $ResourcesDir "logs"
 $SettingsDir = Join-Path $RepoRoot "settings"
-$ConfigFile = Join-Path $AppDir "resources\adsmod.json"
+$ConfigFile = Join-Path $ResourcesDir "adsmod.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
 $StartupTempDir = Join-Path $ServerDir ".startup-temp"
 $PythonDir = Join-Path $RuntimesDir "python"
@@ -62,6 +64,29 @@ function Assert-LastExitCode([string]$Operation) {
     if ($LASTEXITCODE -ne 0) {
         throw "$Operation failed with exit code $LASTEXITCODE."
     }
+}
+
+function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
+    if ([string]::IsNullOrWhiteSpace($ConfiguredPath)) {
+        return [System.IO.Path]::GetFullPath($DefaultResourcesDir)
+    }
+
+    $expandedPath = [Environment]::ExpandEnvironmentVariables($ConfiguredPath.Trim())
+    if (-not [System.IO.Path]::IsPathRooted($expandedPath)) {
+        $expandedPath = Join-Path $RepoRoot $expandedPath
+    }
+    return [System.IO.Path]::GetFullPath($expandedPath)
+}
+
+function Set-ConfiguredResourcePaths([string]$ConfiguredPath) {
+    $script:ResourcesDir = Resolve-ResourcesDirectory $ConfiguredPath
+    $script:LogDir = Join-Path $script:ResourcesDir "logs"
+    $script:ConfigFile = Join-Path $script:ResourcesDir "adsmod.json"
+    [Environment]::SetEnvironmentVariable(
+        'ADSMOD_RESOURCES_DIR',
+        $script:ResourcesDir,
+        'Process'
+    )
 }
 
 function Remove-RepoPath([string]$Path) {
@@ -181,6 +206,35 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
+    if (Ensure-EnvironmentFile -EnvFile $EnvFile -EnvExample $EnvExample) {
+        Write-Ok "Created settings/.env from settings/.env.example."
+    }
+
+    $configuredResourcePath = $null
+    foreach ($line in Get-Content -LiteralPath $EnvFile) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';')) {
+            continue
+        }
+        $separator = $trimmed.IndexOf('=')
+        if ($separator -lt 1) {
+            continue
+        }
+        $key = $trimmed.Substring(0, $separator).Trim()
+        if ($key -eq 'ADSMOD_RESOURCES_DIR') {
+            $configuredResourcePath = $trimmed.Substring($separator + 1).Trim()
+            if (($configuredResourcePath.StartsWith('"') -and $configuredResourcePath.EndsWith('"')) -or
+                ($configuredResourcePath.StartsWith("'") -and $configuredResourcePath.EndsWith("'"))) {
+                $configuredResourcePath = $configuredResourcePath.Substring(1, $configuredResourcePath.Length - 2)
+            }
+            break
+        }
+    }
+    if ($null -eq $configuredResourcePath) {
+        $configuredResourcePath = [Environment]::GetEnvironmentVariable('ADSMOD_RESOURCES_DIR', 'Process')
+    }
+    Set-ConfiguredResourcePaths $configuredResourcePath
+
     if (-not (Test-Path -LiteralPath $ConfigFile)) {
         throw "Missing canonical configuration: $ConfigFile"
     }
@@ -195,10 +249,6 @@ function Import-Settings {
         UI_PORT = [string]$canonical.runtime.frontend_port
         BACKEND_LOGS_VISIBLE = "true"
         ALWAYS_REBUILD = "true"
-    }
-
-    if (Ensure-EnvironmentFile -EnvFile $EnvFile -EnvExample $EnvExample) {
-        Write-Ok "Created settings/.env from settings/.env.example."
     }
 
     foreach ($line in Get-Content -LiteralPath $EnvFile) {
@@ -219,12 +269,14 @@ function Import-Settings {
         if ($defaults.Contains($key)) {
             $defaults[$key] = $value
             [Environment]::SetEnvironmentVariable($key, $value, 'Process')
-        } elseif ($key -notin @('RELOAD', 'MPLBACKEND', 'KERAS_BACKEND', 'VITE_API_BASE_URL')) {
-            throw "Unsupported setting '$key'. Runtime hosts and ports belong in app/resources/adsmod.json."
+        } elseif ($key -notin @('RELOAD', 'MPLBACKEND', 'KERAS_BACKEND', 'VITE_API_BASE_URL', 'ADSMOD_RESOURCES_DIR')) {
+            throw "Unsupported setting '$key'. Runtime hosts and ports belong in the selected resource directory's adsmod.json."
         } else {
             [Environment]::SetEnvironmentVariable($key, $value, 'Process')
         }
     }
+
+    Set-ConfiguredResourcePaths $configuredResourcePath
 
     if ($defaults.BACKEND_LOGS_VISIBLE -notmatch '^(true|false)$') {
         throw "BACKEND_LOGS_VISIBLE must be true or false."
@@ -552,6 +604,7 @@ function Initialize-Database {
 }
 
 function Invoke-TestSuite {
+    Import-Settings | Out-Null
     $testScript = Join-Path $TestsDir "run_tests.bat"
     if (-not (Test-Path -LiteralPath $testScript)) {
         throw "Missing test runner: $testScript"
@@ -563,6 +616,7 @@ function Invoke-TestSuite {
 }
 
 function Remove-Logs {
+    Import-Settings | Out-Null
     Write-Step "Removing log files"
     if (Test-Path -LiteralPath $LogDir) {
         Get-ChildItem -LiteralPath $LogDir -Filter '*.log' -File | Remove-Item -Force

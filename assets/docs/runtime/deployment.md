@@ -1,6 +1,6 @@
 # ADSMOD Local Deployment
 
-Last updated: 2026-08-04
+Last updated: 2026-08-18
 
 ## Interoperability
 
@@ -10,9 +10,11 @@ Last updated: 2026-08-04
 
 ## Shared Runtime Resources
 
-- Database: `app/resources/database.db` for embedded mode; PostgreSQL is
+- Resource directory: `app/resources` by default; override it with
+  `ADSMOD_RESOURCES_DIR` in `settings/.env`
+- Database: `<resource directory>/database.db` for embedded mode; PostgreSQL is
   initialized explicitly through the launcher
-- Checkpoints: `app/resources/checkpoints`
+- Checkpoints: `<resource directory>/checkpoints`
 - Operational environment template: `settings/.env.example`
 - Canonical v3 configuration: `app/resources/adsmod.json` with `app/resources/adsmod.schema.json`
 

@@ -1,8 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const repositoryRoot = path.resolve(__dirname, '../..');
+const configuredResourcesDir = String(process.env.ADSMOD_RESOURCES_DIR || '').trim();
+const resourcesDir = configuredResourcesDir
+  ? path.resolve(repositoryRoot, configuredResourcesDir)
+  : path.resolve(__dirname, '../resources');
 const canonicalConfig = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, '../resources/adsmod.json'), 'utf8')
+  fs.readFileSync(path.join(resourcesDir, 'adsmod.json'), 'utf8')
 );
 const runtime = canonicalConfig.runtime;
 const coreApiHost = runtime.host;
