@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-08-04
+Last updated: 2026-08-18
 
 ## Recommended Local Web Startup
 
@@ -23,11 +23,17 @@ This menu-driven script:
 - starts the unified backend and frontend preview
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds
-- uses `runtime.core_port`, `runtime.ml_port`, and `runtime.frontend_port` from `app/resources/adsmod.json`
+- uses `runtime.core_port`, `runtime.ml_port`, and `runtime.frontend_port` from
+  `$ADSMOD_RESOURCES_DIR/adsmod.json` (`app/resources` by default)
 
 Before launch, the script creates `settings/.env` from
 `settings/.env.example` only when the file is missing. Existing environment
 files are preserved.
+
+Set `ADSMOD_RESOURCES_DIR` in `settings/.env` when the canonical resource
+directory, including the embedded SQLite database, should live elsewhere. A
+relative value is resolved from the repository root, and the selected
+directory must contain `adsmod.json`.
 
 ## Database Startup Rules
 

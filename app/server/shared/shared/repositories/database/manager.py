@@ -11,14 +11,24 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from shared.common.constants import DATABASE_FILENAME
-from shared.common.paths import RESOURCES_DIR
+from shared.common.paths import DEFAULT_RESOURCES_DIR, RESOURCES_DIR, ROOT_PATH
 from shared.common.settings import DatabaseSettings
 from shared.common.utils.logger import logger
 from shared.repositories.database.utils import normalize_postgres_engine
 
 ###############################################################################
 def resolve_sqlite_path(settings: DatabaseSettings) -> Path:
-    return Path(settings.sqlite_path) if settings.sqlite_path else RESOURCES_DIR / DATABASE_FILENAME
+    if not settings.sqlite_path:
+        return RESOURCES_DIR / DATABASE_FILENAME
+
+    configured_path = Path(settings.sqlite_path)
+    if configured_path.is_absolute():
+        return configured_path
+
+    repository_path = (ROOT_PATH / configured_path).resolve()
+    if repository_path == (DEFAULT_RESOURCES_DIR / DATABASE_FILENAME).resolve():
+        return RESOURCES_DIR / DATABASE_FILENAME
+    return repository_path
 
 ###############################################################################
 class DatabaseManager:

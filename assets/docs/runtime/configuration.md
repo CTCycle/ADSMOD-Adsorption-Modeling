@@ -1,17 +1,18 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-08-02
+Last updated: 2026-08-18
 
 ## Canonical v3 Configuration
 
-- Configuration file: `app/resources/adsmod.json`
-- Validation schema: `app/resources/adsmod.schema.json`
+- Configuration file: `<resource directory>/adsmod.json` (`app/resources` by default)
+- Validation schema: `<resource directory>/adsmod.schema.json`
 - Required sections: `version`, `runtime`, `storage`, `security`, and `application`
 - Supported runtime modes: `core` and `core-ml`
 - The v3 core CLI receives the configuration explicitly through `--config`.
 
 All backend packages and the launcher read this file. There are no service-specific
-configuration files or configuration-path aliases.
+configuration files or configuration-path aliases. The selected resource directory
+must contain both canonical configuration files.
 
 ## Environment Variables
 
@@ -20,6 +21,9 @@ Operational environment keys are limited to:
 - `BACKEND_LOGS_VISIBLE` and `ALWAYS_REBUILD` control launcher behavior.
 - `RELOAD`, `MPLBACKEND`, and `KERAS_BACKEND` control local process behavior.
 - `VITE_API_BASE_URL` controls the generated frontend runtime API base path.
+- `ADSMOD_RESOURCES_DIR` overrides the default `app/resources` directory for
+  the canonical configuration, logs, templates, checkpoints, and embedded
+  SQLite database. Relative paths are resolved from the repository root.
 
 The environment file does not override runtime hosts or ports.
 
@@ -35,7 +39,8 @@ The `runtime` section is the only source for backend, ML, and frontend hosts and
 ## Mode-Specific Configuration Behavior
 
 - Local launcher mode
-  - uses `app/resources/adsmod.json` for hosts, ports, and application defaults
+  - uses `$ADSMOD_RESOURCES_DIR/adsmod.json` for hosts, ports, and application defaults
+    (`app/resources` by default)
   - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
   - rebuilds the frontend at application start when `ALWAYS_REBUILD=true`; defaults to rebuilding when absent
   - reads only the canonical configuration resource

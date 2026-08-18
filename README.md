@@ -97,9 +97,12 @@ Hosts, ports, storage, and application defaults are read from the canonical file
 
 - `app/resources/adsmod.json`
 
-Use `settings/.env` only for operational toggles such as log visibility, rebuild
-behavior, reload, and scientific backend selection. Runtime hosts and ports do
-not belong in `.env`. The launcher creates `settings/.env` from
+Use `settings/.env` for operational toggles such as log visibility, rebuild
+behavior, reload, and scientific backend selection. `ADSMOD_RESOURCES_DIR` may
+override the default `app/resources` directory for the canonical configuration,
+logs, templates, checkpoints, and embedded SQLite database. Relative paths are
+resolved from the repository root. Runtime hosts and ports do not belong in
+`.env`. The launcher creates `settings/.env` from
 `settings/.env.example` when it is missing and never overwrites an existing
 file. Local `.env` files are ignored by Git.
 
@@ -158,7 +161,7 @@ release-status claim.
 
 Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` to access setup and maintenance actions:
 
-- **Remove logs**: clears `.log` files under `app/resources/logs`.
+- **Remove logs**: clears `.log` files under the configured resource directory.
 - **Install or update dependencies**: prepares shared runtimes, backend dependencies, and the unified frontend.
 - **Uninstall application**: removes local runtime and build artifacts while preserving settings, resources, the database, and user data.
 - **Initialize database**: explicitly initializes PostgreSQL, or creates a
@@ -181,13 +184,13 @@ Frontend API base path defaults to `/api`; the Angular development server routes
 
 The application stores data and artifacts in specific directories:
 
-- **checkpoints**: trained model weights, training history, and model configuration files under `app/resources/checkpoints`.
-- **database**: local SQLite database at `app/resources/database.db` for metadata and experiment indexes when embedded mode is selected. PostgreSQL is initialized only through the explicit launcher command.
-- **logs**: application logs under `app/resources/logs`.
+- **checkpoints**: trained model weights, training history, and model configuration files under `<resource directory>/checkpoints`.
+- **database**: local SQLite database at `<resource directory>/database.db` for metadata and experiment indexes when embedded mode is selected. PostgreSQL is initialized only through the explicit launcher command.
+- **logs**: application logs under `<resource directory>/logs`.
 - **runtimes**: portable Python/uv/Node.js downloaded by the Windows launcher.
 - **runtime venv**: backend virtual environment at `app/server/.venv`.
 - **runtime lockfile**: backend lockfile at `app/server/uv.lock`.
-- **templates**: starter assets under `app/resources/templates`.
+- **templates**: starter assets under `<resource directory>/templates`.
 
 ## 7. Configuration
 
@@ -202,6 +205,7 @@ Runtime hosts, ports, database mode, and backend defaults are loaded from
 | `RELOAD` | Uvicorn reload toggle for local development. |
 | `BACKEND_LOGS_VISIBLE` | Set to `true` to show backend logs in a dedicated terminal; defaults to `true` when absent. |
 | `VITE_API_BASE_URL` | Optional frontend API base path written into runtime config; same-origin `/api` is used by default. |
+| `ADSMOD_RESOURCES_DIR` | Optional resource root; defaults to `app/resources` and includes the embedded SQLite database. Relative paths are resolved from the repository root. |
 
 Single canonical runtime file:
 - `app/resources/adsmod.json`

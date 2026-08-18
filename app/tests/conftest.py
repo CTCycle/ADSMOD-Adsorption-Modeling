@@ -19,8 +19,21 @@ TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
 APP_ROOT = TESTS_DIR.parent
 PROJECT_ROOT = APP_ROOT.parent
-CANONICAL_CONFIG = APP_ROOT / "resources" / "adsmod.json"
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
+
+###############################################################################
+def resolve_resources_dir() -> Path:
+    configured_path = os.getenv("ADSMOD_RESOURCES_DIR", "").strip()
+    if not configured_path:
+        return APP_ROOT / "resources"
+
+    resources_dir = Path(os.path.expandvars(configured_path)).expanduser()
+    if not resources_dir.is_absolute():
+        resources_dir = PROJECT_ROOT / resources_dir
+    return resources_dir.resolve()
+
+
+CANONICAL_CONFIG = resolve_resources_dir() / "adsmod.json"
 
 ###############################################################################
 def normalize_client_host(bind_host: str) -> str:
