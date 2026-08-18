@@ -13,6 +13,7 @@ from shared.repositories.nist import NISTRepository
 from shared.repositories.schemas.models import Base
 
 
+###############################################################################
 def build_nist_repository(path: Path) -> NISTRepository:
     settings = DatabaseSettings(
         embedded_database=True,
@@ -38,6 +39,7 @@ def build_nist_repository(path: Path) -> NISTRepository:
     )
 
 
+###############################################################################
 def test_nist_repository_counts_and_loader_frame_are_canonical(
     tmp_path: Path,
 ) -> None:

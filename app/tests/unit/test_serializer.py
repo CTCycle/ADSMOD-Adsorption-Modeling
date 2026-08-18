@@ -29,7 +29,6 @@ class StubTrainingQueries:
     def load_training_metadata(self):
         return pd.DataFrame()
 
-
 ###############################################################################
 class FrameTrainingQueries(StubTrainingQueries):
 

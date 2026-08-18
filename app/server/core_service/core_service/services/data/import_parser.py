@@ -174,6 +174,7 @@ ROLE_ALIASES: dict[str, set[str]] = {
 }
 
 
+###############################################################################
 def normalize_header(value: object) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
     text = "".join(char for char in text if not unicodedata.combining(char))
@@ -183,6 +184,7 @@ def normalize_header(value: object) -> str:
     return " ".join(text.split())
 
 
+###############################################################################
 def safe_cell(value: Any) -> Any:
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return None
@@ -191,10 +193,12 @@ def safe_cell(value: Any) -> Any:
     return str(value)
 
 
+###############################################################################
 def source_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+###############################################################################
 def read_tabular(
     payload: bytes,
     filename: str | None,
@@ -253,6 +257,7 @@ def read_tabular(
     return frame
 
 
+###############################################################################
 def parse_series_cell(
     value: Any,
     *,
@@ -300,6 +305,7 @@ def parse_series_cell(
     return [parse_number(item, decimal_separator) for item in raw]
 
 
+###############################################################################
 def is_array_like(value: Any) -> bool:
     if isinstance(value, (list, tuple)):
         return True
@@ -312,6 +318,7 @@ def is_array_like(value: Any) -> bool:
     )
 
 
+###############################################################################
 def infer_column(column: str, series: pd.Series) -> ColumnDetection:
     header = normalize_header(column)
     non_empty = [safe_cell(value) for value in series.dropna().head(20).tolist()]
@@ -393,6 +400,7 @@ def infer_column(column: str, series: pd.Series) -> ColumnDetection:
     )
 
 
+###############################################################################
 def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
     pressure = next(
         (column for column in columns if column.proposed_role == "pressure"), None
@@ -421,6 +429,7 @@ def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
     return "ambiguous", 0.25
 
 
+###############################################################################
 def infer_pressure_basis(columns: list[ColumnDetection]) -> str | None:
     column = next(
         (item for item in columns if item.proposed_role == "pressure"), None

@@ -54,7 +54,7 @@ ADSMOD provides an automated menu-driven launcher and maintenance script for Win
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
 - Installs backend dependencies into `app/server/.venv`.
-- Installs frontend dependencies and builds the unified frontend bundle.
+- Installs frontend dependencies as needed; menu option 2 also rebuilds the unified frontend bundle.
 - Starts the unified local web backend and frontend preview.
 - Exposes setup, test, cleanup, database initialization, and uninstall actions.
 
@@ -97,8 +97,8 @@ Hosts, ports, storage, and application defaults are read from the canonical file
 
 - `app/resources/adsmod.json`
 
-Use `settings/.env` for operational toggles such as log visibility, rebuild
-behavior, reload, and scientific backend selection. `ADSMOD_RESOURCES_DIR` may
+Use `settings/.env` for operational toggles such as log visibility, reload, and
+scientific backend selection. `ADSMOD_RESOURCES_DIR` may
 override the default `app/resources` directory for the canonical configuration,
 logs, templates, checkpoints, and embedded SQLite database. Relative paths are
 resolved from the repository root. Runtime hosts and ports do not belong in

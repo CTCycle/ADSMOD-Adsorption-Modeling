@@ -248,7 +248,6 @@ function Import-Settings {
         UI_HOST = [string]$canonical.runtime.host
         UI_PORT = [string]$canonical.runtime.frontend_port
         BACKEND_LOGS_VISIBLE = "true"
-        ALWAYS_REBUILD = "true"
     }
 
     foreach ($line in Get-Content -LiteralPath $EnvFile) {
@@ -280,9 +279,6 @@ function Import-Settings {
 
     if ($defaults.BACKEND_LOGS_VISIBLE -notmatch '^(true|false)$') {
         throw "BACKEND_LOGS_VISIBLE must be true or false."
-    }
-    if ($defaults.ALWAYS_REBUILD -notmatch '^(true|false)$') {
-        throw "ALWAYS_REBUILD must be true or false."
     }
 
     return $defaults
@@ -497,7 +493,7 @@ function Start-Application {
     Set-RuntimeEnvironment
     if (-not (Test-DependenciesReady)) {
         Write-Step "Required application environments are missing or unusable; installing dependencies."
-        Sync-Dependencies -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -AllowExistingEnvironmentFallback
+        Sync-Dependencies -AllowExistingEnvironmentFallback
     } else {
         Write-Ok "Application environments are ready; skipped dependency installation."
     }
