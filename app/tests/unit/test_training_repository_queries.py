@@ -8,7 +8,6 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.queries.training import TrainingRepositoryQueries
 from shared.repositories.schemas.models import Base, TrainingDataset, TrainingSample
 
-
 ###############################################################################
 def build_in_memory_database() -> DatabaseManager:
     settings = DatabaseSettings(
@@ -28,7 +27,6 @@ def build_in_memory_database() -> DatabaseManager:
     manager = DatabaseManager(settings)
     Base.metadata.create_all(manager.engine)
     return manager
-
 
 ###############################################################################
 def test_training_dataset_metadata_round_trip_keeps_one_parent() -> None:

@@ -14,6 +14,7 @@ def test_core_service_does_not_import_ml_libs() -> None:
     assert "sklearn" not in loaded
 
 
+###############################################################################
 def test_core_only_apps_do_not_load_ml_packages() -> None:
     environment = os.environ.copy()
     environment.pop("ADSMOD_ENABLE_ML", None)

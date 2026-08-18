@@ -8,6 +8,7 @@ from core_service.services.data.units import UnitRegistry, parse_number
 from shared.repositories.datasets import stable_material_key
 
 
+###############################################################################
 def _text(value: object) -> str:
     if value is None:
         return ""
@@ -19,9 +20,11 @@ def _text(value: object) -> str:
     return str(value).strip()
 
 
+###############################################################################
 class NISTCanonicalMapper:
     """Map known NIST provider frames to canonical persistence records."""
 
+    # -------------------------------------------------------------------------
     def material_records(
         self, frame: pd.DataFrame | None, kind: str
     ) -> list[dict[str, Any]]:
@@ -55,6 +58,7 @@ class NISTCanonicalMapper:
             )
         return records
 
+    # -------------------------------------------------------------------------
     def experiment_records(
         self,
         single_component: pd.DataFrame | None,
@@ -71,6 +75,7 @@ class NISTCanonicalMapper:
             )
         ]
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _grouped_experiments(
         single_component: pd.DataFrame | None,
@@ -89,6 +94,7 @@ class NISTCanonicalMapper:
             )
         return grouped
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _single_experiment(source_id: str, rows: pd.DataFrame) -> dict[str, Any]:
         first = rows.iloc[0]
@@ -148,6 +154,7 @@ class NISTCanonicalMapper:
             "observations": observations,
         }
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _binary_experiment(source_id: str, rows: pd.DataFrame) -> dict[str, Any]:
         first = rows.iloc[0]

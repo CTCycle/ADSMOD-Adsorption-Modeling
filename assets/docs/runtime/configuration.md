@@ -18,7 +18,7 @@ must contain both canonical configuration files.
 
 Operational environment keys are limited to:
 
-- `BACKEND_LOGS_VISIBLE` and `ALWAYS_REBUILD` control launcher behavior.
+- `BACKEND_LOGS_VISIBLE` controls launcher behavior.
 - `RELOAD`, `MPLBACKEND`, and `KERAS_BACKEND` control local process behavior.
 - `VITE_API_BASE_URL` controls the generated frontend runtime API base path.
 - `ADSMOD_RESOURCES_DIR` overrides the default `app/resources` directory for
@@ -42,7 +42,7 @@ The `runtime` section is the only source for backend, ML, and frontend hosts and
   - uses `$ADSMOD_RESOURCES_DIR/adsmod.json` for hosts, ports, and application defaults
     (`app/resources` by default)
   - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
-  - rebuilds the frontend at application start when `ALWAYS_REBUILD=true`; defaults to rebuilding when absent
+  - rebuilds the frontend only when menu option 2, **Install / update dependencies**, is executed
   - reads only the canonical configuration resource
   - runs backend and frontend as separate processes
 - API-only mode

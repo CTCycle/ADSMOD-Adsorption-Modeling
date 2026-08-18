@@ -19,7 +19,8 @@ PowerShell:
 This menu-driven script:
 - ensures portable runtimes under `runtimes/`
 - syncs backend dependencies into `app/server/.venv`
-- installs and builds frontend dependencies
+- installs frontend dependencies as needed
+- rebuilds the frontend only when menu option 2, **Install / update dependencies**, is executed
 - starts the unified backend and frontend preview
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds
