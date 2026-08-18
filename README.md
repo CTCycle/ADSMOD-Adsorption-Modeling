@@ -54,7 +54,7 @@ ADSMOD provides an automated menu-driven launcher and maintenance script for Win
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
 - Installs backend dependencies into `app/server/.venv`.
-- Installs frontend dependencies as needed; menu option 2 also rebuilds the unified frontend bundle.
+- Installs frontend dependencies as needed; menu option 2 always rebuilds the unified frontend bundle.
 - Starts the unified local web backend and frontend preview.
 - Exposes setup, test, cleanup, database initialization, and uninstall actions.
 

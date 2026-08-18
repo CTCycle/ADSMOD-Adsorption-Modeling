@@ -42,7 +42,7 @@ The `runtime` section is the only source for backend, ML, and frontend hosts and
   - uses `$ADSMOD_RESOURCES_DIR/adsmod.json` for hosts, ports, and application defaults
     (`app/resources` by default)
   - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
-  - rebuilds the frontend only when menu option 2, **Install / update dependencies**, is executed
+  - repairs missing or unusable dependencies and frontend build output during launch; menu option 2, **Install / update dependencies**, always rebuilds the frontend
   - reads only the canonical configuration resource
   - runs backend and frontend as separate processes
 - API-only mode
