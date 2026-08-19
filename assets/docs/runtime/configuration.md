@@ -1,6 +1,6 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Canonical v3 Configuration
 
@@ -42,7 +42,7 @@ The `runtime` section is the only source for backend, ML, and frontend hosts and
   - uses `$ADSMOD_RESOURCES_DIR/adsmod.json` for hosts, ports, and application defaults
     (`app/resources` by default)
   - shows backend logs in a separate terminal when `BACKEND_LOGS_VISIBLE=true`; defaults to visible when absent
-  - repairs missing or unusable dependencies and frontend build output during launch; menu option 2, **Install / update dependencies**, always rebuilds the frontend
+  - repairs missing or unusable dependencies and frontend build output during launch; menu option 2, **Install / update dependencies**, always rebuilds the frontend, while menu option 3, **Rebuild frontend**, performs that frontend work without syncing backend dependencies
   - reads only the canonical configuration resource
   - runs backend and frontend as separate processes
 - API-only mode

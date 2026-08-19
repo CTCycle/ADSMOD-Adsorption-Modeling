@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Recommended Local Web Startup
 
@@ -22,6 +22,7 @@ This menu-driven script:
 - installs frontend dependencies as needed
 - repairs missing or unusable dependencies and frontend build output during launch
 - always rebuilds the frontend when menu option 2, **Install / update dependencies**, is executed
+- provides menu option 3, **Rebuild frontend**, to install frontend packages and rebuild the bundle without syncing backend dependencies
 - starts the unified backend and frontend preview
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds

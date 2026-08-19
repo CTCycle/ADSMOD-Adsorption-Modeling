@@ -54,7 +54,7 @@ ADSMOD provides an automated menu-driven launcher and maintenance script for Win
 **What this script does:**
 - Downloads portable Python, uv, and Node.js runtimes into `runtimes/` (first run only).
 - Installs backend dependencies into `app/server/.venv`.
-- Installs frontend dependencies as needed; menu option 2 always rebuilds the unified frontend bundle.
+- Installs frontend dependencies as needed; menu option 2 always rebuilds the unified frontend bundle, and menu option 3 can rebuild it independently.
 - Starts the unified local web backend and frontend preview.
 - Exposes setup, test, cleanup, database initialization, and uninstall actions.
 
@@ -163,6 +163,7 @@ Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` to access 
 
 - **Remove logs**: clears `.log` files under the configured resource directory.
 - **Install or update dependencies**: prepares shared runtimes, backend dependencies, and the unified frontend.
+- **Rebuild frontend**: installs frontend packages and rebuilds the unified frontend bundle without syncing backend dependencies.
 - **Uninstall application**: removes local runtime and build artifacts while preserving settings, resources, the database, and user data.
 - **Initialize database**: explicitly initializes PostgreSQL, or creates a
   missing SQLite database. Existing SQLite files are left unchanged.
