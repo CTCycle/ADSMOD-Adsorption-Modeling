@@ -12,7 +12,6 @@ from shared.repositories.materials import MaterialRepository
 from shared.repositories.nist import NISTRepository
 from shared.repositories.schemas.models import Base
 
-
 ###############################################################################
 def build_nist_repository(path: Path) -> NISTRepository:
     settings = DatabaseSettings(
@@ -37,7 +36,6 @@ def build_nist_repository(path: Path) -> NISTRepository:
         datasets=datasets,
         materials=MaterialRepository(database),
     )
-
 
 ###############################################################################
 def test_nist_repository_counts_and_loader_frame_are_canonical(

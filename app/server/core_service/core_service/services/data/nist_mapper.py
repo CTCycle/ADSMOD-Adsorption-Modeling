@@ -7,7 +7,6 @@ import pandas as pd
 from core_service.services.data.units import UnitRegistry, parse_number
 from shared.repositories.datasets import stable_material_key
 
-
 ###############################################################################
 def _text(value: object) -> str:
     if value is None:
@@ -18,7 +17,6 @@ def _text(value: object) -> str:
     except (TypeError, ValueError):
         pass
     return str(value).strip()
-
 
 ###############################################################################
 class NISTCanonicalMapper:

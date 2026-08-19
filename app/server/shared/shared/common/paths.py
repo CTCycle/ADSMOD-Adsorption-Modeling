@@ -10,7 +10,6 @@ SERVER_PATH = APP_PATH / "server"
 SETTING_DIR = ROOT_PATH / "settings"
 DEFAULT_RESOURCES_DIR = APP_PATH / "resources"
 
-
 ###############################################################################
 def resolve_resources_dir(configured_path: str | Path | None = None) -> Path:
     raw_path = (

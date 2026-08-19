@@ -33,7 +33,6 @@ PARSER_VERSION = "2.0"
 PREVIEW_ROWS = 12
 EXPERIMENT_PREVIEW_POINTS = 8
 
-
 ###############################################################################
 @dataclass
 class ValidationBundle:
