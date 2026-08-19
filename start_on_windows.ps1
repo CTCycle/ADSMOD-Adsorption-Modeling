@@ -297,6 +297,33 @@ function Set-RuntimeEnvironment {
     $env:PATH = "$NodeDir;$UvDir;$env:PATH"
 }
 
+function Initialize-NodeRuntime {
+    Write-Step "Ensuring portable Node.js $NodeVersion"
+    New-Item -ItemType Directory -Path $NodeDir -Force | Out-Null
+    $nodeNeedsInstall = -not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)
+    if (-not $nodeNeedsInstall) {
+        $existingNodeVersion = (& $NodeExe --version).Trim()
+        $nodeNeedsInstall = $LASTEXITCODE -ne 0 -or $existingNodeVersion -ne "v$NodeVersion"
+        if ($nodeNeedsInstall) {
+            Write-Warn "Replacing portable Node.js $existingNodeVersion with v$NodeVersion."
+            Remove-RepoPath $NodeDir
+        }
+    }
+    if ($nodeNeedsInstall) {
+        Download-AndExtract `
+            -Url $NodeUrl `
+            -ArchivePath (Join-Path $NodeDir $NodeArchive) `
+            -DestinationPath $NodeDir `
+            -FlattenSingleDirectory
+    }
+    if (-not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)) {
+        throw "Portable Node.js extraction did not produce node.exe and npm.cmd in $NodeDir."
+    }
+    $nodeVersionOutput = & $NodeExe --version
+    Assert-LastExitCode "Node.js version check"
+    Write-Ok "Node.js ready: $nodeVersionOutput"
+}
+
 function Initialize-Runtimes {
     Write-Step "Ensuring portable runtime directories"
     foreach ($directory in @($RuntimesDir, $PythonDir, $UvDir, $NodeDir)) {
@@ -326,30 +353,50 @@ function Initialize-Runtimes {
     Assert-LastExitCode "uv version check"
     Write-Ok $uvVersion
 
-    Write-Step "Ensuring portable Node.js $NodeVersion"
-    $nodeNeedsInstall = -not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)
-    if (-not $nodeNeedsInstall) {
-        $existingNodeVersion = (& $NodeExe --version).Trim()
-        $nodeNeedsInstall = $LASTEXITCODE -ne 0 -or $existingNodeVersion -ne "v$NodeVersion"
-        if ($nodeNeedsInstall) {
-            Write-Warn "Replacing portable Node.js $existingNodeVersion with v$NodeVersion."
-            Remove-RepoPath $NodeDir
-        }
-    }
-    if ($nodeNeedsInstall) {
-        Download-AndExtract `
-            -Url $NodeUrl `
-            -ArchivePath (Join-Path $NodeDir $NodeArchive) `
-            -DestinationPath $NodeDir `
-            -FlattenSingleDirectory
-    }
-    if (-not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)) {
-        throw "Portable Node.js extraction did not produce node.exe and npm.cmd in $NodeDir."
-    }
-    $nodeVersionOutput = & $NodeExe --version
-    Assert-LastExitCode "Node.js version check"
-    Write-Ok "Node.js ready: $nodeVersionOutput"
+    Initialize-NodeRuntime
     Set-RuntimeEnvironment
+}
+
+function Sync-FrontendDependencies {
+    param(
+        [switch]$BuildFrontend,
+        [switch]$AllowExistingEnvironmentFallback
+    )
+
+    Write-Step "Installing frontend dependencies"
+    Push-Location $ClientDir
+    try {
+        try {
+            if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) {
+                & $NpmCmd ci
+            } else {
+                & $NpmCmd install
+            }
+            Assert-LastExitCode "npm dependency installation"
+        } catch {
+            if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath (Join-Path $ClientDir 'node_modules'))) {
+                throw
+            }
+            Write-Warn "npm dependency installation could not update the existing node_modules tree; reusing it for startup. Run Install / update dependencies after resolving the filesystem lock."
+        }
+
+        if ($BuildFrontend) {
+            Write-Step "Building frontend"
+            try {
+                & $NpmCmd run build
+                Assert-LastExitCode "frontend build"
+            } catch {
+                $existingFrontend = Join-Path $ClientDir "dist\browser\index.html"
+                if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath $existingFrontend)) {
+                    throw
+                }
+                Write-Warn "Frontend rebuild could not update the existing checkout; reusing the existing dist bundle for startup. Run Install / update dependencies after resolving the filesystem lock."
+            }
+        }
+    } finally {
+        Pop-Location
+    }
+    Write-Ok "Frontend dependencies are ready."
 }
 
 function Sync-Dependencies {
@@ -394,40 +441,9 @@ function Sync-Dependencies {
     }
     Write-Ok "Python dependencies are ready."
 
-    Write-Step "Installing frontend dependencies"
-    Push-Location $ClientDir
-    try {
-        try {
-            if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) {
-                & $NpmCmd ci
-            } else {
-                & $NpmCmd install
-            }
-            Assert-LastExitCode "npm dependency installation"
-        } catch {
-            if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath (Join-Path $ClientDir 'node_modules'))) {
-                throw
-            }
-            Write-Warn "npm dependency installation could not update the existing node_modules tree; reusing it for startup. Run Install / update dependencies after resolving the filesystem lock."
-        }
-
-        if ($BuildFrontend) {
-            Write-Step "Building frontend"
-            try {
-                & $NpmCmd run build
-                Assert-LastExitCode "frontend build"
-            } catch {
-                $existingFrontend = Join-Path $ClientDir "dist\browser\index.html"
-                if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath $existingFrontend)) {
-                    throw
-                }
-                Write-Warn "Frontend rebuild could not update the existing checkout; reusing the existing dist bundle for startup. Run Install / update dependencies after resolving the filesystem lock."
-            }
-        }
-    } finally {
-        Pop-Location
-    }
-    Write-Ok "Frontend dependencies are ready."
+    Sync-FrontendDependencies `
+        -BuildFrontend:$BuildFrontend `
+        -AllowExistingEnvironmentFallback:$AllowExistingEnvironmentFallback
 }
 
 function Test-DependenciesReady {
@@ -575,6 +591,13 @@ function Install-OrUpdate {
     Write-Ok "Dependencies installed and frontend built successfully."
 }
 
+function Rebuild-Frontend {
+    Initialize-NodeRuntime
+    Set-RuntimeEnvironment
+    Sync-FrontendDependencies -BuildFrontend
+    Write-Ok "Frontend rebuilt successfully."
+}
+
 function Read-InstallationType {
     Write-Host "  [1] Development - include Ruff, Pyright, and pytest"
     Write-Host "  [2] Standard    - install runtime dependencies only"
@@ -699,26 +722,27 @@ function Show-MainMenu {
     Write-Host "  WORKSPACE" -ForegroundColor DarkCyan
     Write-MenuItem -Number '1' -Label 'Launch application' -Hint 'Start the local web workspace'
     Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Hint 'Refresh local runtimes and packages'
-    Write-MenuItem -Number '3' -Label 'Initialize database' -Hint 'Prepare the local data store'
-    Write-MenuItem -Number '4' -Label 'Run test suite' -Hint 'Execute the repository checks'
+    Write-MenuItem -Number '3' -Label 'Rebuild frontend' -Hint 'Install frontend packages and rebuild the bundle'
+    Write-MenuItem -Number '4' -Label 'Initialize database' -Hint 'Prepare the local data store'
+    Write-MenuItem -Number '5' -Label 'Run test suite' -Hint 'Execute the repository checks'
     Write-Host ""
     Write-Host "  MAINTENANCE" -ForegroundColor DarkCyan
-    Write-MenuItem -Number '5' -Label 'Remove logs' -Hint 'Delete generated log files' -NumberColor Yellow
-    Write-MenuItem -Number '6' -Label 'Clear cache' -Hint 'Remove Python and uv caches' -NumberColor Yellow
-    Write-MenuItem -Number '7' -Label 'Uninstall application' -Hint 'Remove local runtimes and build artifacts' -NumberColor Yellow
+    Write-MenuItem -Number '6' -Label 'Remove logs' -Hint 'Delete generated log files' -NumberColor Yellow
+    Write-MenuItem -Number '7' -Label 'Clear cache' -Hint 'Remove Python and uv caches' -NumberColor Yellow
+    Write-MenuItem -Number '8' -Label 'Uninstall application' -Hint 'Remove local runtimes and build artifacts' -NumberColor Yellow
     Write-Host ""
     Write-Host $subtleRule -ForegroundColor DarkGray
-    Write-MenuItem -Number '8' -Label 'Exit' -Hint 'Close this console' -NumberColor DarkGray
+    Write-MenuItem -Number '9' -Label 'Exit' -Hint 'Close this console' -NumberColor DarkGray
     Write-Host $rule -ForegroundColor DarkCyan
 }
 
 $exitMenu = $false
 while (-not $exitMenu) {
     Show-MainMenu
-    $selection = Read-Host "  Select an option [1-8]"
+    $selection = Read-Host "  Select an option [1-9]"
 
-    if ($selection -notmatch '^[1-8]$') {
-        Write-Warn "Please select a number from 1 to 8."
+    if ($selection -notmatch '^[1-9]$') {
+        Write-Warn "Please select a number from 1 to 9."
         Wait-ForMenu
         continue
     }
@@ -730,12 +754,13 @@ while (-not $exitMenu) {
                 exit 0
             }
             '2' { Install-OrUpdate; Wait-ForMenu }
-            '3' { Initialize-Database; Wait-ForMenu }
-            '4' { Invoke-TestSuite; Wait-ForMenu }
-            '5' { Remove-Logs; Wait-ForMenu }
-            '6' { Clear-Cache; Wait-ForMenu }
-            '7' { Uninstall-Application; Wait-ForMenu }
-            '8' { $exitMenu = $true }
+            '3' { Rebuild-Frontend; Wait-ForMenu }
+            '4' { Initialize-Database; Wait-ForMenu }
+            '5' { Invoke-TestSuite; Wait-ForMenu }
+            '6' { Remove-Logs; Wait-ForMenu }
+            '7' { Clear-Cache; Wait-ForMenu }
+            '8' { Uninstall-Application; Wait-ForMenu }
+            '9' { $exitMenu = $true }
         }
     } catch {
         Write-Fatal $_.Exception.Message
