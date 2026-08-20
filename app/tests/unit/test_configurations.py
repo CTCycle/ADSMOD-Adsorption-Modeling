@@ -1,87 +1,56 @@
-import json
+from __future__ import annotations
+
 from pathlib import Path
 
+from adsmod_common.config import TrainingConfig, load_config
 from shared.common.paths import CANONICAL_CONFIGURATION_FILE
-from shared.common.settings import (
-    AppSettings,
-    build_training_settings,
-    get_server_settings,
-)
+from shared.common.settings import get_server_settings
 
 ###############################################################################
-def test_json_structure_matches_settings():
-    """
-    Verify that keys present in the core runtime JSON [training] section
-    are correctly loaded into the TrainingSettings dataclass.
-    """
+def test_json_training_configuration_projects_from_canonical_model() -> None:
+    config = load_config(CANONICAL_CONFIGURATION_FILE)
     settings = get_server_settings()
-    with Path(CANONICAL_CONFIGURATION_FILE).open("r", encoding="utf-8") as handle:
-        config_dict = json.load(handle)
 
-    training_json = config_dict.get("application", {}).get("training", {})
-
-    # Assert all keys in JSON training section exist in TrainingSettings
-    # We won't assert exact values because user might change JSON,
-    # but we check that the fields are present in the dataclass
-    for key in training_json:
-        assert hasattr(settings.training, key), (
-            f"TrainingSettings missing field for JSON key: {key}"
-        )
+    assert settings.training.persistent_workers == (
+        config.application.training.persistent_workers
+    )
+    assert settings.datasets.allowed_extensions == (
+        config.application.datasets.allowed_extensions
+    )
 
 ###############################################################################
-def test_config_values_are_respected():
-    """
-    Verify that specific values set in runtime JSON are reflected in the settings object.
-    Checks values handled directly by TrainingSettings construction.
-    """
-    # Create a mock payload with known values
-    mock_payload = {
-        "use_jit": True,
-        "jit_backend": "cudagraphs",
-        "use_mixed_precision": True,
-        "dataloader_workers": 4,
-        "prefetch_factor": 2,
-        "pin_memory": False,
-        "persistent_workers": True,
-        "polling_interval": 0.0,
-        "plot_update_batch_interval": 7,
-    }
+def test_training_configuration_values_are_validated_by_canonical_model() -> None:
+    training = TrainingConfig.model_validate(
+        {
+            "use_jit": True,
+            "jit_backend": "cudagraphs",
+            "use_mixed_precision": True,
+            "dataloader_workers": 4,
+            "persistent_workers": True,
+        }
+    )
 
-    training_settings = build_training_settings(mock_payload)
-
-    assert training_settings.use_jit is True
-    assert training_settings.jit_backend == "cudagraphs"
-    assert training_settings.use_mixed_precision is True
-    assert training_settings.dataloader_workers == 4
-    assert training_settings.prefetch_factor == 1
-    assert training_settings.pin_memory is True
-    assert training_settings.persistent_workers is True
-    assert training_settings.plot_update_batch_interval == 10
+    assert training.use_jit is True
+    assert training.jit_backend == "cudagraphs"
+    assert training.use_mixed_precision is True
+    assert training.dataloader_workers == 4
+    assert training.persistent_workers is True
 
 ###############################################################################
-def test_default_fallbacks():
-    """
-    Verify that missing values fallback to safe defaults.
-    """
-    empty_payload = {}
-    training_settings = build_training_settings(empty_payload)
+def test_canonical_training_defaults_are_single_source() -> None:
+    training = TrainingConfig.model_validate({"persistent_workers": False})
 
-    # Defaults defined by the settings models
-    assert training_settings.use_jit is False
-    assert training_settings.jit_backend == "inductor"
-    assert training_settings.use_mixed_precision is False
-    assert training_settings.dataloader_workers == 0
-    assert training_settings.prefetch_factor == 1
-    assert training_settings.pin_memory is True
-    assert training_settings.persistent_workers is False
-    assert training_settings.plot_update_batch_interval == 10
+    assert training.use_jit is False
+    assert training.jit_backend == "inductor"
+    assert training.use_mixed_precision is False
+    assert training.dataloader_workers == 0
+    assert training.persistent_workers is False
 
 ###############################################################################
 def test_canonical_runtime_configuration_validates() -> None:
-    settings = AppSettings.load(CANONICAL_CONFIGURATION_FILE)
-    server_settings = settings.to_server_settings()
+    config = load_config(Path(CANONICAL_CONFIGURATION_FILE))
+    settings = get_server_settings(CANONICAL_CONFIGURATION_FILE)
 
-    assert server_settings.datasets.allowed_extensions
-    assert server_settings.jobs.polling_interval > 0
-
-
+    assert config.version == "3.0.0"
+    assert settings.datasets.allowed_extensions
+    assert settings.jobs.polling_interval > 0

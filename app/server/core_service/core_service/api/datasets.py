@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, Form, HTTPException, Path, Query, UploadFile, status
 
-from core_service.domain.datasets import (
+from core_service.contracts.datasets import (
     DatasetImportResponse,
     DatasetListResponse,
     DatasetMetadata,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from core_service.domain.nist import (
+from core_service.contracts.nist import (
     NISTCategory,
     NISTCategoryFetchRequest,
     NISTCategoryPingResponse,
@@ -27,7 +27,7 @@ from shared.common.constants import (
     NIST_ROUTER_PREFIX,
     NIST_STATUS_ENDPOINT,
 )
-from shared.models.jobs import (
+from shared.contracts.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,

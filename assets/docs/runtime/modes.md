@@ -1,8 +1,11 @@
 # ADSMOD Runtime Modes
 
-Last updated: 2026-08-02
+Last updated: 2026-08-20
 
 ## Supported Modes
+
+The sections below distinguish the extracted v3 package modes from the
+launcher-selected active local-web runtime. They are not compatibility modes.
 
 ### v3 Core Mode
 
@@ -39,7 +42,8 @@ The v3 modes are implemented package boundaries; launcher integration is still p
 ### Both Backend Services Mode
 
 - Core service and ML service run together.
-- This remains the target shape for future launcher coordination updates.
+- This remains the active two-service development shape and the target process
+  arrangement before the v3 launcher cutover.
 
 ### Test Execution Mode
 

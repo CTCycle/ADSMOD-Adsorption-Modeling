@@ -2,11 +2,21 @@ from __future__ import annotations
 
 import pytest
 
-from shared.common.settings import build_database_settings
+from adsmod_common.config import DatabaseConfig, load_config
+from shared.common.paths import CANONICAL_CONFIGURATION_FILE
+from shared.common.settings import DatabaseSettings, build_database_settings
+
+###############################################################################
+def project(payload: dict[str, object]) -> DatabaseSettings:
+    canonical = load_config(CANONICAL_CONFIGURATION_FILE).application.database.model_dump(
+        mode="python"
+    )
+    canonical.update(payload)
+    return build_database_settings(DatabaseConfig.model_validate(canonical))
 
 ###############################################################################
 def test_db_embedded_json_configuration() -> None:
-    settings = build_database_settings(
+    settings = project(
         {
             "embedded_database": True,
             "connect_timeout": 45,
@@ -28,7 +38,7 @@ def test_db_embedded_json_configuration() -> None:
 
 ###############################################################################
 def test_db_external_json_configuration() -> None:
-    settings = build_database_settings(
+    settings = project(
         {
             "embedded_database": False,
             "engine": "postgres",
@@ -57,8 +67,8 @@ def test_db_external_json_configuration() -> None:
     assert settings.insert_batch_size == 6000
 
 ###############################################################################
-def test_db_settings_use_defaults_when_database_payload_missing() -> None:
-    settings = build_database_settings({})
+def test_db_settings_use_canonical_values_when_no_override_is_given() -> None:
+    settings = project({})
 
     assert settings.embedded_database is True
     assert settings.engine is None
@@ -77,15 +87,13 @@ def test_db_settings_are_not_env_driven_anymore(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("DB_EMBEDDED", "false")
     monkeypatch.setenv("DB_HOST", "env-host.example")
 
-    settings = build_database_settings({"embedded_database": True})
+    settings = project({"embedded_database": True})
 
     assert settings.embedded_database is True
     assert settings.host is None
 
 ###############################################################################
 def test_db_settings_allow_minimal_external_payload() -> None:
-    settings = build_database_settings({"embedded_database": False, "password": ""})
+    settings = project({"embedded_database": False, "password": ""})
     assert settings.embedded_database is False
     assert settings.password is None
-
-

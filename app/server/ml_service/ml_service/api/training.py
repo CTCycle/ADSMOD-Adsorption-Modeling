@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
-from ml_service.domain.training import (
+from ml_service.contracts.training import (
     CheckpointFullDetailsResponse,
     CheckpointsResponse,
     DatasetBuildRequest,
@@ -19,7 +19,7 @@ from ml_service.domain.training import (
 from shared.common.utils.logger import logger
 from ml_service.services.container import MlServiceContainer
 from ml_service.services.training import TrainingService
-from shared.models.jobs import (
+from shared.contracts.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,

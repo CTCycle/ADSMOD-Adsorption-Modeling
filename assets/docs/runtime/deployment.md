@@ -1,6 +1,6 @@
 # ADSMOD Local Deployment
 
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
 ## Interoperability
 
@@ -16,7 +16,8 @@ Last updated: 2026-08-18
   initialized explicitly through the launcher
 - Checkpoints: `<resource directory>/checkpoints`
 - Operational environment template: `settings/.env.example`
-- Canonical v3 configuration: `app/resources/adsmod.json` with `app/resources/adsmod.schema.json`
+- Canonical runtime values: `app/resources/adsmod.json`; generated shape schema:
+  `app/resources/adsmod.schema.json` from `adsmod_common.config.AdsmodConfig`
 
 ## Local Deployment Notes
 
@@ -35,4 +36,6 @@ Last updated: 2026-08-18
   command before normal application startup; startup never creates or resets
   the external database.
 - No container runtime target is currently implemented.
-- The Windows launcher currently starts the transitional `app/server` runtime; v3 package launcher integration is not yet implemented.
+- The Windows launcher currently starts the active `app/server` runtime; v3
+  package launcher integration is not yet implemented. The active runtime is
+  the current public contract, not a legacy compatibility interface.

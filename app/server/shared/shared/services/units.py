@@ -130,6 +130,7 @@ class UnitRegistry:
         "wt%": "wt%",
         "weight %": "wt%",
         "g/100g": "wt%",
+        "g adsorbate / 100g adsorbent": "wt%",
         "cm3(stp)/g": "cm3(STP)/g",
         "cm3 stp/g": "cm3(STP)/g",
         "cm3/g stp": "cm3(STP)/g",

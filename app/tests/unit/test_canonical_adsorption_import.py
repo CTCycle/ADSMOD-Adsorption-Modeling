@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core_service.domain.datasets import ImportMapping
+from core_service.contracts.datasets import ImportMapping
 from core_service.services.data.importer import AdsorptionImportEngine
 
 ###############################################################################

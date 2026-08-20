@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from ml_service.domain.bootstrap import ServiceStatusResponse
+from ml_service.contracts.bootstrap import ServiceStatusResponse
 
 health_router = APIRouter()
 

@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from adsmod_common.config import load_config
 from core_service.api.entrypoint import health_router
 from core_service.api.routes import register_core_routes
 from core_service.services.container import CoreServiceContainer
@@ -22,6 +23,7 @@ from shared.common.constants import (
 )
 from shared.common.paths import (
     CHECKPOINTS_DIR,
+    CANONICAL_CONFIGURATION_FILE,
     CLIENT_ASSETS_DIR,
     CLIENT_DIST_DIR,
     CLIENT_INDEX_FILE,
@@ -29,7 +31,7 @@ from shared.common.paths import (
     RESOURCES_DIR,
     TEMPLATES_DIR,
 )
-from shared.common.settings import get_runtime_config, get_server_settings
+from shared.common.settings import get_server_settings
 from shared.repositories.database.initializer import prepare_database_for_startup
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -62,10 +64,10 @@ def _resolve_client_file(full_path: str) -> Path | None:
 
 ###############################################################################
 def _build_cors_origins() -> list[str]:
-    runtime = get_runtime_config()
-    ui_host = str(runtime.get("host", "127.0.0.1"))
+    runtime = load_config(CANONICAL_CONFIGURATION_FILE).runtime
+    ui_host = runtime.host
     hosts = {ui_host, "127.0.0.1", "localhost"}
-    ports = {int(runtime["frontend_port"])}
+    ports = {runtime.frontend_port}
 
     return sorted(f"http://{host}:{port}" for host in hosts for port in ports)
 

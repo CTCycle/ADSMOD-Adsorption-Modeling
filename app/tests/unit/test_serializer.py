@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
-from ml_service.domain.training import TrainingMetadata
+from ml_service.contracts.training import TrainingMetadata
 from ml_service.learning.serialization.model import ModelSerializer
 from ml_service.learning.serialization.training import TrainingDataSerializer
 

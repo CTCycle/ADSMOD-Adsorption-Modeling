@@ -10,7 +10,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.stats import t as student_t
 
-from core_service.domain.fitting import (
+from core_service.contracts.fitting import (
     FitMetrics,
     FittedParameter,
     FittingRequest,
@@ -19,7 +19,7 @@ from core_service.domain.fitting import (
     ModelParameterDefinition,
     PredictionPoint,
 )
-from core_service.services.data.units import UnitConversionError, UnitRegistry
+from shared.services.units import UnitConversionError, UnitRegistry
 from core_service.services.modeling.models import AdsorptionModels, ModelSpec, ParameterSpec
 
 

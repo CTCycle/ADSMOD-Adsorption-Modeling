@@ -1,95 +1,412 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ADSMOD v3 configuration",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["version", "runtime", "storage", "security", "application"],
-  "properties": {
-    "version": { "const": "3.0.0" },
-    "runtime": {
-      "type": "object",
+  "$defs": {
+    "ApplicationConfig": {
       "additionalProperties": false,
-      "required": ["mode", "host", "core_port", "ml_port", "frontend_port", "ml_restart_attempts"],
-      "properties": {
-        "mode": { "enum": ["core", "core-ml"] },
-        "host": { "enum": ["127.0.0.1", "localhost", "::1"] },
-        "core_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
-        "ml_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
-        "frontend_port": { "type": "integer", "minimum": 1024, "maximum": 65535 },
-        "ml_restart_attempts": { "type": "integer", "minimum": 0, "maximum": 1 }
-      }
-    },
-    "storage": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["root", "database"],
-      "properties": { "root": { "type": "string" }, "database": { "type": "string" } }
-    },
-    "security": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["internal_token_required"],
-      "properties": { "internal_token_required": { "type": "boolean" } }
-    },
-    "application": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["database", "datasets", "nist", "fitting", "jobs", "training"],
       "properties": {
         "database": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["embedded_database", "sqlite_path"],
-          "properties": {
-            "embedded_database": { "type": "boolean" },
-            "sqlite_path": { "type": "string" }
-          }
+          "$ref": "#/$defs/DatabaseConfig"
         },
         "datasets": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["allowed_extensions", "column_detection_cutoff"],
-          "properties": {
-            "allowed_extensions": { "type": "array", "items": { "type": "string" } },
-            "column_detection_cutoff": { "type": "number", "minimum": 0, "maximum": 1 }
-          }
+          "$ref": "#/$defs/DatasetConfig"
         },
         "nist": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["parallel_tasks", "pubchem_parallel_tasks"],
-          "properties": {
-            "parallel_tasks": { "type": "integer", "minimum": 1 },
-            "pubchem_parallel_tasks": { "type": "integer", "minimum": 1 }
-          }
+          "$ref": "#/$defs/NISTConfig"
         },
         "fitting": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["default_max_iterations", "max_iterations_upper_bound", "default_parameter_initial", "default_parameter_min", "default_parameter_max", "preview_row_limit", "best_model_metric"],
-          "properties": {
-            "default_max_iterations": { "type": "integer", "minimum": 1 },
-            "max_iterations_upper_bound": { "type": "integer", "minimum": 1 },
-            "default_parameter_initial": { "type": "number", "minimum": 0 },
-            "default_parameter_min": { "type": "number", "minimum": 0 },
-            "default_parameter_max": { "type": "number", "minimum": 0 },
-            "preview_row_limit": { "type": "integer", "minimum": 1 },
-            "best_model_metric": { "type": "string" }
-          }
+          "$ref": "#/$defs/FittingConfig"
         },
         "jobs": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["polling_interval"],
-          "properties": { "polling_interval": { "type": "number", "minimum": 0 } }
+          "$ref": "#/$defs/JobConfig"
         },
         "training": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["persistent_workers"],
-          "properties": { "persistent_workers": { "type": "boolean" } }
+          "$ref": "#/$defs/TrainingConfig"
         }
-      }
+      },
+      "required": [
+        "database",
+        "datasets",
+        "nist",
+        "fitting",
+        "jobs",
+        "training"
+      ],
+      "title": "ApplicationConfig",
+      "type": "object"
+    },
+    "DatabaseConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "embedded_database": {
+          "title": "Embedded Database",
+          "type": "boolean"
+        },
+        "engine": {
+          "default": "postgres",
+          "title": "Engine",
+          "type": "string"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Host"
+        },
+        "port": {
+          "default": 5432,
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "database_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Database Name"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Password"
+        },
+        "ssl": {
+          "default": false,
+          "title": "Ssl",
+          "type": "boolean"
+        },
+        "ssl_ca": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ssl Ca"
+        },
+        "connect_timeout": {
+          "default": 30,
+          "minimum": 1,
+          "title": "Connect Timeout",
+          "type": "integer"
+        },
+        "insert_batch_size": {
+          "default": 5000,
+          "minimum": 1,
+          "title": "Insert Batch Size",
+          "type": "integer"
+        },
+        "sqlite_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sqlite Path"
+        }
+      },
+      "required": [
+        "embedded_database",
+        "sqlite_path"
+      ],
+      "title": "DatabaseConfig",
+      "type": "object"
+    },
+    "DatasetConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_extensions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Extensions",
+          "type": "array"
+        },
+        "column_detection_cutoff": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Column Detection Cutoff",
+          "type": "number"
+        }
+      },
+      "required": [
+        "allowed_extensions",
+        "column_detection_cutoff"
+      ],
+      "title": "DatasetConfig",
+      "type": "object"
+    },
+    "FittingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "default_max_iterations": {
+          "minimum": 1,
+          "title": "Default Max Iterations",
+          "type": "integer"
+        },
+        "max_iterations_upper_bound": {
+          "minimum": 1,
+          "title": "Max Iterations Upper Bound",
+          "type": "integer"
+        },
+        "default_parameter_initial": {
+          "minimum": 0.0,
+          "title": "Default Parameter Initial",
+          "type": "number"
+        },
+        "default_parameter_min": {
+          "minimum": 0.0,
+          "title": "Default Parameter Min",
+          "type": "number"
+        },
+        "default_parameter_max": {
+          "minimum": 0.0,
+          "title": "Default Parameter Max",
+          "type": "number"
+        },
+        "preview_row_limit": {
+          "minimum": 1,
+          "title": "Preview Row Limit",
+          "type": "integer"
+        },
+        "best_model_metric": {
+          "title": "Best Model Metric",
+          "type": "string"
+        }
+      },
+      "required": [
+        "default_max_iterations",
+        "max_iterations_upper_bound",
+        "default_parameter_initial",
+        "default_parameter_min",
+        "default_parameter_max",
+        "preview_row_limit",
+        "best_model_metric"
+      ],
+      "title": "FittingConfig",
+      "type": "object"
+    },
+    "JobConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "polling_interval": {
+          "minimum": 0.0,
+          "title": "Polling Interval",
+          "type": "number"
+        }
+      },
+      "required": [
+        "polling_interval"
+      ],
+      "title": "JobConfig",
+      "type": "object"
+    },
+    "NISTConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "parallel_tasks": {
+          "minimum": 1,
+          "title": "Parallel Tasks",
+          "type": "integer"
+        },
+        "pubchem_parallel_tasks": {
+          "minimum": 1,
+          "title": "Pubchem Parallel Tasks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "parallel_tasks",
+        "pubchem_parallel_tasks"
+      ],
+      "title": "NISTConfig",
+      "type": "object"
+    },
+    "RuntimeConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "core",
+            "core-ml"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "core_port": {
+          "maximum": 65535,
+          "minimum": 1024,
+          "title": "Core Port",
+          "type": "integer"
+        },
+        "ml_port": {
+          "maximum": 65535,
+          "minimum": 1024,
+          "title": "Ml Port",
+          "type": "integer"
+        },
+        "frontend_port": {
+          "maximum": 65535,
+          "minimum": 1024,
+          "title": "Frontend Port",
+          "type": "integer"
+        },
+        "ml_restart_attempts": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Ml Restart Attempts",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mode",
+        "host",
+        "core_port",
+        "ml_port",
+        "frontend_port",
+        "ml_restart_attempts"
+      ],
+      "title": "RuntimeConfig",
+      "type": "object"
+    },
+    "SecurityConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "internal_token_required": {
+          "title": "Internal Token Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "internal_token_required"
+      ],
+      "title": "SecurityConfig",
+      "type": "object"
+    },
+    "StorageConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "format": "path",
+          "title": "Root",
+          "type": "string"
+        },
+        "database": {
+          "title": "Database",
+          "type": "string"
+        }
+      },
+      "required": [
+        "root",
+        "database"
+      ],
+      "title": "StorageConfig",
+      "type": "object"
+    },
+    "TrainingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "use_jit": {
+          "default": false,
+          "title": "Use Jit",
+          "type": "boolean"
+        },
+        "jit_backend": {
+          "default": "inductor",
+          "title": "Jit Backend",
+          "type": "string"
+        },
+        "use_mixed_precision": {
+          "default": false,
+          "title": "Use Mixed Precision",
+          "type": "boolean"
+        },
+        "dataloader_workers": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Dataloader Workers",
+          "type": "integer"
+        },
+        "persistent_workers": {
+          "title": "Persistent Workers",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "persistent_workers"
+      ],
+      "title": "TrainingConfig",
+      "type": "object"
     }
-  }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "3.0.0",
+      "title": "Version",
+      "type": "string"
+    },
+    "runtime": {
+      "$ref": "#/$defs/RuntimeConfig"
+    },
+    "storage": {
+      "$ref": "#/$defs/StorageConfig"
+    },
+    "security": {
+      "$ref": "#/$defs/SecurityConfig"
+    },
+    "application": {
+      "$ref": "#/$defs/ApplicationConfig"
+    }
+  },
+  "required": [
+    "version",
+    "runtime",
+    "storage",
+    "security",
+    "application"
+  ],
+  "title": "ADSMOD v3 configuration",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

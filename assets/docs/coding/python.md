@@ -1,6 +1,6 @@
 # ADSMOD Python Rules
 
-Last updated: 2026-08-02
+Last updated: 2026-08-20
 
 ## Runtime And Environment
 
@@ -22,11 +22,14 @@ Last updated: 2026-08-02
 
 ## Validation And API Contracts
 
-- Use Pydantic or domain models for request and response validation.
+- Use Pydantic contracts for request, response, and workflow validation.
 - Avoid ad-hoc manual validation for payload shapes already represented by models.
 - Return explicit HTTP status codes.
 - Keep response models consistent and stable.
 - Ensure error payloads are safe for clients and traceable through logs or job state.
+- `adsmod_common.config.AdsmodConfig` is the only configuration-shape authority;
+  `shared.common.settings` may only project its validated values into runtime
+  dataclasses.
 
 ## Async And Long-Running Work
 
@@ -46,9 +49,17 @@ Last updated: 2026-08-02
 - Keep imports at the file top.
 - Avoid nested function definitions unless strict locality is necessary.
 - Use classes when they improve cohesion.
+- `core_service/contracts`, `ml_service/contracts`, and `shared/contracts` are
+  transport/workflow contract packages. They are not nominal domain entities,
+  ORM models, or controller modules.
+- `shared.services.units.UnitRegistry` is the single source for scientific unit
+  aliases, factors, parsing, and conversion. ML conversion code orchestrates
+  DataFrame columns around it and must not duplicate factors.
 
 ## Service Boundary Rules
 
 - `core_service` may depend on `shared`, but not on `ml_service`.
 - `shared` must not depend on either service package.
 - `core_service` must not import ML-heavy libraries such as `torch`, `keras`, or `scikit-learn`.
+- The v3 packages under `app/backend` must not import transitional service or
+  shared packages. Do not add compatibility re-exports or old import paths.

@@ -13,7 +13,7 @@ import pandas as pd
 
 from shared.common.settings import get_server_settings
 from shared.common.utils.logger import logger
-from core_service.domain.nist import (
+from core_service.contracts.nist import (
     NISTCategory,
     NISTCategoryFetchRequest,
     NISTFetchRequest,
@@ -26,7 +26,7 @@ from core_service.services.data.nistads import (
 from core_service.services.data.nist_mapper import NISTCanonicalMapper
 from shared.repositories.nist import NISTRepository
 from shared.services.pubchem import PubChemClient
-from shared.models.jobs import (
+from shared.contracts.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,

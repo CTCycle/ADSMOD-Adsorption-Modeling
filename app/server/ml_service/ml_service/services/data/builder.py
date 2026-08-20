@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 
 from shared.common.utils.logger import logger
-from ml_service.domain.training import TrainingMetadata
+from ml_service.contracts.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
 from ml_service.services.data.conversion import PQ_units_conversion
 from ml_service.services.data.sanitizer import (

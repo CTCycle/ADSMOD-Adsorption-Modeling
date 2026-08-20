@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 
-from core_service.services.data.units import UnitRegistry, parse_number
+from shared.services.units import UnitRegistry, parse_number
 from shared.repositories.datasets import stable_material_key
 
 ###############################################################################

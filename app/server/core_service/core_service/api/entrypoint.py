@@ -4,7 +4,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import RedirectResponse
 
 from core_service.configurations.startup import public_host_mode_enabled
-from core_service.domain.bootstrap import ServiceStatusResponse
+from core_service.contracts.bootstrap import ServiceStatusResponse
 
 health_router = APIRouter()
 

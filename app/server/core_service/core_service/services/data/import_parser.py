@@ -12,8 +12,8 @@ from typing import Any
 
 import pandas as pd
 
-from core_service.domain.datasets import ColumnDetection
-from core_service.services.data.units import detect_header_unit, parse_number
+from core_service.contracts.datasets import ColumnDetection
+from shared.services.units import detect_header_unit, parse_number
 
 
 ROLE_ALIASES: dict[str, set[str]] = {
