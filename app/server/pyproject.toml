@@ -31,3 +31,6 @@ torch = { index = "pytorch-cu130" }
 script_location = "%(here)s/migrations"
 prepend_sys_path = ["."]
 path_separator = "os"
+
+[tool.pytest.ini_options]
+cache_dir = "../tests/cache/pytest"

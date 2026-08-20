@@ -55,6 +55,17 @@ directory must contain `adsmod.json`.
 
 The same `start_on_windows.ps1` menu owns dependency installation, database initialization, tests, log removal, cache cleanup, and uninstall operations.
 
+Disposable cache locations are fixed by the launcher and test runner:
+
+- `runtimes/cache` contains uv, npm, pip, and runtime temporary files.
+- `app/tests/cache` contains Angular, pytest, Ruff, mypy, Python bytecode,
+  coverage, and pytest temporary files.
+
+The **Clear cache** menu option removes the contents of both locations and
+cleans up legacy Python cache directories. Files that require administrator
+rights or are otherwise locked are warned about and skipped so cleanup can
+continue.
+
 ## Unified Backend Startup
 
 From the repository root:

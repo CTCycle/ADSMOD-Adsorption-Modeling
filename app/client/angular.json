@@ -77,6 +77,10 @@
     }
   },
   "cli": {
-    "analytics": false
+    "analytics": false,
+    "cache": {
+      "enabled": true,
+      "path": "../tests/cache/angular"
+    }
   }
 }
