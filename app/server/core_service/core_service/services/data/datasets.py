@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from core_service.domain.datasets import (
+from core_service.contracts.datasets import (
     DatasetImportResponse,
     DatasetListResponse,
     DatasetMetadata,
@@ -20,7 +20,7 @@ from core_service.domain.datasets import (
     SupportedUnitsResponse,
 )
 from core_service.services.data.importer import AdsorptionImportEngine, PARSER_VERSION
-from core_service.services.data.units import UnitRegistry
+from shared.services.units import UnitRegistry
 from shared.repositories.datasets import DatasetRepository
 
 ###############################################################################

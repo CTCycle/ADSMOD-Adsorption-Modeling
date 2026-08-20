@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-08-02
+Last updated: 2026-08-20
 
 Canonical architecture details live in:
 
@@ -10,7 +10,10 @@ Canonical architecture details live in:
 - [`architecture/api_surface.md`](api_surface.md)
 - [`architecture/persistence_and_packages.md`](persistence_and_packages.md)
 - [`architecture/v3_migration_status.md`](v3_migration_status.md)
-  - Canonical v3 packages, internal snapshot contract, and migration boundary.
+- [`architecture/findings_and_remediation.md`](findings_and_remediation.md)
 
-The repository currently contains two backend generations: the canonical v3 packages
-under `app/backend` and the transitional service workspace under `app/server`.
+The repository currently contains two backend generations: the v3 package
+boundaries under `app/backend` and the launcher-selected active service
+workspace under `app/server`. The active workspace is not a compatibility
+layer; it is the current public runtime until each vertical slice is replaced
+atomically.

@@ -1,17 +1,19 @@
 # ADSMOD Runtime Configuration
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Canonical v3 Configuration
 
-- Configuration file: `<resource directory>/adsmod.json` (`app/resources` by default)
-- Validation schema: `<resource directory>/adsmod.schema.json`
+- Runtime value file: `<resource directory>/adsmod.json` (`app/resources` by default)
+- Generated validation schema: `<resource directory>/adsmod.schema.json`
+- Configuration-shape authority: `adsmod_common.config.AdsmodConfig`
 - Required sections: `version`, `runtime`, `storage`, `security`, and `application`
 - Supported runtime modes: `core` and `core-ml`
 - The v3 core CLI receives the configuration explicitly through `--config`.
 
-All backend packages and the launcher read this file. There are no service-specific
-configuration files or configuration-path aliases. The selected resource directory
+All backend packages, the launcher, and the frontend proxy read this value file.
+There are no service-specific configuration files, configuration-path aliases,
+duplicate validators, or fallback locations. The selected resource directory
 must contain both canonical configuration files.
 
 ## Environment Variables
@@ -35,6 +37,8 @@ The canonical `application` section contains:
 - dataset, NIST, fitting, job, and training defaults
 
 The `runtime` section is the only source for backend, ML, and frontend hosts and ports.
+The active `shared.common.settings` module returns typed projections of these
+models; it does not parse JSON or accept independent dictionaries.
 
 ## Mode-Specific Configuration Behavior
 

@@ -28,7 +28,7 @@ def test_missing_canonical_sections_are_rejected(tmp_path: Path) -> None:
     config_path = tmp_path / "invalid_config.json"
     config_path.write_text(json.dumps({"version": "3.0.0"}), encoding="utf-8")
     try:
-        with pytest.raises(ValueError, match="missing required sections"):
+        with pytest.raises(ValidationError):
             load_config(config_path)
     finally:
         config_path.unlink(missing_ok=True)

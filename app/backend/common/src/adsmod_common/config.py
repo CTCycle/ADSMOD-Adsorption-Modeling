@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 RuntimeMode = Literal["core", "core-ml"]
 
@@ -14,20 +14,28 @@ class StrictModel(BaseModel):
 
 ###############################################################################
 class RuntimeConfig(StrictModel):
-    mode: RuntimeMode = "core"
-    host: str = "127.0.0.1"
-    core_port: int = Field(default=6045, ge=1024, le=65535)
-    ml_port: int = Field(default=6046, ge=1024, le=65535)
-    frontend_port: int = Field(default=5173, ge=1024, le=65535)
-    ml_restart_attempts: int = Field(default=0, ge=0, le=1)
+    mode: RuntimeMode
+    host: str
+    core_port: int = Field(ge=1024, le=65535)
+    ml_port: int = Field(ge=1024, le=65535)
+    frontend_port: int = Field(ge=1024, le=65535)
+    ml_restart_attempts: int = Field(ge=0, le=1)
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_runtime(self) -> "RuntimeConfig":
-        ports = {"core_port": self.core_port, "ml_port": self.ml_port, "frontend_port": self.frontend_port}
-        duplicates = {port for port in ports.values() if list(ports.values()).count(port) > 1}
+        ports = {
+            "core_port": self.core_port,
+            "ml_port": self.ml_port,
+            "frontend_port": self.frontend_port,
+        }
+        duplicates = {
+            port for port in ports.values() if list(ports.values()).count(port) > 1
+        }
         if duplicates:
-            names = ", ".join(name for name, port in ports.items() if port in duplicates)
+            names = ", ".join(
+                name for name, port in ports.items() if port in duplicates
+            )
             raise ValueError(f"runtime ports must be distinct: {names}")
         if self.host not in {"127.0.0.1", "localhost", "::1"}:
             raise ValueError("runtime.host must be a loopback address")
@@ -37,35 +45,153 @@ class RuntimeConfig(StrictModel):
 
 ###############################################################################
 class StorageConfig(StrictModel):
-    root: Path = Path("%LOCALAPPDATA%/ADSMOD")
-    database: str = "data/database.db"
+    root: Path
+    database: str
 
 ###############################################################################
 class SecurityConfig(StrictModel):
-    internal_token_required: bool = True
+    internal_token_required: bool
+
+###############################################################################
+class DatabaseConfig(StrictModel):
+    embedded_database: bool
+    engine: str = "postgres"
+    host: str | None = None
+    port: int = Field(default=5432, ge=1, le=65535)
+    database_name: str | None = None
+    username: str | None = None
+    password: str | None = None
+    ssl: bool = False
+    ssl_ca: str | None = None
+    connect_timeout: int = Field(default=30, ge=1)
+    insert_batch_size: int = Field(default=5000, ge=1)
+    sqlite_path: str | None
+
+    # -------------------------------------------------------------------------
+    @field_validator(
+        "host",
+        "database_name",
+        "username",
+        "password",
+        "ssl_ca",
+        "sqlite_path",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_strings(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    # -------------------------------------------------------------------------
+    @field_validator("engine", mode="before")
+    @classmethod
+    def normalize_engine(cls, value: Any) -> str:
+        text = str(value).strip() if value is not None else ""
+        return text or "postgres"
+
+###############################################################################
+class DatasetConfig(StrictModel):
+    allowed_extensions: tuple[str, ...]
+    column_detection_cutoff: float = Field(ge=0.0, le=1.0)
+
+    # -------------------------------------------------------------------------
+    @field_validator("allowed_extensions", mode="before")
+    @classmethod
+    def normalize_extensions(cls, value: Any) -> tuple[str, ...]:
+        if value is None:
+            return (".csv", ".xls", ".xlsx")
+        if isinstance(value, str):
+            values = [value]
+        elif isinstance(value, (list, tuple, set)):
+            values = [str(item) for item in value]
+        else:
+            raise ValueError("datasets.allowed_extensions must be a sequence or string")
+
+        cleaned = tuple(part.strip() for part in values if str(part).strip())
+        if not cleaned:
+            raise ValueError("datasets.allowed_extensions must not be empty")
+        return cleaned
+
+###############################################################################
+class NISTConfig(StrictModel):
+    parallel_tasks: int = Field(ge=1)
+    pubchem_parallel_tasks: int = Field(ge=1)
+
+###############################################################################
+class FittingConfig(StrictModel):
+    default_max_iterations: int = Field(ge=1)
+    max_iterations_upper_bound: int = Field(ge=1)
+    default_parameter_initial: float = Field(ge=0.0)
+    default_parameter_min: float = Field(ge=0.0)
+    default_parameter_max: float = Field(ge=0.0)
+    preview_row_limit: int = Field(ge=1)
+    best_model_metric: str
+
+    # -------------------------------------------------------------------------
+    @field_validator("best_model_metric", mode="before")
+    @classmethod
+    def normalize_metric(cls, value: Any) -> str:
+        text = str(value).strip() if value is not None else ""
+        return text or "AICc"
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_bounds(self) -> "FittingConfig":
+        if self.max_iterations_upper_bound < self.default_max_iterations:
+            raise ValueError(
+                "fitting.max_iterations_upper_bound must be >= fitting.default_max_iterations"
+            )
+        if self.default_parameter_max < self.default_parameter_min:
+            raise ValueError(
+                "fitting.default_parameter_max must be >= fitting.default_parameter_min"
+            )
+        return self
+
+###############################################################################
+class JobConfig(StrictModel):
+    polling_interval: float = Field(ge=0.0)
+
+###############################################################################
+class TrainingConfig(StrictModel):
+    use_jit: bool = False
+    jit_backend: str = "inductor"
+    use_mixed_precision: bool = False
+    dataloader_workers: int = Field(default=0, ge=0)
+    persistent_workers: bool
+
+    # -------------------------------------------------------------------------
+    @field_validator("jit_backend", mode="before")
+    @classmethod
+    def normalize_backend(cls, value: Any) -> str:
+        text = str(value).strip() if value is not None else ""
+        return text or "inductor"
 
 ###############################################################################
 class ApplicationConfig(StrictModel):
-    database: dict[str, Any] = Field(default_factory=dict)
-    datasets: dict[str, Any] = Field(default_factory=dict)
-    nist: dict[str, Any] = Field(default_factory=dict)
-    fitting: dict[str, Any] = Field(default_factory=dict)
-    jobs: dict[str, Any] = Field(default_factory=dict)
-    training: dict[str, Any] = Field(default_factory=dict)
+    database: DatabaseConfig
+    datasets: DatasetConfig
+    nist: NISTConfig
+    fitting: FittingConfig
+    jobs: JobConfig
+    training: TrainingConfig
 
 ###############################################################################
 class AdsmodConfig(StrictModel):
-    version: Literal["3.0.0"] = "3.0.0"
-    runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
-    storage: StorageConfig = Field(default_factory=StorageConfig)
-    security: SecurityConfig = Field(default_factory=SecurityConfig)
-    application: ApplicationConfig = Field(default_factory=ApplicationConfig)
+    version: Literal["3.0.0"]
+    runtime: RuntimeConfig
+    storage: StorageConfig
+    security: SecurityConfig
+    application: ApplicationConfig
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_mode_security(self) -> "AdsmodConfig":
         if self.runtime.mode == "core-ml" and not self.security.internal_token_required:
-            raise ValueError("security.internal_token_required must be true in core-ml mode")
+            raise ValueError(
+                "security.internal_token_required must be true in core-ml mode"
+            )
         return self
 
 ###############################################################################
@@ -79,12 +205,21 @@ def load_config(path: str | Path) -> AdsmodConfig:
         raise ValueError(f"configuration is not valid JSON: {config_path}") from exc
     if not isinstance(payload, dict):
         raise ValueError("configuration root must be a JSON object")
-    required_sections = {"version", "runtime", "storage", "security", "application"}
-    missing_sections = required_sections.difference(payload)
-    if missing_sections:
-        missing = ", ".join(sorted(missing_sections))
-        raise ValueError(f"configuration is missing required sections: {missing}")
     return AdsmodConfig.model_validate(payload)
 
 
-__all__ = ["AdsmodConfig", "ApplicationConfig", "RuntimeConfig", "RuntimeMode", "SecurityConfig", "StorageConfig", "load_config"]
+__all__ = [
+    "AdsmodConfig",
+    "ApplicationConfig",
+    "DatabaseConfig",
+    "DatasetConfig",
+    "FittingConfig",
+    "JobConfig",
+    "NISTConfig",
+    "RuntimeConfig",
+    "RuntimeMode",
+    "SecurityConfig",
+    "StorageConfig",
+    "TrainingConfig",
+    "load_config",
+]

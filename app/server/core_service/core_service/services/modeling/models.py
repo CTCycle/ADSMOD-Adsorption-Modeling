@@ -5,7 +5,7 @@ from typing import Callable, Literal
 
 import numpy as np
 
-from core_service.services.data.units import UnitRegistry
+from shared.services.units import UnitRegistry
 
 
 PressureBasis = Literal["absolute", "partial", "relative"]

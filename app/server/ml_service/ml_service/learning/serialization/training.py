@@ -7,7 +7,7 @@ import json
 
 import pandas as pd
 
-from ml_service.domain.training import TrainingMetadata
+from ml_service.contracts.training import TrainingMetadata
 from shared.common.utils.logger import logger
 from shared.repositories.queries.training import TrainingRepositoryQueries
 

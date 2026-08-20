@@ -48,6 +48,17 @@ dev = [
 ]
 
 [[package]]
+name = "adsmod-common"
+version = "3.0.0"
+source = { directory = "../backend/common" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = "==2.13.4" }]
+
+[[package]]
 name = "adsmod-core-service"
 version = "3.0.0"
 source = { editable = "core_service" }
@@ -108,6 +119,7 @@ name = "adsmod-shared"
 version = "3.0.0"
 source = { editable = "shared" }
 dependencies = [
+    { name = "adsmod-common" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
@@ -118,6 +130,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "adsmod-common", directory = "../backend/common" },
     { name = "numpy", specifier = "==2.5.2" },
     { name = "pandas", specifier = "==3.0.5" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.4" },

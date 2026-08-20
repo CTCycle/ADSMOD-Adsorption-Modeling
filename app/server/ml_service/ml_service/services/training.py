@@ -6,7 +6,7 @@ from typing import Any
 
 from shared.common.utils.logger import logger
 from shared.common.settings import get_server_settings
-from ml_service.domain.training import (
+from ml_service.contracts.training import (
     CheckpointDetailInfo,
     CheckpointFullDetailsResponse,
     CheckpointsResponse,
@@ -29,7 +29,7 @@ from ml_service.learning.training.worker import ProcessWorker
 from ml_service.services.data.builder import DatasetBuilder, DatasetBuilderConfig
 from ml_service.services.data.composition import DatasetCompositionService
 from shared.common.paths import CHECKPOINTS_DIR
-from shared.models.jobs import (
+from shared.contracts.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,

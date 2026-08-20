@@ -5,6 +5,7 @@ from collections.abc import Callable
 import pandas as pd
 
 from shared.common.utils.logger import logger
+from shared.services.units import UnitConversionError, UnitRegistry, normalize_token
 
 ###############################################################################
 def map_values(
@@ -25,241 +26,104 @@ def map_values(
         return None
     return converter(float(values))
 
-
-# [CONVERSION OF PRESSURE]
-
 ###############################################################################
 class PressureConversion:
+    """Apply the canonical unit registry to pressure columns."""
 
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.P_COL = "pressure"
-        self.P_UNIT_COL = "pressure_units"
-        self.conversions: dict[
-            str,
-            Callable[
-                [list[int | float] | int | float | None],
-                list[float] | float | None,
-            ],
-        ] = {
-            "bar": self.bar_to_pascal,
-            "pa": self.pascal_identity,
-            "kpa": self.kpa_to_pascal,
-            "mpa": self.mpa_to_pascal,
-            "atm": self.atm_to_pascal,
-            "torr": self.torr_to_pascal,
-            "mmhg": self.torr_to_pascal,
-            "psi": self.psi_to_pascal,
-        }
+    P_COL = "pressure"
+    P_UNIT_COL = "pressure_units"
 
     # -------------------------------------------------------------------------
     @staticmethod
     def normalize_unit(unit: object) -> str:
-        if unit is None or pd.isna(unit):
-            return ""
-        return " ".join(str(unit).strip().lower().split())
+        return normalize_token(unit)
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def bar_to_pascal(
-        p_vals: list[int | float] | int | float | None,
+    def convert_values(
+        values: list[int | float] | int | float | None,
+        unit: object,
     ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value * 100000.0)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def pascal_identity(
-        p_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def kpa_to_pascal(
-        p_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value * 1000.0)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def mpa_to_pascal(
-        p_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value * 1000000.0)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def atm_to_pascal(
-        p_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value * 101325.0)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def torr_to_pascal(
-        p_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value * 133.322)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def psi_to_pascal(
-        p_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(p_vals, lambda value: value * 6894.757)
+        try:
+            resolved = UnitRegistry.pressure_unit(unit)
+            factor = UnitRegistry.PRESSURE_TO_PA.get(resolved)
+        except UnitConversionError:
+            return values
+        if factor is None:
+            return values
+        return map_values(values, lambda value: value * factor)
 
     # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        unit_column = None
-        if self.P_UNIT_COL in dataframe.columns:
-            unit_column = self.P_UNIT_COL
-
-        if unit_column is None or self.P_COL not in dataframe.columns:
+        if self.P_UNIT_COL not in dataframe.columns or self.P_COL not in dataframe.columns:
             logger.debug("Pressure conversion skipped (missing pressure columns).")
             return dataframe
 
         dataframe[self.P_COL] = dataframe.apply(
-            lambda row: self.conversions.get(
-                self.normalize_unit(row.get(unit_column)), lambda x: x
-            )(row.get(self.P_COL)),
+            lambda row: self.convert_values(row.get(self.P_COL), row.get(self.P_UNIT_COL)),
             axis=1,
         )
-        dataframe = dataframe.drop(columns=unit_column)
-
-        return dataframe
-
-
-# [CONVERSION OF UPTAKE]
+        return dataframe.drop(columns=self.P_UNIT_COL)
 
 ###############################################################################
 class UptakeConversion:
+    """Apply canonical uptake conversions while preserving the ML frame shape."""
 
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.Q_COL = "adsorbed_amount"
-        self.Q_UNIT_COL = "adsorption_units"
-        self.mol_weight = "adsorbate_molecular_weight"
-
-        self.weight_units = {
-            "mg/g",
-            "g/g",
-            "wt%",
-            "g adsorbate / 100g adsorbent",
-            "g/100g",
-        }
-        self.conversions: dict[str, Callable[..., list[float] | float | None]] = {
-            "mmol/g": self.convert_mmol_g_or_mol_kg,
-            "mol/kg": self.convert_mmol_g_or_mol_kg,
-            "mmol/kg": self.convert_mmol_kg,
-            "mg/g": self.convert_mg_g,
-            "g/g": self.convert_g_g,
-            "wt%": self.convert_wt_percent,
-            "g adsorbate / 100g adsorbent": self.convert_g_adsorbate_per_100g_adsorbent,
-            "g/100g": self.convert_g_adsorbate_per_100g_adsorbent,
-            "ml(stp)/g": self.convert_ml_stp_g_or_cm3_stp_g,
-            "cm3(stp)/g": self.convert_ml_stp_g_or_cm3_stp_g,
-        }
+    Q_COL = "adsorbed_amount"
+    Q_UNIT_COL = "adsorption_units"
+    MOLAR_MASS_COL = "adsorbate_molecular_weight"
+    WEIGHT_UNITS = {"mg/g", "g/g", "wt%"}
 
     # -------------------------------------------------------------------------
     @staticmethod
     def normalize_unit(unit: object) -> str:
-        if unit is None or pd.isna(unit):
-            return ""
-        return " ".join(str(unit).strip().lower().split())
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_mmol_g_or_mol_kg(
-        q_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(q_vals, lambda value: value)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_mmol_kg(
-        q_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(q_vals, lambda value: value / 1000.0)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_mg_g(
-        q_vals: list[int | float] | int | float | None, mol_weight: float
-    ) -> list[float] | float | None:
-        return map_values(q_vals, lambda value: value / float(mol_weight))
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_g_g(
-        q_vals: list[int | float] | int | float | None, mol_weight: float
-    ) -> list[float] | float | None:
-        return map_values(q_vals, lambda value: value / float(mol_weight) * 1000.0)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_wt_percent(
-        q_vals: list[int | float] | int | float | None, mol_weight: float
-    ) -> list[float] | float | None:
-        return map_values(
-            q_vals, lambda value: (value / 100.0) / float(mol_weight) * 1000.0
-        )
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_g_adsorbate_per_100g_adsorbent(
-        q_vals: list[int | float] | int | float | None, mol_weight: float
-    ) -> list[float] | float | None:
-        return UptakeConversion.convert_wt_percent(q_vals, mol_weight)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def convert_ml_stp_g_or_cm3_stp_g(
-        q_vals: list[int | float] | int | float | None,
-    ) -> list[float] | float | None:
-        return map_values(q_vals, lambda value: value / 22.414)
+        return normalize_token(unit)
 
     # -------------------------------------------------------------------------
     def convert_uptake_row(
         self, row: pd.Series, unit_column: str
     ) -> list[float] | float | None:
-        unit = self.normalize_unit(row.get(unit_column))
         values = row.get(self.Q_COL)
-        converter = self.conversions.get(unit)
-        if converter is None:
+        try:
+            resolved = UnitRegistry.uptake_unit(row.get(unit_column))
+        except UnitConversionError:
             return values
-        if unit in self.weight_units:
-            mol_weight = row.get(self.mol_weight)
-            if mol_weight in (None, 0, "") or pd.isna(mol_weight):
-                return values
-            return converter(values, mol_weight)
-        return converter(values)
+
+        molar_mass = row.get(self.MOLAR_MASS_COL)
+        if resolved in self.WEIGHT_UNITS and (
+            molar_mass in (None, 0, "") or pd.isna(molar_mass)
+        ):
+            return values
+
+        def convert(value: float) -> float:
+            return UnitRegistry.convert_uptake(
+                value,
+                resolved,
+                None if molar_mass is None else float(molar_mass),
+            ).canonical_value
+
+        try:
+            return map_values(values, convert)
+        except (TypeError, ValueError, UnitConversionError):
+            return values
 
     # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        unit_column = None
-        if self.Q_UNIT_COL in dataframe.columns:
-            unit_column = self.Q_UNIT_COL
-
-        if unit_column is None or self.Q_COL not in dataframe.columns:
+        if self.Q_UNIT_COL not in dataframe.columns or self.Q_COL not in dataframe.columns:
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 
         dataframe[self.Q_COL] = [
-            self.convert_uptake_row(row, unit_column) for _, row in dataframe.iterrows()
+            self.convert_uptake_row(row, self.Q_UNIT_COL)
+            for _, row in dataframe.iterrows()
         ]
-        dataframe = dataframe.drop(columns=unit_column)
-
-        return dataframe
+        return dataframe.drop(columns=self.Q_UNIT_COL)
 
 ###############################################################################
 def PQ_units_conversion(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Convert pressure to Pascal and uptake to mmol/g, removing unit columns."""
+    """Convert pressure and uptake to canonical values and remove unit columns."""
     if dataframe.empty:
         return dataframe
 
-    P_converter = PressureConversion()
-    Q_converter = UptakeConversion()
-    converted_data = P_converter.convert_pressure_units(dataframe)
-    converted_data = Q_converter.convert_uptake_data(converted_data)
-
-    return converted_data
+    converted_data = PressureConversion().convert_pressure_units(dataframe)
+    return UptakeConversion().convert_uptake_data(converted_data)

@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-08-02
+Last updated: 2026-08-20
 
 ## Purpose
 
@@ -43,6 +43,8 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
   - Shared backend workspace, persistence ownership, and validation expectations.
 - [`architecture/v3_migration_status.md`](architecture/v3_migration_status.md)
   - Canonical v3 package boundaries, snapshot contracts, and configuration.
+- [`architecture/findings_and_remediation.md`](architecture/findings_and_remediation.md)
+  - Current findings, priorities, target state, and incremental remediation.
 
 ### Coding
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from keras.models import load_model
 
-from ml_service.domain.training import TrainingMetadata
+from ml_service.contracts.training import TrainingMetadata
 from ml_service.learning.metrics import (
     MaskedMeanSquaredError,
     MaskedRSquared,

@@ -6,6 +6,8 @@
 [![CTCycle Portfolio](https://img.shields.io/badge/CTCycle-Portfolio-58a6ff?style=flat-square)](https://ctcycle.github.io/CTCycle/)
 [![CI](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml?query=branch%3Adevelop)
 
+Last updated: 2026-08-20
+
 ## 1. Project Overview
 
 ADSMOD is a comprehensive web application designed for the collection, management, and modeling of adsorption data. This project represents the evolution and unification of two predecessor projects: **ADSORFIT** and **NISTADS Adsorption Modeling** (the former name of this repository).
@@ -22,6 +24,13 @@ ADSMOD is a comprehensive web application designed for the collection, managemen
   - `app/backend/ml` (`adsmod-ml` ML health, capabilities, and snapshot client)
 - Frontend: `app/client` (Angular UI for datasets, fitting, dashboards, and training)
 - In development proxy mode, `/api/training/*` targets the optional ML service and other `/api/*` traffic targets the core service.
+
+The launcher-selected `app/server` runtime and the extracted `app/backend` v3
+packages are documented separately in
+[`assets/docs/architecture/overview.md`](assets/docs/architecture/overview.md).
+The active runtime is the current HTTP contract; v3 cutovers replace each
+vertical slice atomically and delete the superseded implementation. No internal
+compatibility aliases or fallback configuration paths are provided.
 
 By merging the capabilities of these systems into a single, cohesive platform, ADSMOD provides a robust workflow for researchers and material scientists. The application allows users to:
 - **Collect** adsorption isotherms from the NIST Adsorption Database.
@@ -96,6 +105,10 @@ Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select
 Hosts, ports, storage, and application defaults are read from the canonical file:
 
 - `app/resources/adsmod.json`
+
+Its shape is validated only by `adsmod_common.config.AdsmodConfig`; the checked-in
+`app/resources/adsmod.schema.json` is generated from that model. Transport and
+workflow Pydantic types live under service/shared `contracts` packages.
 
 Use `settings/.env` for operational toggles such as log visibility, reload, and
 scientific backend selection. `ADSMOD_RESOURCES_DIR` may

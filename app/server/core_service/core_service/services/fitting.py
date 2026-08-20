@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 
 from shared.common.settings import get_server_settings
-from core_service.domain.fitting import (
+from core_service.contracts.fitting import (
     FittingRequest,
     FittingResponse,
     ModelCatalogResponse,
@@ -22,7 +22,7 @@ from core_service.services.modeling.fitting import (
     parameter_unit,
 )
 from shared.common.utils.logger import logger
-from shared.models.jobs import (
+from shared.contracts.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,

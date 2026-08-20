@@ -1,6 +1,6 @@
 # ADSMOD API Surface
 
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
 ## Core Service Scope
 
@@ -61,3 +61,93 @@ core snapshot contracts; they do not replace this transitional `/api` surface.
 `app.server.app:app` entrypoint with `ADSMOD_ENABLE_ML=true`. It contains both
 core and training routes. The service-specific `core_openapi.json` and
 `ml_openapi.json` snapshots remain available for isolated service consumers.
+
+OpenAPI is a derived contract: regenerate it from the running FastAPI
+applications after route changes; do not edit the snapshots as source files.
+
+## Critical flows
+
+### Dataset import and fitting (current runtime)
+
+```mermaid
+sequenceDiagram
+    participant UI as Angular client
+    participant API as core_service API
+    participant Import as DatasetService/importer
+    participant Repo as shared repositories
+    participant DB as SQLite/PostgreSQL
+    participant Fit as FittingService
+
+    UI->>API: POST /api/datasets/import/preview
+    API->>Import: parse and validate upload
+    Import-->>API: preview contract
+    API-->>UI: preview response
+    UI->>API: POST /api/datasets/import/commit
+    API->>Import: commit validated dataset
+    Import->>Repo: persist dataset, isotherm, observations
+    Repo->>DB: transaction
+    DB-->>Repo: generated identifiers
+    Repo-->>API: dataset response contract
+    API-->>UI: commit response
+    UI->>API: POST fitting request
+    API->>Fit: start fitting job
+    Fit->>Repo: load canonical observations
+    Repo->>DB: query
+    Fit-->>API: job response contract
+    API-->>UI: job id and polling interval
+```
+
+The current job state is held by the in-memory shared `JobManager`; it is not a
+durable queue. Fitting results are persisted in `fitting_runs`, `fit_results`,
+and `fit_parameters`.
+
+### Training data and execution (current runtime)
+
+```mermaid
+sequenceDiagram
+    participant UI as Angular client
+    participant API as ml_service API
+    participant Service as TrainingService
+    participant Repo as shared training repositories
+    participant DB as Operational database
+    participant Runner as TrainingJobRunner
+    participant Files as Checkpoint files
+
+    UI->>API: POST /api/training/build-dataset
+    API->>Service: build dataset request
+    Service->>Repo: read source data
+    Repo->>DB: query shared ORM tables
+    Service-->>API: dataset/job contract
+    API-->>UI: job status
+    UI->>API: POST /api/training/start
+    API->>Service: start training
+    Service->>Runner: launch thread/process job
+    Runner->>Files: write checkpoints and history
+    UI->>API: GET /api/training/jobs/{job_id}
+    API-->>UI: in-memory job status
+```
+
+### Training data and execution (target v3 flow)
+
+```mermaid
+sequenceDiagram
+    participant Core as adsmod-core
+    participant Snap as training_snapshots store
+    participant ML as adsmod-ml
+    participant Client as CoreSnapshotClient
+    participant Runner as ML training runner
+    participant Files as ML checkpoints
+
+    Core->>Snap: write immutable snapshot
+    ML->>Client: request snapshot pages with token
+    Client->>Core: GET /api/v1/internal/snapshots/{snapshot_id}
+    Core->>Snap: read page and hash
+    Snap-->>Core: canonical page
+    Core-->>Client: page + SHA-256
+    Client-->>ML: verified training rows
+    ML->>Runner: execute training
+    Runner->>Files: persist checkpoints
+```
+
+The v3 flow removes ML's direct access to the operational database. It is a
+target migration, not the behavior of the launcher-selected runtime today.

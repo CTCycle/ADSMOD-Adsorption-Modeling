@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import delete, select
 
-from ml_service.domain.training import TrainingMetadata
+from ml_service.contracts.training import TrainingMetadata
 from ml_service.learning.serialization.training import TrainingDataSerializer
 from shared.common.settings import get_server_settings
 from shared.repositories.database.manager import DatabaseManager

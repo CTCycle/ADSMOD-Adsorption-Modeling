@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from core_service.domain.datasets import (
+from core_service.contracts.datasets import (
     ColumnDetection,
     ImportIssue,
     ImportMapping,
@@ -23,7 +23,7 @@ from core_service.services.data.import_parser import (
     safe_cell,
     source_hash,
 )
-from core_service.services.data.units import (
+from shared.services.units import (
     UnitConversionError,
     UnitRegistry,
     parse_number,

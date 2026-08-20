@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
 
-from core_service.domain.fitting import (
+from core_service.contracts.fitting import (
     FittingRequest,
     ModelCatalogResponse,
     PersistedRunResponse,
@@ -10,7 +10,7 @@ from core_service.domain.fitting import (
 from core_service.services.container import CoreServiceContainer
 from core_service.services.fitting import FittingService
 from shared.common.constants import FITTING_JOBS_ENDPOINT, FITTING_JOB_STATUS_ENDPOINT, FITTING_ROUTER_PREFIX, FITTING_RUN_ENDPOINT
-from shared.models.jobs import JobCancelResponse, JobListResponse, JobStartResponse, JobStatusResponse
+from shared.contracts.jobs import JobCancelResponse, JobListResponse, JobStartResponse, JobStatusResponse
 
 ###############################################################################
 class FittingEndpoint:

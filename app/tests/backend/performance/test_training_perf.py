@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from ml_service.domain.training import TrainingConfigRequest
+from ml_service.contracts.training import TrainingConfigRequest
 from app.tests.backend.performance.dataset import (
     SyntheticDatasetSpec,
     clear_synthetic_training_dataset,

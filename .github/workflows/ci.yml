@@ -40,17 +40,19 @@ jobs:
       - name: Backend import validation
         run: |
           uv sync --project app/server --all-packages --group dev
-          uv run --project app/server python -c "import core_service.app; import ml_service.app; import app.server.app"
-          uv run --project app/server ruff check app/server
+          PYTHONPATH=app/backend/common/src:app/backend/core/src:app/backend/ml/src uv run --project app/server python -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app; import core_service.app; import ml_service.app; import app.server.app"
+          uv run --project app/server ruff check app/server app/backend app/tests
           DATABASE_EMBEDDED=true uv run --project app/server python -m pytest app/tests/persistence -v
           DATABASE_EMBEDDED=false DATABASE_ENGINE=postgres DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_NAME=adsmod_test DATABASE_USERNAME=postgres DATABASE_PASSWORD=postgres uv run --project app/server python -m pytest app/tests/persistence -v
           uv run --project app/server python -m pytest app/tests/backend --ignore app/tests/backend/performance
           uv run --project app/server python -m pytest app/tests/unit
           uv run --project app/server python -m pytest app/tests/server
+          PYTHONPATH=app/backend/common/src:app/backend/core/src:app/backend/ml/src uv run --project app/server python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests -v
           uv run --project app/server python app/scripts/generate_openapi.py --app core_service.app:app --output app/shared/core_openapi.json
           uv run --project app/server python app/scripts/generate_openapi.py --app ml_service.app:app --output app/shared/ml_openapi.json
           ADSMOD_ENABLE_ML=true uv run --project app/server python -m app.scripts.generate_openapi --app app.server.app:app --output app/shared/openapi.json
-          git diff --exit-code -- app/shared/core_openapi.json app/shared/ml_openapi.json app/shared/openapi.json
+          uv run --project app/server python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
+          git diff --exit-code -- app/shared/core_openapi.json app/shared/ml_openapi.json app/shared/openapi.json app/resources/adsmod.schema.json
 
   frontend-build:
     runs-on: ubuntu-latest

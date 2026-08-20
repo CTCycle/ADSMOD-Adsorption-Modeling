@@ -1,4 +1,4 @@
-"""Shared Pydantic schemas for background job responses."""
+"""Shared Pydantic transport/workflow contracts for background jobs."""
 
 from __future__ import annotations
 
