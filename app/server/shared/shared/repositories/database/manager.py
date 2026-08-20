@@ -52,13 +52,26 @@ class DatabaseManager:
     # -------------------------------------------------------------------------
     def _create_engine(self) -> Engine:
         if self.backend == "sqlite":
+            sqlite_connect_args: dict[str, Any] = {
+                "check_same_thread": False,
+                "autocommit": False,
+            }
             if self.settings.sqlite_path == ":memory:":
-                engine = create_engine("sqlite:///:memory:", future=True, connect_args={"check_same_thread": False})
+                engine = create_engine(
+                    "sqlite:///:memory:",
+                    future=True,
+                    connect_args=sqlite_connect_args,
+                )
                 event.listen(engine, "connect", self._configure_sqlite)
                 return engine
             path = resolve_sqlite_path(self.settings)
             path.parent.mkdir(parents=True, exist_ok=True)
-            engine = create_engine(f"sqlite:///{path}", future=True, connect_args={"timeout": self.settings.connect_timeout, "check_same_thread": False})
+            sqlite_connect_args["timeout"] = self.settings.connect_timeout
+            engine = create_engine(
+                f"sqlite:///{path}",
+                future=True,
+                connect_args=sqlite_connect_args,
+            )
             event.listen(engine, "connect", self._configure_sqlite)
             return engine
         if not self.settings.host or not self.settings.database_name or not self.settings.username:
@@ -77,12 +90,21 @@ class DatabaseManager:
     # -------------------------------------------------------------------------
     @staticmethod
     def _configure_sqlite(dbapi_connection: Any, connection_record: Any) -> None:
+        previous_autocommit = getattr(dbapi_connection, "autocommit", None)
+        if previous_autocommit is not None:
+            dbapi_connection.autocommit = True
         cursor = dbapi_connection.cursor()
         try:
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA busy_timeout=30000")
         finally:
             cursor.close()
+            if previous_autocommit is not None:
+                dbapi_connection.autocommit = previous_autocommit
+                # Assigning autocommit=False opens a DBAPI transaction on
+                # Python's sqlite3 driver; leave the connection clean for the
+                # first application or migration statement.
+                dbapi_connection.rollback()
 
     # -------------------------------------------------------------------------
     @contextmanager

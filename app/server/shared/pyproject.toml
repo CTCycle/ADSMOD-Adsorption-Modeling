@@ -4,6 +4,7 @@ version = "3.0.0"
 requires-python = ">=3.14"
 dependencies = [
     "adsmod-common",
+    "alembic==1.19.1",
     "SQLAlchemy==2.0.52",
     "psycopg[binary]==3.3.4",
     "numpy==2.5.2",

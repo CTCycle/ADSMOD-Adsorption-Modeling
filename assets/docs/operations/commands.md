@@ -1,14 +1,30 @@
 # ADSMOD Operational Commands
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Launch And Maintenance
 
 - Unified launcher and maintenance menu: `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
 - Frontend-only rebuild: select **Rebuild frontend** (menu option 3) in the launcher.
 - Database initialization: select **Initialize database** in the launcher. This
-  creates missing SQLite storage or explicitly initializes PostgreSQL; it does
-  not reset an existing SQLite database.
+  creates missing storage, adopts a validated pre-Alembic schema when needed,
+  and upgrades both SQLite and PostgreSQL to the packaged Alembic head. It does
+  not reset an existing database.
+
+## Alembic Development Workflow
+
+Run these commands from the repository root after dependencies are installed:
+
+```powershell
+& .\app\server\.venv\Scripts\python.exe -m alembic --config app\server\pyproject.toml current --check-heads
+& .\app\server\.venv\Scripts\python.exe -m alembic --config app\server\pyproject.toml check
+& .\app\server\.venv\Scripts\python.exe -m alembic --config app\server\pyproject.toml revision --autogenerate -m "describe schema change"
+& .\app\server\.venv\Scripts\python.exe -m alembic --config app\server\pyproject.toml upgrade head
+& .\app\server\.venv\Scripts\python.exe -m alembic --config app\server\pyproject.toml history
+```
+
+Review every generated revision before applying it, including SQLite batch
+operations and any data transformation or constraint change.
 
 ## Tests
 

@@ -12,8 +12,9 @@ Last updated: 2026-08-20
 
 - Resource directory: `app/resources` by default; override it with
   `ADSMOD_RESOURCES_DIR` in `settings/.env`
-- Database: `<resource directory>/database.db` for embedded mode; PostgreSQL is
-  initialized explicitly through the launcher
+- Database: `<resource directory>/database.db` for embedded mode; both SQLite
+  and PostgreSQL are synchronized to the Alembic head during startup or by the
+  launcher's explicit initialization action
 - Checkpoints: `<resource directory>/checkpoints`
 - Operational environment template: `settings/.env.example`
 - Canonical runtime values: `app/resources/adsmod.json`; generated shape schema:
@@ -32,9 +33,9 @@ Last updated: 2026-08-20
 
 - The repository is Windows-first and uses a PowerShell launcher plus the batch test runner.
 - First launch can be slow because runtime binaries and dependencies may need provisioning.
-- PostgreSQL must be initialized with the launcher's **Initialize database**
-  command before normal application startup; startup never creates or resets
-  the external database.
+- PostgreSQL startup may create the configured database when the configured
+  role has `CREATEDB`; otherwise startup fails with an actionable permission
+  error. Startup never resets or drops an existing database.
 - No container runtime target is currently implemented.
 - The Windows launcher currently starts the active `app/server` runtime; v3
   package launcher integration is not yet implemented. The active runtime is

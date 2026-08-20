@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Recommended Local Web Startup
 
@@ -40,14 +40,16 @@ directory must contain `adsmod.json`.
 
 ## Database Startup Rules
 
-- SQLite startup checks the configured `.db` file. A missing file is created
-  once with the existing schema; an existing file is not recreated, reset,
-  reseeded, or schema-validated.
-- PostgreSQL startup performs a read-only connection/schema readiness check and
-  fails fast if the database has not been initialized.
-- The menu's **Initialize database** command is the explicit initialization
-  path. It creates the PostgreSQL database/schema when needed and is
-  non-destructive for an existing SQLite file.
+- Startup runs the synchronous Alembic coordinator before serving requests.
+- SQLite creates missing storage and upgrades it to the packaged head. An
+  existing pre-Alembic file is adopted only after an exact structural check;
+  mismatches fail without stamping or changing the schema.
+- PostgreSQL startup creates the configured database when the configured role
+  permits it, then applies pending migrations. Advisory locks serialize
+  creation and upgrades across application instances.
+- The menu's **Initialize database** command invokes the same coordinator and
+  is safe to repeat for fresh, legacy, outdated, or current databases.
+- Migration failures abort startup and leave transactional changes rolled back.
 
 ## Setup And Maintenance
 

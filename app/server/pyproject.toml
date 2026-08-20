@@ -26,3 +26,8 @@ explicit = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu130" }
+
+[tool.alembic]
+script_location = "%(here)s/migrations"
+prepend_sys_path = ["."]
+path_separator = "os"
