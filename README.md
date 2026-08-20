@@ -179,8 +179,16 @@ Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` to access 
 - **Rebuild frontend**: installs frontend packages and rebuilds the unified frontend bundle without syncing backend dependencies.
 - **Uninstall application**: removes local runtime and build artifacts while preserving settings, resources, the database, and user data.
 - **Initialize database**: explicitly initializes PostgreSQL, or creates a
-  missing SQLite database. Existing SQLite files are left unchanged.
+  missing SQLite database, adopts a validated pre-Alembic schema when needed,
+  and upgrades the configured database to the Alembic head. Existing data is
+  preserved and the action is safe to repeat.
 - **Clear cache**: removes Python bytecode caches and the uv cache.
+
+Alembic development commands use the checked-in environment at
+`app/server/migrations`; see `assets/docs/operations/commands.md` for
+autogeneration, head checks, and upgrade commands. Migration scripts are the
+authoritative schema history; ORM metadata is used as the current-schema
+comparison target.
 
 ### 5.1 Frontend Development Commands
 
@@ -199,7 +207,7 @@ Frontend API base path defaults to `/api`; the Angular development server routes
 The application stores data and artifacts in specific directories:
 
 - **checkpoints**: trained model weights, training history, and model configuration files under `<resource directory>/checkpoints`.
-- **database**: local SQLite database at `<resource directory>/database.db` for metadata and experiment indexes when embedded mode is selected. PostgreSQL is initialized only through the explicit launcher command.
+- **database**: local SQLite database at `<resource directory>/database.db` for metadata and experiment indexes when embedded mode is selected. SQLite and PostgreSQL are upgraded to the Alembic head during startup or explicit initialization.
 - **logs**: application logs under `<resource directory>/logs`.
 - **runtimes**: portable Python/uv/Node.js downloaded by the Windows launcher.
 - **runtime venv**: backend virtual environment at `app/server/.venv`.

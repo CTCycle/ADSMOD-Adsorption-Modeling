@@ -723,7 +723,7 @@ function Show-MainMenu {
     Write-MenuItem -Number '1' -Label 'Launch application' -Hint 'Start the local web workspace'
     Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Hint 'Refresh local runtimes and packages'
     Write-MenuItem -Number '3' -Label 'Rebuild frontend' -Hint 'Install frontend packages and rebuild the bundle'
-    Write-MenuItem -Number '4' -Label 'Initialize database' -Hint 'Prepare the local data store'
+    Write-MenuItem -Number '4' -Label 'Initialize database' -Hint 'Create or upgrade the Alembic-managed data store'
     Write-MenuItem -Number '5' -Label 'Run test suite' -Hint 'Execute the repository checks'
     Write-Host ""
     Write-Host "  MAINTENANCE" -ForegroundColor DarkCyan

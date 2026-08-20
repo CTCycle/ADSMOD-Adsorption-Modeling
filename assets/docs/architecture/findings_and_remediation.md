@@ -41,7 +41,7 @@ Severity is a prioritization aid, not a claim that every item blocks delivery.
 | **P0** | None confirmed | No correctness or security issue was found that requires an immediate stop-ship change. | Keep the focused boundary tests and generated-contract checks in CI. | Ongoing |
 | **P1** | `app/server` vs `app/backend` and launcher scripts | Active-versus-v3 ownership is easy to confuse. New work can land in the wrong generation or duplicate a workflow. | Document the two runtimes separately, migrate by vertical slice, switch every caller atomically, and delete the replaced implementation. | Documentation is immediate; runtime cutover is incremental. |
 | **P1** | `app/server/ml_service` and `app/server/shared/shared/repositories` | Active ML training reads shared repositories and the operational database directly. ML is coupled to ORM/persistence details and core schema changes can break training. | Publish training snapshots from v3 core, update ML to the authenticated snapshot contract, then delete direct shared-database readers. | Incremental, after each snapshot-backed workflow is proven. |
-| **P1** | Repository database setup | There is no Alembic migration history; `Base.metadata.create_all` initializes the current schema. Reproducible upgrades and rollback history are therefore absent. | Add one Alembic baseline for the existing SQLite/PostgreSQL model before the first schema change. Keep ORM metadata as the desired-current-schema authority. | Deferred until a schema change is required. |
+| **P1 resolved** | Repository database setup | The active database previously had no migration history and relied on `Base.metadata.create_all`. | Alembic now owns the baseline and all subsequent upgrades; startup and explicit initialization are idempotent, lock-protected, and keep ORM metadata as the desired-current-schema authority. | Completed in this work. |
 | **P1** | `FittingRun.best_result_id` and fitting references | `best_result_id` is a nullable integer without a foreign key, and dataset/isotherm/component references are repeated without a database consistency constraint. Invalid references can be stored. | In a later migration, add the FK and either remove redundant references or enforce their consistency. | Deferred with the schema baseline. |
 | **P1 resolved** | `adsmod_common.config` and `shared.common.settings` | Duplicate Pydantic validators, JSON parsing, and dictionary accessors could accept different configuration shapes and drift from the checked-in schema. | `AdsmodConfig` is now the only shape validator; shared settings are typed projections and `adsmod.schema.json` is generated from it. | Completed in this work. |
 | **P1 resolved** | `.github/workflows/ci.yml` and `app/backend/*/tests` | The extracted v3 tests were not part of the normal CI path. Boundary regressions could pass unnoticed. | Run all 13 v3 tests from the repository root with explicit source paths and static dependency checks. | Completed in this work. |
@@ -80,9 +80,9 @@ operational boundary, not a reason to introduce additional layers or queues.
    same change.
 3. Migrate ML training reads to immutable snapshots, verify content hashes and
    parity, then delete shared repository/database access from ML.
-4. Add the Alembic baseline before changing the twelve-table schema. Add the
-   fitting-result FK and consistency constraints only when their migration is
-   scheduled.
+4. Keep the reviewed Alembic baseline and one linear head as the gate for
+   twelve-table schema changes. Add the fitting-result FK and consistency
+   constraints only when their migration is scheduled.
 5. Start v3 services directly from the launcher, retire `app.server.app`, and
    remove the function-local optional ML import.
 6. Split broad services or repeated router/error handling only when a concrete

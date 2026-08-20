@@ -25,11 +25,12 @@ The active backend workspace is `app/server` with one lockfile at
 - `adsmod-core` has a separate immutable `training_snapshots` SQLite store. It
   is not one of the twelve transitional ORM tables.
 
-The transitional database is initialized from ORM metadata with
-`Base.metadata.create_all`; the repository has no Alembic migration history.
-Before changing this schema, introduce one baseline migration for the existing
-SQLite/PostgreSQL model. ORM metadata remains the desired-current-schema
-authority after that baseline.
+The active database is managed by the Alembic environment under
+`app/server/migrations`. Its reviewed baseline represents the existing
+SQLite/PostgreSQL model, and every startup or explicit initialization upgrades
+the database to the packaged Alembic head. `Base.metadata` remains the
+desired-current-schema authority for autogeneration and drift checks; migration
+scripts remain the immutable schema-evolution history.
 
 ## Transitional ORM class map
 
