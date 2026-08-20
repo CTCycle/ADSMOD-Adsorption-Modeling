@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = $PSScriptRoot
 $AppDir = Join-Path $RepoRoot "app"
 $ServerDir = Join-Path $AppDir "server"
+$BackendDir = Join-Path $AppDir "backend"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
 $DefaultResourcesDir = Join-Path $AppDir "resources"
@@ -21,6 +22,15 @@ $StartupTempDir = Join-Path $ServerDir ".startup-temp"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
 $NodeDir = Join-Path $RuntimesDir "nodejs"
+$RuntimeCacheDir = Join-Path $RuntimesDir "cache"
+$TestCacheDir = Join-Path $TestsDir "cache"
+$RuntimeTempDir = Join-Path $RuntimeCacheDir "temp"
+$PytestCacheDir = Join-Path $TestCacheDir "pytest"
+$PytestTempDir = Join-Path $TestCacheDir "pytest-tmp"
+$RuffCacheDir = Join-Path $TestCacheDir "ruff"
+$PythonCacheDir = Join-Path $TestCacheDir "python"
+$MypyCacheDir = Join-Path $TestCacheDir "mypy"
+$AngularCacheDir = Join-Path $TestCacheDir "angular"
 
 $PythonVersion = "3.14.2"
 $PythonExe = Join-Path $PythonDir "python.exe"
@@ -29,7 +39,7 @@ $UvExe = Join-Path $UvDir "uv.exe"
 $NodeExe = Join-Path $NodeDir "node.exe"
 $NpmCmd = Join-Path $NodeDir "npm.cmd"
 $VenvPython = Join-Path $ServerDir ".venv\Scripts\python.exe"
-$UvCacheDir = Join-Path $StartupTempDir "uv-cache"
+$UvCacheDir = $RuntimeCacheDir
 $EnvFile = Join-Path $SettingsDir ".env"
 $EnvExample = Join-Path $SettingsDir ".env.example"
 
@@ -95,20 +105,46 @@ function Remove-RepoPath([string]$Path) {
     if (-not $fullPath.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Refusing to remove a path outside the repository: $fullPath"
     }
-    if (Test-Path -LiteralPath $fullPath) {
-        Remove-Item -LiteralPath $fullPath -Recurse -Force
+    try {
+        if (Test-Path -LiteralPath $fullPath) {
+            Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction Stop
+            return $true
+        }
+        return $true
+    } catch {
+        Write-Warn "Skipping locked or inaccessible path '$fullPath': $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Remove-RepoDirectoryContents([string]$Path) {
+    $repoPrefix = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\') + '\'
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    if (-not $fullPath.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove contents outside the repository: $fullPath"
+    }
+    try {
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Container)) {
+            return
+        }
+
+        $items = @(Get-ChildItem -LiteralPath $fullPath -Recurse -Force -ErrorAction SilentlyContinue |
+            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true })
+        foreach ($item in $items) {
+            [void](Remove-RepoPath $item.FullName)
+        }
+    } catch {
+        Write-Warn "Skipping inaccessible cache contents under '$fullPath': $($_.Exception.Message)"
     }
 }
 
 function Remove-UvCache {
-    $expectedCachePath = [System.IO.Path]::GetFullPath((Join-Path $ServerDir ".startup-temp\uv-cache"))
+    $expectedCachePath = [System.IO.Path]::GetFullPath($RuntimeCacheDir)
     $actualCachePath = [System.IO.Path]::GetFullPath($UvCacheDir)
     if ($actualCachePath -ne $expectedCachePath) {
         throw "Refusing to remove an unexpected uv cache path: $actualCachePath"
     }
-    if (Test-Path -LiteralPath $actualCachePath) {
-        Remove-Item -LiteralPath $actualCachePath -Recurse -Force
-    }
+    Remove-RepoDirectoryContents $actualCachePath
 }
 
 function Download-AndExtract {
@@ -132,7 +168,7 @@ function Download-AndExtract {
         if ($children.Count -eq 1 -and $children[0].PSIsContainer) {
             $nestedRoot = $children[0].FullName
             Get-ChildItem -LiteralPath $nestedRoot -Force | Move-Item -Destination $DestinationPath -Force
-            Remove-Item -LiteralPath $nestedRoot -Force
+            Remove-Item -LiteralPath $nestedRoot -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -285,12 +321,32 @@ function Import-Settings {
 }
 
 function Set-RuntimeEnvironment {
-    New-Item -ItemType Directory -Path $StartupTempDir -Force | Out-Null
+    foreach ($directory in @(
+        $RuntimeCacheDir,
+        $RuntimeTempDir,
+        $TestCacheDir,
+        $PytestCacheDir,
+        $PytestTempDir,
+        $RuffCacheDir,
+        $PythonCacheDir,
+        $MypyCacheDir,
+        $AngularCacheDir
+    )) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
     $env:UV_CACHE_DIR = $UvCacheDir
-    $env:UV_NO_CACHE = "1"
+    Remove-Item Env:UV_NO_CACHE -ErrorAction SilentlyContinue
+    $env:PIP_CACHE_DIR = Join-Path $RuntimeCacheDir "pip"
+    $env:npm_config_cache = Join-Path $RuntimeCacheDir "npm"
+    $env:XDG_CACHE_HOME = $RuntimeCacheDir
     $env:UV_PROJECT_ENVIRONMENT = Join-Path $ServerDir ".venv"
-    $env:TEMP = $StartupTempDir
-    $env:TMP = $StartupTempDir
+    $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
+    $env:PYTEST_CACHE_DIR = $PytestCacheDir
+    $env:RUFF_CACHE_DIR = $RuffCacheDir
+    $env:MYPY_CACHE_DIR = $MypyCacheDir
+    $env:COVERAGE_FILE = Join-Path $TestCacheDir ".coverage"
+    $env:TEMP = $RuntimeTempDir
+    $env:TMP = $RuntimeTempDir
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
     Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
     Remove-Item Env:PYTHONNOUSERSITE -ErrorAction SilentlyContinue
@@ -417,7 +473,7 @@ function Sync-Dependencies {
     Write-Step "Syncing Python dependencies"
     Push-Location $ServerDir
     try {
-        $arguments = @('sync', '--all-packages', '--python', $PythonExe, '--no-cache')
+        $arguments = @('sync', '--all-packages', '--python', $PythonExe)
         if ($InstallationType -eq 'Development') {
             $arguments += '--group', 'dev'
         }
@@ -640,18 +696,65 @@ function Remove-Logs {
     Import-Settings | Out-Null
     Write-Step "Removing log files"
     if (Test-Path -LiteralPath $LogDir) {
-        Get-ChildItem -LiteralPath $LogDir -Filter '*.log' -File | Remove-Item -Force
+        Get-ChildItem -LiteralPath $LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try {
+                    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop
+                } catch {
+                    Write-Warn "Skipping locked or inaccessible log '$($_.FullName)': $($_.Exception.Message)"
+                }
+            }
     }
     Write-Ok "Log files removed."
 }
 
 function Clear-Cache {
-    Write-Step "Clearing Python and uv caches"
-    Get-ChildItem -LiteralPath $RepoRoot -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
-        Sort-Object FullName -Descending |
-        ForEach-Object { Remove-RepoPath $_.FullName }
-    Remove-UvCache
-    Write-Ok "Caches cleared."
+    Write-Step "Clearing runtime and test-tool caches"
+    foreach ($cacheDirectory in @($RuntimeCacheDir, $TestCacheDir)) {
+        New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
+        Remove-RepoDirectoryContents $cacheDirectory
+    }
+
+    $legacyCacheNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.mypy_cache')
+    $legacyCacheDirectories = @(
+        @(Get-ChildItem -LiteralPath $RepoRoot -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $legacyCacheNames })
+        @(Get-ChildItem -LiteralPath $AppDir -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $legacyCacheNames })
+        @(Get-ChildItem -LiteralPath $ServerDir -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $legacyCacheNames })
+        @(Get-ChildItem -LiteralPath $BackendDir -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $legacyCacheNames })
+    )
+    $legacySearchRoots = @(
+        (Join-Path $AppDir 'scripts'),
+        (Join-Path $ServerDir 'core_service'),
+        (Join-Path $ServerDir 'ml_service'),
+        (Join-Path $ServerDir 'shared'),
+        (Join-Path $ServerDir 'migrations'),
+        (Join-Path $BackendDir 'common'),
+        (Join-Path $BackendDir 'core'),
+        (Join-Path $BackendDir 'ml'),
+        $TestsDir
+    )
+    foreach ($searchRoot in $legacySearchRoots) {
+        $legacyCacheDirectories += @(Get-ChildItem -LiteralPath $searchRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $legacyCacheNames -and
+                $_.FullName -ne [System.IO.Path]::GetFullPath($RuntimeCacheDir) -and
+                $_.FullName -ne [System.IO.Path]::GetFullPath($TestCacheDir) })
+    }
+    $legacyCacheDirectories = @($legacyCacheDirectories |
+        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true } -Unique)
+    foreach ($legacyCacheDirectory in $legacyCacheDirectories) {
+        Remove-RepoDirectoryContents $legacyCacheDirectory.FullName
+        [void](Remove-RepoPath $legacyCacheDirectory.FullName)
+    }
+
+    $legacyToolCache = Join-Path $ClientDir '.angular'
+    Remove-RepoDirectoryContents $legacyToolCache
+    [void](Remove-RepoPath $legacyToolCache)
+
+    Write-Ok "Cache cleanup completed; locked or inaccessible items were skipped."
 }
 
 function Uninstall-Application {
@@ -728,7 +831,7 @@ function Show-MainMenu {
     Write-Host ""
     Write-Host "  MAINTENANCE" -ForegroundColor DarkCyan
     Write-MenuItem -Number '6' -Label 'Remove logs' -Hint 'Delete generated log files' -NumberColor Yellow
-    Write-MenuItem -Number '7' -Label 'Clear cache' -Hint 'Remove Python and uv caches' -NumberColor Yellow
+    Write-MenuItem -Number '7' -Label 'Clear cache' -Hint 'Remove runtime and test-tool caches' -NumberColor Yellow
     Write-MenuItem -Number '8' -Label 'Uninstall application' -Hint 'Remove local runtimes and build artifacts' -NumberColor Yellow
     Write-Host ""
     Write-Host $subtleRule -ForegroundColor DarkGray

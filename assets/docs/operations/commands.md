@@ -10,6 +10,9 @@ Last updated: 2026-08-20
   creates missing storage, adopts a validated pre-Alembic schema when needed,
   and upgrades both SQLite and PostgreSQL to the packaged Alembic head. It does
   not reset an existing database.
+- Cache cleanup: select **Clear cache** in the launcher. Runtime caches are
+  under `runtimes/cache`; pytest and other test-tool caches are under
+  `app/tests/cache`. Locked files are skipped with warnings.
 
 ## Alembic Development Workflow
 

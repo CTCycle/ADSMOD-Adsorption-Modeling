@@ -182,7 +182,10 @@ Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` to access 
   missing SQLite database, adopts a validated pre-Alembic schema when needed,
   and upgrades the configured database to the Alembic head. Existing data is
   preserved and the action is safe to repeat.
-- **Clear cache**: removes Python bytecode caches and the uv cache.
+- **Clear cache**: removes runtime caches under `runtimes/cache` and test-tool
+  caches under `app/tests/cache`, including legacy Python bytecode, pytest,
+  Ruff, and mypy cache directories. Locked or administrator-only files are
+  reported and skipped so the remaining cleanup can continue.
 
 Alembic development commands use the checked-in environment at
 `app/server/migrations`; see `assets/docs/operations/commands.md` for
@@ -212,6 +215,10 @@ The application stores data and artifacts in specific directories:
 - **runtimes**: portable Python/uv/Node.js downloaded by the Windows launcher.
 - **runtime venv**: backend virtual environment at `app/server/.venv`.
 - **runtime lockfile**: backend lockfile at `app/server/uv.lock`.
+- **runtime cache**: disposable uv, npm, pip, and temporary runtime files under
+  `runtimes/cache`.
+- **test cache**: disposable Angular, pytest, Ruff, mypy, Python bytecode,
+  coverage, and pytest temporary files under `app/tests/cache`.
 - **templates**: starter assets under `<resource directory>/templates`.
 
 ## 7. Configuration

@@ -16,6 +16,9 @@ runtimes/**
 assets/QA/**
 .playwright-mcp/
 
+# Centralized disposable development caches
+app/tests/cache/**
+
 # Python
 __pycache__/
 *.py[cod]

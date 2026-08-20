@@ -17,6 +17,7 @@ packages = ["src/adsmod_core"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "../common/src"]
+cache_dir = "../../tests/cache/pytest"
 
 [build-system]
 requires = ["hatchling>=1.25"]

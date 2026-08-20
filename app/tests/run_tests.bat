@@ -8,6 +8,21 @@ set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
 set "RESOURCES_DIR=%APP_DIR%\resources"
+set "RUNTIME_CACHE_DIR=%PROJECT_ROOT%\runtimes\cache"
+set "TEST_CACHE_DIR=%TESTS_DIR%\cache"
+set "PYTEST_CACHE_DIR=%TEST_CACHE_DIR%\pytest"
+set "PYTEST_BASETEMP=%TEST_CACHE_DIR%\pytest-tmp"
+set "RUFF_CACHE_DIR=%TEST_CACHE_DIR%\ruff"
+set "MYPY_CACHE_DIR=%TEST_CACHE_DIR%\mypy"
+set "PYTHONPYCACHEPREFIX=%TEST_CACHE_DIR%\python"
+set "COVERAGE_FILE=%TEST_CACHE_DIR%\.coverage"
+set "UV_CACHE_DIR=%RUNTIME_CACHE_DIR%"
+set "PIP_CACHE_DIR=%RUNTIME_CACHE_DIR%\pip"
+set "NPM_CONFIG_CACHE=%RUNTIME_CACHE_DIR%\npm"
+set "TEMP=%RUNTIME_CACHE_DIR%\temp"
+set "TMP=%RUNTIME_CACHE_DIR%\temp"
+if not exist "%RUNTIME_CACHE_DIR%\temp" md "%RUNTIME_CACHE_DIR%\temp" >nul 2>&1
+if not exist "%TEST_CACHE_DIR%" md "%TEST_CACHE_DIR%" >nul 2>&1
 if not "%ADSMOD_RESOURCES_DIR%"=="" for %%I in ("%ADSMOD_RESOURCES_DIR%") do set "RESOURCES_DIR=%%~fI"
 set "CANONICAL_CONFIG=%RESOURCES_DIR%\adsmod.json"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
@@ -183,17 +198,16 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
 
 echo [STEP] Running Python tests...
 set "PYTEST_IGNORE_E2E="
-set "PYTEST_CACHE_OPTION=-o cache_dir=app/server/.startup-temp/pytest-cache"
 if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" if "!HAS_E2E!"=="1" set "PYTEST_IGNORE_E2E=true"
 
 if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" if /i "%PYTEST_IGNORE_E2E%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short %PYTEST_CACHE_OPTION% %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
 ) else if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %PYTEST_CACHE_OPTION% %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
 ) else if /i "%PYTEST_IGNORE_E2E%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" %PYTEST_CACHE_OPTION% %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
 ) else (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" %PYTEST_CACHE_OPTION% %*
+  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
 )
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
