@@ -19,6 +19,7 @@ from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Base, Dataset
 
 
+###############################################################################
 def _postgres_settings(database_name: str) -> DatabaseSettings | None:
     host = os.getenv("DATABASE_HOST")
     if (
@@ -42,6 +43,7 @@ def _postgres_settings(database_name: str) -> DatabaseSettings | None:
     )
 
 
+###############################################################################
 @pytest.fixture
 def postgres_settings() -> DatabaseSettings:
     settings = _postgres_settings(f"adsmod_alembic_{uuid4().hex[:12]}")
@@ -61,6 +63,7 @@ def postgres_settings() -> DatabaseSettings:
             admin.dispose()
 
 
+###############################################################################
 def test_postgres_fresh_and_repeated_initialization(
     postgres_settings: DatabaseSettings,
 ) -> None:
@@ -81,6 +84,7 @@ def test_postgres_fresh_and_repeated_initialization(
         manager.dispose()
 
 
+###############################################################################
 def test_postgres_legacy_adoption_preserves_data(
     postgres_settings: DatabaseSettings,
 ) -> None:
@@ -108,6 +112,7 @@ def test_postgres_legacy_adoption_preserves_data(
         manager.dispose()
 
 
+###############################################################################
 def test_postgres_advisory_lock_serializes_concurrent_startup(
     postgres_settings: DatabaseSettings,
 ) -> None:
@@ -120,6 +125,7 @@ def test_postgres_advisory_lock_serializes_concurrent_startup(
     assert sum(result.applied_migrations for result in results) == 1
 
 
+###############################################################################
 def test_postgres_migration_failure_rolls_back(
     postgres_settings: DatabaseSettings,
     monkeypatch: pytest.MonkeyPatch,

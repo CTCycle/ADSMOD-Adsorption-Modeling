@@ -12,6 +12,7 @@ from shared.repositories.database.legacy_schema import (
 )
 
 
+###############################################################################
 def _sqlite_settings(path: str) -> DatabaseSettings:
     return DatabaseSettings(
         embedded_database=True,
@@ -29,6 +30,7 @@ def _sqlite_settings(path: str) -> DatabaseSettings:
     )
 
 
+###############################################################################
 def test_packaged_history_has_one_head_and_no_pending_operations(tmp_path) -> None:  # type: ignore[no-untyped-def]
     settings = _sqlite_settings(str(tmp_path / "quality.db"))
     manager = DatabaseManager(settings)
