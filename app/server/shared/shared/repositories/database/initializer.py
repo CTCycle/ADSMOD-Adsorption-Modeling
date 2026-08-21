@@ -23,6 +23,7 @@ from shared.repositories.database.sql import (
 )
 
 
+###############################################################################
 def clone_settings_with_database(
     settings: DatabaseSettings,
     database_name: str,
@@ -43,11 +44,13 @@ def clone_settings_with_database(
     )
 
 
+###############################################################################
 def _validate_postgres_settings(settings: DatabaseSettings) -> None:
     if not settings.host or not settings.username or not settings.database_name:
         raise ValueError("PostgreSQL host, database name, and username are required.")
 
 
+###############################################################################
 def _acquire_creation_lock(connection: Connection, timeout_seconds: int) -> None:
     deadline = time.monotonic() + max(1, timeout_seconds)
     while True:
@@ -65,6 +68,7 @@ def _acquire_creation_lock(connection: Connection, timeout_seconds: int) -> None
         time.sleep(min(0.1, remaining))
 
 
+###############################################################################
 def _ensure_postgres_database_exists(settings: DatabaseSettings) -> None:
     _validate_postgres_settings(settings)
     admin_manager: DatabaseManager | None = None
@@ -117,6 +121,7 @@ def _ensure_postgres_database_exists(settings: DatabaseSettings) -> None:
             admin_manager.dispose()
 
 
+###############################################################################
 def verify_postgres_database(settings: DatabaseSettings) -> None:
     """Perform a non-mutating connectivity/schema probe for diagnostics."""
 
@@ -141,15 +146,18 @@ def verify_postgres_database(settings: DatabaseSettings) -> None:
             manager.dispose()
 
 
+###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> MigrationResult:
     return migrate_database(settings)
 
 
+###############################################################################
 def initialize_postgres_database(settings: DatabaseSettings) -> MigrationResult:
     _ensure_postgres_database_exists(settings)
     return migrate_database(settings)
 
 
+###############################################################################
 def prepare_database_for_startup(
     settings: DatabaseSettings | None = None,
 ) -> MigrationResult:
@@ -159,12 +167,14 @@ def prepare_database_for_startup(
     return initialize_postgres_database(database_settings)
 
 
+###############################################################################
 def run_database_initialization(
     settings: DatabaseSettings | None = None,
 ) -> MigrationResult:
     return prepare_database_for_startup(settings)
 
 
+###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> MigrationResult:
     try:
         return run_database_initialization(settings)

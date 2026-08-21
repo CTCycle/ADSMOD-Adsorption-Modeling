@@ -30,6 +30,7 @@ BASELINE_TABLES = frozenset(
 )
 
 
+###############################################################################
 def _expression(value: object) -> str:
     expression = re.sub(r"\s+", " ", str(value).strip().lower())
     expression = re.sub(r'"([a-z_][a-z0-9_]*)"', r"\1", expression)
@@ -62,6 +63,7 @@ def _expression(value: object) -> str:
     return expression
 
 
+###############################################################################
 def _type_signature(type_: Any) -> tuple[Any, ...]:
     name = type_.__class__.__name__.lower()
     if name in {"json", "jsonb"}:
@@ -81,6 +83,7 @@ def _type_signature(type_: Any) -> tuple[Any, ...]:
     return (name, getattr(type_, "length", None))
 
 
+###############################################################################
 def inspector_signature(inspector: Inspector) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for table_name in sorted(BASELINE_TABLES):
@@ -133,11 +136,13 @@ def inspector_signature(inspector: Inspector) -> dict[str, Any]:
     return result
 
 
+###############################################################################
 def schema_hash(signature: dict[str, Any]) -> str:
     payload = json.dumps(signature, sort_keys=True, separators=(",", ":"), default=list)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+###############################################################################
 def schema_matches_baseline(inspector: Inspector) -> bool:
     # A legacy database is adopted only when the complete user-table set is
     # present.  This rejects partial schemas and unrelated tables instead of
@@ -149,6 +154,7 @@ def schema_matches_baseline(inspector: Inspector) -> bool:
     )
 
 
+###############################################################################
 def missing_baseline_tables(inspector: Inspector) -> tuple[str, ...]:
     available = set(inspector.get_table_names())
     return tuple(sorted(BASELINE_TABLES - available))
