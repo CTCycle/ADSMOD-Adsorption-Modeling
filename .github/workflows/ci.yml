@@ -37,11 +37,16 @@ jobs:
         run: |
           python --version
           python -c "print('ci sanity ok')"
-      - name: Backend import validation
+      - name: Install backend dependencies
         run: |
+          # Resolve from pyproject.toml when the optional uv.lock is absent.
           uv sync --project app/server --all-packages --group dev
+      - name: Backend import validation
+        env:
+          UV_NO_SYNC: "1"
+        run: |
           PYTHONPATH=app/backend/common/src:app/backend/core/src:app/backend/ml/src uv run --project app/server python -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app; import core_service.app; import ml_service.app; import app.server.app"
-          uv run --project app/server ruff check app/server app/backend app/tests
+          uv run --project app/server ruff check --isolated app/server app/backend app/tests
           DATABASE_EMBEDDED=true uv run --project app/server python -m pytest app/tests/persistence -v
           DATABASE_EMBEDDED=true uv run --project app/server python -m pytest app/tests/unit/test_database_initialization.py app/tests/unit/test_alembic_quality.py -v
           DATABASE_EMBEDDED=false DATABASE_ENGINE=postgres DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_NAME=adsmod_test DATABASE_USERNAME=postgres DATABASE_PASSWORD=postgres uv run --project app/server python -m pytest app/tests/persistence -v
