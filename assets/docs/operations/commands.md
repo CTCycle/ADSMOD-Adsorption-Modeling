@@ -1,11 +1,11 @@
 # ADSMOD Operational Commands
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Launch And Maintenance
 
 - Unified launcher and maintenance menu: `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
-- Frontend-only rebuild: select **Rebuild frontend** (menu option 3) in the launcher.
+- Frontend-only rebuild: select **Rebuild Frontend** in the launcher.
 - Database initialization: select **Initialize database** in the launcher. This
   creates missing storage, adopts a validated pre-Alembic schema when needed,
   and upgrades both SQLite and PostgreSQL to the packaged Alembic head. It does
@@ -13,6 +13,16 @@ Last updated: 2026-08-20
 - Cache cleanup: select **Clear cache** in the launcher. Runtime caches are
   under `runtimes/cache`; pytest and other test-tool caches are under
   `app/tests/cache`. Locked files are skipped with warnings.
+- Update status: select **Check for Updates**. This compares local `main` with
+  `origin/main` without downloading or applying changes.
+- Application update: select **Update**. The launcher switches to `main` and
+  runs `git pull --ff-only origin main` after confirming that the working tree
+  is clean.
+- Checkpoint cleanup: select **Remove Checkpoints** to delete saved training
+  checkpoints without removing the database or other local data.
+- Full local data cleanup: select **Remove All Data** to delete the embedded
+  database, SQLite sidecar files, saved checkpoints, and generated logs while
+  preserving application files and settings.
 
 ## Alembic Development Workflow
 

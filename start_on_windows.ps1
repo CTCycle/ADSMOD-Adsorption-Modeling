@@ -15,6 +15,7 @@ $TestsDir = Join-Path $AppDir "tests"
 $DefaultResourcesDir = Join-Path $AppDir "resources"
 $ResourcesDir = $DefaultResourcesDir
 $LogDir = Join-Path $ResourcesDir "logs"
+$CheckpointsDir = Join-Path $ResourcesDir "checkpoints"
 $SettingsDir = Join-Path $RepoRoot "settings"
 $ConfigFile = Join-Path $ResourcesDir "adsmod.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
@@ -54,6 +55,9 @@ $NodeVersion = "22.13.0"
 $NodeArchive = "node-v$NodeVersion-win-x64.zip"
 $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 
+# -----------------------------------------------------------------------------
+# Console output and path-safety helpers
+# -----------------------------------------------------------------------------
 function Write-Step([string]$Message) {
     Write-Host "[STEP] $Message" -ForegroundColor Cyan
 }
@@ -91,6 +95,7 @@ function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
 function Set-ConfiguredResourcePaths([string]$ConfiguredPath) {
     $script:ResourcesDir = Resolve-ResourcesDirectory $ConfiguredPath
     $script:LogDir = Join-Path $script:ResourcesDir "logs"
+    $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
     $script:ConfigFile = Join-Path $script:ResourcesDir "adsmod.json"
     [Environment]::SetEnvironmentVariable(
         'ADSMOD_RESOURCES_DIR',
@@ -137,6 +142,45 @@ function Remove-RepoDirectoryContents([string]$Path) {
         Write-Warn "Skipping inaccessible cache contents under '$fullPath': $($_.Exception.Message)"
     }
 }
+
+function Remove-ResourcePath([string]$Path) {
+    $resourcePrefix = [System.IO.Path]::GetFullPath($ResourcesDir).TrimEnd('\') + '\'
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    if (-not $fullPath.StartsWith($resourcePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove a path outside the selected resource directory: $fullPath"
+    }
+    try {
+        if (Test-Path -LiteralPath $fullPath) {
+            Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction Stop
+        }
+        return $true
+    } catch {
+        Write-Warn "Skipping locked or inaccessible user-data path '$fullPath': $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Remove-ResourceDirectoryContents([string]$Path) {
+    $resourcePrefix = [System.IO.Path]::GetFullPath($ResourcesDir).TrimEnd('\') + '\'
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    if (-not $fullPath.StartsWith($resourcePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove resource contents outside the selected resource directory: $fullPath"
+    }
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Container)) {
+        return
+    }
+
+    foreach ($item in @(Get-ChildItem -LiteralPath $fullPath -Force -ErrorAction SilentlyContinue)) {
+        if ($item.Name -eq '.gitkeep') {
+            continue
+        }
+        [void](Remove-ResourcePath $item.FullName)
+    }
+}
+
+# -----------------------------------------------------------------------------
+# Portable runtimes, dependencies, and application startup
+# -----------------------------------------------------------------------------
 
 function Remove-UvCache {
     $expectedCachePath = [System.IO.Path]::GetFullPath($RuntimeCacheDir)
@@ -638,7 +682,7 @@ function Start-Application {
     Write-Host "Frontend: $frontendUrl (PID $frontendPid)" -ForegroundColor Green
 }
 
-function Install-OrUpdate {
+function Install-UpdateDependencies {
     Initialize-Runtimes
     Write-Ok "Portable runtimes ready."
     $installationType = Read-InstallationType
@@ -691,6 +735,10 @@ function Invoke-TestSuite {
     Assert-LastExitCode "test suite"
     Write-Ok "Test suite completed successfully."
 }
+
+# -----------------------------------------------------------------------------
+# Data and maintenance actions
+# -----------------------------------------------------------------------------
 
 function Remove-Logs {
     Import-Settings | Out-Null
@@ -785,6 +833,195 @@ function Uninstall-Application {
     Write-Ok "Application artifacts removed. Settings, resources, database, and user data were preserved."
 }
 
+function Get-ConfiguredDatabasePath {
+    $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
+    $database = $canonical.application.database
+    if (-not $database.embedded_database) {
+        return $null
+    }
+
+    $configuredPath = [string]$database.sqlite_path
+    if ([string]::IsNullOrWhiteSpace($configuredPath)) {
+        return [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir 'database.db'))
+    }
+
+    $expandedPath = [Environment]::ExpandEnvironmentVariables($configuredPath.Trim())
+    if ([System.IO.Path]::IsPathRooted($expandedPath)) {
+        return [System.IO.Path]::GetFullPath($expandedPath)
+    }
+
+    $repositoryPath = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $expandedPath))
+    $defaultDatabasePath = [System.IO.Path]::GetFullPath((Join-Path $DefaultResourcesDir 'database.db'))
+    if ($repositoryPath -eq $defaultDatabasePath) {
+        return [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir 'database.db'))
+    }
+    return $repositoryPath
+}
+
+function Remove-DatabaseFiles {
+    $databasePath = Get-ConfiguredDatabasePath
+    if ($null -eq $databasePath) {
+        Write-Warn "An external database is configured; local data was cleared, but the external database was not modified."
+        return
+    }
+
+    $protectedPaths = @(
+        [System.IO.Path]::GetFullPath($ConfigFile),
+        [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir 'adsmod.schema.json'))
+    )
+    foreach ($path in @($databasePath, "$databasePath-wal", "$databasePath-shm")) {
+        $fullPath = [System.IO.Path]::GetFullPath($path)
+        if ($fullPath -in $protectedPaths) {
+            throw "Refusing to remove an application configuration file: $fullPath"
+        }
+        try {
+            if (Test-Path -LiteralPath $fullPath) {
+                Remove-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+            }
+        } catch {
+            Write-Warn "Skipping locked or inaccessible database file '$fullPath': $($_.Exception.Message)"
+        }
+    }
+}
+
+function Clear-CheckpointFiles {
+    Write-Step "Removing saved checkpoints"
+    Remove-ResourceDirectoryContents -Path $CheckpointsDir
+    Write-Ok "Saved checkpoints removed."
+}
+
+function Remove-Checkpoints {
+    Import-Settings | Out-Null
+    Write-Warn "This removes all saved training checkpoints."
+    $confirmation = (Read-Host "Type REMOVE CHECKPOINTS to continue").Trim()
+    if ($confirmation -cne 'REMOVE CHECKPOINTS') {
+        Write-Warn "Remove Checkpoints cancelled."
+        return
+    }
+    Clear-CheckpointFiles
+}
+
+function Remove-All-Data {
+    Import-Settings | Out-Null
+    Write-Warn "This removes the local database, uploaded dataset records, saved checkpoints, and generated logs."
+    $confirmation = (Read-Host "Type REMOVE ALL DATA to continue").Trim()
+    if ($confirmation -cne 'REMOVE ALL DATA') {
+        Write-Warn "Remove All Data cancelled."
+        return
+    }
+
+    Write-Step "Removing local user-generated data"
+    Remove-DatabaseFiles
+    Clear-CheckpointFiles
+    Remove-ResourceDirectoryContents -Path $LogDir
+    Write-Ok "All local user-generated data was removed; application files and settings were preserved."
+}
+
+# -----------------------------------------------------------------------------
+# Repository update actions
+# -----------------------------------------------------------------------------
+
+function Invoke-Git {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    Push-Location $RepoRoot
+    try {
+        & git @Arguments
+        $exitCode = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    if ($exitCode -ne 0) {
+        throw "git $($Arguments -join ' ') failed with exit code $exitCode."
+    }
+}
+
+function Get-GitText {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    Push-Location $RepoRoot
+    try {
+        $output = @(& git @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    if ($exitCode -ne 0) {
+        throw "git $($Arguments -join ' ') failed with exit code $exitCode."
+    }
+    return (($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine).Trim()
+}
+
+function Get-GitExitCode {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
+    Push-Location $RepoRoot
+    try {
+        & git @Arguments *> $null
+        return $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+}
+
+function Get-WorkingTreeChanges {
+    $status = Get-GitText -Arguments @('status', '--porcelain')
+    if ([string]::IsNullOrWhiteSpace($status)) {
+        return @()
+    }
+    return @($status -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Update-Application {
+    $changes = @(Get-WorkingTreeChanges)
+    if ($changes.Count -gt 0) {
+        throw "Update requires a clean working tree. Commit or stash the existing changes before updating from main."
+    }
+
+    $currentBranch = Get-GitText -Arguments @('branch', '--show-current')
+    if ($currentBranch -ne 'main') {
+        Write-Step "Switching to main"
+        Invoke-Git -Arguments @('switch', 'main')
+    }
+
+    Write-Step "Pulling the latest application version from main"
+    Invoke-Git -Arguments @('pull', '--ff-only', 'origin', 'main')
+    Write-Ok "Application update completed from main."
+}
+
+function Check-For-Updates {
+    try {
+        $localMainCommit = Get-GitText -Arguments @('rev-parse', '--verify', 'refs/heads/main')
+        $remoteLine = Get-GitText -Arguments @('ls-remote', '--exit-code', 'origin', 'refs/heads/main')
+        $remoteMainCommit = ($remoteLine -split '\s+')[0]
+        if ($remoteMainCommit -notmatch '^[0-9a-f]{40}$') {
+            throw "The remote main commit could not be read."
+        }
+
+        if ($localMainCommit -eq $remoteMainCommit) {
+            Write-Ok "No update available. Local main is up to date with origin/main."
+            return
+        }
+
+        if ((Get-GitExitCode -Arguments @('merge-base', '--is-ancestor', $localMainCommit, $remoteMainCommit)) -eq 0) {
+            Write-Warn "A newer version is available on origin/main. No files were downloaded or changed."
+            return
+        }
+
+        if ((Get-GitExitCode -Arguments @('merge-base', '--is-ancestor', $remoteMainCommit, $localMainCommit)) -eq 0) {
+            Write-Ok "No newer version is available; local main is ahead of origin/main. No files were changed."
+            return
+        }
+
+        Write-Warn "Local main and origin/main have diverged. Review the branches before updating; no files were changed."
+    } catch {
+        Write-Warn "Could not check for updates: $($_.Exception.Message)"
+    }
+}
+
 function Wait-ForMenu {
     Write-Host ""
     Write-Host "Press any key to return to menu..." -ForegroundColor DarkGray
@@ -822,30 +1059,39 @@ function Show-MainMenu {
     Write-Host "  Local workspace launcher and maintenance console" -ForegroundColor DarkGray
     Write-Host $rule -ForegroundColor DarkCyan
     Write-Host ""
-    Write-Host "  WORKSPACE" -ForegroundColor DarkCyan
-    Write-MenuItem -Number '1' -Label 'Launch application' -Hint 'Start the local web workspace'
-    Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Hint 'Refresh local runtimes and packages'
-    Write-MenuItem -Number '3' -Label 'Rebuild frontend' -Hint 'Install frontend packages and rebuild the bundle'
-    Write-MenuItem -Number '4' -Label 'Initialize database' -Hint 'Create or upgrade the Alembic-managed data store'
-    Write-MenuItem -Number '5' -Label 'Run test suite' -Hint 'Execute the repository checks'
+    Write-Host "  APPLICATION" -ForegroundColor DarkCyan
+    Write-MenuItem -Number '1' -Label 'Launch Application' -Hint 'Start the local web workspace'
+    Write-MenuItem -Number '2' -Label 'Initialize Database' -Hint 'Create or upgrade the Alembic-managed data store'
     Write-Host ""
-    Write-Host "  MAINTENANCE" -ForegroundColor DarkCyan
-    Write-MenuItem -Number '6' -Label 'Remove logs' -Hint 'Delete generated log files' -NumberColor Yellow
-    Write-MenuItem -Number '7' -Label 'Clear cache' -Hint 'Remove runtime and test-tool caches' -NumberColor Yellow
-    Write-MenuItem -Number '8' -Label 'Uninstall application' -Hint 'Remove local runtimes and build artifacts' -NumberColor Yellow
+    Write-Host "  DEVELOPMENT AND SETUP" -ForegroundColor DarkCyan
+    Write-MenuItem -Number '3' -Label 'Install / Update Dependencies' -Hint 'Refresh local runtimes and packages'
+    Write-MenuItem -Number '4' -Label 'Rebuild Frontend' -Hint 'Install frontend packages and rebuild the bundle'
+    Write-MenuItem -Number '5' -Label 'Run Test Suite' -Hint 'Execute the repository checks'
     Write-Host ""
+    Write-Host "  UPDATES" -ForegroundColor DarkCyan
+    Write-MenuItem -Number '6' -Label 'Check for Updates' -Hint 'Report whether origin/main has a newer version'
+    Write-MenuItem -Number '7' -Label 'Update' -Hint 'Switch to main and pull the latest application version'
+    Write-Host ""
+    Write-Host "  DATA AND MAINTENANCE" -ForegroundColor DarkCyan
+    Write-MenuItem -Number '8' -Label 'Remove Logs' -Hint 'Delete generated log files' -NumberColor Yellow
+    Write-MenuItem -Number '9' -Label 'Clear Cache' -Hint 'Remove runtime and test-tool caches' -NumberColor Yellow
+    Write-MenuItem -Number '10' -Label 'Remove Checkpoints' -Hint 'Delete saved training checkpoints' -NumberColor Yellow
+    Write-MenuItem -Number '11' -Label 'Remove All Data' -Hint 'Delete local database and user-generated files' -NumberColor Yellow
+    Write-MenuItem -Number '12' -Label 'Uninstall Application' -Hint 'Remove local runtimes and build artifacts' -NumberColor Yellow
+    Write-Host ""
+    Write-Host "  EXIT" -ForegroundColor DarkCyan
     Write-Host $subtleRule -ForegroundColor DarkGray
-    Write-MenuItem -Number '9' -Label 'Exit' -Hint 'Close this console' -NumberColor DarkGray
+    Write-MenuItem -Number '13' -Label 'Exit' -Hint 'Close this console' -NumberColor DarkGray
     Write-Host $rule -ForegroundColor DarkCyan
 }
 
 $exitMenu = $false
 while (-not $exitMenu) {
     Show-MainMenu
-    $selection = Read-Host "  Select an option [1-9]"
+    $selection = Read-Host "  Select an option [1-13]"
 
-    if ($selection -notmatch '^[1-9]$') {
-        Write-Warn "Please select a number from 1 to 9."
+    if ($selection -notmatch '^(?:[1-9]|1[0-3])$') {
+        Write-Warn "Please select a number from 1 to 13."
         Wait-ForMenu
         continue
     }
@@ -856,14 +1102,18 @@ while (-not $exitMenu) {
                 Start-Application
                 exit 0
             }
-            '2' { Install-OrUpdate; Wait-ForMenu }
-            '3' { Rebuild-Frontend; Wait-ForMenu }
-            '4' { Initialize-Database; Wait-ForMenu }
+            '2' { Initialize-Database; Wait-ForMenu }
+            '3' { Install-UpdateDependencies; Wait-ForMenu }
+            '4' { Rebuild-Frontend; Wait-ForMenu }
             '5' { Invoke-TestSuite; Wait-ForMenu }
-            '6' { Remove-Logs; Wait-ForMenu }
-            '7' { Clear-Cache; Wait-ForMenu }
-            '8' { Uninstall-Application; Wait-ForMenu }
-            '9' { $exitMenu = $true }
+            '6' { Check-For-Updates; Wait-ForMenu }
+            '7' { Update-Application; Wait-ForMenu }
+            '8' { Remove-Logs; Wait-ForMenu }
+            '9' { Clear-Cache; Wait-ForMenu }
+            '10' { Remove-Checkpoints; Wait-ForMenu }
+            '11' { Remove-All-Data; Wait-ForMenu }
+            '12' { Uninstall-Application; Wait-ForMenu }
+            '13' { $exitMenu = $true }
         }
     } catch {
         Write-Fatal $_.Exception.Message

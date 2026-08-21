@@ -1,6 +1,6 @@
 # ADSMOD Startup Procedures
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Recommended Local Web Startup
 
@@ -21,13 +21,26 @@ This menu-driven script:
 - syncs backend dependencies into `app/server/.venv`
 - installs frontend dependencies as needed
 - repairs missing or unusable dependencies and frontend build output during launch
-- always rebuilds the frontend when menu option 2, **Install / update dependencies**, is executed
-- provides menu option 3, **Rebuild frontend**, to install frontend packages and rebuild the bundle without syncing backend dependencies
+- always rebuilds the frontend when **Install / Update Dependencies** is executed
+- provides **Rebuild Frontend** to install frontend packages and rebuild the bundle without syncing backend dependencies
 - starts the unified backend and frontend preview
 - exits after handing launch control to the local web stack instead of returning to the menu
 - starts the frontend preview in the background and opens the browser after the UI responds
 - uses `runtime.core_port`, `runtime.ml_port`, and `runtime.frontend_port` from
   `$ADSMOD_RESOURCES_DIR/adsmod.json` (`app/resources` by default)
+
+The launcher groups its menu options into application, development and setup,
+updates, and data and maintenance sections. The update actions are distinct:
+
+- **Check for Updates** compares the local `main` branch with `origin/main`
+  without fetching, downloading, or applying changes.
+- **Update** switches to `main` and runs a fast-forward-only `git pull` from
+  `origin/main`; it requires a clean working tree.
+- **Remove Checkpoints** deletes saved training checkpoints after an explicit
+  confirmation.
+- **Remove All Data** deletes the embedded database, SQLite sidecar files,
+  saved checkpoints, and generated logs while preserving application files,
+  configuration, settings, and templates.
 
 Before launch, the script creates `settings/.env` from
 `settings/.env.example` only when the file is missing. Existing environment
