@@ -819,10 +819,7 @@ function Uninstall-Application {
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
         (Join-Path $ClientDir '.angular'),
-        (Join-Path $ClientDir 'dist'),
-        (Join-Path $ClientDir 'package-lock.json'),
-        (Join-Path $ServerDir 'uv.lock'),
-        (Join-Path $RepoRoot 'uv.lock')
+        (Join-Path $ClientDir 'dist')
     )
     foreach ($path in $paths) {
         Remove-RepoPath $path
@@ -830,7 +827,7 @@ function Uninstall-Application {
     Get-ChildItem -LiteralPath $RepoRoot -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
         Sort-Object FullName -Descending |
         ForEach-Object { Remove-RepoPath $_.FullName }
-    Write-Ok "Application artifacts removed. Settings, resources, database, and user data were preserved."
+    Write-Ok "Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved."
 }
 
 function Get-ConfiguredDatabasePath {
