@@ -11,7 +11,6 @@ from shared.repositories.schemas.models import Base
 config = context.config
 target_metadata = Base.metadata
 
-
 ###############################################################################
 def include_object(
     object_: object,
@@ -25,7 +24,6 @@ def include_object(
     if type_ == "table" and reflected and name not in target_metadata.tables:
         return False
     return True
-
 
 ###############################################################################
 def _configure(connection: Connection) -> None:
@@ -42,7 +40,6 @@ def _configure(connection: Connection) -> None:
         transactional_ddl=False,
         transaction_per_migration=False,
     )
-
 
 ###############################################################################
 def run_migrations_offline() -> None:
@@ -65,13 +62,11 @@ def run_migrations_offline() -> None:
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def _run_online(connection: Connection) -> None:
     _configure(connection)
     with context.begin_transaction():
         context.run_migrations()
-
 
 ###############################################################################
 def run_migrations_online() -> None:

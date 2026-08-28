@@ -18,7 +18,6 @@ from shared.repositories.database.legacy_schema import (
 from shared.repositories.database.manager import DatabaseManager
 from shared.repositories.schemas.models import Base, Dataset
 
-
 ###############################################################################
 def _postgres_settings(database_name: str) -> DatabaseSettings | None:
     host = os.getenv("DATABASE_HOST")
@@ -42,7 +41,6 @@ def _postgres_settings(database_name: str) -> DatabaseSettings | None:
         sqlite_path=None,
     )
 
-
 ###############################################################################
 @pytest.fixture
 def postgres_settings() -> DatabaseSettings:
@@ -61,7 +59,6 @@ def postgres_settings() -> DatabaseSettings:
                 connection.execute(text(f'DROP DATABASE IF EXISTS "{safe_name}"'))
         finally:
             admin.dispose()
-
 
 ###############################################################################
 def test_postgres_fresh_and_repeated_initialization(
@@ -82,7 +79,6 @@ def test_postgres_fresh_and_repeated_initialization(
             assert schema_matches_baseline(inspect(connection))
     finally:
         manager.dispose()
-
 
 ###############################################################################
 def test_postgres_legacy_adoption_preserves_data(
@@ -111,7 +107,6 @@ def test_postgres_legacy_adoption_preserves_data(
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def test_postgres_advisory_lock_serializes_concurrent_startup(
     postgres_settings: DatabaseSettings,
@@ -123,7 +118,6 @@ def test_postgres_advisory_lock_serializes_concurrent_startup(
 
     assert all(result.after == (result.head,) for result in results)
     assert sum(result.applied_migrations for result in results) == 1
-
 
 ###############################################################################
 def test_postgres_migration_failure_rolls_back(

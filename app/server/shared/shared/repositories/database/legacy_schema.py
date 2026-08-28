@@ -29,7 +29,6 @@ BASELINE_TABLES = frozenset(
     }
 )
 
-
 ###############################################################################
 def _expression(value: object) -> str:
     expression = re.sub(r"\s+", " ", str(value).strip().lower())
@@ -62,7 +61,6 @@ def _expression(value: object) -> str:
         expression = expression[1:-1].strip()
     return expression
 
-
 ###############################################################################
 def _type_signature(type_: Any) -> tuple[Any, ...]:
     name = type_.__class__.__name__.lower()
@@ -81,7 +79,6 @@ def _type_signature(type_: Any) -> tuple[Any, ...]:
     if name in {"timestamp", "timestamptz", "datetime"}:
         return ("datetime", True)
     return (name, getattr(type_, "length", None))
-
 
 ###############################################################################
 def inspector_signature(inspector: Inspector) -> dict[str, Any]:
@@ -135,12 +132,10 @@ def inspector_signature(inspector: Inspector) -> dict[str, Any]:
         }
     return result
 
-
 ###############################################################################
 def schema_hash(signature: dict[str, Any]) -> str:
     payload = json.dumps(signature, sort_keys=True, separators=(",", ":"), default=list)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
 
 ###############################################################################
 def schema_matches_baseline(inspector: Inspector) -> bool:
@@ -152,7 +147,6 @@ def schema_matches_baseline(inspector: Inspector) -> bool:
         available == BASELINE_TABLES
         and schema_hash(inspector_signature(inspector)) == BASELINE_SCHEMA_HASH
     )
-
 
 ###############################################################################
 def missing_baseline_tables(inspector: Inspector) -> tuple[str, ...]:
