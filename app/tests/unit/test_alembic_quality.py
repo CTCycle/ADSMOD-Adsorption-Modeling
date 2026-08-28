@@ -11,7 +11,6 @@ from shared.repositories.database.legacy_schema import (
     schema_matches_baseline,
 )
 
-
 ###############################################################################
 def _sqlite_settings(path: str) -> DatabaseSettings:
     return DatabaseSettings(
@@ -28,7 +27,6 @@ def _sqlite_settings(path: str) -> DatabaseSettings:
         insert_batch_size=100,
         sqlite_path=path,
     )
-
 
 ###############################################################################
 def test_packaged_history_has_one_head_and_no_pending_operations(tmp_path) -> None:  # type: ignore[no-untyped-def]
