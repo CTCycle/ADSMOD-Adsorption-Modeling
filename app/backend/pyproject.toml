@@ -1,0 +1,39 @@
+[project]
+name = "adsmod-backend-workspace"
+version = "3.0.0"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-playwright>=0.5.0",
+    "psutil>=6.1.1",
+    "ruff==0.15.9"
+]
+
+[tool.uv.workspace]
+members = [
+    "common",
+    "core",
+    "ml"
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+adsmod-common = { workspace = true }
+adsmod-core = { workspace = true }
+adsmod-ml = { workspace = true }
+torch = { index = "pytorch-cu130" }
+
+[tool.alembic]
+script_location = "%(here)s/migrations"
+prepend_sys_path = ["."]
+path_separator = "os"
+
+[tool.pytest.ini_options]
+cache_dir = "../tests/cache/pytest"

@@ -27,8 +27,18 @@ def test_core_factory_requires_explicit_config() -> None:
 ###############################################################################
 def test_snapshot_api_requires_token_and_preserves_hash(tmp_path: Path) -> None:
     with TemporaryDirectory(dir=tmp_path) as directory:
+        base_config = load_config(CONFIG_PATH)
         config = load_config(CONFIG_PATH).model_copy(
-            update={"storage": StorageConfig(root=Path(directory), database="core.db")}
+            update={
+                "storage": StorageConfig(root=Path(directory)),
+                "application": base_config.application.model_copy(
+                    update={
+                        "database": base_config.application.database.model_copy(
+                            update={"sqlite_path": "core.db"}
+                        )
+                    }
+                ),
+            }
         )
         with TestClient(create_app(config, internal_token="secret")) as client:
             rows = [{"id": 1, "value": "alpha"}, {"id": 2, "value": "beta"}]
@@ -55,8 +65,18 @@ def test_snapshot_api_requires_token_and_preserves_hash(tmp_path: Path) -> None:
 ###############################################################################
 def test_snapshot_page_not_found(tmp_path: Path) -> None:
     with TemporaryDirectory(dir=tmp_path) as directory:
+        base_config = load_config(CONFIG_PATH)
         config = load_config(CONFIG_PATH).model_copy(
-            update={"storage": StorageConfig(root=Path(directory), database="core.db")}
+            update={
+                "storage": StorageConfig(root=Path(directory)),
+                "application": base_config.application.model_copy(
+                    update={
+                        "database": base_config.application.database.model_copy(
+                            update={"sqlite_path": "core.db"}
+                        )
+                    }
+                ),
+            }
         )
         with TestClient(create_app(config, internal_token="secret")) as client:
             response = client.get(

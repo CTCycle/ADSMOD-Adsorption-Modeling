@@ -9,16 +9,16 @@
     "ml_restart_attempts": 0
   },
   "storage": {
-    "root": "%LOCALAPPDATA%/ADSMOD",
-    "database": "data/database.db"
+    "root": "%LOCALAPPDATA%/ADSMOD"
   },
   "security": {
-    "internal_token_required": true
+    "internal_token_required": true,
+    "internal_token_env": "ADSMOD_INTERNAL_TOKEN"
   },
   "application": {
     "database": {
       "embedded_database": true,
-      "sqlite_path": "app/resources/database.db"
+      "sqlite_path": "data/database.db"
     },
     "datasets": {
       "allowed_extensions": [".csv", ".xls", ".xlsx"],

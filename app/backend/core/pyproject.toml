@@ -6,11 +6,20 @@ dependencies = [
     "adsmod-common",
     "pydantic==2.13.4",
     "fastapi==0.128.0",
-    "uvicorn[standard]==0.40.0"
+    "uvicorn[standard]==0.40.0",
+    "httpx==0.28.1",
+    "python-multipart==0.0.32",
+    "alembic==1.19.1",
+    "SQLAlchemy==2.0.52",
+    "psycopg[binary]==3.3.4",
+    "numpy==2.5.2",
+    "pandas==3.0.5",
+    "scipy==1.16.3",
+    "PubChemPy==1.0.5"
 ]
 
 [tool.uv.sources]
-adsmod-common = { path = "../common" }
+adsmod-common = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/adsmod_core"]
