@@ -1,3 +1,13 @@
-from .core_client import CoreSnapshotClient, SnapshotClientError, SnapshotPayload
+from .core_client import (
+    CoreSnapshotClient,
+    SnapshotClientError,
+    SnapshotPayload,
+    SnapshotReference,
+)
 
-__all__ = ["CoreSnapshotClient", "SnapshotClientError", "SnapshotPayload"]
+__all__ = [
+    "CoreSnapshotClient",
+    "SnapshotClientError",
+    "SnapshotPayload",
+    "SnapshotReference",
+]

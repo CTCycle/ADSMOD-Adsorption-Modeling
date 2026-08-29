@@ -7,6 +7,7 @@ import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import get_args
 
 from fastapi import APIRouter, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,7 @@ from adsmod_common.capabilities import (
     ServiceCapability,
 )
 from adsmod_common.config import AdsmodConfig, load_config
+from adsmod_common.units import UnitRegistry
 from adsmod_common.version import __version__
 
 from .api import (
@@ -27,6 +29,13 @@ from .api import (
 )
 from .common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
 from .common.utils.logger import close_file_logging, configure_logging
+from .contracts.configuration import (
+    DisplayUnitCapabilities,
+    FittingConfigurationResponse,
+    NumericBounds,
+    ParameterDefaults,
+)
+from .contracts.fitting import FittingRequest
 from .http.entrypoint import health_router, register_root_routes
 from .http.routes import register_core_routes
 from .persistence.paths import resolve_storage_root
@@ -86,6 +95,41 @@ class CoreApplicationState:
 
 def capabilities(request: Request) -> CapabilitiesResponse:
     return _capabilities(request.app.state.runtime.config)
+
+
+def configuration(request: Request) -> FittingConfigurationResponse:
+    config: AdsmodConfig = request.app.state.runtime.config
+    fitting = config.application.fitting
+    pressure_units = tuple(UnitRegistry.PRESSURE_TO_PA)
+    uptake_units = tuple(
+        dict.fromkeys(UnitRegistry.UPTAKE_ALIASES.values())
+    )
+    return FittingConfigurationResponse(
+        supported_optimizers=tuple(
+            get_args(FittingRequest.model_fields["optimizer"].annotation)
+        ),
+        default_optimizer="trf",
+        default_max_evaluations=fitting.default_max_iterations,
+        max_evaluations_bounds=NumericBounds(
+            minimum=10,
+            maximum=fitting.max_iterations_upper_bound,
+        ),
+        weighting_options=tuple(
+            get_args(FittingRequest.model_fields["weighting"].annotation)
+        ),
+        default_weighting="unweighted",
+        display_units=DisplayUnitCapabilities(
+            pressure=pressure_units + ("1", "%"),
+            uptake=uptake_units,
+            default_pressure="bar",
+            default_uptake="mmol/g",
+        ),
+        parameter_defaults=ParameterDefaults(
+            lower=fitting.default_parameter_min,
+            upper=fitting.default_parameter_max,
+            initial=fitting.default_parameter_initial,
+        ),
+    )
 
 
 def create_snapshot(
@@ -187,16 +231,12 @@ def _nist_snapshot_rows(
     runtime: CoreApplicationState,
     dataset_name: str,
 ) -> list[dict[str, object]]:
-    adsorption, guests, hosts = runtime.container.nist_repository.load_adsorption_datasets()
+    adsorption, guests, _ = runtime.container.nist_repository.load_adsorption_datasets()
     if adsorption.empty:
         raise ValueError(f"NIST dataset '{dataset_name}' contains no observations.")
     guest_properties = {
         str(row.get("name", "")).strip().casefold(): row
         for row in guests.to_dict(orient="records")
-    }
-    host_properties = {
-        str(row.get("name", "")).strip().casefold(): row
-        for row in hosts.to_dict(orient="records")
     }
     rows: list[dict[str, object]] = []
     for index, raw_record in enumerate(adsorption.to_dict(orient="records")):
@@ -204,7 +244,6 @@ def _nist_snapshot_rows(
         adsorbate = str(record.get("adsorbate") or "").strip()
         adsorbent = str(record.get("adsorbent") or "").strip()
         guest = guest_properties.get(adsorbate.casefold(), {})
-        host = host_properties.get(adsorbent.casefold(), {})
         record.update(
             {
                 "filename": f"{dataset_name}:{record.get('external_key') or index}",
@@ -298,6 +337,13 @@ def _build_internal_router() -> APIRouter:
         capabilities,
         methods=["GET"],
         response_model=CapabilitiesResponse,
+        tags=["system"],
+    )
+    router.add_api_route(
+        "/system/configuration",
+        configuration,
+        methods=["GET"],
+        response_model=FittingConfigurationResponse,
         tags=["system"],
     )
     router.add_api_route(

@@ -18,6 +18,10 @@ def test_core_runtime_contracts() -> None:
         assert capabilities["configured_mode"] == "core"
         assert capabilities["features"]["training"] is False
         assert capabilities["services"]["ml"]["readiness"] == "not-configured"
+        configuration = client.get("/api/v1/system/configuration")
+        assert configuration.status_code == 200
+        assert configuration.json()["default_max_evaluations"] == 1000
+        assert configuration.json()["display_units"]["default_pressure"] == "bar"
 
 ###############################################################################
 def test_core_factory_requires_explicit_config() -> None:
