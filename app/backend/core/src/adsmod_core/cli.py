@@ -11,8 +11,6 @@ from .app import create_app_from_path
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="adsmod-core")
     parser.add_argument("--config", required=True, type=Path)
-    parser.add_argument("--host", default=None)
-    parser.add_argument("--port", default=None, type=int)
     return parser
 
 ###############################################################################
@@ -22,8 +20,8 @@ def main() -> None:
     runtime = application.state.config.runtime
     uvicorn.run(
         application,
-        host=args.host or runtime.host,
-        port=args.port or runtime.core_port,
+        host=runtime.host,
+        port=runtime.core_port,
     )
 
 

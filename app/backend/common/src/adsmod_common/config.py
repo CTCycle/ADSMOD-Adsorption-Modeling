@@ -46,11 +46,17 @@ class RuntimeConfig(StrictModel):
 ###############################################################################
 class StorageConfig(StrictModel):
     root: Path
-    database: str
 
 ###############################################################################
 class SecurityConfig(StrictModel):
     internal_token_required: bool
+    internal_token_env: str = Field(default="ADSMOD_INTERNAL_TOKEN", min_length=1)
+
+    @field_validator("internal_token_env", mode="before")
+    @classmethod
+    def normalize_token_environment_name(cls, value: Any) -> str:
+        text = str(value).strip() if value is not None else ""
+        return text or "ADSMOD_INTERNAL_TOKEN"
 
 ###############################################################################
 class DatabaseConfig(StrictModel):
