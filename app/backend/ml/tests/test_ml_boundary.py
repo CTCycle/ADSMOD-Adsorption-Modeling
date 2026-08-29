@@ -17,6 +17,12 @@ def test_ml_runtime_contracts() -> None:
         assert client.get("/health/live").json()["service"] == "ml"
         assert client.get("/health/ready").json()["state"] == "ready"
         assert client.get("/api/v1/system/capabilities").json()["features"]["training"] is True
+        configuration = client.get("/api/v1/system/configuration")
+        assert configuration.status_code == 200
+        payload = configuration.json()
+        assert payload["defaults"]["batch_size"] == 32
+        assert payload["dataset_defaults"]["max_measurements"] == 30
+        assert payload["runtime"]["keras_backend"] == "torch"
 
 ###############################################################################
 def test_snapshot_client_fetches_pages_and_verifies_hash() -> None:
