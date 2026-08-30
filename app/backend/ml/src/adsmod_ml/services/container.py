@@ -12,11 +12,13 @@ from adsmod_ml.services.training import (
 )
 from adsmod_ml.services.jobs import JobManager
 
+
 ###############################################################################
 class MlServiceContainer:
-
     # -------------------------------------------------------------------------
-    def __init__(self, config: AdsmodConfig, *, internal_token: str | None = None) -> None:
+    def __init__(
+        self, config: AdsmodConfig, *, internal_token: str | None = None
+    ) -> None:
         self.config = config
         self.snapshot_client = CoreSnapshotClient.from_config(
             config,

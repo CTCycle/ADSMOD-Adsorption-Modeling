@@ -41,7 +41,9 @@ def configure_logging(log_directory: Path | None = None) -> None:
                 return
             logger.removeHandler(handler)
             handler.close()
-        if not any(isinstance(handler, logging.FileHandler) for handler in logger.handlers):
+        if not any(
+            isinstance(handler, logging.FileHandler) for handler in logger.handlers
+        ):
             file_handler = logging.FileHandler(filename, encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(
@@ -52,7 +54,9 @@ def configure_logging(log_directory: Path | None = None) -> None:
             )
             logger.addHandler(file_handler)
     except OSError:
-        logger.warning("Core file logging is unavailable; continuing with console logging.")
+        logger.warning(
+            "Core file logging is unavailable; continuing with console logging."
+        )
 
 
 def close_file_logging() -> None:

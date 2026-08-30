@@ -33,15 +33,16 @@ PARSER_VERSION = "2.0"
 PREVIEW_ROWS = 12
 EXPERIMENT_PREVIEW_POINTS = 8
 
+
 ###############################################################################
 @dataclass
 class ValidationBundle:
     response: ImportValidationResponse
     experiments: list[dict[str, Any]]
 
+
 ###############################################################################
 class AdsorptionImportEngine:
-
     # -------------------------------------------------------------------------
     def preview(self, payload: bytes, filename: str | None) -> ImportPreviewResponse:
         frame = read_tabular(payload, filename)
@@ -103,7 +104,14 @@ class AdsorptionImportEngine:
     def validate(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> ValidationBundle:
-        frame = read_tabular(payload, filename, header_row=mapping.header_row, field_delimiter=mapping.field_delimiter, encoding=mapping.encoding, worksheet=mapping.worksheet)
+        frame = read_tabular(
+            payload,
+            filename,
+            header_row=mapping.header_row,
+            field_delimiter=mapping.field_delimiter,
+            encoding=mapping.encoding,
+            worksheet=mapping.worksheet,
+        )
         issues: list[ImportIssue] = []
         unknown_columns = sorted(set(mapping.column_roles) - set(frame.columns))
         if unknown_columns:
@@ -132,7 +140,13 @@ class AdsorptionImportEngine:
                     )
                 )
         if not mapping.grouping_columns and not mapping.whole_file_grouping:
-            issues.append(ImportIssue(code="missing_grouping_column", severity="error", message="Select one or more grouping columns, or explicitly choose the entire file as one experiment."))
+            issues.append(
+                ImportIssue(
+                    code="missing_grouping_column",
+                    severity="error",
+                    message="Select one or more grouping columns, or explicitly choose the entire file as one experiment.",
+                )
+            )
         for column in mapping.grouping_columns:
             if column not in frame.columns:
                 issues.append(
@@ -147,17 +161,25 @@ class AdsorptionImportEngine:
             return self._bundle(mapping, payload, [], issues)
 
         detected = {
-            item.name: item for item in [infer_column(name, frame[name]) for name in frame]
+            item.name: item
+            for item in [infer_column(name, frame[name]) for name in frame]
         }
         grouped_records: dict[str, list[dict[str, Any]]] = {}
         metadata_by_group: dict[str, dict[str, Any]] = {}
 
         for row_offset, row in frame.iterrows():
             source_row = int(row_offset) + 2
-            group_values = [str(row.get(column, "")).strip() for column in mapping.grouping_columns]
+            group_values = [
+                str(row.get(column, "")).strip() for column in mapping.grouping_columns
+            ]
             if mapping.whole_file_grouping:
-                group_values = [mapping.constants.get("experiment_name", mapping.dataset_name)]
-            if any(not value or value.casefold() in {"nan", "none"} for value in group_values):
+                group_values = [
+                    mapping.constants.get("experiment_name", mapping.dataset_name)
+                ]
+            if any(
+                not value or value.casefold() in {"nan", "none"}
+                for value in group_values
+            ):
                 issues.append(
                     ImportIssue(
                         code="missing_experiment_identifier",
@@ -283,11 +305,17 @@ class AdsorptionImportEngine:
                     "external_key": group_key,
                     "name": metadata["name"],
                     "adsorbent": {"name": metadata["adsorbent"]},
-                    "adsorbates": [{"name": metadata["adsorbate"], "molar_mass_g_mol": metadata.get("adsorbate_molar_mass_g_mol"), "smiles": metadata.get("adsorbate_smiles")}],
-                    "temperature_original": metadata["temperature_original"],
-                    "temperature_original_unit": metadata[
-                        "temperature_original_unit"
+                    "adsorbates": [
+                        {
+                            "name": metadata["adsorbate"],
+                            "molar_mass_g_mol": metadata.get(
+                                "adsorbate_molar_mass_g_mol"
+                            ),
+                            "smiles": metadata.get("adsorbate_smiles"),
+                        }
                     ],
+                    "temperature_original": metadata["temperature_original"],
+                    "temperature_original_unit": metadata["temperature_original_unit"],
                     "temperature_k": metadata["temperature_k"],
                     "pressure_basis": metadata["pressure_basis"],
                     "duplicate_policy": mapping.duplicate_policy,
@@ -322,8 +350,12 @@ class AdsorptionImportEngine:
         mapping: ImportMapping,
         detected: dict[str, ColumnDetection],
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        adsorbent = str(self._mapped_value(row, "adsorbent", roles, mapping) or "").strip()
-        adsorbate = str(self._mapped_value(row, "adsorbate", roles, mapping) or "").strip()
+        adsorbent = str(
+            self._mapped_value(row, "adsorbent", roles, mapping) or ""
+        ).strip()
+        adsorbate = str(
+            self._mapped_value(row, "adsorbate", roles, mapping) or ""
+        ).strip()
         adsorbate_smiles_value = safe_cell(
             self._mapped_value(row, "adsorbate_smiles", roles, mapping)
         )
@@ -343,18 +375,24 @@ class AdsorptionImportEngine:
             self._mapped_value(row, "temperature", roles, mapping),
             mapping.decimal_separator,
         )
-        temperature_unit = self._unit_for(
-            "temperature", row, roles, mapping, detected
-        )
+        temperature_unit = self._unit_for("temperature", row, roles, mapping, detected)
         temperature = UnitRegistry.convert_temperature(
             temperature_value, temperature_unit
         )
 
-        pressure_unit = self._unit_for(
-            "pressure", row, roles, mapping, detected
-        )
+        pressure_unit = self._unit_for("pressure", row, roles, mapping, detected)
         uptake_unit = self._unit_for("uptake", row, roles, mapping, detected)
-        known_molar_masses = {"co2": 44.0095, "carbon dioxide": 44.0095, "n2": 28.0134, "nitrogen": 28.0134, "ch4": 16.0425, "methane": 16.0425, "o2": 31.9988, "h2": 2.01588, "hydrogen": 2.01588}
+        known_molar_masses = {
+            "co2": 44.0095,
+            "carbon dioxide": 44.0095,
+            "n2": 28.0134,
+            "nitrogen": 28.0134,
+            "ch4": 16.0425,
+            "methane": 16.0425,
+            "o2": 31.9988,
+            "h2": 2.01588,
+            "hydrogen": 2.01588,
+        }
         molar_mass = mapping.constants.get("adsorbate_molar_mass_g_mol")
         if molar_mass is None:
             molar_mass = known_molar_masses.get(adsorbate.casefold())
@@ -364,8 +402,7 @@ class AdsorptionImportEngine:
         ).strip()
         if not name or name.casefold() in {"nan", "none"}:
             name = " | ".join(
-                str(row.get(column, "")).strip()
-                for column in mapping.grouping_columns
+                str(row.get(column, "")).strip() for column in mapping.grouping_columns
             )
 
         saturation_pressure_pa = None
@@ -429,7 +466,9 @@ class AdsorptionImportEngine:
             pressure = UnitRegistry.convert_pressure(
                 pressure_value, pressure_unit, mapping.pressure_basis
             )
-            uptake = UnitRegistry.convert_uptake(uptake_value, uptake_unit, molar_mass_value)
+            uptake = UnitRegistry.convert_uptake(
+                uptake_value, uptake_unit, molar_mass_value
+            )
             stddev = None
             if self._mapped_value(row, "uptake_stddev", roles, mapping) not in (
                 None,
@@ -464,7 +503,10 @@ class AdsorptionImportEngine:
                     "extra_metadata": {
                         "source_pressure_token": safe_cell(pressure_raw),
                         "source_uptake_token": safe_cell(uptake_raw),
-                        **{column: safe_cell(row.get(column)) for column in metadata_columns},
+                        **{
+                            column: safe_cell(row.get(column))
+                            for column in metadata_columns
+                        },
                     },
                 }
             )
@@ -500,7 +542,9 @@ class AdsorptionImportEngine:
             value = row.get(unit_column)
             if value is not None and str(value).strip():
                 return str(value).strip()
-            raise UnitConversionError(f"The {quantity.replace('_', ' ')} unit column is empty for this observation.")
+            raise UnitConversionError(
+                f"The {quantity.replace('_', ' ')} unit column is empty for this observation."
+            )
         value_column = roles.get(quantity)
         if value_column and detected[value_column].detected_unit:
             return str(detected[value_column].detected_unit)
@@ -525,9 +569,9 @@ class AdsorptionImportEngine:
                 averaged.append(items[0])
                 continue
             base = dict(items[0])
-            base["uptake_mol_kg"] = sum(
-                item["uptake_mol_kg"] for item in items
-            ) / len(items)
+            base["uptake_mol_kg"] = sum(item["uptake_mol_kg"] for item in items) / len(
+                items
+            )
             base["uptake_original"] = base["uptake_mol_kg"]
             base["uptake_original_unit"] = "mol/kg"
             base["conversion_metadata"] = {
@@ -556,7 +600,13 @@ class AdsorptionImportEngine:
             if issue.severity == "confirmation"
             and issue.code not in mapping.confirmed_issue_codes
         ]
-        status = "invalid" if errors else "confirmation_required" if confirmations else "valid"
+        status = (
+            "invalid"
+            if errors
+            else "confirmation_required"
+            if confirmations
+            else "valid"
+        )
         previews = [
             NormalizedExperimentPreview(
                 external_key=experiment["external_key"],

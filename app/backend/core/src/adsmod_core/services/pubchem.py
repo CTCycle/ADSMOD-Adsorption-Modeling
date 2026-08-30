@@ -11,9 +11,9 @@ import pubchempy as pcp
 
 from adsmod_core.common.utils.logger import logger
 
+
 ###############################################################################
 class PubChemClient:
-
     # -------------------------------------------------------------------------
     def __init__(self, parallel_tasks: int) -> None:
         self.parallel_tasks = max(1, int(parallel_tasks))
@@ -75,7 +75,9 @@ class PubChemClient:
                         await asyncio.sleep(delay)
                         continue
                     if self.is_not_found_error(message):
-                        logger.info("PubChem compound not found for %s", normalized_name)
+                        logger.info(
+                            "PubChem compound not found for %s", normalized_name
+                        )
                     else:
                         logger.warning(
                             "PubChem lookup failed for %s: %s", normalized_name, exc

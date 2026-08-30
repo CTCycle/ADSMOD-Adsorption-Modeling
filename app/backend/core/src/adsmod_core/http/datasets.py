@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Form, HTTPException, Path, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    Query,
+    UploadFile,
+    status,
+)
 
 from adsmod_core.contracts.datasets import (
     DatasetImportResponse,
@@ -18,9 +27,9 @@ from adsmod_core.services.container import CoreServiceContainer
 from adsmod_core.services.data.datasets import DatasetService
 from adsmod_core.common.constants import DATASETS_ROUTER_PREFIX, MAX_UPLOAD_SIZE_BYTES
 
+
 ###############################################################################
 class DatasetEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: DatasetService) -> None:
         self.router = router
@@ -29,9 +38,7 @@ class DatasetEndpoint:
     # -------------------------------------------------------------------------
     @staticmethod
     def bad_request(exc: ValueError) -> HTTPException:
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        )
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -123,9 +130,7 @@ class DatasetEndpoint:
         limit: int = Query(100, ge=1, le=500),
     ) -> ObservationPage:
         try:
-            return self.service.get_observations(
-                dataset_id, isotherm_id, offset, limit
-            )
+            return self.service.get_observations(dataset_id, isotherm_id, offset, limit)
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
@@ -223,6 +228,7 @@ class DatasetEndpoint:
             methods=["DELETE"],
             status_code=status.HTTP_204_NO_CONTENT,
         )
+
 
 ###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:

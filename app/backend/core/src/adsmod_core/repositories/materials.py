@@ -10,9 +10,9 @@ from adsmod_core.repositories.database.manager import DatabaseManager
 from adsmod_core.repositories.schemas.models import Adsorbate, Adsorbent
 from adsmod_core.repositories.schemas.types import normalize_identity
 
+
 ###############################################################################
 class MaterialRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -22,9 +22,7 @@ class MaterialRepository:
         rows = [
             dict(
                 row,
-                normalized_name=normalize_identity(
-                    str(row.get("name", row["key"]))
-                ),
+                normalized_name=normalize_identity(str(row.get("name", row["key"]))),
             )
             for row in records
         ]
@@ -36,9 +34,7 @@ class MaterialRepository:
         rows = [
             dict(
                 row,
-                normalized_name=normalize_identity(
-                    str(row.get("name", row["key"]))
-                ),
+                normalized_name=normalize_identity(str(row.get("name", row["key"]))),
             )
             for row in records
         ]
@@ -49,9 +45,7 @@ class MaterialRepository:
     def adsorbate_ids(self, keys: Iterable[str]) -> dict[str, int]:
         with self.database.session_factory() as session:
             rows = session.execute(
-                select(Adsorbate.key, Adsorbate.id).where(
-                    Adsorbate.key.in_(list(keys))
-                )
+                select(Adsorbate.key, Adsorbate.id).where(Adsorbate.key.in_(list(keys)))
             ).all()
             return {key: identifier for key, identifier in rows}
 
@@ -59,8 +53,6 @@ class MaterialRepository:
     def adsorbent_ids(self, keys: Iterable[str]) -> dict[str, int]:
         with self.database.session_factory() as session:
             rows = session.execute(
-                select(Adsorbent.key, Adsorbent.id).where(
-                    Adsorbent.key.in_(list(keys))
-                )
+                select(Adsorbent.key, Adsorbent.id).where(Adsorbent.key.in_(list(keys)))
             ).all()
             return {key: identifier for key, identifier in rows}

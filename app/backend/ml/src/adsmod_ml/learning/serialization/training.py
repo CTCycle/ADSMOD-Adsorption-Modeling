@@ -21,7 +21,9 @@ class TrainingDataSerializer:
     sample_key_column = "sample_key"
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
-    def __init__(self, snapshot_client: CoreSnapshotClient, artifact_root: Path) -> None:
+    def __init__(
+        self, snapshot_client: CoreSnapshotClient, artifact_root: Path
+    ) -> None:
         self.snapshot_client = snapshot_client
         self.artifact_root = Path(artifact_root).resolve()
         self.artifact_root.mkdir(parents=True, exist_ok=True)
@@ -94,7 +96,10 @@ class TrainingDataSerializer:
                 return None
             return value
         if isinstance(value, dict):
-            return {str(key): TrainingDataSerializer._jsonable(item) for key, item in value.items()}
+            return {
+                str(key): TrainingDataSerializer._jsonable(item)
+                for key, item in value.items()
+            }
         if isinstance(value, (list, tuple)):
             return [TrainingDataSerializer._jsonable(item) for item in value]
         item = getattr(value, "item", None)
@@ -131,12 +136,20 @@ class TrainingDataSerializer:
     def _require_columns(frame: pd.DataFrame, columns: set[str], context: str) -> None:
         missing = columns.difference(frame.columns)
         if missing:
-            raise ValueError(f"{context} is missing required columns: {', '.join(sorted(missing))}")
+            raise ValueError(
+                f"{context} is missing required columns: {', '.join(sorted(missing))}"
+            )
 
     @staticmethod
     def require_dataset_hash(dataset_hash: Any) -> str:
-        normalized = "" if dataset_hash is None or pd.isna(dataset_hash) else str(dataset_hash).strip()
-        if len(normalized) != 64 or any(char not in "0123456789abcdefABCDEF" for char in normalized):
+        normalized = (
+            ""
+            if dataset_hash is None or pd.isna(dataset_hash)
+            else str(dataset_hash).strip()
+        )
+        if len(normalized) != 64 or any(
+            char not in "0123456789abcdefABCDEF" for char in normalized
+        ):
             raise ValueError("dataset_hash must be a 64-character hexadecimal digest.")
         return normalized
 
@@ -155,13 +168,14 @@ class TrainingDataSerializer:
             normalized[self.dataset_label_column] = label
         normalized[self.dataset_hash_column] = content_hash
         if self.sample_key_column not in normalized.columns:
-            normalized[self.sample_key_column] = normalized.apply(self.build_sample_key, axis=1)
-        normalized = normalized.drop_duplicates(subset=[self.sample_key_column], keep="last")
+            normalized[self.sample_key_column] = normalized.apply(
+                self.build_sample_key, axis=1
+            )
+        normalized = normalized.drop_duplicates(
+            subset=[self.sample_key_column], keep="last"
+        )
         rows = [
-            {
-                str(key): self._jsonable(value)
-                for key, value in record.items()
-            }
+            {str(key): self._jsonable(value) for key, value in record.items()}
             for record in normalized.to_dict(orient="records")
         ]
         reference = self.snapshot_client.create_snapshot(
@@ -184,7 +198,9 @@ class TrainingDataSerializer:
         }
         self._write_manifest(manifest)
 
-    def save_training_metadata(self, metadata: pd.DataFrame, dataset_label: str) -> None:
+    def save_training_metadata(
+        self, metadata: pd.DataFrame, dataset_label: str
+    ) -> None:
         if metadata.empty:
             return
         label = self.normalize_dataset_label(dataset_label)
@@ -197,7 +213,9 @@ class TrainingDataSerializer:
                 try:
                     row[key] = json.loads(value)
                 except json.JSONDecodeError as exc:
-                    raise ValueError(f"Training metadata field '{key}' is invalid JSON.") from exc
+                    raise ValueError(
+                        f"Training metadata field '{key}' is invalid JSON."
+                    ) from exc
         manifest = self._read_manifest()
         entry = manifest.get(label)
         if entry is None:
@@ -261,7 +279,9 @@ class TrainingDataSerializer:
     def list_processed_datasets(self) -> list[dict[str, Any]]:
         datasets: list[dict[str, Any]] = []
         for label, entry in sorted(self._read_manifest().items()):
-            metadata = entry.get("metadata") if isinstance(entry.get("metadata"), dict) else {}
+            metadata = (
+                entry.get("metadata") if isinstance(entry.get("metadata"), dict) else {}
+            )
             datasets.append(
                 {
                     "dataset_label": label,
@@ -301,10 +321,14 @@ class TrainingDataSerializer:
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     @staticmethod
-    def validate_metadata(metadata: TrainingMetadata, target_metadata: TrainingMetadata) -> bool:
+    def validate_metadata(
+        metadata: TrainingMetadata, target_metadata: TrainingMetadata
+    ) -> bool:
         if not metadata or not target_metadata:
             return False
-        return TrainingDataSerializer.compute_metadata_hash(metadata) == TrainingDataSerializer.compute_metadata_hash(target_metadata)
+        return TrainingDataSerializer.compute_metadata_hash(
+            metadata
+        ) == TrainingDataSerializer.compute_metadata_hash(target_metadata)
 
 
 __all__ = ["TrainingDataSerializer"]

@@ -38,6 +38,7 @@ from adsmod_ml.contracts.jobs import (
 from adsmod_ml.services.job_responses import JobResponseFactory
 from adsmod_ml.services.jobs import JobManager
 
+
 ###############################################################################
 def get_training_process_stop_timeout_seconds(config: AdsmodConfig) -> float:
     return max(
@@ -45,9 +46,9 @@ def get_training_process_stop_timeout_seconds(config: AdsmodConfig) -> float:
         float(config.application.jobs.polling_interval),
     )
 
+
 ###############################################################################
 class TrainingSession:
-
     # -------------------------------------------------------------------------
     def __init__(self, training_manager: TrainingManager) -> None:
         self.training_manager = training_manager
@@ -89,6 +90,7 @@ class TrainingSession:
         self.worker = None
         self.current_job_id = None
 
+
 ###############################################################################
 def determine_checkpoint_compatibility(
     checkpoint_name: str,
@@ -117,9 +119,9 @@ def determine_checkpoint_compatibility(
 
     return checkpoint_hash in dataset_hashes
 
+
 ###############################################################################
 class TrainingJobRunner:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -228,7 +230,9 @@ class TrainingJobRunner:
             result = self.monitor_training_process(
                 job_id,
                 worker,
-                stop_timeout_seconds=get_training_process_stop_timeout_seconds(self.config),
+                stop_timeout_seconds=get_training_process_stop_timeout_seconds(
+                    self.config
+                ),
             )
 
             if self.job_manager.should_stop(job_id):
@@ -257,6 +261,7 @@ class TrainingJobRunner:
                 worker.join(timeout=5)
             worker.cleanup()
             self.session.finish_session()
+
 
 ###############################################################################
 class TrainingService:
@@ -452,7 +457,9 @@ class TrainingService:
         resolved_label = self.training_manager.data_serializer.normalize_dataset_label(
             dataset_label
         )
-        info = self.training_manager.data_serializer.get_training_dataset_info(resolved_label)
+        info = self.training_manager.data_serializer.get_training_dataset_info(
+            resolved_label
+        )
         if info is None:
             return DatasetInfoResponse(available=False)
         return DatasetInfoResponse(
@@ -525,7 +532,9 @@ class TrainingService:
                 if not isinstance(session_history, dict):
                     session_history = {}
 
-                epochs_value = session.get("epochs") if isinstance(session, dict) else None
+                epochs_value = (
+                    session.get("epochs") if isinstance(session, dict) else None
+                )
                 if isinstance(epochs_value, int):
                     epochs_trained = epochs_value
 
@@ -584,9 +593,13 @@ class TrainingService:
         return CheckpointsResponse(checkpoints=detailed_checkpoints)
 
     # -------------------------------------------------------------------------
-    def get_checkpoint_details(self, checkpoint_name: str) -> CheckpointFullDetailsResponse:
-        checkpoint_path = self.training_manager.model_serializer.resolve_checkpoint_path(
-            checkpoint_name
+    def get_checkpoint_details(
+        self, checkpoint_name: str
+    ) -> CheckpointFullDetailsResponse:
+        checkpoint_path = (
+            self.training_manager.model_serializer.resolve_checkpoint_path(
+                checkpoint_name
+            )
         )
         if not Path(checkpoint_path).is_dir():
             raise FileNotFoundError(f"Checkpoint {checkpoint_name} not found")
@@ -628,19 +641,27 @@ class TrainingService:
         )
         configuration = config.model_dump()
         configuration["dataset_label"] = resolved_label
-        configuration["polling_interval"] = self.config.application.jobs.polling_interval
+        configuration["polling_interval"] = (
+            self.config.application.jobs.polling_interval
+        )
 
         logger.info("Starting training with config: %s", configuration)
         metadata = self.training_manager.data_serializer.load_training_metadata(
             resolved_label
         )
         requested_hash = configuration.get("dataset_hash")
-        if requested_hash and metadata.dataset_hash and requested_hash != metadata.dataset_hash:
+        if (
+            requested_hash
+            and metadata.dataset_hash
+            and requested_hash != metadata.dataset_hash
+        ):
             raise ValueError(
                 "Selected dataset does not match the stored training metadata. "
                 "Refresh the dataset list and try again."
             )
-        info = self.training_manager.data_serializer.get_training_dataset_info(resolved_label)
+        info = self.training_manager.data_serializer.get_training_dataset_info(
+            resolved_label
+        )
         if info is None:
             raise ValueError("No training dataset available. Build the dataset first.")
 
@@ -692,13 +713,19 @@ class TrainingService:
         )
         available = self.training_manager.model_serializer.scan_checkpoints_folder()
         if request.checkpoint_name not in available:
-            raise FileNotFoundError(f"Checkpoint '{request.checkpoint_name}' not found.")
+            raise FileNotFoundError(
+                f"Checkpoint '{request.checkpoint_name}' not found."
+            )
 
-        checkpoint_path = self.training_manager.model_serializer.resolve_checkpoint_path(
-            request.checkpoint_name
+        checkpoint_path = (
+            self.training_manager.model_serializer.resolve_checkpoint_path(
+                request.checkpoint_name
+            )
         )
-        _, _, session = self.training_manager.model_serializer.load_training_configuration(
-            checkpoint_path
+        _, _, session = (
+            self.training_manager.model_serializer.load_training_configuration(
+                checkpoint_path
+            )
         )
 
         from_epoch = 0
@@ -738,7 +765,9 @@ class TrainingService:
             {
                 "current_epoch": state_snapshot["current_epoch"],
                 "total_epochs": state_snapshot["total_epochs"],
-                "progress": (from_epoch / total_epochs * 100.0) if total_epochs else 0.0,
+                "progress": (from_epoch / total_epochs * 100.0)
+                if total_epochs
+                else 0.0,
                 "metrics": state_snapshot["metrics"],
             },
         )

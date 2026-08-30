@@ -10,6 +10,7 @@ from playwright.sync_api import APIRequestContext
 
 from .test_datasets_api import _commit_sample
 
+
 ###############################################################################
 class TestFittingRun:
     """Tests for the fitting run endpoint."""
@@ -136,6 +137,7 @@ class TestFittingRun:
         # Assert
         assert response.status == 422  # Pydantic validation error
 
+
 ###############################################################################
 class TestModelCatalog:
     """Tests for the current fitting model catalog endpoint."""
@@ -151,13 +153,18 @@ class TestModelCatalog:
         assert data["uptake_unit"] == "mmol/g"
         models = {model["key"]: model for model in data["models"]}
         assert {"langmuir", "freundlich"}.issubset(models)
-        assert {parameter["name"] for parameter in models["langmuir"]["parameters"]} == {"k", "qsat"}
+        assert {
+            parameter["name"] for parameter in models["langmuir"]["parameters"]
+        } == {"k", "qsat"}
+
 
 ###############################################################################
 class TestFittingJobs:
     """Tests for fitting job polling and cancellation payloads."""
 
     # -------------------------------------------------------------------------
-    def test_cancel_unknown_job_returns_error(self, api_context: APIRequestContext) -> None:
+    def test_cancel_unknown_job_returns_error(
+        self, api_context: APIRequestContext
+    ) -> None:
         response = api_context.delete("/api/v1/fitting/jobs/unknown-job")
         assert response.status == 400

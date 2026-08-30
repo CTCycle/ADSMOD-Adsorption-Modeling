@@ -20,6 +20,7 @@ from adsmod_core.repositories.schemas.types import normalize_identity
 
 NIST_DATASET_NAME = "NIST ISODB"
 
+
 ###############################################################################
 class NISTRepository:
     """Own canonical NIST persistence and query operations."""

@@ -52,7 +52,9 @@ class DatabaseManager:
         self.database = database
         self.storage_root = storage_root
         self.backend = (
-            "sqlite" if database.embedded_database else self._normalize_backend(database.engine)
+            "sqlite"
+            if database.embedded_database
+            else self._normalize_backend(database.engine)
         )
         self.engine = self._create_engine()
         self.session_factory = sessionmaker(
@@ -94,8 +96,14 @@ class DatabaseManager:
             event.listen(engine, "connect", self._configure_sqlite)
             return engine
 
-        if not self.database.host or not self.database.database_name or not self.database.username:
-            raise ValueError("PostgreSQL host, database name, and username are required.")
+        if (
+            not self.database.host
+            or not self.database.database_name
+            or not self.database.username
+        ):
+            raise ValueError(
+                "PostgreSQL host, database name, and username are required."
+            )
         engine_name = normalize_postgres_engine(self.database.engine)
         username = quote_plus(self.database.username)
         password = quote_plus(self.database.password or "")
@@ -111,7 +119,9 @@ class DatabaseManager:
             connect_args["sslmode"] = "require"
             if self.database.ssl_ca:
                 connect_args["sslrootcert"] = self.database.ssl_ca
-        return create_engine(url, future=True, connect_args=connect_args, pool_pre_ping=True)
+        return create_engine(
+            url, future=True, connect_args=connect_args, pool_pre_ping=True
+        )
 
     @staticmethod
     def _configure_sqlite(dbapi_connection: Any, connection_record: Any) -> None:

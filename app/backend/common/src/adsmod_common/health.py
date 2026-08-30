@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 HealthState = Literal["starting", "ready", "not-ready", "failed", "unavailable"]
 
+
 ###############################################################################
 class HealthResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)

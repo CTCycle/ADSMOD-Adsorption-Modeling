@@ -10,13 +10,14 @@ from keras.callbacks import Callback
 
 from adsmod_ml.common.utils.logger import logger
 
+
 ###############################################################################
 class WorkerInterrupted(RuntimeError):
     """Raised to immediately interrupt training in a worker process."""
 
+
 ###############################################################################
 class WorkerProgressMessenger:
-
     # -------------------------------------------------------------------------
     def __init__(self, worker: Any | None = None) -> None:
         self.worker = worker
@@ -36,9 +37,9 @@ class WorkerProgressMessenger:
 
 # [CALLBACK FOR TRAINING PROGRESS]
 
+
 ###############################################################################
 class TrainingProgressCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -165,9 +166,9 @@ class TrainingProgressCallback(Callback):
 
 # [CALLBACK FOR TRAIN INTERRUPTION]
 
+
 ###############################################################################
 class StopTrainingCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(self, should_stop: Callable[[], bool] | None = None) -> None:
         super().__init__()
@@ -175,22 +176,30 @@ class StopTrainingCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_batch_end(self, batch, logs: dict | None = None) -> None:
-        if self.should_stop is not None and self.should_stop() and self.model is not None:
+        if (
+            self.should_stop is not None
+            and self.should_stop()
+            and self.model is not None
+        ):
             logger.info("Stop requested; halting training after batch %s", batch)
             self.model.stop_training = True
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
-        if self.should_stop is not None and self.should_stop() and self.model is not None:
+        if (
+            self.should_stop is not None
+            and self.should_stop()
+            and self.model is not None
+        ):
             logger.info("Stop requested; halting training after epoch %s", epoch + 1)
             self.model.stop_training = True
 
 
 # [CALLBACK FOR WORKER INTERRUPTIONS]
 
+
 ###############################################################################
 class TrainingInterruptCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(self, worker: Any | None = None) -> None:
         super().__init__()
@@ -216,9 +225,9 @@ class TrainingInterruptCallback(Callback):
 
 # [CALLBACK FOR PERIODIC CHECKPOINTS]
 
+
 ###############################################################################
 class PeriodicCheckpointCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(self, checkpoint_dir: str, frequency: int = 1) -> None:
         super().__init__()
@@ -237,6 +246,7 @@ class PeriodicCheckpointCallback(Callback):
                 logger.info("Saved checkpoint %s", target_path)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to save checkpoint: %s", exc)
+
 
 ###############################################################################
 def build_training_callbacks(

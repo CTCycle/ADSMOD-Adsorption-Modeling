@@ -14,15 +14,23 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from adsmod_core.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime, normalize_identity
+from adsmod_core.repositories.schemas.types import (
+    JSONList,
+    JSONMapping,
+    UTCDateTime,
+    normalize_identity,
+)
+
 
 ###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
+
 ###############################################################################
 class Base(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class Dataset(Base):
@@ -34,8 +42,12 @@ class Dataset(Base):
     source: Mapped[str] = mapped_column(String(16), nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False, default="")
     tags: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
-    provenance: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    provenance: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
@@ -66,6 +78,7 @@ class Dataset(Base):
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
+
 ###############################################################################
 class DatasetImport(Base):
     __tablename__ = "dataset_imports"
@@ -80,19 +93,26 @@ class DatasetImport(Base):
     source_structure: Mapped[str] = mapped_column(String(16), nullable=False)
     parser_version: Mapped[str] = mapped_column(String(32), nullable=False)
     column_mapping: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False)
-    validation_result: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False)
+    validation_result: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False
+    )
     warnings: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
 
     dataset: Mapped[Dataset] = relationship(back_populates="imports", lazy="raise")
 
     __table_args__ = (
-        UniqueConstraint("dataset_id", "source_sha256", name="uq_dataset_import_source"),
+        UniqueConstraint(
+            "dataset_id", "source_sha256", name="uq_dataset_import_source"
+        ),
         CheckConstraint(
             "source_structure IN ('atomic', 'aggregated', 'mixed')",
             name="ck_dataset_import_structure",
         ),
     )
+
 
 ###############################################################################
 class Adsorbate(Base):
@@ -107,7 +127,9 @@ class Adsorbate(Base):
     formula: Mapped[str | None] = mapped_column(String(255))
     molar_mass_g_mol: Mapped[float | None] = mapped_column(Float)
     smiles: Mapped[str | None] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
@@ -124,6 +146,7 @@ class Adsorbate(Base):
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
+
 ###############################################################################
 class Adsorbent(Base):
     __tablename__ = "adsorbents"
@@ -136,7 +159,9 @@ class Adsorbent(Base):
     formula: Mapped[str | None] = mapped_column(String(255))
     molar_mass_g_mol: Mapped[float | None] = mapped_column(Float)
     smiles: Mapped[str | None] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
@@ -152,6 +177,7 @@ class Adsorbent(Base):
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
+
 
 ###############################################################################
 class Isotherm(Base):
@@ -170,17 +196,27 @@ class Isotherm(Base):
     temperature_original_unit: Mapped[str] = mapped_column(String(16), nullable=False)
     temperature_k: Mapped[float] = mapped_column(Float, nullable=False)
     pressure_basis: Mapped[str] = mapped_column(String(16), nullable=False)
-    duplicate_policy: Mapped[str] = mapped_column(String(16), nullable=False, default="reject")
+    duplicate_policy: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="reject"
+    )
     saturation_pressure_pa: Mapped[float | None] = mapped_column(Float)
-    conditions: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False, default=dict)
-    provenance: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    conditions: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    provenance: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
 
     dataset: Mapped[Dataset] = relationship(back_populates="isotherms", lazy="raise")
-    adsorbent: Mapped[Adsorbent] = relationship(back_populates="isotherms", lazy="raise")
+    adsorbent: Mapped[Adsorbent] = relationship(
+        back_populates="isotherms", lazy="raise"
+    )
     components: Mapped[list[IsothermComponent]] = relationship(
         back_populates="isotherm",
         cascade="all, delete-orphan",
@@ -207,13 +243,17 @@ class Isotherm(Base):
             "pressure_basis IN ('absolute', 'partial', 'relative')",
             name="ck_isotherms_pressure_basis",
         ),
-        CheckConstraint("duplicate_policy IN ('reject', 'keep', 'average')", name="ck_isotherms_duplicate_policy"),
+        CheckConstraint(
+            "duplicate_policy IN ('reject', 'keep', 'average')",
+            name="ck_isotherms_duplicate_policy",
+        ),
         CheckConstraint(
             "saturation_pressure_pa IS NULL OR saturation_pressure_pa > 0",
             name="ck_isotherms_saturation_pressure",
         ),
         Index("ix_isotherms_dataset_name", "dataset_id", "name"),
     )
+
 
 ###############################################################################
 class IsothermComponent(Base):
@@ -230,7 +270,9 @@ class IsothermComponent(Base):
     mole_fraction: Mapped[float | None] = mapped_column(Float)
 
     isotherm: Mapped[Isotherm] = relationship(back_populates="components", lazy="raise")
-    adsorbate: Mapped[Adsorbate] = relationship(back_populates="components", lazy="raise")
+    adsorbate: Mapped[Adsorbate] = relationship(
+        back_populates="components", lazy="raise"
+    )
     observations: Mapped[list[Observation]] = relationship(
         back_populates="component", lazy="raise"
     )
@@ -244,6 +286,7 @@ class IsothermComponent(Base):
             name="ck_components_fraction",
         ),
     )
+
 
 ###############################################################################
 class Observation(Base):
@@ -273,14 +316,19 @@ class Observation(Base):
         JSONMapping, nullable=False, default=dict
     )
 
-    isotherm: Mapped[Isotherm] = relationship(back_populates="observations", lazy="raise")
+    isotherm: Mapped[Isotherm] = relationship(
+        back_populates="observations", lazy="raise"
+    )
     component: Mapped[IsothermComponent] = relationship(
         back_populates="observations", lazy="raise"
     )
 
     __table_args__ = (
         UniqueConstraint(
-            "isotherm_id", "component_id", "sequence_index", name="uq_observations_sequence"
+            "isotherm_id",
+            "component_id",
+            "sequence_index",
+            name="uq_observations_sequence",
         ),
         CheckConstraint("sequence_index >= 0", name="ck_observations_sequence"),
         CheckConstraint("pressure_canonical >= 0", name="ck_observations_pressure"),
@@ -302,6 +350,7 @@ class Observation(Base):
         ),
     )
 
+
 ###############################################################################
 class FittingRun(Base):
     __tablename__ = "fitting_runs"
@@ -318,10 +367,14 @@ class FittingRun(Base):
     configuration: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     message: Mapped[str] = mapped_column(String, nullable=False, default="")
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
-    isotherm: Mapped[Isotherm] = relationship(back_populates="fitting_runs", lazy="raise")
+    isotherm: Mapped[Isotherm] = relationship(
+        back_populates="fitting_runs", lazy="raise"
+    )
     results: Mapped[list[FitResult]] = relationship(
         back_populates="run",
         cascade="all, delete-orphan",
@@ -337,6 +390,7 @@ class FittingRun(Base):
         CheckConstraint("max_evaluations > 0", name="ck_fitting_runs_evaluations"),
         Index("ix_fitting_runs_isotherm_created", "isotherm_id", "created_at"),
     )
+
 
 ###############################################################################
 class FitResult(Base):
@@ -388,6 +442,7 @@ class FitResult(Base):
         Index("ix_fit_results_run_rank", "run_id", "rank"),
     )
 
+
 ###############################################################################
 class FitParameter(Base):
     __tablename__ = "fit_parameters"
@@ -410,13 +465,16 @@ class FitParameter(Base):
         CheckConstraint("position >= 0", name="ck_fit_parameters_position"),
     )
 
+
 ###############################################################################
 class TrainingSnapshot(Base):
     __tablename__ = "training_snapshots"
 
     snapshot_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     row_count: Mapped[int] = mapped_column(Integer, nullable=False)
     snapshot_metadata: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONMapping, nullable=False, default=dict
@@ -433,6 +491,7 @@ class TrainingSnapshot(Base):
         CheckConstraint("row_count > 0", name="ck_training_snapshots_row_count"),
     )
 
+
 ###############################################################################
 class TrainingSnapshotRow(Base):
     __tablename__ = "training_snapshot_rows"
@@ -444,7 +503,9 @@ class TrainingSnapshotRow(Base):
     row_index: Mapped[int] = mapped_column(Integer, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False)
 
-    snapshot: Mapped[TrainingSnapshot] = relationship(back_populates="rows", lazy="raise")
+    snapshot: Mapped[TrainingSnapshot] = relationship(
+        back_populates="rows", lazy="raise"
+    )
 
     __table_args__ = (
         UniqueConstraint(

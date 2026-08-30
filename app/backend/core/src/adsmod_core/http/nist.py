@@ -34,9 +34,9 @@ from adsmod_core.contracts.jobs import (
     JobStatusResponse,
 )
 
+
 ###############################################################################
 class NistEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: NISTDataService) -> None:
         self.router = router
@@ -49,7 +49,9 @@ class NistEndpoint:
             logger.info("Started NIST fetch job %s", response.job_id)
             return response
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     def start_properties_job(self, request: NISTPropertiesRequest) -> JobStartResponse:
@@ -62,7 +64,9 @@ class NistEndpoint:
             )
             return response
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     async def ping_category_server(
@@ -96,7 +100,9 @@ class NistEndpoint:
             logger.info("Started NIST %s index job %s", category, response.job_id)
             return response
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     def start_category_fetch_job(
@@ -107,7 +113,9 @@ class NistEndpoint:
             logger.info("Started NIST %s fetch job %s", category, response.job_id)
             return response
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     def start_category_enrich_job(self, category: NISTCategory) -> JobStartResponse:
@@ -116,7 +124,9 @@ class NistEndpoint:
             logger.info("Started NIST %s enrichment job %s", category, response.job_id)
             return response
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     async def fetch_nist_category_status(self) -> NISTCategoryStatusResponse:
@@ -136,7 +146,9 @@ class NistEndpoint:
         try:
             return self.service.get_job_status(job_id)
         except LookupError as exc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     def list_jobs(self) -> JobListResponse:
@@ -147,7 +159,9 @@ class NistEndpoint:
         try:
             return self.service.cancel_job(job_id)
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     async def fetch_nist_status(self) -> NISTStatusResponse:
@@ -248,6 +262,7 @@ class NistEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def create_nist_router(container: CoreServiceContainer) -> APIRouter:

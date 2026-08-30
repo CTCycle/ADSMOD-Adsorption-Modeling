@@ -75,24 +75,36 @@ def _serializer(
 
 
 def test_validate_metadata_identical() -> None:
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(), create_basis_metadata()
-    ) is True
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(), create_basis_metadata()
+        )
+        is True
+    )
 
 
 def test_validate_metadata_rejects_parameter_and_vocabulary_changes() -> None:
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(sample_size=1.0),
-        create_basis_metadata(sample_size=0.5),
-    ) is False
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(smile_vocabulary={"A": 1}),
-        create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
-    ) is False
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
-        create_basis_metadata(smile_vocabulary={"A": 2, "B": 1}),
-    ) is False
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(sample_size=1.0),
+            create_basis_metadata(sample_size=0.5),
+        )
+        is False
+    )
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(smile_vocabulary={"A": 1}),
+            create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
+        )
+        is False
+    )
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
+            create_basis_metadata(smile_vocabulary={"A": 2, "B": 1}),
+        )
+        is False
+    )
 
 
 def test_compute_metadata_hash_is_deterministic() -> None:

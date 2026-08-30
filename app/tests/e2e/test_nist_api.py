@@ -6,6 +6,7 @@ import json
 
 from playwright.sync_api import APIRequestContext
 
+
 ###############################################################################
 class TestNistStatus:
     """Tests for the NIST status endpoint."""
@@ -23,6 +24,7 @@ class TestNistStatus:
             assert "binary_mixture_rows" in data
             assert "guest_rows" in data
             assert "host_rows" in data
+
 
 ###############################################################################
 class TestNistFetch:
@@ -67,6 +69,7 @@ class TestNistFetch:
 
         assert response.status == 422
 
+
 ###############################################################################
 class TestNistProperties:
     """Tests for the NIST properties enrichment endpoint."""
@@ -98,6 +101,8 @@ class TestNistProperties:
         self, api_context: APIRequestContext
     ) -> None:
         """Verify NIST properties with invalid target returns a validation error."""
-        response = api_context.post("/api/v1/nist/properties", data={"target": "invalid"})
+        response = api_context.post(
+            "/api/v1/nist/properties", data={"target": "invalid"}
+        )
 
         assert response.status == 422

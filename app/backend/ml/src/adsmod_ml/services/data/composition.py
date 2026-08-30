@@ -55,7 +55,9 @@ class DatasetCompositionService:
         return frame, None, None, dataset_label or "composed"
 
     def _require_columns(self, frame: pd.DataFrame) -> None:
-        missing = [column for column in self.required_columns if column not in frame.columns]
+        missing = [
+            column for column in self.required_columns if column not in frame.columns
+        ]
         if missing:
             raise ValueError(
                 "Core snapshot is missing required training columns: "
@@ -68,13 +70,21 @@ class DatasetCompositionService:
         for column in ("temperature", "pressure", "adsorbed_amount"):
             normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
         normalized = normalized.dropna(
-            subset=["temperature", "pressure", "adsorbed_amount", "adsorbate_name", "adsorbent_name"]
+            subset=[
+                "temperature",
+                "pressure",
+                "adsorbed_amount",
+                "adsorbate_name",
+                "adsorbent_name",
+            ]
         )
         normalized = normalized[normalized["temperature"] > 0]
         normalized = normalized[normalized["pressure"] >= 0]
         normalized = normalized[normalized["adsorbed_amount"] >= 0]
         for column in ("adsorbate_name", "adsorbent_name"):
-            normalized[column] = normalized[column].astype("string").str.strip().str.lower()
+            normalized[column] = (
+                normalized[column].astype("string").str.strip().str.lower()
+            )
         if "adsorbate_SMILE" not in normalized.columns:
             normalized["adsorbate_SMILE"] = pd.NA
         if "adsorbate_molecular_weight" not in normalized.columns:

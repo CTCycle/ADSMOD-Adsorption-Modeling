@@ -10,9 +10,11 @@ import httpx
 
 from adsmod_common.config import AdsmodConfig
 
+
 ###############################################################################
 class SnapshotClientError(RuntimeError):
     """Raised when core snapshot retrieval or verification fails."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -28,11 +30,16 @@ class SnapshotReference:
     content_hash: str
     row_count: int
 
+
 ###############################################################################
 class CoreSnapshotClient:
-
     # -------------------------------------------------------------------------
-    def __init__(self, base_url: str, internal_token: str, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        internal_token: str,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.internal_token = internal_token
         self.transport = transport
@@ -96,7 +103,9 @@ class CoreSnapshotClient:
                 row_count=int(payload["row_count"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
-            raise SnapshotClientError("core response omitted snapshot metadata") from exc
+            raise SnapshotClientError(
+                "core response omitted snapshot metadata"
+            ) from exc
 
     def create_snapshot(
         self,
@@ -117,10 +126,14 @@ class CoreSnapshotClient:
                 row_count=int(payload["row_count"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
-            raise SnapshotClientError("core response omitted snapshot metadata") from exc
+            raise SnapshotClientError(
+                "core response omitted snapshot metadata"
+            ) from exc
 
     # -------------------------------------------------------------------------
-    def fetch_snapshot(self, snapshot_id: str, *, page_size: int = 1000) -> SnapshotPayload:
+    def fetch_snapshot(
+        self, snapshot_id: str, *, page_size: int = 1000
+    ) -> SnapshotPayload:
         rows: list[dict[str, Any]] = []
         page = 1
         content_hash: str | None = None
@@ -145,8 +158,12 @@ class CoreSnapshotClient:
             if len(rows) >= int(payload.get("total_rows", len(rows))) or not page_rows:
                 break
             page += 1
-        canonical = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        canonical = json.dumps(
+            rows, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
         calculated_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         if content_hash != calculated_hash:
             raise SnapshotClientError("snapshot hash verification failed")
-        return SnapshotPayload(snapshot_id=snapshot_id, content_hash=calculated_hash, rows=tuple(rows))
+        return SnapshotPayload(
+            snapshot_id=snapshot_id, content_hash=calculated_hash, rows=tuple(rows)
+        )

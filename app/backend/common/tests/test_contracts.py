@@ -10,11 +10,13 @@ from adsmod_common.config import AdsmodConfig, load_config
 
 CONFIG_PATH = Path("app/resources/adsmod.json")
 
+
 ###############################################################################
 def test_canonical_core_config_loads() -> None:
     config = load_config(CONFIG_PATH)
     assert config.version == "3.0.0"
     assert config.runtime.mode == "core"
+
 
 ###############################################################################
 def test_core_ml_config_loads() -> None:
@@ -22,6 +24,7 @@ def test_core_ml_config_loads() -> None:
     payload["runtime"]["mode"] = "core-ml"
     payload["runtime"]["ml_restart_attempts"] = 1
     assert AdsmodConfig.model_validate(payload).runtime.mode == "core-ml"
+
 
 ###############################################################################
 def test_missing_canonical_sections_are_rejected(tmp_path: Path) -> None:
@@ -33,10 +36,12 @@ def test_missing_canonical_sections_are_rejected(tmp_path: Path) -> None:
     finally:
         config_path.unlink(missing_ok=True)
 
+
 ###############################################################################
 def test_unknown_and_legacy_keys_are_rejected() -> None:
     with pytest.raises(ValidationError):
         AdsmodConfig.model_validate({"mode": "both"})
+
 
 ###############################################################################
 def test_duplicate_ports_are_rejected() -> None:
@@ -45,12 +50,27 @@ def test_duplicate_ports_are_rejected() -> None:
     with pytest.raises(ValidationError):
         AdsmodConfig.model_validate(payload)
 
+
 ###############################################################################
 def test_capability_contract_is_strict() -> None:
-    response = CapabilitiesResponse.model_validate({
-        "configured_mode": "core",
-        "version": "3.0.0",
-        "features": {"datasets": True, "nist": True, "fitting": True, "training": False, "checkpoints": False},
-        "services": {"ml": {"configured": False, "health": "unavailable", "readiness": "not-configured"}},
-    })
+    response = CapabilitiesResponse.model_validate(
+        {
+            "configured_mode": "core",
+            "version": "3.0.0",
+            "features": {
+                "datasets": True,
+                "nist": True,
+                "fitting": True,
+                "training": False,
+                "checkpoints": False,
+            },
+            "services": {
+                "ml": {
+                    "configured": False,
+                    "health": "unavailable",
+                    "readiness": "not-configured",
+                }
+            },
+        }
+    )
     assert response.features.training is False

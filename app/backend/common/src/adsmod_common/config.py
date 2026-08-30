@@ -8,9 +8,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 RuntimeMode = Literal["core", "core-ml"]
 
+
 ###############################################################################
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
 
 ###############################################################################
 class RuntimeConfig(StrictModel):
@@ -43,9 +45,11 @@ class RuntimeConfig(StrictModel):
             raise ValueError("runtime.ml_restart_attempts must be 0 in core mode")
         return self
 
+
 ###############################################################################
 class StorageConfig(StrictModel):
     root: Path
+
 
 ###############################################################################
 class SecurityConfig(StrictModel):
@@ -57,6 +61,7 @@ class SecurityConfig(StrictModel):
     def normalize_token_environment_name(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
         return text or "ADSMOD_INTERNAL_TOKEN"
+
 
 ###############################################################################
 class DatabaseConfig(StrictModel):
@@ -97,6 +102,7 @@ class DatabaseConfig(StrictModel):
         text = str(value).strip() if value is not None else ""
         return text or "postgres"
 
+
 ###############################################################################
 class DatasetConfig(StrictModel):
     allowed_extensions: tuple[str, ...]
@@ -120,10 +126,12 @@ class DatasetConfig(StrictModel):
             raise ValueError("datasets.allowed_extensions must not be empty")
         return cleaned
 
+
 ###############################################################################
 class NISTConfig(StrictModel):
     parallel_tasks: int = Field(ge=1)
     pubchem_parallel_tasks: int = Field(ge=1)
+
 
 ###############################################################################
 class FittingConfig(StrictModel):
@@ -155,9 +163,11 @@ class FittingConfig(StrictModel):
             )
         return self
 
+
 ###############################################################################
 class JobConfig(StrictModel):
     polling_interval: float = Field(ge=0.0)
+
 
 ###############################################################################
 class TrainingConfig(StrictModel):
@@ -174,6 +184,7 @@ class TrainingConfig(StrictModel):
         text = str(value).strip() if value is not None else ""
         return text or "inductor"
 
+
 ###############################################################################
 class ApplicationConfig(StrictModel):
     database: DatabaseConfig
@@ -182,6 +193,7 @@ class ApplicationConfig(StrictModel):
     fitting: FittingConfig
     jobs: JobConfig
     training: TrainingConfig
+
 
 ###############################################################################
 class AdsmodConfig(StrictModel):
@@ -199,6 +211,7 @@ class AdsmodConfig(StrictModel):
                 "security.internal_token_required must be true in core-ml mode"
             )
         return self
+
 
 ###############################################################################
 def load_config(path: str | Path) -> AdsmodConfig:

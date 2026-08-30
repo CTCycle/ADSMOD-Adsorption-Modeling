@@ -36,7 +36,9 @@ def upgrade() -> None:
         "training_snapshots",
         sa.Column("snapshot_id", sa.String(length=36), nullable=False),
         sa.Column("content_hash", sa.String(length=64), nullable=False),
-        sa.Column("created_at", schema_types.UTCDateTime(timezone=True), nullable=False),
+        sa.Column(
+            "created_at", schema_types.UTCDateTime(timezone=True), nullable=False
+        ),
         sa.Column("row_count", sa.Integer(), nullable=False),
         sa.Column("metadata", schema_types.JSONMapping(), nullable=False),
         sa.PrimaryKeyConstraint("snapshot_id"),

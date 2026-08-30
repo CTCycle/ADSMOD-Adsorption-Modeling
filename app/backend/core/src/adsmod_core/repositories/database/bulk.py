@@ -8,8 +8,11 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
+
 ###############################################################################
-def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> list[dict[str, Any]]:
+def _deduplicate(
+    records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]
+) -> list[dict[str, Any]]:
     by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
     passthrough: list[dict[str, Any]] = []
     for record in records:
@@ -20,8 +23,14 @@ def _deduplicate(records: Iterable[dict[str, Any]], conflict_columns: Sequence[s
             by_key[key] = record
     return [*by_key.values(), *passthrough]
 
+
 ###############################################################################
-def upsert_records(session: Session, table: Table, records: Iterable[dict[str, Any]], conflict_columns: Sequence[str]) -> int:
+def upsert_records(
+    session: Session,
+    table: Table,
+    records: Iterable[dict[str, Any]],
+    conflict_columns: Sequence[str],
+) -> int:
     """Upsert records using the caller-supplied conflict contract in one session transaction."""
     normalized_records = []
     for record in records:
@@ -45,9 +54,13 @@ def upsert_records(session: Session, table: Table, records: Iterable[dict[str, A
         if column not in conflict_set and column in table.c
     }
     if update_columns:
-        statement = statement.on_conflict_do_update(index_elements=list(conflict_columns), set_=update_columns)
+        statement = statement.on_conflict_do_update(
+            index_elements=list(conflict_columns), set_=update_columns
+        )
     else:
-        statement = statement.on_conflict_do_nothing(index_elements=list(conflict_columns))
+        statement = statement.on_conflict_do_nothing(
+            index_elements=list(conflict_columns)
+        )
     session.execute(statement, batch)
     return len(batch)
 

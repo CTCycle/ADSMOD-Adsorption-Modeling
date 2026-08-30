@@ -7,6 +7,7 @@ import pandas as pd
 from adsmod_ml.common.utils.logger import logger
 from adsmod_common.units import UnitConversionError, UnitRegistry, normalize_token
 
+
 ###############################################################################
 def map_values(
     values: list[int | float] | int | float | None,
@@ -25,6 +26,7 @@ def map_values(
     if pd.isna(values):
         return None
     return converter(float(values))
+
 
 ###############################################################################
 class PressureConversion:
@@ -55,15 +57,21 @@ class PressureConversion:
 
     # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        if self.P_UNIT_COL not in dataframe.columns or self.P_COL not in dataframe.columns:
+        if (
+            self.P_UNIT_COL not in dataframe.columns
+            or self.P_COL not in dataframe.columns
+        ):
             logger.debug("Pressure conversion skipped (missing pressure columns).")
             return dataframe
 
         dataframe[self.P_COL] = dataframe.apply(
-            lambda row: self.convert_values(row.get(self.P_COL), row.get(self.P_UNIT_COL)),
+            lambda row: self.convert_values(
+                row.get(self.P_COL), row.get(self.P_UNIT_COL)
+            ),
             axis=1,
         )
         return dataframe.drop(columns=self.P_UNIT_COL)
+
 
 ###############################################################################
 class UptakeConversion:
@@ -109,7 +117,10 @@ class UptakeConversion:
 
     # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        if self.Q_UNIT_COL not in dataframe.columns or self.Q_COL not in dataframe.columns:
+        if (
+            self.Q_UNIT_COL not in dataframe.columns
+            or self.Q_COL not in dataframe.columns
+        ):
             logger.debug("Uptake conversion skipped (missing adsorption columns).")
             return dataframe
 
@@ -118,6 +129,7 @@ class UptakeConversion:
             for _, row in dataframe.iterrows()
         ]
         return dataframe.drop(columns=self.Q_UNIT_COL)
+
 
 ###############################################################################
 def PQ_units_conversion(dataframe: pd.DataFrame) -> pd.DataFrame:

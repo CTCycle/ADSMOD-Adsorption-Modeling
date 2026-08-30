@@ -18,9 +18,9 @@ from typing import Any
 from adsmod_core.common.utils.encoding import normalize_error_text
 from adsmod_core.common.utils.logger import logger as shared_logger
 
+
 ###############################################################################
 class _JobState:
-
     # -------------------------------------------------------------------------
     def __init__(self, job_id: str, job_type: str, status: str) -> None:
         self.job_id = job_id
@@ -55,9 +55,9 @@ class _JobState:
                 "completed_at": self.completed_at,
             }
 
+
 ###############################################################################
 class _JobExecutionConfig:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -74,9 +74,9 @@ class _JobExecutionConfig:
         self.process_message_handler = process_message_handler
         self.completion_handler = completion_handler
 
+
 ###############################################################################
 class _ProcessJobState:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -91,6 +91,7 @@ class _ProcessJobState:
         self.result_queue = result_queue
         self.message_queue = message_queue
         self.created_at = monotonic()
+
 
 ###############################################################################
 def run_process_runner(
@@ -126,6 +127,7 @@ def run_process_runner(
             message_queue.put_nowait({"type": "error", "error": error_msg})
         except Exception:
             pass
+
 
 ###############################################################################
 class JobManager:
@@ -339,9 +341,7 @@ class JobManager:
         except ProcessLookupError:
             return
         except Exception as exc:  # noqa: BLE001
-            self._logger.warning(
-                "Failed to force kill process %s: %s", process_id, exc
-            )
+            self._logger.warning("Failed to force kill process %s: %s", process_id, exc)
 
     # -------------------------------------------------------------------------
     def consume_process_messages(
@@ -399,7 +399,9 @@ class JobManager:
             try:
                 config.completion_handler(job_id, status, result, error)
             except Exception as exc:  # noqa: BLE001
-                self._logger.warning("Completion handler failed for %s: %s", job_id, exc)
+                self._logger.warning(
+                    "Completion handler failed for %s: %s", job_id, exc
+                )
 
     # -------------------------------------------------------------------------
     def run_process_job(
@@ -569,6 +571,7 @@ class JobManager:
         finally:
             with self.lock:
                 self.job_configs.pop(job_id, None)
+
 
 ###############################################################################
 def format_error_message(exc: Exception) -> str:

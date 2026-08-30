@@ -7,6 +7,7 @@ import os
 import pytest
 from playwright.sync_api import APIRequestContext
 
+
 ###############################################################################
 class TestTrainingDatasets:
     """Tests for training dataset availability endpoint."""
@@ -24,6 +25,7 @@ class TestTrainingDatasets:
         if data.get("available"):
             assert "train_samples" in data or "name" in data
 
+
 ###############################################################################
 class TestCheckpoints:
     """Tests for the checkpoints listing endpoint."""
@@ -37,6 +39,7 @@ class TestCheckpoints:
         data = response.json()
         assert "checkpoints" in data
         assert isinstance(data["checkpoints"], list)
+
 
 ###############################################################################
 class TestTrainingStatus:
@@ -56,6 +59,7 @@ class TestTrainingStatus:
         assert "total_epochs" in data
         assert "progress" in data
 
+
 ###############################################################################
 class TestDatasetInfo:
     """Tests for the dataset info endpoint."""
@@ -67,6 +71,7 @@ class TestDatasetInfo:
 
         assert response.ok
         assert "available" in response.json()
+
 
 ###############################################################################
 class TestDatasetBuild:
@@ -98,9 +103,7 @@ class TestDatasetBuild:
             "smile_sequence_size": 16,
             "max_pressure": 5000.0,
             "max_uptake": 10.0,
-            "datasets": [
-                {"source": "nist", "dataset_name": "NIST ISODB"}
-            ],
+            "datasets": [{"source": "nist", "dataset_name": "NIST ISODB"}],
         }
 
         response = ml_api_context.post("/api/v1/training/build-dataset", data=payload)
@@ -117,14 +120,13 @@ class TestDatasetBuild:
         payload = {
             "sample_size": 2.0,
             "validation_size": 0.2,
-            "datasets": [
-                {"source": "nist", "dataset_name": "NIST ISODB"}
-            ],
+            "datasets": [{"source": "nist", "dataset_name": "NIST ISODB"}],
         }
 
         response = ml_api_context.post("/api/v1/training/build-dataset", data=payload)
 
         assert response.status == 422
+
 
 ###############################################################################
 class TestClearDataset:
@@ -140,6 +142,7 @@ class TestClearDataset:
         assert data.get("status") in {"success", "error"}
         assert "message" in data
 
+
 ###############################################################################
 class TestDatasetSources:
     """Tests for the training source catalog."""
@@ -153,6 +156,7 @@ class TestDatasetSources:
         )
 
         assert response.status == 404
+
 
 ###############################################################################
 class TestTrainingLifecycle:
