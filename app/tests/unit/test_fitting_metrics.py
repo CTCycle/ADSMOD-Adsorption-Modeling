@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from core_service.services.modeling.fitting import compute_metrics
+from adsmod_core.services.modeling.fitting import compute_metrics
 
 ###############################################################################
 def test_metrics_use_observed_minus_predicted_and_conditional_information_criteria() -> None:

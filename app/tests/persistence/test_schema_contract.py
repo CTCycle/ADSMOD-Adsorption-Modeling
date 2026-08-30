@@ -8,17 +8,17 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.schema import CreateTable
 
-from shared.common.settings import DatabaseSettings
-from shared.repositories.database.bulk import upsert_records
-from shared.repositories.database.manager import DatabaseManager
-from shared.repositories.schemas.models import Base, Dataset
-from shared.repositories.schemas.types import JSONList, UTCDateTime
+from adsmod_common.config import DatabaseConfig
+from adsmod_core.repositories.database.bulk import upsert_records
+from adsmod_core.repositories.database.manager import DatabaseManager
+from adsmod_core.repositories.schemas.models import Base, Dataset
+from adsmod_core.repositories.schemas.types import JSONList, UTCDateTime
 
 
 EXPECTED_TABLES = {
     "datasets", "adsorbates", "adsorbents", "isotherms", "isotherm_components",
     "observations", "dataset_imports", "fitting_runs", "fit_results", "fit_parameters",
-    "training_datasets", "training_samples",
+    "training_snapshots", "training_snapshot_rows",
 }
 
 ###############################################################################
@@ -48,10 +48,8 @@ def test_every_canonical_table_compiles_for_both_backends(dialect) -> None:  # t
 
 ###############################################################################
 def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
-    settings = DatabaseSettings(
-        embedded_database=True, engine=None, host=None, port=None,
-        database_name=None, username=None, password=None, ssl=False,
-        ssl_ca=None, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
+    settings = DatabaseConfig(
+        embedded_database=True, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
     )
     manager = DatabaseManager(settings)
     try:
@@ -68,10 +66,8 @@ def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
 
 ###############################################################################
 def test_explicit_bulk_upsert_uses_declared_conflict_key() -> None:
-    settings = DatabaseSettings(
-        embedded_database=True, engine=None, host=None, port=None,
-        database_name=None, username=None, password=None, ssl=False,
-        ssl_ca=None, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
+    settings = DatabaseConfig(
+        embedded_database=True, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
     )
     manager = DatabaseManager(settings)
     try:

@@ -1,134 +1,62 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-GENERATED_DIRS = {".venv", "__pycache__", ".pytest_cache", ".startup-temp", ".uv-cache"}
 
-###############################################################################
-def _iter_python_files(root: str):
-    for path in Path(root).rglob("*.py"):
+BACKEND_ROOT = Path("app/backend")
+GENERATED_DIRS = {".venv", "__pycache__", ".pytest_cache", ".uv-cache"}
+
+
+def _iter_python_files(root: Path):
+    for path in root.rglob("*.py"):
         if any(part in GENERATED_DIRS for part in path.parts):
             continue
         yield path
 
-###############################################################################
-def test_core_has_no_ml_imports() -> None:
-    forbidden = [
-        "from ml_service",
-        "import ml_service",
-        "import torch",
-        "from torch",
-        "import keras",
-        "from keras",
-        "import sklearn",
-        "from sklearn",
-    ]
-    for path in _iter_python_files("app/server/core_service"):
+
+def _has_import(text: str, package: str) -> bool:
+    return bool(
+        re.search(
+            rf"^(?:from|import) {re.escape(package)}(?:\.|\s|$)",
+            text,
+            re.MULTILINE,
+        )
+    )
+
+
+def test_common_has_no_framework_or_persistence_imports() -> None:
+    forbidden = ("fastapi", "sqlalchemy")
+    for path in _iter_python_files(BACKEND_ROOT / "common"):
         text = path.read_text(encoding="utf-8")
-        hits = [item for item in forbidden if item in text]
+        hits = [package for package in forbidden if _has_import(text, package)]
         assert not hits, f"{path}: forbidden imports {hits}"
 
-###############################################################################
-def test_shared_has_no_service_imports() -> None:
-    forbidden = [
-        "from core_service",
-        "import core_service",
-        "from ml_service",
-        "import ml_service",
-    ]
-    for path in _iter_python_files("app/server/shared"):
+
+def test_core_does_not_import_ml_or_ml_heavy_packages() -> None:
+    forbidden = ("adsmod_ml", "torch", "keras", "sklearn")
+    for path in _iter_python_files(BACKEND_ROOT / "core"):
         text = path.read_text(encoding="utf-8")
-        hits = [item for item in forbidden if item in text]
+        hits = [package for package in forbidden if _has_import(text, package)]
         assert not hits, f"{path}: forbidden imports {hits}"
 
-###############################################################################
-def test_no_legacy_monolith_imports_remain() -> None:
-    forbidden = [
-        "app.server.api",
-        "app.server.common",
-        "app.server.configurations",
-        "app.server.domain",
-        "app.server.learning",
-        "app.server.repositories",
-        "app.server.services",
-    ]
-    for path in _iter_python_files("app/server"):
-        text = path.read_text(encoding="utf-8")
-        hits = [item for item in forbidden if item in text]
-        assert not hits, f"{path}: forbidden legacy imports {hits}"
 
-###############################################################################
+def test_ml_does_not_import_core_or_persistence() -> None:
+    forbidden = ("adsmod_core", "sqlalchemy", "alembic")
+    for path in _iter_python_files(BACKEND_ROOT / "ml"):
+        text = path.read_text(encoding="utf-8")
+        hits = [package for package in forbidden if _has_import(text, package)]
+        assert not hits, f"{path}: forbidden imports {hits}"
+
+
 def test_contract_packages_have_no_framework_or_persistence_imports() -> None:
-    forbidden = [
-        "from fastapi",
-        "import fastapi",
-        "from sqlalchemy",
-        "import sqlalchemy",
-    ]
-    roots = [
-        "app/server/core_service/core_service/contracts",
-        "app/server/ml_service/ml_service/contracts",
-        "app/server/shared/shared/contracts",
-    ]
-    for root in roots:
-        for path in _iter_python_files(root):
+    forbidden = ("fastapi", "sqlalchemy")
+    for package_root in (
+        BACKEND_ROOT / "common" / "src",
+        BACKEND_ROOT / "core" / "src" / "adsmod_core" / "contracts",
+        BACKEND_ROOT / "ml" / "src" / "adsmod_ml" / "contracts",
+    ):
+        for path in _iter_python_files(package_root):
             text = path.read_text(encoding="utf-8")
-            hits = [item for item in forbidden if item in text]
-            assert not hits, f"{path}: contract imports {hits}"
-
-###############################################################################
-def test_retired_contract_paths_are_absent_and_unreferenced() -> None:
-    retired_paths = [
-        Path("app/server/core_service/core_service/domain"),
-        Path("app/server/ml_service/ml_service/domain"),
-        Path("app/server/shared/shared/models"),
-        Path("app/server/core_service/core_service/services/data/units.py"),
-    ]
-    for path in retired_paths:
-        assert not path.exists(), f"retired path still exists: {path}"
-
-    forbidden_imports = [
-        "core_service.domain",
-        "ml_service.domain",
-        "shared.models.jobs",
-        "core_service.services.data.units",
-    ]
-    for path in _iter_python_files("app"):
-        if path.resolve() == Path(__file__).resolve():
-            continue
-        text = path.read_text(encoding="utf-8")
-        hits = [item for item in forbidden_imports if item in text]
-        assert not hits, f"{path}: retired imports {hits}"
-
-###############################################################################
-def test_extracted_v3_dependency_direction_is_explicit() -> None:
-    rules = {
-        "app/backend/common/src": [
-            "adsmod_core",
-            "adsmod_ml",
-            "core_service",
-            "ml_service",
-            "shared",
-        ],
-        "app/backend/core/src": [
-            "adsmod_ml",
-            "core_service",
-            "ml_service",
-            "shared",
-        ],
-        "app/backend/ml/src": [
-            "adsmod_core",
-            "core_service",
-            "ml_service",
-            "shared",
-        ],
-    }
-    for root, forbidden in rules.items():
-        for path in _iter_python_files(root):
-            text = path.read_text(encoding="utf-8")
-            hits = [
-                item
-                for item in forbidden
-                if f"from {item}" in text or f"import {item}" in text
-            ]
-            assert not hits, f"{path}: forbidden v3 dependencies {hits}"
+            hits = [package for package in forbidden if _has_import(text, package)]
+            assert not hits, f"{path}: forbidden imports {hits}"

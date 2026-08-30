@@ -1,55 +1,23 @@
-# ADSMOD Runtime Modes
+# ADSMOD runtime modes
 
-Last updated: 2026-08-20
+Last updated: 2026-08-30
 
-## Supported Modes
+## `core`
 
-The sections below distinguish the extracted v3 package modes from the
-launcher-selected active local-web runtime. They are not compatibility modes.
+The launcher starts Core and the Angular client. Core owns health, capabilities,
+dataset import, NIST ingestion, fitting, database initialization, and the
+internal snapshot API. Training is reported as not configured.
 
-### v3 Core Mode
+## `core-ml`
 
-- Uses the canonical `app/resources/adsmod.json` configuration.
-- Runs the independent `adsmod-core` package and its health, capability, and internal snapshot endpoints.
-- Does not require the ML package.
+The launcher starts Core, ML, and the Angular client. ML exposes the training
+API, authenticates to Core, retrieves immutable snapshots, verifies their
+hashes, and stores its manifest and checkpoints in the configured storage root.
 
-### v3 Core-ML Mode
+## Test execution
 
-- Uses the canonical v3 configuration with both `core` and `ml` services.
-- ML consumes core-owned snapshots through the internal contract and must not access the core database directly.
+`app/tests/run_tests.bat` reads the same canonical configuration, starts only
+the services required by the selected mode, waits for readiness, and runs the
+Python and frontend checks. ML E2E tests are skipped in `core` mode.
 
-The v3 modes are implemented package boundaries; launcher integration is still pending.
-
-### Local Web App Mode
-
-- The unified backend composition entrypoint is `app.server.app:app`.
-- Frontend
-  - Unified UI in `app/client`; the launcher uses the configured `5173` preview port.
-  - `/api/training/*` proxy traffic targets the optional ML service.
-- Canonical launcher: `start_on_windows.ps1` from the repository root.
-
-### Core Service Mode
-
-- Runs `core_service.app:app` without a frontend process.
-- Intended for backend-only debugging or service integration work.
-- Does not import `ml_service` or require ML-heavy dependencies.
-
-### ML Service Mode
-
-- Runs `ml_service.app:app`.
-- Exposes `/api/training/*` routes for dataset build and training management.
-
-### Both Backend Services Mode
-
-- Core service and ML service run together.
-- This remains the active two-service development shape and the target process
-  arrangement before the v3 launcher cutover.
-
-### Test Execution Mode
-
-- Scripted runtime via `app/tests/run_tests.bat`.
-- Starts backend or frontend only when not already running.
-
-### Containerized Mode
-
-- Not implemented in the current repository.
+There is no unified backend mode and no alternate compatibility mode.

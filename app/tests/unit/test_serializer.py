@@ -1,61 +1,22 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+import httpx
 import pandas as pd
 import pytest
 from pydantic import ValidationError
 
-from ml_service.contracts.training import TrainingMetadata
-from ml_service.learning.serialization.model import ModelSerializer
-from ml_service.learning.serialization.training import TrainingDataSerializer
-
-###############################################################################
-class StubTrainingQueries:
-
-    # -------------------------------------------------------------------------
-    def __init__(self, captured: dict[str, pd.DataFrame]) -> None:
-        self.captured = captured
-
-    # -------------------------------------------------------------------------
-    def load_training_dataset(self, limit=None):  # noqa: ANN001
-        return pd.DataFrame()
-
-    # -------------------------------------------------------------------------
-    def upsert_training_dataset(self, dataset):  # noqa: ANN001
-        self.captured["upsert"] = dataset.copy()
-
-    # -------------------------------------------------------------------------
-    def save_training_metadata(self, metadata):  # noqa: ANN001
-        self.captured["metadata"] = metadata.copy()
-
-    # -------------------------------------------------------------------------
-    def load_training_metadata(self):
-        return pd.DataFrame()
-
-###############################################################################
-class FrameTrainingQueries(StubTrainingQueries):
-
-    # -------------------------------------------------------------------------
-    def __init__(
-        self,
-        metadata: pd.DataFrame | None = None,
-        dataset: pd.DataFrame | None = None,
-    ) -> None:
-        super().__init__({})
-        self.metadata = metadata if metadata is not None else pd.DataFrame()
-        self.dataset = dataset if dataset is not None else pd.DataFrame()
-
-    # -------------------------------------------------------------------------
-    def load_training_metadata(self):
-        return self.metadata.copy()
-
-    # -------------------------------------------------------------------------
-    def load_training_dataset(self, limit=None):  # noqa: ANN001
-        return self.dataset.copy()
+from adsmod_ml.clients.core_client import CoreSnapshotClient
+from adsmod_ml.contracts.training import TrainingMetadata
+from adsmod_ml.learning.serialization.model import ModelSerializer
+from adsmod_ml.learning.serialization.training import TrainingDataSerializer
 
 
-# Helper to create a basis metadata object
-
-###############################################################################
-def create_basis_metadata(**kwargs):
-    defaults = {
+def create_basis_metadata(**kwargs: object) -> TrainingMetadata:
+    defaults: dict[str, object] = {
         "sample_size": 1.0,
         "validation_size": 0.2,
         "min_measurements": 1,
@@ -70,58 +31,82 @@ def create_basis_metadata(**kwargs):
     defaults.update(kwargs)
     return TrainingMetadata(**defaults)
 
-###############################################################################
-def test_validate_metadata_identical():
-    """Verify that two identical metadata objects pass validation."""
-    meta1 = create_basis_metadata()
-    meta2 = create_basis_metadata()
-    assert TrainingDataSerializer.validate_metadata(meta1, meta2) is True
 
-###############################################################################
-def test_validate_metadata_param_mismatch():
-    """Verify that a scalar parameter mismatch causes validation failure."""
-    meta1 = create_basis_metadata(sample_size=1.0)
-    meta2 = create_basis_metadata(sample_size=0.5)
-    assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
+def _serializer(
+    tmp_path: Path,
+    *,
+    response_rows: list[dict[str, object]] | None = None,
+) -> tuple[TrainingDataSerializer, list[dict[str, object]]]:
+    captured: list[dict[str, object]] = []
+    rows = response_rows or [{"dataset_label": "default", "split": "train"}]
+    content = json.dumps(rows, sort_keys=True, separators=(",", ":"))
+    content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
-###############################################################################
-def test_validate_metadata_vocab_key_mismatch():
-    """Verify that different vocabulary keys cause failure."""
-    meta1 = create_basis_metadata(smile_vocabulary={"A": 1})
-    meta2 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
-    assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            payload = json.loads(request.content)
+            captured.append(payload)
+            return httpx.Response(
+                200,
+                json={
+                    "snapshot_id": "snapshot-1",
+                    "content_hash": content_hash,
+                    "row_count": len(payload["rows"]),
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "snapshot_id": "snapshot-1",
+                "content_hash": content_hash,
+                "page": 1,
+                "page_size": 1000,
+                "total_rows": len(rows),
+                "rows": rows,
+            },
+        )
 
-###############################################################################
-def test_validate_metadata_vocab_index_mismatch():
-    """Verify that different vocabulary INDICES for same keys cause failure (strict check)."""
-    meta1 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
-    meta2 = create_basis_metadata(smile_vocabulary={"A": 2, "B": 1})
-    assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
+    client = CoreSnapshotClient(
+        "http://core",
+        "secret",
+        httpx.MockTransport(handler),
+    )
+    return TrainingDataSerializer(client, tmp_path / "artifacts"), captured
 
-###############################################################################
-def test_validate_metadata_normalization_stats():
-    """Verify that normalization stats differences cause failure."""
-    meta1 = create_basis_metadata(normalization_stats={"mean": 0.0})
-    meta2 = create_basis_metadata(normalization_stats={"mean": 0.1})
-    assert TrainingDataSerializer.validate_metadata(meta1, meta2) is False
 
-###############################################################################
-def test_compute_metadata_hash_determinism():
-    """Verify that hash computation is deterministic (order independent for dicts)."""
-    meta1 = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
-    # Create with different insertion order if possible (standard dicts allow this)
-    # But params passed to TrainingMetadata are kwargs, so we construct slightly differently
-    # to test resilience, but mainly relying on implementation sorting keys.
-    meta2 = create_basis_metadata(smile_vocabulary={"B": 2, "A": 1})
+def test_validate_metadata_identical() -> None:
+    assert TrainingDataSerializer.validate_metadata(
+        create_basis_metadata(), create_basis_metadata()
+    ) is True
 
-    hash1 = TrainingDataSerializer.compute_metadata_hash(meta1)
-    hash2 = TrainingDataSerializer.compute_metadata_hash(meta2)
-    assert hash1 == hash2
 
-###############################################################################
-def test_save_training_dataset_deduplicates_sample_keys():
-    captured: dict[str, pd.DataFrame] = {}
-    serializer = TrainingDataSerializer(queries=StubTrainingQueries(captured))
+def test_validate_metadata_rejects_parameter_and_vocabulary_changes() -> None:
+    assert TrainingDataSerializer.validate_metadata(
+        create_basis_metadata(sample_size=1.0),
+        create_basis_metadata(sample_size=0.5),
+    ) is False
+    assert TrainingDataSerializer.validate_metadata(
+        create_basis_metadata(smile_vocabulary={"A": 1}),
+        create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
+    ) is False
+    assert TrainingDataSerializer.validate_metadata(
+        create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
+        create_basis_metadata(smile_vocabulary={"A": 2, "B": 1}),
+    ) is False
+
+
+def test_compute_metadata_hash_is_deterministic() -> None:
+    first = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
+    second = create_basis_metadata(smile_vocabulary={"B": 2, "A": 1})
+    assert TrainingDataSerializer.compute_metadata_hash(first) == (
+        TrainingDataSerializer.compute_metadata_hash(second)
+    )
+
+
+def test_save_training_dataset_deduplicates_rows_and_publishes_snapshot(
+    tmp_path: Path,
+) -> None:
+    serializer, captured = _serializer(tmp_path)
     dataset = pd.DataFrame(
         [
             {
@@ -147,23 +132,21 @@ def test_save_training_dataset_deduplicates_sample_keys():
         ]
     )
 
+    serializer.save_training_dataset(dataset, "small_dataset", "a" * 64)
+
+    rows = captured[0]["rows"]
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert rows[0]["pressure"] == [1.0, 2.0]
+    assert rows[0]["adsorbed_amount"] == [0.1, 0.2]
+    assert rows[0]["adsorbate_encoded_SMILE"] == [1, 2, 3]
+
+
+def test_save_training_metadata_normalizes_json_mappings(tmp_path: Path) -> None:
+    serializer, captured = _serializer(tmp_path)
     serializer.save_training_dataset(
-        dataset,
-        dataset_label="small_dataset",
-        dataset_hash="a" * 64,
+        pd.DataFrame([{"split": "train"}]), "small_dataset", "a" * 64
     )
-
-    upserted = captured["upsert"]
-    assert len(upserted) == 1
-    assert upserted["sample_key"].nunique() == 1
-    assert upserted.iloc[0]["pressure"] == [1.0, 2.0]
-    assert upserted.iloc[0]["adsorbed_amount"] == [0.1, 0.2]
-    assert upserted.iloc[0]["adsorbate_encoded_SMILE"] == [1, 2, 3]
-
-###############################################################################
-def test_save_training_metadata_normalizes_json_mappings():
-    captured: dict[str, pd.DataFrame] = {}
-    serializer = TrainingDataSerializer(queries=StubTrainingQueries(captured))
     metadata = pd.DataFrame(
         [
             {
@@ -176,55 +159,55 @@ def test_save_training_metadata_normalizes_json_mappings():
         ]
     )
 
-    serializer.save_training_metadata(metadata, dataset_label="small_dataset")
+    serializer.save_training_metadata(metadata, "small_dataset")
 
-    saved = captured["metadata"].iloc[0]
+    manifest = json.loads(
+        (tmp_path / "artifacts" / "training-manifest.json").read_text(encoding="utf-8")
+    )
+    saved = manifest["small_dataset"]["metadata"]
     assert saved["smile_vocabulary"] == {"C": 1}
     assert saved["adsorbent_vocabulary"] == {"MOF-1": 0}
     assert saved["normalization_stats"] == {"pressure_mean": 1.0}
+    assert len(captured) == 1
 
-###############################################################################
-def test_training_dataset_persistence_requires_canonical_hash():
-    serializer = TrainingDataSerializer(queries=StubTrainingQueries({}))
+
+def test_training_dataset_requires_canonical_hash(tmp_path: Path) -> None:
+    serializer, _ = _serializer(tmp_path)
 
     with pytest.raises(ValueError, match="dataset_hash"):
         serializer.save_training_dataset(
-            pd.DataFrame({"split": ["train"]}),
-            dataset_label="small_dataset",
+            pd.DataFrame({"split": ["train"]}), "small_dataset", ""
         )
 
-###############################################################################
-def test_training_metadata_rejects_legacy_fields():
+
+def test_training_metadata_rejects_legacy_fields() -> None:
     with pytest.raises(ValidationError):
         TrainingMetadata(hashcode="a" * 64)
 
-###############################################################################
-def test_training_metadata_read_requires_canonical_columns():
-    serializer = TrainingDataSerializer(
-        queries=FrameTrainingQueries(
-            metadata=pd.DataFrame([{"dataset_hash": "a" * 64}])
-        )
+
+def test_training_data_read_requires_canonical_columns(tmp_path: Path) -> None:
+    serializer, _ = _serializer(tmp_path, response_rows=[{"split": "train"}])
+    serializer._write_manifest(
+        {
+            "default": {
+                "snapshot_id": "snapshot-1",
+                "snapshot_hash": hashlib.sha256(
+                    json.dumps(
+                        [{"split": "train"}],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest(),
+                "dataset_hash": "a" * 64,
+            }
+        }
     )
 
     with pytest.raises(ValueError, match="dataset_label"):
-        serializer.load_training_metadata()
+        serializer.load_training_data("default")
 
-###############################################################################
-def test_training_data_read_requires_canonical_columns():
-    serializer = TrainingDataSerializer(
-        queries=FrameTrainingQueries(
-            metadata=pd.DataFrame(
-                [{"dataset_label": "default", "dataset_hash": "a" * 64}]
-            ),
-            dataset=pd.DataFrame([{"split": "train"}]),
-        )
-    )
 
-    with pytest.raises(ValueError, match="dataset_label"):
-        serializer.load_training_data()
-
-###############################################################################
-def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path):
+def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path: Path) -> None:
     configuration_dir = tmp_path / "configuration"
     configuration_dir.mkdir()
     (configuration_dir / "configuration.json").write_text("{}", encoding="utf-8")
@@ -234,4 +217,4 @@ def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path):
     (configuration_dir / "session_history.json").write_text("{}", encoding="utf-8")
 
     with pytest.raises(ValidationError):
-        ModelSerializer().load_training_configuration(str(tmp_path))
+        ModelSerializer(tmp_path).load_training_configuration(str(tmp_path))

@@ -3,19 +3,18 @@ from __future__ import annotations
 from pathlib import Path
 
 from adsmod_common.config import TrainingConfig, load_config
-from shared.common.paths import CANONICAL_CONFIGURATION_FILE
-from shared.common.settings import get_server_settings
+
+CANONICAL_CONFIGURATION_FILE = Path("app/resources/adsmod.json")
 
 ###############################################################################
 def test_json_training_configuration_projects_from_canonical_model() -> None:
     config = load_config(CANONICAL_CONFIGURATION_FILE)
-    settings = get_server_settings()
 
-    assert settings.training.persistent_workers == (
-        config.application.training.persistent_workers
-    )
-    assert settings.datasets.allowed_extensions == (
-        config.application.datasets.allowed_extensions
+    assert config.application.training.persistent_workers is False
+    assert config.application.datasets.allowed_extensions == (
+        ".csv",
+        ".xls",
+        ".xlsx",
     )
 
 ###############################################################################
@@ -49,8 +48,7 @@ def test_canonical_training_defaults_are_single_source() -> None:
 ###############################################################################
 def test_canonical_runtime_configuration_validates() -> None:
     config = load_config(Path(CANONICAL_CONFIGURATION_FILE))
-    settings = get_server_settings(CANONICAL_CONFIGURATION_FILE)
 
     assert config.version == "3.0.0"
-    assert settings.datasets.allowed_extensions
-    assert settings.jobs.polling_interval > 0
+    assert config.application.datasets.allowed_extensions
+    assert config.application.jobs.polling_interval > 0

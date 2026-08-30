@@ -1,22 +1,24 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ADSMOD Model Fitting Backend ML Service",
-    "description": "FastAPI backend Machine learning service for dataset preparation, training, checkpoint management, and model workflows.",
+    "title": "ADSMOD ML Service",
     "version": "3.0.0"
   },
   "paths": {
-    "/api/health": {
+    "/health/live": {
       "get": {
-        "summary": "Health Check",
-        "operationId": "health_check_api_health_get",
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness",
+        "operationId": "liveness_health_live_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ServiceStatusResponse"
+                  "$ref": "#/components/schemas/HealthResponse"
                 }
               }
             }
@@ -24,13 +26,76 @@
         }
       }
     },
-    "/api/training/datasets": {
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness",
+        "operationId": "readiness_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/capabilities": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Capabilities",
+        "operationId": "capabilities_api_v1_system_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/configuration": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Configuration",
+        "operationId": "configuration_api_v1_training_configuration_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingConfigurationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/datasets": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Training Datasets",
-        "operationId": "get_training_datasets_api_training_datasets_get",
+        "operationId": "get_training_datasets_api_v1_training_datasets_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -45,13 +110,13 @@
         }
       }
     },
-    "/api/training/dataset-sources": {
+    "/api/v1/training/dataset-sources": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Dataset Sources",
-        "operationId": "get_dataset_sources_api_training_dataset_sources_get",
+        "operationId": "get_dataset_sources_api_v1_training_dataset_sources_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -66,13 +131,13 @@
         }
       }
     },
-    "/api/training/build-dataset": {
+    "/api/v1/training/build-dataset": {
       "post": {
         "tags": [
           "training"
         ],
         "summary": "Build Training Dataset",
-        "operationId": "build_training_dataset_api_training_build_dataset_post",
+        "operationId": "build_training_dataset_api_v1_training_build_dataset_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,13 +172,13 @@
         }
       }
     },
-    "/api/training/processed-datasets": {
+    "/api/v1/training/processed-datasets": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Processed Datasets",
-        "operationId": "get_processed_datasets_api_training_processed_datasets_get",
+        "operationId": "get_processed_datasets_api_v1_training_processed_datasets_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -128,13 +193,13 @@
         }
       }
     },
-    "/api/training/dataset-info": {
+    "/api/v1/training/dataset-info": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Dataset Info",
-        "operationId": "get_dataset_info_api_training_dataset_info_get",
+        "operationId": "get_dataset_info_api_v1_training_dataset_info_get",
         "parameters": [
           {
             "name": "dataset_label",
@@ -174,13 +239,13 @@
         }
       }
     },
-    "/api/training/dataset": {
+    "/api/v1/training/dataset": {
       "delete": {
         "tags": [
           "training"
         ],
         "summary": "Clear Training Dataset",
-        "operationId": "clear_training_dataset_api_training_dataset_delete",
+        "operationId": "clear_training_dataset_api_v1_training_dataset_delete",
         "parameters": [
           {
             "name": "dataset_label",
@@ -226,13 +291,13 @@
         }
       }
     },
-    "/api/training/jobs": {
+    "/api/v1/training/jobs": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "List Dataset Jobs",
-        "operationId": "list_dataset_jobs_api_training_jobs_get",
+        "operationId": "list_dataset_jobs_api_v1_training_jobs_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -247,13 +312,13 @@
         }
       }
     },
-    "/api/training/jobs/{job_id}": {
+    "/api/v1/training/jobs/{job_id}": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Dataset Job Status",
-        "operationId": "get_dataset_job_status_api_training_jobs__job_id__get",
+        "operationId": "get_dataset_job_status_api_v1_training_jobs__job_id__get",
         "parameters": [
           {
             "name": "job_id",
@@ -293,7 +358,7 @@
           "training"
         ],
         "summary": "Cancel Dataset Job",
-        "operationId": "cancel_dataset_job_api_training_jobs__job_id__delete",
+        "operationId": "cancel_dataset_job_api_v1_training_jobs__job_id__delete",
         "parameters": [
           {
             "name": "job_id",
@@ -329,13 +394,13 @@
         }
       }
     },
-    "/api/training/checkpoints": {
+    "/api/v1/training/checkpoints": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Checkpoints",
-        "operationId": "get_checkpoints_api_training_checkpoints_get",
+        "operationId": "get_checkpoints_api_v1_training_checkpoints_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -350,13 +415,13 @@
         }
       }
     },
-    "/api/training/checkpoints/{checkpoint_name}": {
+    "/api/v1/training/checkpoints/{checkpoint_name}": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Checkpoint Details",
-        "operationId": "get_checkpoint_details_api_training_checkpoints__checkpoint_name__get",
+        "operationId": "get_checkpoint_details_api_v1_training_checkpoints__checkpoint_name__get",
         "parameters": [
           {
             "name": "checkpoint_name",
@@ -399,7 +464,7 @@
           "training"
         ],
         "summary": "Delete Checkpoint",
-        "operationId": "delete_checkpoint_api_training_checkpoints__checkpoint_name__delete",
+        "operationId": "delete_checkpoint_api_v1_training_checkpoints__checkpoint_name__delete",
         "parameters": [
           {
             "name": "checkpoint_name",
@@ -438,13 +503,13 @@
         }
       }
     },
-    "/api/training/start": {
+    "/api/v1/training/start": {
       "post": {
         "tags": [
           "training"
         ],
         "summary": "Start Training",
-        "operationId": "start_training_api_training_start_post",
+        "operationId": "start_training_api_v1_training_start_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -479,13 +544,13 @@
         }
       }
     },
-    "/api/training/resume": {
+    "/api/v1/training/resume": {
       "post": {
         "tags": [
           "training"
         ],
         "summary": "Resume Training",
-        "operationId": "resume_training_api_training_resume_post",
+        "operationId": "resume_training_api_v1_training_resume_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -520,13 +585,13 @@
         }
       }
     },
-    "/api/training/stop": {
+    "/api/v1/training/stop": {
       "post": {
         "tags": [
           "training"
         ],
         "summary": "Stop Training",
-        "operationId": "stop_training_api_training_stop_post",
+        "operationId": "stop_training_api_v1_training_stop_post",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -541,13 +606,13 @@
         }
       }
     },
-    "/api/training/status": {
+    "/api/v1/training/status": {
       "get": {
         "tags": [
           "training"
         ],
         "summary": "Get Training Status",
-        "operationId": "get_training_status_api_training_status_get",
+        "operationId": "get_training_status_api_v1_training_status_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -565,6 +630,41 @@
   },
   "components": {
     "schemas": {
+      "CapabilitiesResponse": {
+        "properties": {
+          "configured_mode": {
+            "type": "string",
+            "enum": [
+              "core",
+              "core-ml"
+            ],
+            "title": "Configured Mode"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "features": {
+            "$ref": "#/components/schemas/FeatureCapabilities"
+          },
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ServiceCapability"
+            },
+            "type": "object",
+            "title": "Services"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "configured_mode",
+          "version",
+          "features",
+          "services"
+        ],
+        "title": "CapabilitiesResponse"
+      },
       "CheckpointDetailInfo": {
         "properties": {
           "name": {
@@ -957,6 +1057,18 @@
             ],
             "title": "Source"
           },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
           "dataset_name": {
             "type": "string",
             "maxLength": 128,
@@ -1032,6 +1144,40 @@
         ],
         "title": "DatasetSourcesResponse"
       },
+      "FeatureCapabilities": {
+        "properties": {
+          "datasets": {
+            "type": "boolean",
+            "title": "Datasets"
+          },
+          "nist": {
+            "type": "boolean",
+            "title": "Nist"
+          },
+          "fitting": {
+            "type": "boolean",
+            "title": "Fitting"
+          },
+          "training": {
+            "type": "boolean",
+            "title": "Training"
+          },
+          "checkpoints": {
+            "type": "boolean",
+            "title": "Checkpoints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "datasets",
+          "nist",
+          "fitting",
+          "training",
+          "checkpoints"
+        ],
+        "title": "FeatureCapabilities"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1044,6 +1190,48 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "enum": [
+              "core",
+              "ml"
+            ],
+            "title": "Service"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "starting",
+              "ready",
+              "not-ready",
+              "failed",
+              "unavailable"
+            ],
+            "title": "State"
+          },
+          "details": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service",
+          "version",
+          "state"
+        ],
+        "title": "HealthResponse"
       },
       "JobCancelResponse": {
         "properties": {
@@ -1284,18 +1472,99 @@
         ],
         "title": "ResumeTrainingRequest"
       },
-      "ServiceStatusResponse": {
+      "RuntimeDeviceCapabilities": {
         "properties": {
-          "status": {
+          "keras_backend": {
             "type": "string",
-            "title": "Status"
+            "title": "Keras Backend"
+          },
+          "cuda_available": {
+            "type": "boolean",
+            "title": "Cuda Available"
+          },
+          "device_count": {
+            "type": "integer",
+            "title": "Device Count"
+          },
+          "devices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Devices"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "status"
+          "keras_backend",
+          "cuda_available",
+          "device_count",
+          "devices"
         ],
-        "title": "ServiceStatusResponse"
+        "title": "RuntimeDeviceCapabilities"
+      },
+      "ServiceCapability": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "starting",
+              "not-ready",
+              "failed",
+              "unavailable",
+              "not-configured"
+            ],
+            "title": "Health"
+          },
+          "readiness": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "starting",
+              "not-ready",
+              "failed",
+              "unavailable",
+              "not-configured"
+            ],
+            "title": "Readiness"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "configured",
+          "health",
+          "readiness"
+        ],
+        "title": "ServiceCapability"
       },
       "TrainingConfigRequest": {
         "properties": {
@@ -1510,6 +1779,77 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TrainingConfigRequest"
+      },
+      "TrainingConfigurationResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "defaults": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Defaults"
+          },
+          "dataset_defaults": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Dataset Defaults"
+          },
+          "resume_defaults": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Resume Defaults"
+          },
+          "numeric_constraints": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Numeric Constraints"
+          },
+          "supported_models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Models"
+          },
+          "checkpoint_capabilities": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Checkpoint Capabilities"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeDeviceCapabilities"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "defaults",
+          "dataset_defaults",
+          "resume_defaults",
+          "numeric_constraints",
+          "supported_models",
+          "checkpoint_capabilities",
+          "runtime"
+        ],
+        "title": "TrainingConfigurationResponse"
       },
       "TrainingDatasetResponse": {
         "properties": {

@@ -4,26 +4,18 @@ from pathlib import Path
 
 import pandas as pd
 
-from core_service.services.data.nist_mapper import NISTCanonicalMapper
-from shared.common.settings import DatabaseSettings
-from shared.repositories.database.manager import DatabaseManager
-from shared.repositories.datasets import DatasetRepository
-from shared.repositories.materials import MaterialRepository
-from shared.repositories.nist import NISTRepository
-from shared.repositories.schemas.models import Base
+from adsmod_common.config import DatabaseConfig
+from adsmod_core.services.data.nist_mapper import NISTCanonicalMapper
+from adsmod_core.repositories.database.manager import DatabaseManager
+from adsmod_core.repositories.datasets import DatasetRepository
+from adsmod_core.repositories.materials import MaterialRepository
+from adsmod_core.repositories.nist import NISTRepository
+from adsmod_core.repositories.schemas.models import Base
 
 ###############################################################################
 def build_nist_repository(path: Path) -> NISTRepository:
-    settings = DatabaseSettings(
+    settings = DatabaseConfig(
         embedded_database=True,
-        engine=None,
-        host=None,
-        port=None,
-        database_name=None,
-        username=None,
-        password=None,
-        ssl=False,
-        ssl_ca=None,
         connect_timeout=30,
         insert_batch_size=100,
         sqlite_path=str(path),

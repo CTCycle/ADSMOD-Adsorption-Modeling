@@ -35,7 +35,7 @@ class TestFittingRun:
             sample_csv_path,
             f"fitting_test_{uuid.uuid4().hex[:8]}",
         )
-        response = api_context.get(f"/api/datasets/{dataset['id']}/experiments")
+        response = api_context.get(f"/api/v1/datasets/{dataset['id']}/experiments")
         assert response.ok, response.text()
         experiment = next(
             item for item in response.json()["experiments"] if item["fitting_eligible"]
@@ -52,7 +52,7 @@ class TestFittingRun:
     ) -> dict:
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
-            status_response = api_context.get(f"/api/fitting/jobs/{job_id}")
+            status_response = api_context.get(f"/api/v1/fitting/jobs/{job_id}")
             if not status_response.ok:
                 raise AssertionError(
                     f"Failed to fetch job status: {status_response.text()}"
@@ -80,7 +80,7 @@ class TestFittingRun:
         }
 
         # Act
-        response = api_context.post("/api/fitting/run", data=payload)
+        response = api_context.post("/api/v1/fitting/run", data=payload)
 
         # Assert
         assert response.ok, f"Fitting failed: {response.text()}"
@@ -106,7 +106,7 @@ class TestFittingRun:
         }
 
         # Act
-        response = api_context.post("/api/fitting/run", data=payload)
+        response = api_context.post("/api/v1/fitting/run", data=payload)
 
         # Assert
         assert response.ok
@@ -131,7 +131,7 @@ class TestFittingRun:
         }
 
         # Act
-        response = api_context.post("/api/fitting/run", data=payload)
+        response = api_context.post("/api/v1/fitting/run", data=payload)
 
         # Assert
         assert response.status == 422  # Pydantic validation error
@@ -142,7 +142,7 @@ class TestModelCatalog:
 
     # -------------------------------------------------------------------------
     def test_get_model_catalog(self, api_context: APIRequestContext) -> None:
-        response = api_context.get("/api/fitting/models")
+        response = api_context.get("/api/v1/fitting/models")
 
         assert response.ok, response.text()
         data = response.json()
@@ -159,5 +159,5 @@ class TestFittingJobs:
 
     # -------------------------------------------------------------------------
     def test_cancel_unknown_job_returns_error(self, api_context: APIRequestContext) -> None:
-        response = api_context.delete("/api/fitting/jobs/unknown-job")
+        response = api_context.delete("/api/v1/fitting/jobs/unknown-job")
         assert response.status == 400

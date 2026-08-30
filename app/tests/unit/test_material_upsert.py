@@ -11,9 +11,9 @@ from sqlalchemy.exc import IntegrityError, InterfaceError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from shared.repositories.database.bulk import upsert_records
-from shared.repositories.database.upsert import resolve_conflict_columns
-from shared.repositories.schemas.models import Adsorbate, Base
+from adsmod_core.repositories.database.bulk import upsert_records
+from adsmod_core.repositories.database.upsert import resolve_conflict_columns
+from adsmod_core.repositories.schemas.models import Adsorbate, Base
 
 ###############################################################################
 def configure_sqlite_connection(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]

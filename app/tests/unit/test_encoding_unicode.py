@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from shared.common.utils.encoding import (
+from adsmod_core.common.utils.encoding import (
     decode_json_response_bytes,
     normalize_unicode_text,
     sanitize_dataframe_strings,

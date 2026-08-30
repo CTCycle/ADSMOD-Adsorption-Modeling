@@ -1,29 +1,32 @@
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 from pathlib import Path
 
+from adsmod_common.config import load_config
+from adsmod_core.app import create_app
+
 ###############################################################################
-def load_asgi_app(spec: str):
-    module_name, _, app_name = spec.partition(":")
-    if not module_name or not app_name:
-        raise ValueError("Expected --app in format '<module>:<attribute>'")
-    module = importlib.import_module(module_name)
-    app = getattr(module, app_name, None)
-    if app is None:
-        raise ValueError(f"App attribute '{app_name}' not found in module '{module_name}'")
-    return app
+def load_service_app(service: str, config_path: Path):
+    config = load_config(config_path)
+    if service == "core":
+        return create_app(config)
+    if service == "ml":
+        from adsmod_ml.app import create_app as create_ml_app
+
+        return create_ml_app(config)
+    raise ValueError(f"Unsupported service: {service}")
 
 ###############################################################################
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate OpenAPI JSON for a FastAPI app.")
-    parser.add_argument("--app", required=True, help="ASGI app path, e.g. core_service.app:app")
+    parser = argparse.ArgumentParser(description="Generate OpenAPI JSON for an ADSMOD service.")
+    parser.add_argument("--service", required=True, choices=("core", "ml"))
+    parser.add_argument("--config", required=True, type=Path, help="Canonical adsmod.json path")
     parser.add_argument("--output", required=True, help="Output JSON path")
     args = parser.parse_args()
 
-    app = load_asgi_app(args.app)
+    app = load_service_app(args.service, args.config)
     schema = app.openapi()
 
     output_path = Path(args.output)

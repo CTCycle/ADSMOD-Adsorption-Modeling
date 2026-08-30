@@ -1,42 +1,26 @@
-# ADSMOD Local Deployment
+# ADSMOD local deployment
 
-Last updated: 2026-08-20
+Last updated: 2026-08-30
 
-## Interoperability
+The supported deployment is the Windows local web launcher:
 
-- Unified frontend calls non-training backend routes through `/api`.
-- Unified frontend routes `/api/training/*` to the optional ML service.
-- The local launcher waits for backend health and frontend readiness before opening the browser.
+```powershell
+& .\start_on_windows.ps1
+```
 
-## Shared Runtime Resources
+The launcher provisions portable Python, uv, and Node.js under `runtimes/`,
+synchronizes `app/backend` into `app/backend/.venv`, builds the Angular client,
+starts Core, optionally starts ML for `core-ml`, and serves the production
+preview on the configured frontend port.
 
-- Resource directory: `app/resources` by default; override it with
-  `ADSMOD_RESOURCES_DIR` in `settings/.env`
-- Database: `<resource directory>/database.db` for embedded mode; both SQLite
-  and PostgreSQL are synchronized to the Alembic head during startup or by the
-  launcher's explicit initialization action
-- Checkpoints: `<resource directory>/checkpoints`
-- Operational environment template: `settings/.env.example`
-- Canonical runtime values: `app/resources/adsmod.json`; generated shape schema:
-  `app/resources/adsmod.schema.json` from `adsmod_common.config.AdsmodConfig`
+The browser uses same-origin `/api/v1` requests. The Angular proxy sends
+`/api/v1/training` to ML and the general `/api/v1` surface to Core. Both
+services expose `/health/live` and `/health/ready`.
 
-## Local Deployment Notes
+Embedded SQLite is stored below the configured storage root. PostgreSQL remains
+available through the typed Core database configuration; startup applies the
+packaged Alembic history and does not infer an unknown schema.
 
-- The supported end-user runtime is the Windows local web launcher at `start_on_windows.ps1`.
-- Portable Python, uv, and Node.js are provisioned under `runtimes/`.
-- The frontend is built before launch and served by the hidden Angular production-preview process.
-- Backend log visibility is controlled by `BACKEND_LOGS_VISIBLE` in the local operational environment and defaults to `true` when absent.
-- Backend dependency state is locked in `app/server/uv.lock`.
-- v3 package dependencies are declared independently in `app/backend/common/pyproject.toml`, `app/backend/core/pyproject.toml`, and `app/backend/ml/pyproject.toml`.
-
-## Constraints
-
-- The repository is Windows-first and uses a PowerShell launcher plus the batch test runner.
-- First launch can be slow because runtime binaries and dependencies may need provisioning.
-- PostgreSQL startup may create the configured database when the configured
-  role has `CREATEDB`; otherwise startup fails with an actionable permission
-  error. Startup never resets or drops an existing database.
-- No container runtime target is currently implemented.
-- The Windows launcher currently starts the active `app/server` runtime; v3
-  package launcher integration is not yet implemented. The active runtime is
-  the current public contract, not a legacy compatibility interface.
+Disposable uv, npm, Python, pytest, and frontend caches belong under
+`runtimes/cache` or `app/tests/cache`. No container deployment target is
+currently implemented.
