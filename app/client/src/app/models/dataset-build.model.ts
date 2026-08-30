@@ -1,6 +1,7 @@
 export interface DatasetSelection {
     source: 'nist' | 'uploaded';
     dataset_name: string;
+    dataset_id?: number | null;
 }
 
 export interface DatasetBuildConfig {

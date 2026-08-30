@@ -2,8 +2,6 @@ import type { JobStartResponse, JobStatusResponse } from '../models/job.model';
 import { API_BASE_URL } from '../core/config/api-base-url';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 
-const DEFAULT_JOB_POLL_INTERVAL_MS = 1000;
-
 export type JobStartResult = {
     jobId: string | null;
     pollInterval?: number;
@@ -18,25 +16,30 @@ export const normalizePollingIntervalSeconds = (intervalSeconds: number | null |
     return intervalSeconds < 0 ? 0 : intervalSeconds;
 };
 
-export const resolvePollingIntervalMs = (intervalSeconds: number | null | undefined): number => {
+export const resolvePollingIntervalMs = (intervalSeconds: number | null | undefined): number | null => {
     const normalizedSeconds = normalizePollingIntervalSeconds(intervalSeconds);
     if (normalizedSeconds === null) {
-        return DEFAULT_JOB_POLL_INTERVAL_MS;
+        return null;
     }
 
     return normalizedSeconds * 1000;
 };
 
-export async function pollJobStatus(endpoint: string, jobId: string): Promise<JobStatusResponse | null> {
+export async function pollJobStatus(endpoint: string, jobId: string): Promise<{ data: JobStatusResponse | null; error: string | null }> {
     try {
         const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}/jobs/${jobId}`, { method: 'GET' }, HTTP_TIMEOUT);
         if (!response.ok) {
-            return null;
+            const data = await response.json().catch(() => ({}));
+            return { data: null, error: extractErrorMessage(response, data) };
         }
 
-        return (await response.json()) as JobStatusResponse;
-    } catch {
-        return null;
+        const result = await response.json().catch(() => null);
+        if (!result || typeof result !== 'object') {
+            return { data: null, error: 'Invalid job status response.' };
+        }
+        return { data: result as JobStatusResponse, error: null };
+    } catch (error) {
+        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
     }
 }
 
@@ -45,20 +48,25 @@ export async function pollJobUntilTerminal(
     jobId: string,
     pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
-): Promise<JobStatusResponse | null> {
+): Promise<{ data: JobStatusResponse | null; error: string | null }> {
     while (true) {
-        const status = await pollJobStatus(endpoint, jobId);
-        if (!status) {
-            return null;
+        const result = await pollJobStatus(endpoint, jobId);
+        if (result.error || !result.data) {
+            return result;
         }
+        const status = result.data;
 
         onProgress?.(status);
 
         if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
-            return status;
+            return { data: status, error: null };
         }
 
-        await new Promise((resolve) => setTimeout(resolve, resolvePollingIntervalMs(status.poll_interval ?? pollInterval)));
+        const intervalMs = resolvePollingIntervalMs(status.poll_interval ?? pollInterval);
+        if (intervalMs === null) {
+            return { data: null, error: 'Job response omitted a polling interval.' };
+        }
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
 }
 export async function startJob(

@@ -18,7 +18,7 @@ describe('dataset.service', () => {
 
         await expect(deleteDataset(17)).resolves.toEqual({ data: null, error: null });
         expect(fetchMock).toHaveBeenCalledWith(
-            '/api/datasets/17',
+            '/api/v1/datasets/17',
             expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
         );
     });

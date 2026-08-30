@@ -37,7 +37,11 @@ export class TrainingStatusPollingService {
         onError: (error: string | null) => void,
         onTrainingEnded?: () => void
     ): void {
-        const normalizedInterval = normalizePollingInterval(intervalSeconds) ?? 1.0;
+        const normalizedInterval = normalizePollingInterval(intervalSeconds);
+        if (normalizedInterval === null) {
+            onError('Training response omitted a polling interval.');
+            return;
+        }
         this.stopPolling();
         this.pollIntervalSeconds = normalizedInterval;
         this.pollSubscription = timer(0, normalizedInterval * 1000).subscribe(() => {
@@ -55,13 +59,14 @@ export class TrainingStatusPollingService {
         onError: (error: string | null) => void,
         onTrainingEnded?: () => void
     ): Promise<void> {
-        const status = await getTrainingStatus();
-        if (status.error) {
-            onError(status.error);
+        const result = await getTrainingStatus();
+        if (result.error || !result.data) {
+            onError(result.error || 'Training response omitted status data.');
             return;
         }
 
         onError(null);
+        const status = result.data;
         const wasTraining = this.wasTraining;
         this.wasTraining = status.is_training;
         const nextStatus: TrainingStatus = {

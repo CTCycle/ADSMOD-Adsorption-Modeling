@@ -24,11 +24,65 @@ const disableMotion = async (page: import('@playwright/test').Page) => {
 };
 
 const mockCoreApi = async (page: import('@playwright/test').Page) => {
+    await page.route('**/health/**', async (route) => {
+        const url = new URL(route.request().url());
+        if (url.pathname === '/health/ready') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ service: 'core', version: '3.0.0', state: 'ready' }),
+            });
+            return;
+        }
+        await route.fulfill({ status: 404, body: 'Not found' });
+    });
+
+    await page.route('**/ml-health/**', async (route) => {
+        await route.fulfill({
+            status: 503,
+            contentType: 'application/json',
+            body: JSON.stringify({ detail: 'ML service is not configured' }),
+        });
+    });
+
     await page.route('**/api/**', async (route) => {
         const request = route.request();
         const url = new URL(request.url());
 
-        if (request.method() === 'GET' && url.pathname === '/api/datasets') {
+        if (request.method() === 'GET' && url.pathname === '/api/v1/system/capabilities') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    configured_mode: 'core',
+                    version: '3.0.0',
+                    features: { datasets: true, nist: true, fitting: true, training: false, checkpoints: false },
+                    services: { ml: { configured: false, health: 'unknown', readiness: 'unavailable' } },
+                }),
+            });
+            return;
+        }
+
+        if (request.method() === 'GET' && url.pathname === '/api/v1/system/configuration') {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    status: 'success',
+                    supported_optimizers: ['trf', 'dogbox'],
+                    default_optimizer: 'trf',
+                    default_max_evaluations: 1000,
+                    max_evaluations_bounds: { minimum: 1, maximum: 10000 },
+                    weighting_options: ['uniform', 'relative'],
+                    default_weighting: 'uniform',
+                    display_units: { pressure: ['bar'], uptake: ['mmol/g'], default_pressure: 'bar', default_uptake: 'mmol/g' },
+                    parameter_defaults: {},
+                }),
+            });
+            return;
+        }
+
+        if (request.method() === 'GET' && url.pathname === '/api/v1/datasets') {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -60,7 +114,7 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
             return;
         }
 
-        if (request.method() === 'GET' && url.pathname === '/api/fitting/models') {
+        if (request.method() === 'GET' && url.pathname === '/api/v1/fitting/models') {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -85,7 +139,7 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
             return;
         }
 
-        if (request.method() === 'GET' && url.pathname === '/api/nist/categories/status') {
+        if (request.method() === 'GET' && url.pathname === '/api/v1/nist/categories/status') {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',

@@ -95,4 +95,22 @@ export interface ModelCatalogParameter { name: string; label: string; lower: num
 export interface ModelCatalogEntry { key: string; name: string; equation_latex: string; assumptions: string; parameters: ModelCatalogParameter[]; }
 export interface ModelCatalogResponse { status: 'success'; pressure_unit: string; uptake_unit: string; models: ModelCatalogEntry[]; }
 
+export interface NumericBounds { minimum: number; maximum: number; }
+export interface FittingConfiguration {
+    status: 'success';
+    supported_optimizers: Array<'trf' | 'dogbox'>;
+    default_optimizer: 'trf' | 'dogbox';
+    default_max_evaluations: number;
+    max_evaluations_bounds: NumericBounds;
+    weighting_options: Array<'unweighted' | 'inverse_sigma'>;
+    default_weighting: 'unweighted' | 'inverse_sigma';
+    display_units: {
+        pressure: string[];
+        uptake: string[];
+        default_pressure: string;
+        default_uptake: string;
+    };
+    parameter_defaults: ParameterConfiguration;
+}
+
 export type ParameterKey = [string, string, string];

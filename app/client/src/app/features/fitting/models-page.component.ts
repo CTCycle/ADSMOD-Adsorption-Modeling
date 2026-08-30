@@ -5,21 +5,6 @@ import type { ModelParameters } from '../../models/fitting.model';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { ModelCardComponent } from './model-card.component';
 
-interface OptimizationMethodOption {
-    value: OptimizationMethod;
-    label: string;
-}
-
-const OPTIMIZATION_METHOD_OPTIONS: readonly OptimizationMethodOption[] = [
-    { value: 'trf', label: 'Trust Region Reflective (TRF)' },
-    { value: 'dogbox', label: 'Dogbox' },
-];
-
-const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
-    const option = OPTIMIZATION_METHOD_OPTIONS.find((candidate) => candidate.value === value);
-    return option?.value ?? null;
-};
-
 @Component({
     selector: 'adsmod-models-page',
     standalone: true,
@@ -90,19 +75,21 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                     </div>
                                     <div class="control-group">
                                         <label class="field-label" for="fitting-weighting-control">Weighting</label>
-                                        <select id="fitting-weighting-control" class="select-input" [value]="store.weighting()" (change)="selectWeighting($event)">
-                                            <option value="unweighted">Unweighted</option>
-                                            <option value="inverse_sigma">Inverse sigma (complete uncertainties)</option>
+                                        <select id="fitting-weighting-control" class="select-input" [value]="store.weighting() ?? ''" [disabled]="!store.fittingConfiguration()" (change)="selectWeighting($event)">
+                                            @for (weighting of weightingOptions(); track weighting) {
+                                                <option [value]="weighting">{{ weightingLabel(weighting) }}</option>
+                                            }
                                         </select>
                                     </div>
                                     <div class="control-group">
                                         <adsmod-number-input
                                             label="Max iterations"
                                             [value]="store.maxEvaluations()"
-                                            [min]="1"
-                                            [max]="1000000"
+                                            [min]="store.fittingConfiguration()?.max_evaluations_bounds?.minimum"
+                                            [max]="store.fittingConfiguration()?.max_evaluations_bounds?.maximum"
                                             [step]="1"
                                             [precision]="0"
+                                            [disabled]="!store.fittingConfiguration()"
                                             (valueChange)="store.setMaxEvaluations($event)"
                                         />
                                     </div>
@@ -110,18 +97,19 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                         <label class="field-label" for="fitting-optimization-control">Optimization method</label>
                                         <select
                                             id="fitting-optimization-control"
-                                            [value]="store.optimizationMethod()"
+                                            [value]="store.optimizationMethod() ?? ''"
+                                            [disabled]="!store.fittingConfiguration()"
                                             (change)="selectOptimizer($event)"
                                             class="select-input"
                                         >
-                                            @for (option of optimizationOptions; track option.value) {
+                                            @for (option of optimizationOptions(); track option.value) {
                                                 <option [value]="option.value">{{ option.label }}</option>
                                             }
                                         </select>
                                     </div>
                                     <div class="control-group">
                                         <div class="fitting-action-buttons">
-                                            <button class="primary fitting-action-primary" type="button" (click)="startFitting()">
+                                            <button class="primary fitting-action-primary" type="button" [disabled]="!store.fittingConfiguration() || store.fittingRunning()" (click)="startFitting()">
                                                 Start Fitting
                                             </button>
                                             <button class="secondary fitting-action-secondary" type="button" (click)="store.resetFittingStatus()">
@@ -139,6 +127,9 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
                                 </div>
                             </div>
                         </div>
+                        @if (store.fittingConfigurationError()) {
+                            <p class="status-text">Fitting configuration unavailable: {{ store.fittingConfigurationError() }}</p>
+                        }
                     </div>
 
                     <hr class="section-separator" />
@@ -168,7 +159,11 @@ const parseOptimizationMethod = (value: string): OptimizationMethod | null => {
 export class ModelsPageComponent {
     protected readonly store = inject(CoreWorkspaceStore);
     protected readonly models = computed(() => (this.store.modelCatalog()?.models ?? []).map((model) => ({ id: model.key, name: model.name, shortDescription: model.assumptions, equationLatex: model.equation_latex, parameterDefaults: Object.fromEntries(model.parameters.map((parameter) => [parameter.name, [parameter.lower, parameter.upper] as [number, number]])) })));
-    protected readonly optimizationOptions = OPTIMIZATION_METHOD_OPTIONS;
+    protected readonly optimizationOptions = computed(() => (this.store.fittingConfiguration()?.supported_optimizers ?? []).map((value) => ({
+        value,
+        label: value === 'trf' ? 'Trust Region Reflective (TRF)' : 'Dogbox',
+    })));
+    protected readonly weightingOptions = computed(() => this.store.fittingConfiguration()?.weighting_options ?? []);
     protected readonly expandedModel = signal<string | null>(null);
 
     protected toggleExpanded(modelId: string): void {
@@ -188,15 +183,20 @@ export class ModelsPageComponent {
 
     protected selectOptimizer(event: Event): void {
         const select = event.target as HTMLSelectElement;
-        const method = parseOptimizationMethod(select.value);
-        if (method) {
-            this.store.setOptimizationMethod(method);
+        const supported = this.store.fittingConfiguration()?.supported_optimizers ?? [];
+        if (supported.includes(select.value as OptimizationMethod)) {
+            this.store.setOptimizationMethod(select.value as OptimizationMethod);
         }
     }
 
     protected selectWeighting(event: Event): void {
         const value = (event.target as HTMLSelectElement).value;
-        if (value === 'unweighted' || value === 'inverse_sigma') this.store.weighting.set(value);
+        const supported = this.store.fittingConfiguration()?.weighting_options ?? [];
+        if (supported.includes(value as 'unweighted' | 'inverse_sigma')) this.store.setWeighting(value as 'unweighted' | 'inverse_sigma');
+    }
+
+    protected weightingLabel(value: 'unweighted' | 'inverse_sigma'): string {
+        return value === 'inverse_sigma' ? 'Inverse sigma (complete uncertainties)' : 'Unweighted';
     }
 
     protected updateModelConfig(modelName: string, config: ModelParameters): void {

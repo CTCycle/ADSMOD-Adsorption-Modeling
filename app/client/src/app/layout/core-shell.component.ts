@@ -2,6 +2,7 @@ import { Component, DestroyRef, ElementRef, HostListener, ViewChild, computed, i
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { fetchCoreCapabilities, fetchCoreReadiness, fetchMlReadiness } from '../services/system.service';
 
 type HelpPage = 'datasets' | 'public-data' | 'public-materials' | 'dashboards' | 'fitting' | 'training';
 
@@ -290,12 +291,17 @@ export class CoreShellComponent {
     }
 
     private async refreshServiceStatus(): Promise<void> {
-        const [core, ml] = await Promise.allSettled([
-            fetch('/api/health', { signal: AbortSignal.timeout(3_000) }),
-            fetch('/api/training/status', { signal: AbortSignal.timeout(3_000) }),
+        const [capabilities, coreReady, mlReady] = await Promise.all([
+            fetchCoreCapabilities(),
+            fetchCoreReadiness(),
+            fetchMlReadiness(),
         ]);
-        this.coreServiceStatus.set(core.status === 'fulfilled' && core.value.ok ? 'Online' : 'Offline');
-        this.mlServiceStatus.set(ml.status === 'fulfilled' && ml.value.ok ? 'Online' : 'Unavailable');
+        const coreOnline = capabilities.data !== null && coreReady.data?.state === 'ready';
+        this.coreServiceStatus.set(coreOnline ? 'Online' : 'Offline');
+
+        const mlConfigured = capabilities.data?.services['ml']?.configured === true;
+        const mlOnline = mlConfigured && mlReady.data?.state === 'ready';
+        this.mlServiceStatus.set(mlOnline ? 'Online' : 'Unavailable');
     }
 
     @HostListener('document:keydown.escape')
