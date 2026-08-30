@@ -15,6 +15,7 @@ from adsmod_core.repositories.database.bulk import upsert_records
 from adsmod_core.repositories.database.upsert import resolve_conflict_columns
 from adsmod_core.repositories.schemas.models import Adsorbate, Base
 
+
 ###############################################################################
 def configure_sqlite_connection(dbapi_connection, connection_record) -> None:  # type: ignore[no-untyped-def]
     cursor = dbapi_connection.cursor()
@@ -23,6 +24,7 @@ def configure_sqlite_connection(dbapi_connection, connection_record) -> None:  #
         cursor.execute("PRAGMA busy_timeout=30000")
     finally:
         cursor.close()
+
 
 ###############################################################################
 def run_concurrent_upsert(
@@ -33,6 +35,7 @@ def run_concurrent_upsert(
 ) -> None:
     barrier.wait()
     run_upsert_with_retry(engine, payload, conflict_columns)
+
 
 ###############################################################################
 def run_upsert_with_retry(
@@ -51,6 +54,7 @@ def run_upsert_with_retry(
             if attempts > retries:
                 raise
 
+
 ###############################################################################
 def build_sqlite_engine() -> sqlalchemy.Engine:
     engine = sqlalchemy.create_engine(
@@ -63,6 +67,7 @@ def build_sqlite_engine() -> sqlalchemy.Engine:
     Base.metadata.create_all(engine)
     return engine
 
+
 ###############################################################################
 def upsert_adsorbate(
     engine: sqlalchemy.Engine,
@@ -72,6 +77,7 @@ def upsert_adsorbate(
     with Session(engine) as session:
         upsert_records(session, Adsorbate.__table__, [payload], conflict_columns)
         session.commit()
+
 
 ###############################################################################
 def test_wrong_conflict_target_can_raise_duplicate_adsorbate_identity() -> None:
@@ -108,6 +114,7 @@ def test_wrong_conflict_target_can_raise_duplicate_adsorbate_identity() -> None:
 
     engine.dispose()
 
+
 ###############################################################################
 def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
     engine = build_sqlite_engine()
@@ -135,9 +142,7 @@ def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
 
     with Session(engine) as session:
         rows = (
-            session.execute(
-                select(Adsorbate).where(Adsorbate.key == "name:0002")
-            )
+            session.execute(select(Adsorbate).where(Adsorbate.key == "name:0002"))
             .scalars()
             .all()
         )
@@ -147,6 +152,7 @@ def test_retry_upsert_uses_single_adsorbate_row_id() -> None:
         assert rows[0].molar_mass_g_mol == 30.07
 
     engine.dispose()
+
 
 ###############################################################################
 def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
@@ -191,9 +197,7 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
 
     with Session(engine) as session:
         rows = (
-            session.execute(
-                select(Adsorbate).where(Adsorbate.key == "name:0003")
-            )
+            session.execute(select(Adsorbate).where(Adsorbate.key == "name:0003"))
             .scalars()
             .all()
         )
@@ -202,4 +206,3 @@ def test_concurrent_upsert_keeps_single_adsorbate_identity() -> None:
         assert rows[0].formula in {"C3H8-a", "C3H8-b"}
 
     engine.dispose()
-

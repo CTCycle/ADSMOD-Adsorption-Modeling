@@ -173,6 +173,7 @@ ROLE_ALIASES: dict[str, set[str]] = {
     },
 }
 
+
 ###############################################################################
 def normalize_header(value: object) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
@@ -182,6 +183,7 @@ def normalize_header(value: object) -> str:
     text = re.sub(r"[^a-z0-9/°%]+", " ", text)
     return " ".join(text.split())
 
+
 ###############################################################################
 def safe_cell(value: Any) -> Any:
     if value is None or (isinstance(value, float) and math.isnan(value)):
@@ -190,9 +192,11 @@ def safe_cell(value: Any) -> Any:
         return value
     return str(value)
 
+
 ###############################################################################
 def source_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
 
 ###############################################################################
 def read_tabular(
@@ -223,9 +227,7 @@ def read_tabular(
             if not isinstance(decoded, list) or not all(
                 isinstance(row, dict) for row in decoded
             ):
-                raise ValueError(
-                    "JSON datasets must contain an array of row objects."
-                )
+                raise ValueError("JSON datasets must contain an array of row objects.")
             frame = pd.DataFrame.from_records(decoded)
         elif suffix in {".csv", ".txt", ".tsv", ""}:
             frame = pd.read_csv(
@@ -251,6 +253,7 @@ def read_tabular(
     if len(set(frame.columns)) != len(frame.columns):
         raise ValueError("Uploaded dataset contains duplicate column headers.")
     return frame
+
 
 ###############################################################################
 def parse_series_cell(
@@ -286,9 +289,7 @@ def parse_series_cell(
         else:
             selected = delimiter
             if selected is None:
-                candidates = [
-                    token for token in (";", "|", "\t") if token in text
-                ]
+                candidates = [token for token in (";", "|", "\t") if token in text]
                 if not candidates:
                     return [parse_number(text, decimal_separator)]
                 if len(candidates) != 1:
@@ -299,6 +300,7 @@ def parse_series_cell(
             raw = [item.strip() for item in text.split(selected)]
     return [parse_number(item, decimal_separator) for item in raw]
 
+
 ###############################################################################
 def is_array_like(value: Any) -> bool:
     if isinstance(value, (list, tuple)):
@@ -306,10 +308,10 @@ def is_array_like(value: Any) -> bool:
     if not isinstance(value, str):
         return False
     text = value.strip()
-    return (
-        (text.startswith("[") and text.endswith("]"))
-        or sum(token in text for token in (";", "|", "\t")) == 1
-    )
+    return (text.startswith("[") and text.endswith("]")) or sum(
+        token in text for token in (";", "|", "\t")
+    ) == 1
+
 
 ###############################################################################
 def infer_column(column: str, series: pd.Series) -> ColumnDetection:
@@ -375,11 +377,7 @@ def infer_column(column: str, series: pd.Series) -> ColumnDetection:
             evidence.append(f"header declares unit '{detected_unit}'")
 
     inferred_type = (
-        "series"
-        if array_ratio >= 0.5
-        else "number"
-        if numeric_ratio >= 0.8
-        else "text"
+        "series" if array_ratio >= 0.5 else "number" if numeric_ratio >= 0.8 else "text"
     )
     return ColumnDetection(
         name=column,
@@ -391,6 +389,7 @@ def infer_column(column: str, series: pd.Series) -> ColumnDetection:
         detected_unit=detected_unit,
         array_like=array_ratio >= 0.5,
     )
+
 
 ###############################################################################
 def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
@@ -420,11 +419,10 @@ def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
         return "atomic", 0.95
     return "ambiguous", 0.25
 
+
 ###############################################################################
 def infer_pressure_basis(columns: list[ColumnDetection]) -> str | None:
-    column = next(
-        (item for item in columns if item.proposed_role == "pressure"), None
-    )
+    column = next((item for item in columns if item.proposed_role == "pressure"), None)
     if column is None:
         return None
     header = normalize_header(column.name)

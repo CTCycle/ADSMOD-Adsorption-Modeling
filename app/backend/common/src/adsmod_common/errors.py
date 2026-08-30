@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 ###############################################################################
 class ErrorEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)

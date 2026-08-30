@@ -23,9 +23,9 @@ from adsmod_core.services.data.importer import AdsorptionImportEngine, PARSER_VE
 from adsmod_common.units import UnitRegistry
 from adsmod_core.repositories.datasets import DatasetRepository
 
+
 ###############################################################################
 class DatasetService:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -49,9 +49,7 @@ class DatasetService:
             raise ValueError(str(first.get("msg", "Invalid import mapping."))) from exc
 
     # -------------------------------------------------------------------------
-    def preview(
-        self, payload: bytes, filename: str | None
-    ) -> ImportPreviewResponse:
+    def preview(self, payload: bytes, filename: str | None) -> ImportPreviewResponse:
         return self.importer.preview(payload, filename)
 
     # -------------------------------------------------------------------------
@@ -83,7 +81,11 @@ class DatasetService:
                 if issue.severity == "warning"
             ],
         }
-        mapping_sha256 = hashlib.sha256(json.dumps(mapping.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        mapping_sha256 = hashlib.sha256(
+            json.dumps(
+                mapping.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        ).hexdigest()
         manifest["mapping_sha256"] = mapping_sha256
         dataset_id = self.repository.persist_canonical(
             name=mapping.dataset_name,
@@ -151,9 +153,7 @@ class DatasetService:
     def update_metadata(
         self, dataset_id: int, metadata: DatasetMetadata
     ) -> DatasetMutationResponse:
-        self.repository.update_metadata(
-            dataset_id, metadata.tags, metadata.description
-        )
+        self.repository.update_metadata(dataset_id, metadata.tags, metadata.description)
         return DatasetMutationResponse(
             dataset=DatasetSummary(**self.repository.summary(dataset_id))
         )

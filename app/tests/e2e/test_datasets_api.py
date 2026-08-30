@@ -8,10 +8,12 @@ from typing import Any
 
 from playwright.sync_api import APIRequestContext
 
+
 ###############################################################################
 def _read_sample(sample_csv_path: str) -> bytes:
     with open(sample_csv_path, "rb") as handle:
         return handle.read()
+
 
 ###############################################################################
 def _build_mapping(
@@ -58,15 +60,14 @@ def _build_mapping(
     }
     return file_content, mapping
 
+
 ###############################################################################
 def _commit_sample(
     api_context: APIRequestContext,
     sample_csv_path: str,
     dataset_name: str,
 ) -> dict[str, Any]:
-    file_content, mapping = _build_mapping(
-        api_context, sample_csv_path, dataset_name
-    )
+    file_content, mapping = _build_mapping(api_context, sample_csv_path, dataset_name)
     validation_response = api_context.post(
         "/api/v1/datasets/import/validate",
         multipart={
@@ -95,6 +96,7 @@ def _commit_sample(
     assert commit_response.ok, f"Commit failed: {commit_response.text()}"
     return commit_response.json()["dataset"]
 
+
 ###############################################################################
 class TestDatasetImport:
     """Tests for the four-stage canonical dataset import flow."""
@@ -111,6 +113,7 @@ class TestDatasetImport:
         assert dataset["experiment_count"] > 0
         assert dataset["observation_count"] > 0
 
+
 ###############################################################################
 class TestDatasetList:
     """Tests for listing canonical dataset summaries."""
@@ -123,6 +126,7 @@ class TestDatasetList:
         data = response.json()
         assert data["status"] == "success"
         assert isinstance(data["datasets"], list)
+
 
 ###############################################################################
 class TestDatasetExperiments:
@@ -152,6 +156,7 @@ class TestDatasetExperiments:
         response = api_context.get("/api/v1/datasets/999999/experiments")
 
         assert response.status == 404
+
 
 ###############################################################################
 class TestDatasetDeletion:

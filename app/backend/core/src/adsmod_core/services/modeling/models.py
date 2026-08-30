@@ -11,6 +11,7 @@ from adsmod_common.units import UnitRegistry
 PressureBasis = Literal["absolute", "partial", "relative"]
 ModelFunction = Callable[..., np.ndarray]
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ParameterSpec:
@@ -19,6 +20,7 @@ class ParameterSpec:
     lower: float
     upper: float
     unit_kind: str
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -33,32 +35,34 @@ class ModelSpec:
     reference: str
     function: ModelFunction
 
+
 ###############################################################################
 def langmuir(pressure: np.ndarray, k: float, qsat: float) -> np.ndarray:
     kp = k * pressure
     return qsat * kp / (1.0 + kp)
 
+
 ###############################################################################
-def sips(
-    pressure: np.ndarray, k: float, qsat: float, n: float
-) -> np.ndarray:
+def sips(pressure: np.ndarray, k: float, qsat: float, n: float) -> np.ndarray:
     kp_n = np.power(k * pressure, n)
     return qsat * kp_n / (1.0 + kp_n)
+
 
 ###############################################################################
 def freundlich(pressure: np.ndarray, k: float, n: float) -> np.ndarray:
     return k * np.power(pressure, 1.0 / n)
 
+
 ###############################################################################
 def temkin(pressure: np.ndarray, k: float, beta: float) -> np.ndarray:
     return beta * np.log(k * pressure)
 
+
 ###############################################################################
-def toth(
-    pressure: np.ndarray, k: float, qsat: float, t: float
-) -> np.ndarray:
+def toth(pressure: np.ndarray, k: float, qsat: float, t: float) -> np.ndarray:
     kp = k * pressure
     return qsat * kp / np.power(1.0 + np.power(kp, t), 1.0 / t)
+
 
 ###############################################################################
 def dubinin_radushkevich(
@@ -79,6 +83,7 @@ def dubinin_radushkevich(
     output[positive] = qsat * np.exp(-beta * potential * potential)
     return output
 
+
 ###############################################################################
 def dual_site_langmuir(
     pressure: np.ndarray,
@@ -89,19 +94,23 @@ def dual_site_langmuir(
 ) -> np.ndarray:
     return langmuir(pressure, k1, qsat1) + langmuir(pressure, k2, qsat2)
 
+
 ###############################################################################
 def redlich_peterson(
     pressure: np.ndarray, k: float, a: float, beta: float
 ) -> np.ndarray:
     return k * pressure / (1.0 + a * np.power(pressure, beta))
 
+
 ###############################################################################
 def jovanovic(pressure: np.ndarray, k: float, qsat: float) -> np.ndarray:
     return qsat * (1.0 - np.exp(-k * pressure))
 
+
 ###############################################################################
 def _affinity(name: str = "k") -> ParameterSpec:
     return ParameterSpec(name, "Affinity coefficient", 1e-16, 1.0, "pressure^-1")
+
 
 ###############################################################################
 def _capacity(name: str = "qsat", label: str = "Saturation capacity") -> ParameterSpec:
@@ -170,7 +179,9 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         parameters=(
             _affinity(),
             _capacity(),
-            ParameterSpec("t", "Toth heterogeneity parameter", 0.05, 10.0, "dimensionless"),
+            ParameterSpec(
+                "t", "Toth heterogeneity parameter", 0.05, 10.0, "dimensionless"
+            ),
         ),
         assumptions="Single-component heterogeneous-site saturation model with Langmuir limit t=1.",
         pressure_requirement="A consistent non-negative equilibrium pressure scale.",
@@ -222,9 +233,13 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         name="Redlich-Peterson",
         equation_latex=r"q = \frac{K_Rp}{1+a_Rp^\beta}",
         parameters=(
-            ParameterSpec("k", "Redlich-Peterson coefficient", 1e-16, 1e6, "uptake/pressure"),
+            ParameterSpec(
+                "k", "Redlich-Peterson coefficient", 1e-16, 1e6, "uptake/pressure"
+            ),
             ParameterSpec("a", "Denominator coefficient", 1e-16, 1e6, "pressure^-beta"),
-            ParameterSpec("beta", "Redlich-Peterson exponent", 0.05, 1.0, "dimensionless"),
+            ParameterSpec(
+                "beta", "Redlich-Peterson exponent", 0.05, 1.0, "dimensionless"
+            ),
         ),
         assumptions="Empirical three-parameter interpolation between Langmuir and Freundlich behaviour.",
         pressure_requirement="A consistent non-negative equilibrium pressure scale.",
@@ -244,6 +259,7 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         function=jovanovic,
     ),
 }
+
 
 ###############################################################################
 class AdsorptionModels:
@@ -276,9 +292,7 @@ class AdsorptionModels:
         p = np.asarray(pressure, dtype=np.float64)
         params = np.asarray(parameters, dtype=np.float64)
         if params.shape != (len(spec.parameters),):
-            raise ValueError(
-                f"{spec.name} requires {len(spec.parameters)} parameters."
-            )
+            raise ValueError(f"{spec.name} requires {len(spec.parameters)} parameters.")
         if not np.all(np.isfinite(p)) or np.any(p < 0):
             raise ValueError("Pressure values must be finite and non-negative.")
         if spec.key in {"freundlich", "temkin"} and np.any(p <= 0):

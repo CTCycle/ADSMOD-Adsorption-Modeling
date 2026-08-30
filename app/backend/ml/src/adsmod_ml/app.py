@@ -13,7 +13,11 @@ from adsmod_common.capabilities import (
     ServiceCapability,
 )
 from adsmod_common.config import AdsmodConfig, load_config
-from adsmod_common.paths import resolve_checkpoint_root, resolve_log_root, resolve_storage_root
+from adsmod_common.paths import (
+    resolve_checkpoint_root,
+    resolve_log_root,
+    resolve_storage_root,
+)
 from adsmod_common.version import __version__
 
 from adsmod_ml.common.utils.logger import close_file_logging, configure_logging
@@ -100,9 +104,9 @@ def configuration(request: Request) -> TrainingConfigurationResponse:
             "dataloader_workers": config.application.training.dataloader_workers,
         }
     )
-    dataset_defaults = DatasetBuildRequest.model_construct(
-        datasets=[]
-    ).model_dump(mode="json", exclude={"datasets"})
+    dataset_defaults = DatasetBuildRequest.model_construct(datasets=[]).model_dump(
+        mode="json", exclude={"datasets"}
+    )
     return TrainingConfigurationResponse(
         defaults=training_defaults,
         dataset_defaults=dataset_defaults,
@@ -163,10 +167,14 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app(config: AdsmodConfig, *, internal_token: str | None = None) -> FastAPI:
-    application = FastAPI(title="ADSMOD ML Service", version=__version__, lifespan=app_lifespan)
+    application = FastAPI(
+        title="ADSMOD ML Service", version=__version__, lifespan=app_lifespan
+    )
     application.state.config = config
     application.state.ready = False
-    application.state.container = MlServiceContainer(config, internal_token=internal_token)
+    application.state.container = MlServiceContainer(
+        config, internal_token=internal_token
+    )
     application.include_router(health_router)
     application.include_router(_build_router(), prefix="/api/v1")
     register_ml_routes(application, application.state.container, prefix="/api/v1")

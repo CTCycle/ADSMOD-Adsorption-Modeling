@@ -16,10 +16,20 @@ from adsmod_core.repositories.schemas.types import JSONList, UTCDateTime
 
 
 EXPECTED_TABLES = {
-    "datasets", "adsorbates", "adsorbents", "isotherms", "isotherm_components",
-    "observations", "dataset_imports", "fitting_runs", "fit_results", "fit_parameters",
-    "training_snapshots", "training_snapshot_rows",
+    "datasets",
+    "adsorbates",
+    "adsorbents",
+    "isotherms",
+    "isotherm_components",
+    "observations",
+    "dataset_imports",
+    "fitting_runs",
+    "fit_results",
+    "fit_parameters",
+    "training_snapshots",
+    "training_snapshot_rows",
 }
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -29,10 +39,12 @@ EXPECTED_TABLES = {
 def test_manager_accepts_supported_postgres_engines(engine: str) -> None:
     assert DatabaseManager._normalize_backend(engine) == "postgres"
 
+
 ###############################################################################
 def test_manager_rejects_removed_psycopg2_engine() -> None:
     with pytest.raises(ValueError, match="Unsupported database engine"):
         DatabaseManager._normalize_backend("postgresql+psycopg2")
+
 
 ###############################################################################
 def test_canonical_schema_has_only_expected_tables() -> None:
@@ -40,22 +52,34 @@ def test_canonical_schema_has_only_expected_tables() -> None:
     assert isinstance(Dataset.__table__.c.tags.type, JSONList)
     assert isinstance(Dataset.__table__.c.created_at.type, UTCDateTime)
 
+
 ###############################################################################
 @pytest.mark.parametrize("dialect", [sqlite.dialect(), postgresql.dialect()])
 def test_every_canonical_table_compiles_for_both_backends(dialect) -> None:  # type: ignore[no-untyped-def]
     for table in Base.metadata.sorted_tables:
         CreateTable(table).compile(dialect=dialect)
 
+
 ###############################################################################
 def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
     settings = DatabaseConfig(
-        embedded_database=True, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
+        embedded_database=True,
+        connect_timeout=30,
+        insert_batch_size=100,
+        sqlite_path=":memory:",
     )
     manager = DatabaseManager(settings)
     try:
         Base.metadata.create_all(manager.engine)
         with manager.transaction() as session:
-            session.add(Dataset(name="Water", source="uploaded", created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc)))
+            session.add(
+                Dataset(
+                    name="Water",
+                    source="uploaded",
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                )
+            )
         with pytest.raises(IntegrityError):
             with manager.transaction() as session:
                 session.add(Dataset(name=" water ", source="uploaded"))
@@ -64,18 +88,51 @@ def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_explicit_bulk_upsert_uses_declared_conflict_key() -> None:
     settings = DatabaseConfig(
-        embedded_database=True, connect_timeout=30, insert_batch_size=100, sqlite_path=":memory:"
+        embedded_database=True,
+        connect_timeout=30,
+        insert_batch_size=100,
+        sqlite_path=":memory:",
     )
     manager = DatabaseManager(settings)
     try:
         Base.metadata.create_all(manager.engine)
         with manager.transaction() as session:
-            assert upsert_records(session, Dataset.__table__, [{"name": "A", "normalized_name": "a", "source": "uploaded", "description": "one", "tags": []}], ["normalized_name"]) == 1
+            assert (
+                upsert_records(
+                    session,
+                    Dataset.__table__,
+                    [
+                        {
+                            "name": "A",
+                            "normalized_name": "a",
+                            "source": "uploaded",
+                            "description": "one",
+                            "tags": [],
+                        }
+                    ],
+                    ["normalized_name"],
+                )
+                == 1
+            )
         with manager.transaction() as session:
-            upsert_records(session, Dataset.__table__, [{"name": "A2", "normalized_name": "a", "source": "uploaded", "description": "two", "tags": []}], ["normalized_name"])
+            upsert_records(
+                session,
+                Dataset.__table__,
+                [
+                    {
+                        "name": "A2",
+                        "normalized_name": "a",
+                        "source": "uploaded",
+                        "description": "two",
+                        "tags": [],
+                    }
+                ],
+                ["normalized_name"],
+            )
         with manager.transaction() as session:
             row = session.execute(select(Dataset)).scalar_one()
             assert row.name == "A2"

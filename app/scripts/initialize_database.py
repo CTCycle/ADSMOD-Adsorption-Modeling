@@ -11,7 +11,9 @@ from adsmod_core.repositories.database.initializer import prepare_database_for_s
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Initialize the canonical ADSMOD database.")
+    parser = argparse.ArgumentParser(
+        description="Initialize the canonical ADSMOD database."
+    )
     parser.add_argument(
         "--config",
         required=True,
@@ -43,4 +45,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

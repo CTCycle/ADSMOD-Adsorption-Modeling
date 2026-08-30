@@ -35,6 +35,7 @@ from adsmod_core.contracts.jobs import (
 from adsmod_core.services.job_responses import JobResponseFactory
 from adsmod_core.services.jobs import JobManager
 
+
 ###############################################################################
 class NISTDataService:
     JOB_TYPE_FETCH = "nist_fetch"
@@ -264,7 +265,9 @@ class NISTDataService:
             raise ValueError("Enrichment is not supported for experiments.")
 
         return self.start_background_job(
-            job_type=self.build_category_job_type(category, self.CATEGORY_ENRICH_SUFFIX),
+            job_type=self.build_category_job_type(
+                category, self.CATEGORY_ENRICH_SUFFIX
+            ),
             runner=self._run_category_enrich_sync,
             args=(category,),
             message=f"NIST {category} enrichment job started.",
@@ -775,14 +778,10 @@ class NISTDataService:
 
         if target == "guest":
             guest_records = self.mapper.material_records(updated, "adsorbate")
-            await asyncio.to_thread(
-                self.repository.save_materials, guest_records, []
-            )
+            await asyncio.to_thread(self.repository.save_materials, guest_records, [])
         else:
             host_records = self.mapper.material_records(updated, "adsorbent")
-            await asyncio.to_thread(
-                self.repository.save_materials, [], host_records
-            )
+            await asyncio.to_thread(self.repository.save_materials, [], host_records)
 
         matched = int(
             properties_frame[[weight_col, formula_col, smile_col]]

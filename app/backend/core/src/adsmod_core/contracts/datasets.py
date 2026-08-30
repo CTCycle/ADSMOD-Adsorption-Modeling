@@ -25,6 +25,7 @@ ColumnRole = Literal[
     "ignore",
 ]
 
+
 ###############################################################################
 class ImportIssue(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -36,6 +37,7 @@ class ImportIssue(BaseModel):
     source_row: int | None = None
     experiment: str | None = None
     remediation: str | None = None
+
 
 ###############################################################################
 class ColumnDetection(BaseModel):
@@ -50,12 +52,14 @@ class ColumnDetection(BaseModel):
     detected_unit: str | None = None
     array_like: bool = False
 
+
 ###############################################################################
 class WidePair(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pressure_column: str
     uptake_column: str
+
 
 ###############################################################################
 class ImportMapping(BaseModel):
@@ -104,6 +108,7 @@ class ImportMapping(BaseModel):
                 used[role] = column
         return self
 
+
 ###############################################################################
 class ImportPreviewResponse(BaseModel):
     status: Literal["success"] = "success"
@@ -120,6 +125,7 @@ class ImportPreviewResponse(BaseModel):
     issues: list[ImportIssue] = Field(default_factory=list)
     guidance: list[str] = Field(default_factory=list)
 
+
 ###############################################################################
 class NormalizedObservationPreview(BaseModel):
     source_row: int | None
@@ -131,6 +137,7 @@ class NormalizedObservationPreview(BaseModel):
     uptake_original: float
     uptake_original_unit: str
     uptake_mol_kg: float
+
 
 ###############################################################################
 class NormalizedExperimentPreview(BaseModel):
@@ -144,6 +151,7 @@ class NormalizedExperimentPreview(BaseModel):
     observation_count: int
     observations: list[NormalizedObservationPreview]
 
+
 ###############################################################################
 class ImportValidationResponse(BaseModel):
     status: Literal["valid", "invalid", "confirmation_required"]
@@ -153,6 +161,7 @@ class ImportValidationResponse(BaseModel):
     observation_count: int
     experiments: list[NormalizedExperimentPreview]
     issues: list[ImportIssue]
+
 
 ###############################################################################
 class DatasetSummary(BaseModel):
@@ -165,10 +174,12 @@ class DatasetSummary(BaseModel):
     tags: list[str] = Field(default_factory=list)
     description: str = ""
 
+
 ###############################################################################
 class DatasetListResponse(BaseModel):
     status: Literal["success"] = "success"
     datasets: list[DatasetSummary] = Field(default_factory=list)
+
 
 ###############################################################################
 class SupportedUnitsResponse(BaseModel):
@@ -176,11 +187,13 @@ class SupportedUnitsResponse(BaseModel):
     uptake: list[str]
     temperature: list[str]
 
+
 ###############################################################################
 class DatasetImportResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary
     validation: ImportValidationResponse
+
 
 ###############################################################################
 class ExperimentSummary(BaseModel):
@@ -196,10 +209,12 @@ class ExperimentSummary(BaseModel):
     fitting_eligible: bool
     ineligibility_reason: str | None = None
 
+
 ###############################################################################
 class ExperimentListResponse(BaseModel):
     status: Literal["success"] = "success"
     experiments: list[ExperimentSummary] = Field(default_factory=list)
+
 
 ###############################################################################
 class DatasetMetadata(BaseModel):
@@ -208,16 +223,19 @@ class DatasetMetadata(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=32)
     description: str = Field(default="", max_length=2000)
 
+
 ###############################################################################
 class DatasetRenameRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     new_name: str = Field(min_length=1, max_length=255)
 
+
 ###############################################################################
 class DatasetMutationResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary
+
 
 ###############################################################################
 class ObservationPage(BaseModel):

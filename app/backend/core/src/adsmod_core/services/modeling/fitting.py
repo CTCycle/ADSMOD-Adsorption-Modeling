@@ -20,18 +20,24 @@ from adsmod_core.contracts.fitting import (
     PredictionPoint,
 )
 from adsmod_common.units import UnitConversionError, UnitRegistry
-from adsmod_core.services.modeling.models import AdsorptionModels, ModelSpec, ParameterSpec
+from adsmod_core.services.modeling.models import (
+    AdsorptionModels,
+    ModelSpec,
+    ParameterSpec,
+)
 
 
 CONDITION_WARNING = 1e12
 CURVE_POINT_COUNT = 200
 MODEL_VERSION = "2.0"
 
+
 ###############################################################################
 @dataclass
 class MetricResult:
     values: dict[str, float | None]
     warnings: list[str] = field(default_factory=list)
+
 
 ###############################################################################
 @dataclass
@@ -53,9 +59,11 @@ class FitComputation:
     warnings: list[str] = field(default_factory=list)
     rank: int | None = None
 
+
 ###############################################################################
 def finite_or_none(value: float) -> float | None:
     return float(value) if math.isfinite(float(value)) else None
+
 
 ###############################################################################
 def compute_metrics(
@@ -77,7 +85,9 @@ def compute_metrics(
     tss = float(np.sum(centered**2, dtype=np.float64))
     if n == 0 or tss <= 0:
         r_squared = None
-        warnings.append("R² is undefined because the observed uptake has zero variance.")
+        warnings.append(
+            "R² is undefined because the observed uptake has zero variance."
+        )
     else:
         r_squared = 1.0 - sse / tss
 
@@ -91,8 +101,10 @@ def compute_metrics(
 
     if uncertainty is None:
         chi_square = None
-    elif uncertainty.size != n or np.any(~np.isfinite(uncertainty)) or np.any(
-        uncertainty <= 0
+    elif (
+        uncertainty.size != n
+        or np.any(~np.isfinite(uncertainty))
+        or np.any(uncertainty <= 0)
     ):
         chi_square = None
         warnings.append(
@@ -101,10 +113,18 @@ def compute_metrics(
     else:
         chi_square = float(np.sum((residuals / uncertainty) ** 2))
 
-    if weighting == "inverse_sigma" and uncertainty is not None and uncertainty.size == n and np.all(np.isfinite(uncertainty)) and np.all(uncertainty > 0):
+    if (
+        weighting == "inverse_sigma"
+        and uncertainty is not None
+        and uncertainty.size == n
+        and np.all(np.isfinite(uncertainty))
+        and np.all(uncertainty > 0)
+    ):
         # Known-sigma Gaussian likelihood; model parameters only are counted.
         chi_square = float(np.sum((residuals / uncertainty) ** 2))
-        log_likelihood = float(-0.5 * (chi_square + np.sum(np.log(2.0 * math.pi * uncertainty**2))))
+        log_likelihood = float(
+            -0.5 * (chi_square + np.sum(np.log(2.0 * math.pi * uncertainty**2)))
+        )
         likelihood_k = k
     elif n > 0 and sse > 0:
         # Unknown common variance estimated from residuals; count that variance parameter.
@@ -113,24 +133,30 @@ def compute_metrics(
     else:
         log_likelihood = None
         likelihood_k = k + 1
-        warnings.append("Information criteria are undefined for an empty or exact-zero-residual fit.")
+        warnings.append(
+            "Information criteria are undefined for an empty or exact-zero-residual fit."
+        )
     if log_likelihood is None:
         aic = aicc = bic = None
     else:
         aic = -2.0 * log_likelihood + 2.0 * likelihood_k
         bic = -2.0 * log_likelihood + likelihood_k * math.log(n) if n > 0 else None
-        aicc = aic + (2.0 * likelihood_k * (likelihood_k + 1.0)) / (n - likelihood_k - 1.0) if n > likelihood_k + 1 else None
+        aicc = (
+            aic + (2.0 * likelihood_k * (likelihood_k + 1.0)) / (n - likelihood_k - 1.0)
+            if n > likelihood_k + 1
+            else None
+        )
         if aicc is None:
-            warnings.append("AICc is undefined because the sample size is too small for the likelihood parameter count.")
+            warnings.append(
+                "AICc is undefined because the sample size is too small for the likelihood parameter count."
+            )
 
     return MetricResult(
         values={
             "sse": finite_or_none(sse),
             "rmse": finite_or_none(rmse) if rmse is not None else None,
             "mae": finite_or_none(mae) if mae is not None else None,
-            "r_squared": finite_or_none(r_squared)
-            if r_squared is not None
-            else None,
+            "r_squared": finite_or_none(r_squared) if r_squared is not None else None,
             "adjusted_r_squared": finite_or_none(adjusted_r_squared)
             if adjusted_r_squared is not None
             else None,
@@ -143,6 +169,7 @@ def compute_metrics(
         },
         warnings=warnings,
     )
+
 
 ###############################################################################
 def pressure_factor(unit: str, pressure_basis: str) -> float:
@@ -158,6 +185,7 @@ def pressure_factor(unit: str, pressure_basis: str) -> float:
     if resolved not in UnitRegistry.PRESSURE_TO_PA:
         raise UnitConversionError("A dimensional pressure display unit is required.")
     return UnitRegistry.PRESSURE_TO_PA[resolved]
+
 
 ###############################################################################
 def parameter_unit(
@@ -180,7 +208,11 @@ def parameter_unit(
         return f"{uptake_unit}/{pressure_unit}"
     if kind == "pressure^-beta":
         exponent = related_value if related_value is not None else "β"
-        return f"{pressure_unit}^(-{exponent:g})" if isinstance(exponent, float) else f"{pressure_unit}^(-β)"
+        return (
+            f"{pressure_unit}^(-{exponent:g})"
+            if isinstance(exponent, float)
+            else f"{pressure_unit}^(-β)"
+        )
     if kind == "freundlich":
         exponent = related_value if related_value is not None else "n"
         return (
@@ -189,6 +221,7 @@ def parameter_unit(
             else f"{uptake_unit}·{pressure_unit}^(-1/n)"
         )
     return "1"
+
 
 ###############################################################################
 def parameter_to_display(
@@ -218,6 +251,7 @@ def parameter_to_display(
         )
     return value
 
+
 ###############################################################################
 def display_parameter_value(
     value: float | None,
@@ -236,6 +270,7 @@ def display_parameter_value(
         uptake_factor_value=uptake_factor_value,
         related_value=related_value,
     )
+
 
 ###############################################################################
 def parameter_from_display(
@@ -265,6 +300,7 @@ def parameter_from_display(
         )
     return value
 
+
 ###############################################################################
 def _fit_residual(
     parameters: np.ndarray,
@@ -288,16 +324,20 @@ def _fit_residual(
     values = uptake - predicted
     return values / sigma if sigma is not None else values
 
+
 ###############################################################################
 class ModelSolver:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.models = AdsorptionModels()
 
     # -------------------------------------------------------------------------
     def initial_configuration(
-        self, spec: ModelSpec, pressure: np.ndarray, uptake: np.ndarray, temperature_k: float
+        self,
+        spec: ModelSpec,
+        pressure: np.ndarray,
+        uptake: np.ndarray,
+        temperature_k: float,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         positive_p = pressure[pressure > 0]
         p_min = float(np.min(positive_p)) if positive_p.size else 1.0
@@ -318,11 +358,15 @@ class ModelSolver:
                     low = max(low, 1.0 / p_min)
                     guess = max(guess, low * 1.05)
             elif parameter.unit_kind == "uptake":
-                guess = q_max * (0.55 if "qsat" in parameter.name and spec.key == "dual_site_langmuir" else 1.1)
+                guess = q_max * (
+                    0.55
+                    if "qsat" in parameter.name and spec.key == "dual_site_langmuir"
+                    else 1.1
+                )
                 low = max(parameter.lower, q_max * 1e-8)
                 high = min(parameter.upper, q_max * 100.0)
             elif parameter.unit_kind == "freundlich":
-                guess = q_median / (p_median ** 1.0)
+                guess = q_median / (p_median**1.0)
                 low = max(parameter.lower, guess * 1e-6)
                 high = min(parameter.upper, guess * 1e6)
             elif parameter.unit_kind == "energy^-2":
@@ -387,9 +431,7 @@ class ModelSolver:
             )
             related_override = overrides.get("n") or overrides.get("beta")
             related_value = (
-                float(related_override.initial)
-                if related_override is not None
-                else 1.0
+                float(related_override.initial) if related_override is not None else 1.0
             )
             for index, parameter in enumerate(spec.parameters):
                 override = overrides.get(parameter.name)
@@ -416,8 +458,10 @@ class ModelSolver:
                     uptake_factor_value=q_factor,
                     related_value=related_value,
                 )
-            if np.any(lower >= upper) or np.any(initial < lower) or np.any(
-                initial > upper
+            if (
+                np.any(lower >= upper)
+                or np.any(initial < lower)
+                or np.any(initial > upper)
             ):
                 raise ValueError(
                     f"{spec.name} parameter bounds or initial values are invalid."
@@ -432,7 +476,9 @@ class ModelSolver:
                 else None
             )
             if weighting == "inverse_sigma" and sigma is None:
-                raise ValueError("Inverse-sigma weighting requires a complete positive uncertainty series.")
+                raise ValueError(
+                    "Inverse-sigma weighting requires a complete positive uncertainty series."
+                )
 
             starts = [initial]
             if parameter_count >= 3:
@@ -508,7 +554,9 @@ class ModelSolver:
                 else:
                     residual_physical = uptake - predicted
                     if dof <= 0:
-                        warnings.append("Parameter uncertainty is undefined because residual degrees of freedom are not positive.")
+                        warnings.append(
+                            "Parameter uncertainty is undefined because residual degrees of freedom are not positive."
+                        )
                     else:
                         variance = float(np.sum(residual_physical**2)) / dof
                         covariance = np.linalg.inv(jacobian.T @ jacobian) * variance
@@ -545,7 +593,11 @@ class ModelSolver:
                 )
 
             metrics = compute_metrics(
-                uptake, predicted, parameter_count, uncertainty=sigma, weighting=weighting
+                uptake,
+                predicted,
+                parameter_count,
+                uncertainty=sigma,
+                weighting=weighting,
             )
             curve_pressure = self.curve_grid(pressure, spec)
             curve_uptake = self.models.evaluate(
@@ -586,10 +638,7 @@ class ModelSolver:
         positive = pressure[pressure > 0]
         if maximum == minimum:
             return np.asarray([minimum])
-        if (
-            positive.size
-            and float(np.max(positive)) / float(np.min(positive)) >= 1000
-        ):
+        if positive.size and float(np.max(positive)) / float(np.min(positive)) >= 1000:
             grid = np.geomspace(
                 float(np.min(positive)), float(np.max(positive)), CURVE_POINT_COUNT
             )
@@ -643,9 +692,9 @@ class ModelSolver:
             warnings=[message],
         )
 
+
 ###############################################################################
 class FittingPipeline:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.solver = ModelSolver()
@@ -683,7 +732,9 @@ class FittingPipeline:
         if pressure.size < 2:
             raise ValueError("At least two observations are required for fitting.")
         if np.any(~np.isfinite(pressure)) or np.any(pressure < 0):
-            raise ValueError("Canonical pressure values must be finite and non-negative.")
+            raise ValueError(
+                "Canonical pressure values must be finite and non-negative."
+            )
         if np.any(~np.isfinite(uptake)) or np.any(uptake < 0):
             raise ValueError("Canonical uptake values must be finite and non-negative.")
         uncertainty_values = series.get("uptake_stddev") or []

@@ -48,7 +48,9 @@ def configure_logging(log_directory: Path | None = None) -> None:
         )
         logger.addHandler(file_handler)
     except OSError:
-        logger.warning("ML file logging is unavailable; continuing with console logging.")
+        logger.warning(
+            "ML file logging is unavailable; continuing with console logging."
+        )
 
 
 def close_file_logging() -> None:

@@ -31,13 +31,17 @@ def table_names(path: Path) -> set[str]:
     try:
         return {
             row[0]
-            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
         }
     finally:
         connection.close()
 
 
-def test_sqlite_missing_database_runs_baseline_and_is_idempotent(tmp_path: Path) -> None:
+def test_sqlite_missing_database_runs_baseline_and_is_idempotent(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "database.db"
     database = sqlite_config(path)
 
@@ -60,7 +64,9 @@ def test_sqlite_empty_existing_file_is_initialized(tmp_path: Path) -> None:
     assert table_names(path) >= {"alembic_version", "datasets"}
 
 
-def test_nonempty_unversioned_database_is_rejected_without_inference(tmp_path: Path) -> None:
+def test_nonempty_unversioned_database_is_rejected_without_inference(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "unversioned.db"
     with sqlite3.connect(path) as connection:
         connection.execute("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)")
@@ -71,7 +77,9 @@ def test_nonempty_unversioned_database_is_rejected_without_inference(tmp_path: P
     assert table_names(path) == {"unrelated"}
 
 
-def test_empty_version_table_with_application_tables_fails_safely(tmp_path: Path) -> None:
+def test_empty_version_table_with_application_tables_fails_safely(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "interrupted.db"
     manager = DatabaseManager(sqlite_config(path))
     try:
@@ -79,14 +87,18 @@ def test_empty_version_table_with_application_tables_fails_safely(tmp_path: Path
     finally:
         manager.dispose()
     with sqlite3.connect(path) as connection:
-        connection.execute("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+        connection.execute(
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"
+        )
         connection.commit()
 
     with pytest.raises(DatabaseMigrationError, match="empty alembic_version"):
         migrator.migrate_database(sqlite_config(path))
 
 
-def test_failed_migration_rolls_back_schema(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_failed_migration_rolls_back_schema(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     path = tmp_path / "rollback.db"
     database = sqlite_config(path)
     config = migrator.build_alembic_config()
@@ -139,7 +151,9 @@ def test_database_initialization_sanitizes_sqlalchemy_errors(
     def raise_database_error(*_args, **_kwargs):  # type: ignore[no-untyped-def]
         raise SQLAlchemyError("postgresql://postgres:secret@host/database")
 
-    monkeypatch.setattr(initializer, "run_database_initialization", raise_database_error)
+    monkeypatch.setattr(
+        initializer, "run_database_initialization", raise_database_error
+    )
 
     with pytest.raises(RuntimeError) as error:
         initializer.initialize_database(sqlite_config(tmp_path / "unused.db"))
@@ -148,7 +162,9 @@ def test_database_initialization_sanitizes_sqlalchemy_errors(
     assert "verify" in str(error.value)
 
 
-def test_postgres_creation_permission_error_is_actionable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_postgres_creation_permission_error_is_actionable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     database = DatabaseConfig(
         embedded_database=False,
         engine="postgres",

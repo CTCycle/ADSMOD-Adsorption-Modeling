@@ -11,7 +11,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.schemas.models import TrainingSnapshot, TrainingSnapshotRow
+from adsmod_core.repositories.schemas.models import (
+    TrainingSnapshot,
+    TrainingSnapshotRow,
+)
 
 
 @dataclass(frozen=True)

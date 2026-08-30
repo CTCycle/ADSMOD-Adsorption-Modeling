@@ -6,12 +6,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 NISTCategory = Literal["experiments", "guest", "host"]
 
+
 ###############################################################################
 class NISTFetchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     experiments_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
     guest_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
     host_fraction: float = Field(default=1.0, ge=0.0, le=1.0)
+
 
 ###############################################################################
 class NISTFetchResponse(BaseModel):
@@ -22,10 +24,12 @@ class NISTFetchResponse(BaseModel):
     guest_rows: int
     host_rows: int
 
+
 ###############################################################################
 class NISTPropertiesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     target: Literal["guest", "host"] = Field(default="guest")
+
 
 ###############################################################################
 class NISTPropertiesResponse(BaseModel):
@@ -34,6 +38,7 @@ class NISTPropertiesResponse(BaseModel):
     names_requested: int
     names_matched: int
     rows_updated: int
+
 
 ###############################################################################
 class NISTStatusResponse(BaseModel):
@@ -44,10 +49,12 @@ class NISTStatusResponse(BaseModel):
     guest_rows: int
     host_rows: int
 
+
 ###############################################################################
 class NISTCategoryFetchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     fraction: float = Field(default=1.0, ge=0.001, le=1.0)
+
 
 ###############################################################################
 class NISTCategoryStatus(BaseModel):
@@ -59,10 +66,12 @@ class NISTCategoryStatus(BaseModel):
     server_checked_at: str | None = None
     supports_enrichment: bool
 
+
 ###############################################################################
 class NISTCategoryStatusResponse(BaseModel):
     status: str = Field(default="success")
     categories: list[NISTCategoryStatus]
+
 
 ###############################################################################
 class NISTCategoryPingResponse(BaseModel):
@@ -70,6 +79,7 @@ class NISTCategoryPingResponse(BaseModel):
     category: NISTCategory
     server_ok: bool
     checked_at: str
+
 
 ###############################################################################
 class NISTCategoryOperationResponse(BaseModel):

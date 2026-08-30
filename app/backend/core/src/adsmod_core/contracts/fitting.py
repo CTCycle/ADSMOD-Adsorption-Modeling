@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+
 ###############################################################################
 class ParameterConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -21,12 +22,14 @@ class ParameterConfiguration(BaseModel):
             raise ValueError("Initial value must lie within the parameter bounds.")
         return self
 
+
 ###############################################################################
 class DisplayUnits(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pressure: str = "bar"
     uptake: str = "mmol/g"
+
 
 ###############################################################################
 class FittingRequest(BaseModel):
@@ -43,6 +46,7 @@ class FittingRequest(BaseModel):
     )
     display_units: DisplayUnits = Field(default_factory=DisplayUnits)
 
+
 ###############################################################################
 class ModelParameterDefinition(BaseModel):
     name: str
@@ -51,6 +55,7 @@ class ModelParameterDefinition(BaseModel):
     upper: float
     initial: float
     unit: str
+
 
 ###############################################################################
 class ModelDefinition(BaseModel):
@@ -63,12 +68,14 @@ class ModelDefinition(BaseModel):
     reference: str
     parameters: list[ModelParameterDefinition]
 
+
 ###############################################################################
 class ModelCatalogResponse(BaseModel):
     status: Literal["success"] = "success"
     pressure_unit: str
     uptake_unit: str
     models: list[ModelDefinition]
+
 
 ###############################################################################
 class FittedParameter(BaseModel):
@@ -79,6 +86,7 @@ class FittedParameter(BaseModel):
     ci95_low: float | None
     ci95_high: float | None
     unit: str
+
 
 ###############################################################################
 class FitMetrics(BaseModel):
@@ -92,12 +100,14 @@ class FitMetrics(BaseModel):
     aicc: float | None
     bic: float | None
 
+
 ###############################################################################
 class PredictionPoint(BaseModel):
     pressure: float
     observed: float | None = None
     predicted: float
     residual: float | None = None
+
 
 ###############################################################################
 class ModelFitResult(BaseModel):
@@ -114,6 +124,7 @@ class ModelFitResult(BaseModel):
     curve: list[PredictionPoint]
     warnings: list[str]
     rank: int | None = None
+
 
 ###############################################################################
 class FittingResponse(BaseModel):
@@ -134,6 +145,7 @@ class FittingResponse(BaseModel):
     results: list[ModelFitResult]
     summary: str
 
+
 ###############################################################################
 class PersistedRunMetricsResponse(BaseModel):
     sse: float | None
@@ -146,6 +158,7 @@ class PersistedRunMetricsResponse(BaseModel):
     aicc: float | None
     bic: float | None
 
+
 ###############################################################################
 class PersistedRunParameterResponse(BaseModel):
     name: str
@@ -153,11 +166,13 @@ class PersistedRunParameterResponse(BaseModel):
     unit: str
     standard_error: float | None
 
+
 ###############################################################################
 class PersistedRunCurvePointResponse(BaseModel):
     pressure: float
     pressure_unit: str
     uptake_mol_kg: float
+
 
 ###############################################################################
 class PersistedRunModelResponse(BaseModel):
@@ -170,6 +185,7 @@ class PersistedRunModelResponse(BaseModel):
     predicted_curve: list[PersistedRunCurvePointResponse]
     warnings: list[str]
     parameters: list[PersistedRunParameterResponse]
+
 
 ###############################################################################
 class PersistedRunResponse(BaseModel):

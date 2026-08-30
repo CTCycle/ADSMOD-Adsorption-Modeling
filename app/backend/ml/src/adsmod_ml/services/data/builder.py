@@ -22,9 +22,9 @@ from adsmod_ml.services.data.sequences import (
     SMILETokenization,
 )
 
+
 ###############################################################################
 class DatasetBuilderConfig:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -62,9 +62,9 @@ class DatasetBuilderConfig:
             "split_seed": self.split_seed,
         }
 
+
 ###############################################################################
 class DatasetBuilder:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -302,7 +302,9 @@ class DatasetBuilder:
         return training_data
 
     # -------------------------------------------------------------------------
-    def save_training_dataset(self, training_data: pd.DataFrame, dataset_hash: str) -> None:
+    def save_training_dataset(
+        self, training_data: pd.DataFrame, dataset_hash: str
+    ) -> None:
         columns_to_save = [
             "dataset_label",
             "dataset_name",

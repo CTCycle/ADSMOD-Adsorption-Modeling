@@ -33,6 +33,7 @@ from adsmod_core.repositories.fitting import FittingRepository
 from adsmod_core.services.job_responses import JobResponseFactory
 from adsmod_core.services.jobs import JobManager
 
+
 ###############################################################################
 class FittingService:
     JOB_TYPE = "fitting"
@@ -55,22 +56,40 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def model_catalog(
-        self, pressure_unit: str = "bar", uptake_unit: str = "mmol/g", dataset_id: int | None = None, isotherm_id: int | None = None
+        self,
+        pressure_unit: str = "bar",
+        uptake_unit: str = "mmol/g",
+        dataset_id: int | None = None,
+        isotherm_id: int | None = None,
     ) -> ModelCatalogResponse:
         pressure_basis = "absolute"
         molar_mass = None
         if dataset_id is not None and isotherm_id is not None:
-            context = next((item for item in self.datasets.experiments(dataset_id) if item["id"] == isotherm_id), None)
+            context = next(
+                (
+                    item
+                    for item in self.datasets.experiments(dataset_id)
+                    if item["id"] == isotherm_id
+                ),
+                None,
+            )
             if context is None:
-                raise LookupError(f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}.")
+                raise LookupError(
+                    f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}."
+                )
             pressure_basis = context["pressure_basis"]
             if not context["fitting_eligible"]:
-                return ModelCatalogResponse(pressure_unit=pressure_unit, uptake_unit=uptake_unit, models=[])
+                return ModelCatalogResponse(
+                    pressure_unit=pressure_unit, uptake_unit=uptake_unit, models=[]
+                )
         return ModelCatalogResponse(
             pressure_unit=pressure_unit,
             uptake_unit=uptake_unit,
             models=self.pipeline.catalog(
-                pressure_unit=pressure_unit, uptake_unit=uptake_unit, pressure_basis=pressure_basis, molar_mass_g_mol=molar_mass
+                pressure_unit=pressure_unit,
+                uptake_unit=uptake_unit,
+                pressure_basis=pressure_basis,
+                molar_mass_g_mol=molar_mass,
             ),
         )
 
@@ -127,9 +146,7 @@ class FittingService:
             "observation_count": observation_count,
             "parameter_count": len(computation.spec.parameters),
             **metrics,
-            "predicted_observations": [
-                float(value) for value in computation.predicted
-            ],
+            "predicted_observations": [float(value) for value in computation.predicted],
             "predicted_curve": [
                 {
                     "pressure": float(pressure),
@@ -179,7 +196,9 @@ class FittingService:
                 if successful
                 else "failed"
             )
-            best = next((item.model for item in response_results if item.rank == 1), None)
+            best = next(
+                (item.model for item in response_results if item.rank == 1), None
+            )
             summary = (
                 f"{len(successful)} of {len(response_results)} models fitted; "
                 f"best model: {best}."
@@ -191,7 +210,9 @@ class FittingService:
                 status=run_status,
                 message=summary,
                 results=[
-                    self._persistence_record(item, len(pressure), series["pressure_basis"])
+                    self._persistence_record(
+                        item, len(pressure), series["pressure_basis"]
+                    )
                     for item in computations
                 ],
             )

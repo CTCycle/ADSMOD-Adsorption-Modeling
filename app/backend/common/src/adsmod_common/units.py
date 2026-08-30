@@ -9,9 +9,11 @@ from typing import Any, Literal
 
 PressureBasis = Literal["absolute", "partial", "relative"]
 
+
 ###############################################################################
 class UnitConversionError(ValueError):
     pass
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -22,11 +24,13 @@ class ConvertedValue:
     canonical_unit: str
     rule: str
 
+
 ###############################################################################
 def normalize_token(value: object) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).strip().casefold()
     text = text.replace("−", "-").replace("·", " ").replace("³", "3")
     return " ".join(text.split())
+
 
 ###############################################################################
 def parse_number(value: Any, decimal_separator: str = "auto") -> float:
@@ -65,7 +69,11 @@ def parse_number(value: Any, decimal_separator: str = "auto") -> float:
                 f"'{value}' is ambiguous; select comma-decimal or comma-thousands explicitly."
             )
         numeric = numeric.replace(",", ".")
-    elif "." in numeric and numeric.count(".") == 1 and len(numeric.rsplit(".", 1)[1]) == 3:
+    elif (
+        "." in numeric
+        and numeric.count(".") == 1
+        and len(numeric.rsplit(".", 1)[1]) == 3
+    ):
         raise ValueError(
             f"'{value}' is ambiguous; select decimal-point or thousands-point explicitly."
         )
@@ -77,6 +85,7 @@ def parse_number(value: Any, decimal_separator: str = "auto") -> float:
     if not math.isfinite(result):
         raise ValueError("Measurement must be finite.")
     return result
+
 
 ###############################################################################
 class UnitRegistry:
@@ -154,7 +163,9 @@ class UnitRegistry:
     @classmethod
     def pressure_unit(cls, unit: object) -> str:
         normalized = normalize_token(unit).replace(" ", "")
-        aliases = {key.replace(" ", ""): value for key, value in cls.PRESSURE_ALIASES.items()}
+        aliases = {
+            key.replace(" ", ""): value for key, value in cls.PRESSURE_ALIASES.items()
+        }
         resolved = aliases.get(normalized)
         if resolved is None:
             raise UnitConversionError(f"Unsupported pressure unit '{unit}'.")
@@ -164,7 +175,9 @@ class UnitRegistry:
     @classmethod
     def uptake_unit(cls, unit: object) -> str:
         normalized = normalize_token(unit).replace(" ", "")
-        aliases = {key.replace(" ", ""): value for key, value in cls.UPTAKE_ALIASES.items()}
+        aliases = {
+            key.replace(" ", ""): value for key, value in cls.UPTAKE_ALIASES.items()
+        }
         resolved = aliases.get(normalized)
         if resolved is None:
             raise UnitConversionError(f"Unsupported uptake unit '{unit}'.")
@@ -174,7 +187,10 @@ class UnitRegistry:
     @classmethod
     def temperature_unit(cls, unit: object) -> str:
         normalized = normalize_token(unit).replace(" ", "")
-        aliases = {key.replace(" ", ""): value for key, value in cls.TEMPERATURE_ALIASES.items()}
+        aliases = {
+            key.replace(" ", ""): value
+            for key, value in cls.TEMPERATURE_ALIASES.items()
+        }
         resolved = aliases.get(normalized)
         if resolved is None:
             raise UnitConversionError(f"Unsupported temperature unit '{unit}'.")
@@ -209,7 +225,9 @@ class UnitRegistry:
         canonical = value * factor
         if canonical < 0:
             raise UnitConversionError("Pressure must not be negative.")
-        return ConvertedValue(value, resolved, canonical, "Pa", f"{resolved} * {factor:g}")
+        return ConvertedValue(
+            value, resolved, canonical, "Pa", f"{resolved} * {factor:g}"
+        )
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -275,7 +293,9 @@ class UnitRegistry:
     def pressure_from_pa(cls, value_pa: float, unit: object) -> float:
         resolved = cls.pressure_unit(unit)
         if resolved not in cls.PRESSURE_TO_PA:
-            raise UnitConversionError("A dimensional display pressure unit is required.")
+            raise UnitConversionError(
+                "A dimensional display pressure unit is required."
+            )
         return value_pa / cls.PRESSURE_TO_PA[resolved]
 
     # -------------------------------------------------------------------------
@@ -288,6 +308,7 @@ class UnitRegistry:
 
 
 HEADER_UNIT_PATTERN = re.compile(r"(?:\[|\()([^\])]+)(?:\]|\))")
+
 
 ###############################################################################
 def detect_header_unit(header: str, quantity: str) -> str | None:

@@ -7,6 +7,7 @@ import pandas as pd
 from adsmod_common.units import UnitRegistry, parse_number
 from adsmod_core.repositories.datasets import stable_material_key
 
+
 ###############################################################################
 def _text(value: object) -> str:
     if value is None:
@@ -17,6 +18,7 @@ def _text(value: object) -> str:
     except (TypeError, ValueError):
         pass
     return str(value).strip()
+
 
 ###############################################################################
 class NISTCanonicalMapper:
@@ -137,9 +139,7 @@ class NISTCanonicalMapper:
             "external_key": source_id,
             "name": source_id,
             "adsorbent": {"name": adsorbent},
-            "adsorbates": [
-                {"name": adsorbate, "molar_mass_g_mol": molar_mass}
-            ],
+            "adsorbates": [{"name": adsorbate, "molar_mass_g_mol": molar_mass}],
             "temperature_original": temperature,
             "temperature_original_unit": "K",
             "temperature_k": temperature,
@@ -164,12 +164,8 @@ class NISTCanonicalMapper:
         observations: list[dict[str, Any]] = []
         for point_index, row in rows.reset_index(drop=True).iterrows():
             for position, species_name in enumerate(species, start=1):
-                pressure_value = parse_number(
-                    row[f"compound_{position}_pressure"], "."
-                )
-                uptake_value = parse_number(
-                    row[f"compound_{position}_adsorption"], "."
-                )
+                pressure_value = parse_number(row[f"compound_{position}_pressure"], ".")
+                uptake_value = parse_number(row[f"compound_{position}_adsorption"], ".")
                 pressure = UnitRegistry.convert_pressure(
                     pressure_value, pressure_unit, "partial"
                 )

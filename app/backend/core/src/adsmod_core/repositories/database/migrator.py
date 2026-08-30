@@ -100,7 +100,9 @@ def _run_command(
 
 
 def _validate_known_heads(current: tuple[str, ...], script: ScriptDirectory) -> None:
-    unknown = [revision for revision in current if script.get_revision(revision) is None]
+    unknown = [
+        revision for revision in current if script.get_revision(revision) is None
+    ]
     if unknown:
         raise DatabaseMigrationError(
             "Database references revisions that are not packaged: "

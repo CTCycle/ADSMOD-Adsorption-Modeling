@@ -21,15 +21,16 @@ from adsmod_core.repositories.schemas.models import (
 )
 from adsmod_core.repositories.schemas.types import normalize_identity
 
+
 ###############################################################################
 def stable_material_key(kind: str, name: str, external: str | None = None) -> str:
     identity = normalize_identity(external or name)
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
     return f"{kind}:{digest}"
 
+
 ###############################################################################
 class DatasetRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -186,11 +187,13 @@ class DatasetRepository:
     def observations(
         self, dataset_id: int, isotherm_id: int, offset: int = 0, limit: int = 100
     ) -> tuple[list[dict[str, Any]], int]:
-        base = select(Observation).join(
-            Isotherm, Isotherm.id == Observation.isotherm_id
-        ).where(
-            Isotherm.dataset_id == dataset_id,
-            Observation.isotherm_id == isotherm_id,
+        base = (
+            select(Observation)
+            .join(Isotherm, Isotherm.id == Observation.isotherm_id)
+            .where(
+                Isotherm.dataset_id == dataset_id,
+                Observation.isotherm_id == isotherm_id,
+            )
         )
         with self.database.session_factory() as session:
             total = int(
@@ -268,18 +271,27 @@ class DatasetRepository:
                 ),
             )
             if len(observations) < 2:
-                raise ValueError("At least two canonical observations are required for fitting.")
+                raise ValueError(
+                    "At least two canonical observations are required for fitting."
+                )
             if isotherm.duplicate_policy == "average":
                 grouped: dict[float, list[Observation]] = {}
                 for item in observations:
                     grouped.setdefault(float(item.pressure_canonical), []).append(item)
                 averaged: list[dict[str, Any]] = []
                 source_ids: list[int] = []
-                for index, (pressure, group) in enumerate(sorted(grouped.items()), start=0):
+                for index, (pressure, group) in enumerate(
+                    sorted(grouped.items()), start=0
+                ):
                     source_ids.extend(item.id for item in group)
                     values = [float(item.uptake_mol_kg) for item in group]
                     sigmas = [item.uptake_stddev_mol_kg for item in group]
-                    sigma = (float(np.sqrt(np.sum(np.square(sigmas))) / len(sigmas)) if sigmas and all(value is not None and value > 0 for value in sigmas) else None)
+                    sigma = (
+                        float(np.sqrt(np.sum(np.square(sigmas))) / len(sigmas))
+                        if sigmas
+                        and all(value is not None and value > 0 for value in sigmas)
+                        else None
+                    )
                     averaged.append((pressure, float(np.mean(values)), sigma))
                 pressure_values = [item[0] for item in averaged]
                 uptake_values = [item[1] for item in averaged]
@@ -322,15 +334,29 @@ class DatasetRepository:
         normalized_name = normalize_identity(name)
         with self.database.transaction() as session:
             if dataset_id is None:
-                if session.scalar(select(Dataset.id).where(Dataset.normalized_name == normalized_name)) is not None:
+                if (
+                    session.scalar(
+                        select(Dataset.id).where(
+                            Dataset.normalized_name == normalized_name
+                        )
+                    )
+                    is not None
+                ):
                     raise ValueError(f"A dataset named '{name}' already exists.")
-                dataset = Dataset(name=name.strip(), normalized_name=normalized_name, source=source, provenance=provenance)
+                dataset = Dataset(
+                    name=name.strip(),
+                    normalized_name=normalized_name,
+                    source=source,
+                    provenance=provenance,
+                )
                 session.add(dataset)
                 session.flush()
             else:
                 dataset = session.get(Dataset, dataset_id)
                 if dataset is None or dataset.source != source:
-                    raise LookupError(f"Canonical {source} dataset {dataset_id} does not exist.")
+                    raise LookupError(
+                        f"Canonical {source} dataset {dataset_id} does not exist."
+                    )
 
             if import_manifest is not None:
                 session.add(DatasetImport(dataset_id=dataset.id, **import_manifest))
@@ -353,9 +379,7 @@ class DatasetRepository:
                     adsorbent = Adsorbent(
                         key=adsorbent_key,
                         name=adsorbent_record["name"].strip(),
-                        external_identifier=adsorbent_record.get(
-                            "external_identifier"
-                        ),
+                        external_identifier=adsorbent_record.get("external_identifier"),
                     )
                     session.add(adsorbent)
                     session.flush()
@@ -382,9 +406,7 @@ class DatasetRepository:
                 for position, adsorbate_record in enumerate(
                     record["adsorbates"], start=1
                 ):
-                    adsorbate_key = adsorbate_record.get(
-                        "key"
-                    ) or stable_material_key(
+                    adsorbate_key = adsorbate_record.get("key") or stable_material_key(
                         "adsorbate",
                         adsorbate_record["name"],
                         adsorbate_record.get("inchi_key"),
@@ -401,9 +423,7 @@ class DatasetRepository:
                             inchi_key=adsorbate_record.get("inchi_key"),
                             inchi=adsorbate_record.get("inchi"),
                             formula=adsorbate_record.get("formula"),
-                            molar_mass_g_mol=adsorbate_record.get(
-                                "molar_mass_g_mol"
-                            ),
+                            molar_mass_g_mol=adsorbate_record.get("molar_mass_g_mol"),
                             smiles=adsorbate_record.get("smiles"),
                         )
                         session.add(adsorbate)
@@ -419,9 +439,9 @@ class DatasetRepository:
                     )
                     session.add(component)
                     session.flush()
-                    component_by_name[
-                        normalize_identity(adsorbate_record["name"])
-                    ] = component
+                    component_by_name[normalize_identity(adsorbate_record["name"])] = (
+                        component
+                    )
 
                 for observation in record["observations"]:
                     component = component_by_name[
@@ -442,9 +462,7 @@ class DatasetRepository:
                                 "pressure_canonical_unit"
                             ],
                             uptake_original=observation["uptake_original"],
-                            uptake_original_unit=observation[
-                                "uptake_original_unit"
-                            ],
+                            uptake_original_unit=observation["uptake_original_unit"],
                             uptake_mol_kg=observation["uptake_mol_kg"],
                             uptake_stddev_mol_kg=observation.get(
                                 "uptake_stddev_mol_kg"

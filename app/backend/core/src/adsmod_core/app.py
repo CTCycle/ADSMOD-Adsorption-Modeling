@@ -90,7 +90,9 @@ class CoreApplicationState:
             or not provided_token
             or not hmac.compare_digest(provided_token, self.internal_token)
         ):
-            raise HTTPException(status_code=401, detail="internal authentication required")
+            raise HTTPException(
+                status_code=401, detail="internal authentication required"
+            )
 
 
 def capabilities(request: Request) -> CapabilitiesResponse:
@@ -101,9 +103,7 @@ def configuration(request: Request) -> FittingConfigurationResponse:
     config: AdsmodConfig = request.app.state.runtime.config
     fitting = config.application.fitting
     pressure_units = tuple(UnitRegistry.PRESSURE_TO_PA)
-    uptake_units = tuple(
-        dict.fromkeys(UnitRegistry.UPTAKE_ALIASES.values())
-    )
+    uptake_units = tuple(dict.fromkeys(UnitRegistry.UPTAKE_ALIASES.values()))
     return FittingConfigurationResponse(
         supported_optimizers=tuple(
             get_args(FittingRequest.model_fields["optimizer"].annotation)
@@ -200,7 +200,11 @@ def _uploaded_snapshot_rows(
             item
             for item in summaries
             if item["source"] == "uploaded"
-            and (dataset_id is None and item["name"] == dataset_name or item["id"] == dataset_id)
+            and (
+                dataset_id is None
+                and item["name"] == dataset_name
+                or item["id"] == dataset_id
+            )
         ),
         None,
     )
@@ -267,7 +271,12 @@ def training_sources(
     runtime: CoreApplicationState = request.app.state.runtime
     runtime.require_internal_token(x_adsmod_internal_token)
     sources: list[dict[str, object]] = []
-    if runtime.container.nist_repository.count_nist_rows().get("single_component_rows", 0) > 0:
+    if (
+        runtime.container.nist_repository.count_nist_rows().get(
+            "single_component_rows", 0
+        )
+        > 0
+    ):
         sources.append(
             {
                 "source": "nist",
@@ -317,7 +326,9 @@ def create_snapshot_from_selections(
             rows,
             metadata={
                 **payload.metadata,
-                "selections": [item.model_dump(mode="json") for item in payload.selections],
+                "selections": [
+                    item.model_dump(mode="json") for item in payload.selections
+                ],
             },
         )
     except ValueError as exc:

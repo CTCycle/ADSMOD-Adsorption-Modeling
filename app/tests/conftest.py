@@ -17,6 +17,7 @@ APP_ROOT = TESTS_DIR.parent
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
 CANONICAL_CONFIG = APP_ROOT / "resources" / "adsmod.json"
 
+
 ###############################################################################
 def normalize_client_host(bind_host: str) -> str:
     """Convert wildcard bind hosts into a routable client host."""
@@ -24,6 +25,7 @@ def normalize_client_host(bind_host: str) -> str:
     if stripped in WILDCARD_BIND_HOSTS:
         return "127.0.0.1"
     return stripped
+
 
 ###############################################################################
 def resolve_test_urls() -> tuple[str, str, str]:
@@ -44,17 +46,20 @@ def resolve_test_urls() -> tuple[str, str, str]:
 
 FRONTEND_URL, BACKEND_URL, ML_BACKEND_URL = resolve_test_urls()
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def base_url() -> str:
     """Return the frontend base URL."""
     return FRONTEND_URL
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     """Return the backend API base URL."""
     return BACKEND_URL
+
 
 ###############################################################################
 @pytest.fixture(scope="session")
@@ -64,11 +69,13 @@ def api_context(playwright: Playwright, api_base_url: str) -> APIRequestContext:
     yield context
     context.dispose()
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def ml_api_base_url() -> str:
     """Return the ML backend API base URL."""
     return ML_BACKEND_URL
+
 
 ###############################################################################
 @pytest.fixture(scope="session")
@@ -82,6 +89,7 @@ def ml_api_context(playwright: Playwright, ml_api_base_url: str) -> APIRequestCo
     yield context
     context.dispose()
 
+
 ###############################################################################
 @pytest.fixture(scope="function")
 def page(playwright: Playwright, base_url: str) -> Page:
@@ -93,11 +101,13 @@ def page(playwright: Playwright, base_url: str) -> Page:
     context.close()
     browser.close()
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def sample_csv_path() -> str:
     """Return the path to the sample adsorption CSV fixture."""
     return str(FIXTURES_DIR / "sample_adsorption.csv")
+
 
 ###############################################################################
 def pytest_collection_modifyitems(

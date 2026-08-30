@@ -14,9 +14,9 @@ from adsmod_core.repositories.nist import NISTRepository
 from adsmod_core.services.jobs import JobManager
 from adsmod_core.persistence.paths import resolve_storage_root
 
+
 ###############################################################################
 class CoreServiceContainer:
-
     # -------------------------------------------------------------------------
     def __init__(self, config: AdsmodConfig) -> None:
         self.config = config
