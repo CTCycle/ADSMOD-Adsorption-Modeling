@@ -23,16 +23,29 @@ describe('CoreShellComponent', () => {
     it('renders health-status transitions for core and ML services', async () => {
         fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
             const url = String(input);
-            if (url.endsWith('/health')) {
-                return { ok: true };
+            if (url.endsWith('/system/capabilities')) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        configured_mode: 'core',
+                        version: '3.0.0',
+                        features: { datasets: true, nist: true, fitting: true, training: false, checkpoints: false },
+                        services: { ml: { configured: false, health: 'unknown', readiness: 'unavailable' } },
+                    }),
+                };
+            }
+            if (url.endsWith('/health/ready')) {
+                return { ok: true, json: async () => ({ service: 'core', version: '3.0.0', state: 'ready' }) };
+            }
+            if (url.endsWith('/ml-health/ready')) {
+                return { ok: false, status: 503, json: async () => ({ detail: 'ML not configured' }) };
             }
             return { ok: false };
         });
 
         const fixture = TestBed.createComponent(CoreShellComponent);
         fixture.detectChanges();
-        await Promise.resolve();
-        await Promise.resolve();
+        await (fixture.componentInstance as unknown as { refreshServiceStatus: () => Promise<void> }).refreshServiceStatus();
         fixture.detectChanges();
 
         const root = fixture.nativeElement as HTMLElement;
@@ -44,10 +57,24 @@ describe('CoreShellComponent', () => {
 
         fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
             const url = String(input);
-            if (url.endsWith('/health')) {
+            if (url.endsWith('/system/capabilities')) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        configured_mode: 'core-ml',
+                        version: '3.0.0',
+                        features: { datasets: true, nist: true, fitting: true, training: true, checkpoints: true },
+                        services: { ml: { configured: true, health: 'healthy', readiness: 'ready' } },
+                    }),
+                };
+            }
+            if (url.endsWith('/health/ready')) {
                 throw new Error('core unavailable');
             }
-            return { ok: true };
+            if (url.endsWith('/ml-health/ready')) {
+                return { ok: true, json: async () => ({ service: 'ml', version: '3.0.0', state: 'ready' }) };
+            }
+            return { ok: false };
         });
 
         await (fixture.componentInstance as unknown as { refreshServiceStatus: () => Promise<void> }).refreshServiceStatus();

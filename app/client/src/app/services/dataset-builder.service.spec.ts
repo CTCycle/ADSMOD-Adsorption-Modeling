@@ -25,7 +25,7 @@ describe('dataset-builder.service', () => {
             error: null,
         });
         expect(fetchMock).toHaveBeenCalledWith(
-            '/api/training/processed-datasets',
+            '/api/v1/training/processed-datasets',
             expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) })
         );
     });
@@ -41,25 +41,28 @@ describe('dataset-builder.service', () => {
         });
 
         await expect(getTrainingDatasetInfo('Dataset 1/alpha')).resolves.toEqual({
-            available: true,
-            dataset_label: 'Dataset 1/alpha',
-            created_at: undefined,
-            sample_size: undefined,
-            validation_size: undefined,
-            min_measurements: undefined,
-            max_measurements: undefined,
-            smile_sequence_size: undefined,
-            max_pressure: undefined,
-            max_uptake: undefined,
-            total_samples: 32,
-            train_samples: undefined,
-            validation_samples: undefined,
-            smile_vocabulary_size: undefined,
-            adsorbent_vocabulary_size: undefined,
-            normalization_stats: undefined,
+            data: {
+                available: true,
+                dataset_label: 'Dataset 1/alpha',
+                created_at: undefined,
+                sample_size: undefined,
+                validation_size: undefined,
+                min_measurements: undefined,
+                max_measurements: undefined,
+                smile_sequence_size: undefined,
+                max_pressure: undefined,
+                max_uptake: undefined,
+                total_samples: 32,
+                train_samples: undefined,
+                validation_samples: undefined,
+                smile_vocabulary_size: undefined,
+                adsorbent_vocabulary_size: undefined,
+                normalization_stats: undefined,
+            },
+            error: null,
         });
         expect(fetchMock).toHaveBeenCalledWith(
-            '/api/training/dataset-info?dataset_label=Dataset%201%2Falpha',
+            '/api/v1/training/dataset-info?dataset_label=Dataset%201%2Falpha',
             expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) })
         );
     });

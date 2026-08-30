@@ -7,8 +7,10 @@ import type {
     ProcessedDatasetInfo,
     ResumeTrainingConfig,
     TrainingConfig,
+    TrainingConfiguration,
     TrainingStatus,
 } from '../../models/training.model';
+import { fetchTrainingConfiguration } from '../../services/system.service';
 import {
     deleteCheckpoint,
     fetchCheckpointDetails,
@@ -26,34 +28,6 @@ import {
 
 export type TrainingViewId = 'processing' | 'datasets' | 'checkpoints' | 'dashboard';
 
-export const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
-    batch_size: 16,
-    shuffle_dataset: true,
-    max_buffer_size: 256,
-    selected_model: 'SCADS Series',
-    dropout_rate: 0.1,
-    num_attention_heads: 2,
-    num_encoders: 2,
-    molecular_embedding_size: 64,
-    epochs: 2,
-    dataloader_workers: 0,
-    prefetch_factor: 1,
-    pin_memory: true,
-    use_device_GPU: true,
-    device_ID: 0,
-    use_mixed_precision: false,
-    use_jit: false,
-    jit_backend: 'inductor',
-    use_lr_scheduler: false,
-    initial_lr: 1e-4,
-    target_lr: 1e-5,
-    constant_steps: 5,
-    decay_steps: 10,
-    save_checkpoints: false,
-    checkpoints_frequency: 5,
-    custom_name: '',
-};
-
 const INITIAL_TRAINING_STATUS: TrainingStatus = {
     is_training: false,
     current_epoch: 0,
@@ -64,38 +38,17 @@ const INITIAL_TRAINING_STATUS: TrainingStatus = {
     log: [],
 };
 
-const ARCHIVED_DATASET_PREFIX = 'archived::';
-
-const sanitizeProcessedDatasets = (datasets: ProcessedDatasetInfo[]): ProcessedDatasetInfo[] => {
-    const uniqueByLabel = new Map<string, ProcessedDatasetInfo>();
-    datasets.forEach((dataset) => {
-        const label = String(dataset.dataset_label || '').trim();
-        if (!label || label.startsWith(ARCHIVED_DATASET_PREFIX)) {
-            return;
-        }
-        if (!uniqueByLabel.has(label)) {
-            uniqueByLabel.set(label, dataset);
-        }
-    });
-    return Array.from(uniqueByLabel.values());
-};
-
 @Injectable({ providedIn: 'root' })
 export class TrainingWorkspaceStore {
-    readonly activeView = signal<TrainingViewId>('processing');
-    readonly config = signal<TrainingConfig>({ ...DEFAULT_TRAINING_CONFIG });
+    readonly trainingConfiguration = signal<TrainingConfiguration | null>(null);
+    readonly trainingConfigurationError = signal<string | null>(null);
+    readonly config = signal<TrainingConfig | null>(null);
     readonly checkpoints = signal<CheckpointInfo[]>([]);
     readonly isLoading = signal(false);
     readonly showNewTrainingWizard = signal(false);
     readonly showResumeTrainingWizard = signal(false);
-    readonly resumeConfig = signal<ResumeTrainingConfig>({
-        checkpoint_name: '',
-        additional_epochs: 10,
-    });
+    readonly resumeConfig = signal<ResumeTrainingConfig | null>(null);
     readonly processedDatasets = signal<ProcessedDatasetInfo[]>([]);
-    readonly selectedDatasetLabel = signal<string | null>(null);
-    readonly selectedDatasetHash = signal<string | null>(null);
-    readonly selectedCheckpointName = signal<string | null>(null);
     readonly infoModalOpen = signal(false);
     readonly infoModalTitle = signal('');
     readonly infoModalData = signal<InfoModalData | null>(null);
@@ -103,13 +56,10 @@ export class TrainingWorkspaceStore {
     readonly trainingStatusError = signal<string | null>(null);
     readonly actionLoading = signal(false);
 
-    setActiveView(view: TrainingViewId): void {
-        this.activeView.set(view);
-    }
-
     async refreshWorkspace(): Promise<void> {
         this.isLoading.set(true);
         await Promise.all([
+            this.loadConfiguration(),
             this.loadCheckpoints(),
             this.loadProcessedDatasets(),
             this.checkStatus(),
@@ -127,32 +77,45 @@ export class TrainingWorkspaceStore {
     async loadProcessedDatasets(): Promise<void> {
         const result = await fetchProcessedDatasets();
         if (!result.error) {
-            this.processedDatasets.set(sanitizeProcessedDatasets(result.datasets));
+            this.processedDatasets.set(result.datasets);
         }
+    }
+
+    async loadConfiguration(): Promise<void> {
+        const result = await fetchTrainingConfiguration();
+        this.trainingConfigurationError.set(result.error);
+        if (!result.data) {
+            this.trainingConfiguration.set(null);
+            this.config.set(null);
+            this.resumeConfig.set(null);
+            return;
+        }
+        this.trainingConfiguration.set(result.data);
+        this.config.set({ ...result.data.defaults });
+        this.resumeConfig.set({
+            checkpoint_name: this.resumeConfig()?.checkpoint_name ?? '',
+            additional_epochs: result.data.resume_defaults.additional_epochs,
+        });
     }
 
     async checkStatus(): Promise<void> {
-        const status = await getTrainingStatus();
-        this.trainingStatusError.set(status.error);
-        const { error: _error, ...trainingStatus } = status;
-        this.trainingStatus.set(trainingStatus);
+        const result = await getTrainingStatus();
+        this.trainingStatusError.set(result.error);
+        if (result.data) {
+            this.trainingStatus.set(result.data);
+        }
     }
 
     selectDataset(dataset: ProcessedDatasetInfo): void {
-        this.selectedDatasetLabel.set(dataset.dataset_label);
-        this.selectedDatasetHash.set(dataset.dataset_hash);
-        this.config.update((config) => ({
+        this.config.update((config) => config ? ({
             ...config,
             dataset_label: dataset.dataset_label,
             dataset_hash: dataset.dataset_hash,
-        }));
+        }) : config);
     }
 
     selectCheckpoint(name: string | null): void {
-        this.selectedCheckpointName.set(name);
-        if (name) {
-            this.resumeConfig.update((config) => ({ ...config, checkpoint_name: name }));
-        }
+        this.resumeConfig.update((config) => config ? ({ ...config, checkpoint_name: name ?? '' }) : config);
     }
 
     setConfig(config: TrainingConfig): void {
@@ -207,15 +170,19 @@ export class TrainingWorkspaceStore {
     }
 
     async startTraining(): Promise<Awaited<ReturnType<typeof startTraining>>> {
-        return startTraining({
-            ...this.config(),
-            dataset_label: this.selectedDatasetLabel() ?? undefined,
-            dataset_hash: this.selectedDatasetHash(),
-        });
+        const config = this.config();
+        if (!config) {
+            return { sessionId: '', message: this.trainingConfigurationError() || 'Training configuration is unavailable.', status: 'error' };
+        }
+        return startTraining(config);
     }
 
     async resumeTraining(): Promise<Awaited<ReturnType<typeof resumeTraining>>> {
-        return resumeTraining(this.resumeConfig());
+        const config = this.resumeConfig();
+        if (!config || !config.checkpoint_name) {
+            return { sessionId: '', message: 'Select a checkpoint before resuming training.', status: 'error' };
+        }
+        return resumeTraining(config);
     }
 
     async stopTraining(): Promise<Awaited<ReturnType<typeof stopTraining>>> {
@@ -226,7 +193,7 @@ export class TrainingWorkspaceStore {
         return deleteDataset(label);
     }
 
-    async fetchDatasetMetadata(label: string): Promise<DatasetFullInfo> {
+    async fetchDatasetMetadata(label: string): Promise<{ data: DatasetFullInfo | null; error: string | null }> {
         return getTrainingDatasetInfo(label);
     }
 

@@ -1,3 +1,4 @@
+import type { DatasetBuildConfig } from './dataset-build.model';
 import type { JsonObject } from './json.model';
 
 export type TorchCompileBackend = 'inductor' | 'cudagraphs' | 'aot_eager' | 'eager';
@@ -31,7 +32,7 @@ export interface TrainingConfig {
     decay_steps: number;
     save_checkpoints: boolean;
     checkpoints_frequency: number;
-    custom_name?: string;
+    custom_name?: string | null;
 }
 
 export interface CheckpointInfo {
@@ -124,4 +125,27 @@ export interface ProcessedDatasetInfo {
     train_samples: number;
     validation_samples: number;
     created_at?: string;
+}
+
+export interface NumericConstraint {
+    minimum?: number;
+    maximum?: number;
+    exclusive_minimum?: number;
+    exclusive_maximum?: number;
+}
+
+export interface TrainingConfiguration {
+    status: 'success';
+    defaults: TrainingConfig;
+    dataset_defaults: Partial<DatasetBuildConfig>;
+    resume_defaults: Pick<ResumeTrainingConfig, 'additional_epochs'>;
+    numeric_constraints: Record<string, NumericConstraint>;
+    supported_models: Array<TrainingConfig['selected_model']>;
+    checkpoint_capabilities: Record<string, boolean>;
+    runtime: {
+        keras_backend: string;
+        cuda_available: boolean;
+        device_count: number;
+        devices: string[];
+    };
 }

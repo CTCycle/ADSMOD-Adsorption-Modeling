@@ -139,7 +139,7 @@ def _build_router() -> APIRouter:
         tags=["system"],
     )
     router.add_api_route(
-        "/system/configuration",
+        "/training/configuration",
         configuration,
         methods=["GET"],
         response_model=TrainingConfigurationResponse,

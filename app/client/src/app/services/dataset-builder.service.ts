@@ -20,10 +20,11 @@ export async function pollTrainingDatasetJobUntilComplete(
     pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<DatasetBuildResult> {
-    const status = await pollJobUntilTerminal('/training', jobId, pollInterval, onProgress);
-    if (!status) {
-        return { success: false, message: 'Failed to poll dataset job status.' };
+    const result = await pollJobUntilTerminal('/training', jobId, pollInterval, onProgress);
+    if (result.error || !result.data) {
+        return { success: false, message: result.error || 'Dataset job status response was empty.' };
     }
+    const status = result.data;
 
     if (status.status === 'completed') {
         const result = status.result as DatasetBuildResult | undefined;
@@ -66,14 +67,17 @@ export async function fetchProcessedDatasets(): Promise<{ datasets: ProcessedDat
             return { datasets: [], error: extractErrorMessage(response, data) };
         }
 
-        const result = (await response.json()) as { datasets?: ProcessedDatasetInfo[] };
-        return { datasets: result.datasets || [], error: null };
+        const result = (await response.json()) as { datasets?: unknown };
+        if (!Array.isArray(result.datasets)) {
+            return { datasets: [], error: 'Invalid processed datasets response.' };
+        }
+        return { datasets: result.datasets as ProcessedDatasetInfo[], error: null };
     } catch (error) {
         return { datasets: [], error: error instanceof Error ? error.message : 'An unknown error occurred.' };
     }
 }
 
-export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<DatasetFullInfo> {
+export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<{ data: DatasetFullInfo | null; error: string | null }> {
     try {
         const url = datasetLabel
             ? `${API_BASE_URL}/training/dataset-info?dataset_label=${encodeURIComponent(datasetLabel)}`
@@ -81,30 +85,37 @@ export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<Dat
 
         const response = await fetchWithTimeout(url, { method: 'GET' }, HTTP_TIMEOUT);
         if (!response.ok) {
-            return { available: false };
+            const body = await response.json().catch(() => ({}));
+            return { data: null, error: extractErrorMessage(response, body) };
         }
 
-        const result = (await response.json()) as DatasetFullInfo;
+        const result = (await response.json()) as Partial<DatasetFullInfo>;
+        if (typeof result.available !== 'boolean') {
+            return { data: null, error: 'Invalid training dataset information response.' };
+        }
         return {
-            available: result.available || false,
-            dataset_label: result.dataset_label,
-            created_at: result.created_at,
-            sample_size: result.sample_size,
-            validation_size: result.validation_size,
-            min_measurements: result.min_measurements,
-            max_measurements: result.max_measurements,
-            smile_sequence_size: result.smile_sequence_size,
-            max_pressure: result.max_pressure,
-            max_uptake: result.max_uptake,
-            total_samples: result.total_samples,
-            train_samples: result.train_samples,
-            validation_samples: result.validation_samples,
-            smile_vocabulary_size: result.smile_vocabulary_size,
-            adsorbent_vocabulary_size: result.adsorbent_vocabulary_size,
-            normalization_stats: result.normalization_stats,
+            data: {
+                available: result.available,
+                dataset_label: result.dataset_label,
+                created_at: result.created_at,
+                sample_size: result.sample_size,
+                validation_size: result.validation_size,
+                min_measurements: result.min_measurements,
+                max_measurements: result.max_measurements,
+                smile_sequence_size: result.smile_sequence_size,
+                max_pressure: result.max_pressure,
+                max_uptake: result.max_uptake,
+                total_samples: result.total_samples,
+                train_samples: result.train_samples,
+                validation_samples: result.validation_samples,
+                smile_vocabulary_size: result.smile_vocabulary_size,
+                adsorbent_vocabulary_size: result.adsorbent_vocabulary_size,
+                normalization_stats: result.normalization_stats,
+            },
+            error: null,
         };
-    } catch {
-        return { available: false };
+    } catch (error) {
+        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
     }
 }
 

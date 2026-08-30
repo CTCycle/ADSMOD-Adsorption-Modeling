@@ -17,7 +17,7 @@ def test_ml_runtime_contracts() -> None:
         assert client.get("/health/live").json()["service"] == "ml"
         assert client.get("/health/ready").json()["state"] == "ready"
         assert client.get("/api/v1/system/capabilities").json()["features"]["training"] is True
-        configuration = client.get("/api/v1/system/configuration")
+        configuration = client.get("/api/v1/training/configuration")
         assert configuration.status_code == 200
         payload = configuration.json()
         assert payload["defaults"]["batch_size"] == 32

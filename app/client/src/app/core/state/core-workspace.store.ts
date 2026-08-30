@@ -5,6 +5,7 @@ import type {
     ExperimentSummary,
 } from '../../models/dataset.model';
 import type {
+    FittingConfiguration,
     FittingPayload,
     FittingResponse,
     ModelParameters,
@@ -19,10 +20,11 @@ import {
 } from '../../services/dataset.service';
 import {
     pollFittingJobUntilComplete,
-    startFittingJob, fetchModelCatalog,
+    startFittingJob,
+    fetchFittingConfiguration,
+    fetchModelCatalog,
 } from '../../services/fitting.service';
 
-export type CorePageId = 'datasets' | 'fitting';
 export type OptimizationMethod = FittingPayload['optimizer'];
 
 interface ModelState {
@@ -34,10 +36,11 @@ const initialModels = (): Record<string, ModelState> => ({});
 
 @Injectable({ providedIn: 'root' })
 export class CoreWorkspaceStore {
-    readonly currentPage = signal<CorePageId>('datasets');
-    readonly maxEvaluations = signal(10_000);
-    readonly optimizationMethod = signal<OptimizationMethod>('trf');
-    readonly weighting = signal<FittingPayload['weighting']>('unweighted');
+    readonly fittingConfiguration = signal<FittingConfiguration | null>(null);
+    readonly fittingConfigurationError = signal<string | null>(null);
+    readonly maxEvaluations = signal<number | null>(null);
+    readonly optimizationMethod = signal<OptimizationMethod | null>(null);
+    readonly weighting = signal<FittingPayload['weighting'] | null>(null);
     readonly fittingStatus = signal('');
     readonly fittingResult = signal<FittingResponse | null>(null);
     readonly fittingRunning = signal(false);
@@ -50,6 +53,7 @@ export class CoreWorkspaceStore {
     readonly managementStatus = signal('');
     readonly modelStates = signal<Record<string, ModelState>>(initialModels());
     readonly modelCatalog = signal<ModelCatalogResponse | null>(null);
+    readonly modelCatalogError = signal<string | null>(null);
 
     readonly selectedDataset = computed(() =>
         this.datasets().find(
@@ -69,13 +73,45 @@ export class CoreWorkspaceStore {
 
     constructor() {
         void this.refreshDatasets();
+        void this.loadConfiguration();
         void this.loadCatalog();
     }
 
-    async loadCatalog(): Promise<void> { const catalog = await fetchModelCatalog(); if (catalog) { this.modelCatalog.set(catalog); this.modelStates.set(Object.fromEntries(catalog.models.map((model) => [model.key, { enabled: true, config: Object.fromEntries(model.parameters.map((parameter) => [parameter.name, { min: parameter.lower, max: parameter.upper }])) }]))); } }
+    async loadConfiguration(): Promise<void> {
+        const result = await fetchFittingConfiguration();
+        this.fittingConfigurationError.set(result.error);
+        if (!result.data) {
+            this.fittingConfiguration.set(null);
+            this.maxEvaluations.set(null);
+            this.optimizationMethod.set(null);
+            this.weighting.set(null);
+            return;
+        }
+        this.fittingConfiguration.set(result.data);
+        this.maxEvaluations.set(result.data.default_max_evaluations);
+        this.optimizationMethod.set(result.data.default_optimizer);
+        this.weighting.set(result.data.default_weighting);
+    }
 
-    setCurrentPage(page: CorePageId): void {
-        this.currentPage.set(page);
+    async loadCatalog(): Promise<void> {
+        const result = await fetchModelCatalog();
+        this.modelCatalogError.set(result.error);
+        if (!result.data) {
+            this.modelCatalog.set(null);
+            this.modelStates.set(initialModels());
+            return;
+        }
+        this.modelCatalog.set(result.data);
+        this.modelStates.set(Object.fromEntries(result.data.models.map((model) => [
+            model.key,
+            {
+                enabled: true,
+                config: Object.fromEntries(model.parameters.map((parameter) => [
+                    parameter.name,
+                    { min: parameter.lower, max: parameter.upper },
+                ])),
+            },
+        ])));
     }
 
     async refreshDatasets(selectId?: number): Promise<void> {
@@ -167,9 +203,11 @@ export class CoreWorkspaceStore {
     }
 
     setMaxEvaluations(value: number): void {
-        this.maxEvaluations.set(
-            Math.min(1_000_000, Math.max(10, Math.round(value))),
-        );
+        this.maxEvaluations.set(Math.round(value));
+    }
+
+    setWeighting(weighting: FittingPayload['weighting']): void {
+        this.weighting.set(weighting);
     }
 
     resetFittingStatus(): void {
@@ -219,18 +257,28 @@ export class CoreWorkspaceStore {
             this.fittingStatus.set('[ERROR] Select at least one model.');
             return;
         }
+        const configuration = this.fittingConfiguration();
+        const optimizer = this.optimizationMethod();
+        const maxEvaluations = this.maxEvaluations();
+        const weighting = this.weighting();
+        if (!configuration || !optimizer || maxEvaluations === null || !weighting) {
+            this.fittingStatus.set(
+                `[ERROR] Fitting configuration is unavailable${this.fittingConfigurationError() ? `: ${this.fittingConfigurationError()}` : '.'}`,
+            );
+            return;
+        }
 
         const payload: FittingPayload = {
             dataset_id: datasetId,
             isotherm_id: experiment.id,
             models,
-            optimizer: this.optimizationMethod(),
-            max_evaluations: this.maxEvaluations(),
-            weighting: this.weighting(),
+            optimizer,
+            max_evaluations: maxEvaluations,
+            weighting,
             parameter_configuration: {},
             display_units: {
-                pressure: experiment.pressure_basis === 'relative' ? '1' : 'bar',
-                uptake: 'mmol/g',
+                pressure: experiment.pressure_basis === 'relative' ? '1' : configuration.display_units.default_pressure,
+                uptake: configuration.display_units.default_uptake,
             },
         };
         this.fittingRunning.set(true);

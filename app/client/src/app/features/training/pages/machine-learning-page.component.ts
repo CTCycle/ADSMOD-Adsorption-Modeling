@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -123,7 +123,8 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                     @switch (activeView().id) {
                         @case ('processing') {
                             <div class="training-view-widget">
-                                <adsmod-dataset-builder-card
+                                    <adsmod-dataset-builder-card
+                                    [trainingConfiguration]="store.trainingConfiguration()"
                                     [showSectionHeading]="false"
                                     (datasetBuilt)="refreshWorkspace()"
                                     (workspaceChanged)="refreshWorkspace()"
@@ -240,21 +241,25 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                 }
             </section>
 
-            @if (store.showNewTrainingWizard()) {
+            @if (store.showNewTrainingWizard() && store.config()) {
                 <adsmod-new-training-wizard
-                    [initialConfig]="store.config()"
-                    [selectedDatasetLabel]="store.selectedDatasetLabel() || ''"
+                    [initialConfig]="store.config()!"
+                    [numericConstraints]="store.trainingConfiguration()?.numeric_constraints ?? {}"
+                    [supportedModels]="store.trainingConfiguration()?.supported_models ?? []"
+                    [deviceCount]="store.trainingConfiguration()?.runtime?.device_count ?? 0"
+                    [selectedDatasetLabel]="store.config()?.dataset_label || ''"
                     [isLoading]="store.actionLoading()"
                     (closed)="store.closeNewTrainingWizard()"
                     (confirmed)="confirmTraining($event)"
                 />
             }
 
-            @if (store.showResumeTrainingWizard()) {
+            @if (store.showResumeTrainingWizard() && store.resumeConfig()) {
                 <adsmod-resume-training-wizard
                     [checkpoints]="store.checkpoints()"
-                    [selectedCheckpointName]="store.resumeConfig().checkpoint_name"
-                    [initialConfig]="store.resumeConfig()"
+                    [selectedCheckpointName]="store.resumeConfig()!.checkpoint_name"
+                    [initialConfig]="store.resumeConfig()!"
+                    [numericConstraints]="store.trainingConfiguration()?.numeric_constraints ?? {}"
                     [isLoading]="store.actionLoading()"
                     (closed)="store.closeResumeTrainingWizard()"
                     (confirmed)="confirmResume($event)"
@@ -316,7 +321,7 @@ export class MachineLearningPageComponent {
     protected readonly metricTitle = computed(() => this.hasAccuracyMetric() ? 'ACCURACY' : 'R2 SCORE');
     protected readonly metricAxisDomain = computed<[number, number] | ['auto', 'auto']>(() => this.hasAccuracyMetric() ? [0, 1] : ['auto', 'auto']);
     protected readonly hasHistory = computed(() => this.history().length > 0);
-    protected readonly epochMetric = computed(() => `${this.store.trainingStatus().current_epoch} / ${this.store.trainingStatus().total_epochs || this.store.config().epochs}`);
+    protected readonly epochMetric = computed(() => `${this.store.trainingStatus().current_epoch} / ${this.store.trainingStatus().total_epochs || this.store.config()?.epochs || '—'}`);
     protected readonly trainLossMetric = computed(() => this.formatLossValue(this.metrics().loss));
     protected readonly valLossMetric = computed(() => this.formatLossValue(this.metrics().val_loss));
     protected readonly trainMetricValue = computed(() => this.formatMetricValue(this.metrics()[this.metricKey()], this.hasAccuracyMetric()));
@@ -335,20 +340,21 @@ export class MachineLearningPageComponent {
     }));
 
     constructor() {
-        effect(() => {
-            this.store.setActiveView(this.activeView().id);
-        });
         void this.initializeTrainingAvailability();
     }
 
     private async initializeTrainingAvailability(): Promise<void> {
-        const status = await getTrainingStatus();
-        if (status.error) {
+        const [result] = await Promise.all([
+            getTrainingStatus(),
+            this.store.loadConfiguration(),
+        ]);
+        if (result.error || !result.data || !this.store.config()) {
             this.trainingAvailability.set('unavailable');
-            this.store.trainingStatusError.set(status.error);
+            this.store.trainingStatusError.set(result.error || this.store.trainingConfigurationError() || 'Training configuration is unavailable.');
             return;
         }
         this.trainingAvailability.set('available');
+        const status = result.data;
         this.handleTrainingStatus(status);
         await Promise.all([this.store.loadCheckpoints(), this.store.loadProcessedDatasets()]);
         if (status.is_training) {
@@ -445,12 +451,12 @@ export class MachineLearningPageComponent {
 
     protected async viewDatasetMetadata(label: string): Promise<void> {
         this.store.setActionLoading(true);
-        const info = await this.store.fetchDatasetMetadata(label);
+        const result = await this.store.fetchDatasetMetadata(label);
         this.store.setActionLoading(false);
-        if (info && info.available) {
-            this.store.openInfoModal('Dataset Metadata', buildDatasetMetadataModalData(info));
+        if (result.data?.available) {
+            this.store.openInfoModal('Dataset Metadata', buildDatasetMetadataModalData(result.data));
         } else {
-            this.store.openErrorModal('Dataset Metadata', `Could not fetch details for dataset '${label}'.`);
+            this.store.openErrorModal('Dataset Metadata', result.error || `Could not fetch details for dataset '${label}'.`);
         }
     }
 
@@ -476,8 +482,7 @@ export class MachineLearningPageComponent {
     }
 
     private formatLossValue(value: number | undefined): string {
-        const safeValue = typeof value === 'number' ? value : 0;
-        return safeValue.toFixed(4);
+        return typeof value === 'number' ? value.toFixed(4) : '—';
     }
 
     private startTrainingStatusPolling(intervalSeconds: number | undefined): void {
@@ -502,11 +507,13 @@ export class MachineLearningPageComponent {
     }
 
     private formatMetricValue(value: number | undefined, asPercent: boolean): string {
-        const safeValue = typeof value === 'number' ? value : 0;
-        if (asPercent) {
-            return `${(safeValue * 100).toFixed(2)}%`;
+        if (typeof value !== 'number') {
+            return '—';
         }
-        return safeValue.toFixed(4);
+        if (asPercent) {
+            return `${(value * 100).toFixed(2)}%`;
+        }
+        return value.toFixed(4);
     }
 
 }

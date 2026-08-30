@@ -1,7 +1,7 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { DatasetBuildConfig, DatasetSelection } from '../../../models/dataset-build.model';
-import type { DatasetSourceInfo } from '../../../models/training.model';
+import type { DatasetSourceInfo, NumericConstraint } from '../../../models/training.model';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
 import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.component';
 
@@ -34,13 +34,13 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                                 </p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-settings-grid">
-                                        <adsmod-number-input label="Sample Size" [value]="sampleSize()" [min]="0.01" [max]="1" [step]="0.01" [precision]="2" (valueChange)="sampleSizeControl.setValue($event)" />
-                                        <adsmod-number-input label="Validation %" [value]="validationSize()" [min]="0.05" [max]="0.5" [step]="0.05" [precision]="2" (valueChange)="validationSizeControl.setValue($event)" />
-                                        <adsmod-number-input label="SMILE Length" [value]="smileSequenceSize()" [min]="5" [max]="100" [step]="5" [precision]="0" (valueChange)="smileSequenceSizeControl.setValue($event)" />
-                                        <adsmod-number-input label="Min Measurements" [value]="minMeasurements()" [min]="1" [max]="50" [step]="1" [precision]="0" (valueChange)="minMeasurementsControl.setValue($event)" />
-                                        <adsmod-number-input label="Max Measurements" [value]="maxMeasurements()" [min]="5" [max]="500" [step]="5" [precision]="0" (valueChange)="maxMeasurementsControl.setValue($event)" />
-                                        <adsmod-number-input label="Max Pressure (kPa)" [value]="maxPressure()" [min]="100" [max]="100000" [step]="100" [precision]="0" (valueChange)="maxPressureControl.setValue($event)" />
-                                        <adsmod-number-input label="Max Uptake (mol/g)" [value]="maxUptake()" [min]="1" [max]="1000" [step]="1" [precision]="1" (valueChange)="maxUptakeControl.setValue($event)" />
+                                        <adsmod-number-input label="Sample Size" [value]="sampleSize()" [min]="minimum('dataset_sample_size')" [max]="maximum('dataset_sample_size')" [step]="0.01" [precision]="2" (valueChange)="sampleSizeControl.setValue($event)" />
+                                        <adsmod-number-input label="Validation %" [value]="validationSize()" [min]="minimum('dataset_validation_size')" [max]="maximum('dataset_validation_size')" [step]="0.05" [precision]="2" (valueChange)="validationSizeControl.setValue($event)" />
+                                        <adsmod-number-input label="SMILE Length" [value]="smileSequenceSize()" [min]="minimum('dataset_smile_sequence_size')" [max]="maximum('dataset_smile_sequence_size')" [step]="5" [precision]="0" (valueChange)="smileSequenceSizeControl.setValue($event)" />
+                                        <adsmod-number-input label="Min Measurements" [value]="minMeasurements()" [min]="minimum('dataset_min_measurements')" [max]="maximum('dataset_min_measurements')" [step]="1" [precision]="0" (valueChange)="minMeasurementsControl.setValue($event)" />
+                                        <adsmod-number-input label="Max Measurements" [value]="maxMeasurements()" [min]="minimum('dataset_max_measurements')" [max]="maximum('dataset_max_measurements')" [step]="5" [precision]="0" (valueChange)="maxMeasurementsControl.setValue($event)" />
+                                        <adsmod-number-input label="Max Pressure (kPa)" [value]="maxPressure()" [min]="minimum('dataset_max_pressure')" [max]="maximum('dataset_max_pressure')" [step]="100" [precision]="0" (valueChange)="maxPressureControl.setValue($event)" />
+                                        <adsmod-number-input label="Max Uptake (mol/g)" [value]="maxUptake()" [min]="minimum('dataset_max_uptake')" [max]="maximum('dataset_max_uptake')" [step]="1" [precision]="1" (valueChange)="maxUptakeControl.setValue($event)" />
                                     </div>
                                 </div>
                             </div>
@@ -110,17 +110,19 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
 })
 export class DatasetProcessingWizardComponent {
     readonly selectedDatasets = input.required<DatasetSourceInfo[]>();
+    readonly initialConfig = input.required<Partial<DatasetBuildConfig>>();
+    readonly numericConstraints = input<Record<string, NumericConstraint>>({});
     readonly closed = output<void>();
     readonly buildStarted = output<DatasetBuildConfig>();
     protected readonly currentPage = signal(0);
 
-    protected readonly sampleSizeControl = new FormControl(1, { nonNullable: true, validators: [Validators.min(0.01), Validators.max(1)] });
-    protected readonly validationSizeControl = new FormControl(0.2, { nonNullable: true, validators: [Validators.min(0.05), Validators.max(0.5)] });
-    protected readonly minMeasurementsControl = new FormControl(1, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly maxMeasurementsControl = new FormControl(30, { nonNullable: true, validators: [Validators.min(5)] });
-    protected readonly smileSequenceSizeControl = new FormControl(20, { nonNullable: true, validators: [Validators.min(5)] });
-    protected readonly maxPressureControl = new FormControl(10000, { nonNullable: true, validators: [Validators.min(100)] });
-    protected readonly maxUptakeControl = new FormControl(20, { nonNullable: true, validators: [Validators.min(1)] });
+    protected readonly sampleSizeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly validationSizeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly minMeasurementsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly maxMeasurementsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly smileSequenceSizeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly maxPressureControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly maxUptakeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
     protected readonly datasetNameControl = new FormControl(this.defaultDatasetName(), { nonNullable: true });
     protected readonly form = new FormGroup({
         sample_size: this.sampleSizeControl,
@@ -141,31 +143,43 @@ export class DatasetProcessingWizardComponent {
     protected readonly maxPressure = computed(() => this.maxPressureControl.value);
     protected readonly maxUptake = computed(() => this.maxUptakeControl.value);
 
+    protected minimum(field: string): number | undefined {
+        return this.numericConstraints()[field]?.minimum;
+    }
+
+    protected maximum(field: string): number | undefined {
+        return this.numericConstraints()[field]?.maximum;
+    }
+
     protected datasetKey(dataset: DatasetSourceInfo): string {
         return buildDatasetKey(dataset);
     }
 
     protected submit(): void {
+        if (this.form.invalid || Object.values(this.form.getRawValue()).some((value) => value === null || value === undefined)) {
+            this.form.markAllAsTouched();
+            return;
+        }
         const datasets: DatasetSelection[] = this.selectedDatasets().map((dataset) => ({
             source: dataset.source,
             dataset_name: dataset.dataset_name,
+            dataset_id: dataset.dataset_id,
         }));
+        const formValue = this.form.getRawValue() as Omit<DatasetBuildConfig, 'datasets'>;
         this.closed.emit();
         this.buildStarted.emit({
-            sample_size: this.sampleSizeControl.value,
-            validation_size: this.validationSizeControl.value,
-            min_measurements: this.minMeasurementsControl.value,
-            max_measurements: this.maxMeasurementsControl.value,
-            smile_sequence_size: this.smileSequenceSizeControl.value,
-            max_pressure: this.maxPressureControl.value,
-            max_uptake: this.maxUptakeControl.value,
+            ...formValue,
             datasets,
-            dataset_label: this.datasetNameControl.value || undefined,
+            dataset_label: formValue.dataset_label || undefined,
         });
     }
 
     private defaultDatasetName(): string {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         return `dataset_${timestamp}`;
+    }
+
+    constructor() {
+        queueMicrotask(() => this.form.patchValue(this.initialConfig()));
     }
 }

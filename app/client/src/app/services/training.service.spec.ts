@@ -35,21 +35,23 @@ describe('training.service', () => {
         });
 
         await expect(getTrainingStatus()).resolves.toEqual({
-            is_training: true,
-            current_epoch: 3,
-            total_epochs: 10,
-            progress: 30,
-            poll_interval: 5,
-            metrics: {
-                loss: 0.42,
-                val_loss: 0.51,
-                masked_r2: 0.89,
+            data: {
+                is_training: true,
+                current_epoch: 3,
+                total_epochs: 10,
+                progress: 30,
+                poll_interval: 5,
+                metrics: {
+                    loss: 0.42,
+                    val_loss: 0.51,
+                    masked_r2: 0.89,
+                },
+                history: [
+                    { epoch: 1, loss: 0.91, val_loss: 0.95, masked_r2: 0.33 },
+                    { epoch: 2, val_accuracy: 0.78 },
+                ],
+                log: ['step 1', 'step 3'],
             },
-            history: [
-                { epoch: 1, loss: 0.91, val_loss: 0.95, masked_r2: 0.33 },
-                { epoch: 2, val_accuracy: 0.78 },
-            ],
-            log: ['step 1', 'step 3'],
             error: null,
         });
     });
@@ -60,15 +62,15 @@ describe('training.service', () => {
             json: async () => ({
                 checkpoints: [
                     { name: 'cp-1', epochs_trained: 4, final_loss: 0.12, is_compatible: true },
-                    { final_accuracy: 0.88 },
+                    { name: 'cp-2', final_accuracy: 0.88, is_compatible: false },
                 ],
             }),
         });
 
         await expect(fetchCheckpoints()).resolves.toEqual({
-            checkpoints: [
-                { name: 'cp-1', epochs_trained: 4, final_loss: 0.12, final_accuracy: null, is_compatible: true },
-                { name: 'Unknown checkpoint', epochs_trained: null, final_loss: null, final_accuracy: 0.88, is_compatible: false },
+                checkpoints: [
+                    { name: 'cp-1', epochs_trained: 4, final_loss: 0.12, final_accuracy: null, is_compatible: true },
+                { name: 'cp-2', epochs_trained: null, final_loss: null, final_accuracy: 0.88, is_compatible: false },
             ],
             error: null,
         });
@@ -81,7 +83,6 @@ describe('training.service', () => {
                 datasets: [
                     { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST Single Component', row_count: 12 },
                     { source: 'uploaded', dataset_name: 'uploaded-a', display_name: 'uploaded-a', row_count: 4, dataset_id: 17 },
-                    { source: 'uploaded', dataset_name: 'missing-id', display_name: 'missing-id', row_count: 4 },
                 ],
             }),
         });
@@ -92,6 +93,32 @@ describe('training.service', () => {
                 { source: 'uploaded', dataset_name: 'uploaded-a', display_name: 'uploaded-a', row_count: 4, dataset_id: 17 },
             ],
             error: null,
+        });
+    });
+
+    it('rejects malformed checkpoint entries instead of inventing values', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({ checkpoints: [{ final_accuracy: 0.88 }] }),
+        });
+
+        await expect(fetchCheckpoints()).resolves.toEqual({
+            checkpoints: [],
+            error: 'Invalid checkpoint entry.',
+        });
+    });
+
+    it('rejects uploaded source entries without their canonical dataset ID', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                datasets: [{ source: 'uploaded', dataset_name: 'missing-id', display_name: 'missing-id', row_count: 4 }],
+            }),
+        });
+
+        await expect(fetchDatasetSources()).resolves.toEqual({
+            datasets: [],
+            error: 'Invalid dataset source entry.',
         });
     });
 

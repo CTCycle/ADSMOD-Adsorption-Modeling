@@ -1,6 +1,6 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import type { TorchCompileBackend, TrainingConfig } from '../../../models/training.model';
+import type { NumericConstraint, TorchCompileBackend, TrainingConfig } from '../../../models/training.model';
 import { CheckboxComponent } from '../../../shared/components/checkbox/checkbox.component';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
 import { SwitchComponent } from '../../../shared/components/switch/switch.component';
@@ -8,7 +8,6 @@ import { WizardNavigationFooterComponent } from './wizard-navigation-footer.comp
 import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.component';
 
 const TORCH_COMPILE_BACKENDS: readonly TorchCompileBackend[] = ['inductor', 'cudagraphs', 'aot_eager', 'eager'];
-const GPU_DEVICE_OPTIONS = Array.from({ length: 16 }, (_, index) => index);
 const LAST_PAGE_INDEX = 4;
 
 @Component({
@@ -51,7 +50,7 @@ const LAST_PAGE_INDEX = 4;
                                         </div>
                                         @if (shuffleDataset()) {
                                             <div class="wizard-inline-number-field">
-                                                <adsmod-number-input label="Max Buffer Size" [value]="maxBufferSize()" [min]="1" [max]="1000000" [step]="1" [precision]="0" (valueChange)="maxBufferSizeControl.setValue($event)" />
+                                        <adsmod-number-input label="Max Buffer Size" [value]="maxBufferSize()" [min]="minimum('max_buffer_size')" [max]="maximum('max_buffer_size')" [step]="1" [precision]="0" (valueChange)="maxBufferSizeControl.setValue($event)" />
                                             </div>
                                         }
                                     </div>
@@ -67,15 +66,16 @@ const LAST_PAGE_INDEX = 4;
                                 <p class="wizard-card-description">Define the architecture and embedding dimensions for the SCADS model family.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-settings-grid">
-                                        <adsmod-number-input label="Encoders" [value]="numEncoders()" [min]="1" [max]="12" [step]="1" [precision]="0" (valueChange)="numEncodersControl.setValue($event)" />
-                                        <adsmod-number-input label="Attention Heads" [value]="numAttentionHeads()" [min]="1" [max]="16" [step]="1" [precision]="0" (valueChange)="numAttentionHeadsControl.setValue($event)" />
-                                        <adsmod-number-input label="Embedding Dims" [value]="molecularEmbeddingSize()" [min]="64" [max]="1024" [step]="64" [precision]="0" (valueChange)="molecularEmbeddingSizeControl.setValue($event)" />
-                                        <adsmod-number-input label="Dropout Rate" [value]="dropoutRate()" [min]="0" [max]="0.5" [step]="0.05" [precision]="2" (valueChange)="dropoutRateControl.setValue($event)" />
+                                        <adsmod-number-input label="Encoders" [value]="numEncoders()" [min]="minimum('num_encoders')" [max]="maximum('num_encoders')" [step]="1" [precision]="0" (valueChange)="numEncodersControl.setValue($event)" />
+                                        <adsmod-number-input label="Attention Heads" [value]="numAttentionHeads()" [min]="minimum('num_attention_heads')" [max]="maximum('num_attention_heads')" [step]="1" [precision]="0" (valueChange)="numAttentionHeadsControl.setValue($event)" />
+                                        <adsmod-number-input label="Embedding Dims" [value]="molecularEmbeddingSize()" [min]="minimum('molecular_embedding_size')" [max]="maximum('molecular_embedding_size')" [step]="64" [precision]="0" (valueChange)="molecularEmbeddingSizeControl.setValue($event)" />
+                                        <adsmod-number-input label="Dropout Rate" [value]="dropoutRate()" [min]="minimum('dropout_rate')" [max]="maximum('dropout_rate')" [step]="0.05" [precision]="2" (valueChange)="dropoutRateControl.setValue($event)" />
                                         <div class="wizard-model-type-field">
                                             <label class="field-label">Model Type</label>
                                             <select class="select-input" [formControl]="selectedModelControl">
-                                                <option value="SCADS Series">SCADS Series</option>
-                                                <option value="SCADS Atomic">SCADS Atomic</option>
+                                                @for (model of supportedModels(); track model) {
+                                                    <option [value]="model">{{ model }}</option>
+                                                }
                                             </select>
                                         </div>
                                     </div>
@@ -91,8 +91,8 @@ const LAST_PAGE_INDEX = 4;
                                 <p class="wizard-card-description">Define the training schedule, checkpointing, and learning rate behavior.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-settings-grid">
-                                        <adsmod-number-input label="Epochs" [value]="epochs()" [min]="1" [max]="500" [step]="1" [precision]="0" (valueChange)="epochsControl.setValue($event)" />
-                                        <adsmod-number-input label="Batch Size" [value]="batchSize()" [min]="1" [max]="256" [step]="1" [precision]="0" (valueChange)="batchSizeControl.setValue($event)" />
+                                        <adsmod-number-input label="Epochs" [value]="epochs()" [min]="minimum('epochs')" [max]="maximum('epochs')" [step]="1" [precision]="0" (valueChange)="epochsControl.setValue($event)" />
+                                        <adsmod-number-input label="Batch Size" [value]="batchSize()" [min]="minimum('batch_size')" [max]="maximum('batch_size')" [step]="1" [precision]="0" (valueChange)="batchSizeControl.setValue($event)" />
                                         <div class="wizard-toggle-column">
                                             <adsmod-checkbox label="Save Checkpoints" [checked]="saveCheckpoints()" (checkedChange)="saveCheckpointsControl.setValue($event)" />
                                             <adsmod-checkbox label="LR Scheduler" [checked]="useLrScheduler()" (checkedChange)="useLrSchedulerControl.setValue($event)" />
@@ -100,10 +100,10 @@ const LAST_PAGE_INDEX = 4;
                                     </div>
                                     @if (useLrScheduler()) {
                                         <div class="wizard-settings-grid wizard-settings-grid-tight">
-                                            <adsmod-number-input label="Initial LR" [value]="initialLr()" [min]="0.000001" [max]="0.01" [step]="0.00001" [precision]="6" (valueChange)="initialLrControl.setValue($event)" />
-                                            <adsmod-number-input label="Target LR" [value]="targetLr()" [min]="0.0000001" [max]="0.001" [step]="0.000001" [precision]="7" (valueChange)="targetLrControl.setValue($event)" />
-                                            <adsmod-number-input label="Constant Steps" [value]="constantSteps()" [min]="0" [max]="50" [step]="1" [precision]="0" (valueChange)="constantStepsControl.setValue($event)" />
-                                            <adsmod-number-input label="Decay Steps" [value]="decaySteps()" [min]="1" [max]="100" [step]="1" [precision]="0" (valueChange)="decayStepsControl.setValue($event)" />
+                                            <adsmod-number-input label="Initial LR" [value]="initialLr()" [min]="minimum('initial_lr')" [max]="maximum('initial_lr')" [step]="0.00001" [precision]="6" (valueChange)="initialLrControl.setValue($event)" />
+                                            <adsmod-number-input label="Target LR" [value]="targetLr()" [min]="minimum('target_lr')" [max]="maximum('target_lr')" [step]="0.000001" [precision]="7" (valueChange)="targetLrControl.setValue($event)" />
+                                            <adsmod-number-input label="Constant Steps" [value]="constantSteps()" [min]="minimum('constant_steps')" [max]="maximum('constant_steps')" [step]="1" [precision]="0" (valueChange)="constantStepsControl.setValue($event)" />
+                                            <adsmod-number-input label="Decay Steps" [value]="decaySteps()" [min]="minimum('decay_steps')" [max]="maximum('decay_steps')" [step]="1" [precision]="0" (valueChange)="decayStepsControl.setValue($event)" />
                                         </div>
                                     }
                                 </div>
@@ -127,11 +127,11 @@ const LAST_PAGE_INDEX = 4;
                                             </div>
                                             <div class="wizard-compact-field">
                                                 <label class="field-label" for="dataloader-workers">Dataloader Workers</label>
-                                                <input id="dataloader-workers" class="wizard-compact-input" type="number" [formControl]="dataloaderWorkersControl" min="0" max="64" step="1" />
+                                                <input id="dataloader-workers" class="wizard-compact-input" type="number" [formControl]="dataloaderWorkersControl" [min]="minimum('dataloader_workers') ?? null" [max]="maximum('dataloader_workers') ?? null" step="1" />
                                             </div>
                                             <div class="wizard-compact-field">
                                                 <label class="field-label" for="prefetch-factor">Prefetch Factor</label>
-                                                <input id="prefetch-factor" class="wizard-compact-input" type="number" [formControl]="prefetchFactorControl" min="1" max="32" step="1" />
+                                                <input id="prefetch-factor" class="wizard-compact-input" type="number" [formControl]="prefetchFactorControl" [min]="minimum('prefetch_factor') ?? null" [max]="maximum('prefetch_factor') ?? null" step="1" />
                                             </div>
                                         </div>
                                         <div class="wizard-device-column wizard-device-column-right">
@@ -159,7 +159,7 @@ const LAST_PAGE_INDEX = 4;
                                                     <div class="wizard-device-option-dropdown">
                                                         <label class="field-label wizard-inline-label" for="gpu-device-id">Device</label>
                                                         <select id="gpu-device-id" class="select-input wizard-inline-select" [formControl]="deviceIdControl" [disabled]="!useDeviceGpu()">
-                                                            @for (deviceId of gpuDeviceOptions; track deviceId) {
+                                                            @for (deviceId of gpuDeviceOptions(); track deviceId) {
                                                                 <option [value]="deviceId">{{ deviceId }}</option>
                                                             }
                                                         </select>
@@ -266,38 +266,41 @@ const LAST_PAGE_INDEX = 4;
 export class NewTrainingWizardComponent {
     readonly selectedDatasetLabel = input.required<string>();
     readonly initialConfig = input.required<TrainingConfig>();
+    readonly numericConstraints = input<Record<string, NumericConstraint>>({});
+    readonly supportedModels = input<readonly TrainingConfig['selected_model'][]>([]);
+    readonly deviceCount = input(0);
     readonly isLoading = input(false);
     readonly closed = output<void>();
     readonly confirmed = output<TrainingConfig>();
     protected readonly LAST_PAGE_INDEX = LAST_PAGE_INDEX;
     protected readonly torchCompileBackends = TORCH_COMPILE_BACKENDS;
-    protected readonly gpuDeviceOptions = GPU_DEVICE_OPTIONS;
+    protected readonly gpuDeviceOptions = computed(() => Array.from({ length: this.deviceCount() }, (_, index) => index));
     protected readonly currentPage = signal(0);
 
-    protected readonly shuffleDatasetControl = new FormControl(true, { nonNullable: true });
-    protected readonly maxBufferSizeControl = new FormControl(256, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly selectedModelControl = new FormControl<'SCADS Series' | 'SCADS Atomic'>('SCADS Series', { nonNullable: true });
-    protected readonly dropoutRateControl = new FormControl(0.1, { nonNullable: true });
-    protected readonly numAttentionHeadsControl = new FormControl(2, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly numEncodersControl = new FormControl(2, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly molecularEmbeddingSizeControl = new FormControl(64, { nonNullable: true, validators: [Validators.min(64)] });
-    protected readonly epochsControl = new FormControl(2, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly batchSizeControl = new FormControl(16, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly saveCheckpointsControl = new FormControl(false, { nonNullable: true });
-    protected readonly useLrSchedulerControl = new FormControl(false, { nonNullable: true });
-    protected readonly initialLrControl = new FormControl(1e-4, { nonNullable: true });
-    protected readonly targetLrControl = new FormControl(1e-5, { nonNullable: true });
-    protected readonly constantStepsControl = new FormControl(5, { nonNullable: true });
-    protected readonly decayStepsControl = new FormControl(10, { nonNullable: true });
-    protected readonly pinMemoryControl = new FormControl(true, { nonNullable: true });
-    protected readonly useMixedPrecisionControl = new FormControl(false, { nonNullable: true });
-    protected readonly dataloaderWorkersControl = new FormControl(0, { nonNullable: true });
-    protected readonly prefetchFactorControl = new FormControl(1, { nonNullable: true, validators: [Validators.min(1)] });
-    protected readonly useJitControl = new FormControl(false, { nonNullable: true });
-    protected readonly jitBackendControl = new FormControl<TorchCompileBackend>('inductor', { nonNullable: true });
-    protected readonly useDeviceGpuControl = new FormControl(true, { nonNullable: true });
-    protected readonly deviceIdControl = new FormControl(0, { nonNullable: true });
-    protected readonly customNameControl = new FormControl('', { nonNullable: true });
+    protected readonly shuffleDatasetControl = new FormControl<boolean | null>(null);
+    protected readonly maxBufferSizeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly selectedModelControl = new FormControl<TrainingConfig['selected_model'] | null>(null, { validators: [Validators.required] });
+    protected readonly dropoutRateControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly numAttentionHeadsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly numEncodersControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly molecularEmbeddingSizeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly epochsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly batchSizeControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly saveCheckpointsControl = new FormControl<boolean | null>(null);
+    protected readonly useLrSchedulerControl = new FormControl<boolean | null>(null);
+    protected readonly initialLrControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly targetLrControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly constantStepsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly decayStepsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly pinMemoryControl = new FormControl<boolean | null>(null);
+    protected readonly useMixedPrecisionControl = new FormControl<boolean | null>(null);
+    protected readonly dataloaderWorkersControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly prefetchFactorControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly useJitControl = new FormControl<boolean | null>(null);
+    protected readonly jitBackendControl = new FormControl<TorchCompileBackend | null>(null, { validators: [Validators.required] });
+    protected readonly useDeviceGpuControl = new FormControl<boolean | null>(null);
+    protected readonly deviceIdControl = new FormControl<number | null>(null, { validators: [Validators.required] });
+    protected readonly customNameControl = new FormControl<string | null>(null);
     protected readonly form = new FormGroup({
         shuffle_dataset: this.shuffleDatasetControl,
         max_buffer_size: this.maxBufferSizeControl,
@@ -353,6 +356,14 @@ export class NewTrainingWizardComponent {
     protected readonly useDeviceGpu = computed(() => this.useDeviceGpuControl.value);
     protected readonly deviceId = computed(() => this.deviceIdControl.value);
 
+    protected minimum(field: string): number | undefined {
+        return this.numericConstraints()[field]?.minimum;
+    }
+
+    protected maximum(field: string): number | undefined {
+        return this.numericConstraints()[field]?.maximum;
+    }
+
     protected goToNextPage(): void {
         this.currentPage.update((page) => Math.min(LAST_PAGE_INDEX, page + 1));
     }
@@ -362,10 +373,14 @@ export class NewTrainingWizardComponent {
     }
 
     protected confirm(): void {
+        if (this.form.invalid || Object.values(this.form.getRawValue()).some((value) => value === null || value === undefined)) {
+            this.form.markAllAsTouched();
+            return;
+        }
         const config = this.initialConfig();
         this.confirmed.emit({
             ...config,
-            ...this.form.getRawValue(),
+            ...this.form.getRawValue() as TrainingConfig,
             dataset_label: this.selectedDatasetLabel(),
         });
     }

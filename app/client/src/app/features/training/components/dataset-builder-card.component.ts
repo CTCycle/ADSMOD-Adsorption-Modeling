@@ -2,7 +2,7 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { SplitSelectionCardComponent } from './split-selection-card.component';
 import { DatasetProcessingWizardComponent } from './dataset-processing-wizard.component';
 import type { DatasetBuildConfig } from '../../../models/dataset-build.model';
-import type { DatasetFullInfo, DatasetSourceInfo } from '../../../models/training.model';
+import type { DatasetFullInfo, DatasetSourceInfo, TrainingConfiguration } from '../../../models/training.model';
 import { buildTrainingDataset, clearTrainingDataset, getTrainingDatasetInfo } from '../../../services/dataset-builder.service';
 import { deleteDataset } from '../../../services/dataset.service';
 import { fetchDatasetSources } from '../../../services/training.service';
@@ -102,7 +102,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                         <button
                             class="primary split-selection-card-action-button"
                             type="button"
-                            [disabled]="selectedCount() === 0 || isBuilding()"
+                            [disabled]="selectedCount() === 0 || isBuilding() || !trainingConfiguration()"
                             (click)="isWizardOpen.set(true)"
                         >
                             {{ isBuilding() ? 'Building...' : 'Configure Dataset Build' }}
@@ -132,6 +132,8 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
             @if (isWizardOpen()) {
                 <adsmod-dataset-processing-wizard
                     [selectedDatasets]="selectedDatasets()"
+                    [initialConfig]="trainingConfiguration()?.dataset_defaults ?? {}"
+                    [numericConstraints]="trainingConfiguration()?.numeric_constraints ?? {}"
                     (closed)="isWizardOpen.set(false)"
                     (buildStarted)="handleBuildStart($event)"
                 />
@@ -141,6 +143,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
 })
 export class DatasetBuilderCardComponent {
     readonly showSectionHeading = input(true);
+    readonly trainingConfiguration = input<TrainingConfiguration | null>(null);
     readonly datasetBuilt = output<void>();
     readonly workspaceChanged = output<void>();
     protected readonly datasetSources = signal<DatasetSourceInfo[]>([]);
@@ -264,6 +267,15 @@ export class DatasetBuilderCardComponent {
     }
 
     private async loadDatasetInfo(): Promise<void> {
-        this.datasetInfo.set(await getTrainingDatasetInfo());
+        const result = await getTrainingDatasetInfo();
+        if (result.error || !result.data) {
+            this.datasetInfo.set(null);
+            if (result.error) {
+                this.statusTone.set('error');
+                this.statusMessage.set(`ERROR: ${result.error}`);
+            }
+            return;
+        }
+        this.datasetInfo.set(result.data);
     }
 }

@@ -37,10 +37,11 @@ export async function pollNistJobUntilComplete(
     pollInterval?: number,
     onProgress?: (status: JobStatusResponse) => void
 ): Promise<{ result: Record<string, unknown> | null; error: string | null }> {
-    const status = await pollJobUntilTerminal('/nist', jobId, pollInterval, onProgress);
-    if (!status) {
-        return { result: null, error: 'Failed to poll job status.' };
+    const pollResult = await pollJobUntilTerminal('/nist', jobId, pollInterval, onProgress);
+    if (pollResult.error || !pollResult.data) {
+        return { result: null, error: pollResult.error || 'Job status response was empty.' };
     }
+    const status = pollResult.data;
 
     if (status.status === 'completed') {
         return { result: status.result || null, error: null };

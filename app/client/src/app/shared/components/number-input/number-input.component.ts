@@ -12,7 +12,7 @@ let numberInputIdCounter = 0;
                 [id]="inputId"
                 class="number-input-field"
                 type="number"
-                [value]="value"
+                [value]="value ?? ''"
                 [min]="min"
                 [max]="max"
                 [step]="step"
@@ -24,7 +24,7 @@ let numberInputIdCounter = 0;
 })
 export class NumberInputComponent {
     @Input({ required: true }) label = '';
-    @Input({ required: true }) value = 0;
+    @Input({ required: true }) value: number | null = null;
     @Input() min?: number;
     @Input() max?: number;
     @Input() step = 0.0001;

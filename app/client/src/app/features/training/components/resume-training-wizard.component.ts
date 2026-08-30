@@ -1,6 +1,6 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import type { CheckpointInfo, ResumeTrainingConfig } from '../../../models/training.model';
+import type { CheckpointInfo, NumericConstraint, ResumeTrainingConfig } from '../../../models/training.model';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
 import { WizardNavigationFooterComponent } from './wizard-navigation-footer.component';
 import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.component';
@@ -26,7 +26,7 @@ import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.co
                                 <p class="wizard-card-description">Set the number of additional epochs to train.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-settings-grid">
-                                        <adsmod-number-input label="Additional Epochs" [value]="additionalEpochs()" [min]="1" [max]="100" [step]="1" [precision]="0" (valueChange)="additionalEpochsControl.setValue($event)" />
+                                        <adsmod-number-input label="Additional Epochs" [value]="additionalEpochs()" [min]="numericConstraints()['additional_epochs']?.minimum" [max]="numericConstraints()['additional_epochs']?.maximum" [step]="1" [precision]="0" (valueChange)="additionalEpochsControl.setValue($event)" />
                                     </div>
                                     <div class="checkpoint-details-card">
                                         <strong>Checkpoint Details:</strong>
@@ -74,11 +74,12 @@ export class ResumeTrainingWizardComponent {
     readonly checkpoints = input.required<CheckpointInfo[]>();
     readonly selectedCheckpointName = input.required<string>();
     readonly initialConfig = input.required<ResumeTrainingConfig>();
+    readonly numericConstraints = input<Record<string, NumericConstraint>>({});
     readonly isLoading = input(false);
     readonly closed = output<void>();
     readonly confirmed = output<ResumeTrainingConfig>();
     protected readonly currentPage = signal(0);
-    protected readonly additionalEpochsControl = new FormControl(10, { nonNullable: true, validators: [Validators.min(1)] });
+    protected readonly additionalEpochsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
     protected readonly additionalEpochs = computed(() => this.additionalEpochsControl.value);
     protected readonly selectedCheckpoint = computed(() => this.checkpoints().find((checkpoint) => checkpoint.name === this.selectedCheckpointName()) ?? null);
     protected readonly compatibilityLabel = computed(() => this.selectedCheckpoint()?.is_compatible ? 'Compatible' : this.selectedCheckpoint() ? 'Incompatible' : 'Unknown');
@@ -88,9 +89,14 @@ export class ResumeTrainingWizardComponent {
     }
 
     protected confirm(): void {
+        const additionalEpochs = this.additionalEpochsControl.value;
+        if (this.additionalEpochsControl.invalid || additionalEpochs === null || !this.selectedCheckpointName()) {
+            this.additionalEpochsControl.markAsTouched();
+            return;
+        }
         this.confirmed.emit({
             checkpoint_name: this.selectedCheckpointName(),
-            additional_epochs: this.additionalEpochsControl.value,
+            additional_epochs: additionalEpochs,
         });
     }
 }

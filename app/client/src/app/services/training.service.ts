@@ -140,18 +140,22 @@ const parseTrainingHistory = (value: unknown): TrainingHistoryPoint[] => {
     return history;
 };
 
-export async function fetchTrainingDatasets(): Promise<{ data: TrainingDatasetInfo; error: string | null }> {
+export async function fetchTrainingDatasets(): Promise<{ data: TrainingDatasetInfo | null; error: string | null }> {
     try {
         const response = await fetchWithTimeout(`${API_BASE_URL}/training/datasets`, { method: 'GET' }, HTTP_TIMEOUT);
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            return { data: { available: false }, error: extractErrorMessage(response, data) };
+            return { data: null, error: extractErrorMessage(response, data) };
         }
 
         const result = asRecord(await response.json().catch(() => null));
+        const available = getBoolean(result, 'available');
+        if (available === undefined) {
+            return { data: null, error: 'Invalid training dataset response.' };
+        }
         return {
             data: {
-                available: getBoolean(result, 'available') ?? false,
+                available,
                 name: getString(result, 'name'),
                 train_samples: getNumber(result, 'train_samples'),
                 validation_samples: getNumber(result, 'validation_samples'),
@@ -159,7 +163,7 @@ export async function fetchTrainingDatasets(): Promise<{ data: TrainingDatasetIn
             error: null,
         };
     } catch (error) {
-        return { data: { available: false }, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
     }
 }
 
@@ -172,35 +176,34 @@ export async function fetchDatasetSources(): Promise<{ datasets: DatasetSourceIn
         }
 
         const result = asRecord(await response.json().catch(() => null));
-        const rawDatasets = Array.isArray(result?.['datasets']) ? result['datasets'] : [];
-        const datasets: DatasetSourceInfo[] = rawDatasets
-            .map((dataset): DatasetSourceInfo | null => {
-                const datasetRecord = asRecord(dataset);
-                const source = getString(datasetRecord, 'source');
-                if (source !== 'nist' && source !== 'uploaded') {
-                    return null;
-                }
-
-                const datasetName = getString(datasetRecord, 'dataset_name');
-                const displayName = getString(datasetRecord, 'display_name');
-                const rowCount = getNumber(datasetRecord, 'row_count');
-                const datasetId = getNumber(datasetRecord, 'dataset_id');
-                if (!datasetName || !displayName || rowCount === undefined) {
-                    return null;
-                }
-                if (source === 'uploaded' && datasetId === undefined) {
-                    return null;
-                }
-
-                return {
-                    source,
-                    dataset_name: datasetName,
-                    display_name: displayName,
-                    row_count: rowCount,
-                    dataset_id: datasetId ?? null,
-                };
-            })
-            .filter((dataset): dataset is DatasetSourceInfo => dataset !== null);
+        if (!Array.isArray(result?.['datasets'])) {
+            return { datasets: [], error: 'Invalid dataset sources response.' };
+        }
+        const datasets: DatasetSourceInfo[] = [];
+        for (const dataset of result['datasets']) {
+            const datasetRecord = asRecord(dataset);
+            const source = getString(datasetRecord, 'source');
+            const datasetName = getString(datasetRecord, 'dataset_name');
+            const displayName = getString(datasetRecord, 'display_name');
+            const rowCount = getNumber(datasetRecord, 'row_count');
+            const datasetId = getNumber(datasetRecord, 'dataset_id');
+            if (
+                (source !== 'nist' && source !== 'uploaded')
+                || !datasetName
+                || !displayName
+                || rowCount === undefined
+                || (source === 'uploaded' && datasetId === undefined)
+            ) {
+                return { datasets: [], error: 'Invalid dataset source entry.' };
+            }
+            datasets.push({
+                source,
+                dataset_name: datasetName,
+                display_name: displayName,
+                row_count: rowCount,
+                dataset_id: datasetId ?? null,
+            });
+        }
 
         return { datasets, error: null };
     } catch (error) {
@@ -217,17 +220,25 @@ export async function fetchCheckpoints(): Promise<{ checkpoints: CheckpointInfo[
         }
 
         const result = asRecord(await response.json().catch(() => null));
-        const rawCheckpoints = Array.isArray(result?.['checkpoints']) ? result['checkpoints'] : [];
-        const checkpoints: CheckpointInfo[] = rawCheckpoints.map((checkpoint) => {
+        if (!Array.isArray(result?.['checkpoints'])) {
+            return { checkpoints: [], error: 'Invalid checkpoints response.' };
+        }
+        const checkpoints: CheckpointInfo[] = [];
+        for (const checkpoint of result['checkpoints']) {
             const record = asRecord(checkpoint);
-            return {
-                name: getString(record, 'name') ?? 'Unknown checkpoint',
+            const name = getString(record, 'name');
+            const compatible = getBoolean(record, 'is_compatible');
+            if (!name || compatible === undefined) {
+                return { checkpoints: [], error: 'Invalid checkpoint entry.' };
+            }
+            checkpoints.push({
+                name,
                 epochs_trained: getNumber(record, 'epochs_trained') ?? null,
                 final_loss: getNumber(record, 'final_loss') ?? null,
                 final_accuracy: getNumber(record, 'final_accuracy') ?? null,
-                is_compatible: getBoolean(record, 'is_compatible') ?? false,
-            };
-        });
+                is_compatible: compatible,
+            });
+        }
 
         return { checkpoints, error: null };
     } catch (error) {
@@ -314,65 +325,39 @@ export async function stopTraining(): Promise<{ message: string; status: 'stoppe
     }
 }
 
-export async function getTrainingStatus(): Promise<TrainingStatus & { error: string | null }> {
+export async function getTrainingStatus(): Promise<{ data: TrainingStatus | null; error: string | null }> {
     try {
         const response = await fetchWithTimeout(`${API_BASE_URL}/training/status`, { method: 'GET' }, HTTP_TIMEOUT);
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
-            return {
-                is_training: false,
-                current_epoch: 0,
-                total_epochs: 0,
-                progress: 0,
-                metrics: {},
-                history: [],
-                log: [],
-                error: extractErrorMessage(response, data),
-            };
+            return { data: null, error: extractErrorMessage(response, data) };
         }
 
         const result = asRecord(await response.json().catch(() => null));
-        if (
-            getBoolean(result, 'is_training') === undefined
-            || getNumber(result, 'current_epoch') === undefined
-            || getNumber(result, 'total_epochs') === undefined
-            || getNumber(result, 'progress') === undefined
-        ) {
-            return {
-                is_training: false,
-                current_epoch: 0,
-                total_epochs: 0,
-                progress: 0,
-                metrics: {},
-                history: [],
-                log: [],
-                error: 'Training requires the optional ML service.',
-            };
+        const isTraining = getBoolean(result, 'is_training');
+        const currentEpoch = getNumber(result, 'current_epoch');
+        const totalEpochs = getNumber(result, 'total_epochs');
+        const progress = getNumber(result, 'progress');
+        if (isTraining === undefined || currentEpoch === undefined || totalEpochs === undefined || progress === undefined) {
+            return { data: null, error: 'Invalid training status response.' };
         }
 
         return {
-            is_training: getBoolean(result, 'is_training') ?? false,
-            current_epoch: getNumber(result, 'current_epoch') ?? 0,
-            total_epochs: getNumber(result, 'total_epochs') ?? 0,
-            progress: getNumber(result, 'progress') ?? 0,
-            metrics: parseTrainingMetrics(result?.['metrics']),
-            history: parseTrainingHistory(result?.['history']),
-            log: Array.isArray(result?.['log'])
-                ? result['log'].filter((entry): entry is string => typeof entry === 'string')
-                : [],
-            poll_interval: getNumber(result, 'poll_interval'),
+            data: {
+                is_training: isTraining,
+                current_epoch: currentEpoch,
+                total_epochs: totalEpochs,
+                progress,
+                metrics: parseTrainingMetrics(result?.['metrics']),
+                history: parseTrainingHistory(result?.['history']),
+                log: Array.isArray(result?.['log'])
+                    ? result['log'].filter((entry): entry is string => typeof entry === 'string')
+                    : [],
+                poll_interval: getNumber(result, 'poll_interval'),
+            },
             error: null,
         };
     } catch (error) {
-        return {
-            is_training: false,
-            current_epoch: 0,
-            total_epochs: 0,
-            progress: 0,
-            metrics: {},
-            history: [],
-            log: [],
-            error: error instanceof Error ? error.message : 'An unknown error occurred.',
-        };
+        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
     }
 }

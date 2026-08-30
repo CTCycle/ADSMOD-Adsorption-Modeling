@@ -8,7 +8,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
             <input
                 type="checkbox"
                 [id]="checkboxId"
-                [checked]="checked"
+                [checked]="checked === true"
                 (change)="handleChange($event)"
             />
             <label class="checkbox-label" [for]="checkboxId">
@@ -19,7 +19,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 })
 export class CheckboxComponent {
     @Input({ required: true }) label = '';
-    @Input() checked = false;
+    @Input() checked: boolean | null = null;
     @Output() readonly checkedChange = new EventEmitter<boolean>();
 
     protected get checkboxId(): string {

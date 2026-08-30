@@ -11,7 +11,7 @@ let switchIdCounter = 0;
                 <input
                     [id]="inputId"
                     type="checkbox"
-                    [checked]="checked"
+                    [checked]="checked === true"
                     [disabled]="disabled"
                     [attr.aria-label]="label || ariaLabel"
                     (change)="handleChange($event)"
@@ -25,7 +25,7 @@ let switchIdCounter = 0;
     `,
 })
 export class SwitchComponent {
-    @Input() checked = false;
+    @Input() checked: boolean | null = null;
     @Input() disabled = false;
     @Input() label = '';
     @Input() ariaLabel = 'Toggle option';
