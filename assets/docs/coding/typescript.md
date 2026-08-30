@@ -23,7 +23,7 @@ Last updated: 2026-08-02
 
 ## API Usage And State
 
-- Call backend routes through `/api/...` endpoints.
+- Call backend routes through versioned `/api/v1/...` endpoints.
 - Reuse shared HTTP helpers such as timeout and error-extraction utilities where available.
 - Preserve explicit UI states for loading, running, success, failure, and cancellation.
 

@@ -4,7 +4,7 @@ setlocal EnableDelayedExpansion
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..\..") do set "PROJECT_ROOT=%%~fI"
 set "APP_DIR=%PROJECT_ROOT%\app"
-set "SERVER_DIR=%APP_DIR%\server"
+set "BACKEND_DIR=%APP_DIR%\backend"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
 set "RESOURCES_DIR=%APP_DIR%\resources"
@@ -23,15 +23,15 @@ set "TEMP=%RUNTIME_CACHE_DIR%\temp"
 set "TMP=%RUNTIME_CACHE_DIR%\temp"
 if not exist "%RUNTIME_CACHE_DIR%\temp" md "%RUNTIME_CACHE_DIR%\temp" >nul 2>&1
 if not exist "%TEST_CACHE_DIR%" md "%TEST_CACHE_DIR%" >nul 2>&1
-if not "%ADSMOD_RESOURCES_DIR%"=="" for %%I in ("%ADSMOD_RESOURCES_DIR%") do set "RESOURCES_DIR=%%~fI"
 set "CANONICAL_CONFIG=%RESOURCES_DIR%\adsmod.json"
-set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
+set "VENV_PYTHON=%BACKEND_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
 
 for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.host"`) do set "BACKEND_HOST=%%A"& set "ML_HOST=%%A"& set "UI_HOST=%%A"
 for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.core_port"`) do set "BACKEND_PORT=%%A"
 for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.ml_port"`) do set "ML_PORT=%%A"
 for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.frontend_port"`) do set "UI_PORT=%%A"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.mode"`) do set "RUNTIME_MODE=%%A"
 set "TEST_RESULT=0"
 set "BACKEND_PHASE=SKIPPED"
 set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
@@ -58,11 +58,6 @@ if /i "%TEST_UI_HOST%"=="[::]" set "TEST_UI_HOST=127.0.0.1"
 set "APP_TEST_BACKEND_URL=http://%TEST_BACKEND_HOST%:%BACKEND_PORT%"
 set "APP_TEST_ML_BACKEND_URL=http://%TEST_ML_HOST%:%ML_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
-set "API_BASE_URL=%APP_TEST_BACKEND_URL%"
-set "UI_BASE_URL=%APP_TEST_FRONTEND_URL%"
-set "ADSMOD_TEST_BACKEND_URL=%APP_TEST_BACKEND_URL%"
-set "ADSMOD_TEST_ML_BACKEND_URL=%APP_TEST_ML_BACKEND_URL%"
-set "ADSMOD_TEST_FRONTEND_URL=%APP_TEST_FRONTEND_URL%"
 
 if "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
 if "!STANDARD_TEST_SKIP_FRONTEND!"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
@@ -90,13 +85,11 @@ if exist "%RUNTIME_NPM%" (
   set "NPM_CMD=npm"
 )
 
-set "UVICORN_APP=core_service.app:app"
-set "ML_UVICORN_APP=ml_service.app:app"
 set "BACKEND_WORKDIR=%PROJECT_ROOT%"
-set "PYTHONPATH=%PROJECT_ROOT%\app\server\core_service;%PROJECT_ROOT%\app\server\ml_service;%PROJECT_ROOT%\app\server\shared;%APP_DIR%;%PROJECT_ROOT%"
-"%PYTHON_CMD%" -c "import importlib; importlib.import_module('core_service.app'); importlib.import_module('ml_service.app')" >nul 2>&1
+set "PYTHONPATH=%PROJECT_ROOT%\app\backend\common\src;%PROJECT_ROOT%\app\backend\core\src;%PROJECT_ROOT%\app\backend\ml\src;%PROJECT_ROOT%"
+"%PYTHON_CMD%" -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app" >nul 2>&1
 if errorlevel 1 (
-  echo [ERROR] Canonical core_service.app or ml_service.app could not be imported.
+  echo [ERROR] Canonical ADSMOD backend packages could not be imported.
   exit /b 1
 )
 
@@ -118,16 +111,18 @@ if exist "%TESTS_DIR%\e2e" set "HAS_E2E=1"
 if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
   set "LIVE_SERVER_PHASE=PASS"
 
-  curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
+  curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/health/ready" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %BACKEND_HOST% --port %BACKEND_PORT% --log-level warning
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m adsmod_core.cli --config "%CANONICAL_CONFIG%"
     set "STARTED_BACKEND=1"
   )
-  curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/api/health" >nul 2>&1
-  if errorlevel 1 (
-    echo [INFO] Starting ML backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %ML_UVICORN_APP% --host %ML_HOST% --port %ML_PORT% --log-level warning
+  if /i "%RUNTIME_MODE%"=="core-ml" (
+    curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/health/ready" >nul 2>&1
+    if errorlevel 1 (
+      echo [INFO] Starting ML backend server...
+      start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m adsmod_ml.cli --config "%CANONICAL_CONFIG%"
+    )
   )
 
   if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%CLIENT_DIR%\package.json" (
@@ -135,12 +130,13 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
     if errorlevel 1 (
       if not exist "%CLIENT_DIR%\node_modules" (
         echo [INFO] Installing frontend dependencies...
-        if exist "%CLIENT_DIR%\package-lock.json" (
-          call "%NPM_CMD%" --prefix "%CLIENT_DIR%" ci
-          if errorlevel 1 call "%NPM_CMD%" --prefix "%CLIENT_DIR%" install
-        ) else (
-          call "%NPM_CMD%" --prefix "%CLIENT_DIR%" install
+        if not exist "%CLIENT_DIR%\package-lock.json" (
+          echo [ERROR] Missing frontend lockfile: "%CLIENT_DIR%\package-lock.json"
+          set "LIVE_SERVER_PHASE=FAIL"
+          set "TEST_RESULT=1"
+          goto cleanup
         )
+        call "%NPM_CMD%" --prefix "%CLIENT_DIR%" ci
         if errorlevel 1 (
           set "LIVE_SERVER_PHASE=FAIL"
           set "TEST_RESULT=1"
@@ -148,7 +144,7 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
         )
       )
 
-      if not exist "%CLIENT_DIR%\dist" (
+      if not exist "%CLIENT_DIR%\dist\browser\index.html" (
         echo [INFO] Building frontend...
         call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build
         if errorlevel 1 (
@@ -173,17 +169,19 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
     goto cleanup
   )
 
-  curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
+  curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/health/ready" >nul 2>&1
   if errorlevel 1 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
     goto wait_loop
   )
-  curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/api/health" >nul 2>&1
-  if errorlevel 1 (
-    set /a ATTEMPTS+=1
-    timeout /t 1 /nobreak >nul
-    goto wait_loop
+  if /i "%RUNTIME_MODE%"=="core-ml" (
+    curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/health/ready" >nul 2>&1
+    if errorlevel 1 (
+      set /a ATTEMPTS+=1
+      timeout /t 1 /nobreak >nul
+      goto wait_loop
+    )
   )
 
   if "%STARTED_FRONTEND%"=="1" (

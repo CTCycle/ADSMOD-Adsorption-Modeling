@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-DATABASE_FILENAME = "database.db"
-
-
 ###############################################################################
 FASTAPI_TITLE = "ADSMOD Model Fitting Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"

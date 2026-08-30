@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import json
 from pathlib import Path
-
-os.environ.setdefault("KERAS_BACKEND", "torch")
-os.environ.setdefault("MPLBACKEND", "Agg")
 
 import pytest
 from playwright.sync_api import APIRequestContext, Page, Playwright
@@ -18,22 +14,8 @@ from playwright.sync_api import APIRequestContext, Page, Playwright
 TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
 APP_ROOT = TESTS_DIR.parent
-PROJECT_ROOT = APP_ROOT.parent
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
-
-###############################################################################
-def resolve_resources_dir() -> Path:
-    configured_path = os.getenv("ADSMOD_RESOURCES_DIR", "").strip()
-    if not configured_path:
-        return APP_ROOT / "resources"
-
-    resources_dir = Path(os.path.expandvars(configured_path)).expanduser()
-    if not resources_dir.is_absolute():
-        resources_dir = PROJECT_ROOT / resources_dir
-    return resources_dir.resolve()
-
-
-CANONICAL_CONFIG = resolve_resources_dir() / "adsmod.json"
+CANONICAL_CONFIG = APP_ROOT / "resources" / "adsmod.json"
 
 ###############################################################################
 def normalize_client_host(bind_host: str) -> str:
@@ -54,15 +36,9 @@ def resolve_test_urls() -> tuple[str, str, str]:
     ml_host = normalize_client_host(runtime["host"])
     ml_port = str(runtime["ml_port"])
 
-    frontend_url = os.getenv(
-        "ADSMOD_TEST_FRONTEND_URL", f"http://{frontend_host}:{frontend_port}"
-    )
-    backend_url = os.getenv(
-        "ADSMOD_TEST_BACKEND_URL", f"http://{backend_host}:{backend_port}"
-    )
-    ml_backend_url = os.getenv(
-        "ADSMOD_TEST_ML_BACKEND_URL", f"http://{ml_host}:{ml_port}"
-    )
+    frontend_url = f"http://{frontend_host}:{frontend_port}"
+    backend_url = f"http://{backend_host}:{backend_port}"
+    ml_backend_url = f"http://{ml_host}:{ml_port}"
     return frontend_url.rstrip("/"), backend_url.rstrip("/"), ml_backend_url.rstrip("/")
 
 
@@ -98,6 +74,10 @@ def ml_api_base_url() -> str:
 @pytest.fixture(scope="session")
 def ml_api_context(playwright: Playwright, ml_api_base_url: str) -> APIRequestContext:
     """Create a Playwright API request context for ML backend calls."""
+    with CANONICAL_CONFIG.open("r", encoding="utf-8") as handle:
+        runtime_mode = json.load(handle)["runtime"]["mode"]
+    if runtime_mode != "core-ml":
+        pytest.skip("ML E2E tests require runtime.mode=core-ml.")
     context = playwright.request.new_context(base_url=ml_api_base_url)
     yield context
     context.dispose()

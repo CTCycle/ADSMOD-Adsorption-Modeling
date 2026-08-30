@@ -1,27 +1,30 @@
-# ADSMOD Troubleshooting
+# ADSMOD troubleshooting
 
-Last updated: 2026-08-02
+Last updated: 2026-08-30
 
-## Backend Or UI Unreachable
+## Backend or UI unreachable
 
-- Check the `runtime` host and port values in `app/resources/adsmod.json`.
-- Confirm the launcher or backend process is running on the expected ports.
+- Check the host and ports in `app/resources/adsmod.json`.
+- Confirm Core responds at `/health/ready`.
+- In `core-ml` mode, confirm ML responds at its own `/health/ready`.
+- Confirm the frontend preview serves the built `dist/browser/index.html`.
 
-## Missing Test Dependencies
+## Missing dependencies
 
-- Choose `Development` when selecting `Install / update dependencies` in the launcher.
-- Rerun the launcher so dependencies are provisioned.
-- Rerun the tests after the environment is updated.
-
-## Frontend Preview Unreachable
-
-- Confirm `npm run build` succeeds in `app/client`.
-- Check `runtime.frontend_port` in `app/resources/adsmod.json`, then rerun `start_on_windows.ps1`.
+Run **Install / update dependencies** in `start_on_windows.ps1`. It uses the
+locked backend workspace and `npm ci`; resolve filesystem or network errors and
+rerun the action rather than reusing a stale environment.
 
 ## Training unavailable
 
-- Core-only mode intentionally leaves Training unavailable.
-- Start the ML service on `runtime.ml_port` (`6046` in the canonical file), or
-  start the unified backend with `ADSMOD_ENABLE_ML=true`.
-- Confirm the frontend proxy still lists `/api/training` before the catch-all
-  `/api` target in `app/client/proxy.conf.cjs`.
+`core` mode intentionally reports training as not configured. Set the
+canonical `runtime.mode` to `core-ml` and relaunch so ML starts on
+`runtime.ml_port`. The frontend proxy must match `/api/v1/training` before the
+general `/api/v1` target.
+
+## Database startup failure
+
+Inspect the Core logs below the configured storage root. Unknown or non-empty
+unversioned schemas are rejected deliberately; export or repair them manually
+instead of stamping a guessed revision. For PostgreSQL, verify connectivity,
+credentials, and the role's database-creation permission.

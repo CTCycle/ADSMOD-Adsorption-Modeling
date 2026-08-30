@@ -315,6 +315,12 @@
         "internal_token_required": {
           "title": "Internal Token Required",
           "type": "boolean"
+        },
+        "internal_token_env": {
+          "default": "ADSMOD_INTERNAL_TOKEN",
+          "minLength": 1,
+          "title": "Internal Token Env",
+          "type": "string"
         }
       },
       "required": [
@@ -330,15 +336,10 @@
           "format": "path",
           "title": "Root",
           "type": "string"
-        },
-        "database": {
-          "title": "Database",
-          "type": "string"
         }
       },
       "required": [
-        "root",
-        "database"
+        "root"
       ],
       "title": "StorageConfig",
       "type": "object"

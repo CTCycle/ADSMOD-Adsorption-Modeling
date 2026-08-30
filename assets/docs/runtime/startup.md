@@ -1,146 +1,50 @@
-# ADSMOD Startup Procedures
+# ADSMOD startup procedures
 
-Last updated: 2026-08-21
+Last updated: 2026-08-30
 
-## Recommended Local Web Startup
-
-CMD:
-
-```cmd
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
-```
-
-PowerShell:
+## Recommended startup
 
 ```powershell
 & .\start_on_windows.ps1
 ```
 
-This menu-driven script:
-- ensures portable runtimes under `runtimes/`
-- syncs backend dependencies into `app/server/.venv`
-- installs frontend dependencies as needed
-- repairs missing or unusable dependencies and frontend build output during launch
-- always rebuilds the frontend when **Install / Update Dependencies** is executed
-- provides **Rebuild Frontend** to install frontend packages and rebuild the bundle without syncing backend dependencies
-- starts the unified backend and frontend preview
-- exits after handing launch control to the local web stack instead of returning to the menu
-- starts the frontend preview in the background and opens the browser after the UI responds
-- uses `runtime.core_port`, `runtime.ml_port`, and `runtime.frontend_port` from
-  `$ADSMOD_RESOURCES_DIR/adsmod.json` (`app/resources` by default)
+The launcher reads `app/resources/adsmod.json`, synchronizes the locked
+`app/backend` workspace, builds the client, starts Core, and waits for
+`/health/ready` before opening the browser. ML is started only when
+`runtime.mode` is `core-ml`; it receives the same config path and uses
+`runtime.ml_port`.
 
-The launcher groups its menu options into application, development and setup,
-updates, and data and maintenance sections. The update actions are distinct:
+## Manual service startup
 
-- **Check for Updates** compares the local `main` branch with `origin/main`
-  without fetching, downloading, or applying changes.
-- **Update** switches to `main` and runs a fast-forward-only `git pull` from
-  `origin/main`; it requires a clean working tree.
-- **Remove Checkpoints** deletes saved training checkpoints after an explicit
-  confirmation.
-- **Remove All Data** deletes the embedded database, SQLite sidecar files,
-  saved checkpoints, and generated logs while preserving application files,
-  configuration, settings, and templates.
-
-Before launch, the script creates `settings/.env` from
-`settings/.env.example` only when the file is missing. Existing environment
-files are preserved.
-
-Set `ADSMOD_RESOURCES_DIR` in `settings/.env` when the canonical resource
-directory, including the embedded SQLite database, should live elsewhere. A
-relative value is resolved from the repository root, and the selected
-directory must contain `adsmod.json`.
-
-## Database Startup Rules
-
-- Startup runs the synchronous Alembic coordinator before serving requests.
-- SQLite creates missing storage and upgrades it to the packaged head. An
-  existing pre-Alembic file is adopted only after an exact structural check;
-  mismatches fail without stamping or changing the schema.
-- PostgreSQL startup creates the configured database when the configured role
-  permits it, then applies pending migrations. Advisory locks serialize
-  creation and upgrades across application instances.
-- The menu's **Initialize database** command invokes the same coordinator and
-  is safe to repeat for fresh, legacy, outdated, or current databases.
-- Migration failures abort startup and leave transactional changes rolled back.
-
-## Setup And Maintenance
-
-The same `start_on_windows.ps1` menu owns dependency installation, database initialization, tests, log removal, cache cleanup, and uninstall operations.
-
-Disposable cache locations are fixed by the launcher and test runner:
-
-- `runtimes/cache` contains uv, npm, pip, and runtime temporary files.
-- `app/tests/cache` contains Angular, pytest, Ruff, mypy, Python bytecode,
-  coverage, and pytest temporary files.
-
-The **Clear cache** menu option removes the contents of both locations and
-cleans up legacy Python cache directories. Files that require administrator
-rights or are otherwise locked are warned about and skipped so cleanup can
-continue.
-
-## Unified Backend Startup
-
-From the repository root:
-
-CMD:
-
-```cmd
-app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
-```
-
-PowerShell:
+From the repository root after `app/backend/.venv` is ready:
 
 ```powershell
-.\app\server\.venv\Scripts\python.exe -m uvicorn app.server.app:app --host 127.0.0.1 --port 6045
+& .\app\backend\.venv\Scripts\python.exe -m adsmod_core.cli --config .\app\resources\adsmod.json
 ```
 
-Set `ADSMOD_ENABLE_ML=true` before starting the unified backend when the ML
-routes should be mounted in the same process. Otherwise, the core-only runtime
-keeps training unavailable while datasets and fitting remain usable.
-
-## Core Service Startup
-
-CMD:
-
-```cmd
-app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
-```
-
-PowerShell:
+For `core-ml` mode, start ML in another terminal:
 
 ```powershell
-.\app\server\.venv\Scripts\python.exe -m uvicorn core_service.app:app --host 127.0.0.1 --port 6045
+& .\app\backend\.venv\Scripts\python.exe -m adsmod_ml.cli --config .\app\resources\adsmod.json
 ```
 
-## Frontend Development Servers
+The Angular development server can be started from `app/client` with
+`npm run dev`; its proxy reads the fixed `app/resources/adsmod.json` path.
 
-CMD:
+## Database startup rules
 
-```cmd
-cd ADSMOD\app\client
-npm run dev
-```
+Core runs the synchronous Alembic coordinator before serving requests. A
+missing or empty SQLite file is initialized to the packaged head. A non-empty
+unversioned file, an empty version table beside application tables, an unknown
+revision, or a stamped-but-incomplete schema fails explicitly without schema
+inference. PostgreSQL uses the same migration history and a bounded advisory
+lock.
 
-PowerShell:
-
-```powershell
-Set-Location app/client
-npm run dev
-```
-
-The frontend development server is an Angular CLI server with API proxy configuration loaded from `app/client/proxy.conf.cjs`.
-
-## Test Startup
-
-CMD:
+## Tests
 
 ```cmd
 app\tests\run_tests.bat
 ```
 
-PowerShell:
-
-```powershell
-.\app\tests\run_tests.bat
-```
+The runner uses the canonical ports and does not accept alternate API or
+resource-root environment overrides.

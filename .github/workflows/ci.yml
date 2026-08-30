@@ -21,52 +21,28 @@ jobs:
   python-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: adsmod_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d adsmod_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           version: "0.11.30"
           enable-cache: true
-          cache-dependency-glob: app/server/uv.lock
+          cache-dependency-glob: app/backend/uv.lock
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14.2"
       - name: Install backend dependencies
         run: |
-          uv sync --locked --project app/server --all-packages --group dev
+          uv sync --locked --project app/backend --all-packages --group dev
       - name: Backend import validation
-        env:
-          UV_NO_SYNC: "1"
         run: |
-          PYTHONPATH=app/backend/common/src:app/backend/core/src:app/backend/ml/src uv run --project app/server python -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app; import core_service.app; import ml_service.app; import app.server.app"
-          uv run --project app/server ruff check --isolated app/server app/backend app/tests
-          DATABASE_EMBEDDED=true uv run --project app/server python -m pytest app/tests/persistence -v
-          DATABASE_EMBEDDED=true uv run --project app/server python -m pytest app/tests/unit/test_database_initialization.py app/tests/unit/test_alembic_quality.py -v
-          DATABASE_EMBEDDED=false DATABASE_ENGINE=postgres DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_NAME=adsmod_test DATABASE_USERNAME=postgres DATABASE_PASSWORD=postgres uv run --project app/server python -m pytest app/tests/persistence -v
-          DATABASE_EMBEDDED=false DATABASE_ENGINE=postgres DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432 DATABASE_USERNAME=postgres DATABASE_PASSWORD=postgres uv run --project app/server python -m pytest app/tests/server/database/test_postgres_migrations.py -v
-          uv run --project app/server python -m pytest app/tests/backend --ignore app/tests/backend/performance
-          uv run --project app/server python -m pytest app/tests/unit
-          uv run --project app/server python -m pytest app/tests/server
-          PYTHONPATH=app/backend/common/src:app/backend/core/src:app/backend/ml/src uv run --project app/server python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests -v
-          uv run --project app/server python app/scripts/generate_openapi.py --app core_service.app:app --output app/shared/core_openapi.json
-          uv run --project app/server python app/scripts/generate_openapi.py --app ml_service.app:app --output app/shared/ml_openapi.json
-          ADSMOD_ENABLE_ML=true uv run --project app/server python -m app.scripts.generate_openapi --app app.server.app:app --output app/shared/openapi.json
-          uv run --project app/server python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
-          git diff --exit-code -- app/shared/core_openapi.json app/shared/ml_openapi.json app/shared/openapi.json app/resources/adsmod.schema.json
+          uv run --locked --project app/backend --all-packages python -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app"
+          uv run --locked --project app/backend --all-packages ruff check --isolated app/backend app/tests app/scripts
+          uv run --locked --project app/backend --all-packages python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -v --basetemp app/tests/cache/pytest-tmp-ci
+          uv run --locked --project app/backend --all-packages python app/scripts/generate_openapi.py --service core --config app/resources/adsmod.json --output app/backend/openapi/core.json
+          uv run --locked --project app/backend --all-packages python app/scripts/generate_openapi.py --service ml --config app/resources/adsmod.json --output app/backend/openapi/ml.json
+          uv run --locked --project app/backend --all-packages python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
+          git diff --exit-code -- app/backend/openapi/core.json app/backend/openapi/ml.json app/resources/adsmod.schema.json
 
   frontend-validation:
     runs-on: ubuntu-latest

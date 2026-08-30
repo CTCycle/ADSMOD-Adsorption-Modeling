@@ -21,7 +21,7 @@ def _build_mapping(
 ) -> tuple[bytes, dict[str, Any]]:
     file_content = _read_sample(sample_csv_path)
     response = api_context.post(
-        "/api/datasets/import/preview",
+        "/api/v1/datasets/import/preview",
         multipart={
             "file": {
                 "name": f"{dataset_name}.csv",
@@ -68,7 +68,7 @@ def _commit_sample(
         api_context, sample_csv_path, dataset_name
     )
     validation_response = api_context.post(
-        "/api/datasets/import/validate",
+        "/api/v1/datasets/import/validate",
         multipart={
             "mapping": json.dumps(mapping),
             "file": {
@@ -82,7 +82,7 @@ def _commit_sample(
     assert validation_response.json()["status"] == "valid"
 
     commit_response = api_context.post(
-        "/api/datasets/import/commit",
+        "/api/v1/datasets/import/commit",
         multipart={
             "mapping": json.dumps(mapping),
             "file": {
@@ -117,7 +117,7 @@ class TestDatasetList:
 
     # -------------------------------------------------------------------------
     def test_get_dataset_list(self, api_context: APIRequestContext) -> None:
-        response = api_context.get("/api/datasets")
+        response = api_context.get("/api/v1/datasets")
 
         assert response.ok, response.text()
         data = response.json()
@@ -137,7 +137,7 @@ class TestDatasetExperiments:
             sample_csv_path,
             f"experiment_test_{uuid.uuid4().hex[:8]}",
         )
-        response = api_context.get(f"/api/datasets/{dataset['id']}/experiments")
+        response = api_context.get(f"/api/v1/datasets/{dataset['id']}/experiments")
 
         assert response.ok, response.text()
         data = response.json()
@@ -149,7 +149,7 @@ class TestDatasetExperiments:
     def test_get_nonexistent_dataset_experiments(
         self, api_context: APIRequestContext
     ) -> None:
-        response = api_context.get("/api/datasets/999999/experiments")
+        response = api_context.get("/api/v1/datasets/999999/experiments")
 
         assert response.status == 404
 
@@ -167,9 +167,9 @@ class TestDatasetDeletion:
             f"delete_test_{uuid.uuid4().hex[:8]}",
         )
 
-        response = api_context.delete(f"/api/datasets/{dataset['id']}")
+        response = api_context.delete(f"/api/v1/datasets/{dataset['id']}")
 
         assert response.status == 204
-        listing = api_context.get("/api/datasets")
+        listing = api_context.get("/api/v1/datasets")
         assert listing.ok
         assert dataset["id"] not in {item["id"] for item in listing.json()["datasets"]}

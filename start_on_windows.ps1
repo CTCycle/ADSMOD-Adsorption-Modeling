@@ -4,11 +4,8 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "app\scripts\ensure_environment.ps1")
-
 $RepoRoot = $PSScriptRoot
 $AppDir = Join-Path $RepoRoot "app"
-$ServerDir = Join-Path $AppDir "server"
 $BackendDir = Join-Path $AppDir "backend"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
@@ -16,10 +13,9 @@ $DefaultResourcesDir = Join-Path $AppDir "resources"
 $ResourcesDir = $DefaultResourcesDir
 $LogDir = Join-Path $ResourcesDir "logs"
 $CheckpointsDir = Join-Path $ResourcesDir "checkpoints"
-$SettingsDir = Join-Path $RepoRoot "settings"
 $ConfigFile = Join-Path $ResourcesDir "adsmod.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
-$StartupTempDir = Join-Path $ServerDir ".startup-temp"
+$StartupTempDir = Join-Path $BackendDir ".startup-temp"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
 $NodeDir = Join-Path $RuntimesDir "nodejs"
@@ -39,10 +35,8 @@ $PythonPth = Join-Path $PythonDir "python314._pth"
 $UvExe = Join-Path $UvDir "uv.exe"
 $NodeExe = Join-Path $NodeDir "node.exe"
 $NpmCmd = Join-Path $NodeDir "npm.cmd"
-$VenvPython = Join-Path $ServerDir ".venv\Scripts\python.exe"
+$VenvPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
 $UvCacheDir = $RuntimeCacheDir
-$EnvFile = Join-Path $SettingsDir ".env"
-$EnvExample = Join-Path $SettingsDir ".env.example"
 
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
@@ -80,9 +74,9 @@ function Assert-LastExitCode([string]$Operation) {
     }
 }
 
-function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
+function Resolve-CanonicalPath([string]$ConfiguredPath) {
     if ([string]::IsNullOrWhiteSpace($ConfiguredPath)) {
-        return [System.IO.Path]::GetFullPath($DefaultResourcesDir)
+        throw "The canonical configuration contains an empty path."
     }
 
     $expandedPath = [Environment]::ExpandEnvironmentVariables($ConfiguredPath.Trim())
@@ -90,18 +84,6 @@ function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
         $expandedPath = Join-Path $RepoRoot $expandedPath
     }
     return [System.IO.Path]::GetFullPath($expandedPath)
-}
-
-function Set-ConfiguredResourcePaths([string]$ConfiguredPath) {
-    $script:ResourcesDir = Resolve-ResourcesDirectory $ConfiguredPath
-    $script:LogDir = Join-Path $script:ResourcesDir "logs"
-    $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
-    $script:ConfigFile = Join-Path $script:ResourcesDir "adsmod.json"
-    [Environment]::SetEnvironmentVariable(
-        'ADSMOD_RESOURCES_DIR',
-        $script:ResourcesDir,
-        'Process'
-    )
 }
 
 function Remove-RepoPath([string]$Path) {
@@ -272,7 +254,7 @@ function Wait-ForHealth {
     do {
         try {
             $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 2
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
                 return
             }
         } catch {
@@ -286,82 +268,32 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
-    if (Ensure-EnvironmentFile -EnvFile $EnvFile -EnvExample $EnvExample) {
-        Write-Ok "Created settings/.env from settings/.env.example."
-    }
-
-    $configuredResourcePath = $null
-    foreach ($line in Get-Content -LiteralPath $EnvFile) {
-        $trimmed = $line.Trim()
-        if (-not $trimmed -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';')) {
-            continue
-        }
-        $separator = $trimmed.IndexOf('=')
-        if ($separator -lt 1) {
-            continue
-        }
-        $key = $trimmed.Substring(0, $separator).Trim()
-        if ($key -eq 'ADSMOD_RESOURCES_DIR') {
-            $configuredResourcePath = $trimmed.Substring($separator + 1).Trim()
-            if (($configuredResourcePath.StartsWith('"') -and $configuredResourcePath.EndsWith('"')) -or
-                ($configuredResourcePath.StartsWith("'") -and $configuredResourcePath.EndsWith("'"))) {
-                $configuredResourcePath = $configuredResourcePath.Substring(1, $configuredResourcePath.Length - 2)
-            }
-            break
-        }
-    }
-    if ($null -eq $configuredResourcePath) {
-        $configuredResourcePath = [Environment]::GetEnvironmentVariable('ADSMOD_RESOURCES_DIR', 'Process')
-    }
-    Set-ConfiguredResourcePaths $configuredResourcePath
-
     if (-not (Test-Path -LiteralPath $ConfigFile)) {
         throw "Missing canonical configuration: $ConfigFile"
     }
     $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
-    if (-not $canonical.runtime) {
-        throw "Canonical configuration is missing the runtime section: $ConfigFile"
+    if (-not $canonical.runtime -or -not $canonical.storage) {
+        throw "Canonical configuration is missing runtime or storage settings: $ConfigFile"
     }
-    $defaults = [ordered]@{
-        BACKEND_HOST = [string]$canonical.runtime.host
-        BACKEND_PORT = [string]$canonical.runtime.core_port
-        UI_HOST = [string]$canonical.runtime.host
-        UI_PORT = [string]$canonical.runtime.frontend_port
-        BACKEND_LOGS_VISIBLE = "true"
+    $mode = [string]$canonical.runtime.mode
+    if ($mode -notin @('core', 'core-ml')) {
+        throw "runtime.mode must be core or core-ml."
     }
-
-    foreach ($line in Get-Content -LiteralPath $EnvFile) {
-        $trimmed = $line.Trim()
-        if (-not $trimmed -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';')) {
-            continue
-        }
-        $separator = $trimmed.IndexOf('=')
-        if ($separator -lt 1) {
-            continue
-        }
-        $key = $trimmed.Substring(0, $separator).Trim()
-        $value = $trimmed.Substring($separator + 1).Trim()
-        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
-            ($value.StartsWith("'") -and $value.EndsWith("'"))) {
-            $value = $value.Substring(1, $value.Length - 2)
-        }
-        if ($defaults.Contains($key)) {
-            $defaults[$key] = $value
-            [Environment]::SetEnvironmentVariable($key, $value, 'Process')
-        } elseif ($key -notin @('RELOAD', 'MPLBACKEND', 'KERAS_BACKEND', 'VITE_API_BASE_URL', 'ADSMOD_RESOURCES_DIR')) {
-            throw "Unsupported setting '$key'. Runtime hosts and ports belong in the selected resource directory's adsmod.json."
-        } else {
-            [Environment]::SetEnvironmentVariable($key, $value, 'Process')
-        }
+    $host = [string]$canonical.runtime.host
+    if ([string]::IsNullOrWhiteSpace($host)) {
+        throw "runtime.host must be configured."
     }
-
-    Set-ConfiguredResourcePaths $configuredResourcePath
-
-    if ($defaults.BACKEND_LOGS_VISIBLE -notmatch '^(true|false)$') {
-        throw "BACKEND_LOGS_VISIBLE must be true or false."
+    $script:ResourcesDir = Resolve-CanonicalPath ([string]$canonical.storage.root)
+    $script:LogDir = Join-Path $script:ResourcesDir "logs"
+    $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
+    return [pscustomobject]@{
+        Mode = $mode
+        Host = $host
+        CorePort = [int]$canonical.runtime.core_port
+        MlPort = [int]$canonical.runtime.ml_port
+        FrontendPort = [int]$canonical.runtime.frontend_port
+        MlRestartAttempts = [int]$canonical.runtime.ml_restart_attempts
     }
-
-    return $defaults
 }
 
 function Set-RuntimeEnvironment {
@@ -383,7 +315,7 @@ function Set-RuntimeEnvironment {
     $env:PIP_CACHE_DIR = Join-Path $RuntimeCacheDir "pip"
     $env:npm_config_cache = Join-Path $RuntimeCacheDir "npm"
     $env:XDG_CACHE_HOME = $RuntimeCacheDir
-    $env:UV_PROJECT_ENVIRONMENT = Join-Path $ServerDir ".venv"
+    $env:UV_PROJECT_ENVIRONMENT = Join-Path $BackendDir ".venv"
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:PYTEST_CACHE_DIR = $PytestCacheDir
     $env:RUFF_CACHE_DIR = $RuffCacheDir
@@ -459,39 +391,22 @@ function Initialize-Runtimes {
 
 function Sync-FrontendDependencies {
     param(
-        [switch]$BuildFrontend,
-        [switch]$AllowExistingEnvironmentFallback
+        [switch]$BuildFrontend
     )
 
     Write-Step "Installing frontend dependencies"
     Push-Location $ClientDir
     try {
-        try {
-            if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) {
-                & $NpmCmd ci
-            } else {
-                & $NpmCmd install
-            }
-            Assert-LastExitCode "npm dependency installation"
-        } catch {
-            if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath (Join-Path $ClientDir 'node_modules'))) {
-                throw
-            }
-            Write-Warn "npm dependency installation could not update the existing node_modules tree; reusing it for startup. Run Install / update dependencies after resolving the filesystem lock."
+        if (-not (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json'))) {
+            throw "Missing frontend lockfile: $(Join-Path $ClientDir 'package-lock.json')"
         }
+        & $NpmCmd ci
+        Assert-LastExitCode "npm dependency installation"
 
         if ($BuildFrontend) {
             Write-Step "Building frontend"
-            try {
-                & $NpmCmd run build
-                Assert-LastExitCode "frontend build"
-            } catch {
-                $existingFrontend = Join-Path $ClientDir "dist\browser\index.html"
-                if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath $existingFrontend)) {
-                    throw
-                }
-                Write-Warn "Frontend rebuild could not update the existing checkout; reusing the existing dist bundle for startup. Run Install / update dependencies after resolving the filesystem lock."
-            }
+            & $NpmCmd run build
+            Assert-LastExitCode "frontend build"
         }
     } finally {
         Pop-Location
@@ -502,7 +417,6 @@ function Sync-FrontendDependencies {
 function Sync-Dependencies {
     param(
         [switch]$BuildFrontend,
-        [switch]$AllowExistingEnvironmentFallback,
         [switch]$RuntimesReady,
         [ValidateSet('Standard', 'Development')]
         [string]$InstallationType = 'Standard'
@@ -515,24 +429,17 @@ function Sync-Dependencies {
     Set-RuntimeEnvironment
 
     Write-Step "Syncing Python dependencies"
-    Push-Location $ServerDir
+    Push-Location $BackendDir
     try {
-        $arguments = @('sync', '--all-packages', '--python', $PythonExe)
+        $arguments = @('sync', '--locked', '--all-packages', '--python', $PythonExe)
         if ($InstallationType -eq 'Development') {
             $arguments += '--group', 'dev'
         }
         else {
             $arguments += '--no-dev'
         }
-        try {
-            & $UvExe @arguments
-            Assert-LastExitCode "uv sync"
-        } catch {
-            if (-not $AllowExistingEnvironmentFallback -or -not (Test-Path -LiteralPath $VenvPython)) {
-                throw
-            }
-            Write-Warn "uv sync could not write its temporary files; reusing the existing backend environment for startup. Run Install / update dependencies after resolving the filesystem permission issue."
-        }
+        & $UvExe @arguments
+        Assert-LastExitCode "uv sync"
     } finally {
         Pop-Location
     }
@@ -542,8 +449,7 @@ function Sync-Dependencies {
     Write-Ok "Python dependencies are ready."
 
     Sync-FrontendDependencies `
-        -BuildFrontend:$BuildFrontend `
-        -AllowExistingEnvironmentFallback:$AllowExistingEnvironmentFallback
+        -BuildFrontend:$BuildFrontend
 }
 
 function Test-DependenciesReady {
@@ -553,13 +459,15 @@ function Test-DependenciesReady {
     $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
     $frontendRunner = Join-Path $frontendModules '@angular/cli/bin/ng.js'
     $frontendBuild = Join-Path $ClientDir 'dist\browser\index.html'
-    $backendEntrypoint = Join-Path $AppDir 'server/app.py'
+    $backendEntrypoint = Join-Path $BackendDir 'core/src/adsmod_core/cli.py'
+    $backendLock = Join-Path $BackendDir 'uv.lock'
 
     if (-not (Test-Path -LiteralPath $PythonExe) -or
         -not (Test-Path -LiteralPath $UvExe) -or
         -not (Test-Path -LiteralPath $NodeExe) -or
         -not (Test-Path -LiteralPath $NpmCmd) -or
         -not (Test-Path -LiteralPath $VenvPython) -or
+        -not (Test-Path -LiteralPath $backendLock) -or
         -not (Test-Path -LiteralPath $backendEntrypoint) -or
         -not (Test-Path -LiteralPath $frontendPackage) -or
         -not (Test-Path -LiteralPath $frontendLock) -or
@@ -575,7 +483,7 @@ function Test-DependenciesReady {
     if ($LASTEXITCODE -ne 0) { return $false }
     & $NodeExe --version *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
-    & $VenvPython -c 'import fastapi, uvicorn' *> $null
+    & $VenvPython -c 'import adsmod_core.app, fastapi, uvicorn' *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
 
     return $true
@@ -611,44 +519,34 @@ function Start-Application {
     Set-RuntimeEnvironment
     if (-not (Test-DependenciesReady)) {
         Write-Step "Required application environments or frontend build output are missing or unusable; repairing dependencies and frontend build."
-        Sync-Dependencies -BuildFrontend -AllowExistingEnvironmentFallback
+        Sync-Dependencies -BuildFrontend
     } else {
         Write-Ok "Application environments are ready; skipped dependency installation."
     }
     Set-RuntimeEnvironment
 
-    $backendPort = [int]$settings.BACKEND_PORT
-    $uiPort = [int]$settings.UI_PORT
+    $backendPort = $settings.CorePort
+    $uiPort = $settings.FrontendPort
     Stop-ListenerOnPort -Port $backendPort
     Stop-ListenerOnPort -Port $uiPort
-
-    $backendArguments = @(
-        '-m', 'uvicorn', 'app.server.app:app',
-        '--host', $settings.BACKEND_HOST,
-        '--port', $settings.BACKEND_PORT
-    )
-    Write-Step "Starting backend"
-    $backendProcess = $null
-    if ($settings.BACKEND_LOGS_VISIBLE -eq 'true') {
-        $launchCommand = 'start "Backend" cmd /c ""{0}" -m uvicorn app.server.app:app --host {1} --port {2}"' -f `
-            $VenvPython, $settings.BACKEND_HOST, $settings.BACKEND_PORT
-        Push-Location $RepoRoot
-        try {
-            & cmd.exe /d /c $launchCommand
-            Assert-LastExitCode "visible backend launch"
-        } finally {
-            Pop-Location
-        }
-    } else {
-        $backendProcess = Start-Process -FilePath $VenvPython `
-            -ArgumentList $backendArguments `
-            -WorkingDirectory $RepoRoot `
-            -WindowStyle Hidden `
-            -PassThru
+    if ($settings.Mode -eq 'core-ml') {
+        Stop-ListenerOnPort -Port $settings.MlPort
     }
 
-    $healthUrl = "http://$($settings.BACKEND_HOST):$($settings.BACKEND_PORT)/api/health"
-    Write-Step "Waiting for backend health at $healthUrl"
+    $backendArguments = @(
+        '-m', 'adsmod_core.cli',
+        '--config', $ConfigFile
+    )
+    Write-Step "Starting Core service"
+    $backendProcess = Start-Process -FilePath $VenvPython `
+        -ArgumentList $backendArguments `
+        -WorkingDirectory $RepoRoot `
+        -WindowStyle Hidden `
+        -PassThru
+
+    $healthUrl = "http://$($settings.Host):$($settings.CorePort)/health/ready"
+    Write-Step "Waiting for Core readiness at $healthUrl"
+    $mlProcess = $null
     try {
         Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60
     } catch {
@@ -659,18 +557,43 @@ function Start-Application {
     }
     $backendPid = Get-ListenerPid -Port $backendPort
 
+    $mlHealthUrl = $null
+    if ($settings.Mode -eq 'core-ml') {
+        $mlArguments = @(
+            '-m', 'adsmod_ml.cli',
+            '--config', $ConfigFile
+        )
+        Write-Step "Starting ML service"
+        $mlProcess = Start-Process -FilePath $VenvPython `
+            -ArgumentList $mlArguments `
+            -WorkingDirectory $RepoRoot `
+            -WindowStyle Hidden `
+            -PassThru
+        $mlHealthUrl = "http://$($settings.Host):$($settings.MlPort)/health/ready"
+        Write-Step "Waiting for ML readiness at $mlHealthUrl"
+        try {
+            Wait-ForHealth -Url $mlHealthUrl -TimeoutSeconds 60
+        } catch {
+            if ($mlProcess -and -not $mlProcess.HasExited) { Stop-Process -Id $mlProcess.Id -Force }
+            if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }
+            throw
+        }
+    }
+
     Write-Step "Starting frontend preview"
     $frontendProcess = Start-Process -FilePath $NpmCmd `
-        -ArgumentList @('run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT) `
+        -ArgumentList @('run', 'preview', '--', '--host', $settings.Host, '--port', $settings.FrontendPort) `
         -WorkingDirectory $ClientDir `
         -WindowStyle Hidden `
         -PassThru
 
-    $frontendUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
+    $frontendUrl = "http://$($settings.Host):$($settings.FrontendPort)"
     try {
         Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60
     } catch {
         if (-not $frontendProcess.HasExited) { Stop-Process -Id $frontendProcess.Id -Force }
+        if ($mlProcess -and -not $mlProcess.HasExited) { Stop-Process -Id $mlProcess.Id -Force }
+        if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }
         throw
     }
     $frontendPid = Get-ListenerPid -Port $uiPort
@@ -679,6 +602,10 @@ function Start-Application {
     Write-Host ""
     Write-Ok "ADSMOD started successfully."
     Write-Host "Backend: $healthUrl (PID $backendPid)" -ForegroundColor Green
+    if ($mlHealthUrl) {
+        $mlPid = Get-ListenerPid -Port $settings.MlPort
+        Write-Host "ML: $mlHealthUrl (PID $mlPid)" -ForegroundColor Green
+    }
     Write-Host "Frontend: $frontendUrl (PID $frontendPid)" -ForegroundColor Green
 }
 
@@ -716,7 +643,7 @@ function Initialize-Database {
     Write-Step "Initializing database"
     Push-Location $RepoRoot
     try {
-        & $UvExe run --project app/server --python $PythonExe python app/scripts/initialize_database.py
+        & $UvExe run --project $BackendDir --python $PythonExe python app/scripts/initialize_database.py --config $ConfigFile
         Assert-LastExitCode "database initialization"
     } finally {
         Pop-Location
@@ -769,17 +696,11 @@ function Clear-Cache {
             Where-Object { $_.Name -in $legacyCacheNames })
         @(Get-ChildItem -LiteralPath $AppDir -Directory -Force -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -in $legacyCacheNames })
-        @(Get-ChildItem -LiteralPath $ServerDir -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in $legacyCacheNames })
         @(Get-ChildItem -LiteralPath $BackendDir -Directory -Force -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -in $legacyCacheNames })
     )
     $legacySearchRoots = @(
         (Join-Path $AppDir 'scripts'),
-        (Join-Path $ServerDir 'core_service'),
-        (Join-Path $ServerDir 'ml_service'),
-        (Join-Path $ServerDir 'shared'),
-        (Join-Path $ServerDir 'migrations'),
         (Join-Path $BackendDir 'common'),
         (Join-Path $BackendDir 'core'),
         (Join-Path $BackendDir 'ml'),
@@ -814,7 +735,7 @@ function Uninstall-Application {
             Select-Object -ExpandProperty FullName)
     }
     $paths = @($runtimeContents) + @(
-        (Join-Path $ServerDir '.venv'),
+        (Join-Path $BackendDir '.venv'),
         $StartupTempDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
@@ -839,20 +760,14 @@ function Get-ConfiguredDatabasePath {
 
     $configuredPath = [string]$database.sqlite_path
     if ([string]::IsNullOrWhiteSpace($configuredPath)) {
-        return [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir 'database.db'))
+        throw "Embedded database configuration is missing application.database.sqlite_path."
     }
 
     $expandedPath = [Environment]::ExpandEnvironmentVariables($configuredPath.Trim())
     if ([System.IO.Path]::IsPathRooted($expandedPath)) {
         return [System.IO.Path]::GetFullPath($expandedPath)
     }
-
-    $repositoryPath = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $expandedPath))
-    $defaultDatabasePath = [System.IO.Path]::GetFullPath((Join-Path $DefaultResourcesDir 'database.db'))
-    if ($repositoryPath -eq $defaultDatabasePath) {
-        return [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir 'database.db'))
-    }
-    return $repositoryPath
+    return [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir $expandedPath))
 }
 
 function Remove-DatabaseFiles {
@@ -864,7 +779,7 @@ function Remove-DatabaseFiles {
 
     $protectedPaths = @(
         [System.IO.Path]::GetFullPath($ConfigFile),
-        [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir 'adsmod.schema.json'))
+        [System.IO.Path]::GetFullPath((Join-Path $DefaultResourcesDir 'adsmod.schema.json'))
     )
     foreach ($path in @($databasePath, "$databasePath-wal", "$databasePath-shm")) {
         $fullPath = [System.IO.Path]::GetFullPath($path)

@@ -13,7 +13,7 @@ class TestNistStatus:
     # -------------------------------------------------------------------------
     def test_nist_status_shape_and_counts(self, api_context: APIRequestContext) -> None:
         """Verify NIST availability and conditional row-count fields."""
-        response = api_context.get("/api/nist/status")
+        response = api_context.get("/api/v1/nist/status")
 
         assert response.ok
         data = response.json()
@@ -40,7 +40,7 @@ class TestNistFetch:
         }
 
         response = api_context.post(
-            "/api/nist/fetch",
+            "/api/v1/nist/fetch",
             data=json.dumps(payload),
             headers={"Content-Type": "application/json"},
         )
@@ -63,7 +63,7 @@ class TestNistFetch:
             "host_fraction": 0.01,
         }
 
-        response = api_context.post("/api/nist/fetch", data=payload)
+        response = api_context.post("/api/v1/nist/fetch", data=payload)
 
         assert response.status == 422
 
@@ -74,7 +74,7 @@ class TestNistProperties:
     # -------------------------------------------------------------------------
     def test_fetch_nist_properties_guest(self, api_context: APIRequestContext) -> None:
         """Verify NIST properties fetch for guest materials."""
-        response = api_context.post("/api/nist/properties", data={"target": "guest"})
+        response = api_context.post("/api/v1/nist/properties", data={"target": "guest"})
 
         assert response.status in (200, 400, 500)
         if response.ok:
@@ -85,7 +85,7 @@ class TestNistProperties:
     # -------------------------------------------------------------------------
     def test_fetch_nist_properties_host(self, api_context: APIRequestContext) -> None:
         """Verify NIST properties fetch for host materials."""
-        response = api_context.post("/api/nist/properties", data={"target": "host"})
+        response = api_context.post("/api/v1/nist/properties", data={"target": "host"})
 
         assert response.status in (200, 400, 500)
         if response.ok:
@@ -98,6 +98,6 @@ class TestNistProperties:
         self, api_context: APIRequestContext
     ) -> None:
         """Verify NIST properties with invalid target returns a validation error."""
-        response = api_context.post("/api/nist/properties", data={"target": "invalid"})
+        response = api_context.post("/api/v1/nist/properties", data={"target": "invalid"})
 
         assert response.status == 422

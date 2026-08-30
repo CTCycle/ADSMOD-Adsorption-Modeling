@@ -1,10 +1,10 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/app/server/.venv/Scripts/python.exe",
-  "python.terminal.useEnvFile": true,
+  "python.defaultInterpreterPath": "${workspaceFolder}/app/backend/.venv/Scripts/python.exe",
+  "python.terminal.useEnvFile": false,
   "python.terminal.activateEnvironment": true,
   "python-envs.pythonProjects": [
     {
-      "path": ".",
+      "path": "app/backend",
       "envManager": "ms-python.python:venv",
       "packageManager": "ms-python.python:pip"
     }

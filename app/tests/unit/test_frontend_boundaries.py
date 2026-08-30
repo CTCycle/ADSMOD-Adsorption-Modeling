@@ -37,8 +37,8 @@ def test_unified_frontend_keeps_core_and_training_pages() -> None:
     assert found == set(required_tokens)
 
 ###############################################################################
-def test_unified_proxy_routes_training_before_core_api() -> None:
+def test_split_proxy_routes_training_before_core_api() -> None:
     text = Path('app/client/proxy.conf.cjs').read_text(encoding='utf-8')
-    assert '/api/training' in text
-    assert "'/api'" in text
-    assert text.index("'/api/training'") < text.index("'/api'")
+    assert "'/api/v1/training'" in text
+    assert "'/api/v1'" in text
+    assert text.index("'/api/v1/training'") < text.index("'/api/v1'")
