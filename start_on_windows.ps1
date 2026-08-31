@@ -55,23 +55,27 @@ $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 # Console output and path-safety helpers
 # -----------------------------------------------------------------------------
 function Write-Step([string]$Message) {
+    Clear-LauncherProgress
     Write-Host "[STEP] $Message" -ForegroundColor Cyan
 }
 
 function Write-Ok([string]$Message) {
+    Clear-LauncherProgress
     Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
 function Write-Warn([string]$Message) {
+    Clear-LauncherProgress
     Write-Host "[WARN] $Message" -ForegroundColor Yellow
 }
 
 function Write-Fatal([string]$Message) {
+    Clear-LauncherProgress
     Write-Host "[FATAL] $Message" -ForegroundColor Red
 }
 
 function Start-LauncherProgress {
-    param([Parameter(Mandatory)][string]$Activity, [string]$Status = 'Starting')
+    param([Parameter(Mandatory)][string]$Activity, [Parameter(Mandatory)][string]$Status)
     $id = $script:NextProgressId++
     [void]$script:ActiveProgressIds.Add($id)
     Write-Progress -Id $id -Activity $Activity -Status $Status
@@ -110,18 +114,13 @@ function Invoke-TrackedLauncherAction {
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][scriptblock]$Action
     )
-    $activity = "ADSMOD: $Name"
-    $progressId = Start-LauncherProgress -Activity $activity -Status 'Starting'
     Write-Step "Starting $Name"
     try {
-        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Running'
         & $Action
         Write-Ok "$Name completed"
     } catch {
         Write-Fatal "$Name failed: $($_.Exception.Message)"
         throw
-    } finally {
-        Complete-LauncherProgress $progressId
     }
 }
 
@@ -149,15 +148,49 @@ function Remove-RepoPath([string]$Path) {
     if (-not $fullPath.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Refusing to remove a path outside the repository: $fullPath"
     }
+
     try {
-        if (Test-Path -LiteralPath $fullPath) {
-            Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction Stop
+        $item = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+    } catch {
+        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
             return $true
         }
+        Write-Warn "Skipping inaccessible path '$fullPath': $($_.Exception.Message)"
+        return $false
+    }
+    try {
+        Remove-Item -LiteralPath $item.FullName -Recurse -Force -Confirm:$false -ErrorAction Stop
         return $true
     } catch {
-        Write-Warn "Skipping locked or inaccessible path '$fullPath': $($_.Exception.Message)"
-        return $false
+        if (-not $item.PSIsContainer) {
+            Write-Warn "Skipping locked or inaccessible path '$fullPath': $($_.Exception.Message)"
+            return $false
+        }
+
+        $enumerationErrors = @()
+        $entries = @(Get-ChildItem -LiteralPath $item.FullName -Force -Recurse -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors |
+            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+        $success = $enumerationErrors.Count -eq 0
+        foreach ($enumerationError in $enumerationErrors) {
+            Write-Warn "Skipping inaccessible path below '$fullPath': $($enumerationError.Exception.Message)"
+        }
+        foreach ($entry in $entries) {
+            try {
+                Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
+            } catch {
+                $success = $false
+                Write-Warn "Skipping locked or inaccessible path '$($entry.FullName)': $($_.Exception.Message)"
+            }
+        }
+        if (Test-Path -LiteralPath $item.FullName -ErrorAction SilentlyContinue) {
+            try {
+                Remove-Item -LiteralPath $item.FullName -Force -Confirm:$false -ErrorAction Stop
+            } catch {
+                $success = $false
+                Write-Warn "Skipping locked or inaccessible path '$($item.FullName)': $($_.Exception.Message)"
+            }
+        }
+        return $success -and -not (Test-Path -LiteralPath $item.FullName -ErrorAction SilentlyContinue)
     }
 }
 
@@ -172,8 +205,12 @@ function Remove-RepoDirectoryContents([string]$Path) {
             return
         }
 
-        $items = @(Get-ChildItem -LiteralPath $fullPath -Recurse -Force -ErrorAction SilentlyContinue |
-            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true })
+        $enumerationErrors = @()
+        $items = @(Get-ChildItem -LiteralPath $fullPath -Force -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors |
+            Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+        foreach ($enumerationError in $enumerationErrors) {
+            Write-Warn "Skipping inaccessible cache contents below '$fullPath': $($enumerationError.Exception.Message)"
+        }
         $progressId = Start-LauncherProgress -Activity "ADSMOD: remove repository contents" -Status "0 of $($items.Count) items"
         try {
             for ($index = 0; $index -lt $items.Count; $index++) {
@@ -197,13 +234,47 @@ function Remove-ResourcePath([string]$Path) {
         throw "Refusing to remove a path outside the selected resource directory: $fullPath"
     }
     try {
-        if (Test-Path -LiteralPath $fullPath) {
-            Remove-Item -LiteralPath $fullPath -Recurse -Force -ErrorAction Stop
+        $item = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+    } catch {
+        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
+            return $true
         }
+        Write-Warn "Skipping inaccessible user-data path '$fullPath': $($_.Exception.Message)"
+        return $false
+    }
+    try {
+        Remove-Item -LiteralPath $item.FullName -Recurse -Force -Confirm:$false -ErrorAction Stop
         return $true
     } catch {
-        Write-Warn "Skipping locked or inaccessible user-data path '$fullPath': $($_.Exception.Message)"
-        return $false
+        if (-not $item.PSIsContainer) {
+            Write-Warn "Skipping locked or inaccessible user-data path '$fullPath': $($_.Exception.Message)"
+            return $false
+        }
+
+        $enumerationErrors = @()
+        $entries = @(Get-ChildItem -LiteralPath $item.FullName -Force -Recurse -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors |
+            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+        $success = $enumerationErrors.Count -eq 0
+        foreach ($enumerationError in $enumerationErrors) {
+            Write-Warn "Skipping inaccessible user-data path below '$fullPath': $($enumerationError.Exception.Message)"
+        }
+        foreach ($entry in $entries) {
+            try {
+                Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
+            } catch {
+                $success = $false
+                Write-Warn "Skipping locked or inaccessible user-data path '$($entry.FullName)': $($_.Exception.Message)"
+            }
+        }
+        if (Test-Path -LiteralPath $item.FullName -ErrorAction SilentlyContinue) {
+            try {
+                Remove-Item -LiteralPath $item.FullName -Force -Confirm:$false -ErrorAction Stop
+            } catch {
+                $success = $false
+                Write-Warn "Skipping locked or inaccessible user-data path '$($item.FullName)': $($_.Exception.Message)"
+            }
+        }
+        return $success -and -not (Test-Path -LiteralPath $item.FullName -ErrorAction SilentlyContinue)
     }
 }
 
@@ -217,7 +288,12 @@ function Remove-ResourceDirectoryContents([string]$Path) {
         return
     }
 
-    $items = @(Get-ChildItem -LiteralPath $fullPath -Force -ErrorAction SilentlyContinue)
+    $enumerationErrors = @()
+    $items = @(Get-ChildItem -LiteralPath $fullPath -Force -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors |
+        Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+    foreach ($enumerationError in $enumerationErrors) {
+        Write-Warn "Skipping inaccessible resource contents below '$fullPath': $($enumerationError.Exception.Message)"
+    }
     $progressId = Start-LauncherProgress -Activity "ADSMOD: remove resource contents" -Status "0 of $($items.Count) items"
     try {
         for ($index = 0; $index -lt $items.Count; $index++) {
@@ -760,9 +836,10 @@ function Remove-Logs {
     Write-Step "Removing log files"
     if (Test-Path -LiteralPath $LogDir) {
         Get-ChildItem -LiteralPath $LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
+            Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
             ForEach-Object {
                 try {
-                    Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop
+                    Remove-Item -LiteralPath $_.FullName -Force -Confirm:$false -ErrorAction Stop
                 } catch {
                     Write-Warn "Skipping locked or inaccessible log '$($_.FullName)': $($_.Exception.Message)"
                 }
@@ -801,14 +878,12 @@ function Clear-Cache {
                 $_.FullName -ne [System.IO.Path]::GetFullPath($TestCacheDir) })
     }
     $legacyCacheDirectories = @($legacyCacheDirectories |
-        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true } -Unique)
+        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } -Unique)
     foreach ($legacyCacheDirectory in $legacyCacheDirectories) {
-        Remove-RepoDirectoryContents $legacyCacheDirectory.FullName
         [void](Remove-RepoPath $legacyCacheDirectory.FullName)
     }
 
     $legacyToolCache = Join-Path $ClientDir '.angular'
-    Remove-RepoDirectoryContents $legacyToolCache
     [void](Remove-RepoPath $legacyToolCache)
 
     Write-Ok "Cache cleanup completed; locked or inaccessible items were skipped."
@@ -820,6 +895,7 @@ function Uninstall-Application {
     if (Test-Path -LiteralPath $RuntimesDir) {
         $runtimeContents = @(Get-ChildItem -LiteralPath $RuntimesDir -Force |
             Where-Object { $_.Name -ne '.gitkeep' } |
+            Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
             Select-Object -ExpandProperty FullName)
     }
     $paths = @($runtimeContents) + @(
@@ -834,7 +910,7 @@ function Uninstall-Application {
         Remove-RepoPath $path
     }
     Get-ChildItem -LiteralPath $RepoRoot -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
-        Sort-Object FullName -Descending |
+        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
         ForEach-Object { Remove-RepoPath $_.FullName }
     Write-Ok "Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved."
 }
@@ -893,8 +969,8 @@ function Clear-CheckpointFiles {
 function Remove-Checkpoints {
     Import-Settings | Out-Null
     Write-Warn "This removes all saved training checkpoints."
-    $confirmation = (Read-Host "Type REMOVE CHECKPOINTS to continue").Trim()
-    if ($confirmation -cne 'REMOVE CHECKPOINTS') {
+    $confirmation = ([string](Read-Host "Continue removing all saved training checkpoints? [y/N]")).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
         Write-Warn "Remove Checkpoints cancelled."
         return
     }
@@ -904,8 +980,8 @@ function Remove-Checkpoints {
 function Remove-All-Data {
     Import-Settings | Out-Null
     Write-Warn "This removes the local database, uploaded dataset records, saved checkpoints, and generated logs."
-    $confirmation = (Read-Host "Type REMOVE ALL DATA to continue").Trim()
-    if ($confirmation -cne 'REMOVE ALL DATA') {
+    $confirmation = ([string](Read-Host "Continue removing all local user-generated data? [y/N]")).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
         Write-Warn "Remove All Data cancelled."
         return
     }
@@ -926,20 +1002,14 @@ function Invoke-Git {
     param([Parameter(Mandatory)][string[]]$Arguments)
 
     $display = "git $($Arguments -join ' ')"
-    $activity = "ADSMOD: $display"
-    $progressId = Start-LauncherProgress -Activity $activity -Status 'Running Git command'
     Write-Step $display
+    Push-Location $RepoRoot
     try {
-        Push-Location $RepoRoot
-        try {
-            & git @Arguments
-            $exitCode = $LASTEXITCODE
-        }
-        finally {
-            Pop-Location
-        }
-    } finally {
-        Complete-LauncherProgress $progressId
+        & git @Arguments
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
     }
     if ($exitCode -ne 0) {
         throw "git $($Arguments -join ' ') failed with exit code $exitCode."
