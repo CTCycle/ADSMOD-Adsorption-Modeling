@@ -28,6 +28,8 @@ $RuffCacheDir = Join-Path $TestCacheDir "ruff"
 $PythonCacheDir = Join-Path $TestCacheDir "python"
 $MypyCacheDir = Join-Path $TestCacheDir "mypy"
 $AngularCacheDir = Join-Path $TestCacheDir "angular"
+$script:NextProgressId = 1
+$script:ActiveProgressIds = [Collections.Generic.HashSet[int]]::new()
 
 $PythonVersion = "3.14.2"
 $PythonExe = Join-Path $PythonDir "python.exe"
@@ -66,6 +68,61 @@ function Write-Warn([string]$Message) {
 
 function Write-Fatal([string]$Message) {
     Write-Host "[FATAL] $Message" -ForegroundColor Red
+}
+
+function Start-LauncherProgress {
+    param([Parameter(Mandatory)][string]$Activity, [string]$Status = 'Starting')
+    $id = $script:NextProgressId++
+    [void]$script:ActiveProgressIds.Add($id)
+    Write-Progress -Id $id -Activity $Activity -Status $Status
+    return $id
+}
+
+function Update-LauncherProgress {
+    param(
+        [Parameter(Mandatory)][int]$Id,
+        [Parameter(Mandatory)][string]$Activity,
+        [Parameter(Mandatory)][string]$Status,
+        [Nullable[int]]$PercentComplete
+    )
+    if (-not $script:ActiveProgressIds.Contains($Id)) { return }
+    $progress = @{ Id = $Id; Activity = $Activity; Status = $Status }
+    if ($null -ne $PercentComplete) { $progress.PercentComplete = $PercentComplete }
+    Write-Progress @progress
+}
+
+function Complete-LauncherProgress([int]$Id) {
+    if ($script:ActiveProgressIds.Contains($Id)) {
+        Write-Progress -Id $Id -Activity 'ADSMOD launcher' -Completed
+        [void]$script:ActiveProgressIds.Remove($Id)
+    }
+}
+
+function Clear-LauncherProgress {
+    foreach ($id in @($script:ActiveProgressIds)) {
+        Write-Progress -Id $id -Activity 'ADSMOD launcher' -Completed
+        [void]$script:ActiveProgressIds.Remove($id)
+    }
+}
+
+function Invoke-TrackedLauncherAction {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][scriptblock]$Action
+    )
+    $activity = "ADSMOD: $Name"
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Starting'
+    Write-Step "Starting $Name"
+    try {
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Running'
+        & $Action
+        Write-Ok "$Name completed"
+    } catch {
+        Write-Fatal "$Name failed: $($_.Exception.Message)"
+        throw
+    } finally {
+        Complete-LauncherProgress $progressId
+    }
 }
 
 function Assert-LastExitCode([string]$Operation) {
@@ -117,8 +174,16 @@ function Remove-RepoDirectoryContents([string]$Path) {
 
         $items = @(Get-ChildItem -LiteralPath $fullPath -Recurse -Force -ErrorAction SilentlyContinue |
             Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true })
-        foreach ($item in $items) {
-            [void](Remove-RepoPath $item.FullName)
+        $progressId = Start-LauncherProgress -Activity "ADSMOD: remove repository contents" -Status "0 of $($items.Count) items"
+        try {
+            for ($index = 0; $index -lt $items.Count; $index++) {
+                $item = $items[$index]
+                $percent = if ($items.Count -eq 0) { 100 } else { [int](($index + 1) * 100 / $items.Count) }
+                Update-LauncherProgress -Id $progressId -Activity "ADSMOD: remove repository contents" -Status "$($index + 1) of $($items.Count): $($item.Name)" -PercentComplete $percent
+                [void](Remove-RepoPath $item.FullName)
+            }
+        } finally {
+            Complete-LauncherProgress $progressId
         }
     } catch {
         Write-Warn "Skipping inaccessible cache contents under '$fullPath': $($_.Exception.Message)"
@@ -152,11 +217,18 @@ function Remove-ResourceDirectoryContents([string]$Path) {
         return
     }
 
-    foreach ($item in @(Get-ChildItem -LiteralPath $fullPath -Force -ErrorAction SilentlyContinue)) {
-        if ($item.Name -eq '.gitkeep') {
-            continue
+    $items = @(Get-ChildItem -LiteralPath $fullPath -Force -ErrorAction SilentlyContinue)
+    $progressId = Start-LauncherProgress -Activity "ADSMOD: remove resource contents" -Status "0 of $($items.Count) items"
+    try {
+        for ($index = 0; $index -lt $items.Count; $index++) {
+            $item = $items[$index]
+            if ($item.Name -eq '.gitkeep') { continue }
+            $percent = if ($items.Count -eq 0) { 100 } else { [int](($index + 1) * 100 / $items.Count) }
+            Update-LauncherProgress -Id $progressId -Activity "ADSMOD: remove resource contents" -Status "$($index + 1) of $($items.Count): $($item.Name)" -PercentComplete $percent
+            [void](Remove-ResourcePath $item.FullName)
         }
-        [void](Remove-ResourcePath $item.FullName)
+    } finally {
+        Complete-LauncherProgress $progressId
     }
 }
 
@@ -181,21 +253,29 @@ function Download-AndExtract {
         [Parameter(Mandatory)][string]$DestinationPath,
         [switch]$FlattenSingleDirectory
     )
-    $ProgressPreference = 'SilentlyContinue'
-    New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
-    Invoke-WebRequest -Uri $Url -OutFile $ArchivePath
+    $previousProgressPreference = $ProgressPreference
+    $activity = "ADSMOD: download and extract $([IO.Path]::GetFileName($ArchivePath))"
+    $progressId = Start-LauncherProgress -Activity $activity -Status "Downloading $Url"
     try {
+        $ProgressPreference = 'SilentlyContinue'
+        New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
+        Invoke-WebRequest -Uri $Url -OutFile $ArchivePath
+        $ProgressPreference = $previousProgressPreference
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Extracting archive'
         Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath -Force
-    } finally {
-        Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
-    }
-    if ($FlattenSingleDirectory) {
-        $children = @(Get-ChildItem -LiteralPath $DestinationPath -Force)
-        if ($children.Count -eq 1 -and $children[0].PSIsContainer) {
-            $nestedRoot = $children[0].FullName
-            Get-ChildItem -LiteralPath $nestedRoot -Force | Move-Item -Destination $DestinationPath -Force
-            Remove-Item -LiteralPath $nestedRoot -Force -ErrorAction SilentlyContinue
+        if ($FlattenSingleDirectory) {
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Flattening extracted directory'
+            $children = @(Get-ChildItem -LiteralPath $DestinationPath -Force)
+            if ($children.Count -eq 1 -and $children[0].PSIsContainer) {
+                $nestedRoot = $children[0].FullName
+                Get-ChildItem -LiteralPath $nestedRoot -Force | Move-Item -Destination $DestinationPath -Force
+                Remove-Item -LiteralPath $nestedRoot -Force -ErrorAction SilentlyContinue
+            }
         }
+    } finally {
+        $ProgressPreference = $previousProgressPreference
+        Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
+        Complete-LauncherProgress $progressId
     }
 }
 
@@ -251,20 +331,28 @@ function Wait-ForHealth {
         [ValidateRange(1, 600)][int]$TimeoutSeconds = 60
     )
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
-    do {
-        try {
-            $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 2
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
-                return
+    $activity = "ADSMOD: wait for health $Url"
+    $progressId = Start-LauncherProgress -Activity $activity -Status "Waiting up to $TimeoutSeconds seconds"
+    try {
+        do {
+            $elapsed = [int](([DateTime]::UtcNow - $deadline.AddSeconds(-$TimeoutSeconds)).TotalSeconds)
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status "Waiting for healthy response; ${elapsed}s elapsed"
+            try {
+                $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 2
+                if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+                    return
+                }
+            } catch {
+                if ([DateTime]::UtcNow -ge $deadline) {
+                    throw "No healthy response from $Url within $TimeoutSeconds seconds."
+                }
             }
-        } catch {
-            if ([DateTime]::UtcNow -ge $deadline) {
-                throw "No healthy response from $Url within $TimeoutSeconds seconds."
-            }
-        }
-        Start-Sleep -Seconds 1
-    } while ([DateTime]::UtcNow -lt $deadline)
-    throw "No healthy response from $Url within $TimeoutSeconds seconds."
+            Start-Sleep -Seconds 1
+        } while ([DateTime]::UtcNow -lt $deadline)
+        throw "No healthy response from $Url within $TimeoutSeconds seconds."
+    } finally {
+        Complete-LauncherProgress $progressId
+    }
 }
 
 function Import-Settings {
@@ -837,16 +925,26 @@ function Invoke-Git {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string[]]$Arguments)
 
-    Push-Location $RepoRoot
+    $display = "git $($Arguments -join ' ')"
+    $activity = "ADSMOD: $display"
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Running Git command'
+    Write-Step $display
     try {
-        & git @Arguments
-        $exitCode = $LASTEXITCODE
+        Push-Location $RepoRoot
+        try {
+            & git @Arguments
+            $exitCode = $LASTEXITCODE
+        }
+        finally {
+            Pop-Location
+        }
     } finally {
-        Pop-Location
+        Complete-LauncherProgress $progressId
     }
     if ($exitCode -ne 0) {
         throw "git $($Arguments -join ' ') failed with exit code $exitCode."
     }
+    Write-Ok "Completed $display"
 }
 
 function Get-GitText {
@@ -895,8 +993,7 @@ function Update-Application {
 
     $currentBranch = Get-GitText -Arguments @('branch', '--show-current')
     if ($currentBranch -ne 'main') {
-        Write-Step "Switching to main"
-        Invoke-Git -Arguments @('switch', 'main')
+        throw "Update requires the main branch to be checked out; current branch is '$currentBranch'. No files were changed."
     }
 
     Write-Step "Pulling the latest application version from main"
@@ -982,7 +1079,7 @@ function Show-MainMenu {
     Write-Host ""
     Write-Host "  UPDATES" -ForegroundColor DarkCyan
     Write-MenuItem -Number '6' -Label 'Check for Updates' -Hint 'Report whether origin/main has a newer version'
-    Write-MenuItem -Number '7' -Label 'Update' -Hint 'Switch to main and pull the latest application version'
+    Write-MenuItem -Number '7' -Label 'Update' -Hint 'Pull origin/main (clean main branch required)'
     Write-Host ""
     Write-Host "  DATA AND MAINTENANCE" -ForegroundColor DarkCyan
     Write-MenuItem -Number '8' -Label 'Remove Logs' -Hint 'Delete generated log files' -NumberColor Yellow
@@ -1009,23 +1106,25 @@ while (-not $exitMenu) {
     }
 
     try {
-        switch ($selection) {
-            '1' {
-                Start-Application
-                exit 0
+        Invoke-TrackedLauncherAction -Name "menu option $selection" -Action {
+            switch ($selection) {
+                '1' {
+                    Start-Application
+                    exit 0
+                }
+                '2' { Initialize-Database; Wait-ForMenu }
+                '3' { Install-UpdateDependencies; Wait-ForMenu }
+                '4' { Rebuild-Frontend; Wait-ForMenu }
+                '5' { Invoke-TestSuite; Wait-ForMenu }
+                '6' { Check-For-Updates; Wait-ForMenu }
+                '7' { Update-Application; Wait-ForMenu }
+                '8' { Remove-Logs; Wait-ForMenu }
+                '9' { Clear-Cache; Wait-ForMenu }
+                '10' { Remove-Checkpoints; Wait-ForMenu }
+                '11' { Remove-All-Data; Wait-ForMenu }
+                '12' { Uninstall-Application; Wait-ForMenu }
+                '13' { $exitMenu = $true }
             }
-            '2' { Initialize-Database; Wait-ForMenu }
-            '3' { Install-UpdateDependencies; Wait-ForMenu }
-            '4' { Rebuild-Frontend; Wait-ForMenu }
-            '5' { Invoke-TestSuite; Wait-ForMenu }
-            '6' { Check-For-Updates; Wait-ForMenu }
-            '7' { Update-Application; Wait-ForMenu }
-            '8' { Remove-Logs; Wait-ForMenu }
-            '9' { Clear-Cache; Wait-ForMenu }
-            '10' { Remove-Checkpoints; Wait-ForMenu }
-            '11' { Remove-All-Data; Wait-ForMenu }
-            '12' { Uninstall-Application; Wait-ForMenu }
-            '13' { $exitMenu = $true }
         }
     } catch {
         Write-Fatal $_.Exception.Message
@@ -1035,3 +1134,4 @@ while (-not $exitMenu) {
         Wait-ForMenu
     }
 }
+Clear-LauncherProgress

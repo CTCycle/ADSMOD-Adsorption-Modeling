@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Recommended startup
 
@@ -13,6 +13,13 @@ The launcher reads `app/resources/adsmod.json`, synchronizes the locked
 `/health/ready` before opening the browser. ML is started only when
 `runtime.mode` is `core-ml`; it receives the same config path and uses
 `runtime.ml_port`.
+
+## Source updates
+
+Choose **Update** in the launcher menu to update the repository from
+`origin/main`. The checkout must be non-detached, clean, and already on
+`main`; the launcher runs `git pull --ff-only origin main` and does not switch
+branches or modify local changes.
 
 ## Manual service startup
 
