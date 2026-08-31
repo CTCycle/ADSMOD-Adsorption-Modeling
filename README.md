@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml?query=branch%3Adevelop)
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Purpose
 
@@ -117,8 +117,12 @@ the configuration schema.
 - `app/tests/cache`: disposable test, coverage, frontend, and Python cache data.
 - `app/backend/openapi`: generated Core and ML OpenAPI snapshots.
 
-Use the launcher menu for database initialization, log removal, cache cleanup,
-checkpoint cleanup, frontend rebuilding, dependency updates, and uninstall.
+Use the launcher menu for source updates from `origin/main`, database
+initialization, log removal, cache cleanup, checkpoint cleanup, frontend
+rebuilding, dependency updates, and uninstall. The source update action
+requires a non-detached, clean checkout of `main` and runs
+`git pull --ff-only origin main`; it never switches branches or overwrites
+local changes.
 Database initialization is repeatable and refuses unknown unversioned schemas.
 
 Detailed guidance is in [`assets/docs/project_index.md`](assets/docs/project_index.md).
