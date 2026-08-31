@@ -38,6 +38,7 @@ jobs:
         run: |
           uv run --locked --project app/backend --all-packages python -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app"
           uv run --locked --project app/backend --all-packages ruff check --isolated app/backend app/tests app/scripts
+          mkdir -p app/tests/cache
           uv run --locked --project app/backend --all-packages python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -v --basetemp app/tests/cache/pytest-tmp-ci
           uv run --locked --project app/backend --all-packages python app/scripts/generate_openapi.py --service core --config app/resources/adsmod.json --output app/backend/openapi/core.json
           uv run --locked --project app/backend --all-packages python app/scripts/generate_openapi.py --service ml --config app/resources/adsmod.json --output app/backend/openapi/ml.json
