@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Recommended startup
 
@@ -13,6 +13,14 @@ The launcher reads `app/resources/adsmod.json`, synchronizes the locked
 `/health/ready` before opening the browser. ML is started only when
 `runtime.mode` is `core-ml`; it receives the same config path and uses
 `runtime.ml_port`.
+
+The interactive menu is generated from structured rows. Its order is
+`APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
+`DATA & MAINTENANCE`, and a final sequential `EXIT` option. The launcher
+computes the numeric-column width from the menu size, so one- and two-digit
+options remain aligned. Recursive cleanup inventories entries, removes them
+deepest-first, preserves required sentinels, and reports locked or inaccessible
+paths without masking the original action error.
 
 ## Source updates
 
