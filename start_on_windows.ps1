@@ -434,12 +434,12 @@ function Import-Settings {
     if (-not (Test-Path -LiteralPath $ConfigFile)) { throw "Missing canonical configuration: $ConfigFile" }
     $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
     if (-not $canonical.runtime -or -not $canonical.storage) { throw "Canonical configuration is missing runtime or storage settings: $ConfigFile" }
-    $host = [string]$canonical.runtime.host
-    if ([string]::IsNullOrWhiteSpace($host)) { throw "runtime.host must be configured." }
+    $runtimeHost = [string]$canonical.runtime.host
+    if ([string]::IsNullOrWhiteSpace($runtimeHost)) { throw "runtime.host must be configured." }
     $script:ResourcesDir = Resolve-CanonicalPath ([string]$canonical.storage.root)
     $script:LogDir = Join-Path $script:ResourcesDir "logs"
     $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
-    return [pscustomobject]@{ Host = $host; BackendPort = [int]$canonical.runtime.backend_port; FrontendPort = [int]$canonical.runtime.frontend_port }
+    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = [int]$canonical.runtime.backend_port; FrontendPort = [int]$canonical.runtime.frontend_port }
 }
 
 function Set-RuntimeEnvironment {
@@ -650,7 +650,7 @@ function Start-Application {
     $uiPort = $settings.FrontendPort
     Stop-ListenerOnPort -Port $backendPort
     Stop-ListenerOnPort -Port $uiPort
-    $backendArguments = @('-m', 'adsmod_core.cli', '--config', $ConfigFile)
+    $backendArguments = @('-m', 'adsmod_core.cli', '--config', ('"{0}"' -f $ConfigFile))
     Write-Step "Starting ADSMOD backend"
     $backendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
     $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
