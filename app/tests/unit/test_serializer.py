@@ -155,9 +155,13 @@ def test_save_training_metadata_normalizes_json_mappings(tmp_path: Path) -> None
     serializer.save_training_metadata(metadata, "small_dataset")
     manifest = json.loads((tmp_path / "artifacts" / "training-manifest.json").read_text(encoding="utf-8"))
     saved = manifest["small_dataset"]["metadata"]
+    assert "dataset_label" not in saved
     assert saved["smile_vocabulary"] == {"C": 1}
     assert saved["adsorbent_vocabulary"] == {"MOF-1": 0}
     assert saved["normalization_stats"] == {"pressure_mean": 1.0}
+    loaded = serializer.load_training_metadata("small_dataset")
+    assert loaded.dataset_hash == "a" * 64
+    assert loaded.smile_vocabulary == {"C": 1}
     assert len(access.captured) == 1
 
 
