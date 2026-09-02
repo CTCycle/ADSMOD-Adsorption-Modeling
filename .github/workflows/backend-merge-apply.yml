@@ -37,6 +37,8 @@ jobs:
         run: python .github/backend_merge_transform.py
       - name: Migrate validation contracts
         run: python .github/backend_merge_validation_migration.py
+      - name: Apply ML extension validation fixes
+        run: python .github/backend_merge_validation_patch2.py
       - name: Sync ML-enabled development environment
         run: uv sync --locked --project app/backend --extra ml --group dev
       - name: Generate unified OpenAPI snapshot
@@ -116,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
           patterns='runtime\.mode|core-ml|core_port|ml_port|ml_restart_attempts|adsmod_ml\.cli|adsmod_ml\.app|CoreSnapshotClient|/ml-health|ADSMOD_INTERNAL_TOKEN|internal_token_required|X-ADSMOD-Internal-Token|core_base_url|openapi/ml\.json'
-          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!.github/backend_merge_transform.py' ':!.github/backend_merge_validation_migration.py' ':!.github/workflows/backend-merge-apply.yml'; then
+          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!.github/backend_merge_transform.py' ':!.github/backend_merge_validation_migration.py' ':!.github/backend_merge_validation_patch2.py' ':!.github/workflows/backend-merge-apply.yml'; then
             echo 'Obsolete dual-backend references remain.' >&2
             exit 1
           fi
@@ -130,7 +132,7 @@ jobs:
         run: git diff --check
       - name: Commit implementation
         run: |
-          git rm .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/workflows/backend-merge-apply.yml
+          git rm .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/backend_merge_validation_patch2.py .github/workflows/backend-merge-apply.yml
           git add -A
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
