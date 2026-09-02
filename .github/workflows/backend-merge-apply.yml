@@ -46,7 +46,21 @@ jobs:
       - name: Compile Python sources
         run: uv run --project app/backend --extra ml --group dev python -m compileall -q app/backend/common/src app/backend/core/src app/backend/ml/src
       - name: Run backend tests
-        run: uv run --project app/backend --extra ml --group dev python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -k "not performance" -q --tb=short
+        shell: bash
+        run: |
+          set +e
+          log="$RUNNER_TEMP/backend-tests.log"
+          uv run --project app/backend --extra ml --group dev python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -k "not performance" -q --tb=short 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            tail -n 300 "$log" > .github/backend-merge-pytest-failure.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/backend-merge-pytest-failure.txt
+            git commit -m "chore: capture backend merge test failure"
+            git push origin HEAD:backend-merge
+          fi
+          exit "$status"
       - name: Run Ruff
         run: uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend app/tests app/scripts
       - name: Install frontend dependencies
