@@ -19,12 +19,107 @@ jobs:
         with:
           version: 0.11.30
           python-version: 3.14.2
+      - name: Repair bootstrap schema generation command
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('.github/backend_merge_transform.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'subprocess.run(["uv", "run", "--project", "app/backend", "--group", "dev", "python", "app/scripts/generate_config_schema.py"], check=True)'
+          new = 'subprocess.run(["uv", "run", "--project", "app/backend", "--group", "dev", "python", "app/scripts/generate_config_schema.py", "--output", "app/resources/adsmod.schema.json"], check=True)'
+          if old not in text:
+              raise SystemExit('expected schema generation command was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
       - name: Apply backend merge refactor
         run: python .github/backend_merge_transform.py
       - name: Sync ML-enabled development environment
         run: uv sync --locked --project app/backend --extra ml --group dev
       - name: Compile Python sources
         run: uv run --project app/backend --extra ml --group dev python -m compileall -q app/backend/common/src app/backend/core/src app/backend/ml/src
+      - name: Run backend tests without live E2E
+        run: uv run --project app/backend --extra ml --group dev python -m pytest app/tests --ignore app/tests/e2e -k "not performance" -q --tb=short
+      - name: Install frontend dependencies
+        working-directory: app/client
+        run: npm ci
+      - name: Run frontend unit tests
+        working-directory: app/client
+        run: npm run test:unit --if-present
+      - name: Run frontend lint
+        working-directory: app/client
+        run: npm run lint --if-present
+      - name: Build frontend
+        working-directory: app/client
+        run: npm run build
+      - name: Validate base installation and capability detection
+        shell: bash
+        run: |
+          BASE_ENV="$RUNNER_TEMP/adsmod-base"
+          UV_PROJECT_ENVIRONMENT="$BASE_ENV" uv sync --locked --project app/backend --no-dev
+          "$BASE_ENV/bin/python" - <<'PY'
+          import importlib.util
+          import json
+          import tempfile
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from adsmod_common.config import AdsmodConfig
+          from adsmod_core.app import create_app
+
+          assert importlib.util.find_spec('adsmod_ml') is None, 'base installation unexpectedly includes adsmod_ml'
+          payload = json.loads(Path('app/resources/adsmod.json').read_text(encoding='utf-8'))
+          with tempfile.TemporaryDirectory() as tmp:
+              payload['storage']['root'] = tmp
+              config = AdsmodConfig.model_validate(payload)
+              with TestClient(create_app(config)) as client:
+                  response = client.get('/api/v1/system/capabilities')
+                  response.raise_for_status()
+                  capabilities = response.json()
+                  assert capabilities['features']['machine_learning'] is False
+                  assert client.get('/health/ready').json()['state'] == 'ready'
+          PY
+      - name: Validate ML-enabled installation and unified routes
+        shell: bash
+        run: |
+          ML_ENV="$RUNNER_TEMP/adsmod-ml"
+          UV_PROJECT_ENVIRONMENT="$ML_ENV" uv sync --locked --project app/backend --extra ml --no-dev
+          "$ML_ENV/bin/python" - <<'PY'
+          import json
+          import tempfile
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from adsmod_common.config import AdsmodConfig
+          from adsmod_core.app import create_app
+
+          payload = json.loads(Path('app/resources/adsmod.json').read_text(encoding='utf-8'))
+          with tempfile.TemporaryDirectory() as tmp:
+              payload['storage']['root'] = tmp
+              config = AdsmodConfig.model_validate(payload)
+              with TestClient(create_app(config)) as client:
+                  response = client.get('/api/v1/system/capabilities')
+                  response.raise_for_status()
+                  capabilities = response.json()
+                  assert capabilities['features']['machine_learning'] is True, capabilities
+                  assert client.get('/api/v1/training/configuration').status_code == 200
+                  assert client.get('/health/ready').json()['state'] == 'ready'
+          PY
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'start_on_windows.ps1'), [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            exit 1
+          }
+      - name: Check obsolete dual-backend references
+        shell: bash
+        run: |
+          set -euo pipefail
+          patterns='runtime\.mode|core-ml|ml_port|ml_restart_attempts|adsmod_ml\.cli|CoreSnapshotClient|/ml-health|ADSMOD_INTERNAL_TOKEN|internal_token_required'
+          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!.github/backend_merge_transform.py' ':!.github/workflows/backend-merge-apply.yml'; then
+            echo 'Obsolete dual-backend references remain.' >&2
+            exit 1
+          fi
       - name: Review whitespace
         run: git diff --check
       - name: Commit implementation
