@@ -205,7 +205,7 @@ class TrainingDataSerializer:
             return
         label = self.normalize_dataset_label(dataset_label)
         row = metadata.iloc[0].to_dict()
-        row["dataset_label"] = label
+        row.pop(self.dataset_label_column, None)
         row["dataset_hash"] = self.require_dataset_hash(row.get("dataset_hash"))
         for key in ("smile_vocabulary", "adsorbent_vocabulary", "normalization_stats"):
             value = row.get(key)
