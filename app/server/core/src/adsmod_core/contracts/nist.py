@@ -21,6 +21,7 @@ class NISTFetchResponse(BaseModel):
     experiments_count: int
     single_component_rows: int
     binary_mixture_rows: int
+    skipped_experiment_count: int = 0
     guest_rows: int
     host_rows: int
 
@@ -89,6 +90,7 @@ class NISTCategoryOperationResponse(BaseModel):
     local_count: int | None = None
     requested_count: int | None = None
     fetched_count: int | None = None
+    skipped_count: int | None = None
     names_requested: int | None = None
     names_matched: int | None = None
     rows_updated: int | None = None

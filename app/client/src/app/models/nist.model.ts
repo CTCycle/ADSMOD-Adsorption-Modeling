@@ -9,6 +9,7 @@ export interface NISTFetchResponse {
     experiments_count: number;
     single_component_rows: number;
     binary_mixture_rows: number;
+    skipped_experiment_count?: number;
     guest_rows: number;
     host_rows: number;
     detail?: string;
@@ -79,6 +80,7 @@ export interface NISTCategoryOperationResponse {
     local_count?: number;
     requested_count?: number;
     fetched_count?: number;
+    skipped_count?: number;
     names_requested?: number;
     names_matched?: number;
     rows_updated?: number;

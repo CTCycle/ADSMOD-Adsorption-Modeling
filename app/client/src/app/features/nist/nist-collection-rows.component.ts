@@ -370,6 +370,9 @@ export class NistCollectionRowsComponent implements OnInit {
                 `- Requested records: ${result.requested_count ?? 0}`,
                 `- New records fetched: ${result.fetched_count ?? 0}`,
                 `- Local records: ${result.local_count ?? 0}`,
+                ...(result.skipped_count
+                    ? [`- Skipped records without canonical units: ${result.skipped_count}`]
+                    : []),
             ].join('\n'));
         });
     }
