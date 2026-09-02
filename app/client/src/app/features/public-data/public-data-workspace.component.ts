@@ -146,7 +146,9 @@ const VIEWS: readonly PublicDataView[] = [
                                 @if (detail.measurements.length > 1) {
                                     <svg viewBox="0 0 720 300" role="img" aria-label="Pressure versus uptake isotherm plot">
                                         <line x1="62" y1="24" x2="62" y2="250" class="plot-axis"/><line x1="62" y1="250" x2="700" y2="250" class="plot-axis"/>
-                                        <polyline [attr.points]="plotPoints()" class="plot-line" />
+                                        @for (series of plotSeries(); track series.adsorbate) {
+                                            <polyline [attr.points]="series.points" class="plot-line" />
+                                        }
                                         <text x="360" y="286" text-anchor="middle">Pressure (Pa)</text><text x="18" y="150" text-anchor="middle" transform="rotate(-90 18 150)">Uptake (mol/kg)</text>
                                     </svg>
                                 } @else { <p class="empty-inline">At least two measurements are required for a plot.</p> }
@@ -257,9 +259,9 @@ export class PublicDataWorkspaceComponent {
     protected structureQuery = '';
     protected structureLink = '';
 
-    protected readonly plotPoints = computed(() => {
+    protected readonly plotSeries = computed(() => {
         const measurements = this.adsorptionDetail()?.measurements ?? [];
-        if (measurements.length < 2) return '';
+        if (measurements.length < 2) return [];
         const pressures = measurements.map((item) => item.pressure_pa);
         const uptakes = measurements.map((item) => item.uptake_mol_kg);
         const minX = Math.min(...pressures);
@@ -268,13 +270,23 @@ export class PublicDataWorkspaceComponent {
         const maxY = Math.max(...uptakes);
         const spanX = Math.max(maxX - minX, Number.EPSILON);
         const spanY = Math.max(maxY - minY, Number.EPSILON);
-        return measurements
-            .map((item) => {
-                const x = 62 + ((item.pressure_pa - minX) / spanX) * 638;
-                const y = 250 - ((item.uptake_mol_kg - minY) / spanY) * 226;
-                return `${x.toFixed(1)},${y.toFixed(1)}`;
-            })
-            .join(' ');
+        const grouped = new Map<string, typeof measurements>();
+        for (const item of measurements) {
+            const series = grouped.get(item.adsorbate) ?? [];
+            series.push(item);
+            grouped.set(item.adsorbate, series);
+        }
+        return [...grouped.entries()].map(([adsorbate, series]) => ({
+            adsorbate,
+            points: series
+                .sort((left, right) => left.pressure_pa - right.pressure_pa)
+                .map((item) => {
+                    const x = 62 + ((item.pressure_pa - minX) / spanX) * 638;
+                    const y = 250 - ((item.uptake_mol_kg - minY) / spanY) * 226;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                })
+                .join(' '),
+        }));
     });
 
     constructor() {
