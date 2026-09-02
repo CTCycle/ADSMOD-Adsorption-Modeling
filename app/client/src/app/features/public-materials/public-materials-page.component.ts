@@ -16,14 +16,12 @@ import type { NISTCategoryKey } from '../../models/nist.model';
             <section class="console-card public-category-card">
                 <div class="card-title-row">
                     <div><p class="eyebrow">Guest species</p><h2>Adsorbates</h2><p>Gas or liquid species referenced by public adsorption records.</p></div>
-                    <span class="source-badge">NIST + PubChem</span>
                 </div>
                 <adsmod-nist-collection-rows [categories]="guestCategories" (statusUpdate)="appendStatus($event)" />
             </section>
             <section class="console-card public-category-card">
                 <div class="card-title-row">
                     <div><p class="eyebrow">Host materials</p><h2>Adsorbent Materials</h2><p>Public material identities and registry-linked properties.</p></div>
-                    <span class="source-badge">NIST + PubChem</span>
                 </div>
                 <adsmod-nist-collection-rows [categories]="hostCategories" (statusUpdate)="appendStatus($event)" />
             </section>

@@ -24,10 +24,10 @@ jobs:
           version: "0.11.30"
           python-version: "3.14.2"
       - name: Install base backend
-        run: uv sync --locked --project app/backend --no-dev
+        run: uv sync --locked --project app/server --no-dev
       - name: Validate base capability
         run: |
-          uv run --project app/backend --no-dev python - <<'PY'
+          uv run --project app/server --no-dev python - <<'PY'
           import importlib.util, json, tempfile
           from pathlib import Path
           from fastapi.testclient import TestClient
@@ -52,14 +52,14 @@ jobs:
           version: "0.11.30"
           python-version: "3.14.2"
       - name: Install ML-enabled development environment
-        run: uv sync --locked --project app/backend --extra ml --group dev
+        run: uv sync --locked --project app/server --extra ml --group dev
       - name: Validate backend
         run: |
-          uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend app/tests app/scripts
-          uv run --project app/backend --extra ml --group dev python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -q --tb=short
-          uv run --project app/backend --extra ml --group dev python app/scripts/generate_openapi.py --config app/resources/adsmod.json --output app/backend/openapi/backend.json
-          uv run --project app/backend --extra ml --group dev python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
-          git diff --exit-code -- app/backend/openapi/backend.json app/resources/adsmod.schema.json
+          uv run --project app/server --extra ml --group dev ruff check --isolated app/server app/tests app/scripts
+          uv run --project app/server --extra ml --group dev python -m pytest -c app/tests/pytest.ini app/server/common/tests app/server/core/tests app/server/ml/tests app/tests/backend app/tests/persistence app/tests/unit -q --tb=short
+          uv run --project app/server --extra ml --group dev python app/scripts/generate_openapi.py --config app/resources/adsmod.json --output app/server/openapi/backend.json
+          uv run --project app/server --extra ml --group dev python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
+          git diff --exit-code -- app/server/openapi/backend.json app/resources/adsmod.schema.json
 
   frontend:
     runs-on: ubuntu-latest

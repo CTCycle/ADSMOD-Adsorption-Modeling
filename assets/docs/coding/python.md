@@ -1,11 +1,11 @@
 # ADSMOD Python rules
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
 ## Runtime and typing
 
 - Target Python `>=3.14`.
-- Use `app/backend/.venv` and keep it aligned with `app/backend/uv.lock`.
+- Use `app/server/.venv` and keep it aligned with `app/server/uv.lock`.
 - Annotate public APIs and non-trivial logic with built-in generic types.
 - Use Pydantic contracts for request, response, and workflow validation.
 

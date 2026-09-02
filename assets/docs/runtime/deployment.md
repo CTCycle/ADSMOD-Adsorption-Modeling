@@ -9,7 +9,7 @@ The supported deployment is the Windows local web launcher:
 ```
 
 The launcher provisions portable Python, uv, and Node.js under `runtimes/`,
-synchronizes `app/backend` into `app/backend/.venv`, builds the Angular client,
+synchronizes `app/server` into `app/server/.venv`, builds the Angular client,
 starts one FastAPI backend, and serves the production frontend on the
 configured frontend port.
 

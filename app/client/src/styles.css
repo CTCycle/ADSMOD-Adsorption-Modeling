@@ -5095,19 +5095,6 @@ input.source-file-input {
   min-width: 0;
 }
 
-.source-badge {
-  flex: 0 0 auto;
-  padding: 5px 9px;
-  border: 1px solid #cbdcf4;
-  border-radius: 999px;
-  background: #f1f6ff;
-  color: #3768ad;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .public-source-card .reference-nist-table,
 .public-category-card .reference-nist-table {
   margin-top: 16px;
@@ -5146,9 +5133,6 @@ input.source-file-input {
     flex-direction: column;
   }
 
-  .source-badge {
-    align-self: flex-start;
-  }
 }
 
 /* Focused UI audit refinements. Keep these primitives token-driven and shared. */

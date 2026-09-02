@@ -1,6 +1,6 @@
 # ADSMOD operational commands
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
 ## Launch and maintenance
 
@@ -15,15 +15,15 @@ The launcher always reads `app/resources/adsmod.json`.
 ## Backend workspace
 
 ```powershell
-& .\runtimes\uv\uv.exe sync --locked --project .\app\backend --all-packages --group dev
+& .\runtimes\uv\uv.exe sync --locked --project .\app\server --all-packages --group dev
 ```
 
 Alembic commands run with the backend environment and package-local config:
 
 ```powershell
-& .\app\backend\.venv\Scripts\python.exe -m alembic --config .\app\backend\pyproject.toml current --check-heads
-& .\app\backend\.venv\Scripts\python.exe -m alembic --config .\app\backend\pyproject.toml check
-& .\app\backend\.venv\Scripts\python.exe -m alembic --config .\app\backend\pyproject.toml upgrade head
+& .\app\server\.venv\Scripts\python.exe -m alembic --config .\app\server\pyproject.toml current --check-heads
+& .\app\server\.venv\Scripts\python.exe -m alembic --config .\app\server\pyproject.toml check
+& .\app\server\.venv\Scripts\python.exe -m alembic --config .\app\server\pyproject.toml upgrade head
 ```
 
 ## Tests and schemas
@@ -33,10 +33,9 @@ app\tests\run_tests.bat
 ```
 
 ```powershell
-& .\app\backend\.venv\Scripts\python.exe -m pytest app\tests -v --basetemp app\tests\cache\pytest-tmp-local
-& .\app\backend\.venv\Scripts\python.exe app\scripts\generate_openapi.py --service core --config app\resources\adsmod.json --output app\backend\openapi\core.json
-& .\app\backend\.venv\Scripts\python.exe app\scripts\generate_openapi.py --service ml --config app\resources\adsmod.json --output app\backend\openapi\ml.json
-& .\app\backend\.venv\Scripts\python.exe app\scripts\generate_config_schema.py --output app\resources\adsmod.schema.json
+& .\app\server\.venv\Scripts\python.exe -m pytest -c app\tests\pytest.ini app\tests -v --basetemp app\tests\cache\pytest-tmp-local
+& .\app\server\.venv\Scripts\python.exe app\scripts\generate_openapi.py --config app\resources\adsmod.json --output app\server\openapi\backend.json
+& .\app\server\.venv\Scripts\python.exe app\scripts\generate_config_schema.py --output app\resources\adsmod.schema.json
 ```
 
 ## Frontend

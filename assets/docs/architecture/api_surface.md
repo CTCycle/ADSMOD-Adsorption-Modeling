@@ -21,7 +21,7 @@ The unified backend serves all versioned routes under `/api/v1`:
 The frontend uses its `features.machine_learning` value to expose or hide
 machine learning navigation and routes.
 
-The canonical OpenAPI snapshot is `app/backend/openapi/backend.json`.
+The canonical OpenAPI snapshot is `app/server/openapi/backend.json`.
 
 The Angular client sends all API requests to the same backend origin. There is
 no frontend routing split between core and machine learning services.

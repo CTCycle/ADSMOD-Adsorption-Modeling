@@ -1,17 +1,17 @@
 # Persistence and packages
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
 ## Backend workspace
 
-`app/backend/pyproject.toml` and `app/backend/uv.lock` define one workspace
+`app/server/pyproject.toml` and `app/server/uv.lock` define one workspace
 with the `adsmod-common`, `adsmod-core`, and `adsmod-ml` packages. The launcher
 and CI install from this workspace and use its lockfile.
 
 ## Core persistence
 
 Core owns the operational database and Alembic history under
-`app/backend/migrations`. Startup accepts only an empty unversioned SQLite
+`app/server/migrations`. Startup accepts only an empty unversioned SQLite
 file or a known Alembic state; it never infers or silently adopts an unknown
 schema. The current schema includes immutable `training_snapshots` and
 `training_snapshot_rows` tables.

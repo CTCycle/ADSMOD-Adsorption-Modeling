@@ -15,7 +15,6 @@ import type { NISTCategoryKey } from '../../models/nist.model';
                         <h2>NIST-A Collection</h2>
                         <p>Download public adsorption experiments into the local canonical workspace for analysis, fitting, and training.</p>
                     </div>
-                    <span class="source-badge">NIST ISODB</span>
                 </div>
                 <adsmod-nist-collection-rows [categories]="categories" (statusUpdate)="appendStatus($event)" />
             </section>

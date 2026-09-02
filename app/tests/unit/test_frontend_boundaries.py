@@ -6,9 +6,11 @@ from pathlib import Path
 def test_training_routes_are_capability_guarded() -> None:
     text = Path("app/client/src/app/app.routes.ts").read_text(encoding="utf-8")
     assert "machineLearningGuard" in text
+    assert "machineLearningEntryGuard" in text
     assert "path: 'training'" in text
     assert "path: 'training/:view'" in text
-    assert text.count("canActivate: [machineLearningGuard]") == 2
+    assert text.count("canActivate: [machineLearningEntryGuard]") == 1
+    assert text.count("canActivate: [machineLearningGuard]") == 1
 
 
 def test_frontend_uses_one_backend_proxy() -> None:
