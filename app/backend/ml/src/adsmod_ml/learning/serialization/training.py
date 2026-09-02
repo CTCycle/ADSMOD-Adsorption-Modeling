@@ -8,12 +8,12 @@ from typing import Any
 
 import pandas as pd
 
-from adsmod_ml.clients.core_client import CoreSnapshotClient
+from adsmod_common.training_data import TrainingDataAccess
 from adsmod_ml.contracts.training import TrainingMetadata
 
 
 class TrainingDataSerializer:
-    """ML-side manifest for Core-owned immutable training snapshots."""
+    """ML-side manifest for backend-owned immutable training snapshots."""
 
     dataset_label_column = "dataset_label"
     dataset_hash_column = "dataset_hash"
@@ -22,9 +22,9 @@ class TrainingDataSerializer:
     series_columns = ["pressure", "adsorbed_amount", "adsorbate_encoded_SMILE"]
 
     def __init__(
-        self, snapshot_client: CoreSnapshotClient, artifact_root: Path
+        self, snapshot_access: TrainingDataAccess, artifact_root: Path
     ) -> None:
-        self.snapshot_client = snapshot_client
+        self.snapshot_access = snapshot_access
         self.artifact_root = Path(artifact_root).resolve()
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.manifest_path = self.artifact_root / "training-manifest.json"
@@ -178,7 +178,7 @@ class TrainingDataSerializer:
             {str(key): self._jsonable(value) for key, value in record.items()}
             for record in normalized.to_dict(orient="records")
         ]
-        reference = self.snapshot_client.create_snapshot(
+        reference = self.snapshot_access.create_snapshot(
             rows,
             metadata={
                 "kind": "processed_training",
@@ -245,9 +245,9 @@ class TrainingDataSerializer:
         if not entry or not entry.get("snapshot_id"):
             empty = pd.DataFrame()
             return empty, empty, metadata
-        payload = self.snapshot_client.fetch_snapshot(str(entry["snapshot_id"]))
+        payload = self.snapshot_access.fetch_snapshot(str(entry["snapshot_id"]))
         if payload.content_hash != entry.get("snapshot_hash"):
-            raise RuntimeError("Core snapshot hash does not match the ML manifest.")
+            raise RuntimeError("Snapshot hash does not match the ML manifest.")
         data = self.coerce_sequence_columns(pd.DataFrame(list(payload.rows)))
         self._require_columns(
             data,

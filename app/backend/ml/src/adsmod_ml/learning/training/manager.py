@@ -6,7 +6,7 @@ from pathlib import Path
 
 from adsmod_common.config import AdsmodConfig
 from adsmod_common.paths import resolve_checkpoint_root, resolve_storage_root
-from adsmod_ml.clients.core_client import CoreSnapshotClient
+from adsmod_common.training_data import TrainingDataAccess
 from adsmod_ml.learning.callbacks import WorkerInterrupted
 from adsmod_ml.learning.device import DeviceConfig
 from adsmod_ml.learning.loader import (
@@ -48,12 +48,12 @@ class TrainingProcessRunner:
         self,
         worker: Any | None = None,
         *,
-        snapshot_client: CoreSnapshotClient,
+        snapshot_access: TrainingDataAccess,
         artifact_root: Path,
         checkpoints_dir: Path,
     ) -> None:
         self.worker = worker
-        self.data_serializer = TrainingDataSerializer(snapshot_client, artifact_root)
+        self.data_serializer = TrainingDataSerializer(snapshot_access, artifact_root)
         self.model_serializer = ModelSerializer(checkpoints_dir)
 
     # -------------------------------------------------------------------------
@@ -309,41 +309,30 @@ def run_training_process(
     checkpoint: str | None = None,
     additional_epochs: int = 0,
     worker: Any | None = None,
-    core_base_url: str = "",
-    internal_token: str = "",
+    config_payload: dict[str, Any] | None = None,
     artifact_root: str = "",
     checkpoints_dir: str = "",
 ) -> None:
     result_queue = getattr(worker, "result_queue", None)
     stop_event = getattr(worker, "stop_event", None)
-
+    snapshot_access = None
     try:
         if stop_event is not None and stop_event.is_set():
             put_worker_result(result_queue, {"result": {}})
             return
-
-        if not core_base_url or not artifact_root or not checkpoints_dir:
-            raise ValueError("ML process runtime paths and Core endpoint are required.")
-        runner = TrainingProcessRunner(
-            worker=worker,
-            snapshot_client=CoreSnapshotClient(core_base_url, internal_token),
-            artifact_root=Path(artifact_root),
-            checkpoints_dir=Path(checkpoints_dir),
-        )
+        if config_payload is None or not artifact_root or not checkpoints_dir:
+            raise ValueError("ML process runtime configuration and paths are required.")
+        from adsmod_core.services.training_data import open_training_data_service
+        runtime_config = AdsmodConfig.model_validate(config_payload)
+        snapshot_access = open_training_data_service(runtime_config)
+        runner = TrainingProcessRunner(worker=worker, snapshot_access=snapshot_access, artifact_root=Path(artifact_root), checkpoints_dir=Path(checkpoints_dir))
         if checkpoint:
-            runner.log(
-                f"Resuming training from checkpoint {checkpoint} "
-                f"for {additional_epochs} additional epochs."
-            )
+            runner.log(f"Resuming training from checkpoint {checkpoint} for {additional_epochs} additional epochs.")
             runner.resume_training(checkpoint, additional_epochs)
-            put_worker_result(
-                result_queue, {"result": {"success": True, "checkpoint": checkpoint}}
-            )
+            put_worker_result(result_queue, {"result": {"success": True, "checkpoint": checkpoint}})
             return
-
         if configuration is None:
             raise ValueError("Training configuration is required.")
-
         runner.log("Starting training session.")
         runner.start_training(configuration)
         put_worker_result(result_queue, {"result": {"success": True}})
@@ -351,6 +340,9 @@ def run_training_process(
         put_worker_result(result_queue, {"result": {}})
     except Exception as exc:  # noqa: BLE001
         put_worker_result(result_queue, {"error": str(exc)})
+    finally:
+        if snapshot_access is not None:
+            snapshot_access.close()
 
 
 ###############################################################################
@@ -360,17 +352,14 @@ class TrainingManager:
         self,
         config: AdsmodConfig,
         *,
-        snapshot_client: CoreSnapshotClient | None = None,
+        snapshot_access: TrainingDataAccess,
         artifact_root: Path | None = None,
         checkpoints_dir: Path | None = None,
     ) -> None:
-        client = snapshot_client or CoreSnapshotClient.from_config(config)
-        resolved_artifact_root = (
-            artifact_root or resolve_storage_root(config) / "training"
-        )
+        resolved_artifact_root = artifact_root or resolve_storage_root(config) / "training"
         resolved_checkpoints_dir = checkpoints_dir or resolve_checkpoint_root(config)
         self.state = TrainingState()
-        self.data_serializer = TrainingDataSerializer(client, resolved_artifact_root)
+        self.data_serializer = TrainingDataSerializer(snapshot_access, resolved_artifact_root)
         self.model_serializer = ModelSerializer(resolved_checkpoints_dir)
 
     # -------------------------------------------------------------------------

@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  base-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          python-version: "3.14.2"
+      - name: Install base backend
+        run: uv sync --locked --project app/backend --no-dev
+      - name: Validate base capability
+        run: |
+          uv run --project app/backend --no-dev python - <<'PY'
+          import importlib.util, json, tempfile
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from adsmod_common.config import AdsmodConfig
+          from adsmod_core.app import create_app
+          assert importlib.util.find_spec('adsmod_ml') is None
+          payload = json.loads(Path('app/resources/adsmod.json').read_text())
+          with tempfile.TemporaryDirectory() as tmp:
+              payload['storage']['root'] = tmp
+              with TestClient(create_app(AdsmodConfig.model_validate(payload))) as client:
+                  assert client.get('/api/v1/system/capabilities').json()['features']['machine_learning'] is False
+                  assert client.get('/health/ready').json()['state'] == 'ready'
+          PY
+
+  ml-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          python-version: "3.14.2"
+      - name: Install ML-enabled development environment
+        run: uv sync --locked --project app/backend --extra ml --group dev
+      - name: Validate backend
+        run: |
+          uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend app/tests app/scripts
+          uv run --project app/backend --extra ml --group dev python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -q --tb=short
+          uv run --project app/backend --extra ml --group dev python app/scripts/generate_openapi.py --config app/resources/adsmod.json --output app/backend/openapi/backend.json
+          uv run --project app/backend --extra ml --group dev python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
+          git diff --exit-code -- app/backend/openapi/backend.json app/resources/adsmod.schema.json
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+      - working-directory: app/client
+        run: npm ci --no-audit --no-fund
+      - working-directory: app/client
+        run: npm run lint
+      - working-directory: app/client
+        run: npm run test:unit --if-present
+      - working-directory: app/client
+        run: npm run build

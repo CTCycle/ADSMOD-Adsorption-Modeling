@@ -261,28 +261,14 @@
     "RuntimeConfig": {
       "additionalProperties": false,
       "properties": {
-        "mode": {
-          "enum": [
-            "core",
-            "core-ml"
-          ],
-          "title": "Mode",
-          "type": "string"
-        },
         "host": {
           "title": "Host",
           "type": "string"
         },
-        "core_port": {
+        "backend_port": {
           "maximum": 65535,
           "minimum": 1024,
-          "title": "Core Port",
-          "type": "integer"
-        },
-        "ml_port": {
-          "maximum": 65535,
-          "minimum": 1024,
-          "title": "Ml Port",
+          "title": "Backend Port",
           "type": "integer"
         },
         "frontend_port": {
@@ -290,43 +276,14 @@
           "minimum": 1024,
           "title": "Frontend Port",
           "type": "integer"
-        },
-        "ml_restart_attempts": {
-          "maximum": 1,
-          "minimum": 0,
-          "title": "Ml Restart Attempts",
-          "type": "integer"
         }
       },
       "required": [
-        "mode",
         "host",
-        "core_port",
-        "ml_port",
-        "frontend_port",
-        "ml_restart_attempts"
+        "backend_port",
+        "frontend_port"
       ],
       "title": "RuntimeConfig",
-      "type": "object"
-    },
-    "SecurityConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "internal_token_required": {
-          "title": "Internal Token Required",
-          "type": "boolean"
-        },
-        "internal_token_env": {
-          "default": "ADSMOD_INTERNAL_TOKEN",
-          "minLength": 1,
-          "title": "Internal Token Env",
-          "type": "string"
-        }
-      },
-      "required": [
-        "internal_token_required"
-      ],
-      "title": "SecurityConfig",
       "type": "object"
     },
     "StorageConfig": {
@@ -393,9 +350,6 @@
     "storage": {
       "$ref": "#/$defs/StorageConfig"
     },
-    "security": {
-      "$ref": "#/$defs/SecurityConfig"
-    },
     "application": {
       "$ref": "#/$defs/ApplicationConfig"
     }
@@ -404,7 +358,6 @@
     "version",
     "runtime",
     "storage",
-    "security",
     "application"
   ],
   "title": "ADSMOD v3 configuration",

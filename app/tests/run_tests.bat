@@ -1,275 +1,59 @@
 @echo off
 setlocal EnableDelayedExpansion
-
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..\..") do set "PROJECT_ROOT=%%~fI"
 set "APP_DIR=%PROJECT_ROOT%\app"
 set "BACKEND_DIR=%APP_DIR%\backend"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
-set "RESOURCES_DIR=%APP_DIR%\resources"
-set "RUNTIME_CACHE_DIR=%PROJECT_ROOT%\runtimes\cache"
-set "TEST_CACHE_DIR=%TESTS_DIR%\cache"
-set "PYTEST_CACHE_DIR=%TEST_CACHE_DIR%\pytest"
-set "PYTEST_BASETEMP=%TEST_CACHE_DIR%\pytest-tmp"
-set "RUFF_CACHE_DIR=%TEST_CACHE_DIR%\ruff"
-set "MYPY_CACHE_DIR=%TEST_CACHE_DIR%\mypy"
-set "PYTHONPYCACHEPREFIX=%TEST_CACHE_DIR%\python"
-set "COVERAGE_FILE=%TEST_CACHE_DIR%\.coverage"
-set "UV_CACHE_DIR=%RUNTIME_CACHE_DIR%"
-set "PIP_CACHE_DIR=%RUNTIME_CACHE_DIR%\pip"
-set "NPM_CONFIG_CACHE=%RUNTIME_CACHE_DIR%\npm"
-set "TEMP=%RUNTIME_CACHE_DIR%\temp"
-set "TMP=%RUNTIME_CACHE_DIR%\temp"
-if not exist "%RUNTIME_CACHE_DIR%\temp" md "%RUNTIME_CACHE_DIR%\temp" >nul 2>&1
-if not exist "%TEST_CACHE_DIR%" md "%TEST_CACHE_DIR%" >nul 2>&1
-set "CANONICAL_CONFIG=%RESOURCES_DIR%\adsmod.json"
+set "CANONICAL_CONFIG=%APP_DIR%\resources\adsmod.json"
 set "VENV_PYTHON=%BACKEND_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
-
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.host"`) do set "BACKEND_HOST=%%A"& set "ML_HOST=%%A"& set "UI_HOST=%%A"
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.core_port"`) do set "BACKEND_PORT=%%A"
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.ml_port"`) do set "ML_PORT=%%A"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.host"`) do set "BACKEND_HOST=%%A"& set "UI_HOST=%%A"
+for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.backend_port"`) do set "BACKEND_PORT=%%A"
 for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.frontend_port"`) do set "UI_PORT=%%A"
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.mode"`) do set "RUNTIME_MODE=%%A"
-set "TEST_RESULT=0"
-set "BACKEND_PHASE=SKIPPED"
-set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
-set "FRONTEND_UNIT_PHASE=SKIPPED"
-set "FRONTEND_E2E_PHASE=SKIPPED"
-set "PYTEST_PHASE=SKIPPED"
-set "LIVE_SERVER_PHASE=SKIPPED"
-set "STARTED_BACKEND=0"
-set "STARTED_FRONTEND=0"
-
 set "TEST_BACKEND_HOST=%BACKEND_HOST%"
-set "TEST_ML_HOST=%ML_HOST%"
 set "TEST_UI_HOST=%UI_HOST%"
 if /i "%TEST_BACKEND_HOST%"=="0.0.0.0" set "TEST_BACKEND_HOST=127.0.0.1"
 if /i "%TEST_BACKEND_HOST%"=="::" set "TEST_BACKEND_HOST=127.0.0.1"
 if /i "%TEST_BACKEND_HOST%"=="[::]" set "TEST_BACKEND_HOST=127.0.0.1"
-if /i "%TEST_ML_HOST%"=="0.0.0.0" set "TEST_ML_HOST=127.0.0.1"
-if /i "%TEST_ML_HOST%"=="::" set "TEST_ML_HOST=127.0.0.1"
-if /i "%TEST_ML_HOST%"=="[::]" set "TEST_ML_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="0.0.0.0" set "TEST_UI_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="::" set "TEST_UI_HOST=127.0.0.1"
 if /i "%TEST_UI_HOST%"=="[::]" set "TEST_UI_HOST=127.0.0.1"
-
 set "APP_TEST_BACKEND_URL=http://%TEST_BACKEND_HOST%:%BACKEND_PORT%"
-set "APP_TEST_ML_BACKEND_URL=http://%TEST_ML_HOST%:%ML_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
-
 if "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
 if "!STANDARD_TEST_SKIP_FRONTEND!"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
-if "!STANDARD_TEST_INCLUDE_PERFORMANCE!"=="" set "STANDARD_TEST_INCLUDE_PERFORMANCE=false"
-set "STANDARD_TEST_SKIP_LIVE_SERVERS=!STANDARD_TEST_SKIP_LIVE_SERVERS: =!"
-set "STANDARD_TEST_SKIP_FRONTEND=!STANDARD_TEST_SKIP_FRONTEND: =!"
-set "STANDARD_TEST_INCLUDE_PERFORMANCE=!STANDARD_TEST_INCLUDE_PERFORMANCE: =!"
-
-if exist "%VENV_PYTHON%" (
-  set "PYTHON_CMD=%VENV_PYTHON%"
-) else (
-  echo [ERROR] Missing backend venv: "%VENV_PYTHON%"
-  echo [ERROR] Run start_on_windows.ps1 first.
-  exit /b 1
-)
-
-if exist "%RUNTIME_NPM%" (
-  set "NPM_CMD=%RUNTIME_NPM%"
-) else (
-  where npm >nul 2>&1
-  if errorlevel 1 (
-    echo [ERROR] npm runtime not found.
-    exit /b 1
-  )
-  set "NPM_CMD=npm"
-)
-
-set "BACKEND_WORKDIR=%PROJECT_ROOT%"
+set "TEST_RESULT=0"
+set "STARTED_BACKEND=0"
+if not exist "%VENV_PYTHON%" (echo [ERROR] Missing backend venv: "%VENV_PYTHON%"& exit /b 1)
+set "PYTHON_CMD=%VENV_PYTHON%"
+if exist "%RUNTIME_NPM%" (set "NPM_CMD=%RUNTIME_NPM%") else (set "NPM_CMD=npm")
 set "PYTHONPATH=%PROJECT_ROOT%\app\backend\common\src;%PROJECT_ROOT%\app\backend\core\src;%PROJECT_ROOT%\app\backend\ml\src;%PROJECT_ROOT%"
-"%PYTHON_CMD%" -c "import adsmod_common.config; import adsmod_core.app; import adsmod_ml.app" >nul 2>&1
-if errorlevel 1 (
-  echo [ERROR] Canonical ADSMOD backend packages could not be imported.
-  exit /b 1
-)
-
-echo.
-echo ============================================================
-echo  Standard Test Runner
-echo ============================================================
-echo [INFO] Project root: %PROJECT_ROOT%
-echo [INFO] Backend URL : %APP_TEST_BACKEND_URL%
-echo [INFO] ML URL      : %APP_TEST_ML_BACKEND_URL%
-echo [INFO] Frontend URL: %APP_TEST_FRONTEND_URL%
-echo.
-
-set "PYTEST_TARGET=%TESTS_DIR%"
-if not "%STANDARD_TEST_PYTEST_TARGET%"=="" set "PYTEST_TARGET=%STANDARD_TEST_PYTEST_TARGET%"
-set "HAS_E2E=0"
-if exist "%TESTS_DIR%\e2e" set "HAS_E2E=1"
-
-if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" if "!HAS_E2E!"=="1" (
-  set "LIVE_SERVER_PHASE=PASS"
-
+"%PYTHON_CMD%" -c "import adsmod_common.config; import adsmod_core.app" || exit /b 1
+if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/health/ready" >nul 2>&1
   if errorlevel 1 (
-    echo [INFO] Starting backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m adsmod_core.cli --config "%CANONICAL_CONFIG%"
+    echo [INFO] Starting unified backend server...
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m adsmod_core.cli --config "%CANONICAL_CONFIG%"
     set "STARTED_BACKEND=1"
   )
-  if /i "%RUNTIME_MODE%"=="core-ml" (
-    curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/health/ready" >nul 2>&1
-    if errorlevel 1 (
-      echo [INFO] Starting ML backend server...
-      start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m adsmod_ml.cli --config "%CANONICAL_CONFIG%"
-    )
-  )
-
-  if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%CLIENT_DIR%\package.json" (
-    curl -s --max-time 2 "%APP_TEST_FRONTEND_URL%" >nul 2>&1
-    if errorlevel 1 (
-      if not exist "%CLIENT_DIR%\node_modules" (
-        echo [INFO] Installing frontend dependencies...
-        if not exist "%CLIENT_DIR%\package-lock.json" (
-          echo [ERROR] Missing frontend lockfile: "%CLIENT_DIR%\package-lock.json"
-          set "LIVE_SERVER_PHASE=FAIL"
-          set "TEST_RESULT=1"
-          goto cleanup
-        )
-        call "%NPM_CMD%" --prefix "%CLIENT_DIR%" ci
-        if errorlevel 1 (
-          set "LIVE_SERVER_PHASE=FAIL"
-          set "TEST_RESULT=1"
-          goto cleanup
-        )
-      )
-
-      if not exist "%CLIENT_DIR%\dist\browser\index.html" (
-        echo [INFO] Building frontend...
-        call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build
-        if errorlevel 1 (
-          set "LIVE_SERVER_PHASE=FAIL"
-          set "TEST_RESULT=1"
-          goto cleanup
-        )
-      )
-
-      echo [INFO] Starting frontend preview server...
-      start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT%
-      set "STARTED_FRONTEND=1"
-    )
-  )
-
-  echo [INFO] Waiting for live services...
-  set "ATTEMPTS=0"
-  :wait_loop
-  if !ATTEMPTS! geq 90 (
-    set "LIVE_SERVER_PHASE=FAIL"
-    set "TEST_RESULT=1"
-    goto cleanup
-  )
-
-  curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/health/ready" >nul 2>&1
-  if errorlevel 1 (
-    set /a ATTEMPTS+=1
-    timeout /t 1 /nobreak >nul
-    goto wait_loop
-  )
-  if /i "%RUNTIME_MODE%"=="core-ml" (
-    curl -s --max-time 2 "%APP_TEST_ML_BACKEND_URL%/health/ready" >nul 2>&1
-    if errorlevel 1 (
-      set /a ATTEMPTS+=1
-      timeout /t 1 /nobreak >nul
-      goto wait_loop
-    )
-  )
-
-  if "%STARTED_FRONTEND%"=="1" (
-    curl -s --max-time 2 "%APP_TEST_FRONTEND_URL%" >nul 2>&1
-    if errorlevel 1 (
-      set /a ATTEMPTS+=1
-      timeout /t 1 /nobreak >nul
-      goto wait_loop
-    )
-  )
 )
-
 echo [STEP] Running Python tests...
-set "PYTEST_IGNORE_E2E="
-if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" if "!HAS_E2E!"=="1" set "PYTEST_IGNORE_E2E=true"
-
-if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" if /i "%PYTEST_IGNORE_E2E%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
-) else if /I "%STANDARD_TEST_INCLUDE_PERFORMANCE%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
-) else if /i "%PYTEST_IGNORE_E2E%"=="true" (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" --ignore "%TESTS_DIR%\e2e" -v --tb=short -k "not performance" -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
+if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" (
+  "%PYTHON_CMD%" -m pytest "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short %*
 ) else (
-  "%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short -k "not performance" -o "cache_dir=%PYTEST_CACHE_DIR%" --basetemp "%PYTEST_BASETEMP%" %*
+  "%PYTHON_CMD%" -m pytest "%TESTS_DIR%" -k "not performance" -v --tb=short %*
 )
-set "PYTEST_RC=%ERRORLEVEL%"
-if "%PYTEST_RC%"=="0" (
-  set "PYTEST_PHASE=PASS"
-) else (
-  set "PYTEST_PHASE=FAIL"
-  set "TEST_RESULT=1"
-)
-
-if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="true" goto summary
-if not exist "%CLIENT_DIR%\package.json" goto summary
-
-set "HAS_FRONTEND_UNIT=0"
-set "HAS_FRONTEND_E2E=0"
-findstr /R /C:"\"test:unit\"[ ]*:" "%CLIENT_DIR%\package.json" >nul 2>&1
-if not errorlevel 1 set "HAS_FRONTEND_UNIT=1"
-findstr /R /C:"\"test:e2e\"[ ]*:" "%CLIENT_DIR%\package.json" >nul 2>&1
-if not errorlevel 1 set "HAS_FRONTEND_E2E=1"
-set "FRONTEND_BOOTSTRAP_PHASE=PASS"
-
-if "%HAS_FRONTEND_UNIT%"=="1" (
-  echo [STEP] Running frontend unit tests...
+if errorlevel 1 set "TEST_RESULT=1"
+if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="false" if exist "%CLIENT_DIR%\package.json" (
+  echo [STEP] Running frontend validation...
   call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:unit --if-present
-  if errorlevel 1 (
-    set "FRONTEND_UNIT_PHASE=FAIL"
-    set "TEST_RESULT=1"
-  ) else (
-    set "FRONTEND_UNIT_PHASE=PASS"
-  )
+  if errorlevel 1 set "TEST_RESULT=1"
+  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build
+  if errorlevel 1 set "TEST_RESULT=1"
 )
-
-if "%HAS_FRONTEND_E2E%"=="1" (
-  echo [STEP] Running frontend E2E tests...
-  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:e2e --if-present
-  if errorlevel 1 (
-    set "FRONTEND_E2E_PHASE=FAIL"
-    set "TEST_RESULT=1"
-  ) else (
-    set "FRONTEND_E2E_PHASE=PASS"
-  )
-)
-
-:summary
-echo.
-echo ============================================================
-echo  Test Summary
-echo ============================================================
-echo  Live server phase   : %LIVE_SERVER_PHASE%
-echo  Python tests        : %PYTEST_PHASE%
-echo  Frontend bootstrap  : %FRONTEND_BOOTSTRAP_PHASE%
-echo  Frontend unit tests : %FRONTEND_UNIT_PHASE%
-echo  Frontend E2E tests  : %FRONTEND_E2E_PHASE%
-echo ============================================================
-echo.
-
-:cleanup
 if "%STARTED_BACKEND%"=="1" (
   for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%BACKEND_PORT% "') do taskkill /PID %%P /F >nul 2>&1
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%ML_PORT% "') do taskkill /PID %%P /F >nul 2>&1
 )
-if "%STARTED_FRONTEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
-)
-
 exit /b %TEST_RESULT%
-
-

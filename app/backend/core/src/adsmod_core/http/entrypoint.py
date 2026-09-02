@@ -11,14 +11,14 @@ health_router = APIRouter()
 
 @health_router.get("/health/live", response_model=HealthResponse, tags=["health"])
 def liveness() -> HealthResponse:
-    return HealthResponse(service="core", version=__version__, state="ready")
+    return HealthResponse(service="backend", version=__version__, state="ready")
 
 
 @health_router.get("/health/ready", response_model=HealthResponse, tags=["health"])
 def readiness(request: Request) -> HealthResponse:
     ready = bool(getattr(request.app.state, "ready", False))
     return HealthResponse(
-        service="core",
+        service="backend",
         version=__version__,
         state="ready" if ready else "not-ready",
         details={} if ready else {"reason": "database initialization is pending"},

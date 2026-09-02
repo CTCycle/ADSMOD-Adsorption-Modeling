@@ -431,32 +431,15 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
-    if (-not (Test-Path -LiteralPath $ConfigFile)) {
-        throw "Missing canonical configuration: $ConfigFile"
-    }
+    if (-not (Test-Path -LiteralPath $ConfigFile)) { throw "Missing canonical configuration: $ConfigFile" }
     $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
-    if (-not $canonical.runtime -or -not $canonical.storage) {
-        throw "Canonical configuration is missing runtime or storage settings: $ConfigFile"
-    }
-    $mode = [string]$canonical.runtime.mode
-    if ($mode -notin @('core', 'core-ml')) {
-        throw "runtime.mode must be core or core-ml."
-    }
+    if (-not $canonical.runtime -or -not $canonical.storage) { throw "Canonical configuration is missing runtime or storage settings: $ConfigFile" }
     $host = [string]$canonical.runtime.host
-    if ([string]::IsNullOrWhiteSpace($host)) {
-        throw "runtime.host must be configured."
-    }
+    if ([string]::IsNullOrWhiteSpace($host)) { throw "runtime.host must be configured." }
     $script:ResourcesDir = Resolve-CanonicalPath ([string]$canonical.storage.root)
     $script:LogDir = Join-Path $script:ResourcesDir "logs"
     $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
-    return [pscustomobject]@{
-        Mode = $mode
-        Host = $host
-        CorePort = [int]$canonical.runtime.core_port
-        MlPort = [int]$canonical.runtime.ml_port
-        FrontendPort = [int]$canonical.runtime.frontend_port
-        MlRestartAttempts = [int]$canonical.runtime.ml_restart_attempts
-    }
+    return [pscustomobject]@{ Host = $host; BackendPort = [int]$canonical.runtime.backend_port; FrontendPort = [int]$canonical.runtime.frontend_port }
 }
 
 function Set-RuntimeEnvironment {
@@ -578,41 +561,22 @@ function Sync-FrontendDependencies {
 }
 
 function Sync-Dependencies {
-    param(
-        [switch]$BuildFrontend,
-        [switch]$RuntimesReady,
-        [ValidateSet('Standard', 'Development')]
-        [string]$InstallationType = 'Standard'
-    )
-
-    $settings = Import-Settings
-    if (-not $RuntimesReady) {
-        Initialize-Runtimes
-    }
+    param([switch]$BuildFrontend, [switch]$RuntimesReady, [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard', [ValidateSet('Base', 'ML')][string]$FeatureSet = 'Base')
+    Import-Settings | Out-Null
+    if (-not $RuntimesReady) { Initialize-Runtimes }
     Set-RuntimeEnvironment
-
-    Write-Step "Syncing Python dependencies"
+    Write-Step "Syncing Python dependencies ($FeatureSet)"
     Push-Location $BackendDir
     try {
-        $arguments = @('sync', '--locked', '--all-packages', '--python', $PythonExe)
-        if ($InstallationType -eq 'Development') {
-            $arguments += '--group', 'dev'
-        }
-        else {
-            $arguments += '--no-dev'
-        }
+        $arguments = @('sync', '--locked', '--python', $PythonExe)
+        if ($FeatureSet -eq 'ML') { $arguments += '--extra', 'ml' }
+        if ($InstallationType -eq 'Development') { $arguments += '--group', 'dev' } else { $arguments += '--no-dev' }
         & $UvExe @arguments
         Assert-LastExitCode "uv sync"
-    } finally {
-        Pop-Location
-    }
-    if (-not (Test-Path -LiteralPath $VenvPython)) {
-        throw "Backend virtual-environment Python was not created at $VenvPython."
-    }
+    } finally { Pop-Location }
+    if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Backend virtual-environment Python was not created at $VenvPython." }
     Write-Ok "Python dependencies are ready."
-
-    Sync-FrontendDependencies `
-        -BuildFrontend:$BuildFrontend
+    Sync-FrontendDependencies -BuildFrontend:$BuildFrontend
 }
 
 function Test-DependenciesReady {
@@ -680,95 +644,28 @@ function Get-ListenerPid([int]$Port) {
 function Start-Application {
     $settings = Import-Settings
     Set-RuntimeEnvironment
-    if (-not (Test-DependenciesReady)) {
-        Write-Step "Required application environments or frontend build output are missing or unusable; repairing dependencies and frontend build."
-        Sync-Dependencies -BuildFrontend
-    } else {
-        Write-Ok "Application environments are ready; skipped dependency installation."
-    }
+    if (-not (Test-DependenciesReady)) { Write-Step "Required application environments or frontend build output are missing or unusable; repairing the base installation."; Sync-Dependencies -BuildFrontend -FeatureSet Base } else { Write-Ok "Application environments are ready; skipped dependency installation." }
     Set-RuntimeEnvironment
-
-    $backendPort = $settings.CorePort
+    $backendPort = $settings.BackendPort
     $uiPort = $settings.FrontendPort
     Stop-ListenerOnPort -Port $backendPort
     Stop-ListenerOnPort -Port $uiPort
-    if ($settings.Mode -eq 'core-ml') {
-        Stop-ListenerOnPort -Port $settings.MlPort
-    }
-
-    $backendArguments = @(
-        '-m', 'adsmod_core.cli',
-        '--config', $ConfigFile
-    )
-    Write-Step "Starting Core service"
-    $backendProcess = Start-Process -FilePath $VenvPython `
-        -ArgumentList $backendArguments `
-        -WorkingDirectory $RepoRoot `
-        -WindowStyle Hidden `
-        -PassThru
-
-    $healthUrl = "http://$($settings.Host):$($settings.CorePort)/health/ready"
-    Write-Step "Waiting for Core readiness at $healthUrl"
-    $mlProcess = $null
-    try {
-        Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60
-    } catch {
-        if ($backendProcess -and -not $backendProcess.HasExited) {
-            Stop-Process -Id $backendProcess.Id -Force
-        }
-        throw
-    }
+    $backendArguments = @('-m', 'adsmod_core.cli', '--config', $ConfigFile)
+    Write-Step "Starting ADSMOD backend"
+    $backendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
+    $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
+    Write-Step "Waiting for backend readiness at $healthUrl"
+    try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 } catch { if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }; throw }
     $backendPid = Get-ListenerPid -Port $backendPort
-
-    $mlHealthUrl = $null
-    if ($settings.Mode -eq 'core-ml') {
-        $mlArguments = @(
-            '-m', 'adsmod_ml.cli',
-            '--config', $ConfigFile
-        )
-        Write-Step "Starting ML service"
-        $mlProcess = Start-Process -FilePath $VenvPython `
-            -ArgumentList $mlArguments `
-            -WorkingDirectory $RepoRoot `
-            -WindowStyle Hidden `
-            -PassThru
-        $mlHealthUrl = "http://$($settings.Host):$($settings.MlPort)/health/ready"
-        Write-Step "Waiting for ML readiness at $mlHealthUrl"
-        try {
-            Wait-ForHealth -Url $mlHealthUrl -TimeoutSeconds 60
-        } catch {
-            if ($mlProcess -and -not $mlProcess.HasExited) { Stop-Process -Id $mlProcess.Id -Force }
-            if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }
-            throw
-        }
-    }
-
     Write-Step "Starting frontend preview"
-    $frontendProcess = Start-Process -FilePath $NpmCmd `
-        -ArgumentList @('run', 'preview', '--', '--host', $settings.Host, '--port', $settings.FrontendPort) `
-        -WorkingDirectory $ClientDir `
-        -WindowStyle Hidden `
-        -PassThru
-
+    $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @('run', 'preview', '--', '--host', $settings.Host, '--port', $settings.FrontendPort) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
     $frontendUrl = "http://$($settings.Host):$($settings.FrontendPort)"
-    try {
-        Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60
-    } catch {
-        if (-not $frontendProcess.HasExited) { Stop-Process -Id $frontendProcess.Id -Force }
-        if ($mlProcess -and -not $mlProcess.HasExited) { Stop-Process -Id $mlProcess.Id -Force }
-        if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }
-        throw
-    }
+    try { Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 } catch { if (-not $frontendProcess.HasExited) { Stop-Process -Id $frontendProcess.Id -Force }; if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }; throw }
     $frontendPid = Get-ListenerPid -Port $uiPort
-
     Start-Process $frontendUrl
     Write-Host ""
     Write-Ok "ADSMOD started successfully."
     Write-Host "Backend: $healthUrl (PID $backendPid)" -ForegroundColor Green
-    if ($mlHealthUrl) {
-        $mlPid = Get-ListenerPid -Port $settings.MlPort
-        Write-Host "ML: $mlHealthUrl (PID $mlPid)" -ForegroundColor Green
-    }
     Write-Host "Frontend: $frontendUrl (PID $frontendPid)" -ForegroundColor Green
 }
 
@@ -776,7 +673,8 @@ function Install-UpdateDependencies {
     Initialize-Runtimes
     Write-Ok "Portable runtimes ready."
     $installationType = Read-InstallationType
-    Sync-Dependencies -BuildFrontend -RuntimesReady -InstallationType $installationType
+    $featureSet = Read-FeatureSet
+    Sync-Dependencies -BuildFrontend -RuntimesReady -InstallationType $installationType -FeatureSet $featureSet
     Remove-UvCache
     Write-Ok "Dependencies installed and frontend built successfully."
 }
@@ -797,6 +695,13 @@ function Read-InstallationType {
         '2' { return 'Standard' }
         default { throw "Invalid installation profile. Enter 1 for Development or 2 for Standard." }
     }
+}
+
+function Read-FeatureSet {
+    Write-Host "  [1] Base - core ADSMOD functionality only"
+    Write-Host "  [2] ML   - base application plus optional machine learning dependencies"
+    $selection = (Read-Host "  Select feature set [1-2]").Trim()
+    switch ($selection) { '1' { return 'Base' }; '2' { return 'ML' }; default { throw "Invalid feature set. Enter 1 for Base or 2 for ML." } }
 }
 
 function Initialize-Database {

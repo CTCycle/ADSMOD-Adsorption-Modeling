@@ -4,11 +4,11 @@ from typing import Any
 
 import pandas as pd
 
-from adsmod_ml.clients.core_client import CoreSnapshotClient
+from adsmod_common.training_data import TrainingDataAccess
 
 
 class DatasetCompositionService:
-    """Resolve training sources through Core's immutable snapshot API."""
+    """Resolve training sources through the backend's immutable snapshot service."""
 
     required_columns = (
         "filename",
@@ -21,11 +21,11 @@ class DatasetCompositionService:
         "adsorption_units",
     )
 
-    def __init__(self, snapshot_client: CoreSnapshotClient) -> None:
-        self.snapshot_client = snapshot_client
+    def __init__(self, snapshot_access: TrainingDataAccess) -> None:
+        self.snapshot_access = snapshot_access
 
     def list_sources(self) -> list[dict[str, Any]]:
-        sources = self.snapshot_client.list_sources()
+        sources = self.snapshot_access.list_sources()
         return sorted(
             sources,
             key=lambda item: (
@@ -40,11 +40,11 @@ class DatasetCompositionService:
     ) -> tuple[pd.DataFrame, None, None, str]:
         if not selections:
             raise ValueError("No datasets were selected for processing.")
-        reference = self.snapshot_client.create_snapshot_from_selections(
+        reference = self.snapshot_access.create_snapshot_from_selections(
             selections,
             metadata={"purpose": "ml_training_source"},
         )
-        snapshot = self.snapshot_client.fetch_snapshot(reference.snapshot_id)
+        snapshot = self.snapshot_access.fetch_snapshot(reference.snapshot_id)
         frame = pd.DataFrame(list(snapshot.rows))
         self._require_columns(frame)
         frame = self._normalize_frame(frame)
@@ -60,7 +60,7 @@ class DatasetCompositionService:
         ]
         if missing:
             raise ValueError(
-                "Core snapshot is missing required training columns: "
+                "Snapshot is missing required training columns: "
                 + ", ".join(missing)
             )
 

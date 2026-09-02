@@ -1,9 +1,7 @@
-"""Canonical ADSMOD machine-learning service."""
+"""Optional ADSMOD machine-learning extension."""
 
 from .bootstrap import configure_environment
 
 configure_environment()
 
-from .app import create_app  # noqa: E402
-
-__all__ = ["create_app"]
+__all__: list[str] = []
