@@ -173,9 +173,11 @@ jobs:
           test ! -e app/backend/openapi/core.json
       - name: Review whitespace
         run: git diff --check
-      - name: Commit implementation
+      - name: Commit implementation without workflow-file changes
         run: |
-          git rm -f .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/backend_merge_validation_patch2.py .github/workflows/backend-merge-apply.yml
+          cp .github/workflows/ci.yml .github/backend-merge-final-ci.yml
+          git checkout HEAD -- .github/workflows
+          git rm -f .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/backend_merge_validation_patch2.py
           rm -f .github/backend-merge-pytest-failure.txt
           git add -A
           git config user.name "github-actions[bot]"
