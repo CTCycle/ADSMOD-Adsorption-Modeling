@@ -25,6 +25,12 @@
       "parallel_tasks": 40,
       "pubchem_parallel_tasks": 1
     },
+    "public_data": {
+      "request_timeout_seconds": 20.0,
+      "retry_attempts": 3,
+      "pubchem_parallel_requests": 2,
+      "cod_max_interactive_results": 250
+    },
     "fitting": {
       "default_max_iterations": 1000,
       "max_iterations_upper_bound": 1000000000,
