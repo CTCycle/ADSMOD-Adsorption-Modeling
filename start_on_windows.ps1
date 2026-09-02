@@ -662,7 +662,7 @@ function Start-Application {
     $frontendUrl = "http://$($settings.Host):$($settings.FrontendPort)"
     try { Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 } catch { if (-not $frontendProcess.HasExited) { Stop-Process -Id $frontendProcess.Id -Force }; if ($backendProcess -and -not $backendProcess.HasExited) { Stop-Process -Id $backendProcess.Id -Force }; throw }
     $frontendPid = Get-ListenerPid -Port $uiPort
-    Start-Process $frontendUrl
+    Start-Process -FilePath 'explorer.exe' -ArgumentList $frontendUrl
     Write-Host ""
     Write-Ok "ADSMOD started successfully."
     Write-Host "Backend: $healthUrl (PID $backendPid)" -ForegroundColor Green
