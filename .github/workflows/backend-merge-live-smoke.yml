@@ -43,12 +43,12 @@ jobs:
           PY
           BACKEND_LOG="$RUNNER_TEMP/base-backend.log"
           FRONTEND_LOG="$RUNNER_TEMP/base-frontend.log"
-          app/backend/.venv/bin/python -m adsmod_core.cli --config "$RUNNER_TEMP/adsmod-live-base.json" >"$BACKEND_LOG" 2>&1 &
+          setsid app/backend/.venv/bin/python -m adsmod_core.cli --config "$RUNNER_TEMP/adsmod-live-base.json" >"$BACKEND_LOG" 2>&1 &
           BACKEND_PID=$!
-          (cd app/client && npm run preview -- --host 127.0.0.1 --port 4173) >"$FRONTEND_LOG" 2>&1 &
+          setsid bash -c 'cd app/client && exec npm run preview -- --host 127.0.0.1 --port 4173' >"$FRONTEND_LOG" 2>&1 &
           FRONTEND_PID=$!
           cleanup() {
-            kill "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
+            kill -- -"$FRONTEND_PID" -"$BACKEND_PID" 2>/dev/null || true
             wait "$FRONTEND_PID" 2>/dev/null || true
             wait "$BACKEND_PID" 2>/dev/null || true
           }
@@ -81,15 +81,14 @@ jobs:
           page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
           page.on('pageerror', error => errors.push(error.message));
           await page.goto('http://127.0.0.1:4173/datasets', {waitUntil: 'networkidle'});
-          await page.getByRole('heading', {name: 'Custom Datasets'}).waitFor();
-          await page.getByText('Backend').waitFor();
+          await page.getByRole('heading', {name: 'Custom Datasets', level: 1}).waitFor();
           await page.getByText('Online', {exact: true}).waitFor();
           if (await page.getByRole('link', {name: 'Training'}).count()) throw new Error('Training navigation is visible in base runtime');
           await page.goto('http://127.0.0.1:4173/training', {waitUntil: 'networkidle'});
           await page.waitForURL('**/datasets');
-          await page.getByRole('heading', {name: 'Custom Datasets'}).waitFor();
+          await page.getByRole('heading', {name: 'Custom Datasets', level: 1}).waitFor();
           await page.getByRole('link', {name: 'Fitting'}).click();
-          await page.getByRole('heading', {name: 'Fitting'}).waitFor();
+          await page.getByRole('heading', {name: 'Fitting', level: 1}).waitFor();
           if (errors.length) throw new Error(`Browser runtime errors: ${errors.join(' | ')}`);
           await browser.close();
           NODE
@@ -103,6 +102,10 @@ jobs:
           fi
           if curl -fsS --max-time 2 http://127.0.0.1:6045/health/ready >/dev/null 2>&1; then
             echo 'Backend still responds after shutdown.' >&2
+            exit 1
+          fi
+          if curl -fsS --max-time 2 http://127.0.0.1:4173/ >/dev/null 2>&1; then
+            echo 'Frontend still responds after shutdown.' >&2
             exit 1
           fi
 
@@ -140,12 +143,12 @@ jobs:
           PY
           BACKEND_LOG="$RUNNER_TEMP/ml-backend.log"
           FRONTEND_LOG="$RUNNER_TEMP/ml-frontend.log"
-          app/backend/.venv/bin/python -m adsmod_core.cli --config "$RUNNER_TEMP/adsmod-live-ml.json" >"$BACKEND_LOG" 2>&1 &
+          setsid app/backend/.venv/bin/python -m adsmod_core.cli --config "$RUNNER_TEMP/adsmod-live-ml.json" >"$BACKEND_LOG" 2>&1 &
           BACKEND_PID=$!
-          (cd app/client && npm run preview -- --host 127.0.0.1 --port 4173) >"$FRONTEND_LOG" 2>&1 &
+          setsid bash -c 'cd app/client && exec npm run preview -- --host 127.0.0.1 --port 4173' >"$FRONTEND_LOG" 2>&1 &
           FRONTEND_PID=$!
           cleanup() {
-            kill "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
+            kill -- -"$FRONTEND_PID" -"$BACKEND_PID" 2>/dev/null || true
             wait "$FRONTEND_PID" 2>/dev/null || true
             wait "$BACKEND_PID" 2>/dev/null || true
           }
@@ -177,13 +180,13 @@ jobs:
           page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
           page.on('pageerror', error => errors.push(error.message));
           await page.goto('http://127.0.0.1:4173/datasets', {waitUntil: 'networkidle'});
-          await page.getByRole('heading', {name: 'Custom Datasets'}).waitFor();
+          await page.getByRole('heading', {name: 'Custom Datasets', level: 1}).waitFor();
           await page.getByText('Online', {exact: true}).waitFor();
           const trainingLink = page.getByRole('link', {name: 'Training'});
           await trainingLink.waitFor();
           await trainingLink.click();
           await page.waitForURL('**/training/processing');
-          await page.getByRole('heading', {name: 'Training'}).waitFor();
+          await page.getByRole('heading', {name: 'Training', level: 1}).waitFor();
           if (errors.length) throw new Error(`Browser runtime errors: ${errors.join(' | ')}`);
           await browser.close();
           NODE
@@ -197,5 +200,9 @@ jobs:
           fi
           if curl -fsS --max-time 2 http://127.0.0.1:6045/health/ready >/dev/null 2>&1; then
             echo 'Backend still responds after shutdown.' >&2
+            exit 1
+          fi
+          if curl -fsS --max-time 2 http://127.0.0.1:4173/ >/dev/null 2>&1; then
+            echo 'Frontend still responds after shutdown.' >&2
             exit 1
           fi
