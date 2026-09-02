@@ -45,11 +45,9 @@ class SCADSModel:
         self.embedding_dims = configuration.get("molecular_embedding_size", 64)
         self.num_heads = configuration.get("num_attention_heads", 2)
         self.num_encoders = configuration.get("num_encoders", 2)
-        self.num_encoders = configuration.get("num_encoders", 2)
         self.jit_compile = configuration.get("use_jit", False) or configuration.get(
             "jit_compile", False
         )
-        self.jit_backend = configuration.get("jit_backend", "inductor")
         self.jit_backend = configuration.get("jit_backend", "inductor")
         self.configuration = configuration
 
@@ -167,11 +165,9 @@ class SCADSAtomicModel:
         )
         self.dropout_rate = configuration.get("dropout_rate", 0.2)
         self.embedding_dims = configuration.get("molecular_embedding_size", 64)
-        self.embedding_dims = configuration.get("molecular_embedding_size", 64)
         self.jit_compile = configuration.get("use_jit", False) or configuration.get(
             "jit_compile", False
         )
-        self.jit_backend = configuration.get("jit_backend", "inductor")
         self.jit_backend = configuration.get("jit_backend", "inductor")
         self.configuration = configuration
 
@@ -241,36 +237,16 @@ class SCADSAtomicModel:
 
     # -------------------------------------------------------------------------
     def get_model(self, model_summary: bool = True) -> Model:
-        adsorbent_index = layers.Lambda(
-            lambda x: keras.ops.cast(x[:, 2], "int32"),
-            output_shape=(),
-            name="adsorbent_index",
-        )(self.features_input)
-        chemometric_feature = layers.Lambda(
-            lambda x: x[:, 1],
-            output_shape=(),
-            name="chemometric_feature",
-        )(self.features_input)
+        adsorbent_index = keras.ops.cast(self.features_input[:, 2], "int32")
+        chemometric_feature = self.features_input[:, 1]
         molecular_embeddings = self.molecular_embeddings(
             self.adsorbates_input, adsorbent_index, chemometric_feature
         )
         context_vector = self.context_pooling(molecular_embeddings)
 
-        temperature_feature = layers.Lambda(
-            lambda x: keras.ops.expand_dims(x[:, 0], axis=-1),
-            output_shape=(1,),
-            name="temperature_feature",
-        )(self.features_input)
-        molecular_weight_feature = layers.Lambda(
-            lambda x: keras.ops.expand_dims(x[:, 1], axis=-1),
-            output_shape=(1,),
-            name="molecular_weight_feature",
-        )(self.features_input)
-        pressure_feature = layers.Lambda(
-            lambda x: keras.ops.expand_dims(x[:, 3], axis=-1),
-            output_shape=(1,),
-            name="pressure_feature",
-        )(self.features_input)
+        temperature_feature = keras.ops.expand_dims(self.features_input[:, 0], axis=-1)
+        molecular_weight_feature = keras.ops.expand_dims(self.features_input[:, 1], axis=-1)
+        pressure_feature = keras.ops.expand_dims(self.features_input[:, 3], axis=-1)
         numeric_features = layers.concatenate(
             [temperature_feature, molecular_weight_feature, pressure_feature],
             name="numeric_features",

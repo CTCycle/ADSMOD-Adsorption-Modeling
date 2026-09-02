@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = $PSScriptRoot
 $AppDir = Join-Path $RepoRoot "app"
-$BackendDir = Join-Path $AppDir "backend"
+$BackendDir = Join-Path $AppDir "server"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
 $DefaultResourcesDir = Join-Path $AppDir "resources"

@@ -9,7 +9,7 @@ Last updated: 2026-09-02
 ```
 
 The launcher reads `app/resources/adsmod.json`, synchronizes the locked
-`app/backend` workspace according to the selected dependency profile, builds
+`app/server` workspace according to the selected dependency profile, builds
 the client, starts one FastAPI backend, and waits for `/health/ready` before
 opening the browser. Optional machine learning support is loaded inside that
 backend when its dependencies were installed.
@@ -31,10 +31,10 @@ branches or modify local changes.
 
 ## Manual backend startup
 
-From the repository root after `app/backend/.venv` is ready:
+From the repository root after `app/server/.venv` is ready:
 
 ```powershell
-& .\app\backend\.venv\Scripts\python.exe -m adsmod_core.cli --config .\app\resources\adsmod.json
+& .\app\server\.venv\Scripts\python.exe -m adsmod_core.cli --config .\app\resources\adsmod.json
 ```
 
 This is the only backend process. If the environment was synchronized with the

@@ -4,7 +4,7 @@ Last updated: 2026-09-02
 
 ## Python
 
-- Run Ruff over `app/backend`, `app/tests`, and `app/scripts`.
+- Run Ruff over `app/server`, `app/tests`, and `app/scripts`.
 - Run the backend package tests plus `app/tests/backend`,
   `app/tests/persistence`, and `app/tests/unit`.
 - Run dependency-boundary tests that enforce framework, persistence, and
@@ -12,7 +12,7 @@ Last updated: 2026-09-02
 - Validate both dependency profiles: base backend without ML and backend with
   the `ml` extra installed.
 - Regenerate `app/resources/adsmod.schema.json` and
-  `app/backend/openapi/backend.json`; require no unexpected diff after
+  `app/server/openapi/backend.json`; require no unexpected diff after
   generation.
 
 ## Frontend

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-BACKEND_ROOT = Path("app/backend")
+BACKEND_ROOT = Path("app/server")
 GENERATED_DIRS = {".venv", "__pycache__", ".pytest_cache", ".uv-cache"}
 
 

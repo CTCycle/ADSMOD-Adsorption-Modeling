@@ -11,4 +11,12 @@ describe('application routes', () => {
         expect(routes.find((route) => route.path === '**')?.redirectTo).toBe('datasets');
         expect(paths).not.toContain('source');
     });
+
+    it('guards the training entry route instead of combining redirectTo with canActivate', () => {
+        const trainingRoute = (routes[0].children ?? []).find((route) => route.path === 'training');
+
+        expect(trainingRoute?.redirectTo).toBeUndefined();
+        expect(trainingRoute?.canActivate).toHaveLength(1);
+        expect(trainingRoute?.loadComponent).toBeTypeOf('function');
+    });
 });

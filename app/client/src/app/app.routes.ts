@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { machineLearningGuard } from './core/guards/machine-learning.guard';
+import { machineLearningEntryGuard, machineLearningGuard } from './core/guards/machine-learning.guard';
 import { CoreShellComponent } from './layout/core-shell.component';
 
 export const routes: Routes = [
@@ -13,7 +13,13 @@ export const routes: Routes = [
             { path: 'public-materials', loadComponent: () => import('./features/public-materials/public-materials-page.component').then((m) => m.PublicMaterialsPageComponent) },
             { path: 'dashboards', loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent) },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
-            { path: 'training', pathMatch: 'full', canActivate: [machineLearningGuard], redirectTo: 'training/processing' },
+            {
+                path: 'training',
+                pathMatch: 'full',
+                canActivate: [machineLearningEntryGuard],
+                loadComponent: () =>
+                    import('./features/training/pages/machine-learning-page.component').then((m) => m.MachineLearningPageComponent),
+            },
             {
                 path: 'training/:view',
                 canActivate: [machineLearningGuard],

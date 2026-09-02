@@ -23,8 +23,8 @@ app/tests/cache/**
 __pycache__/
 *.py[cod]
 *.egg-info/
-app/backend/.venv/
-app/backend/.startup-temp/
+app/server/.venv/
+app/server/.startup-temp/
 .venv/
 venv/
 .pytest_cache/
@@ -65,5 +65,5 @@ Thumbs.db
 !.gitkeep
 
 # Commit dependency lockfiles for reproducible installs.
-!app/backend/uv.lock
+!app/server/uv.lock
 !app/client/package-lock.json

@@ -6,7 +6,7 @@ Last updated: 2026-09-02
 
 ```text
 app/
-  backend/
+  server/
     common/    adsmod_common: contracts and canonical configuration
     core/      adsmod_core: unified FastAPI application and persistence
     ml/        adsmod_ml: optional training extension loaded in-process

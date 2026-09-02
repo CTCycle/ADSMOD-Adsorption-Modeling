@@ -27,7 +27,7 @@ def test_ml_routes_are_mounted_on_the_single_backend(tmp_path: Path) -> None:
 
 
 def test_standalone_ml_server_entrypoints_are_removed() -> None:
-    root = Path("app/backend/ml/src/adsmod_ml")
+    root = Path("app/server/ml/src/adsmod_ml")
     assert not (root / "app.py").exists()
     assert not (root / "cli.py").exists()
     assert not (root / "http" / "entrypoint.py").exists()

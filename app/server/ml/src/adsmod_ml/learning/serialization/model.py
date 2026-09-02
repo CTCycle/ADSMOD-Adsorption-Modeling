@@ -161,8 +161,8 @@ class ModelSerializer:
             custom_objects=custom_objects,
             compile=True,
             # Checkpoints are created and resolved strictly below ADSMOD's configured
-            # checkpoint root. SCADS Atomic intentionally contains Keras Lambda layers,
-            # so ADSMOD-owned checkpoints must opt out of Keras' generic Lambda guard.
+            # checkpoint root. Older trusted SCADS Atomic checkpoints may still contain
+            # Lambda layers, so keep local checkpoint loading explicit about that trust.
             safe_mode=False,
         )
         configuration, metadata, session = self.load_training_configuration(

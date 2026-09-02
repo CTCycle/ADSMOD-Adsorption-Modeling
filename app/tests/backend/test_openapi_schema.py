@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-OPENAPI_PATH = Path("app/backend/openapi/backend.json")
+OPENAPI_PATH = Path("app/server/openapi/backend.json")
 
 
 def test_unified_openapi_snapshot_covers_complete_surface() -> None:

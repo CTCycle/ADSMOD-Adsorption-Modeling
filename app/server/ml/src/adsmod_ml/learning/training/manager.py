@@ -27,6 +27,17 @@ MODEL_COMPONENTS = {
     SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
 }
 
+HISTORY_KEY_ALIASES = {
+    "MaskedAccuracy": "accuracy",
+    "val_MaskedAccuracy": "val_accuracy",
+    "masked_accuracy": "accuracy",
+    "val_masked_accuracy": "val_accuracy",
+    "MaskedR2": "masked_r2",
+    "val_MaskedR2": "val_masked_r2",
+    "masked_r_squared": "masked_r2",
+    "val_masked_r_squared": "val_masked_r2",
+}
+
 
 ###############################################################################
 def put_worker_result(result_queue: Any | None, payload: dict[str, Any]) -> None:
@@ -379,13 +390,13 @@ class TrainingManager:
         max_len = max(lengths)
         entries: list[dict[str, Any]] = []
         for index in range(max_len):
-            entry: dict[str, Any] = {"epoch": index}
+            entry: dict[str, Any] = {"epoch": index + 1}
             for key, values in session_history.items():
                 if not isinstance(values, list) or index >= len(values):
                     continue
                 value = values[index]
                 if isinstance(value, (int, float)):
-                    entry[key] = float(value)
+                    entry[HISTORY_KEY_ALIASES.get(key, key)] = float(value)
             entries.append(entry)
         return entries
 

@@ -9,7 +9,7 @@ flowchart LR
     Core --> Common[adsmod_common]
     ML --> Common
     Core --> DB[(Operational database)]
-    ML -->|authenticated snapshot HTTP| Core
+    ML -->|shared-config snapshot access in its worker| Core
     ML --> Artifacts[(ML manifest and checkpoints)]
 ```
 
@@ -19,9 +19,10 @@ flowchart LR
 - `adsmod_core` owns SQLAlchemy models, repositories, migrations, and all
   database initialization.
 - `adsmod_ml` owns training execution and artifact persistence. Its source has
-  no SQLAlchemy, Alembic, or Core-package import.
-- Training input crosses the boundary only as an authenticated Core snapshot;
-  ML verifies the immutable content hash before use.
+  no SQLAlchemy or Alembic dependency and does not own database migrations.
+- The training worker opens the Core-owned snapshot service from the shared
+  runtime configuration. Training input remains an immutable Core snapshot;
+  ML verifies its content hash before use.
 - The client receives capability and configuration documents from the service
   that owns them. It does not invent fitting or training defaults.
 
