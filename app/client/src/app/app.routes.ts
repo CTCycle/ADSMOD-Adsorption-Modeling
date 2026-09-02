@@ -9,8 +9,8 @@ export const routes: Routes = [
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'datasets' },
             { path: 'datasets', loadComponent: () => import('./features/datasets/custom-datasets-page.component').then((m) => m.CustomDatasetsPageComponent) },
-            { path: 'public-data', loadComponent: () => import('./features/public-data/public-adsorption-data-page.component').then((m) => m.PublicAdsorptionDataPageComponent) },
-            { path: 'public-materials', loadComponent: () => import('./features/public-materials/public-materials-page.component').then((m) => m.PublicMaterialsPageComponent) },
+            { path: 'public-data', pathMatch: 'full', redirectTo: 'public-data/overview' },
+            { path: 'public-data/:view', loadComponent: () => import('./features/public-data/public-data-workspace.component').then((m) => m.PublicDataWorkspaceComponent) },
             { path: 'dashboards', loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent) },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
             {

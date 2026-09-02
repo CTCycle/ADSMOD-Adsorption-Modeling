@@ -4,7 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { fetchApplicationCapabilities, fetchBackendReadiness } from '../services/system.service';
 
-type HelpPage = 'datasets' | 'public-data' | 'public-materials' | 'dashboards' | 'fitting' | 'training';
+type HelpPage = 'datasets' | 'public-data' | 'dashboards' | 'fitting' | 'training';
 
 interface HelpStep {
     title: string;
@@ -27,39 +27,30 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
             { title: 'Review and maintain datasets', description: 'Open a spreadsheet, edit metadata, rename a dataset, or delete it from the workspace.' },
             { title: 'Continue to fitting', description: 'Select an uploaded dataset in Fitting after its import has completed.' },
         ],
-        tips: ['Public NIST collections are managed on the Public Adsorption Data page.', 'A workspace dataset must be available before it can be selected in Fitting or Training.'],
+        tips: ['Public-source records are discovered and managed in the Public Data workspace.', 'A workspace dataset must be available before it can be selected in Fitting or Training.'],
     },
     'public-data': {
-        title: 'Public Adsorption Data help',
-        intro: 'Retrieve public adsorption experiments from the NIST ISODB collection.',
+        title: 'Public Data help',
+        intro: 'Explore normalized adsorption, materials, chemical, and structural records with source provenance.',
         steps: [
-            { title: 'Check the source', description: 'Use Ping to verify that the NIST experiments service is reachable.' },
-            { title: 'Update and sample', description: 'Update the index, choose a sampling fraction, and fetch experiment records into the local workspace.' },
-            { title: 'Monitor the job', description: 'Follow progress and status messages while the asynchronous operation runs.' },
+            { title: 'Choose a data view', description: 'Use the workspace tabs to move between adsorption data, materials, chemicals, structures, and provider status.' },
+            { title: 'Filter locally cached data', description: 'Use server-side filters and pagination to inspect normalized records without loading entire collections into the browser.' },
+            { title: 'Retrieve source records', description: 'Use NIST acquisition, PubChem resolution, or COD structure search where the relevant source supports retrieval.' },
+            { title: 'Inspect provenance', description: 'Open a record to review source identifiers, retrieval information, normalized values, and references.' },
         ],
-        tips: ['Fetched NIST experiments remain available to Fitting and Training.', 'Use the smallest practical fraction when checking a new source connection.'],
-    },
-    'public-materials': {
-        title: 'Public Materials & Adsorbates help',
-        intro: 'Retrieve public adsorbate and adsorbent reference information from NIST.',
-        steps: [
-            { title: 'Choose a reference section', description: 'Use the Adsorbates section for guest species or Adsorbent Materials for host records.' },
-            { title: 'Update and fetch', description: 'Update the relevant index, choose a sampling fraction, and fetch records.' },
-            { title: 'Enrich properties', description: 'Run the existing PubChem-backed enrichment action for guest or host records when needed.' },
-        ],
-        tips: ['NIST supplies the reference records; PubChem is used only for the existing enrichment operation.', 'Status messages from both sections appear in the shared activity panel.'],
+        tips: ['NIST remains the adsorption acquisition source, while PubChem and COD add chemical and structural information.', 'External provider outages do not remove locally cached records.'],
     },
     dashboards: {
         title: 'Dashboards help',
         intro: 'Dashboards will provide a consolidated view of workspace activity and results.',
         steps: [{ title: 'Coming next', description: 'Dashboard views are not available yet.' }],
-        tips: ['Use Custom Datasets for uploads, Public Data for experiments, and Materials & Adsorbates for reference records.'],
+        tips: ['Use Custom Datasets for uploads and Public Data for externally sourced scientific records.'],
     },
     fitting: {
         title: 'Fitting help',
         intro: 'Configure an adsorption fit and compare enabled model equations against a selected dataset.',
         steps: [
-            { title: 'Choose a dataset', description: 'Select a workspace or NIST-A dataset from the Dataset control.' },
+            { title: 'Choose a dataset', description: 'Select a workspace or NIST dataset from the Dataset control.' },
             { title: 'Set the run options', description: 'Choose the maximum iterations and optimization method for the fit.' },
             { title: 'Choose models', description: 'Enable or disable the adsorption models you want to compare.' },
             { title: 'Start fitting', description: 'Use Start Fitting to run the workflow and follow its progress in the fitting log.' },
@@ -99,13 +90,9 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <span class="console-nav-icon" aria-hidden="true">□</span>
                         <span>Custom Datasets</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/public-data" routerLinkActive="active">
+                    <a class="console-nav-item" routerLink="/public-data/overview" routerLinkActive="active">
                         <span class="console-nav-icon" aria-hidden="true">⇩</span>
                         <span>Public Data</span>
-                    </a>
-                    <a class="console-nav-item" routerLink="/public-materials" routerLinkActive="active">
-                        <span class="console-nav-icon" aria-hidden="true">◇</span>
-                        <span>Materials &amp; Adsorbates</span>
                     </a>
                     <a class="console-nav-item" routerLink="/dashboards" routerLinkActive="active">
                         <span class="console-nav-icon" aria-hidden="true">▦</span>
@@ -205,9 +192,6 @@ export class CoreShellComponent {
         if (url.startsWith('/public-data')) {
             return 'public-data';
         }
-        if (url.startsWith('/public-materials')) {
-            return 'public-materials';
-        }
         if (url.startsWith('/fitting')) {
             return 'fitting';
         }
@@ -223,10 +207,7 @@ export class CoreShellComponent {
             return 'Dashboards';
         }
         if (url.startsWith('/public-data')) {
-            return 'Public Adsorption Data';
-        }
-        if (url.startsWith('/public-materials')) {
-            return 'Public Materials & Adsorbates';
+            return 'Public Data';
         }
         if (url.startsWith('/fitting')) {
             return 'Fitting';
@@ -242,10 +223,7 @@ export class CoreShellComponent {
             return 'Monitor workspace activity and results.';
         }
         if (url.startsWith('/public-data')) {
-            return 'Download public adsorption experiments from NIST.';
-        }
-        if (url.startsWith('/public-materials')) {
-            return 'Retrieve public adsorbent and adsorbate reference information.';
+            return 'Discover, normalize, inspect, and trace scientific records from integrated public sources.';
         }
         if (url.startsWith('/fitting')) {
             return 'Configure and run adsorption model fitting workflows.';
@@ -275,20 +253,20 @@ export class CoreShellComponent {
                 filter((event): event is NavigationEnd => event instanceof NavigationEnd),
                 takeUntilDestroyed(this.destroyRef)
             )
-                .subscribe((event) => {
-                    this.currentUrl.set(event.urlAfterRedirects);
-                    void this.refreshBackendStatus();
-                    queueMicrotask(() => {
-                        if (this.mainContent) {
-                            this.mainContent.nativeElement.scrollTop = 0;
-                            this.mainContent.nativeElement.scrollLeft = 0;
-                        }
-                        if (this.sidebar) {
-                            this.sidebar.nativeElement.scrollTop = 0;
-                            this.sidebar.nativeElement.scrollLeft = 0;
-                        }
-                    });
+            .subscribe((event) => {
+                this.currentUrl.set(event.urlAfterRedirects);
+                void this.refreshBackendStatus();
+                queueMicrotask(() => {
+                    if (this.mainContent) {
+                        this.mainContent.nativeElement.scrollTop = 0;
+                        this.mainContent.nativeElement.scrollLeft = 0;
+                    }
+                    if (this.sidebar) {
+                        this.sidebar.nativeElement.scrollTop = 0;
+                        this.sidebar.nativeElement.scrollLeft = 0;
+                    }
                 });
+            });
     }
 
     private async refreshBackendStatus(): Promise<void> {

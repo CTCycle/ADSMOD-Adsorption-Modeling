@@ -1,14 +1,17 @@
+"""NIST enrichment adapter backed by the canonical PubChem provider."""
+
 from __future__ import annotations
 
 import asyncio
 from typing import Any
 
+from adsmod_core.providers.public_data import ProviderError
 from adsmod_core.providers.pubchem import PubChemProvider
 
 
 ###############################################################################
 class PubChemClient:
-    """NIST enrichment adapter over the canonical PubChem provider."""
+    """Adapt normalized PubChem records to the NIST enrichment row contract."""
 
     def __init__(self, parallel_tasks: int) -> None:
         self.provider = PubChemProvider(parallel_requests=parallel_tasks)
@@ -38,16 +41,13 @@ class PubChemClient:
             return self._empty(normalized_name)
         try:
             payload = await self.provider.resolve(normalized_name)
-        except Exception:  # noqa: BLE001
+        except (ProviderError, ValueError):
             return self._empty(normalized_name)
         return {
             "name": normalized_name,
             "molecular_weight": payload.get("molecular_weight"),
             "molecular_formula": payload.get("formula"),
             "smile": payload.get("smiles"),
-            "inchi": payload.get("inchi"),
-            "inchi_key": payload.get("inchi_key"),
-            "pubchem_cid": payload.get("cid"),
         }
 
     async def fetch_properties_for_names(
@@ -66,9 +66,6 @@ class PubChemClient:
             "molecular_weight": None,
             "molecular_formula": None,
             "smile": None,
-            "inchi": None,
-            "inchi_key": None,
-            "pubchem_cid": None,
         }
 
 
