@@ -11,7 +11,8 @@ from sqlalchemy.schema import CreateTable
 from adsmod_common.config import DatabaseConfig
 from adsmod_core.repositories.database.bulk import upsert_records
 from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.schemas.models import Base, Dataset
+from adsmod_core.repositories.schemas import Base
+from adsmod_core.repositories.schemas.models import Dataset
 from adsmod_core.repositories.schemas.types import JSONList, UTCDateTime
 
 
@@ -28,6 +29,19 @@ EXPECTED_TABLES = {
     "fit_parameters",
     "training_snapshots",
     "training_snapshot_rows",
+    "data_sources",
+    "source_records",
+    "adsorbate_source_records",
+    "adsorbent_source_records",
+    "isotherm_source_records",
+    "structures",
+    "structure_source_records",
+    "structure_atoms",
+    "adsorbate_synonyms",
+    "chemical_properties",
+    "material_properties",
+    "references",
+    "source_record_references",
 }
 
 

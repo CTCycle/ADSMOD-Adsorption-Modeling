@@ -1,0 +1,121 @@
+name: Public Data Branch Validation
+
+on:
+  push:
+    branches: [public-data-expansion]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-data-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          python-version: "3.14.2"
+      - name: Refresh lockfile for dependency changes
+        run: uv lock --project app/server
+      - name: Validate base backend remains ML-optional
+        run: |
+          uv sync --locked --project app/server --no-dev
+          uv run --project app/server --no-dev python - <<'PY'
+          import importlib.util, json, tempfile
+          from pathlib import Path
+          from fastapi.testclient import TestClient
+          from adsmod_common.config import AdsmodConfig
+          from adsmod_core.app import create_app
+          assert importlib.util.find_spec('adsmod_ml') is None
+          payload = json.loads(Path('app/resources/adsmod.json').read_text())
+          with tempfile.TemporaryDirectory() as tmp:
+              payload['storage']['root'] = tmp
+              with TestClient(create_app(AdsmodConfig.model_validate(payload))) as client:
+                  assert client.get('/api/v1/system/capabilities').json()['features']['machine_learning'] is False
+                  assert client.get('/api/v1/public-data/sources?check_health=false').status_code == 200
+                  assert client.get('/health/ready').json()['state'] == 'ready'
+          PY
+      - name: Install full development environment
+        run: uv sync --locked --project app/server --extra ml --group dev
+      - name: Ruff
+        run: uv run --project app/server --extra ml --group dev ruff check --isolated app/server app/tests app/scripts
+      - name: Backend tests and migrations
+        run: uv run --project app/server --extra ml --group dev python -m pytest -c app/tests/pytest.ini app/server/common/tests app/server/core/tests app/server/ml/tests app/tests/backend app/tests/persistence app/tests/unit -q --tb=short
+      - name: Generate canonical artifacts
+        run: |
+          uv run --project app/server --extra ml --group dev python app/scripts/generate_openapi.py --config app/resources/adsmod.json --output app/server/openapi/backend.json
+          uv run --project app/server --extra ml --group dev python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
+      - name: External provider smoke evidence
+        continue-on-error: true
+        run: |
+          uv run --project app/server --extra ml --group dev python - <<'PY'
+          import asyncio, json
+          from pathlib import Path
+          from adsmod_common.config import load_config
+          from adsmod_core.services.container import CoreServiceContainer
+          async def main():
+              config = load_config(Path('app/resources/adsmod.json'))
+              container = CoreServiceContainer(config)
+              try:
+                  results = {}
+                  for key, provider in container.public_data_service.providers.items():
+                      health = await provider.health()
+                      results[key] = {'status': health.status, 'detail': health.detail}
+                  pubchem = container.public_data_service.providers['pubchem']
+                  try:
+                      compound = await pubchem.resolve('methane')
+                      results['pubchem_resolve'] = {'cid': compound['cid'], 'inchi_key': compound['inchi_key']}
+                  except Exception as exc:
+                      results['pubchem_resolve'] = {'error': str(exc)}
+                  cod = container.public_data_service.providers['cod']
+                  try:
+                      records = await cod.search(cod_id='1000000')
+                      results['cod_lookup'] = {'matches': len(records)}
+                  except Exception as exc:
+                      results['cod_lookup'] = {'error': str(exc)}
+                  print(json.dumps(results, indent=2, default=str))
+              finally:
+                  container.database.dispose()
+          asyncio.run(main())
+          PY
+      - name: Collect generated artifacts
+        run: |
+          mkdir -p validation-artifacts/app/server/openapi validation-artifacts/app/resources validation-artifacts/app/server
+          cp app/server/uv.lock validation-artifacts/app/server/uv.lock
+          cp app/server/openapi/backend.json validation-artifacts/app/server/openapi/backend.json
+          cp app/resources/adsmod.schema.json validation-artifacts/app/resources/adsmod.schema.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-data-generated-artifacts
+          path: validation-artifacts
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+      - working-directory: app/client
+        run: npm ci --no-audit --no-fund
+      - working-directory: app/client
+        run: npm run lint
+      - working-directory: app/client
+        run: npm run test:unit --if-present
+      - working-directory: app/client
+        run: npm run build
+      - name: Install Edge for browser layout validation
+        working-directory: app/client
+        run: npx playwright install --with-deps msedge
+      - name: Validate Public Data layouts at configured viewport sizes
+        working-directory: app/client
+        run: npx playwright test -c playwright.config.ts tests/visual/public-data-layout.spec.ts
