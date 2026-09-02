@@ -20,40 +20,44 @@ describe('CoreShellComponent', () => {
         vi.unstubAllGlobals();
     });
 
-    it('renders health-status transitions for core and ML services', async () => {
+    it('renders unified backend status and exposes training only when ML is available', async () => {
         fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
             const url = String(input);
             if (url.endsWith('/system/capabilities')) {
                 return {
                     ok: true,
                     json: async () => ({
-                        configured_mode: 'core',
                         version: '3.0.0',
-                        features: { datasets: true, nist: true, fitting: true, training: false, checkpoints: false },
-                        services: { ml: { configured: false, health: 'unknown', readiness: 'unavailable' } },
+                        features: {
+                            datasets: true,
+                            nist: true,
+                            fitting: true,
+                            machine_learning: false,
+                            training: false,
+                            checkpoints: false,
+                        },
                     }),
                 };
             }
             if (url.endsWith('/health/ready')) {
-                return { ok: true, json: async () => ({ service: 'core', version: '3.0.0', state: 'ready' }) };
+                return {
+                    ok: true,
+                    json: async () => ({ service: 'backend', version: '3.0.0', state: 'ready' }),
+                };
             }
-            if (url.endsWith('/ml-health/ready')) {
-                return { ok: false, status: 503, json: async () => ({ detail: 'ML not configured' }) };
-            }
-            return { ok: false };
+            return { ok: false, status: 404 };
         });
 
         const fixture = TestBed.createComponent(CoreShellComponent);
         fixture.detectChanges();
-        await (fixture.componentInstance as unknown as { refreshServiceStatus: () => Promise<void> }).refreshServiceStatus();
+        await (fixture.componentInstance as unknown as { refreshBackendStatus: () => Promise<void> }).refreshBackendStatus();
         fixture.detectChanges();
 
         const root = fixture.nativeElement as HTMLElement;
         let statusBar = root.querySelector<HTMLElement>('.console-status-bar');
-        expect(statusBar?.textContent).toContain('Core ServiceOnline');
-        expect(statusBar?.textContent).toContain('ML ServiceUnavailable');
+        expect(statusBar?.textContent).toContain('BackendOnline');
         expect(root.querySelector('.service-dot.core')?.classList.contains('offline')).toBe(false);
-        expect(root.querySelector('.service-dot.ml')?.classList.contains('offline')).toBe(true);
+        expect(root.querySelector('a[routerLink="/training"]')).toBeNull();
 
         fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
             const url = String(input);
@@ -61,29 +65,30 @@ describe('CoreShellComponent', () => {
                 return {
                     ok: true,
                     json: async () => ({
-                        configured_mode: 'core-ml',
                         version: '3.0.0',
-                        features: { datasets: true, nist: true, fitting: true, training: true, checkpoints: true },
-                        services: { ml: { configured: true, health: 'healthy', readiness: 'ready' } },
+                        features: {
+                            datasets: true,
+                            nist: true,
+                            fitting: true,
+                            machine_learning: true,
+                            training: true,
+                            checkpoints: true,
+                        },
                     }),
                 };
             }
             if (url.endsWith('/health/ready')) {
-                throw new Error('core unavailable');
+                throw new Error('backend unavailable');
             }
-            if (url.endsWith('/ml-health/ready')) {
-                return { ok: true, json: async () => ({ service: 'ml', version: '3.0.0', state: 'ready' }) };
-            }
-            return { ok: false };
+            return { ok: false, status: 404 };
         });
 
-        await (fixture.componentInstance as unknown as { refreshServiceStatus: () => Promise<void> }).refreshServiceStatus();
+        await (fixture.componentInstance as unknown as { refreshBackendStatus: () => Promise<void> }).refreshBackendStatus();
         fixture.detectChanges();
 
         statusBar = root.querySelector<HTMLElement>('.console-status-bar');
-        expect(statusBar?.textContent).toContain('Core ServiceOffline');
-        expect(statusBar?.textContent).toContain('ML ServiceOnline');
+        expect(statusBar?.textContent).toContain('BackendOffline');
         expect(root.querySelector('.service-dot.core')?.classList.contains('offline')).toBe(true);
-        expect(root.querySelector('.service-dot.ml')?.classList.contains('offline')).toBe(false);
+        expect(root.querySelector('a[routerLink="/training"]')).not.toBeNull();
     });
 });
