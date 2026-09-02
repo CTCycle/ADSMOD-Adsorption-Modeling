@@ -242,10 +242,14 @@ class SCADSAtomicModel:
     # -------------------------------------------------------------------------
     def get_model(self, model_summary: bool = True) -> Model:
         adsorbent_index = layers.Lambda(
-            lambda x: keras.ops.cast(x[:, 2], "int32"), name="adsorbent_index"
+            lambda x: keras.ops.cast(x[:, 2], "int32"),
+            output_shape=(),
+            name="adsorbent_index",
         )(self.features_input)
         chemometric_feature = layers.Lambda(
-            lambda x: x[:, 1], name="chemometric_feature"
+            lambda x: x[:, 1],
+            output_shape=(),
+            name="chemometric_feature",
         )(self.features_input)
         molecular_embeddings = self.molecular_embeddings(
             self.adsorbates_input, adsorbent_index, chemometric_feature
@@ -254,14 +258,17 @@ class SCADSAtomicModel:
 
         temperature_feature = layers.Lambda(
             lambda x: keras.ops.expand_dims(x[:, 0], axis=-1),
+            output_shape=(1,),
             name="temperature_feature",
         )(self.features_input)
         molecular_weight_feature = layers.Lambda(
             lambda x: keras.ops.expand_dims(x[:, 1], axis=-1),
+            output_shape=(1,),
             name="molecular_weight_feature",
         )(self.features_input)
         pressure_feature = layers.Lambda(
             lambda x: keras.ops.expand_dims(x[:, 3], axis=-1),
+            output_shape=(1,),
             name="pressure_feature",
         )(self.features_input)
         numeric_features = layers.concatenate(
