@@ -387,6 +387,9 @@ class NISTDataService:
             "binary_mixture_rows": int(
                 experiments_result.get("binary_mixture_rows", 0)
             ),
+            "skipped_experiment_count": int(
+                experiments_result.get("skipped_count", 0)
+            ),
             "guest_rows": int(guest_result.get("fetched_count", 0)),
             "host_rows": int(host_result.get("fetched_count", 0)),
         }
@@ -502,6 +505,7 @@ class NISTDataService:
             fetched_count = 0
             single_component_rows = 0
             binary_mixture_rows = 0
+            skipped_count = 0
 
             if category == "experiments":
                 experiments_data = (
@@ -524,6 +528,13 @@ class NISTDataService:
                 experiments = self.mapper.experiment_records(
                     single_component, binary_mixture
                 )
+                skipped_count = max(0, fetched_count - len(experiments))
+                if skipped_count:
+                    logger.warning(
+                        "NIST experiment mapping skipped %d of %d fetched records",
+                        skipped_count,
+                        fetched_count,
+                    )
                 await asyncio.to_thread(
                     self.repository.save_experiments,
                     experiments,
@@ -596,6 +607,7 @@ class NISTDataService:
             "requested_count": int(len(requested_identifiers)),
             "fetched_count": fetched_count,
             "local_count": local_count,
+            "skipped_count": skipped_count,
             "single_component_rows": single_component_rows,
             "binary_mixture_rows": binary_mixture_rows,
         }

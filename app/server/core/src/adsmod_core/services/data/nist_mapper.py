@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 
 from adsmod_common.units import UnitRegistry, parse_number
+from adsmod_core.common.utils.logger import logger
 from adsmod_core.repositories.datasets import stable_material_key
 
 
@@ -64,16 +65,25 @@ class NISTCanonicalMapper:
         single_component: pd.DataFrame | None,
         binary_mixture: pd.DataFrame | None,
     ) -> list[dict[str, Any]]:
-        return [
-            (
-                self._single_experiment(source_id, rows)
-                if structure == "single"
-                else self._binary_experiment(source_id, rows)
-            )
-            for source_id, rows, structure in self._grouped_experiments(
-                single_component, binary_mixture
-            )
-        ]
+        records: list[dict[str, Any]] = []
+        for source_id, rows, structure in self._grouped_experiments(
+            single_component, binary_mixture
+        ):
+            try:
+                record = (
+                    self._single_experiment(source_id, rows)
+                    if structure == "single"
+                    else self._binary_experiment(source_id, rows)
+                )
+            except ValueError as exc:
+                logger.warning(
+                    "Skipping NIST experiment %s: cannot map measurements to canonical units: %s",
+                    source_id,
+                    exc,
+                )
+                continue
+            records.append(record)
+        return records
 
     # -------------------------------------------------------------------------
     @staticmethod

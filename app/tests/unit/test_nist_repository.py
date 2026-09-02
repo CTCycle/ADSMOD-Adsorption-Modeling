@@ -135,3 +135,36 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
     assert {"pressure", "adsorbed_amount"}.issubset(adsorption.columns)
     assert set(guests["name"]) == {"methane", "nitrogen", "argon"}
     assert set(hosts["name"]) == {"silica", "carbon"}
+
+
+def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> None:
+    mapper = NISTCanonicalMapper()
+    single_component = pd.DataFrame(
+        [
+            {
+                "name": "unsupported-volume",
+                "pressure_units": "bar",
+                "adsorption_units": "% Volume Adsorbed",
+                "temperature": 77.0,
+                "adsorbent": "CuBTC",
+                "adsorbate": "nitrogen",
+                "pressure": 0.1,
+                "adsorbed_amount": 1.0,
+            },
+            {
+                "name": "supported-molar",
+                "pressure_units": "bar",
+                "adsorption_units": "mmol/g",
+                "temperature": 77.0,
+                "adsorbent": "CuBTC",
+                "adsorbate": "nitrogen",
+                "pressure": 0.1,
+                "adsorbed_amount": 1.0,
+            },
+        ]
+    )
+
+    records = mapper.experiment_records(single_component, None)
+
+    assert [record["external_key"] for record in records] == ["supported-molar"]
+    assert "unsupported-volume" in caplog.text
