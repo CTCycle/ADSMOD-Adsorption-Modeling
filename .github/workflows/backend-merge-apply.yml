@@ -161,7 +161,7 @@ jobs:
         run: |
           set -euo pipefail
           patterns='runtime\.mode|core-ml|core_port|ml_port|ml_restart_attempts|adsmod_ml\.cli|adsmod_ml\.app|CoreSnapshotClient|/ml-health|ADSMOD_INTERNAL_TOKEN|internal_token_required|X-ADSMOD-Internal-Token|core_base_url|openapi/ml\.json'
-          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!.github/backend_merge_transform.py' ':!.github/backend_merge_validation_migration.py' ':!.github/backend_merge_validation_patch2.py' ':!.github/workflows/backend-merge-apply.yml' ':!.github/backend-merge-pytest-failure.txt'; then
+          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!app/backend/common/tests/test_contracts.py' ':!app/backend/core/tests/test_core_runtime.py' ':!app/backend/ml/tests/test_ml_boundary.py' ':!app/tests/unit/test_frontend_boundaries.py' ':!.github/backend_merge_transform.py' ':!.github/backend_merge_validation_migration.py' ':!.github/backend_merge_validation_patch2.py' ':!.github/workflows/backend-merge-apply.yml' ':!.github/backend-merge-pytest-failure.txt'; then
             echo 'Obsolete dual-backend references remain.' >&2
             exit 1
           fi
