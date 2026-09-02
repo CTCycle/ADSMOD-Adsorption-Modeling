@@ -1,23 +1,33 @@
-# ADSMOD runtime modes
+# ADSMOD installation profiles
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
-## `core`
+ADSMOD has one runtime architecture and one FastAPI backend process. Optional
+machine learning support is an installation profile, not a separate runtime
+service.
 
-The launcher starts Core and the Angular client. Core owns health, capabilities,
-dataset import, NIST ingestion, fitting, database initialization, and the
-internal snapshot API. Training is reported as not configured.
+## Base installation
 
-## `core-ml`
+The launcher installs the core backend dependencies and Angular client. The
+backend provides health, capabilities, dataset import, public data access,
+fitting, database initialization, and all non-ML application functions.
+`/api/v1/system/capabilities` reports machine learning as unavailable, and the
+frontend does not expose training navigation or routes.
 
-The launcher starts Core, ML, and the Angular client. ML exposes the training
-API, authenticates to Core, retrieves immutable snapshots, verifies their
-hashes, and stores its manifest and checkpoints in the configured storage root.
+## ML-enabled installation
+
+The launcher installs the backend with the `ml` dependency extra. The same
+FastAPI application loads the ML extension in-process and registers training
+configuration, jobs, checkpoints, and related routes. Training data is obtained
+through the shared in-process contract, while checkpoints and other artifacts
+use the configured storage root.
 
 ## Test execution
 
-`app/tests/run_tests.bat` reads the same canonical configuration, starts only
-the services required by the selected mode, waits for readiness, and runs the
-Python and frontend checks. ML E2E tests are skipped in `core` mode.
+Automated validation covers both installation profiles independently. Base
+validation asserts that the ML package is absent and the normal application is
+ready. ML-enabled validation asserts that capability discovery enables machine
+learning and that training endpoints are registered.
 
-There is no unified backend mode and no alternate compatibility mode.
+Live browser and hardware-specific training checks are intentionally separate
+from these deterministic automated gates.

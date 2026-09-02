@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Recommended startup
 
@@ -9,10 +9,10 @@ Last updated: 2026-09-01
 ```
 
 The launcher reads `app/resources/adsmod.json`, synchronizes the locked
-`app/backend` workspace, builds the client, starts Core, and waits for
-`/health/ready` before opening the browser. ML is started only when
-`runtime.mode` is `core-ml`; it receives the same config path and uses
-`runtime.ml_port`.
+`app/backend` workspace according to the selected dependency profile, builds
+the client, starts one FastAPI backend, and waits for `/health/ready` before
+opening the browser. Optional machine learning support is loaded inside that
+backend when its dependencies were installed.
 
 The interactive menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
@@ -29,7 +29,7 @@ Choose **Update** in the launcher menu to update the repository from
 `main`; the launcher runs `git pull --ff-only origin main` and does not switch
 branches or modify local changes.
 
-## Manual service startup
+## Manual backend startup
 
 From the repository root after `app/backend/.venv` is ready:
 
@@ -37,19 +37,15 @@ From the repository root after `app/backend/.venv` is ready:
 & .\app\backend\.venv\Scripts\python.exe -m adsmod_core.cli --config .\app\resources\adsmod.json
 ```
 
-For `core-ml` mode, start ML in another terminal:
-
-```powershell
-& .\app\backend\.venv\Scripts\python.exe -m adsmod_ml.cli --config .\app\resources\adsmod.json
-```
-
-The Angular development server can be started from `app/client` with
-`npm run dev`; its proxy reads the fixed `app/resources/adsmod.json` path.
+This is the only backend process. If the environment was synchronized with the
+`ml` extra, the process discovers and registers the optional ML extension at
+startup. The Angular development server can be started from `app/client` with
+`npm run dev`.
 
 ## Database startup rules
 
-Core runs the synchronous Alembic coordinator before serving requests. A
-missing or empty SQLite file is initialized to the packaged head. A non-empty
+The backend runs the synchronous Alembic coordinator before serving requests.
+A missing or empty SQLite file is initialized to the packaged head. A non-empty
 unversioned file, an empty version table beside application tables, an unknown
 revision, or a stamped-but-incomplete schema fails explicitly without schema
 inference. PostgreSQL uses the same migration history and a bounded advisory
@@ -61,5 +57,6 @@ lock.
 app\tests\run_tests.bat
 ```
 
-The runner uses the canonical ports and does not accept alternate API or
-resource-root environment overrides.
+The automated suite validates configuration, persistence, backend routes,
+frontend behavior, and both dependency profiles. Live browser and
+hardware-specific ML checks should be run locally on the target machine.
