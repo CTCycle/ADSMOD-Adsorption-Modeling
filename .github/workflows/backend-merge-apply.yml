@@ -39,6 +39,30 @@ jobs:
         run: python .github/backend_merge_validation_migration.py
       - name: Apply ML extension validation fixes
         run: python .github/backend_merge_validation_patch2.py
+      - name: Apply unified health contract fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          health = Path('app/backend/common/src/adsmod_common/health.py')
+          text = health.read_text(encoding='utf-8')
+          old = 'service: Literal["core", "ml"]'
+          if old not in text:
+              raise SystemExit('expected legacy health service contract was not found')
+          health.write_text(text.replace(old, 'service: Literal["backend"]', 1), encoding='utf-8')
+          for name in (
+              'app/tests/backend/test_core_routes.py',
+              'app/backend/core/tests/test_core_runtime.py',
+          ):
+              path = Path(name)
+              text = path.read_text(encoding='utf-8')
+              old_assert = 'assert capabilities["features"]["machine_learning"] is True'
+              if old_assert in text:
+                  text = text.replace(
+                      old_assert,
+                      old_assert + ', client.app.state.runtime.machine_learning_reason',
+                  )
+                  path.write_text(text, encoding='utf-8')
+          PY
       - name: Sync ML-enabled development environment
         run: uv sync --locked --project app/backend --extra ml --group dev
       - name: Generate unified OpenAPI snapshot
@@ -57,7 +81,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .github/backend-merge-pytest-failure.txt
-            git commit -m "chore: capture backend merge test failure"
+            git commit -m "chore: capture backend merge test failure" || true
             git push origin HEAD:backend-merge
           fi
           exit "$status"
@@ -113,7 +137,7 @@ jobs:
               payload['storage']['root'] = tmp
               with TestClient(create_app(AdsmodConfig.model_validate(payload))) as client:
                   capabilities = client.get('/api/v1/system/capabilities').json()
-                  assert capabilities['features']['machine_learning'] is True, capabilities
+                  assert capabilities['features']['machine_learning'] is True, client.app.state.runtime.machine_learning_reason
                   assert client.get('/api/v1/training/configuration').status_code == 200
                   assert client.get('/api/v1/datasets').status_code == 200
                   assert client.get('/health/ready').json()['state'] == 'ready'
@@ -132,7 +156,7 @@ jobs:
         run: |
           set -euo pipefail
           patterns='runtime\.mode|core-ml|core_port|ml_port|ml_restart_attempts|adsmod_ml\.cli|adsmod_ml\.app|CoreSnapshotClient|/ml-health|ADSMOD_INTERNAL_TOKEN|internal_token_required|X-ADSMOD-Internal-Token|core_base_url|openapi/ml\.json'
-          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!.github/backend_merge_transform.py' ':!.github/backend_merge_validation_migration.py' ':!.github/backend_merge_validation_patch2.py' ':!.github/workflows/backend-merge-apply.yml'; then
+          if git grep -nE "$patterns" -- ':!app/backend/uv.lock' ':!.github/backend_merge_transform.py' ':!.github/backend_merge_validation_migration.py' ':!.github/backend_merge_validation_patch2.py' ':!.github/workflows/backend-merge-apply.yml' ':!.github/backend-merge-pytest-failure.txt'; then
             echo 'Obsolete dual-backend references remain.' >&2
             exit 1
           fi
@@ -147,6 +171,7 @@ jobs:
       - name: Commit implementation
         run: |
           git rm .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/backend_merge_validation_patch2.py .github/workflows/backend-merge-apply.yml
+          rm -f .github/backend-merge-pytest-failure.txt
           git add -A
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
