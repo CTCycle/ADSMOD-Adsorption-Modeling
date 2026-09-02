@@ -60,6 +60,8 @@ class _StrictJSON(TypeDecorator[Any]):
 
 ###############################################################################
 class JSONList(_StrictJSON):
+    cache_ok = True
+
     # -------------------------------------------------------------------------
     def process_bind_param(self, value: Any, dialect: Any) -> list[Any] | None:
         if value is None:
@@ -79,6 +81,8 @@ class JSONList(_StrictJSON):
 
 ###############################################################################
 class JSONMapping(_StrictJSON):
+    cache_ok = True
+
     # -------------------------------------------------------------------------
     def process_bind_param(self, value: Any, dialect: Any) -> dict[str, Any] | None:
         if value is None:
@@ -99,6 +103,8 @@ class JSONMapping(_StrictJSON):
 ###############################################################################
 class JSONSequence(_StrictJSON):
     """JSON storage that rejects non-list payloads when values are read back."""
+
+    cache_ok = True
 
     # -------------------------------------------------------------------------
     def process_bind_param(self, value: Any, dialect: Any) -> Any:
