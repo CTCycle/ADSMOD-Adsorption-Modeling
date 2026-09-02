@@ -12,6 +12,9 @@
         "nist": {
           "$ref": "#/$defs/NISTConfig"
         },
+        "public_data": {
+          "$ref": "#/$defs/PublicDataConfig"
+        },
         "fitting": {
           "$ref": "#/$defs/FittingConfig"
         },
@@ -26,6 +29,7 @@
         "database",
         "datasets",
         "nist",
+        "public_data",
         "fitting",
         "jobs",
         "training"
@@ -246,6 +250,7 @@
           "type": "integer"
         },
         "pubchem_parallel_tasks": {
+          "maximum": 3,
           "minimum": 1,
           "title": "Pubchem Parallel Tasks",
           "type": "integer"
@@ -256,6 +261,41 @@
         "pubchem_parallel_tasks"
       ],
       "title": "NISTConfig",
+      "type": "object"
+    },
+    "PublicDataConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "request_timeout_seconds": {
+          "default": 20.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 120.0,
+          "title": "Request Timeout Seconds",
+          "type": "number"
+        },
+        "retry_attempts": {
+          "default": 3,
+          "maximum": 6,
+          "minimum": 1,
+          "title": "Retry Attempts",
+          "type": "integer"
+        },
+        "pubchem_parallel_requests": {
+          "default": 2,
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Pubchem Parallel Requests",
+          "type": "integer"
+        },
+        "cod_max_interactive_results": {
+          "default": 250,
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Cod Max Interactive Results",
+          "type": "integer"
+        }
+      },
+      "title": "PublicDataConfig",
       "type": "object"
     },
     "RuntimeConfig": {
