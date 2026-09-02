@@ -1,0 +1,337 @@
+/*
+ * Console UI consistency layer.
+ *
+ * This file is loaded after styles.css and intentionally contains only
+ * cross-screen normalization rules. It reuses the existing ADSMOD tokens and
+ * preserves the current information architecture, colors, and workflows.
+ */
+
+:root {
+  --console-sidebar-width: 224px;
+  --console-content-inline: var(--spacing-xl);
+  --console-header-height: 112px;
+}
+
+/* Shell geometry and primary navigation */
+.console-shell {
+  grid-template-columns: var(--console-sidebar-width) minmax(0, 1fr);
+}
+
+.console-sidebar {
+  padding: var(--spacing-lg) var(--spacing-sm) var(--spacing-md);
+}
+
+.console-brand {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--spacing-sm);
+  margin: 0 0.375rem var(--spacing-lg);
+}
+
+.console-brand-logo {
+  width: 40px;
+  height: 40px;
+}
+
+.console-brand-name {
+  font-size: 1.45rem;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.console-brand-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.console-nav {
+  gap: 0.25rem;
+}
+
+.console-nav-item {
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  min-height: 48px;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.console-nav-icon {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.console-sidebar-footer {
+  padding: 0 0.5rem;
+}
+
+.console-sidebar-footer::before {
+  margin-bottom: var(--spacing-sm);
+}
+
+.console-footer-link {
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  min-height: 40px;
+  padding: 0;
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.console-footer-link span:first-child {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.75rem;
+}
+
+/* Align the global page header and page content to the same horizontal grid. */
+.console-stage {
+  grid-template-rows: var(--console-header-height) minmax(0, 1fr);
+}
+
+.console-header {
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg) var(--console-content-inline);
+}
+
+.console-header h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.console-header p {
+  margin-top: 0.375rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.header-icon-button {
+  width: 42px;
+  height: 42px;
+  font-size: 1.1rem;
+}
+
+.console-main {
+  padding: var(--spacing-lg) var(--console-content-inline) calc(var(--spacing-xl) + 0.25rem);
+}
+
+/* Shared page rhythm and hierarchy */
+.data-page {
+  width: 100%;
+  gap: var(--spacing-lg);
+  margin: 0;
+}
+
+.console-card {
+  border-radius: var(--radius-sm);
+}
+
+.page-intro-card,
+.public-source-card,
+.public-category-card {
+  padding: var(--spacing-lg);
+}
+
+.page-intro-card h2,
+.public-source-heading h2,
+.public-category-card h2 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.page-intro-card > p:last-child,
+.public-source-heading p:last-child,
+.public-category-card .card-title-row p:last-child {
+  max-width: 72ch;
+  margin-top: var(--spacing-xs);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.eyebrow {
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: 0.075em;
+}
+
+.card-title-row h2 {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.section-title,
+.models-title-block h3,
+.models-grid-header h3,
+.training-view-description h2 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.section-caption,
+.models-title-block p,
+.training-view-description p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.field-label,
+.metadata-field > span {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+/* Dataset management uses the same spacing rhythm as the rest of the console. */
+.dataset-record-list {
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.dataset-record {
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+}
+
+.dataset-record-heading h3 {
+  font-size: 0.95rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.dataset-record-copy > p,
+.dataset-record-meta,
+.dataset-record-stats {
+  line-height: 1.45;
+}
+
+.dataset-add-row {
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* Keep fitting and training section headings subordinate to the shell page title. */
+.models-header-row,
+.models-grid-header {
+  margin-bottom: var(--spacing-sm);
+}
+
+.training-view-description {
+  padding: 0 0 var(--spacing-md);
+}
+
+.route-workspace-training .training-view-toolbar {
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-lg);
+}
+
+.training-view-tab {
+  min-height: 44px;
+  padding: 0.65rem var(--spacing-sm);
+  border-radius: var(--radius-sm);
+}
+
+.training-view-tab-label {
+  font-size: 0.875rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+/* Responsive shell proportions. The sidebar becomes compact top navigation. */
+@media (max-width: 1180px) {
+  :root {
+    --console-content-inline: var(--spacing-xl);
+  }
+
+  .console-sidebar {
+    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  }
+
+  .console-brand {
+    margin: 0 0 var(--spacing-md);
+  }
+
+  .console-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.375rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .console-nav-item {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    min-height: 44px;
+    padding: 0 var(--spacing-sm);
+    font-size: 0.84rem;
+  }
+
+  .console-stage {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .console-header {
+    padding: var(--spacing-lg) var(--console-content-inline);
+  }
+}
+
+@media (max-width: 760px) {
+  .console-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .route-workspace-training .training-view-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --console-content-inline: var(--spacing-sm);
+  }
+
+  .console-sidebar {
+    padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+  }
+
+  .console-brand-name {
+    font-size: 1.3rem;
+  }
+
+  .console-brand-subtitle {
+    font-size: 0.72rem;
+  }
+
+  .console-header {
+    padding: var(--spacing-md) var(--console-content-inline);
+  }
+
+  .console-header h1 {
+    font-size: 1.65rem;
+  }
+
+  .console-main {
+    padding: var(--spacing-md) var(--console-content-inline) var(--spacing-lg);
+  }
+
+  .page-intro-card,
+  .public-source-card,
+  .public-category-card {
+    padding: var(--spacing-md);
+  }
+
+  .dataset-record {
+    gap: var(--spacing-sm);
+  }
+}
