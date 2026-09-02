@@ -121,8 +121,8 @@ class TrainingProcessRunner:
     # -------------------------------------------------------------------------
     def validate_resume_model(self, model: Any) -> None:
         optimizer = getattr(model, "optimizer", None)
-        compiled_loss = getattr(model, "compiled_loss", None)
-        if optimizer is None or compiled_loss is None:
+        loss = getattr(model, "loss", None)
+        if optimizer is None or loss is None:
             raise ValueError(
                 "Checkpoint model is not compiled or missing optimizer state. "
                 "Resume requires a compiled model with saved optimizer momentum."
