@@ -19,7 +19,11 @@ jobs:
           version: "0.11.30"
           python-version: "3.14.2"
       - name: Install ML-enabled backend
-        run: uv sync --locked --project app/backend --extra ml --no-dev
+        run: uv sync --locked --project app/backend --extra ml --group dev
+      - name: Validate training fixes
+        run: |
+          uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend/ml/src/adsmod_ml/learning/serialization app/backend/ml/src/adsmod_ml/learning/models/qmodel.py app/tests/unit/test_serializer.py
+          uv run --project app/backend --extra ml --group dev python -m pytest app/tests/unit/test_serializer.py -q --tb=short
       - name: Seed isolated processed dataset
         run: |
           python - <<'PY'
@@ -116,7 +120,7 @@ jobs:
             if ! kill -0 "$BACKEND_PID" 2>/dev/null; then cat "$BACKEND_LOG"; exit 1; fi
           done
           app/backend/.venv/bin/python - <<'PY'
-          import json, time, urllib.request, urllib.error
+          import json, time, urllib.request
 
           BASE = 'http://127.0.0.1:6045/api/v1/training'
           def get(path):
@@ -171,6 +175,7 @@ jobs:
           assert resumed['status'] == 'started', resumed
           finished_resume = wait_done()
           assert finished_resume['current_epoch'] >= 2, finished_resume
+          assert len(finished_resume['history']) >= 2, finished_resume
           PY
           cleanup
           trap - EXIT
