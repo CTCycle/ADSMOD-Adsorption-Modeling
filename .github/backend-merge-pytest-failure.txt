@@ -1,0 +1,300 @@
+        @staticmethod
+        def convert_values(
+            values: list[int | float] | int | float | None,
+            unit: object,
+        ) -> list[float] | float | None:
+            try:
+                resolved = UnitRegistry.pressure_unit(unit)
+                factor = UnitRegistry.PRESSURE_TO_PA.get(resolved)
+            except UnitConversionError:
+                return values
+            if factor is None:
+                return values
+            return map_values(values, lambda value: value * factor)
+    
+        # -------------------------------------------------------------------------
+        def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+            if (
+                self.P_UNIT_COL not in dataframe.columns
+                or self.P_COL not in dataframe.columns
+            ):
+                logger.debug("Pressure conversion skipped (missing pressure columns).")
+                return dataframe
+    
+            dataframe[self.P_COL] = dataframe.apply(
+                lambda row: self.convert_values(
+                    row.get(self.P_COL), row.get(self.P_UNIT_COL)
+                ),
+                axis=1,
+            )
+            return dataframe.drop(columns=self.P_UNIT_COL)
+    
+    
+    ###############################################################################
+    class UptakeConversion:
+        """Apply canonical uptake conversions while preserving the ML frame shape."""
+    
+        Q_COL = "adsorbed_amount"
+        Q_UNIT_COL = "adsorption_units"
+        MOLAR_MASS_COL = "adsorbate_molecular_weight"
+        WEIGHT_UNITS = {"mg/g", "g/g", "wt%"}
+    
+        # -------------------------------------------------------------------------
+        @staticmethod
+        def normalize_unit(unit: object) -> str:
+            return normalize_token(unit)
+    
+        # -------------------------------------------------------------------------
+        def convert_uptake_row(
+            self, row: pd.Series, unit_column: str
+        ) -> list[float] | float | None:
+            values = row.get(self.Q_COL)
+            try:
+                resolved = UnitRegistry.uptake_unit(row.get(unit_column))
+            except UnitConversionError:
+                return values
+    
+            molar_mass = row.get(self.MOLAR_MASS_COL)
+            if resolved in self.WEIGHT_UNITS and (
+                molar_mass in (None, 0, "") or pd.isna(molar_mass)
+            ):
+                return values
+    
+            def convert(value: float) -> float:
+                return UnitRegistry.convert_uptake(
+                    value,
+                    resolved,
+                    None if molar_mass is None else float(molar_mass),
+                ).canonical_value
+    
+            try:
+                return map_values(values, convert)
+            except (TypeError, ValueError, UnitConversionError):
+                return values
+    
+        # -------------------------------------------------------------------------
+        def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+            if (
+                self.Q_UNIT_COL not in dataframe.columns
+                or self.Q_COL not in dataframe.columns
+            ):
+                logger.debug("Uptake conversion skipped (missing adsorption columns).")
+                return dataframe
+    
+            dataframe[self.Q_COL] = [
+                self.convert_uptake_row(row, self.Q_UNIT_COL)
+                for _, row in dataframe.iterrows()
+            ]
+            return dataframe.drop(columns=self.Q_UNIT_COL)
+    
+    
+    ###############################################################################
+    def PQ_units_conversion(dataframe: pd.DataFrame) -> pd.DataFrame:
+        """Convert pressure and uptake to canonical values and remove unit columns."""
+        if dataframe.empty:
+            return dataframe
+    
+        converted_data = PressureConversion().convert_pressure_units(dataframe)
+        return UptakeConversion().convert_uptake_data(converted_data)
+    
+    from __future__ import annotations
+    
+    from __future__ import annotations
+    
+    import re
+    from os import PathLike
+    from pathlib import Path
+    
+    
+    SQL_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+    CHECKPOINT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+    
+    
+    ###############################################################################
+    def ensure_safe_sql_identifier(identifier: str, field_name: str = "identifier") -> str:
+        normalized = str(identifier).strip()
+        if not normalized or not SQL_IDENTIFIER_PATTERN.fullmatch(normalized):
+            raise ValueError(f"Invalid {field_name}.")
+        return normalized
+    
+    
+    ###############################################################################
+    def ensure_safe_checkpoint_name(checkpoint_name: str) -> str:
+        normalized = str(checkpoint_name).strip()
+        if not normalized or not CHECKPOINT_NAME_PATTERN.fullmatch(normalized):
+            raise ValueError("Invalid checkpoint name.")
+        return normalized
+    
+    
+    ###############################################################################
+    def resolve_checkpoint_path(
+        base_path: str | PathLike[str], checkpoint_name: str
+    ) -> str:
+        safe_name = ensure_safe_checkpoint_name(checkpoint_name)
+        absolute_base = Path(base_path).resolve()
+        resolved = (absolute_base / safe_name).resolve()
+        try:
+            resolved.relative_to(absolute_base)
+        except ValueError:
+            raise ValueError("Invalid checkpoint path.")
+        return str(resolved)
+    
+    """Unicode safety helpers for ingestion, persistence, and logging.
+    
+    Policy:
+    - Treat inbound/outbound text as UTF-8.
+    - Preserve visible Unicode characters (scientific symbols, Greek letters, diacritics).
+    - Explicitly normalize only problematic invisible/control characters.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    from typing import Any
+    
+    import pandas as pd
+    
+    
+    SAFE_CONTROL_CHARACTERS = {"\n", "\r", "\t"}
+    ZERO_WIDTH_CHARACTERS = {
+        "\u200b",  # ZERO WIDTH SPACE
+        "\u200c",  # ZERO WIDTH NON-JOINER
+        "\u200d",  # ZERO WIDTH JOINER
+        "\ufeff",  # ZERO WIDTH NO-BREAK SPACE / BOM
+    }
+    
+    
+    ###############################################################################
+    def normalize_unicode_text(value: str) -> str:
+        normalized = value.replace("\u00a0", " ")
+        normalized = "".join(
+            character for character in normalized if character not in ZERO_WIDTH_CHARACTERS
+        )
+        return "".join(
+            character
+            for character in normalized
+            if ord(character) >= 32 or character in SAFE_CONTROL_CHARACTERS
+        )
+    
+    
+    ###############################################################################
+    def normalize_error_text(value: str) -> str:
+        return "".join(
+            character
+            for character in normalize_unicode_text(value)
+            if ord(character) < 128 or character in SAFE_CONTROL_CHARACTERS
+        )
+    
+    
+    ###############################################################################
+    def sanitize_unicode_payload(value: Any) -> Any:
+        if isinstance(value, str):
+            return normalize_unicode_text(value)
+        if isinstance(value, list):
+            return [sanitize_unicode_payload(item) for item in value]
+        if isinstance(value, tuple):
+            return tuple(sanitize_unicode_payload(item) for item in value)
+        if isinstance(value, dict):
+            return {
+                sanitize_unicode_payload(key): sanitize_unicode_payload(item)
+                for key, item in value.items()
+            }
+        return value
+    
+    
+    ###############################################################################
+    def sanitize_dataframe_strings(dataframe: pd.DataFrame) -> pd.DataFrame:
+        if dataframe.empty:
+            return dataframe
+    
+        sanitized = dataframe.copy()
+        string_columns = sanitized.select_dtypes(include=["object", "string"]).columns
+        for column in string_columns:
+            sanitized[column] = sanitized[column].apply(
+                lambda value: (
+                    normalize_unicode_text(value) if isinstance(value, str) else value
+                )
+            )
+        return sanitized
+    
+    
+    ###############################################################################
+    def decode_json_response_bytes(raw_bytes: bytes) -> dict[str, Any] | list[Any]:
+        decoded = raw_bytes.decode("utf-8-sig", errors="replace")
+        payload = json.loads(decoded)
+        return sanitize_unicode_payload(payload)
+    
+    from __future__ import annotations
+    
+    import logging
+    from pathlib import Path
+    import sys
+    
+    
+    class UnicodeSafeFormatter(logging.Formatter):
+        def format(self, record: logging.LogRecord) -> str:
+            message = super().format(record)
+            stream_encoding = getattr(sys.stderr, "encoding", None) or "utf-8"
+            return message.encode(stream_encoding, errors="backslashreplace").decode(
+                stream_encoding,
+                errors="strict",
+            )
+    
+    
+    logger = logging.getLogger("ADSMOD.ML")
+    if not logger.handlers:
+        logger.setLevel(logging.DEBUG)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(UnicodeSafeFormatter("%(levelname)s - %(message)s"))
+        logger.addHandler(console_handler)
+    logger.propagate = False
+    
+    
+    def configure_logging(log_directory: Path | None = None) -> None:
+        if log_directory is None:
+            return
+        try:
+            log_directory.mkdir(parents=True, exist_ok=True)
+            filename = (log_directory / "ADSMOD-ML.log").resolve()
+            for handler in list(logger.handlers):
+                if not isinstance(handler, logging.FileHandler):
+                    continue
+                if Path(handler.baseFilename).resolve() == filename:
+                    return
+                logger.removeHandler(handler)
+                handler.close()
+            file_handler = logging.FileHandler(filename, encoding="utf-8")
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    datefmt="%d-%m-%Y %H:%M:%S",
+                )
+            )
+            logger.addHandler(file_handler)
+        except OSError:
+            logger.warning(
+                "ML file logging is unavailable; continuing with console logging."
+            )
+    
+    
+    def close_file_logging() -> None:
+        for handler in list(logger.handlers):
+            if isinstance(handler, logging.FileHandler):
+                logger.removeHandler(handler)
+                handler.close()
+    
+    
+    __all__ = ["UnicodeSafeFormatter", "close_file_logging", "configure_logging", "logger"]
+FAILED app/tests/backend/test_core_routes.py::test_unified_routes_expose_core_and_optional_ml_surface - pydantic_core._pydantic_core.ValidationError: 1 validation error for HealthResponse
+service
+  Input should be 'core' or 'ml' [type=literal_error, input_value='backend', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/literal_error
+FAILED app/tests/backend/test_core_routes.py::test_unified_openapi_surface_contains_core_and_training_routes - AssertionError: assert '/api/v1/training/configuration' in {'/health/live': {'get': {'tags': ['health'], 'summary': 'Liveness', 'operationId': 'liveness_health_live_get', 'respo...tion_get', 'responses': {'200': {'description': 'Successful Response', 'content': {'application/json': {...}}}}}}, ...}
+FAILED app/tests/backend/test_ml_routes.py::test_ml_routes_are_mounted_on_the_single_backend - pydantic_core._pydantic_core.ValidationError: 1 validation error for HealthResponse
+service
+  Input should be 'core' or 'ml' [type=literal_error, input_value='backend', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/literal_error
+FAILED app/tests/backend/test_openapi_schema.py::test_unified_openapi_snapshot_covers_complete_surface - AssertionError: assert '/api/v1/training/configuration' in {'/health/live': {'get': {'tags': ['health'], 'summary': 'Liveness', 'operationId': 'liveness_health_live_get', 'respo...tion_get', 'responses': {'200': {'description': 'Successful Response', 'content': {'application/json': {...}}}}}}, ...}
+6 failed, 95 passed in 38.01s
