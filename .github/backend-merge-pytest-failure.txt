@@ -1,3 +1,13 @@
+    
+        P_COL = "pressure"
+        P_UNIT_COL = "pressure_units"
+    
+        # -------------------------------------------------------------------------
+        @staticmethod
+        def normalize_unit(unit: object) -> str:
+            return normalize_token(unit)
+    
+        # -------------------------------------------------------------------------
         @staticmethod
         def convert_values(
             values: list[int | float] | int | float | None,
@@ -287,14 +297,4 @@
     
     
     __all__ = ["UnicodeSafeFormatter", "close_file_logging", "configure_logging", "logger"]
-FAILED app/tests/backend/test_core_routes.py::test_unified_routes_expose_core_and_optional_ml_surface - AssertionError: assert 404 == 200
- +  where 404 = <Response [404 Not Found]>.status_code
- +    where <Response [404 Not Found]> = get('/api/v1/training/configuration')
- +      where get = <starlette.testclient.TestClient object at 0x7f0122500a50>.get
-FAILED app/tests/backend/test_core_routes.py::test_unified_openapi_surface_contains_core_and_training_routes - AssertionError: assert '/api/v1/training/configuration' in {'/health/live': {'get': {'tags': ['health'], 'summary': 'Liveness', 'operationId': 'liveness_health_live_get', 'respo...tion_get', 'responses': {'200': {'description': 'Successful Response', 'content': {'application/json': {...}}}}}}, ...}
-FAILED app/tests/backend/test_ml_routes.py::test_ml_routes_are_mounted_on_the_single_backend - AssertionError: assert 404 == 200
- +  where 404 = <Response [404 Not Found]>.status_code
- +    where <Response [404 Not Found]> = get('/api/v1/training/configuration')
- +      where get = <starlette.testclient.TestClient object at 0x7f0121c09220>.get
-FAILED app/tests/backend/test_openapi_schema.py::test_unified_openapi_snapshot_covers_complete_surface - AssertionError: assert '/api/v1/training/configuration' in {'/health/live': {'get': {'tags': ['health'], 'summary': 'Liveness', 'operationId': 'liveness_health_live_get', 'respo...tion_get', 'responses': {'200': {'description': 'Successful Response', 'content': {'application/json': {...}}}}}}, ...}
-6 failed, 95 passed in 36.43s
+1 failed, 100 passed in 36.63s
