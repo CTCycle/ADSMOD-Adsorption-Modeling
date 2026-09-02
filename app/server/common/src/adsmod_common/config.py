@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 ###############################################################################
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -46,7 +47,6 @@ class DatabaseConfig(StrictModel):
     insert_batch_size: int = Field(default=5000, ge=1)
     sqlite_path: str | None
 
-    # -------------------------------------------------------------------------
     @field_validator(
         "host",
         "database_name",
@@ -63,7 +63,6 @@ class DatabaseConfig(StrictModel):
         text = str(value).strip()
         return text or None
 
-    # -------------------------------------------------------------------------
     @field_validator("engine", mode="before")
     @classmethod
     def normalize_engine(cls, value: Any) -> str:
@@ -76,7 +75,6 @@ class DatasetConfig(StrictModel):
     allowed_extensions: tuple[str, ...]
     column_detection_cutoff: float = Field(ge=0.0, le=1.0)
 
-    # -------------------------------------------------------------------------
     @field_validator("allowed_extensions", mode="before")
     @classmethod
     def normalize_extensions(cls, value: Any) -> tuple[str, ...]:
@@ -98,7 +96,15 @@ class DatasetConfig(StrictModel):
 ###############################################################################
 class NISTConfig(StrictModel):
     parallel_tasks: int = Field(ge=1)
-    pubchem_parallel_tasks: int = Field(ge=1)
+    pubchem_parallel_tasks: int = Field(ge=1, le=3)
+
+
+###############################################################################
+class PublicDataConfig(StrictModel):
+    request_timeout_seconds: float = Field(default=20.0, gt=0.0, le=120.0)
+    retry_attempts: int = Field(default=3, ge=1, le=6)
+    pubchem_parallel_requests: int = Field(default=2, ge=1, le=3)
+    cod_max_interactive_results: int = Field(default=250, ge=1, le=1000)
 
 
 ###############################################################################
@@ -111,14 +117,12 @@ class FittingConfig(StrictModel):
     preview_row_limit: int = Field(ge=1)
     best_model_metric: str
 
-    # -------------------------------------------------------------------------
     @field_validator("best_model_metric", mode="before")
     @classmethod
     def normalize_metric(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
         return text or "AICc"
 
-    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_bounds(self) -> "FittingConfig":
         if self.max_iterations_upper_bound < self.default_max_iterations:
@@ -145,7 +149,6 @@ class TrainingConfig(StrictModel):
     dataloader_workers: int = Field(default=0, ge=0)
     persistent_workers: bool
 
-    # -------------------------------------------------------------------------
     @field_validator("jit_backend", mode="before")
     @classmethod
     def normalize_backend(cls, value: Any) -> str:
@@ -158,6 +161,7 @@ class ApplicationConfig(StrictModel):
     database: DatabaseConfig
     datasets: DatasetConfig
     nist: NISTConfig
+    public_data: PublicDataConfig
     fitting: FittingConfig
     jobs: JobConfig
     training: TrainingConfig
@@ -193,6 +197,7 @@ __all__ = [
     "FittingConfig",
     "JobConfig",
     "NISTConfig",
+    "PublicDataConfig",
     "RuntimeConfig",
     "StorageConfig",
     "TrainingConfig",
