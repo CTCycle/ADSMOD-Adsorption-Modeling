@@ -1,0 +1,38 @@
+name: Backend Merge Apply
+
+on:
+  push:
+    branches: [backend-merge]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.11.30
+          python-version: 3.14.2
+      - name: Apply backend merge refactor
+        run: python .github/backend_merge_transform.py
+      - name: Sync ML-enabled development environment
+        run: uv sync --locked --project app/backend --extra ml --group dev
+      - name: Compile Python sources
+        run: uv run --project app/backend --extra ml --group dev python -m compileall -q app/backend/common/src app/backend/core/src app/backend/ml/src
+      - name: Review whitespace
+        run: git diff --check
+      - name: Commit implementation
+        shell: bash
+        run: |
+          git rm .github/backend_merge_transform.py .github/workflows/backend-merge-apply.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "refactor: unify backend and make ML optional"
+          git push origin HEAD:backend-merge
