@@ -1,7 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CoreWorkspaceStore, OptimizationMethod } from '../../core/state/core-workspace.store';
 import { HeaderTabsComponent } from '../../layout/header-tabs.component';
-import type { ModelParameters } from '../../models/fitting.model';
+import type {
+    FittingResponse,
+    ModelFitResult,
+    ModelParameters,
+} from '../../models/fitting.model';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
 import { ModelCardComponent } from './model-card.component';
 
@@ -130,6 +134,64 @@ import { ModelCardComponent } from './model-card.component';
                         @if (store.fittingConfigurationError()) {
                             <p class="status-text">Fitting configuration unavailable: {{ store.fittingConfigurationError() }}</p>
                         }
+
+                        @if (store.fittingResult(); as result) {
+                            <section class="fitting-result-panel" aria-live="polite" aria-labelledby="fitting-result-title">
+                                <div class="fitting-result-header">
+                                    <div>
+                                        <p class="fitting-result-kicker">Completed fit</p>
+                                        <h4 id="fitting-result-title">{{ result.dataset_name }} · {{ result.experiment_name }}</h4>
+                                    </div>
+                                    <span class="fitting-result-status" [class.warning]="result.status === 'warning'">{{ result.status }}</span>
+                                </div>
+
+                                <div class="fitting-result-summary">
+                                    <div class="fitting-result-summary-card">
+                                        <span>Best model</span>
+                                        <strong>{{ bestModelLabel(result) }}</strong>
+                                    </div>
+                                    <div class="fitting-result-summary-card">
+                                        <span>Models fitted</span>
+                                        <strong>{{ fittedModelCount(result) }} / {{ result.results.length }}</strong>
+                                    </div>
+                                    <div class="fitting-result-summary-card">
+                                        <span>Observations</span>
+                                        <strong>{{ result.observation_count }}</strong>
+                                    </div>
+                                </div>
+
+                                <div class="fitting-result-table-wrap">
+                                    <table class="fitting-result-table">
+                                        <caption class="sr-only">Fitting results for {{ result.experiment_name }}</caption>
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Model</th>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">RMSE</th>
+                                                <th scope="col">R²</th>
+                                                <th scope="col">AICc</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (fit of result.results; track fit.model) {
+                                                <tr [class.fitting-result-row-best]="fit.model === result.best_model">
+                                                    <th scope="row">
+                                                        {{ fit.name }}
+                                                        @if (fit.model === result.best_model) {
+                                                            <span class="fitting-best-label">Best</span>
+                                                        }
+                                                    </th>
+                                                    <td><span class="fitting-result-status" [class.warning]="fit.status === 'warning'">{{ fit.status }}</span></td>
+                                                    <td>{{ formatMetric(fit.metrics.rmse) }}</td>
+                                                    <td>{{ formatMetric(fit.metrics.r_squared) }}</td>
+                                                    <td>{{ formatMetric(fit.metrics.aicc) }}</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        }
                     </div>
 
                     <hr class="section-separator" />
@@ -197,6 +259,24 @@ export class ModelsPageComponent {
 
     protected weightingLabel(value: 'unweighted' | 'inverse_sigma'): string {
         return value === 'inverse_sigma' ? 'Inverse sigma (complete uncertainties)' : 'Unweighted';
+    }
+
+    protected bestModelLabel(result: FittingResponse): string {
+        return this.bestModelResult(result)?.name ?? result.best_model ?? '—';
+    }
+
+    protected fittedModelCount(result: FittingResponse): number {
+        return result.results.filter((fit) => fit.status !== 'failed').length;
+    }
+
+    protected formatMetric(value: number | null): string {
+        return value === null || !Number.isFinite(value)
+            ? '—'
+            : new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 }).format(value);
+    }
+
+    private bestModelResult(result: FittingResponse): ModelFitResult | null {
+        return result.results.find((fit) => fit.model === result.best_model) ?? null;
     }
 
     protected updateModelConfig(modelName: string, config: ModelParameters): void {

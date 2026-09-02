@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
+import type { FittingResponse } from '../../models/fitting.model';
 import { ModelsPageComponent } from './models-page.component';
 
 describe('ModelsPageComponent', () => {
@@ -98,5 +99,64 @@ describe('ModelsPageComponent', () => {
         expect(TestBed.inject(CoreWorkspaceStore).selectedExperimentId()).toBe(42);
         expect(experimentSelect?.value).toBe('42');
         expect(experimentSelect?.selectedOptions[0]?.textContent).toContain('qa-smiles-298');
+    });
+
+    it('renders returned fitting metrics and identifies the best model', async () => {
+        const fixture = TestBed.createComponent(ModelsPageComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const fittingResult: FittingResponse = {
+            status: 'success',
+            run_id: 7,
+            dataset_id: 1,
+            isotherm_id: 42,
+            dataset_name: 'single-experiment dataset',
+            experiment_name: 'qa-smiles-298',
+            adsorbent: 'Activated carbon',
+            adsorbate: 'CO2',
+            temperature_k: 298.15,
+            pressure_basis: 'absolute',
+            pressure_unit: 'Pa',
+            uptake_unit: 'mol/kg',
+            observation_count: 4,
+            best_model: 'langmuir',
+            results: [
+                {
+                    model: 'langmuir',
+                    name: 'Langmuir',
+                    status: 'success',
+                    convergence_message: 'ok',
+                    function_evaluations: 5,
+                    jacobian_rank: 2,
+                    condition_number: null,
+                    parameters: [],
+                    metrics: {
+                        sse: 1,
+                        rmse: 0.5,
+                        mae: 0.4,
+                        r_squared: 0.98,
+                        adjusted_r_squared: 0.96,
+                        chi_square: null,
+                        aic: 2,
+                        aicc: 8,
+                        bic: 3,
+                    },
+                    observed_predictions: [],
+                    curve: [],
+                    warnings: [],
+                    rank: 1,
+                },
+            ],
+            summary: 'Langmuir selected.',
+        };
+        TestBed.inject(CoreWorkspaceStore).fittingResult.set(fittingResult);
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('.fitting-result-panel')?.textContent).toContain('Best model');
+        expect(root.querySelector('.fitting-result-panel')?.textContent).toContain('Langmuir');
+        expect(root.querySelector('.fitting-result-panel')?.textContent).toContain('0.5');
+        expect(root.querySelector('.fitting-result-row-best')).not.toBeNull();
     });
 });
