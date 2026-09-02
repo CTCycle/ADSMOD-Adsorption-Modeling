@@ -51,7 +51,7 @@ def test_sqlite_missing_database_runs_baseline_and_is_idempotent(
     assert first.applied_migrations is True
     assert second.applied_migrations is False
     assert "alembic_version" in table_names(path)
-    assert len(table_names(path) & set(Base.metadata.tables)) == 12
+    assert len(table_names(path) & set(Base.metadata.tables)) == len(Base.metadata.tables)
 
 
 def test_sqlite_empty_existing_file_is_initialized(tmp_path: Path) -> None:
