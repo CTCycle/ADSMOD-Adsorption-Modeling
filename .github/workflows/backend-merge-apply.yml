@@ -175,7 +175,7 @@ jobs:
         run: git diff --check
       - name: Commit implementation
         run: |
-          git rm .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/backend_merge_validation_patch2.py .github/workflows/backend-merge-apply.yml
+          git rm -f .github/backend_merge_transform.py .github/backend_merge_validation_migration.py .github/backend_merge_validation_patch2.py .github/workflows/backend-merge-apply.yml
           rm -f .github/backend-merge-pytest-failure.txt
           git add -A
           git config user.name "github-actions[bot]"
