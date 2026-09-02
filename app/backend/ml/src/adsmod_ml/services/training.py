@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from adsmod_common.config import AdsmodConfig
-from adsmod_ml.clients.core_client import CoreSnapshotClient
+from adsmod_common.training_data import TrainingDataAccess
 from adsmod_ml.common.utils.logger import logger
 from adsmod_ml.contracts.training import (
     CheckpointDetailInfo,
@@ -273,20 +273,18 @@ class TrainingService:
         self,
         *,
         config: AdsmodConfig,
-        snapshot_client: CoreSnapshotClient,
+        snapshot_access: TrainingDataAccess,
         artifact_root: Path,
         checkpoints_dir: Path,
-        internal_token: str,
         job_manager: JobManager,
         training_manager: TrainingManager,
         training_session: TrainingSession,
         training_job_runner: TrainingJobRunner,
     ) -> None:
         self.config = config
-        self.snapshot_client = snapshot_client
+        self.snapshot_access = snapshot_access
         self.artifact_root = artifact_root
         self.checkpoints_dir = checkpoints_dir
-        self.internal_token = internal_token
         self.job_manager = job_manager
         self.training_manager = training_manager
         self.training_session = training_session
@@ -319,7 +317,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_dataset_sources(self) -> DatasetSourcesResponse:
-        composer = DatasetCompositionService(self.snapshot_client)
+        composer = DatasetCompositionService(self.snapshot_access)
         datasets = [DatasetSourceInfo(**entry) for entry in composer.list_sources()]
         return DatasetSourcesResponse(datasets=datasets)
 
@@ -372,7 +370,7 @@ class TrainingService:
             max_pressure=request.max_pressure,
             max_uptake=request.max_uptake,
         )
-        composer = DatasetCompositionService(self.snapshot_client)
+        composer = DatasetCompositionService(self.snapshot_access)
         selections = [selection.model_dump() for selection in request.datasets]
         adsorption_data, guest_data, host_data, dataset_label = (
             composer.compose_datasets(selections)

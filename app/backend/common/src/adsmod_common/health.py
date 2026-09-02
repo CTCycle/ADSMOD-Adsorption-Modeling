@@ -11,7 +11,7 @@ HealthState = Literal["starting", "ready", "not-ready", "failed", "unavailable"]
 class HealthResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    service: Literal["core", "ml"]
+    service: Literal["backend"]
     version: str
     state: HealthState
     details: dict[str, str] = Field(default_factory=dict)

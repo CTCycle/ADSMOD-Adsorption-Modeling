@@ -4,9 +4,8 @@ version = "3.0.0"
 requires-python = ">=3.14"
 dependencies = [
     "adsmod-common",
+    "adsmod-core",
     "fastapi==0.128.0",
-    "uvicorn[standard]==0.40.0",
-    "httpx==0.28.1",
     "torch==2.10.0+cu130",
     "keras==3.13.1",
     "scikit-learn==1.8.0",

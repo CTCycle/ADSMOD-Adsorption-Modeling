@@ -2,7 +2,10 @@
 name = "adsmod-backend-workspace"
 version = "3.0.0"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = ["adsmod-core"]
+
+[project.optional-dependencies]
+ml = ["adsmod-ml"]
 
 [dependency-groups]
 dev = [

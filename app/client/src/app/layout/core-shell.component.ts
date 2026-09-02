@@ -2,7 +2,7 @@ import { Component, DestroyRef, ElementRef, HostListener, ViewChild, computed, i
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
-import { fetchCoreCapabilities, fetchCoreReadiness, fetchMlReadiness } from '../services/system.service';
+import { fetchApplicationCapabilities, fetchBackendReadiness } from '../services/system.service';
 
 type HelpPage = 'datasets' | 'public-data' | 'public-materials' | 'dashboards' | 'fitting' | 'training';
 
@@ -75,7 +75,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
             { title: 'Monitor progress', description: 'Use the dashboard to follow active metrics and review completed runs.' },
             { title: 'Review checkpoints', description: 'Open Checkpoints to inspect saved training artifacts before reusing them.' },
         ],
-        tips: ['Training requires the optional ML service.', 'Keep the status and metric panels visible while a run is active.'],
+        tips: ['Training requires the optional machine learning dependencies.', 'Keep the status and metric panels visible while a run is active.'],
     },
 };
 
@@ -115,10 +115,12 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <span class="console-nav-icon" aria-hidden="true">⌁</span>
                         <span>Fitting</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/training" routerLinkActive="active">
-                        <span class="console-nav-icon" aria-hidden="true">✺</span>
-                        <span>Training</span>
-                    </a>
+                    @if (machineLearningAvailable()) {
+                        <a class="console-nav-item" routerLink="/training" routerLinkActive="active">
+                            <span class="console-nav-icon" aria-hidden="true">✺</span>
+                            <span>Training</span>
+                        </a>
+                    }
                 </nav>
 
                 <div class="console-sidebar-footer">
@@ -148,9 +150,8 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                 </main>
             </section>
         </div>
-        <div class="console-status-bar" aria-label="Service status" aria-live="polite">
-            <div class="console-status-item"><span class="service-dot core" [class.offline]="coreServiceStatus() === 'Offline'" aria-hidden="true"></span><strong>Core Service</strong><em>{{ coreServiceStatus() }}</em></div>
-            <div class="console-status-item"><span class="service-dot ml" [class.offline]="mlServiceStatus() === 'Unavailable'" aria-hidden="true"></span><strong>ML Service</strong><em>{{ mlServiceStatus() }}</em></div>
+        <div class="console-status-bar" aria-label="Backend status" aria-live="polite">
+            <div class="console-status-item"><span class="service-dot core" [class.offline]="backendStatus() === 'Offline'" aria-hidden="true"></span><strong>Backend</strong><em>{{ backendStatus() }}</em></div>
         </div>
         @if (helpOpen()) {
             <div class="help-modal-backdrop" (click)="closeHelp()">
@@ -194,8 +195,8 @@ export class CoreShellComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
     protected readonly helpOpen = signal(false);
-    protected readonly coreServiceStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
-    protected readonly mlServiceStatus = signal<'Checking' | 'Online' | 'Unavailable'>('Checking');
+    protected readonly backendStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
+    protected readonly machineLearningAvailable = signal(false);
     protected readonly currentPage = computed<HelpPage>(() => {
         const url = this.currentUrl();
         if (url.startsWith('/dashboards')) {
@@ -266,8 +267,8 @@ export class CoreShellComponent {
     }
 
     constructor() {
-        void this.refreshServiceStatus();
-        const serviceStatusTimer = window.setInterval(() => void this.refreshServiceStatus(), 10_000);
+        void this.refreshBackendStatus();
+        const serviceStatusTimer = window.setInterval(() => void this.refreshBackendStatus(), 10_000);
         this.destroyRef.onDestroy(() => window.clearInterval(serviceStatusTimer));
         this.router.events
             .pipe(
@@ -276,7 +277,7 @@ export class CoreShellComponent {
             )
                 .subscribe((event) => {
                     this.currentUrl.set(event.urlAfterRedirects);
-                    void this.refreshServiceStatus();
+                    void this.refreshBackendStatus();
                     queueMicrotask(() => {
                         if (this.mainContent) {
                             this.mainContent.nativeElement.scrollTop = 0;
@@ -290,18 +291,11 @@ export class CoreShellComponent {
                 });
     }
 
-    private async refreshServiceStatus(): Promise<void> {
-        const [capabilities, coreReady, mlReady] = await Promise.all([
-            fetchCoreCapabilities(),
-            fetchCoreReadiness(),
-            fetchMlReadiness(),
-        ]);
-        const coreOnline = capabilities.data !== null && coreReady.data?.state === 'ready';
-        this.coreServiceStatus.set(coreOnline ? 'Online' : 'Offline');
-
-        const mlConfigured = capabilities.data?.services['ml']?.configured === true;
-        const mlOnline = mlConfigured && mlReady.data?.state === 'ready';
-        this.mlServiceStatus.set(mlOnline ? 'Online' : 'Unavailable');
+    private async refreshBackendStatus(): Promise<void> {
+        const [capabilities, readiness] = await Promise.all([fetchApplicationCapabilities(true), fetchBackendReadiness()]);
+        const backendOnline = capabilities.data !== null && readiness.data?.state === 'ready';
+        this.backendStatus.set(backendOnline ? 'Online' : 'Offline');
+        this.machineLearningAvailable.set(capabilities.data?.features.machine_learning === true);
     }
 
     @HostListener('document:keydown.escape')

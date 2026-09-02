@@ -23,7 +23,7 @@ def main() -> None:
     uvicorn.run(
         application,
         host=runtime.host,
-        port=runtime.core_port,
+        port=runtime.backend_port,
     )
 
 

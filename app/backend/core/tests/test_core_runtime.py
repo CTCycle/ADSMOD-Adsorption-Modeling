@@ -2,95 +2,47 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi.testclient import TestClient
-
 from adsmod_common.config import StorageConfig, load_config
 from adsmod_core.app import create_app, create_app_from_path
-
 
 CONFIG_PATH = Path("app/resources/adsmod.json")
 
 
-###############################################################################
-def test_core_runtime_contracts() -> None:
-    with TestClient(create_app(load_config(CONFIG_PATH))) as client:
-        assert client.get("/health/live").json()["state"] == "ready"
-        assert client.get("/health/ready").json()["state"] == "ready"
-        capabilities = client.get("/api/v1/system/capabilities").json()
-        assert capabilities["configured_mode"] == "core"
-        assert capabilities["features"]["training"] is False
-        assert capabilities["services"]["ml"]["readiness"] == "not-configured"
-        configuration = client.get("/api/v1/system/configuration")
-        assert configuration.status_code == 200
-        assert configuration.json()["default_max_evaluations"] == 1000
-        assert configuration.json()["display_units"]["default_pressure"] == "bar"
+def _temporary_config(directory: str):
+    base = load_config(CONFIG_PATH)
+    return base.model_copy(update={
+        "storage": StorageConfig(root=Path(directory)),
+        "application": base.application.model_copy(update={
+            "database": base.application.database.model_copy(update={"sqlite_path": "core.db"})
+        }),
+    })
 
 
-###############################################################################
-def test_core_factory_requires_explicit_config() -> None:
+def test_unified_runtime_contracts(tmp_path: Path) -> None:
+    with TemporaryDirectory(dir=tmp_path) as directory:
+        with TestClient(create_app(_temporary_config(directory))) as client:
+            assert client.get("/health/live").json()["service"] == "backend"
+            assert client.get("/health/ready").json()["state"] == "ready"
+            capabilities = client.get("/api/v1/system/capabilities").json()
+            assert capabilities["features"]["datasets"] is True
+            assert capabilities["features"]["machine_learning"] is True, client.app.state.runtime.machine_learning_reason
+            assert client.get("/api/v1/system/configuration").status_code == 200
+            assert client.get("/api/v1/training/configuration").status_code == 200
+
+
+def test_factory_uses_single_backend_port() -> None:
     application = create_app_from_path(CONFIG_PATH)
-    assert application.state.config.runtime.mode == "core"
+    assert application.state.config.runtime.backend_port > 0
+    assert not hasattr(application.state.config.runtime, "ml_port")
 
 
-###############################################################################
-def test_snapshot_api_requires_token_and_preserves_hash(tmp_path: Path) -> None:
+def test_in_process_snapshot_access_preserves_hash(tmp_path: Path) -> None:
     with TemporaryDirectory(dir=tmp_path) as directory:
-        base_config = load_config(CONFIG_PATH)
-        config = load_config(CONFIG_PATH).model_copy(
-            update={
-                "storage": StorageConfig(root=Path(directory)),
-                "application": base_config.application.model_copy(
-                    update={
-                        "database": base_config.application.database.model_copy(
-                            update={"sqlite_path": "core.db"}
-                        )
-                    }
-                ),
-            }
-        )
-        with TestClient(create_app(config, internal_token="secret")) as client:
+        with TestClient(create_app(_temporary_config(directory))) as client:
+            access = client.app.state.runtime.training_data
             rows = [{"id": 1, "value": "alpha"}, {"id": 2, "value": "beta"}]
-            unauthorized = client.post(
-                "/api/v1/internal/snapshots", json={"rows": rows}
-            )
-            assert unauthorized.status_code == 401
-            created = client.post(
-                "/api/v1/internal/snapshots",
-                headers={"X-ADSMOD-Internal-Token": "secret"},
-                json={"rows": rows},
-            )
-            assert created.status_code == 200
-            metadata = created.json()
+            reference = access.create_snapshot(rows)
             rows[0]["value"] = "mutated-after-create"
-            page = client.get(
-                f"/api/v1/internal/snapshots/{metadata['snapshot_id']}?page=1&page_size=1",
-                headers={"X-ADSMOD-Internal-Token": "secret"},
-            )
-            assert page.status_code == 200
-            payload = page.json()
-            assert payload["total_rows"] == 2
-            assert payload["rows"] == [{"id": 1, "value": "alpha"}]
-            assert payload["content_hash"] == metadata["content_hash"]
-
-
-###############################################################################
-def test_snapshot_page_not_found(tmp_path: Path) -> None:
-    with TemporaryDirectory(dir=tmp_path) as directory:
-        base_config = load_config(CONFIG_PATH)
-        config = load_config(CONFIG_PATH).model_copy(
-            update={
-                "storage": StorageConfig(root=Path(directory)),
-                "application": base_config.application.model_copy(
-                    update={
-                        "database": base_config.application.database.model_copy(
-                            update={"sqlite_path": "core.db"}
-                        )
-                    }
-                ),
-            }
-        )
-        with TestClient(create_app(config, internal_token="secret")) as client:
-            response = client.get(
-                "/api/v1/internal/snapshots/not-a-snapshot",
-                headers={"X-ADSMOD-Internal-Token": "secret"},
-            )
-            assert response.status_code == 404
+            payload = access.fetch_snapshot(reference.snapshot_id)
+            assert payload.rows[0] == {"id": 1, "value": "alpha"}
+            assert payload.content_hash == reference.content_hash

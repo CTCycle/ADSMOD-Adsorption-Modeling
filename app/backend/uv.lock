@@ -31,6 +31,14 @@ wheels = [
 name = "adsmod-backend-workspace"
 version = "3.0.0"
 source = { virtual = "." }
+dependencies = [
+    { name = "adsmod-core" },
+]
+
+[package.optional-dependencies]
+ml = [
+    { name = "adsmod-ml" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -41,6 +49,11 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "adsmod-core", editable = "core" },
+    { name = "adsmod-ml", marker = "extra == 'ml'", editable = "ml" },
+]
+provides-extras = ["ml"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -104,27 +117,25 @@ version = "3.0.0"
 source = { editable = "ml" }
 dependencies = [
     { name = "adsmod-common" },
+    { name = "adsmod-core" },
     { name = "fastapi" },
-    { name = "httpx" },
     { name = "keras" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "scikit-learn" },
     { name = "torch" },
-    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "adsmod-common", editable = "common" },
+    { name = "adsmod-core", editable = "core" },
     { name = "fastapi", specifier = "==0.128.0" },
-    { name = "httpx", specifier = "==0.28.1" },
     { name = "keras", specifier = "==3.13.1" },
     { name = "numpy", specifier = "==2.5.2" },
     { name = "pandas", specifier = "==3.0.5" },
     { name = "scikit-learn", specifier = "==1.8.0" },
     { name = "torch", specifier = "==2.10.0+cu130", index = "https://download.pytorch.org/whl/cu130" },
-    { name = "uvicorn", extras = ["standard"], specifier = "==0.40.0" },
 ]
 
 [[package]]

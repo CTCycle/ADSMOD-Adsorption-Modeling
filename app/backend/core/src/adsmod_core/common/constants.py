@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 ###############################################################################
-FASTAPI_TITLE = "ADSMOD Model Fitting Backend"
+FASTAPI_TITLE = "ADSMOD Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"
 FASTAPI_VERSION = "3.0.0"
 MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024
