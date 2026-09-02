@@ -1,30 +1,37 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
 ## Backend or UI unreachable
 
-- Check the host and ports in `app/resources/adsmod.json`.
-- Confirm Core responds at `/health/ready`.
-- In `core-ml` mode, confirm ML responds at its own `/health/ready`.
-- Confirm the frontend preview serves the built `dist/browser/index.html`.
+- Check the backend and frontend host/port values in `app/resources/adsmod.json`.
+- Confirm the backend responds at `/health/ready`.
+- Confirm the frontend preview serves the built Angular application.
+- Check backend and frontend launcher logs under the configured storage root.
 
 ## Missing dependencies
 
-Run **Install / update dependencies** in `start_on_windows.ps1`. It uses the
-locked backend workspace and `npm ci`; resolve filesystem or network errors and
-rerun the action rather than reusing a stale environment.
+Run **Install / update dependencies** in `start_on_windows.ps1`. The installer
+uses the locked backend workspace and `npm ci`. Choose the ML-enabled install
+option only when training functionality is required. Resolve filesystem or
+network errors and rerun the action rather than reusing a partial environment.
 
 ## Training unavailable
 
-`core` mode intentionally reports training as not configured. Set the
-canonical `runtime.mode` to `core-ml` and relaunch so ML starts on
-`runtime.ml_port`. The frontend proxy must match `/api/v1/training` before the
-general `/api/v1` target.
+Query `/api/v1/system/capabilities`. If `features.machine_learning` is false,
+the backend is running correctly without the optional ML extension. Re-run the
+installer with machine learning dependencies enabled, then relaunch ADSMOD.
+The frontend intentionally hides or blocks training routes while that
+capability is unavailable.
+
+If ML dependencies are installed but the capability remains false, inspect the
+backend startup log for the recorded optional-extension load reason and verify
+that the local Python and compute environment can import the installed ML
+stack.
 
 ## Database startup failure
 
-Inspect the Core logs below the configured storage root. Unknown or non-empty
-unversioned schemas are rejected deliberately; export or repair them manually
-instead of stamping a guessed revision. For PostgreSQL, verify connectivity,
-credentials, and the role's database-creation permission.
+Inspect the backend logs below the configured storage root. Unknown or
+non-empty unversioned schemas are rejected deliberately; export or repair them
+manually instead of stamping a guessed revision. For PostgreSQL, verify
+connectivity, credentials, and the role's database-creation permission.

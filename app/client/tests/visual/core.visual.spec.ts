@@ -30,19 +30,11 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ service: 'core', version: '3.0.0', state: 'ready' }),
+                body: JSON.stringify({ service: 'backend', version: '3.0.0', state: 'ready' }),
             });
             return;
         }
         await route.fulfill({ status: 404, body: 'Not found' });
-    });
-
-    await page.route('**/ml-health/**', async (route) => {
-        await route.fulfill({
-            status: 503,
-            contentType: 'application/json',
-            body: JSON.stringify({ detail: 'ML service is not configured' }),
-        });
     });
 
     await page.route('**/api/**', async (route) => {
@@ -54,10 +46,15 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    configured_mode: 'core',
                     version: '3.0.0',
-                    features: { datasets: true, nist: true, fitting: true, training: false, checkpoints: false },
-                    services: { ml: { configured: false, health: 'unknown', readiness: 'unavailable' } },
+                    features: {
+                        datasets: true,
+                        nist: true,
+                        fitting: true,
+                        machine_learning: false,
+                        training: false,
+                        checkpoints: false,
+                    },
                 }),
             });
             return;
@@ -182,9 +179,7 @@ const mockCoreApi = async (page: import('@playwright/test').Page) => {
         await route.fulfill({
             status: 404,
             contentType: 'application/json',
-            body: JSON.stringify({
-                detail: `Unhandled visual mock for ${request.method()} ${url.pathname}`,
-            }),
+            body: JSON.stringify({ detail: `Unhandled visual mock for ${request.method()} ${url.pathname}` }),
         });
     });
 };
@@ -229,5 +224,4 @@ test.describe('core visual regression', () => {
         await expect(page.getByRole('heading', { name: 'Adsorbent Materials', exact: true })).toBeVisible();
         await expect(page).toHaveScreenshot('core-public-materials-page.png', { fullPage: true });
     });
-
 });

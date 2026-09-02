@@ -1,29 +1,27 @@
 # API surface
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
-Both services expose liveness and readiness at `/health/live` and
-`/health/ready`. There are no unversioned API aliases.
+ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
+`/health/live` and `/health/ready`; there are no service-specific health
+aliases or unversioned API aliases.
 
-## Core service
+## Versioned API
 
-Core serves the versioned routes under `/api/v1`:
+The unified backend serves all versioned routes under `/api/v1`:
 
 - `/system/capabilities` and `/system/configuration`
 - `/datasets/*`
 - `/nist/*`
 - `/fitting/*`
-- `/internal/snapshots/*` and `/internal/training/*` for authenticated ML
-  coordination
+- `/training/configuration` and the training lifecycle under `/training/*`
+  when the optional machine learning dependencies are installed
 
-The Core OpenAPI snapshot is `app/backend/openapi/core.json`.
+`/system/capabilities` is the authoritative runtime feature-discovery endpoint.
+The frontend uses its `features.machine_learning` value to expose or hide
+machine learning navigation and routes.
 
-## ML service
+The canonical OpenAPI snapshot is `app/backend/openapi/backend.json`.
 
-ML serves `/api/v1/system/capabilities`,
-`/api/v1/training/configuration`, and the training lifecycle under
-`/api/v1/training/*`. The ML OpenAPI snapshot is
-`app/backend/openapi/ml.json`.
-
-The frontend proxy matches `/api/v1/training` before the general `/api/v1`
-route so training requests reach ML and all other API requests reach Core.
+The Angular client sends all API requests to the same backend origin. There is
+no frontend routing split between core and machine learning services.

@@ -1,24 +1,28 @@
 # Findings and remediation
 
-Last updated: 2026-08-30
+Last updated: 2026-09-02
 
-The original repository contained a unified legacy web runtime alongside an
-unfinished split backend. That older runtime combined Core, ML, and persistence
-through import paths and environment switches, which made it unclear which
-implementation was active. It has no current runtime purpose and is retired.
+The repository previously contained two FastAPI processes with separate
+startup, health, routing, proxy, configuration, and coordination concerns.
+That architecture increased packaging and lifecycle complexity and required
+backend-to-backend HTTP communication for machine learning workflows.
 
-The remediation is now complete:
+The remediation is complete:
 
-1. Core and ML were moved behind explicit package boundaries.
-2. Core became the only owner of SQLAlchemy, Alembic, and the operational
-   database.
-3. ML now consumes authenticated, hash-verified Core snapshots.
-4. The Angular client, launcher, tests, CI, editor configuration, scripts, and
-   documentation were changed to the same config and route contracts.
-5. Legacy schema adoption/fingerprint behavior and compatibility aliases were
-   removed rather than preserved.
+1. ADSMOD now has one FastAPI backend process and one backend health surface.
+2. SQLAlchemy, Alembic, and the operational database remain owned by the core
+   package inside that process.
+3. Machine learning routes are registered in-process only when the optional ML
+   package and dependencies are installed.
+4. Training data crosses an explicit in-process contract instead of an
+   authenticated backend-to-backend HTTP boundary.
+5. The Angular client discovers ML availability through
+   `/api/v1/system/capabilities` and does not expose training when unavailable.
+6. The launcher, packaging metadata, tests, generated API contract, scripts,
+   and documentation use the same single-backend architecture.
+7. Legacy dual-service configuration, service tokens, proxy routing, entry
+   points, and compatibility paths were removed rather than retained.
 
-Remaining verification is operational rather than architectural: run the
-launcher on the target Windows host, exercise the browser workflow, and run
-the optional `core-ml` path when its model dependencies and service token are
-available.
+Remaining verification is operational: run the Windows launcher on the target
+host and exercise normal and ML-enabled workflows with the locally available
+hardware and browser environment.
