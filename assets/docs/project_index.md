@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-08-20
+Last updated: 2026-09-02
 
 ## Purpose
 
@@ -30,7 +30,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 ### Architecture
 
 - [`architecture/overview.md`](architecture/overview.md)
-  - Index for system structure, service boundaries, API ownership, and persistence layout.
+  - Index for system structure, service boundaries, API ownership, persistence layout, and public-data architecture.
 - [`architecture/architecture.md`](architecture/architecture.md)
   - Root architecture entry point that links to the canonical architecture topic documents.
 - [`architecture/system_overview.md`](architecture/system_overview.md)
@@ -38,9 +38,11 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`architecture/service_boundaries.md`](architecture/service_boundaries.md)
   - Backend dependency direction, import constraints, and ownership rules.
 - [`architecture/api_surface.md`](architecture/api_surface.md)
-  - Core-service and ML-service route ownership.
+  - Unified backend route ownership.
 - [`architecture/persistence_and_packages.md`](architecture/persistence_and_packages.md)
   - Shared backend workspace, persistence ownership, and validation expectations.
+- [`architecture/public_data.md`](architecture/public_data.md)
+  - Public provider architecture, normalized provenance model, PubChem and COD integrations, structural data, and provider-extension rules.
 - [`architecture/v3_migration_status.md`](architecture/v3_migration_status.md)
   - Canonical v3 package boundaries, snapshot contracts, and configuration.
 - [`architecture/findings_and_remediation.md`](architecture/findings_and_remediation.md)
@@ -68,7 +70,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`runtime/startup.md`](runtime/startup.md)
   - Launcher and manual startup procedures.
 - [`runtime/configuration.md`](runtime/configuration.md)
-  - Canonical v3 JSON configuration, operational environment toggles, and mode-specific behavior.
+  - Canonical v3 JSON configuration, public-data request policy, operational environment toggles, and mode-specific behavior.
 - [`runtime/deployment.md`](runtime/deployment.md)
   - Local deployment, runtime dependencies, interoperability, and current constraints.
 
@@ -90,7 +92,7 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 - [`operations/overview.md`](operations/overview.md)
   - Index for end-user workflows, common commands, and troubleshooting.
 - [`operations/workflows.md`](operations/workflows.md)
-  - Primary user workflows across datasets, fitting, dashboards, and training.
+  - Primary user workflows across datasets, fitting, dashboards, public data, and training.
 - [`operations/commands.md`](operations/commands.md)
   - Launch, test, frontend, and maintenance commands.
 - [`operations/troubleshooting.md`](operations/troubleshooting.md)
