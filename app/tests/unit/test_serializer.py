@@ -201,3 +201,34 @@ def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path: Path) -> None:
     (configuration_dir / "session_history.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValidationError):
         ModelSerializer(tmp_path).load_training_configuration(str(tmp_path))
+
+
+def test_checkpoint_loader_allows_adsmod_owned_lambda_layers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checkpoint = tmp_path / "local-checkpoint"
+    configuration_dir = checkpoint / "configuration"
+    configuration_dir.mkdir(parents=True)
+    (checkpoint / "saved_model.keras").touch()
+    (configuration_dir / "configuration.json").write_text("{}", encoding="utf-8")
+    (configuration_dir / "metadata.json").write_text(
+        create_basis_metadata().model_dump_json(), encoding="utf-8"
+    )
+    (configuration_dir / "session_history.json").write_text("{}", encoding="utf-8")
+    captured: dict[str, Any] = {}
+
+    def fake_load_model(path: Path, **kwargs: Any) -> object:
+        captured["path"] = path
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(
+        "adsmod_ml.learning.serialization.model.load_model", fake_load_model
+    )
+    loaded, _, _, _, resolved = ModelSerializer(tmp_path).load_checkpoint(
+        "local-checkpoint"
+    )
+    assert loaded is not None
+    assert captured["safe_mode"] is False
+    assert captured["compile"] is True
+    assert Path(resolved) == checkpoint.resolve()
