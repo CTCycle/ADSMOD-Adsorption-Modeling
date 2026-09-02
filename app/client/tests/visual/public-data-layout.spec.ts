@@ -25,7 +25,7 @@ async function installApiMocks(page: Page): Promise<void> {
             { sequence_index: 3, adsorbate: 'carbon dioxide', pressure_original: 1000, pressure_original_unit: 'kPa', pressure_pa: 1000000, uptake_original: 8.4, uptake_original_unit: 'mol/kg', uptake_mol_kg: 8.4 },
         ] }) });
     });
-    await page.route('**/api/v1/public-data/adsorption**', async (route) => {
+    await page.route(/\/api\/v1\/public-data\/adsorption(?:\?.*)?$/, async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 1, external_id: longExternalId, source: 'nist', source_url: 'https://adsorption.nist.gov/', material: longMaterial, adsorbates: ['carbon dioxide'], temperature_k: 298.15, pressure_min_pa: 1000, pressure_max_pa: 1000000, uptake_min_mol_kg: 0.02, uptake_max_mol_kg: 8.4, point_count: 120, reference: '10.1000/example', retrieved_at: '2026-09-02T12:00:00Z' }], pagination: { page: 1, page_size: 25, total: 101 } }) });
     });
     await page.route('**/api/v1/public-data/materials**', async (route) => {
@@ -34,7 +34,7 @@ async function installApiMocks(page: Page): Promise<void> {
     await page.route('**/api/v1/public-data/chemicals/7', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 7, name: 'carbon dioxide', preferred_name: 'carbon dioxide', formula: 'CO2', molecular_weight: 44.009, inchi: 'InChI=1S/CO2/c2-1-3', inchi_key: 'CURLTUGMZLYLDI-UHFFFAOYSA-N', connectivity_smiles: 'C(=O)=O', smiles: 'C(=O)=O', pubchem_cid: '280', synonyms: Array.from({ length: 20 }, (_, index) => `long scientific synonym ${index + 1}`), properties: [{ key: 'tpsa_angstrom2', value_number: 34.1, value_text: null, unit: 'Å²', source: 'pubchem' }], external_identifiers: [{ source: 'pubchem', external_id: '280', source_url: 'https://pubchem.ncbi.nlm.nih.gov/compound/280', retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], structure_2d_url: null, conformer_3d_url: 'https://example.test/co2.sdf', retrieved_at: '2026-09-02T12:00:00Z' }) });
     });
-    await page.route('**/api/v1/public-data/chemicals**', async (route) => {
+    await page.route(/\/api\/v1\/public-data\/chemicals(?:\?.*)?$/, async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 7, name: 'carbon dioxide', preferred_name: 'carbon dioxide', formula: 'CO2', molecular_weight: 44.009, inchi: 'InChI=1S/CO2/c2-1-3', inchi_key: 'CURLTUGMZLYLDI-UHFFFAOYSA-N', connectivity_smiles: 'C(=O)=O', smiles: 'C(=O)=O', pubchem_cid: '280', synonyms: [], properties: [], external_identifiers: [{ source: 'pubchem', external_id: '280', source_url: 'https://pubchem.ncbi.nlm.nih.gov/compound/280', retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], structure_2d_url: null, conformer_3d_url: 'https://example.test/co2.sdf', retrieved_at: '2026-09-02T12:00:00Z' }], pagination: { page: 1, page_size: 25, total: 80 } }) });
     });
     await page.route('**/api/v1/public-data/structures**', async (route) => {
