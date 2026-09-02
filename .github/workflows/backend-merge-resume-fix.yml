@@ -1,0 +1,52 @@
+name: Backend Merge Resume Fix
+
+on:
+  push:
+    branches:
+      - backend-merge
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          python-version: "3.14.2"
+      - name: Apply Keras 3 resume guard fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/backend/ml/src/adsmod_ml/learning/training/manager.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        optimizer = getattr(model, "optimizer", None)\n        compiled_loss = getattr(model, "compiled_loss", None)\n        if optimizer is None or compiled_loss is None:\n'''
+          new = '''        optimizer = getattr(model, "optimizer", None)\n        loss = getattr(model, "loss", None)\n        if optimizer is None or loss is None:\n'''
+          if old not in text:
+              raise SystemExit('expected legacy compiled_loss resume guard not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('app/backend/ml/tests/test_resume_validation.py')
+          test.write_text('''from __future__ import annotations\n\nfrom types import SimpleNamespace\n\nimport pytest\n\nfrom adsmod_ml.learning.training.manager import TrainingProcessRunner\n\n\ndef test_resume_validation_accepts_keras3_public_loss_state() -> None:\n    optimizer = SimpleNamespace(variables=[object()])\n    model = SimpleNamespace(optimizer=optimizer, loss=object())\n    TrainingProcessRunner.validate_resume_model(object(), model)\n\n\ndef test_resume_validation_rejects_missing_loss() -> None:\n    optimizer = SimpleNamespace(variables=[object()])\n    model = SimpleNamespace(optimizer=optimizer, loss=None)\n    with pytest.raises(ValueError, match="not compiled"):\n        TrainingProcessRunner.validate_resume_model(object(), model)\n''', encoding='utf-8')
+          PY
+      - name: Install ML-enabled development environment
+        run: uv sync --locked --project app/backend --extra ml --group dev
+      - name: Validate complete backend
+        run: |
+          uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend app/tests app/scripts
+          uv run --project app/backend --extra ml --group dev python -m pytest app/backend/common/tests app/backend/core/tests app/backend/ml/tests app/tests/backend app/tests/persistence app/tests/unit -k "not performance" -q --tb=short
+          git diff --check
+      - name: Commit validated fix
+        run: |
+          git add app/backend/ml/src/adsmod_ml/learning/training/manager.py app/backend/ml/tests/test_resume_validation.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: validate Keras 3 resume compilation state"
+          git push origin HEAD:backend-merge
