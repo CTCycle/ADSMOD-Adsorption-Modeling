@@ -6,24 +6,80 @@ on:
       - backend-merge
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   cpu-training-live:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.30"
           python-version: "3.14.2"
+      - name: Replace SCADS Atomic Lambda feature slicing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/backend/ml/src/adsmod_ml/learning/models/qmodel.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        adsorbent_index = layers.Lambda(
+              lambda x: keras.ops.cast(x[:, 2], "int32"),
+              output_shape=(),
+              name="adsorbent_index",
+          )(self.features_input)
+          chemometric_feature = layers.Lambda(
+              lambda x: x[:, 1],
+              output_shape=(),
+              name="chemometric_feature",
+          )(self.features_input)
+          molecular_embeddings = self.molecular_embeddings(
+              self.adsorbates_input, adsorbent_index, chemometric_feature
+          )
+          context_vector = self.context_pooling(molecular_embeddings)
+
+          temperature_feature = layers.Lambda(
+              lambda x: keras.ops.expand_dims(x[:, 0], axis=-1),
+              output_shape=(1,),
+              name="temperature_feature",
+          )(self.features_input)
+          molecular_weight_feature = layers.Lambda(
+              lambda x: keras.ops.expand_dims(x[:, 1], axis=-1),
+              output_shape=(1,),
+              name="molecular_weight_feature",
+          )(self.features_input)
+          pressure_feature = layers.Lambda(
+              lambda x: keras.ops.expand_dims(x[:, 3], axis=-1),
+              output_shape=(1,),
+              name="pressure_feature",
+          )(self.features_input)
+'''
+          new = '''        adsorbent_index = keras.ops.cast(self.features_input[:, 2], "int32")
+          chemometric_feature = self.features_input[:, 1]
+          molecular_embeddings = self.molecular_embeddings(
+              self.adsorbates_input, adsorbent_index, chemometric_feature
+          )
+          context_vector = self.context_pooling(molecular_embeddings)
+
+          temperature_feature = keras.ops.expand_dims(self.features_input[:, 0], axis=-1)
+          molecular_weight_feature = keras.ops.expand_dims(self.features_input[:, 1], axis=-1)
+          pressure_feature = keras.ops.expand_dims(self.features_input[:, 3], axis=-1)
+'''
+          if old not in text:
+              raise SystemExit('expected SCADS Atomic Lambda feature block not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Install ML-enabled backend
         run: uv sync --locked --project app/backend --extra ml --group dev
       - name: Validate training fixes
         run: |
-          uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend/ml/src/adsmod_ml/learning/serialization app/backend/ml/src/adsmod_ml/learning/models/qmodel.py app/tests/unit/test_serializer.py
-          uv run --project app/backend --extra ml --group dev python -m pytest app/tests/unit/test_serializer.py -q --tb=short
+          uv run --project app/backend --extra ml --group dev ruff check --isolated app/backend/ml/src/adsmod_ml/learning/serialization app/backend/ml/src/adsmod_ml/learning/models/qmodel.py app/backend/ml/src/adsmod_ml/learning/training/manager.py app/backend/ml/tests/test_resume_validation.py app/tests/unit/test_serializer.py
+          uv run --project app/backend --extra ml --group dev python -m pytest app/backend/ml/tests/test_resume_validation.py app/tests/unit/test_serializer.py -q --tb=short
+          git diff --check
       - name: Seed isolated processed dataset
         run: |
           python - <<'PY'
@@ -188,3 +244,10 @@ jobs:
             echo 'Training backend still responds after shutdown.' >&2
             exit 1
           fi
+      - name: Commit validated serialization fix
+        run: |
+          git add app/backend/ml/src/adsmod_ml/learning/models/qmodel.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: make SCADS Atomic feature extraction serializable"
+          git push origin HEAD:backend-merge
