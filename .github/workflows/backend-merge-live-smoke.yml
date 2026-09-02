@@ -1,0 +1,201 @@
+name: Backend Merge Live Smoke
+
+on:
+  push:
+    branches:
+      - backend-merge
+
+permissions:
+  contents: read
+
+jobs:
+  base-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          python-version: "3.14.2"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+      - name: Install base backend and browser dependencies
+        run: |
+          uv sync --locked --project app/backend --no-dev
+          cd app/client
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Launch and exercise base runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = json.loads(Path('app/resources/adsmod.json').read_text(encoding='utf-8'))
+          payload['runtime']['frontend_port'] = 4173
+          payload['storage']['root'] = os.path.join(os.environ['RUNNER_TEMP'], 'adsmod-live-base')
+          Path(os.environ['RUNNER_TEMP'], 'adsmod-live-base.json').write_text(json.dumps(payload), encoding='utf-8')
+          PY
+          BACKEND_LOG="$RUNNER_TEMP/base-backend.log"
+          FRONTEND_LOG="$RUNNER_TEMP/base-frontend.log"
+          app/backend/.venv/bin/python -m adsmod_core.cli --config "$RUNNER_TEMP/adsmod-live-base.json" >"$BACKEND_LOG" 2>&1 &
+          BACKEND_PID=$!
+          (cd app/client && npm run preview -- --host 127.0.0.1 --port 4173) >"$FRONTEND_LOG" 2>&1 &
+          FRONTEND_PID=$!
+          cleanup() {
+            kill "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
+            wait "$FRONTEND_PID" 2>/dev/null || true
+            wait "$BACKEND_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:6045/health/ready >/dev/null && curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+            if ! kill -0 "$BACKEND_PID" 2>/dev/null; then cat "$BACKEND_LOG"; exit 1; fi
+            if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then cat "$FRONTEND_LOG"; exit 1; fi
+          done
+          python - <<'PY'
+          import json, urllib.error, urllib.request
+          caps = json.load(urllib.request.urlopen('http://127.0.0.1:6045/api/v1/system/capabilities'))
+          assert caps['features']['machine_learning'] is False, caps
+          ready = json.load(urllib.request.urlopen('http://127.0.0.1:6045/health/ready'))
+          assert ready['state'] == 'ready', ready
+          try:
+              urllib.request.urlopen('http://127.0.0.1:6045/api/v1/training/configuration')
+          except urllib.error.HTTPError as exc:
+              assert exc.code == 404, exc.code
+          else:
+              raise AssertionError('training configuration unexpectedly available in base runtime')
+          PY
+          cd app/client
+          node --input-type=module <<'NODE'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({headless: true});
+          const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
+          const errors = [];
+          page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
+          page.on('pageerror', error => errors.push(error.message));
+          await page.goto('http://127.0.0.1:4173/datasets', {waitUntil: 'networkidle'});
+          await page.getByRole('heading', {name: 'Custom Datasets'}).waitFor();
+          await page.getByText('Backend').waitFor();
+          await page.getByText('Online', {exact: true}).waitFor();
+          if (await page.getByRole('link', {name: 'Training'}).count()) throw new Error('Training navigation is visible in base runtime');
+          await page.goto('http://127.0.0.1:4173/training', {waitUntil: 'networkidle'});
+          await page.waitForURL('**/datasets');
+          await page.getByRole('heading', {name: 'Custom Datasets'}).waitFor();
+          await page.getByRole('link', {name: 'Fitting'}).click();
+          await page.getByRole('heading', {name: 'Fitting'}).waitFor();
+          if (errors.length) throw new Error(`Browser runtime errors: ${errors.join(' | ')}`);
+          await browser.close();
+          NODE
+          cd ../..
+          cleanup
+          trap - EXIT
+          sleep 2
+          if kill -0 "$BACKEND_PID" 2>/dev/null || kill -0 "$FRONTEND_PID" 2>/dev/null; then
+            echo 'A live base runtime process survived shutdown.' >&2
+            exit 1
+          fi
+          if curl -fsS --max-time 2 http://127.0.0.1:6045/health/ready >/dev/null 2>&1; then
+            echo 'Backend still responds after shutdown.' >&2
+            exit 1
+          fi
+
+  ml-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          python-version: "3.14.2"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.13.0"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+      - name: Install ML backend and browser dependencies
+        run: |
+          uv sync --locked --project app/backend --extra ml --no-dev
+          cd app/client
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Launch and exercise ML runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = json.loads(Path('app/resources/adsmod.json').read_text(encoding='utf-8'))
+          payload['runtime']['frontend_port'] = 4173
+          payload['storage']['root'] = os.path.join(os.environ['RUNNER_TEMP'], 'adsmod-live-ml')
+          Path(os.environ['RUNNER_TEMP'], 'adsmod-live-ml.json').write_text(json.dumps(payload), encoding='utf-8')
+          PY
+          BACKEND_LOG="$RUNNER_TEMP/ml-backend.log"
+          FRONTEND_LOG="$RUNNER_TEMP/ml-frontend.log"
+          app/backend/.venv/bin/python -m adsmod_core.cli --config "$RUNNER_TEMP/adsmod-live-ml.json" >"$BACKEND_LOG" 2>&1 &
+          BACKEND_PID=$!
+          (cd app/client && npm run preview -- --host 127.0.0.1 --port 4173) >"$FRONTEND_LOG" 2>&1 &
+          FRONTEND_PID=$!
+          cleanup() {
+            kill "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
+            wait "$FRONTEND_PID" 2>/dev/null || true
+            wait "$BACKEND_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in {1..120}; do
+            if curl -fsS http://127.0.0.1:6045/health/ready >/dev/null && curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+            if ! kill -0 "$BACKEND_PID" 2>/dev/null; then cat "$BACKEND_LOG"; exit 1; fi
+            if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then cat "$FRONTEND_LOG"; exit 1; fi
+          done
+          python - <<'PY'
+          import json, urllib.request
+          caps = json.load(urllib.request.urlopen('http://127.0.0.1:6045/api/v1/system/capabilities'))
+          assert caps['features']['machine_learning'] is True, caps
+          assert caps['features']['training'] is True, caps
+          ready = json.load(urllib.request.urlopen('http://127.0.0.1:6045/health/ready'))
+          assert ready['state'] == 'ready', ready
+          training = json.load(urllib.request.urlopen('http://127.0.0.1:6045/api/v1/training/configuration'))
+          assert training['supported_models'], training
+          datasets = urllib.request.urlopen('http://127.0.0.1:6045/api/v1/datasets')
+          assert datasets.status == 200, datasets.status
+          PY
+          cd app/client
+          node --input-type=module <<'NODE'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({headless: true});
+          const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
+          const errors = [];
+          page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
+          page.on('pageerror', error => errors.push(error.message));
+          await page.goto('http://127.0.0.1:4173/datasets', {waitUntil: 'networkidle'});
+          await page.getByRole('heading', {name: 'Custom Datasets'}).waitFor();
+          await page.getByText('Online', {exact: true}).waitFor();
+          const trainingLink = page.getByRole('link', {name: 'Training'});
+          await trainingLink.waitFor();
+          await trainingLink.click();
+          await page.waitForURL('**/training/processing');
+          await page.getByRole('heading', {name: 'Training'}).waitFor();
+          if (errors.length) throw new Error(`Browser runtime errors: ${errors.join(' | ')}`);
+          await browser.close();
+          NODE
+          cd ../..
+          cleanup
+          trap - EXIT
+          sleep 2
+          if kill -0 "$BACKEND_PID" 2>/dev/null || kill -0 "$FRONTEND_PID" 2>/dev/null; then
+            echo 'A live ML runtime process survived shutdown.' >&2
+            exit 1
+          fi
+          if curl -fsS --max-time 2 http://127.0.0.1:6045/health/ready >/dev/null 2>&1; then
+            echo 'Backend still responds after shutdown.' >&2
+            exit 1
+          fi
