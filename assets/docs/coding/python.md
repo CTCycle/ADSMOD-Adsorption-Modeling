@@ -1,6 +1,6 @@
 # ADSMOD Python rules
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 ## Runtime and typing
 
@@ -13,8 +13,7 @@ Last updated: 2026-09-02
 
 - `AdsmodConfig` is the only configuration-shape authority.
 - Core owns SQLAlchemy, Alembic, repositories, and operational persistence.
-- ML owns model execution and artifacts and consumes authenticated Core
-  snapshots; it must not import Core persistence packages or the ORM.
+- ML owns model execution and artifacts and consumes immutable Core-owned snapshots through the shared in-process contract; it must not import Core persistence packages or the ORM.
 - `adsmod_common` remains framework-neutral.
 - Do not add compatibility imports, alternate config files, or route aliases.
 
