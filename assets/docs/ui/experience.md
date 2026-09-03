@@ -1,16 +1,22 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-08-03
+Last updated: 2026-09-03
 
 ## Page Structure
 
 - Unified frontend routes
   - `datasets` (custom user dataset upload and management)
-  - `public-data` (NIST public adsorption experiments)
-  - `public-materials` (NIST adsorbates and adsorbent materials)
+  - `public-data/:view` (normalized public adsorption, materials, chemicals, structures, and source management)
   - `dashboards` (current placeholder workspace view)
   - `fitting`
-  - `training`
+  - `training` when machine learning capability discovery reports it available
+- Public Data sub-views
+  - `Overview`
+  - `Adsorption Data`
+  - `Materials`
+  - `Chemicals`
+  - `Structures`
+  - `Sources`
 - Training sub-views
   - `Data Processing`
   - `Train datasets`
@@ -22,11 +28,13 @@ Last updated: 2026-08-03
 - Core workflows are long-running and status-heavy.
 - Keep behavior consistent across dataset ingestion, fitting, NIST collection, dashboards, and training.
 - Preserve non-blocking UX by polling backend job endpoints for progress.
+- Keep provider-specific acquisition controls inside the Public Data `Sources` view; normalized browsing belongs in the domain views.
 
 ## Responsiveness
 
 - Current breakpoints include `1480px`, `1360px`, `1320px`, `1200px`, `1180px`, `1100px`, `1080px`, `900px`, `768px`, `760px`, `720px`, `700px`, and `600px`.
 - Multi-column layouts should collapse to single-column on narrower widths.
+- Wide scientific tables should remain inside their explicit horizontal scroll containers rather than expanding the document width.
 - The training toolbar should shift from vertical to wrapped horizontal layouts on smaller screens.
 - Model grids should reduce progressively to three, two, and one column layouts as width decreases.
 
