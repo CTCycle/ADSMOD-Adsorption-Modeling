@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.exc import IntegrityError
 
 from adsmod_common.config import DatabaseConfig
@@ -12,8 +13,22 @@ from adsmod_core.providers.pubchem import PubChemProvider
 from adsmod_core.repositories.database.manager import DatabaseManager
 from adsmod_core.repositories.public_data import PublicDataRepository
 from adsmod_core.repositories.schemas import Base
-from adsmod_core.repositories.schemas.models import Adsorbate, Adsorbent
-from adsmod_core.repositories.schemas.public_data import DataSource, SourceRecord, Structure
+from adsmod_core.repositories.schemas.models import (
+    Adsorbate,
+    Adsorbent,
+    Dataset,
+    Isotherm,
+    IsothermComponent,
+    Observation,
+)
+from adsmod_core.repositories.schemas.public_data import (
+    DataSource,
+    Reference,
+    SourceRecord,
+    SourceRecordReference,
+    Structure,
+    StructureSourceRecord,
+)
 
 
 def _manager() -> DatabaseManager:
@@ -27,6 +42,117 @@ def _manager() -> DatabaseManager:
     )
     Base.metadata.create_all(manager.engine)
     return manager
+
+
+def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[no-untyped-def]
+    statements: list[str] = []
+
+    def capture_selects(
+        conn, cursor, statement, parameters, context, executemany  # type: ignore[no-untyped-def]
+    ) -> None:
+        del conn, cursor, parameters, context, executemany
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    event.listen(manager.engine, "before_cursor_execute", capture_selects)
+    try:
+        operation()
+    finally:
+        event.remove(manager.engine, "before_cursor_execute", capture_selects)
+    return len(statements)
+
+
+def _seed_listing_rows(repository: PublicDataRepository) -> int:
+    with repository.database.transaction() as session:
+        dataset = Dataset(name="Public data performance", source="nist")
+        session.add(dataset)
+        session.flush()
+        first_structure_id = 0
+        for index in range(2):
+            material = Adsorbent(
+                key=f"listing-material-{index}",
+                name=f"Listing material {index}",
+            )
+            adsorbate = Adsorbate(
+                key=f"listing-adsorbate-{index}",
+                name=f"Listing adsorbate {index}",
+            )
+            session.add_all([material, adsorbate])
+            session.flush()
+            isotherm = Isotherm(
+                dataset_id=dataset.id,
+                external_key=f"listing-isotherm-{index}",
+                name=f"Listing isotherm {index}",
+                adsorbent_id=material.id,
+                temperature_original=298.15,
+                temperature_original_unit="K",
+                temperature_k=298.15,
+                pressure_basis="absolute",
+            )
+            session.add(isotherm)
+            session.flush()
+            component = IsothermComponent(
+                isotherm_id=isotherm.id,
+                position=1,
+                adsorbate_id=adsorbate.id,
+                mole_fraction=1.0,
+            )
+            session.add(component)
+            session.flush()
+            session.add(
+                Observation(
+                    isotherm_id=isotherm.id,
+                    component_id=component.id,
+                    sequence_index=0,
+                    pressure_original=1.0,
+                    pressure_original_unit="bar",
+                    pressure_canonical=100_000.0,
+                    pressure_canonical_unit="Pa",
+                    uptake_original=1.0,
+                    uptake_original_unit="mol/kg",
+                    uptake_mol_kg=1.0,
+                )
+            )
+            structure = Structure(
+                adsorbent_id=material.id,
+                name=f"Listing structure {index}",
+                formula="C",
+                format="cif",
+                content=f"data_listing_{index}",
+                content_sha256=f"{index + 1:064d}",
+                has_coordinates=False,
+            )
+            session.add(structure)
+            session.flush()
+            if index == 0:
+                first_structure_id = structure.id
+
+    for index in range(2):
+        with repository.database.session_factory() as session:
+            material_id = session.scalar(
+                select(Adsorbent.id).where(Adsorbent.key == f"listing-material-{index}")
+            )
+            adsorbate_id = session.scalar(
+                select(Adsorbate.id).where(Adsorbate.key == f"listing-adsorbate-{index}")
+            )
+        assert material_id is not None
+        assert adsorbate_id is not None
+        repository.link_adsorbent_record(
+            source_key="nist",
+            adsorbent_id=material_id,
+            external_id=f"material-{index}",
+        )
+        repository.link_adsorbate_record(
+            source_key="nist",
+            adsorbate_id=adsorbate_id,
+            external_id=f"adsorbate-{index}",
+        )
+        repository.link_isotherm_record(
+            source_key="nist",
+            dataset_id=1,
+            external_id=f"listing-isotherm-{index}",
+        )
+    return first_structure_id
 
 
 def test_provider_registry_and_source_identity_constraints() -> None:
@@ -239,5 +365,96 @@ def test_cod_reimport_without_material_preserves_existing_association() -> None:
             structure = session.get(Structure, structure_id)
             assert structure is not None
             assert structure.adsorbent_id == adsorbent_id
+    finally:
+        manager.dispose()
+
+
+def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources()
+        _seed_listing_rows(repository)
+
+        assert _count_selects(
+            manager,
+            lambda: repository.list_adsorption(page=1, page_size=2),
+        ) <= 6
+        assert _count_selects(
+            manager,
+            lambda: repository.list_materials(page=1, page_size=2),
+        ) <= 4
+        assert _count_selects(
+            manager,
+            lambda: repository.list_chemicals(page=1, page_size=2),
+        ) <= 5
+        assert _count_selects(
+            manager,
+            lambda: repository.list_structures(page=1, page_size=2),
+        ) <= 6
+    finally:
+        manager.dispose()
+
+
+def test_structure_reference_matches_primary_provenance_record() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources()
+        structure_id = _seed_listing_rows(repository)
+        with manager.transaction() as session:
+            nist_id = session.scalar(select(DataSource.id).where(DataSource.key == "nist"))
+            cod_id = session.scalar(select(DataSource.id).where(DataSource.key == "cod"))
+            assert nist_id is not None
+            assert cod_id is not None
+            older = SourceRecord(
+                source_id=cod_id,
+                record_type="structure",
+                external_id="older-structure",
+                retrieved_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                raw_metadata={},
+            )
+            newer = SourceRecord(
+                source_id=nist_id,
+                record_type="structure",
+                external_id="newer-structure",
+                retrieved_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+                raw_metadata={},
+            )
+            session.add_all([older, newer])
+            session.flush()
+            session.add_all(
+                [
+                    StructureSourceRecord(
+                        source_record_id=older.id,
+                        structure_id=structure_id,
+                    ),
+                    StructureSourceRecord(
+                        source_record_id=newer.id,
+                        structure_id=structure_id,
+                    ),
+                ]
+            )
+            older_reference = Reference(doi="10.1000/older")
+            newer_reference = Reference(doi="10.1000/newer")
+            session.add_all([older_reference, newer_reference])
+            session.flush()
+            session.add_all(
+                [
+                    SourceRecordReference(
+                        source_record_id=older.id,
+                        reference_id=older_reference.id,
+                    ),
+                    SourceRecordReference(
+                        source_record_id=newer.id,
+                        reference_id=newer_reference.id,
+                    ),
+                ]
+            )
+
+        view = repository.get_structure(structure_id)
+        assert view["source"] == "nist"
+        assert view["external_id"] == "newer-structure"
+        assert view["doi"] == "10.1000/newer"
     finally:
         manager.dispose()
