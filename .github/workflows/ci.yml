@@ -39,6 +39,7 @@ jobs:
               payload['storage']['root'] = tmp
               with TestClient(create_app(AdsmodConfig.model_validate(payload))) as client:
                   assert client.get('/api/v1/system/capabilities').json()['features']['machine_learning'] is False
+                  assert client.get('/api/v1/public-data/sources?check_health=false').status_code == 200
                   assert client.get('/health/ready').json()['state'] == 'ready'
           PY
 
@@ -63,7 +64,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -79,3 +80,9 @@ jobs:
         run: npm run test:unit --if-present
       - working-directory: app/client
         run: npm run build
+      - name: Install Edge for browser layout validation
+        working-directory: app/client
+        run: npx playwright install --with-deps msedge
+      - name: Validate public data layouts and interactions
+        working-directory: app/client
+        run: npx playwright test -c playwright.config.ts tests/visual/public-data-layout.spec.ts
