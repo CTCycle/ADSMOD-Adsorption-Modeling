@@ -12,8 +12,8 @@ from adsmod_core.providers.pubchem import PubChemProvider
 from adsmod_core.repositories.database.manager import DatabaseManager
 from adsmod_core.repositories.public_data import PublicDataRepository
 from adsmod_core.repositories.schemas import Base
-from adsmod_core.repositories.schemas.models import Adsorbate
-from adsmod_core.repositories.schemas.public_data import DataSource, SourceRecord
+from adsmod_core.repositories.schemas.models import Adsorbate, Adsorbent
+from adsmod_core.repositories.schemas.public_data import DataSource, SourceRecord, Structure
 
 
 def _manager() -> DatabaseManager:
@@ -197,3 +197,47 @@ O1 O 0.500(2) 0.625 0.750 0.5
             "occupancy": 0.5,
         },
     ]
+
+
+def test_cod_reimport_without_material_preserves_existing_association() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources()
+        with manager.transaction() as session:
+            adsorbent = Adsorbent(
+                key="test-silica",
+                name="Test silica",
+                normalized_name="test silica",
+            )
+            session.add(adsorbent)
+            session.flush()
+            adsorbent_id = adsorbent.id
+
+        metadata = {
+            "cod_id": "4502440",
+            "name": "Test silica",
+            "formula": "SiO2",
+        }
+        structure_id = repository.upsert_cod_structure(
+            metadata=metadata,
+            cif_text="data_test",
+            atoms=[],
+            adsorbent_id=adsorbent_id,
+        )
+        assert (
+            repository.upsert_cod_structure(
+                metadata=metadata,
+                cif_text="data_test",
+                atoms=[],
+                adsorbent_id=None,
+            )
+            == structure_id
+        )
+
+        with manager.session_factory() as session:
+            structure = session.get(Structure, structure_id)
+            assert structure is not None
+            assert structure.adsorbent_id == adsorbent_id
+    finally:
+        manager.dispose()

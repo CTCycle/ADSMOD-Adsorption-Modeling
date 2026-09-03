@@ -407,7 +407,8 @@ class PublicDataRepository:
                         source_record_id=record.id, structure_id=structure.id
                     )
                 )
-            structure.adsorbent_id = adsorbent_id
+            if adsorbent_id is not None:
+                structure.adsorbent_id = adsorbent_id
             structure.name = metadata.get("name")
             structure.formula = metadata.get("formula")
             structure.content = cif_text
