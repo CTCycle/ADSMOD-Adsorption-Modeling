@@ -83,7 +83,7 @@ class TestDatasetBuild:
         api_context: APIRequestContext,
         ml_api_context: APIRequestContext,
     ) -> None:
-        """Verify dataset build endpoint accepts valid request."""
+        """Verify dataset build endpoint accepts valid request without server errors."""
         nist_status = api_context.get("/api/v1/nist/status")
         if nist_status.ok:
             status_payload = nist_status.json()
@@ -108,7 +108,7 @@ class TestDatasetBuild:
 
         response = ml_api_context.post("/api/v1/training/build-dataset", data=payload)
 
-        assert response.status in (200, 400, 500)
+        assert response.status in (200, 400)
         if response.ok:
             assert "job_id" in response.json()
 
