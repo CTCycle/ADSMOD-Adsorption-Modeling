@@ -14,7 +14,6 @@ from adsmod_ml.contracts.training import TrainingMetadata
 from adsmod_ml.learning.serialization.model import ModelSerializer
 from adsmod_ml.learning.serialization.training import TrainingDataSerializer
 
-
 ###############################################################################
 class FakeSnapshotAccess:
 
@@ -66,7 +65,6 @@ class FakeSnapshotAccess:
     def fetch_snapshot(self, snapshot_id: str) -> SnapshotPayload:
         return self.snapshots[snapshot_id]
 
-
 ###############################################################################
 def create_basis_metadata(**kwargs: object) -> TrainingMetadata:
     defaults: dict[str, object] = {
@@ -84,7 +82,6 @@ def create_basis_metadata(**kwargs: object) -> TrainingMetadata:
     defaults.update(kwargs)
     return TrainingMetadata(**defaults)
 
-
 ###############################################################################
 def _serializer(
     tmp_path: Path,
@@ -94,11 +91,9 @@ def _serializer(
     access = FakeSnapshotAccess(response_rows)
     return TrainingDataSerializer(access, tmp_path / "artifacts"), access
 
-
 ###############################################################################
 def test_validate_metadata_identical() -> None:
     assert TrainingDataSerializer.validate_metadata(create_basis_metadata(), create_basis_metadata()) is True
-
 
 ###############################################################################
 def test_validate_metadata_rejects_parameter_and_vocabulary_changes() -> None:
@@ -115,13 +110,11 @@ def test_validate_metadata_rejects_parameter_and_vocabulary_changes() -> None:
         create_basis_metadata(smile_vocabulary={"A": 2, "B": 1}),
     ) is False
 
-
 ###############################################################################
 def test_compute_metadata_hash_is_deterministic() -> None:
     first = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
     second = create_basis_metadata(smile_vocabulary={"B": 2, "A": 1})
     assert TrainingDataSerializer.compute_metadata_hash(first) == TrainingDataSerializer.compute_metadata_hash(second)
-
 
 ###############################################################################
 def test_save_training_dataset_deduplicates_rows_and_publishes_snapshot(tmp_path: Path) -> None:
@@ -155,7 +148,6 @@ def test_save_training_dataset_deduplicates_rows_and_publishes_snapshot(tmp_path
     assert rows[0]["adsorbed_amount"] == [0.1, 0.2]
     assert rows[0]["adsorbate_encoded_SMILE"] == [1, 2, 3]
 
-
 ###############################################################################
 def test_save_training_metadata_normalizes_json_mappings(tmp_path: Path) -> None:
     serializer, access = _serializer(tmp_path)
@@ -179,19 +171,16 @@ def test_save_training_metadata_normalizes_json_mappings(tmp_path: Path) -> None
     assert loaded.smile_vocabulary == {"C": 1}
     assert len(access.captured) == 1
 
-
 ###############################################################################
 def test_training_dataset_requires_canonical_hash(tmp_path: Path) -> None:
     serializer, _ = _serializer(tmp_path)
     with pytest.raises(ValueError, match="dataset_hash"):
         serializer.save_training_dataset(pd.DataFrame({"split": ["train"]}), "small_dataset", "")
 
-
 ###############################################################################
 def test_training_metadata_rejects_legacy_fields() -> None:
     with pytest.raises(ValidationError):
         TrainingMetadata(hashcode="a" * 64)
-
 
 ###############################################################################
 def test_training_data_read_requires_canonical_columns(tmp_path: Path) -> None:
@@ -208,7 +197,6 @@ def test_training_data_read_requires_canonical_columns(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="dataset_label"):
         serializer.load_training_data("default")
 
-
 ###############################################################################
 def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path: Path) -> None:
     configuration_dir = tmp_path / "configuration"
@@ -220,7 +208,6 @@ def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path: Path) -> None:
     (configuration_dir / "session_history.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValidationError):
         ModelSerializer(tmp_path).load_training_configuration(str(tmp_path))
-
 
 ###############################################################################
 def test_checkpoint_loader_allows_adsmod_owned_lambda_layers(

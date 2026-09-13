@@ -8,7 +8,6 @@ from adsmod_common.config import AdsmodConfig
 from adsmod_ml.contracts.configuration import RuntimeDeviceCapabilities, TrainingConfigurationResponse
 from adsmod_ml.contracts.training import DatasetBuildRequest, ResumeTrainingRequest, TrainingConfigRequest
 
-
 ###############################################################################
 def _numeric_constraints(model: type[Any]) -> dict[str, dict[str, int | float]]:
     constraints: dict[str, dict[str, int | float]] = {}
@@ -28,7 +27,6 @@ def _numeric_constraints(model: type[Any]) -> dict[str, dict[str, int | float]]:
             constraints[name] = values
     return constraints
 
-
 ###############################################################################
 def _device_capabilities() -> RuntimeDeviceCapabilities:
     import torch
@@ -42,7 +40,6 @@ def _device_capabilities() -> RuntimeDeviceCapabilities:
         device_count=device_count,
         devices=devices,
     )
-
 
 ###############################################################################
 def configuration(request: Request) -> TrainingConfigurationResponse:
@@ -79,7 +76,6 @@ def configuration(request: Request) -> TrainingConfigurationResponse:
         checkpoint_capabilities={"save": True, "resume": True, "delete": True},
         runtime=_device_capabilities(),
     )
-
 
 ###############################################################################
 def create_configuration_router() -> APIRouter:

@@ -23,7 +23,6 @@ from adsmod_core.providers import (
 from adsmod_core.services.container import CoreServiceContainer
 from adsmod_core.services.data.public_data import PublicDataService
 
-
 ###############################################################################
 class PublicDataEndpoint:
 
@@ -282,7 +281,6 @@ class PublicDataEndpoint:
             methods=["GET"],
             response_model=StructureRecordView,
         )
-
 
 ###############################################################################
 def create_public_data_router(container: CoreServiceContainer) -> APIRouter:

@@ -15,12 +15,10 @@ from adsmod_common.config import DatabaseConfig
 from adsmod_core.common.utils.logger import logger
 from adsmod_core.repositories.database.utils import normalize_postgres_engine
 
-
 ###############################################################################
 def _expand_path(value: str) -> Path:
     expanded = os.path.expandvars(os.path.expanduser(value))
     return Path(expanded)
-
 
 ###############################################################################
 def resolve_sqlite_path(
@@ -40,7 +38,6 @@ def resolve_sqlite_path(
         return configured_path.resolve()
     base = storage_root.resolve() if storage_root is not None else Path.cwd().resolve()
     return (base / configured_path).resolve()
-
 
 ###############################################################################
 class DatabaseManager:

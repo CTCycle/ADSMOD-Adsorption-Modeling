@@ -9,7 +9,6 @@ from typing import Any
 
 import httpx
 
-
 ###############################################################################
 class ProviderCapability(StrEnum):
     ADSORPTION = "adsorption"
@@ -18,26 +17,21 @@ class ProviderCapability(StrEnum):
     STRUCTURES = "structures"
     REFERENCES = "references"
 
-
 ###############################################################################
 class ProviderError(RuntimeError):
     """Base class for public-data provider failures."""
-
 
 ###############################################################################
 class ProviderNotFoundError(ProviderError):
     """Raised when a provider cannot resolve the requested record."""
 
-
 ###############################################################################
 class ProviderUnavailableError(ProviderError):
     """Raised for transient or invalid remote-service responses."""
 
-
 ###############################################################################
 class ProviderRateLimitError(ProviderUnavailableError):
     """Raised when a provider still throttles ADSMOD after retries."""
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -45,7 +39,6 @@ class ProviderHealth:
     status: str
     detail: str | None
     checked_at: datetime
-
 
 ###############################################################################
 class PublicDataProvider(ABC):
@@ -79,7 +72,6 @@ class PublicDataProvider(ABC):
     # -------------------------------------------------------------------------
     async def close(self) -> None:
         """Release provider-owned asynchronous resources."""
-
 
 ###############################################################################
 class RetryingHttpProvider(PublicDataProvider):

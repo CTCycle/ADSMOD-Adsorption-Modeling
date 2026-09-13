@@ -5,13 +5,11 @@ from pathlib import Path
 
 from adsmod_ml.services.container import MlServiceContainer
 
-
 ###############################################################################
 def test_ml_container_consumes_in_process_snapshot_access() -> None:
     parameters = inspect.signature(MlServiceContainer).parameters
     assert "snapshot_access" in parameters
     assert "internal_token" not in parameters
-
 
 ###############################################################################
 def test_ml_extension_has_no_standalone_fastapi_server_or_core_http_client() -> None:
@@ -20,7 +18,6 @@ def test_ml_extension_has_no_standalone_fastapi_server_or_core_http_client() -> 
     assert not (root / "cli.py").exists()
     assert not (root / "http" / "entrypoint.py").exists()
     assert not (root / "clients" / "core_client.py").exists()
-
 
 ###############################################################################
 def test_ml_source_has_no_backend_to_backend_http_boundary() -> None:

@@ -13,7 +13,6 @@ from adsmod_core.persistence.snapshots import SnapshotStore
 from adsmod_core.repositories.database.initializer import prepare_database_for_startup
 from adsmod_core.services.container import CoreServiceContainer
 
-
 ###############################################################################
 def _json_safe(value: object) -> object:
     if value is None or isinstance(value, (str, bool, int)):
@@ -28,7 +27,6 @@ def _json_safe(value: object) -> object:
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
     return str(value)
-
 
 ###############################################################################
 class TrainingDataService:
@@ -122,7 +120,6 @@ class TrainingDataService:
             record.update({"filename": f"{dataset_name}:{record.get('external_key') or index}", "temperature": record.get("temperature_k"), "adsorbent_name": adsorbent, "adsorbate_name": adsorbate, "adsorbate_molecular_weight": _json_safe(guest.get("molecular_weight")), "adsorbate_SMILE": _json_safe(guest.get("smile_code")), "pressure_units": "Pa", "adsorption_units": "mol/kg"})
             rows.append(record)
         return rows
-
 
 ###############################################################################
 def open_training_data_service(config: AdsmodConfig) -> TrainingDataService:

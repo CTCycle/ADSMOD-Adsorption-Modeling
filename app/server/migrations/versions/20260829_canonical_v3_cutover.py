@@ -19,7 +19,6 @@ down_revision: str | None = "23f1110c64a9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 ###############################################################################
 def upgrade() -> None:
     # Training data is now represented by immutable Core snapshots. Existing
@@ -69,7 +68,6 @@ def upgrade() -> None:
             ["snapshot_id", "row_index"],
             unique=False,
         )
-
 
 ###############################################################################
 def downgrade() -> None:

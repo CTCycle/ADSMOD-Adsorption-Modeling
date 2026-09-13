@@ -9,7 +9,6 @@ from adsmod_core.providers.public_data import (
 )
 from adsmod_core.services.data.nist_service import NISTDataService
 
-
 ###############################################################################
 class NISTPublicDataProvider(PublicDataProvider):
     key = "nist"

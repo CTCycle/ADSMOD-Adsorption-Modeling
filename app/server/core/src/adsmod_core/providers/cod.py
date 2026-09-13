@@ -15,7 +15,6 @@ from adsmod_core.providers.public_data import (
 _NUMBER_PREFIX = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?")
 _ELEMENT_PREFIX = re.compile(r"^[A-Z][a-z]?")
 
-
 ###############################################################################
 class CODProvider(RetryingHttpProvider):
     key = "cod"

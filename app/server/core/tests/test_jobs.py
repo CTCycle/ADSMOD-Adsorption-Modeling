@@ -8,29 +8,24 @@ import pytest
 
 from adsmod_core.services.jobs import JobManager
 
-
 ###############################################################################
 def _successful_thread_job() -> dict[str, str]:
     return {"value": "thread"}
 
-
 ###############################################################################
 def _failing_thread_job() -> dict[str, str]:
     raise RuntimeError("thread failed")
-
 
 ###############################################################################
 def _successful_process_job(stop_event: Any) -> dict[str, str]:
     del stop_event
     return {"value": "process"}
 
-
 ###############################################################################
 def _cancellable_process_job(stop_event: Any) -> dict[str, str]:
     while not stop_event.is_set():
         time.sleep(0.01)
     return {"value": "cancelled"}
-
 
 ###############################################################################
 def _wait_for_terminal(manager: JobManager, job_id: str) -> dict[str, Any]:
@@ -41,7 +36,6 @@ def _wait_for_terminal(manager: JobManager, job_id: str) -> dict[str, Any]:
             return status
         time.sleep(0.02)
     raise AssertionError(f"Job {job_id} did not reach a terminal state.")
-
 
 ###############################################################################
 def _wait_for_cleanup(manager: JobManager, job_id: str) -> None:
@@ -58,7 +52,6 @@ def _wait_for_cleanup(manager: JobManager, job_id: str) -> None:
         time.sleep(0.02)
     raise AssertionError(f"Execution bookkeeping for {job_id} was not released.")
 
-
 ###############################################################################
 def test_thread_success_releases_execution_bookkeeping() -> None:
     manager = JobManager()
@@ -71,7 +64,6 @@ def test_thread_success_releases_execution_bookkeeping() -> None:
     assert status["result"] == {"value": "thread"}
     assert job_id in manager.jobs
 
-
 ###############################################################################
 def test_thread_exception_releases_execution_bookkeeping() -> None:
     manager = JobManager()
@@ -83,7 +75,6 @@ def test_thread_exception_releases_execution_bookkeeping() -> None:
     assert status["status"] == "failed"
     assert status["error"] == "thread failed"
     assert job_id in manager.jobs
-
 
 ###############################################################################
 def test_process_start_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -106,7 +97,6 @@ def test_process_start_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyPat
     assert manager.processes == {}
     assert job_id in manager.jobs
 
-
 ###############################################################################
 def test_process_monitor_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail_monitor(*args: Any, **kwargs: Any) -> None:
@@ -123,7 +113,6 @@ def test_process_monitor_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyP
     assert status["status"] == "failed"
     assert status["error"] == "process monitor failed"
     assert manager.processes == {}
-
 
 ###############################################################################
 def test_process_cancellation_preserves_cancelled_status() -> None:

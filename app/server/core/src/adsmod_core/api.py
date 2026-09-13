@@ -11,7 +11,6 @@ class SnapshotCreateRequest(BaseModel):
     rows: list[dict[str, Any]] = Field(min_length=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-
 ###############################################################################
 class SnapshotDatasetSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -19,7 +18,6 @@ class SnapshotDatasetSelection(BaseModel):
     source: Literal["nist", "uploaded"]
     dataset_name: str = Field(min_length=1, max_length=128)
     dataset_id: int | None = Field(default=None, ge=1)
-
 
 ###############################################################################
 class SnapshotFromSelectionsRequest(BaseModel):

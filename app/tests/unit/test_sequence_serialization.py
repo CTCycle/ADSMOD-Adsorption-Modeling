@@ -9,14 +9,12 @@ from adsmod_core.repositories.schemas.types import JSONSequence
 
 Base = declarative_base()
 
-
 ###############################################################################
 class SequenceModel(Base):
     __tablename__ = "test_data"
 
     id = Column(Integer, primary_key=True)
     sequence = Column(JSONSequence)
-
 
 ###############################################################################
 @pytest.fixture
@@ -26,7 +24,6 @@ def session():
     Session = sessionmaker(bind=engine)
     with Session() as current_session:
         yield current_session
-
 
 ###############################################################################
 def test_json_sequence_round_trip(session) -> None:  # type: ignore[no-untyped-def]
@@ -39,7 +36,6 @@ def test_json_sequence_round_trip(session) -> None:  # type: ignore[no-untyped-d
     assert retrieved.sequence == data
     assert isinstance(retrieved.sequence, list)
 
-
 ###############################################################################
 def test_json_sequence_empty_list(session) -> None:  # type: ignore[no-untyped-def]
     session.add(SequenceModel(sequence=[]))
@@ -49,7 +45,6 @@ def test_json_sequence_empty_list(session) -> None:  # type: ignore[no-untyped-d
     assert retrieved is not None
     assert retrieved.sequence == []
 
-
 ###############################################################################
 def test_json_sequence_none(session) -> None:  # type: ignore[no-untyped-def]
     session.add(SequenceModel(sequence=None))
@@ -58,7 +53,6 @@ def test_json_sequence_none(session) -> None:  # type: ignore[no-untyped-def]
     retrieved = session.query(SequenceModel).first()
     assert retrieved is not None
     assert retrieved.sequence is None
-
 
 ###############################################################################
 def test_string_payload_raises_for_json_sequence(session) -> None:  # type: ignore[no-untyped-def]

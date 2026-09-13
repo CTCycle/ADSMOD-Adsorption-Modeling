@@ -31,7 +31,6 @@ from .repositories.database.initializer import prepare_database_for_startup
 from .services.container import CoreServiceContainer
 from .services.training_data import TrainingDataService
 
-
 ###############################################################################
 @dataclass
 class ApplicationRuntime:
@@ -41,7 +40,6 @@ class ApplicationRuntime:
     machine_learning_available: bool = False
     machine_learning_reason: str | None = None
     ml_container: Any | None = None
-
 
 ###############################################################################
 def capabilities(request: Request) -> CapabilitiesResponse:
@@ -58,7 +56,6 @@ def capabilities(request: Request) -> CapabilitiesResponse:
             checkpoints=available,
         ),
     )
-
 
 ###############################################################################
 def configuration(request: Request) -> FittingConfigurationResponse:
@@ -92,7 +89,6 @@ def configuration(request: Request) -> FittingConfigurationResponse:
         ),
     )
 
-
 ###############################################################################
 def _build_system_router() -> APIRouter:
     router = APIRouter()
@@ -111,7 +107,6 @@ def _build_system_router() -> APIRouter:
         tags=["system"],
     )
     return router
-
 
 ###############################################################################
 def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> None:
@@ -147,7 +142,6 @@ def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> 
     runtime.machine_learning_reason = None
     application.state.ml_container = ml_container
 
-
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -171,7 +165,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         await application.state.core_container.shutdown_async()
         application.state.core_container.database.dispose()
         close_file_logging()
-
 
 ###############################################################################
 def create_app(config: AdsmodConfig) -> FastAPI:
@@ -208,7 +201,6 @@ def create_app(config: AdsmodConfig) -> FastAPI:
     _register_optional_ml(application, runtime)
     register_root_routes(application)
     return application
-
 
 ###############################################################################
 def create_app_from_path(config_path: str | Path) -> FastAPI:

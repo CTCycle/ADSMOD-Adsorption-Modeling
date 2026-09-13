@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-
 ###############################################################################
 class FeatureCapabilities(BaseModel):
     datasets: bool
@@ -11,7 +10,6 @@ class FeatureCapabilities(BaseModel):
     machine_learning: bool
     training: bool
     checkpoints: bool
-
 
 ###############################################################################
 class CapabilitiesResponse(BaseModel):

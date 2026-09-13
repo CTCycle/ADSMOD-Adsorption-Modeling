@@ -6,7 +6,6 @@ import pandas as pd
 
 from adsmod_common.training_data import TrainingDataAccess
 
-
 ###############################################################################
 class DatasetCompositionService:
     """Resolve training sources through the backend's immutable snapshot service."""

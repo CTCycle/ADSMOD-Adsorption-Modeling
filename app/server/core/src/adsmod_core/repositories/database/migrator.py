@@ -23,16 +23,13 @@ MIGRATION_CONFIG_PATH = Path(__file__).resolve().parents[5] / "pyproject.toml"
 INITIAL_REVISION = "23f1110c64a9"
 CURRENT_TABLES = frozenset(Base.metadata.tables)
 
-
 ###############################################################################
 class DatabaseMigrationError(RuntimeError):
     """Raised when the database cannot be brought to the packaged head."""
 
-
 ###############################################################################
 class MigrationLockTimeoutError(DatabaseMigrationError):
     """Raised when another process holds the migration lock too long."""
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -42,7 +39,6 @@ class MigrationResult:
     after: tuple[str, ...]
     head: str
     applied_migrations: bool
-
 
 ###############################################################################
 def build_alembic_config() -> Config:
@@ -66,7 +62,6 @@ def build_alembic_config() -> Config:
     config.attributes["head_revision"] = heads[0]
     return config
 
-
 ###############################################################################
 def _script_and_head(config: Config) -> tuple[ScriptDirectory, str]:
     script = config.attributes.get("script_directory")
@@ -82,7 +77,6 @@ def _script_and_head(config: Config) -> tuple[ScriptDirectory, str]:
         )
     return script, heads[0]
 
-
 ###############################################################################
 def _current_heads(connection: Connection) -> tuple[str, ...]:
     migration_context = MigrationContext.configure(
@@ -90,7 +84,6 @@ def _current_heads(connection: Connection) -> tuple[str, ...]:
         opts={"version_table": "alembic_version"},
     )
     return tuple(migration_context.get_current_heads())
-
 
 ###############################################################################
 def _run_command(
@@ -104,7 +97,6 @@ def _run_command(
         command.upgrade(config, revision)
         return
     raise ValueError(f"Unsupported Alembic action: {action}")
-
 
 ###############################################################################
 def _validate_known_heads(current: tuple[str, ...], script: ScriptDirectory) -> None:
@@ -121,11 +113,9 @@ def _validate_known_heads(current: tuple[str, ...], script: ScriptDirectory) -> 
             "Database contains multiple Alembic heads: " + ", ".join(sorted(current))
         )
 
-
 ###############################################################################
 def _missing_current_tables(connection: Connection) -> set[str]:
     return CURRENT_TABLES - set(inspect(connection).get_table_names())
-
 
 ###############################################################################
 def _migrate_locked(
@@ -186,7 +176,6 @@ def _migrate_locked(
         applied_migrations=True,
     )
 
-
 ###############################################################################
 def _acquire_postgres_lock(connection: Connection, timeout_seconds: int) -> None:
     deadline = time.monotonic() + max(1, timeout_seconds)
@@ -203,7 +192,6 @@ def _acquire_postgres_lock(connection: Connection, timeout_seconds: int) -> None
                 f"Timed out after {timeout_seconds}s waiting for the PostgreSQL migration lock."
             )
         time.sleep(min(0.1, remaining))
-
 
 ###############################################################################
 def migrate_engine(
@@ -272,7 +260,6 @@ def migrate_engine(
         elapsed,
     )
     return result
-
 
 ###############################################################################
 def migrate_database(

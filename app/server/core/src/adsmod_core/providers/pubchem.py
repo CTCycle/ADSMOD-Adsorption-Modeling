@@ -18,7 +18,6 @@ from adsmod_core.providers.public_data import (
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
 _INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
 
-
 ###############################################################################
 class PubChemProvider(RetryingHttpProvider):
     key = "pubchem"

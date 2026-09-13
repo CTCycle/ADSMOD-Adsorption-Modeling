@@ -134,7 +134,6 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
     assert set(guests["name"]) == {"methane", "nitrogen", "argon"}
     assert set(hosts["name"]) == {"silica", "carbon"}
 
-
 ###############################################################################
 def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> None:
     mapper = NISTCanonicalMapper()

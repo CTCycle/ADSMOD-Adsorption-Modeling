@@ -67,7 +67,6 @@ SOURCE_DEFINITIONS: tuple[dict[str, Any], ...] = (
     },
 )
 
-
 ###############################################################################
 class PublicDataRepository:
 

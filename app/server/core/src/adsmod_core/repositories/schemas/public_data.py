@@ -18,7 +18,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from adsmod_core.repositories.schemas.models import Base, utc_now
 from adsmod_core.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime
 
-
 ###############################################################################
 class DataSource(Base):
     __tablename__ = "data_sources"
@@ -37,7 +36,6 @@ class DataSource(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
-
 
 ###############################################################################
 class SourceRecord(Base):
@@ -70,7 +68,6 @@ class SourceRecord(Base):
         Index("ix_source_records_source_retrieved", "source_id", "retrieved_at"),
     )
 
-
 ###############################################################################
 class AdsorbateSourceRecord(Base):
     __tablename__ = "adsorbate_source_records"
@@ -88,7 +85,6 @@ class AdsorbateSourceRecord(Base):
         ),
         Index("ix_adsorbate_source_records_adsorbate", "adsorbate_id"),
     )
-
 
 ###############################################################################
 class AdsorbentSourceRecord(Base):
@@ -108,7 +104,6 @@ class AdsorbentSourceRecord(Base):
         Index("ix_adsorbent_source_records_adsorbent", "adsorbent_id"),
     )
 
-
 ###############################################################################
 class IsothermSourceRecord(Base):
     __tablename__ = "isotherm_source_records"
@@ -126,7 +121,6 @@ class IsothermSourceRecord(Base):
         ),
         Index("ix_isotherm_source_records_isotherm", "isotherm_id"),
     )
-
 
 ###############################################################################
 class Structure(Base):
@@ -162,7 +156,6 @@ class Structure(Base):
         Index("ix_structures_formula", "formula"),
     )
 
-
 ###############################################################################
 class StructureSourceRecord(Base):
     __tablename__ = "structure_source_records"
@@ -180,7 +173,6 @@ class StructureSourceRecord(Base):
         ),
         Index("ix_structure_source_records_structure", "structure_id"),
     )
-
 
 ###############################################################################
 class StructureAtom(Base):
@@ -210,7 +202,6 @@ class StructureAtom(Base):
         Index("ix_structure_atoms_structure", "structure_id", "sequence_index"),
     )
 
-
 ###############################################################################
 class AdsorbateSynonym(Base):
     __tablename__ = "adsorbate_synonyms"
@@ -234,7 +225,6 @@ class AdsorbateSynonym(Base):
         ),
         Index("ix_adsorbate_synonyms_normalized", "normalized_synonym"),
     )
-
 
 ###############################################################################
 class ChemicalProperty(Base):
@@ -263,7 +253,6 @@ class ChemicalProperty(Base):
         Index("ix_chemical_properties_adsorbate_key", "adsorbate_id", "key"),
     )
 
-
 ###############################################################################
 class MaterialProperty(Base):
     __tablename__ = "material_properties"
@@ -291,7 +280,6 @@ class MaterialProperty(Base):
         Index("ix_material_properties_adsorbent_key", "adsorbent_id", "key"),
     )
 
-
 ###############################################################################
 class Reference(Base):
     __tablename__ = "references"
@@ -305,7 +293,6 @@ class Reference(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
 
     __table_args__ = (Index("ix_references_year", "year"),)
-
 
 ###############################################################################
 class SourceRecordReference(Base):

@@ -15,7 +15,6 @@ from adsmod_core.repositories.schemas.models import (
     TrainingSnapshotRow,
 )
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class SnapshotRecord:
@@ -24,7 +23,6 @@ class SnapshotRecord:
     created_at: str
     row_count: int
     rows: tuple[dict[str, Any], ...]
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -35,7 +33,6 @@ class SnapshotPage:
     page_size: int
     total_rows: int
     rows: tuple[dict[str, Any], ...]
-
 
 ###############################################################################
 class SnapshotStore:

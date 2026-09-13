@@ -23,7 +23,6 @@ from adsmod_core.repositories.database.sql import (
     build_postgres_database_exists_sql,
 )
 
-
 ###############################################################################
 def clone_database_config_with_name(
     database: DatabaseConfig,
@@ -36,12 +35,10 @@ def clone_database_config_with_name(
         }
     )
 
-
 ###############################################################################
 def _validate_postgres_settings(database: DatabaseConfig) -> None:
     if not database.host or not database.username or not database.database_name:
         raise ValueError("PostgreSQL host, database name, and username are required.")
-
 
 ###############################################################################
 def _acquire_creation_lock(connection: Connection, timeout_seconds: int) -> None:
@@ -59,7 +56,6 @@ def _acquire_creation_lock(connection: Connection, timeout_seconds: int) -> None
                 f"Timed out after {timeout_seconds}s waiting for the PostgreSQL database lock."
             )
         time.sleep(min(0.1, remaining))
-
 
 ###############################################################################
 def _ensure_postgres_database_exists(database: DatabaseConfig) -> None:
@@ -113,7 +109,6 @@ def _ensure_postgres_database_exists(database: DatabaseConfig) -> None:
         if admin_manager is not None:
             admin_manager.dispose()
 
-
 ###############################################################################
 def verify_postgres_database(database: DatabaseConfig) -> None:
     """Perform a non-mutating connectivity and current-schema probe."""
@@ -138,7 +133,6 @@ def verify_postgres_database(database: DatabaseConfig) -> None:
         if manager is not None:
             manager.dispose()
 
-
 ###############################################################################
 def initialize_sqlite_database(
     database: DatabaseConfig,
@@ -147,12 +141,10 @@ def initialize_sqlite_database(
 ) -> MigrationResult:
     return migrate_database(database, storage_root=storage_root)
 
-
 ###############################################################################
 def initialize_postgres_database(database: DatabaseConfig) -> MigrationResult:
     _ensure_postgres_database_exists(database)
     return migrate_database(database)
-
 
 ###############################################################################
 def prepare_database_for_startup(
@@ -164,7 +156,6 @@ def prepare_database_for_startup(
         return initialize_sqlite_database(database, storage_root=storage_root)
     return initialize_postgres_database(database)
 
-
 ###############################################################################
 def run_database_initialization(
     database: DatabaseConfig,
@@ -172,7 +163,6 @@ def run_database_initialization(
     storage_root: Path | None = None,
 ) -> MigrationResult:
     return prepare_database_for_startup(database, storage_root=storage_root)
-
 
 ###############################################################################
 def initialize_database(

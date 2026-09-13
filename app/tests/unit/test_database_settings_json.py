@@ -5,7 +5,6 @@ from pathlib import Path
 
 CANONICAL_CONFIGURATION_FILE = Path("app/resources/adsmod.json")
 
-
 ###############################################################################
 def project(payload: dict[str, object]) -> DatabaseConfig:
     canonical = load_config(

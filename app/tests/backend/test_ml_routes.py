@@ -7,7 +7,6 @@ from adsmod_core.app import create_app
 
 CONFIG_PATH = Path("app/resources/adsmod.json")
 
-
 ###############################################################################
 def _config(tmp_path: Path):
     base = load_config(CONFIG_PATH)
@@ -18,7 +17,6 @@ def _config(tmp_path: Path):
         }),
     })
 
-
 ###############################################################################
 def test_ml_routes_are_mounted_on_the_single_backend(tmp_path: Path) -> None:
     with TestClient(create_app(_config(tmp_path))) as client:
@@ -26,7 +24,6 @@ def test_ml_routes_are_mounted_on_the_single_backend(tmp_path: Path) -> None:
         assert client.get("/api/v1/training/configuration").status_code == 200
         assert client.get("/api/v1/training/status").status_code == 200
         assert client.get("/api/v1/system/configuration").status_code == 200
-
 
 ###############################################################################
 def test_standalone_ml_server_entrypoints_are_removed() -> None:

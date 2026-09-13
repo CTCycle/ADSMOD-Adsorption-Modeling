@@ -11,13 +11,11 @@ from adsmod_core.app import create_app, create_app_from_path
 
 CONFIG_PATH = Path("app/resources/adsmod.json")
 
-
 ###############################################################################
 def _shutdown_process_runner(stop_event: Any) -> dict[str, str]:
     while not stop_event.is_set():
         time.sleep(0.01)
     return {"stopped": "true"}
-
 
 ###############################################################################
 def _temporary_config(directory: str):
@@ -28,7 +26,6 @@ def _temporary_config(directory: str):
             "database": base.application.database.model_copy(update={"sqlite_path": "core.db"})
         }),
     })
-
 
 ###############################################################################
 def test_unified_runtime_contracts(tmp_path: Path) -> None:
@@ -42,13 +39,11 @@ def test_unified_runtime_contracts(tmp_path: Path) -> None:
             assert client.get("/api/v1/system/configuration").status_code == 200
             assert client.get("/api/v1/training/configuration").status_code == 200
 
-
 ###############################################################################
 def test_factory_uses_single_backend_port() -> None:
     application = create_app_from_path(CONFIG_PATH)
     assert application.state.config.runtime.backend_port > 0
     assert not hasattr(application.state.config.runtime, "ml_port")
-
 
 ###############################################################################
 def test_optional_ml_missing_package_is_reported_as_unavailable(
@@ -70,7 +65,6 @@ def test_optional_ml_missing_package_is_reported_as_unavailable(
     assert runtime.machine_learning_available is False
     assert "not installed" in caplog.text
 
-
 ###############################################################################
 def test_optional_ml_bootstrap_failure_is_logged_as_initialization_error(
     monkeypatch, caplog  # type: ignore[no-untyped-def]
@@ -91,7 +85,6 @@ def test_optional_ml_bootstrap_failure_is_logged_as_initialization_error(
     assert runtime.machine_learning_available is False
     assert "initialization failed" in caplog.text
 
-
 ###############################################################################
 def test_in_process_snapshot_access_preserves_hash(tmp_path: Path) -> None:
     with TemporaryDirectory(dir=tmp_path) as directory:
@@ -103,7 +96,6 @@ def test_in_process_snapshot_access_preserves_hash(tmp_path: Path) -> None:
             payload = access.fetch_snapshot(reference.snapshot_id)
             assert payload.rows[0] == {"id": 1, "value": "alpha"}
             assert payload.content_hash == reference.content_hash
-
 
 ###############################################################################
 def test_in_process_snapshot_access_reconstructs_multiple_pages(
@@ -123,7 +115,6 @@ def test_in_process_snapshot_access_reconstructs_multiple_pages(
             assert payload.snapshot_id == reference.snapshot_id
             assert payload.content_hash == reference.content_hash
             assert payload.rows == tuple(rows)
-
 
 ###############################################################################
 def test_lifespan_stops_active_process_jobs(tmp_path: Path) -> None:
