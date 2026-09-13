@@ -8,7 +8,6 @@ from adsmod_ml.learning.training.manager import TrainingManager
 from adsmod_ml.services.jobs import JobManager
 from adsmod_ml.services.training import TrainingJobRunner, TrainingService, TrainingSession
 
-
 ###############################################################################
 class MlServiceContainer:
 

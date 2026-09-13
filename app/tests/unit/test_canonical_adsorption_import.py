@@ -68,7 +68,6 @@ def test_import_rejects_extensions_outside_the_canonical_policy() -> None:
     with pytest.raises(ValueError, match=r"Allowed file types: \.csv, \.xls, \.xlsx"):
         AdsorptionImportEngine().preview(payload, "sample.json")
 
-
 ###############################################################################
 def test_import_engine_accepts_extensions_supplied_by_runtime_configuration() -> None:
     preview = AdsorptionImportEngine(allowed_extensions=(".json",)).preview(

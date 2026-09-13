@@ -11,7 +11,6 @@ import pandas as pd
 from adsmod_common.training_data import TrainingDataAccess
 from adsmod_ml.contracts.training import TrainingMetadata
 
-
 ###############################################################################
 class TrainingDataSerializer:
     """ML-side manifest for backend-owned immutable training snapshots."""

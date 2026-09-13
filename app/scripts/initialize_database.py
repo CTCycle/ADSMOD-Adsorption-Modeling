@@ -9,7 +9,6 @@ from adsmod_common.paths import resolve_storage_root
 from adsmod_core.common.utils.logger import logger
 from adsmod_core.repositories.database.initializer import prepare_database_for_startup
 
-
 ###############################################################################
 def main() -> int:
     parser = argparse.ArgumentParser(

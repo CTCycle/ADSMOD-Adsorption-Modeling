@@ -6,7 +6,6 @@ from adsmod_ml.http.configuration import create_configuration_router
 from adsmod_ml.http.training import create_training_router
 from adsmod_ml.services.container import MlServiceContainer
 
-
 ###############################################################################
 def register_ml_routes(
     app: FastAPI,

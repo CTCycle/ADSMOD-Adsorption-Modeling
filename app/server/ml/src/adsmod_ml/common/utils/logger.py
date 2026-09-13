@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 import sys
 
-
 ###############################################################################
 class UnicodeSafeFormatter(logging.Formatter):
 
@@ -26,7 +25,6 @@ if not logger.handlers:
     console_handler.setFormatter(UnicodeSafeFormatter("%(levelname)s - %(message)s"))
     logger.addHandler(console_handler)
 logger.propagate = False
-
 
 ###############################################################################
 def configure_logging(log_directory: Path | None = None) -> None:
@@ -55,7 +53,6 @@ def configure_logging(log_directory: Path | None = None) -> None:
         logger.warning(
             "ML file logging is unavailable; continuing with console logging."
         )
-
 
 ###############################################################################
 def close_file_logging() -> None:

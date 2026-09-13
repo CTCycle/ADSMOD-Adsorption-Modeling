@@ -10,7 +10,6 @@ from adsmod_core.persistence.snapshots import SnapshotStore
 from adsmod_core.repositories.database.manager import DatabaseManager
 from adsmod_core.repositories.schemas import Base
 
-
 ###############################################################################
 @pytest.fixture
 def database() -> Iterator[DatabaseManager]:
@@ -28,11 +27,9 @@ def database() -> Iterator[DatabaseManager]:
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def _rows() -> list[dict[str, int | str]]:
     return [{"id": index, "value": f"value-{index}"} for index in range(7)]
-
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -62,7 +59,6 @@ def test_get_page_returns_ordered_slice_and_total(
     assert result.total_rows == len(rows)
     assert tuple(row["id"] for row in result.rows) == expected_ids
     assert result.rows == tuple(rows[(page_number - 1) * 3 : page_number * 3])
-
 
 ###############################################################################
 def test_get_page_uses_ordered_bounded_row_query(
@@ -103,7 +99,6 @@ def test_get_page_uses_ordered_bounded_row_query(
     assert "LIMIT" in row_query
     assert "OFFSET" in row_query
     assert tuple(row["id"] for row in result.rows) == (3, 4, 5)
-
 
 ###############################################################################
 def test_get_page_preserves_validation_and_missing_snapshot_errors(

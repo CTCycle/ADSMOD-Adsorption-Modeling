@@ -32,7 +32,6 @@ from adsmod_core.repositories.schemas.public_data import (
     StructureSourceRecord,
 )
 
-
 ###############################################################################
 def _manager() -> DatabaseManager:
     manager = DatabaseManager(
@@ -45,7 +44,6 @@ def _manager() -> DatabaseManager:
     )
     Base.metadata.create_all(manager.engine)
     return manager
-
 
 ###############################################################################
 def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[no-untyped-def]
@@ -64,7 +62,6 @@ def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[
     finally:
         event.remove(manager.engine, "before_cursor_execute", capture_selects)
     return len(statements)
-
 
 ###############################################################################
 def _seed_listing_rows(repository: PublicDataRepository) -> int:
@@ -159,7 +156,6 @@ def _seed_listing_rows(repository: PublicDataRepository) -> int:
         )
     return first_structure_id
 
-
 ###############################################################################
 def test_provider_registry_and_source_identity_constraints() -> None:
     manager = _manager()
@@ -202,7 +198,6 @@ def test_provider_registry_and_source_identity_constraints() -> None:
                 raise AssertionError("duplicate source identity was accepted")
     finally:
         manager.dispose()
-
 
 ###############################################################################
 def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -254,22 +249,26 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
     assert payload["descriptors"]["tpsa_angstrom2"] == 0.0
     assert payload["conformer_3d_url"] is not None
 
-
 ###############################################################################
 def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     created: list[object] = []
 
+    ###############################################################################
     class FakeClient:
+
+        # -------------------------------------------------------------------------
         def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
             self.closed = False
             self.requests = 0
             created.append(self)
 
+        # -------------------------------------------------------------------------
         async def request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
             del kwargs
             self.requests += 1
             return httpx.Response(200, request=httpx.Request(args[0], args[1]), text="{}")
 
+        # -------------------------------------------------------------------------
         async def aclose(self) -> None:
             self.closed = True
 
@@ -290,7 +289,6 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
 
     asyncio.run(exercise())
 
-
 ###############################################################################
 def test_pubchem_resolution_maps_successful_malformed_json_to_provider_error(
     monkeypatch,
@@ -306,14 +304,12 @@ def test_pubchem_resolution_maps_successful_malformed_json_to_provider_error(
     with pytest.raises(ProviderUnavailableError, match="malformed JSON"):
         asyncio.run(provider.resolve("methane"))
 
-
 ###############################################################################
 def test_pubchem_empty_query_preserves_local_validation_error() -> None:
     provider = PubChemProvider(parallel_requests=1)
 
     with pytest.raises(ValueError, match="must not be empty"):
         asyncio.run(provider.resolve("  "))
-
 
 ###############################################################################
 def test_pubchem_upsert_uses_strong_identity_and_does_not_merge_by_name() -> None:
@@ -356,7 +352,6 @@ def test_pubchem_upsert_uses_strong_identity_and_does_not_merge_by_name() -> Non
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def test_cod_atom_parser_normalizes_fractional_coordinates() -> None:
     cif = """
@@ -393,7 +388,6 @@ O1 O 0.500(2) 0.625 0.750 0.5
         },
     ]
 
-
 ###############################################################################
 def test_cod_search_maps_successful_malformed_json_to_provider_error(
     monkeypatch,
@@ -415,7 +409,6 @@ def test_cod_search_maps_successful_malformed_json_to_provider_error(
     with pytest.raises(ProviderUnavailableError, match="malformed JSON"):
         asyncio.run(provider.search(text="silica"))
 
-
 ###############################################################################
 def test_cod_search_validation_errors_remain_local_value_errors() -> None:
     provider = CODProvider(
@@ -428,7 +421,6 @@ def test_cod_search_validation_errors_remain_local_value_errors() -> None:
         asyncio.run(provider.search(text="Si"))
     with pytest.raises(ValueError, match="Provide a COD ID"):
         asyncio.run(provider.search())
-
 
 ###############################################################################
 def test_cod_reimport_without_material_preserves_existing_association() -> None:
@@ -474,7 +466,6 @@ def test_cod_reimport_without_material_preserves_existing_association() -> None:
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
     manager = _manager()
@@ -501,7 +492,6 @@ def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
         ) <= 6
     finally:
         manager.dispose()
-
 
 ###############################################################################
 def test_structure_reference_matches_primary_provenance_record() -> None:

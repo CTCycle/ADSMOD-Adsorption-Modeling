@@ -13,7 +13,6 @@ class StrictModel(BaseModel):
 
 DEFAULT_DATASET_ALLOWED_EXTENSIONS: tuple[str, ...] = (".csv", ".xls", ".xlsx")
 
-
 ###############################################################################
 class RuntimeConfig(StrictModel):
     host: str

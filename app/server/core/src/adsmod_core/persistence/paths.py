@@ -9,7 +9,6 @@ from adsmod_common.paths import resolve_storage_root
 
 _WINDOWS_VARIABLE = re.compile(r"%([^%]+)%")
 
-
 ###############################################################################
 def _replace_windows_variable(match: re.Match[str]) -> str:
     return os.environ.get(match.group(1), match.group(0))

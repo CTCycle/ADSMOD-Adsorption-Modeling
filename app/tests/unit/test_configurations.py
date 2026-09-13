@@ -67,7 +67,6 @@ def test_canonical_runtime_configuration_validates() -> None:
     assert config.application.datasets.allowed_extensions
     assert config.application.jobs.polling_interval > 0
 
-
 ###############################################################################
 def test_job_polling_interval_must_be_strictly_positive() -> None:
     with pytest.raises(ValidationError):

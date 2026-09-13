@@ -20,11 +20,9 @@ down_revision: str | None = "20260829_v3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 ###############################################################################
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
 
 ###############################################################################
 def upgrade() -> None:
@@ -376,7 +374,6 @@ def upgrade() -> None:
 
     _backfill_nist_provenance()
 
-
 ###############################################################################
 def _backfill_nist_provenance() -> None:
     bind = op.get_bind()
@@ -479,7 +476,6 @@ def _backfill_nist_provenance() -> None:
             {"source_record_id": record_id, "adsorbent_id": adsorbent_id},
         )
 
-
 ###############################################################################
 def _source_record_id(
     bind: sa.Connection,
@@ -525,7 +521,6 @@ def _source_record_id(
             },
         ).scalar_one()
     )
-
 
 ###############################################################################
 def downgrade() -> None:

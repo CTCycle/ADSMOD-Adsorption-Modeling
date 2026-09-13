@@ -22,7 +22,6 @@ from adsmod_core.providers.pubchem import PubChemProvider
 from adsmod_core.providers.public_data import PublicDataProvider
 from adsmod_core.repositories.public_data import PublicDataRepository
 
-
 ###############################################################################
 class PublicDataService:
     """Coordinate normalized public-data queries and provider adapters."""

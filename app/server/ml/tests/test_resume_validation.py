@@ -6,13 +6,11 @@ import pytest
 
 from adsmod_ml.learning.training.manager import TrainingManager, TrainingProcessRunner
 
-
 ###############################################################################
 def test_resume_validation_accepts_keras3_public_loss_state() -> None:
     optimizer = SimpleNamespace(variables=[object()])
     model = SimpleNamespace(optimizer=optimizer, loss=object())
     TrainingProcessRunner.validate_resume_model(object(), model)
-
 
 ###############################################################################
 def test_resume_validation_rejects_missing_loss() -> None:
@@ -20,7 +18,6 @@ def test_resume_validation_rejects_missing_loss() -> None:
     model = SimpleNamespace(optimizer=optimizer, loss=None)
     with pytest.raises(ValueError, match="not compiled"):
         TrainingProcessRunner.validate_resume_model(object(), model)
-
 
 ###############################################################################
 def test_reconstructed_history_uses_one_based_epochs() -> None:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ###############################################################################
 def test_training_routes_are_capability_guarded() -> None:
     text = Path("app/client/src/app/app.routes.ts").read_text(encoding="utf-8")
@@ -13,7 +12,6 @@ def test_training_routes_are_capability_guarded() -> None:
     assert text.count("canActivate: [machineLearningEntryGuard]") == 1
     assert text.count("canActivate: [machineLearningGuard]") == 1
 
-
 ###############################################################################
 def test_frontend_uses_one_backend_proxy() -> None:
     text = Path("app/client/proxy.conf.cjs").read_text(encoding="utf-8")
@@ -22,7 +20,6 @@ def test_frontend_uses_one_backend_proxy() -> None:
     assert "'/api/v1/training'" not in text
     assert "ml-health" not in text
     assert "ml_port" not in text
-
 
 ###############################################################################
 def test_capabilities_are_centralized() -> None:
