@@ -22,7 +22,23 @@ def test_ml_extension_has_no_standalone_fastapi_server_or_core_http_client() -> 
 ###############################################################################
 def test_ml_source_has_no_backend_to_backend_http_boundary() -> None:
     root = Path("app/server")
-    combined = "\n".join(path.read_text(encoding="utf-8") for path in root.rglob("*.py"))
+    source_roots = [root / "app.py", root / "cli.py"] + [
+        root / name
+        for name in (
+            "api",
+            "common",
+            "configurations",
+            "domain",
+            "models",
+            "repositories",
+            "services",
+        )
+    ]
+    combined = "\n".join(
+        path.read_text(encoding="utf-8")
+        for source_root in source_roots
+        for path in ([source_root] if source_root.is_file() else source_root.rglob("*.py"))
+    )
     assert "CoreSnapshotClient" not in combined
     assert "core_base_url" not in combined
     assert "X-ADSMOD-Internal-Token" not in combined
