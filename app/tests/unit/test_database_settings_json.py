@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from adsmod_common.config import DatabaseConfig, load_config
+from server.configurations.settings import DatabaseConfig, load_config
 from pathlib import Path
 
 CANONICAL_CONFIGURATION_FILE = Path("app/resources/adsmod.json")

@@ -4,10 +4,10 @@ import pandas as pd
 import pytest
 from pandas.api.types import is_string_dtype
 
-from adsmod_common.units import UnitRegistry
-from adsmod_core.common.utils.encoding import sanitize_dataframe_strings
-from adsmod_ml.services.data.conversion import PressureConversion, UptakeConversion
-from adsmod_ml.services.data.sanitizer import DataSanitizer
+from server.common.units import UnitRegistry
+from server.common.utils.encoding import sanitize_dataframe_strings
+from server.services.data.conversion import PressureConversion, UptakeConversion
+from server.services.data.sanitizer import DataSanitizer
 
 ###############################################################################
 def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from adsmod_common.config import JobConfig, PublicDataConfig, TrainingConfig, load_config
+from server.configurations.settings import JobConfig, PublicDataConfig, TrainingConfig, load_config
 
 CANONICAL_CONFIGURATION_FILE = Path("app/resources/adsmod.json")
 

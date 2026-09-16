@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from adsmod_common.config import DatabaseConfig
-from adsmod_core.services.data.nist_mapper import NISTCanonicalMapper
-from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.datasets import DatasetRepository
-from adsmod_core.repositories.materials import MaterialRepository
-from adsmod_core.repositories.nist import NISTRepository
-from adsmod_core.repositories.schemas.models import Base
+from server.configurations.settings import DatabaseConfig
+from server.services.data.nist_mapper import NISTCanonicalMapper
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.datasets import DatasetRepository
+from server.repositories.materials import MaterialRepository
+from server.repositories.nist import NISTRepository
+from server.repositories.schemas.models import Base
 
 ###############################################################################
 def build_nist_repository(path: Path) -> NISTRepository:

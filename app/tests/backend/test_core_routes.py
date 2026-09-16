@@ -4,8 +4,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from adsmod_common.config import StorageConfig, load_config
-from adsmod_core.app import create_app
+from server.configurations.settings import StorageConfig, load_config
+from server.app import create_app
 
 CONFIG_PATH = Path("app/resources/adsmod.json")
 

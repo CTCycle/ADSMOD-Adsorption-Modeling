@@ -30,13 +30,13 @@ set "STARTED_BACKEND=0"
 if not exist "%VENV_PYTHON%" (echo [ERROR] Missing backend venv: "%VENV_PYTHON%"& exit /b 1)
 set "PYTHON_CMD=%VENV_PYTHON%"
 if exist "%RUNTIME_NPM%" (set "NPM_CMD=%RUNTIME_NPM%") else (set "NPM_CMD=npm")
-set "PYTHONPATH=%PROJECT_ROOT%\app\server\common\src;%PROJECT_ROOT%\app\server\core\src;%PROJECT_ROOT%\app\server\ml\src;%PROJECT_ROOT%"
-"%PYTHON_CMD%" -c "import adsmod_common.config; import adsmod_core.app" || exit /b 1
+set "PYTHONPATH=%PROJECT_ROOT%\app;%PROJECT_ROOT%"
+"%PYTHON_CMD%" -c "import server.configurations.settings; import server.app" || exit /b 1
 if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/health/ready" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting unified backend server...
-    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m adsmod_core.cli --config "%CANONICAL_CONFIG%"
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m server.cli --config "%CANONICAL_CONFIG%"
     set "STARTED_BACKEND=1"
   )
 )

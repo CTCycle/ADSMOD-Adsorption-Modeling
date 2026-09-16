@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from fastapi.testclient import TestClient
-from adsmod_common.config import StorageConfig, load_config
-from adsmod_core.app import create_app
+from server.configurations.settings import StorageConfig, load_config
+from server.app import create_app
 
 CONFIG_PATH = Path("app/resources/adsmod.json")
 
@@ -27,8 +27,8 @@ def test_ml_routes_are_mounted_on_the_single_backend(tmp_path: Path) -> None:
 
 ###############################################################################
 def test_standalone_ml_server_entrypoints_are_removed() -> None:
-    root = Path("app/server/ml/src/adsmod_ml")
-    assert not (root / "app.py").exists()
-    assert not (root / "cli.py").exists()
+    root = Path("app/server")
+    assert (root / "app.py").exists()
+    assert (root / "cli.py").exists()
     assert not (root / "http" / "entrypoint.py").exists()
     assert not (root / "clients" / "core_client.py").exists()

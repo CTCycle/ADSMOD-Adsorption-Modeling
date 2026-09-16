@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from adsmod_core.contracts.datasets import ImportMapping
-from adsmod_core.services.data.importer import AdsorptionImportEngine
+from server.domain.datasets import ImportMapping
+from server.services.data.importer import AdsorptionImportEngine
 
 ###############################################################################
 def test_atomic_import_groups_rows_and_normalizes_units() -> None:

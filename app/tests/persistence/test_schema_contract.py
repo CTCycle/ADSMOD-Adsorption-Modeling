@@ -8,12 +8,12 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.schema import CreateTable
 
-from adsmod_common.config import DatabaseConfig
-from adsmod_core.repositories.database.bulk import upsert_records
-from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.schemas import Base
-from adsmod_core.repositories.schemas.models import Dataset
-from adsmod_core.repositories.schemas.types import JSONList, UTCDateTime
+from server.configurations.settings import DatabaseConfig
+from server.repositories.database.bulk import upsert_records
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.schemas import Base
+from server.repositories.schemas.models import Dataset
+from server.repositories.schemas.types import JSONList, UTCDateTime
 
 
 EXPECTED_TABLES = {
