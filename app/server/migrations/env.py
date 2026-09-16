@@ -3,9 +3,9 @@ from __future__ import annotations
 from alembic import context
 from sqlalchemy.engine import Connection
 
-from adsmod_common.config import DatabaseConfig
-from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.schemas.models import Base
+from server.configurations.settings import DatabaseConfig
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.schemas.models import Base
 
 
 config = context.config
