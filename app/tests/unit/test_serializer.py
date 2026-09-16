@@ -9,10 +9,10 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
-from adsmod_common.training_data import SnapshotPayload, SnapshotReference
-from adsmod_ml.contracts.training import TrainingMetadata
-from adsmod_ml.learning.serialization.model import ModelSerializer
-from adsmod_ml.learning.serialization.training import TrainingDataSerializer
+from server.domain.training_data import SnapshotPayload, SnapshotReference
+from server.domain.training import TrainingMetadata
+from server.models.training.serialization.model import ModelSerializer
+from server.models.training.serialization.training import TrainingDataSerializer
 
 ###############################################################################
 class FakeSnapshotAccess:
@@ -230,7 +230,7 @@ def test_checkpoint_loader_allows_adsmod_owned_lambda_layers(
         return object()
 
     monkeypatch.setattr(
-        "adsmod_ml.learning.serialization.model.load_model", fake_load_model
+        "server.models.training.serialization.model.load_model", fake_load_model
     )
     loaded, _, _, _, resolved = ModelSerializer(tmp_path).load_checkpoint(
         "local-checkpoint"

@@ -7,14 +7,14 @@ import sqlite3
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from adsmod_common.config import DatabaseConfig
-from adsmod_core.repositories.database import initializer, migrator
-from adsmod_core.repositories.database.initializer import (
+from server.configurations.settings import DatabaseConfig
+from server.repositories.database import initializer, migrator
+from server.repositories.database.initializer import (
     DatabaseMigrationError,
     MigrationLockTimeoutError,
 )
-from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.schemas.models import Base
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.schemas.models import Base
 
 ###############################################################################
 def sqlite_config(path: Path, *, timeout: int = 5) -> DatabaseConfig:

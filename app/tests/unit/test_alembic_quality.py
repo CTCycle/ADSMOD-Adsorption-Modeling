@@ -3,13 +3,13 @@ from __future__ import annotations
 from alembic import command
 from sqlalchemy import inspect
 
-from adsmod_common.config import DatabaseConfig
-from adsmod_core.repositories.database.manager import DatabaseManager
-from adsmod_core.repositories.database.migrator import (
+from server.configurations.settings import DatabaseConfig
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.database.migrator import (
     build_alembic_config,
     migrate_engine,
 )
-from adsmod_core.repositories.schemas.models import Base
+from server.repositories.schemas.models import Base
 
 ###############################################################################
 def _sqlite_settings(path: str) -> DatabaseConfig:
