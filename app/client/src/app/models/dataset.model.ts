@@ -136,6 +136,18 @@ export interface DatasetImportResponse {
     validation: ImportValidation;
 }
 
+export interface DatasetImportInspection {
+    status: 'success';
+    dataset_id: number;
+    original_filename: string;
+    source_sha256: string;
+    source_structure: ImportableStructure;
+    parser_version: string;
+    mapping: ImportMapping;
+    validation: ImportValidation;
+    warnings: ImportIssue[];
+}
+
 export interface ExperimentSummary {
     id: number;
     dataset_id: number;

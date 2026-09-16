@@ -2,6 +2,7 @@ import { API_BASE_URL } from '../core/config/api-base-url';
 import type {
     DatasetImportResponse,
     DatasetMetadata,
+    DatasetImportInspection,
     DatasetSummary,
     ExperimentSummary,
     ImportMapping,
@@ -94,6 +95,12 @@ export function fetchDatasetConfiguration(): Promise<
     ApiResult<{ allowed_extensions: string[] }>
 > {
     return request('/supported-units', { method: 'GET' });
+}
+
+export function fetchDatasetImport(
+    datasetId: number,
+): Promise<ApiResult<DatasetImportInspection>> {
+    return request(`/${datasetId}/import`, { method: 'GET' });
 }
 
 export function fetchExperiments(
