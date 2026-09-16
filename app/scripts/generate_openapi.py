@@ -4,8 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
-from adsmod_common.config import load_config
-from adsmod_core.app import create_app
+from server.configurations.settings import load_config
+from server.app import create_app
 
 ###############################################################################
 def main() -> int:

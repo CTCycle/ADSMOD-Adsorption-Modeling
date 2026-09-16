@@ -28,12 +28,13 @@ jobs:
       - name: Validate base capability
         run: |
           uv run --project app/server --no-dev python - <<'PY'
-          import importlib.util, json, tempfile
+          import json, sys, tempfile
           from pathlib import Path
           from fastapi.testclient import TestClient
-          from adsmod_common.config import AdsmodConfig
-          from adsmod_core.app import create_app
-          assert importlib.util.find_spec('adsmod_ml') is None
+          from server.configurations.settings import AdsmodConfig
+          from server.app import create_app
+          assert 'server.services.ml_container' not in sys.modules
+          assert not any(name in sys.modules for name in ('torch', 'keras', 'sklearn'))
           payload = json.loads(Path('app/resources/adsmod.json').read_text())
           with tempfile.TemporaryDirectory() as tmp:
               payload['storage']['root'] = tmp
@@ -57,7 +58,7 @@ jobs:
       - name: Validate backend
         run: |
           uv run --project app/server --extra ml --group dev ruff check --isolated app/server app/tests app/scripts
-          uv run --project app/server --extra ml --group dev python -m pytest -c app/tests/pytest.ini app/server/common/tests app/server/core/tests app/server/ml/tests app/tests/backend app/tests/persistence app/tests/unit -q --tb=short
+          uv run --project app/server --extra ml --group dev python -m pytest -c app/tests/pytest.ini app/tests -q --tb=short
           uv run --project app/server --extra ml --group dev python app/scripts/generate_openapi.py --config app/resources/adsmod.json --output app/server/openapi/backend.json
           uv run --project app/server --extra ml --group dev python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
           git diff --exit-code -- app/server/openapi/backend.json app/resources/adsmod.schema.json

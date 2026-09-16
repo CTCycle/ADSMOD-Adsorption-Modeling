@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-09-10
+Last updated: 2026-09-16
 
 ## Recommended startup
 
@@ -41,7 +41,7 @@ branches or modify local changes.
 From the repository root after `app/server/.venv` is ready:
 
 ```powershell
-& .\app\server\.venv\Scripts\python.exe -m adsmod_core.cli --config .\app\resources\adsmod.json
+& .\app\server\.venv\Scripts\python.exe -m server.cli --config .\app\resources\adsmod.json
 ```
 
 This is the only backend process. If the environment was synchronized with the

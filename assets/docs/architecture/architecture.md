@@ -1,19 +1,22 @@
 # ADSMOD architecture
 
-Last updated: 2026-09-02
+Last updated: 2026-09-16
 
-ADSMOD has a single source of truth for runtime configuration and a strict
-service split:
+ADSMOD has a single source of truth for runtime configuration and one layered
+FastAPI package:
 
 - `app/client` owns the Angular user interface and uses same-origin versioned
   API paths.
-- `app/server/common` contains framework-neutral contracts, configuration,
-  health, paths, and version data.
-- `app/server/core` owns the operational database, Alembic migrations,
-  dataset/NIST/fitting workflows, and immutable training snapshots.
-- `app/server/ml` owns model execution, training artifacts, and checkpoints.
-  It retrieves authenticated snapshots from Core over HTTP and never imports
-  the ORM or migration layer.
+- `app/server/api` exposes the versioned HTTP routers.
+- `app/server/common`, `app/server/configurations`, and `app/server/domain`
+  contain shared helpers, configuration, and transport-neutral contracts.
+- `app/server/services` owns core workflows; `app/server/repositories` owns
+  the operational database, Alembic migrations, and immutable snapshots.
+- `app/server/models` plus lazy ML-owned services provide model execution,
+  training artifacts, and checkpoints when the `ml` extra is installed. They
+  consume snapshots through the in-process contract and never import the ORM
+  or migration layer.
 
 The launcher, CI, scripts, editor configuration, tests, and documentation all
-target this layout. There is no second runtime or compatibility route surface.
+target this layout. There is no second runtime, compatibility package, or
+compatibility route surface.
