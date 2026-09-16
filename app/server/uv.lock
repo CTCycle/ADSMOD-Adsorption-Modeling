@@ -3,19 +3,11 @@ revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.15' and sys_platform == 'win32'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten'",
     "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-
-[manifest]
-members = [
-    "adsmod-backend-workspace",
-    "adsmod-common",
-    "adsmod-core",
-    "adsmod-ml",
 ]
 
 [[package]]
@@ -30,56 +22,8 @@ wheels = [
 [[package]]
 name = "adsmod-backend-workspace"
 version = "3.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
-    { name = "adsmod-core" },
-]
-
-[package.optional-dependencies]
-ml = [
-    { name = "adsmod-ml" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "psutil" },
-    { name = "pytest" },
-    { name = "pytest-playwright" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "adsmod-core", editable = "core" },
-    { name = "adsmod-ml", marker = "extra == 'ml'", editable = "ml" },
-]
-provides-extras = ["ml"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "psutil", specifier = ">=6.1.1" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-playwright", specifier = ">=0.5.0" },
-    { name = "ruff", specifier = "==0.15.9" },
-]
-
-[[package]]
-name = "adsmod-common"
-version = "3.0.0"
-source = { editable = "common" }
-dependencies = [
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "pydantic", specifier = "==2.13.4" }]
-
-[[package]]
-name = "adsmod-core"
-version = "3.0.0"
-source = { editable = "core" }
-dependencies = [
-    { name = "adsmod-common" },
     { name = "alembic" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -93,47 +37,46 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+ml = [
+    { name = "keras" },
+    { name = "scikit-learn" },
+    { name = "torch" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "psutil" },
+    { name = "pytest" },
+    { name = "pytest-playwright" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "adsmod-common", editable = "common" },
     { name = "alembic", specifier = "==1.19.1" },
     { name = "fastapi", specifier = "==0.128.0" },
     { name = "httpx", specifier = "==0.28.1" },
+    { name = "keras", marker = "extra == 'ml'", specifier = "==3.13.1" },
     { name = "numpy", specifier = "==2.5.2" },
     { name = "pandas", specifier = "==3.0.5" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.4" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "python-multipart", specifier = "==0.0.32" },
+    { name = "scikit-learn", marker = "extra == 'ml'", specifier = "==1.8.0" },
     { name = "scipy", specifier = "==1.16.3" },
     { name = "sqlalchemy", specifier = "==2.0.52" },
+    { name = "torch", marker = "extra == 'ml'", specifier = "==2.10.0+cu130", index = "https://download.pytorch.org/whl/cu130" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.40.0" },
 ]
+provides-extras = ["ml"]
 
-[[package]]
-name = "adsmod-ml"
-version = "3.0.0"
-source = { editable = "ml" }
-dependencies = [
-    { name = "adsmod-common" },
-    { name = "adsmod-core" },
-    { name = "fastapi" },
-    { name = "keras" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "scikit-learn" },
-    { name = "torch" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "adsmod-common", editable = "common" },
-    { name = "adsmod-core", editable = "core" },
-    { name = "fastapi", specifier = "==0.128.0" },
-    { name = "keras", specifier = "==3.13.1" },
-    { name = "numpy", specifier = "==2.5.2" },
-    { name = "pandas", specifier = "==3.0.5" },
-    { name = "scikit-learn", specifier = "==1.8.0" },
-    { name = "torch", specifier = "==2.10.0+cu130", index = "https://download.pytorch.org/whl/cu130" },
+[package.metadata.requires-dev]
+dev = [
+    { name = "psutil", specifier = ">=6.1.1" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-playwright", specifier = ">=0.5.0" },
+    { name = "ruff", specifier = "==0.15.9" },
 ]
 
 [[package]]
