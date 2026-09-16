@@ -122,7 +122,13 @@ def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> 
     except ModuleNotFoundError as exc:
         runtime.machine_learning_available = False
         runtime.machine_learning_reason = str(exc)
-        if exc.name in {"server.services.ml_container", "server.models"}:
+        if exc.name in {
+            "server.services.ml_container",
+            "server.models",
+            "torch",
+            "keras",
+            "sklearn",
+        }:
             logger.info(
                 "Optional machine learning support is unavailable because the ML profile is not installed."
             )

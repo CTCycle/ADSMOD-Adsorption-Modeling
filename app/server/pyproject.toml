@@ -35,8 +35,15 @@ dev = [
     "ruff==0.15.9",
 ]
 
+[tool.hatch.build]
+# Editable installs need the parent of this project directory so `server`
+# resolves to the source package during local development.
+dev-mode-dirs = [".."]
+
 [tool.hatch.build.targets.wheel]
-packages = ["server"]
+packages = ["."]
+sources = {"" = "server"}
+exclude = ["core/**"]
 
 [tool.alembic]
 script_location = "%(here)s/migrations"
