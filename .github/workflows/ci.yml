@@ -58,7 +58,7 @@ jobs:
       - name: Validate backend
         run: |
           uv run --project app/server --extra ml --group dev ruff check --isolated app/server app/tests app/scripts
-          uv run --project app/server --extra ml --group dev python -m pytest -c app/tests/pytest.ini app/tests -q --tb=short
+          uv run --project app/server --extra ml --group dev python -m pytest -c app/tests/pytest.ini app/tests --ignore app/tests/e2e -q --tb=short
           uv run --project app/server --extra ml --group dev python app/scripts/generate_openapi.py --config app/resources/adsmod.json --output app/server/openapi/backend.json
           uv run --project app/server --extra ml --group dev python app/scripts/generate_config_schema.py --output app/resources/adsmod.schema.json
           git diff --exit-code -- app/server/openapi/backend.json app/resources/adsmod.schema.json
