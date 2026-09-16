@@ -1,12 +1,13 @@
 # Persistence and packages
 
-Last updated: 2026-09-02
+Last updated: 2026-09-16
 
-## Backend workspace
+## Backend package
 
-`app/server/pyproject.toml` and `app/server/uv.lock` define one workspace
-with the `adsmod-common`, `adsmod-core`, and `adsmod-ml` packages. The launcher
-and CI install from this workspace and use its lockfile.
+`app/server/pyproject.toml` and `app/server/uv.lock` define one Hatch package
+named `adsmod-backend-workspace`. The package is rooted at `app/server`, with
+the `ml` extra selecting the optional learning dependencies. The launcher and
+CI install this package and use its lockfile.
 
 ## Core persistence
 
@@ -18,7 +19,7 @@ schema. The current schema includes immutable `training_snapshots` and
 
 ## ML artifacts
 
-ML does not open the operational database. It requests snapshots from Core,
-checks the returned hash, and keeps its training manifest and checkpoints under
-the configured storage root. This prevents ORM changes from becoming an
-implicit ML API.
+ML does not open the operational database. It receives snapshots through the
+in-process `TrainingDataAccess` contract, checks the content hash, and keeps its
+training manifest and checkpoints under the configured storage root. This
+prevents ORM changes from becoming an implicit ML API.

@@ -4,10 +4,10 @@ import argparse
 from pathlib import Path
 import time
 
-from adsmod_common.config import load_config
-from adsmod_common.paths import resolve_storage_root
-from adsmod_core.common.utils.logger import logger
-from adsmod_core.repositories.database.initializer import prepare_database_for_startup
+from server.configurations.settings import load_config
+from server.common.path import resolve_storage_root
+from server.common.utils.logger import logger
+from server.repositories.database.initializer import prepare_database_for_startup
 
 ###############################################################################
 def main() -> int:

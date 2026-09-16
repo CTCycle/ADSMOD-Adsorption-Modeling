@@ -1,8 +1,8 @@
 # ADSMOD runtime configuration
 
-Last updated: 2026-09-03
+Last updated: 2026-09-16
 
-`app/resources/adsmod.json` is the only runtime value file. Its complete shape is validated by `adsmod_common.config.AdsmodConfig`; the generated `app/resources/adsmod.schema.json` is a validation aid, not a second authority.
+`app/resources/adsmod.json` is the only runtime value file. Its complete shape is validated by `server.configurations.settings.AdsmodConfig`; the generated `app/resources/adsmod.schema.json` is a validation aid, not a second authority.
 
 The configuration describes one backend runtime plus the frontend and application settings. It does not select between multiple backend services. Machine learning availability is determined by whether the optional `ml` dependency extra is installed and loadable.
 

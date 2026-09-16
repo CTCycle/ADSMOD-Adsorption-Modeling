@@ -15,7 +15,7 @@
       "name": "Debug: Backend",
       "type": "debugpy",
       "request": "launch",
-      "module": "adsmod_core.cli",
+      "module": "server.cli",
       "args": [
         "--config",
         "${workspaceFolder}/app/resources/adsmod.json"

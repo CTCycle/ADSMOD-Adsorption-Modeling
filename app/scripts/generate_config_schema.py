@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from adsmod_common.config import AdsmodConfig
+from server.configurations.settings import AdsmodConfig
 
 SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema"
 

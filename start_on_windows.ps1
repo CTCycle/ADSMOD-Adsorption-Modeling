@@ -479,7 +479,7 @@ function Set-RuntimeEnvironment {
     $env:TEMP = $RuntimeTempDir
     $env:TMP = $RuntimeTempDir
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
-    Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    $env:PYTHONPATH = $AppDir
     Remove-Item Env:PYTHONNOUSERSITE -ErrorAction SilentlyContinue
     $env:PATH = "$NodeDir;$UvDir;$env:PATH"
 }
@@ -633,7 +633,7 @@ function Test-DependenciesReady {
     $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
     $frontendRunner = Join-Path $frontendModules '@angular/cli/bin/ng.js'
     $frontendBuild = Join-Path $ClientDir 'dist\browser\index.html'
-    $backendEntrypoint = Join-Path $BackendDir 'core/src/adsmod_core/cli.py'
+    $backendEntrypoint = Join-Path $BackendDir 'cli.py'
     $backendLock = Join-Path $BackendDir 'uv.lock'
 
     if (-not (Test-Path -LiteralPath $PythonExe) -or
@@ -657,7 +657,7 @@ function Test-DependenciesReady {
     if ($LASTEXITCODE -ne 0) { return $false }
     & $NodeExe --version *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
-    & $VenvPython -c 'import adsmod_core.app, fastapi, uvicorn' *> $null
+    & $VenvPython -c 'import server.app, fastapi, uvicorn' *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
 
     return $true
@@ -757,7 +757,7 @@ function Start-Application {
     $uiPort = $settings.FrontendPort
     Assert-PortAvailable -Port $backendPort
     Assert-PortAvailable -Port $uiPort
-    $backendArguments = @('-m', 'adsmod_core.cli', '--config', ('"{0}"' -f $ConfigFile))
+    $backendArguments = @('-m', 'server.cli', '--config', ('"{0}"' -f $ConfigFile))
     Write-Step "Starting ADSMOD backend"
     $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
     $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
