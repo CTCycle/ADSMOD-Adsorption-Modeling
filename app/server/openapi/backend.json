@@ -255,6 +255,49 @@
         }
       }
     },
+    "/api/v1/datasets/{dataset_id}/import": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Import Inspection",
+        "operationId": "import_inspection_api_v1_datasets__dataset_id__import_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetImportInspectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/datasets/{dataset_id}/experiments": {
       "get": {
         "tags": [
@@ -3708,6 +3751,65 @@
         "type": "object",
         "title": "DatasetBuildRequest"
       },
+      "DatasetImportInspectionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "original_filename": {
+            "type": "string",
+            "title": "Original Filename"
+          },
+          "source_sha256": {
+            "type": "string",
+            "title": "Source Sha256"
+          },
+          "source_structure": {
+            "type": "string",
+            "enum": [
+              "atomic",
+              "aggregated",
+              "mixed"
+            ],
+            "title": "Source Structure"
+          },
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/ImportMapping"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ImportValidationResponse"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "original_filename",
+          "source_sha256",
+          "source_structure",
+          "parser_version",
+          "mapping",
+          "validation"
+        ],
+        "title": "DatasetImportInspectionResponse"
+      },
       "DatasetImportResponse": {
         "properties": {
           "status": {
@@ -4626,6 +4728,194 @@
           "message"
         ],
         "title": "ImportIssue"
+      },
+      "ImportMapping": {
+        "properties": {
+          "dataset_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Dataset Name"
+          },
+          "structure": {
+            "type": "string",
+            "enum": [
+              "atomic",
+              "aggregated",
+              "mixed"
+            ],
+            "title": "Structure"
+          },
+          "column_roles": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "experiment_id",
+                "experiment_name",
+                "pressure",
+                "uptake",
+                "adsorbate",
+                "adsorbate_smiles",
+                "adsorbent",
+                "temperature",
+                "pressure_unit",
+                "uptake_unit",
+                "temperature_unit",
+                "uptake_stddev",
+                "saturation_pressure",
+                "metadata",
+                "ignore"
+              ]
+            },
+            "type": "object",
+            "title": "Column Roles"
+          },
+          "grouping_columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Grouping Columns"
+          },
+          "whole_file_grouping": {
+            "type": "boolean",
+            "title": "Whole File Grouping",
+            "default": false
+          },
+          "constants": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Constants"
+          },
+          "unit_overrides": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Unit Overrides"
+          },
+          "pressure_basis": {
+            "type": "string",
+            "enum": [
+              "absolute",
+              "partial",
+              "relative"
+            ],
+            "title": "Pressure Basis"
+          },
+          "decimal_separator": {
+            "type": "string",
+            "enum": [
+              "auto",
+              ".",
+              ","
+            ],
+            "title": "Decimal Separator",
+            "default": "auto"
+          },
+          "field_delimiter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Delimiter"
+          },
+          "series_delimiter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Delimiter"
+          },
+          "wide_pairs": {
+            "items": {
+              "$ref": "#/components/schemas/WidePair"
+            },
+            "type": "array",
+            "title": "Wide Pairs"
+          },
+          "worksheet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worksheet"
+          },
+          "header_row": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Header Row",
+            "default": 0
+          },
+          "thousands_separator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thousands Separator"
+          },
+          "encoding": {
+            "type": "string",
+            "title": "Encoding",
+            "default": "utf-8"
+          },
+          "duplicate_policy": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "average",
+              "reject"
+            ],
+            "title": "Duplicate Policy",
+            "default": "reject"
+          },
+          "confirmed_issue_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Confirmed Issue Codes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset_name",
+          "structure",
+          "column_roles",
+          "pressure_basis"
+        ],
+        "title": "ImportMapping"
       },
       "ImportPreviewResponse": {
         "properties": {
@@ -7188,6 +7478,25 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WidePair": {
+        "properties": {
+          "pressure_column": {
+            "type": "string",
+            "title": "Pressure Column"
+          },
+          "uptake_column": {
+            "type": "string",
+            "title": "Uptake Column"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pressure_column",
+          "uptake_column"
+        ],
+        "title": "WidePair"
       }
     }
   }
