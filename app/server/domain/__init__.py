@@ -1,0 +1,1 @@
+"""Canonical ADSMOD domain contracts."""

@@ -12,7 +12,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from adsmod_core.repositories.schemas import types as schema_types
+from server.repositories.schemas import types as schema_types
 
 
 revision: str = "23f1110c64a9"
