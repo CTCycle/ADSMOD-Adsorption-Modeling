@@ -1,6 +1,6 @@
 # ADSMOD operational commands
 
-Last updated: 2026-09-02
+Last updated: 2026-09-18
 
 ## Launch and maintenance
 
@@ -33,7 +33,7 @@ app\tests\run_tests.bat
 ```
 
 ```powershell
-& .\app\server\.venv\Scripts\python.exe -m pytest -c app\tests\pytest.ini app\tests -v --basetemp app\tests\cache\pytest-tmp-local
+& .\app\server\.venv\Scripts\python.exe -m pytest -c app\tests\pytest.ini app\tests -v --basetemp .\runtimes\cache\pytest-tmp
 & .\app\server\.venv\Scripts\python.exe app\scripts\generate_openapi.py --config app\resources\adsmod.json --output app\server\openapi\backend.json
 & .\app\server\.venv\Scripts\python.exe app\scripts\generate_config_schema.py --output app\resources\adsmod.schema.json
 ```

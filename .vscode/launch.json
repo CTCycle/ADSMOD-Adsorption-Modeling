@@ -8,6 +8,13 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "env": {
+        "PYTHONPYCACHEPREFIX": "${workspaceFolder}/runtimes/cache/python",
+        "TEMP": "${workspaceFolder}/runtimes/cache/temp",
+        "TMP": "${workspaceFolder}/runtimes/cache/temp",
+        "TMPDIR": "${workspaceFolder}/runtimes/cache/temp",
+        "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/runtimes/cache/playwright"
+      },
       "cwd": "${workspaceFolder}",
       "python": "${workspaceFolder}/app/server/.venv/Scripts/python.exe"
     },
@@ -29,6 +36,13 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "env": {
+        "PYTHONPYCACHEPREFIX": "${workspaceFolder}/runtimes/cache/python",
+        "TEMP": "${workspaceFolder}/runtimes/cache/temp",
+        "TMP": "${workspaceFolder}/runtimes/cache/temp",
+        "TMPDIR": "${workspaceFolder}/runtimes/cache/temp",
+        "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/runtimes/cache/playwright"
+      },
       "python": "${workspaceFolder}/app/server/.venv/Scripts/python.exe"
     },
     {
@@ -41,6 +55,14 @@
         "run",
         "dev"
       ],
+      "env": {
+        "NPM_CONFIG_CACHE": "${workspaceFolder}/runtimes/cache/npm",
+        "XDG_CACHE_HOME": "${workspaceFolder}/runtimes/cache",
+        "TEMP": "${workspaceFolder}/runtimes/cache/temp",
+        "TMP": "${workspaceFolder}/runtimes/cache/temp",
+        "TMPDIR": "${workspaceFolder}/runtimes/cache/temp",
+        "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/runtimes/cache/playwright"
+      },
       "console": "integratedTerminal",
       "serverReadyAction": {
         "action": "openExternally",

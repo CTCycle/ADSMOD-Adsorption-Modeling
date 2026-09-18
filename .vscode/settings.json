@@ -2,6 +2,22 @@
   "python.defaultInterpreterPath": "${workspaceFolder}/app/server/.venv/Scripts/python.exe",
   "python.terminal.useEnvFile": false,
   "python.terminal.activateEnvironment": true,
+  "terminal.integrated.env.windows": {
+    "UV_CACHE_DIR": "${workspaceFolder}/runtimes/cache/uv",
+    "PIP_CACHE_DIR": "${workspaceFolder}/runtimes/cache/pip",
+    "NPM_CONFIG_CACHE": "${workspaceFolder}/runtimes/cache/npm",
+    "XDG_CACHE_HOME": "${workspaceFolder}/runtimes/cache",
+    "PYTHONPYCACHEPREFIX": "${workspaceFolder}/runtimes/cache/python",
+    "PYTEST_CACHE_DIR": "${workspaceFolder}/runtimes/cache/pytest",
+    "PYTEST_ADDOPTS": "--basetemp=\"${workspaceFolder}/runtimes/cache/pytest-tmp\"",
+    "RUFF_CACHE_DIR": "${workspaceFolder}/runtimes/cache/ruff",
+    "MYPY_CACHE_DIR": "${workspaceFolder}/runtimes/cache/mypy",
+    "COVERAGE_FILE": "${workspaceFolder}/runtimes/cache/coverage/.coverage",
+    "TEMP": "${workspaceFolder}/runtimes/cache/temp",
+    "TMP": "${workspaceFolder}/runtimes/cache/temp",
+    "TMPDIR": "${workspaceFolder}/runtimes/cache/temp",
+    "PLAYWRIGHT_BROWSERS_PATH": "${workspaceFolder}/runtimes/cache/playwright"
+  },
   "python-envs.pythonProjects": [
     {
       "path": "app/server",

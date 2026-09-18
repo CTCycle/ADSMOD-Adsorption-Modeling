@@ -1,12 +1,13 @@
 # ADSMOD Windows Script Rules
 
-Last updated: 2026-08-02
+Last updated: 2026-09-18
 
 ## Operational Script Expectations
 
 - Use `start_on_windows.ps1` as the canonical launcher and maintenance entry point.
 - Keep PowerShell usage explicit and deterministic.
 - Preserve runtime-safe path handling.
+- Keep disposable application and test-tool caches below `runtimes/cache`.
 - Avoid destructive operations outside intended directories.
 - Keep script behavior compatible with the existing launcher and runtime flow.
 - Keep the launcher’s canonical paths aligned with `app/resources/adsmod.json`;

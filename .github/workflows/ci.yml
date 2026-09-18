@@ -13,12 +13,29 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
+  PIP_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pip
+  NPM_CONFIG_CACHE: ${{ github.workspace }}/runtimes/cache/npm
+  npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
+  XDG_CACHE_HOME: ${{ github.workspace }}/runtimes/cache
+  PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/python
+  PYTEST_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pytest
+  PYTEST_ADDOPTS: --basetemp=${{ github.workspace }}/runtimes/cache/pytest-tmp
+  RUFF_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/ruff
+  MYPY_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/mypy
+  COVERAGE_FILE: ${{ github.workspace }}/runtimes/cache/coverage/.coverage
+  TMPDIR: ${{ github.workspace }}/runtimes/cache/temp
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/runtimes/cache/playwright
+
 jobs:
   base-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare canonical cache root
+        run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.30"
@@ -49,6 +66,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare canonical cache root
+        run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.30"
@@ -71,8 +90,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.13.0'
-          cache: npm
-          cache-dependency-path: app/client/package-lock.json
+      - name: Prepare canonical cache root
+        run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - working-directory: app/client
         run: npm ci --no-audit --no-fund
       - working-directory: app/client
