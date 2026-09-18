@@ -1,6 +1,6 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-09-10
+Last updated: 2026-09-18
 
 ## Backend or UI unreachable
 
@@ -18,8 +18,9 @@ frontend** is available when a manual rebuild is preferred.
 The launcher reports the conflicting port, PID, and process name, then stops
 without terminating that process. Close the owning application and retry, or
 use **Stop application** in the launcher session that started ADSMOD. A
-process left running by an earlier launcher session is intentionally treated
-as an external owner because the current session cannot prove ownership of it.
+process left running by an earlier launcher session can be handled with
+**Kill all application processes** when its command line is recognized as an
+ADSMOD backend or frontend process. Unrelated processes remain untouched.
 
 ## Missing dependencies
 

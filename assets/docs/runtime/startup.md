@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-09-16
+Last updated: 2026-09-18
 
 ## Recommended startup
 
@@ -19,7 +19,11 @@ Before starting either service, the launcher checks that the configured port
 is available. If another process owns a port, startup stops with its PID and
 process name; the launcher never terminates an unowned listener. After a
 successful launch, use **Stop application** in the same launcher session to
-stop only the backend and frontend processes started by that session.
+stop only the backend and frontend processes started by that session. The
+backend runs in a visible terminal when launched from the PowerShell script. If
+an earlier session left ADSMOD processes running, use **Kill all application
+processes**; it stops recognized ADSMOD backend/frontend process trees after
+confirmation.
 
 The interactive menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
