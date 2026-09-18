@@ -1,1 +1,1 @@
-cache-dir = "app/tests/cache/ruff"
+cache-dir = "runtimes/cache/ruff"

@@ -1,6 +1,6 @@
 # ADSMOD local deployment
 
-Last updated: 2026-09-02
+Last updated: 2026-09-18
 
 The supported deployment is the Windows local web launcher:
 
@@ -27,6 +27,7 @@ Embedded SQLite is stored below the configured storage root. PostgreSQL remains
 available through the typed database configuration; startup applies the
 packaged Alembic history and does not infer an unknown schema.
 
-Disposable uv, npm, Python, pytest, and frontend caches belong under
-`runtimes/cache` or `app/tests/cache`. No container deployment target is
-currently implemented.
+All disposable uv, npm, Python, pytest, frontend, browser, coverage, and
+temporary caches belong under the single repository-local hierarchy
+`runtimes/cache`. Persistent application data remains below the configured
+storage root. No container deployment target is currently implemented.

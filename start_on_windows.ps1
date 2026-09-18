@@ -15,28 +15,25 @@ $LogDir = Join-Path $ResourcesDir "logs"
 $CheckpointsDir = Join-Path $ResourcesDir "checkpoints"
 $ConfigFile = Join-Path $ResourcesDir "adsmod.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
-$StartupTempDir = Join-Path $BackendDir ".startup-temp"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
 $NodeDir = Join-Path $RuntimesDir "nodejs"
 $RuntimeCacheDir = Join-Path $RuntimesDir "cache"
-$TestCacheDir = Join-Path $TestsDir "cache"
+$UvCacheDir = Join-Path $RuntimeCacheDir "uv"
+$PipCacheDir = Join-Path $RuntimeCacheDir "pip"
+$NpmCacheDir = Join-Path $RuntimeCacheDir "npm"
 $RuntimeTempDir = Join-Path $RuntimeCacheDir "temp"
-$PytestCacheDir = Join-Path $TestCacheDir "pytest"
-$PytestTempDir = Join-Path $TestCacheDir "pytest-tmp"
-$RuffCacheDir = Join-Path $TestCacheDir "ruff"
-$PythonCacheDir = Join-Path $TestCacheDir "python"
-$MypyCacheDir = Join-Path $TestCacheDir "mypy"
-$AngularCacheDir = Join-Path $TestCacheDir "angular"
-$LegacyUvCachePaths = @(
-    (Join-Path $RepoRoot '.uv-cache'),
-    (Join-Path $AppDir '.uv-cache'),
-    (Join-Path $BackendDir '.uv-cache'),
-    (Join-Path $ClientDir '.uv-cache'),
-    (Join-Path $TestsDir '.uv-cache')
-)
+$PytestCacheDir = Join-Path $RuntimeCacheDir "pytest"
+$PytestTempDir = Join-Path $RuntimeCacheDir "pytest-tmp"
+$RuffCacheDir = Join-Path $RuntimeCacheDir "ruff"
+$PythonCacheDir = Join-Path $RuntimeCacheDir "python"
+$MypyCacheDir = Join-Path $RuntimeCacheDir "mypy"
+$AngularCacheDir = Join-Path $RuntimeCacheDir "angular"
+$PlaywrightCacheDir = Join-Path $RuntimeCacheDir "playwright"
+$CoverageDir = Join-Path $RuntimeCacheDir "coverage"
 $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
+$script:CacheScanErrors = [Collections.Generic.List[string]]::new()
 $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:BackendProcess = $null
 $script:FrontendProcess = $null
@@ -48,7 +45,6 @@ $UvExe = Join-Path $UvDir "uv.exe"
 $NodeExe = Join-Path $NodeDir "node.exe"
 $NpmCmd = Join-Path $NodeDir "npm.cmd"
 $VenvPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
-$UvCacheDir = $RuntimeCacheDir
 
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
@@ -254,7 +250,7 @@ function Remove-LauncherPath {
             }
             if ($WhatIf) { continue }
             try {
-                Remove-Item -LiteralPath $candidate.FullName -Force -Confirm:$false -ErrorAction Stop
+                Remove-Item -LiteralPath $candidate.FullName -Force -Recurse -Confirm:$false -ErrorAction Stop
                 [void]$removed.Add($candidate.FullName)
             }
             catch {
@@ -320,8 +316,28 @@ function Remove-ResourceDirectoryContents([string]$Path) {
 # Portable runtimes, dependencies, and application startup
 # -----------------------------------------------------------------------------
 
+function Ensure-CacheLayout {
+    foreach ($directory in @(
+        $RuntimeCacheDir,
+        $UvCacheDir,
+        $PipCacheDir,
+        $NpmCacheDir,
+        $RuntimeTempDir,
+        $PytestCacheDir,
+        $PytestTempDir,
+        $RuffCacheDir,
+        $PythonCacheDir,
+        $MypyCacheDir,
+        $AngularCacheDir,
+        $PlaywrightCacheDir,
+        $CoverageDir
+    )) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+}
+
 function Remove-UvCache {
-    $expectedCachePath = [System.IO.Path]::GetFullPath($RuntimeCacheDir)
+    $expectedCachePath = [System.IO.Path]::GetFullPath((Join-Path $RuntimeCacheDir 'uv'))
     $actualCachePath = [System.IO.Path]::GetFullPath($UvCacheDir)
     if ($actualCachePath -ne $expectedCachePath) {
         throw "Refusing to remove an unexpected uv cache path: $actualCachePath"
@@ -452,32 +468,24 @@ function Import-Settings {
 }
 
 function Set-RuntimeEnvironment {
-    foreach ($directory in @(
-        $RuntimeCacheDir,
-        $RuntimeTempDir,
-        $TestCacheDir,
-        $PytestCacheDir,
-        $PytestTempDir,
-        $RuffCacheDir,
-        $PythonCacheDir,
-        $MypyCacheDir,
-        $AngularCacheDir
-    )) {
-        New-Item -ItemType Directory -Path $directory -Force | Out-Null
-    }
+    Ensure-CacheLayout
     $env:UV_CACHE_DIR = $UvCacheDir
     Remove-Item Env:UV_NO_CACHE -ErrorAction SilentlyContinue
-    $env:PIP_CACHE_DIR = Join-Path $RuntimeCacheDir "pip"
-    $env:npm_config_cache = Join-Path $RuntimeCacheDir "npm"
+    $env:PIP_CACHE_DIR = $PipCacheDir
+    $env:NPM_CONFIG_CACHE = $NpmCacheDir
+    $env:npm_config_cache = $NpmCacheDir
     $env:XDG_CACHE_HOME = $RuntimeCacheDir
     $env:UV_PROJECT_ENVIRONMENT = Join-Path $BackendDir ".venv"
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:PYTEST_CACHE_DIR = $PytestCacheDir
+    $env:PYTEST_ADDOPTS = "--basetemp=`"$PytestTempDir`""
     $env:RUFF_CACHE_DIR = $RuffCacheDir
     $env:MYPY_CACHE_DIR = $MypyCacheDir
-    $env:COVERAGE_FILE = Join-Path $TestCacheDir ".coverage"
+    $env:COVERAGE_FILE = Join-Path $CoverageDir ".coverage"
+    $env:PLAYWRIGHT_BROWSERS_PATH = $PlaywrightCacheDir
     $env:TEMP = $RuntimeTempDir
     $env:TMP = $RuntimeTempDir
+    $env:TMPDIR = $RuntimeTempDir
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
     $env:PYTHONPATH = $AppDir
     Remove-Item Env:PYTHONNOUSERSITE -ErrorAction SilentlyContinue
@@ -585,6 +593,12 @@ function Sync-Dependencies {
     } finally { Pop-Location }
     if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Backend virtual-environment Python was not created at $VenvPython." }
     Write-Ok "Python dependencies are ready."
+    if ($InstallationType -eq 'Development') {
+        Write-Step "Installing Playwright Chromium browser"
+        & $VenvPython -m playwright install chromium
+        Assert-LastExitCode "Playwright Chromium installation"
+        Write-Ok "Playwright Chromium is ready under $PlaywrightCacheDir."
+    }
     Sync-FrontendDependencies -BuildFrontend:$BuildFrontend
 }
 
@@ -993,50 +1007,110 @@ function Remove-Logs {
     Write-Ok "Log files removed."
 }
 
+function Get-RepositoryDirectories {
+    param([Parameter(Mandatory)][string]$Root)
+    $pending = [Collections.Generic.Stack[string]]::new()
+    [void]$pending.Push($Root)
+    while ($pending.Count -gt 0) {
+        $current = $pending.Pop()
+        $enumerationErrors = @()
+        $children = @(Get-ChildItem -LiteralPath $current -Directory -Force -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors)
+        foreach ($errorRecord in $enumerationErrors) {
+            $message = "$current ($($errorRecord.Exception.Message))"
+            [void]$script:CacheScanErrors.Add($message)
+            Write-Warn "Unable to inspect repository directory '$current': $($errorRecord.Exception.Message)"
+        }
+        foreach ($child in $children) {
+            $fullPath = [System.IO.Path]::GetFullPath($child.FullName)
+            if ($child.Name -in @('.git', 'node_modules', '.venv', 'runtimes')) { continue }
+            if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
+            $fullPath
+            [void]$pending.Push($fullPath)
+        }
+    }
+}
+
+function Get-LegacyCachePaths {
+    $canonicalPrefix = [System.IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\') + '\'
+    $appPrefix = [System.IO.Path]::GetFullPath($AppDir).TrimEnd('\') + '\'
+    $legacyNames = @(
+        '__pycache__',
+        '.pytest_cache',
+        '.ruff_cache',
+        '.mypy_cache',
+        '.uv-cache',
+        '.angular',
+        '.startup-temp',
+        '.cache'
+    )
+    $candidates = [Collections.Generic.List[string]]::new()
+    $searchRoots = @($RepoRoot, $AppDir)
+    foreach ($searchRoot in $searchRoots) {
+        if (-not (Test-Path -LiteralPath $searchRoot -PathType Container)) { continue }
+        foreach ($fullPath in @(Get-RepositoryDirectories -Root $searchRoot)) {
+            if ($fullPath.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+            $name = [System.IO.Path]::GetFileName($fullPath)
+            $isLegacyName = $name -in $legacyNames -or $name -like '.pytest-*'
+            $isApplicationPath = $fullPath.StartsWith($appPrefix, [StringComparison]::OrdinalIgnoreCase)
+            $isLegacyCacheRoot = $name -eq 'cache' -and $isApplicationPath
+            $isLegacyCoverageRoot = $name -in @('coverage', 'htmlcov') -and $isApplicationPath
+            if ($isLegacyName -or $isLegacyCacheRoot -or $isLegacyCoverageRoot) {
+                [void]$candidates.Add($fullPath)
+            }
+        }
+    }
+    return @($candidates | Sort-Object @{ Expression = { $_.Length }; Descending = $true }, @{ Expression = { $_.ToUpperInvariant() }; Descending = $false } -Unique)
+}
+
+function Get-LegacyCacheFiles {
+    $canonicalPrefix = [System.IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\') + '\'
+    $files = [Collections.Generic.List[string]]::new()
+    if (-not (Test-Path -LiteralPath $RepoRoot -PathType Container)) { return @() }
+    foreach ($directory in @($RepoRoot) + @(Get-RepositoryDirectories -Root $RepoRoot)) {
+        $fullDirectory = [System.IO.Path]::GetFullPath($directory)
+        if ($fullDirectory.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        $entries = @(Get-ChildItem -LiteralPath $fullDirectory -File -Force -ErrorAction SilentlyContinue)
+        foreach ($entry in $entries) {
+            if ($entry.Name -eq '.coverage' -or $entry.Name -like '.coverage.*' -or $entry.Extension -in @('.pyc', '.pyo')) {
+                [void]$files.Add([System.IO.Path]::GetFullPath($entry.FullName))
+            }
+        }
+    }
+    return @($files | Sort-Object -Unique)
+}
+
 function Clear-Cache {
     if (-not (Confirm-DestructiveAction 'clear runtime and test-tool caches')) { return }
     Write-Step "Clearing runtime and test-tool caches"
-    foreach ($cacheDirectory in @($RuntimeCacheDir, $TestCacheDir)) {
-        New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
-        Remove-RepoDirectoryContents $cacheDirectory
+    $script:CacheScanErrors.Clear()
+    $failures = [Collections.Generic.List[string]]::new()
+    try {
+        [void](Remove-LauncherPath -Path $RuntimeCacheDir -KeepRoot -PreserveNames @('.gitkeep', 'CACHEDIR.TAG') -Strict -Activity 'ADSMOD: clear canonical cache')
+    } catch {
+        [void]$failures.Add("${RuntimeCacheDir}: $($_.Exception.Message)")
     }
-    foreach ($legacyUvCachePath in $LegacyUvCachePaths) {
-        [void](Remove-RepoPath $legacyUvCachePath)
+    foreach ($legacyPath in @(Get-LegacyCachePaths)) {
+        try {
+            [void](Remove-LauncherPath -Path $legacyPath -Strict -Activity "ADSMOD: remove legacy cache $([IO.Path]::GetFileName($legacyPath))")
+        } catch {
+            [void]$failures.Add("${legacyPath}: $($_.Exception.Message)")
+        }
     }
-    [void](Remove-RepoPath $StartupTempDir)
-
-    $legacyCacheNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.mypy_cache')
-    $legacyCacheDirectories = @(
-        @(Get-ChildItem -LiteralPath $RepoRoot -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in $legacyCacheNames })
-        @(Get-ChildItem -LiteralPath $AppDir -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in $legacyCacheNames })
-        @(Get-ChildItem -LiteralPath $BackendDir -Directory -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in $legacyCacheNames })
-    )
-    $legacySearchRoots = @(
-        (Join-Path $AppDir 'scripts'),
-        (Join-Path $BackendDir 'common'),
-        (Join-Path $BackendDir 'core'),
-        (Join-Path $BackendDir 'ml'),
-        $TestsDir
-    )
-    foreach ($searchRoot in $legacySearchRoots) {
-        $legacyCacheDirectories += @(Get-ChildItem -LiteralPath $searchRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in $legacyCacheNames -and
-                $_.FullName -ne [System.IO.Path]::GetFullPath($RuntimeCacheDir) -and
-                $_.FullName -ne [System.IO.Path]::GetFullPath($TestCacheDir) })
+    foreach ($legacyFile in @(Get-LegacyCacheFiles)) {
+        try {
+            [void](Remove-LauncherPath -Path $legacyFile -Strict -Activity "ADSMOD: remove legacy cache artifact $([IO.Path]::GetFileName($legacyFile))")
+        } catch {
+            [void]$failures.Add("${legacyFile}: $($_.Exception.Message)")
+        }
     }
-    $legacyCacheDirectories = @($legacyCacheDirectories |
-        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } -Unique)
-    foreach ($legacyCacheDirectory in $legacyCacheDirectories) {
-        [void](Remove-RepoPath $legacyCacheDirectory.FullName)
+    foreach ($scanError in @($script:CacheScanErrors | Sort-Object -Unique)) {
+        [void]$failures.Add("Cache discovery: $scanError")
     }
-
-    $legacyToolCache = Join-Path $ClientDir '.angular'
-    [void](Remove-RepoPath $legacyToolCache)
-
-    Write-Ok "Cache cleanup completed; locked or inaccessible items were skipped."
+    Ensure-CacheLayout
+    if ($failures.Count -gt 0) {
+        throw "Cache cleanup was incomplete:`n - $($failures -join "`n - ")"
+    }
+    Write-Ok "Cache cleanup completed under $RuntimeCacheDir."
 }
 
 function Uninstall-Application {
@@ -1051,18 +1125,20 @@ function Uninstall-Application {
     }
     $paths = @($runtimeContents) + @(
         (Join-Path $BackendDir '.venv'),
-        $StartupTempDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
         (Join-Path $ClientDir '.angular'),
         (Join-Path $ClientDir 'dist')
-    ) + @($LegacyUvCachePaths)
+    )
     foreach ($path in $paths) {
         Remove-RepoPath $path
     }
-    Get-ChildItem -LiteralPath $RepoRoot -Directory -Filter '__pycache__' -Recurse -Force -ErrorAction SilentlyContinue |
-        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
-        ForEach-Object { Remove-RepoPath $_.FullName }
+    foreach ($legacyPath in @(Get-LegacyCachePaths)) {
+        Remove-RepoPath $legacyPath
+    }
+    foreach ($legacyFile in @(Get-LegacyCacheFiles)) {
+        Remove-RepoPath $legacyFile
+    }
     Write-Ok "Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved."
 }
 
