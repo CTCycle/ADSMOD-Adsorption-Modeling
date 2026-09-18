@@ -77,7 +77,10 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
 When the menu appears, choose **Launch Application**. The launcher prepares the
 local runtime when needed, installs or repairs application dependencies, builds
 the web interface, starts the required local services, waits for them to be
-ready, and opens the application in your browser.
+ready, and opens the application in your browser. The backend terminal remains
+visible while ADSMOD is running. **Stop application** stops processes started by
+the current launcher session; use **Kill all application processes** when a
+recognized ADSMOD process from an earlier session must be stopped.
 
 The first launch can take longer because the launcher may need to download
 portable runtimes and packages. An internet connection is therefore helpful on
@@ -311,6 +314,7 @@ Use the launcher menu for the supported maintenance actions:
 - initialize the local database;
 - install or update dependencies;
 - rebuild the web interface;
+- stop the current session or kill recognized ADSMOD application processes;
 - check for and apply application updates;
 - remove logs or disposable caches;
 - remove saved training checkpoints; and

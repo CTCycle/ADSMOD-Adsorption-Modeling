@@ -689,6 +689,64 @@ function Assert-PortAvailable([int]$Port) {
     throw "Port $Port is already in use by $ownerText. ADSMOD will not terminate unowned processes; stop the owning application and retry."
 }
 
+function Get-ApplicationProcessRecords {
+    param([Parameter(Mandatory)][pscustomobject]$Settings)
+
+    $records = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue)
+    if ($records.Count -eq 0) {
+        return @()
+    }
+
+    $configMarker = [System.IO.Path]::GetFullPath($ConfigFile).TrimEnd('\').ToLowerInvariant()
+    $backendMarker = [System.IO.Path]::GetFullPath($BackendDir).TrimEnd('\').ToLowerInvariant()
+    $clientMarker = [System.IO.Path]::GetFullPath($ClientDir).TrimEnd('\').ToLowerInvariant()
+    $backendPortToken = "--port $($Settings.BackendPort)".ToLowerInvariant()
+    $backendPortEqualsToken = "--port=$($Settings.BackendPort)".ToLowerInvariant()
+    $frontendPortToken = "--port $($Settings.FrontendPort)".ToLowerInvariant()
+    $frontendPortEqualsToken = "--port=$($Settings.FrontendPort)".ToLowerInvariant()
+    $matchedIds = [System.Collections.Generic.HashSet[int]]::new()
+
+    foreach ($record in $records) {
+        $commandLine = ([string]$record.CommandLine).Replace('/', '\').ToLowerInvariant()
+        $isBackend = $commandLine.Contains($configMarker) -or
+            ($commandLine.Contains('server.cli') -and
+                ($commandLine.Contains($backendMarker) -or
+                    $commandLine.Contains($backendPortToken) -or
+                    $commandLine.Contains($backendPortEqualsToken)))
+        $hasPreviewCommand = $commandLine.Contains('vite preview') -or
+            ($commandLine.Contains('npm') -and $commandLine.Contains('run preview'))
+        $isFrontend = $hasPreviewCommand -and
+            ($commandLine.Contains($clientMarker) -or
+                $commandLine.Contains($frontendPortToken) -or
+                $commandLine.Contains($frontendPortEqualsToken))
+
+        if ($isBackend -or $isFrontend) {
+            [void]$matchedIds.Add([int]$record.ProcessId)
+        }
+    }
+
+    # Include children such as the node process created by npm.cmd. This keeps
+    # the cleanup scoped to a recognized ADSMOD process tree.
+    $changed = $true
+    while ($changed) {
+        $changed = $false
+        foreach ($record in $records) {
+            $processId = [int]$record.ProcessId
+            $parentProcessId = [int]$record.ParentProcessId
+            if (-not $matchedIds.Contains($processId) -and $matchedIds.Contains($parentProcessId)) {
+                [void]$matchedIds.Add($processId)
+                $changed = $true
+            }
+        }
+    }
+
+    return @(
+        $records |
+            Where-Object { $matchedIds.Contains([int]$_.ProcessId) } |
+            Sort-Object @{ Expression = { [int]$_.ProcessId }; Descending = $true }
+    )
+}
+
 function Stop-OwnedProcess {
     param(
         [System.Diagnostics.Process]$Process,
@@ -714,6 +772,71 @@ function Stop-OwnedProcess {
         # The process can exit between Refresh and Kill. That is already a
         # successful stop for this launcher-owned process.
         return
+    }
+}
+
+function Stop-AllApplicationProcesses {
+    if (-not (Confirm-DestructiveAction 'kill all recognized ADSMOD application processes')) {
+        return
+    }
+
+    $settings = Import-Settings
+    $records = @(Get-ApplicationProcessRecords -Settings $settings)
+    $processIds = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($record in $records) {
+        [void]$processIds.Add([int]$record.ProcessId)
+    }
+    foreach ($ownedProcess in @($script:FrontendProcess, $script:BackendProcess)) {
+        if ($null -eq $ownedProcess) {
+            continue
+        }
+        try {
+            $ownedProcess.Refresh()
+            if (-not $ownedProcess.HasExited) {
+                [void]$processIds.Add([int]$ownedProcess.Id)
+            }
+        }
+        catch [System.InvalidOperationException] {
+            # The process exited while the inventory was being collected.
+        }
+    }
+
+    if ($processIds.Count -eq 0) {
+        Write-Warn "No recognized ADSMOD application processes were found."
+        return
+    }
+
+    $stopped = 0
+    Write-Step "Killing $($processIds.Count) recognized ADSMOD application process(es)"
+    foreach ($processId in @($processIds | Sort-Object -Descending)) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $process) {
+            continue
+        }
+        try {
+            Write-Host "[STEP] Stopping ADSMOD process $($process.ProcessName) (PID $processId)" -ForegroundColor Cyan
+            $process.Kill($true)
+            if (-not $process.WaitForExit(5000)) {
+                Write-Warn "ADSMOD process PID $processId did not exit within five seconds."
+                continue
+            }
+            $stopped++
+        }
+        catch [System.InvalidOperationException] {
+            $stopped++
+        }
+        catch {
+            Write-Warn "Could not stop ADSMOD process PID ${processId}: $($_.Exception.Message)"
+        }
+    }
+
+    $script:FrontendProcess = $null
+    $script:BackendProcess = $null
+    if ($stopped -gt 0) {
+        Write-Ok "Stopped $stopped recognized ADSMOD application process(es)."
+    }
+    else {
+        Write-Warn "No recognized ADSMOD application processes could be stopped."
     }
 }
 
@@ -759,7 +882,7 @@ function Start-Application {
     Assert-PortAvailable -Port $uiPort
     $backendArguments = @('-m', 'server.cli', '--config', ('"{0}"' -f $ConfigFile))
     Write-Step "Starting ADSMOD backend"
-    $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
+    $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
     $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
     Write-Step "Waiting for backend readiness at $healthUrl"
     try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
@@ -1131,6 +1254,7 @@ function Get-MainMenuEntries {
     return @(
         [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Launch application'; Hint = 'Start the local web workspace'; Key = 'Launch'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Stop application'; Hint = 'Stop ADSMOD processes started by this session'; Key = 'Stop'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Kill all application processes'; Hint = 'Stop every recognized ADSMOD process, including previous sessions'; Key = 'KillAll'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Install / update dependencies'; Hint = 'Refresh local runtimes and packages'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Rebuild frontend'; Hint = 'Install frontend packages and rebuild the bundle'; Key = 'Rebuild'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Initialize database'; Hint = 'Create or upgrade the Alembic-managed data store'; Key = 'Database'; Destructive = $false }
@@ -1224,6 +1348,7 @@ while (-not $exitMenu) {
                     Start-Application
                 }
                 'Stop' { Stop-Application }
+                'KillAll' { Stop-AllApplicationProcesses }
                 'Install' { Install-UpdateDependencies }
                 'Rebuild' { Rebuild-Frontend }
                 'Database' { Initialize-Database }
