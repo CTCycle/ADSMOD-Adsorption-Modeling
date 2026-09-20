@@ -29,7 +29,6 @@ def resolve_checkpoint_root(config: AdsmodConfig) -> Path:
 def resolve_log_root(config: AdsmodConfig) -> Path:
     return resolve_storage_root(config) / "logs"
 
-
 ###############################################################################
 def resolve_database_path(config: AdsmodConfig) -> Path:
     database_value = config.application.database.sqlite_path
