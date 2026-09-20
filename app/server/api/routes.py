@@ -27,7 +27,6 @@ def register_core_routes(
         router = router_factory(container)
         app.include_router(router, prefix=prefix, include_in_schema=include_schema)
 
-
 ###############################################################################
 def register_ml_routes(
     app: FastAPI,

@@ -42,7 +42,6 @@ class FittingConfigurationResponse(BaseModel):
     display_units: DisplayUnitCapabilities
     parameter_defaults: ParameterDefaults
 
-
 ###############################################################################
 class RuntimeDeviceCapabilities(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -51,7 +50,6 @@ class RuntimeDeviceCapabilities(BaseModel):
     cuda_available: bool
     device_count: int
     devices: tuple[str, ...]
-
 
 ###############################################################################
 class TrainingConfigurationResponse(BaseModel):
