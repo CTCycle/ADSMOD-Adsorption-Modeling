@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-09-02
+Last updated: 2026-09-20
 
 ## Purpose
 
@@ -26,6 +26,20 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 
 - [`project_index.md`](project_index.md)
   - Central index for the documentation tree, reading rules, and environment assumptions.
+- [`project_status_ledger.md`](project_status_ledger.md)
+  - Canonical current operational status for meaningful project components, validation evidence, active issues, blockers, and validation debt.
+
+## Operational status and evidence
+
+[`project_status_ledger.md`](project_status_ledger.md) is the canonical source
+for the project's current operational state. Update it whenever implementation,
+validation evidence, a regression, a blocker, or an issue's remediation status
+changes. Keep detailed architecture and ownership rules in
+[`architecture/`](architecture/), detailed validation logs and artifacts under
+`assets/QA/`, and implementation intent in the relevant plan or design
+document; the ledger summarizes and links to those sources without replacing
+them. A plan or historical report does not change current status until the
+repository state and supporting evidence have been updated.
 
 ### Architecture
 
