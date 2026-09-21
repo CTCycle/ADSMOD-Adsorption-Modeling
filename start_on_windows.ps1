@@ -38,13 +38,14 @@ $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Conso
 $script:BackendProcess = $null
 $script:FrontendProcess = $null
 
-$PythonVersion = "3.14.2"
+$PythonVersion = "3.14.7"
 $PythonExe = Join-Path $PythonDir "python.exe"
 $PythonPth = Join-Path $PythonDir "python314._pth"
 $UvExe = Join-Path $UvDir "uv.exe"
 $NodeExe = Join-Path $NodeDir "node.exe"
 $NpmCmd = Join-Path $NodeDir "npm.cmd"
-$VenvPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
+$VenvDir = Join-Path $BackendDir ".venv"
+$VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
@@ -406,7 +407,7 @@ function Get-PythonVersion {
     if ($LASTEXITCODE -ne 0 -or -not $version) {
         throw "Could not determine the Python version from $PythonExe."
     }
-    $version
+    $version.Trim()
 }
 
 function Move-UvExe {
@@ -475,7 +476,7 @@ function Set-RuntimeEnvironment {
     $env:NPM_CONFIG_CACHE = $NpmCacheDir
     $env:npm_config_cache = $NpmCacheDir
     $env:XDG_CACHE_HOME = $RuntimeCacheDir
-    $env:UV_PROJECT_ENVIRONMENT = Join-Path $BackendDir ".venv"
+    $env:UV_PROJECT_ENVIRONMENT = $VenvDir
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:PYTEST_CACHE_DIR = $PytestCacheDir
     $env:PYTEST_ADDOPTS = "--basetemp=`"$PytestTempDir`""
@@ -526,7 +527,61 @@ function Initialize-Runtimes {
     }
 
     Write-Step "Ensuring portable Python $PythonVersion"
-    if (-not (Test-Path -LiteralPath $PythonExe)) {
+    $pythonNeedsInstall = -not (Test-Path -LiteralPath $PythonExe)
+    if (-not $pythonNeedsInstall) {
+        try {
+            $existingPythonVersion = Get-PythonVersion -PythonExe $PythonExe
+        } catch {
+            $existingPythonVersion = $null
+        }
+        if ($existingPythonVersion -ne $PythonVersion) {
+            Write-Warn "Replacing portable Python $existingPythonVersion with $PythonVersion."
+            $pythonStageDir = Join-Path $RuntimesDir ".python-$PythonVersion-staging"
+            $pythonBackupDir = Join-Path $RuntimesDir ".python-$existingPythonVersion-backup"
+            if (Test-Path -LiteralPath $pythonStageDir -PathType Container) {
+                if (-not (Remove-RepoPath $pythonStageDir)) {
+                    throw "Could not clear the staged portable Python runtime at $pythonStageDir."
+                }
+            }
+            if (Test-Path -LiteralPath $pythonBackupDir -PathType Container) {
+                if (-not (Remove-RepoPath $pythonBackupDir)) {
+                    throw "Could not clear the portable Python backup at $pythonBackupDir."
+                }
+            }
+            New-Item -ItemType Directory -Path $pythonStageDir -Force | Out-Null
+            try {
+                Download-AndExtract `
+                    -Url $PythonUrl `
+                    -ArchivePath (Join-Path $pythonStageDir $PythonArchive) `
+                    -DestinationPath $pythonStageDir
+                $stagedPth = Join-Path $pythonStageDir "python314._pth"
+                Patch-PythonPth -Path $stagedPth
+                $stagedPythonExe = Join-Path $pythonStageDir "python.exe"
+                $stagedPythonVersion = Get-PythonVersion -PythonExe $stagedPythonExe
+                if ($stagedPythonVersion -ne $PythonVersion) {
+                    throw "Downloaded portable Python version mismatch. Expected $PythonVersion, detected $stagedPythonVersion."
+                }
+                Move-Item -LiteralPath $PythonDir -Destination $pythonBackupDir
+                try {
+                    Move-Item -LiteralPath $pythonStageDir -Destination $PythonDir
+                } catch {
+                    Move-Item -LiteralPath $pythonBackupDir -Destination $PythonDir -Force
+                    throw
+                }
+                if ((Test-Path -LiteralPath $pythonBackupDir -PathType Container) -and
+                    -not (Remove-RepoPath $pythonBackupDir)) {
+                    Write-Warn "The previous portable Python runtime could not be removed from $pythonBackupDir."
+                }
+            } catch {
+                if (Test-Path -LiteralPath $pythonStageDir -PathType Container) {
+                    [void](Remove-RepoPath $pythonStageDir)
+                }
+                throw
+            }
+            $pythonNeedsInstall = $false
+        }
+    }
+    if ($pythonNeedsInstall) {
         Download-AndExtract `
             -Url $PythonUrl `
             -ArchivePath (Join-Path $PythonDir $PythonArchive) `
@@ -534,6 +589,9 @@ function Initialize-Runtimes {
     }
     Patch-PythonPth -Path $PythonPth
     $detectedPython = Get-PythonVersion -PythonExe $PythonExe
+    if ($detectedPython -ne $PythonVersion) {
+        throw "Portable Python version mismatch. Expected $PythonVersion, detected $detectedPython."
+    }
     Write-Ok "Python ready: $detectedPython"
 
     Write-Step "Ensuring portable uv"
@@ -582,6 +640,19 @@ function Sync-Dependencies {
     Import-Settings | Out-Null
     if (-not $RuntimesReady) { Initialize-Runtimes }
     Set-RuntimeEnvironment
+    $venvNeedsRebuild = -not (Test-Path -LiteralPath $VenvPython)
+    if (-not $venvNeedsRebuild) {
+        try {
+            $venvNeedsRebuild = (Get-PythonVersion -PythonExe $VenvPython) -ne $PythonVersion
+        } catch {
+            $venvNeedsRebuild = $true
+        }
+    }
+    if ($venvNeedsRebuild) {
+        Write-Step "Recreating backend virtual environment for Python $PythonVersion"
+        & $UvExe venv --clear --python $PythonExe $VenvDir
+        Assert-LastExitCode "backend virtual-environment recreation"
+    }
     Write-Step "Syncing Python dependencies ($FeatureSet)"
     Push-Location $BackendDir
     try {
@@ -665,8 +736,12 @@ function Test-DependenciesReady {
         return $false
     }
 
-    & $PythonExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
+    try {
+        if ((Get-PythonVersion -PythonExe $PythonExe) -ne $PythonVersion) { return $false }
+        if ((Get-PythonVersion -PythonExe $VenvPython) -ne $PythonVersion) { return $false }
+    } catch {
+        return $false
+    }
     & $UvExe --version *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
     & $NodeExe --version *> $null
