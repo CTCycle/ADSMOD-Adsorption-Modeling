@@ -4,6 +4,8 @@ Date: 2026-09-21
 Baseline: `develop` at `57baefed0b2be9e71cfa4f053226ac45ff2ffb6d`
 Workflow-fix revision: `cec373a1983d2313435cf2661e56be28e6cda32a`
 Hosted rerun: [35621291855](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/runs/35621291855) (attempt 2)
+Final remediation revision: `b52096bcb153a7f5724493a49374d30d352c8a6b`
+Final run: [35622186997](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/runs/35622186997)
 Evidence strength: remote workflow diagnostic + job logs + source diff
 
 ## Scope
@@ -48,18 +50,23 @@ The next CI-only remediation adds `actions/setup-python@v5` for the exact
 from `setup-uv`. The local launcher and CI therefore retain the same explicit
 Python contract while the hosted runner supplies the interpreter on PATH.
 
+That remediation passed in final run [35622186997](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/runs/35622186997):
+
+- `base-backend` passed setup, install, base capability validation, and cleanup.
+- `ml-backend` passed setup, ML-enabled install, Ruff, backend tests, generated OpenAPI/config-schema checks, and cleanup.
+- `frontend` passed npm install, lint, unit tests, production build, Edge installation, and all seven visual projects.
+
 ## Status
 
-`PARTIAL` — workflow evaluation, job creation, frontend ordinary checks, and
-all seven visual projects are proven by run `35621291855` attempt 2. The
-remote gate remains red only on backend interpreter provisioning; the
-`actions/setup-python@v5` remediation must complete in a new remote run before
-this slice can be marked `PASS`.
+`PASS` — final run `35622186997` created and completed all three expected jobs,
+including backend installs/validation and all seven frontend visual projects.
+The Node.js 20 deprecation and future `ubuntu-latest` migration annotations are
+maintenance warnings, not failures in this validation slice.
 
 ## Required follow-up
 
-1. Push the hosted Python setup remediation with this ledger and QA evidence.
-2. Record the new run URL, created jobs, step conclusions, and final commit
-   SHA here.
-3. If a job still fails, classify it as configuration, environment, or product
-   failure and stop before advancing to Tier 1.
+1. Preserve the final run URL, job conclusions, and commit SHA here as the
+   current CI baseline.
+2. Repeat this slice after future workflow, runtime, dependency, or generated
+   contract changes.
+3. Keep Tier 1 closed until the separate Windows launcher slice passes.
