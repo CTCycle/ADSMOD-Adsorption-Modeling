@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 ## Purpose
 
@@ -40,6 +40,14 @@ changes. Keep detailed architecture and ownership rules in
 document; the ledger summarizes and links to those sources without replacing
 them. A plan or historical report does not change current status until the
 repository state and supporting evidence have been updated.
+
+### Validation campaign
+
+[`validation/roadmap.md`](validation/roadmap.md) is the durable digest of the
+long-term validation campaign, its stable slice IDs, evidence rules, and
+dependency order. The current execution ledger remains in
+[`project_status_ledger.md`](project_status_ledger.md); detailed run evidence
+belongs under `assets/QA/validation/`.
 
 ### Architecture
 
