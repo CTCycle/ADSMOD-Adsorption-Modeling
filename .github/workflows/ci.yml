@@ -33,12 +33,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.7"
       - name: Prepare canonical cache root
         run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.31"
-          python-version: "3.14.7"
       - name: Install base backend
         run: uv sync --locked --project app/server --no-dev
       - name: Validate base capability
@@ -65,12 +67,14 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.7"
       - name: Prepare canonical cache root
         run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.31"
-          python-version: "3.14.7"
       - name: Install ML-enabled development environment
         run: uv sync --locked --project app/server --extra ml --group dev
       - name: Validate backend
