@@ -63,7 +63,7 @@ adjacent regression, then update the ledger.
 
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
-| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | The zero-job failure was traced to a case-insensitive duplicate `npm_config_cache`; the duplicate is removed locally and remote rerun evidence is pending. |
+| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Workflow evaluation is repaired and run `35620065349` created all three jobs, but backend setup could not provision Python `3.14.7` with `uv 0.11.30`, while the seven frontend visual projects hit an overlong Edge socket path; a follow-up CI-only remediation is pending. |
 | `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | Normal launch, browser load, and owned stop passed; the controlled occupied-port scenario failed and is tracked as `ISSUE-006`. |
 
 ### Tier 1 — application foundations
@@ -138,8 +138,9 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 is intentionally not green yet. `ADS-T0-01` is `PARTIAL` until the
-workflow-fix commit creates all three remote jobs and they complete. `ADS-T0-02`
-is `FAIL` because the occupied-port scenario attempted backend startup instead
+Tier 0 is intentionally not green yet. `ADS-T0-01` is `PARTIAL`: run
+`35620065349` created all three remote jobs, but hosted Python provisioning and
+the frontend visual browser temp path failed and require a follow-up run.
+`ADS-T0-02` is `FAIL` because the occupied-port scenario attempted backend startup instead
 of refusing the unowned listener. Tier 1 and later slices remain `UNTESTED`
 until Tier 0 is closed.

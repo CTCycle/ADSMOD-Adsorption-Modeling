@@ -37,7 +37,7 @@ jobs:
         run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.11.30"
+          version: "0.11.31"
           python-version: "3.14.7"
       - name: Install base backend
         run: uv sync --locked --project app/server --no-dev
@@ -69,7 +69,7 @@ jobs:
         run: mkdir -p runtimes/cache/temp runtimes/cache/coverage
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.11.30"
+          version: "0.11.31"
           python-version: "3.14.7"
       - name: Install ML-enabled development environment
         run: uv sync --locked --project app/server --extra ml --group dev
@@ -104,4 +104,6 @@ jobs:
         run: npx playwright install --with-deps msedge
       - name: Validate public data layouts and interactions
         working-directory: app/client
+        env:
+          TMPDIR: /tmp
         run: npx playwright test -c playwright.config.ts tests/visual/public-data-layout.spec.ts
