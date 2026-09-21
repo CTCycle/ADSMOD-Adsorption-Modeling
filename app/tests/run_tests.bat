@@ -91,6 +91,8 @@ if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="false" if exist "%CLIENT_DIR%\package.js
   echo [STEP] Running frontend validation...
   call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:unit --if-present
   if errorlevel 1 set "TEST_RESULT=1"
+  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:preview
+  if errorlevel 1 set "TEST_RESULT=1"
   call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build
   if errorlevel 1 set "TEST_RESULT=1"
 )

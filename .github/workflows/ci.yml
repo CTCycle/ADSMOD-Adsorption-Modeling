@@ -102,6 +102,8 @@ jobs:
       - working-directory: app/client
         run: npm run test:unit --if-present
       - working-directory: app/client
+        run: npm run test:preview
+      - working-directory: app/client
         run: npm run build
       - name: Install Edge for browser layout validation
         working-directory: app/client
