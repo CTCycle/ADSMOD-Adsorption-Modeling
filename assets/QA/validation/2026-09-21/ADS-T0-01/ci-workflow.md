@@ -3,6 +3,7 @@
 Date: 2026-09-21
 Baseline: `develop` at `57baefed0b2be9e71cfa4f053226ac45ff2ffb6d`
 Workflow-fix revision: `cec373a1983d2313435cf2661e56be28e6cda32a`
+Hosted rerun: [35621291855](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/runs/35621291855) (attempt 2)
 Evidence strength: remote workflow diagnostic + job logs + source diff
 
 ## Scope
@@ -27,6 +28,8 @@ The replacement run [35620065349](https://github.com/CTCycle/ADSMOD-Adsorption-M
 - `base-backend` and `ml-backend` reached dependency installation but both failed because the pinned `uv 0.11.30` could not find Python `3.14.7` in the hosted managed installations.
 - `frontend` passed `npm ci`, lint, unit tests, the production build, and Edge installation. Its seven visual projects all failed before the browser tests because Edge rejected the repository-derived temporary path as too long for its singleton socket.
 
+The rerun attempt [35621291855](https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/runs/35621291855) confirmed the browser-path remediation: all three jobs were created, `frontend` passed install, lint, unit, build, Edge installation, and all seven visual projects. Both backend jobs still failed at dependency installation with the same `No interpreter found for Python 3.14.7` error after `setup-uv` set `UV_PYTHON`.
+
 ## Surgical remediation
 
 Removed only the duplicate lowercase entry from
@@ -40,16 +43,22 @@ setting `TMPDIR=/tmp` only for the hosted Playwright visual step. This keeps
 dependency, npm, browser-download, coverage, and repository test caches under
 `runtimes/cache`; only the short-lived Linux browser socket path is relocated.
 
+The next CI-only remediation adds `actions/setup-python@v5` for the exact
+`3.14.7` interpreter before `setup-uv`, and removes the `python-version` input
+from `setup-uv`. The local launcher and CI therefore retain the same explicit
+Python contract while the hosted runner supplies the interpreter on PATH.
+
 ## Status
 
-`PARTIAL` — workflow evaluation and job creation are now proven by run
-`35620065349`, but the remote gate remains red on hosted dependency/browser
-setup. The follow-up `uv 0.11.31` and Playwright temporary-path remediation
-must complete in a new remote run before this slice can be marked `PASS`.
+`PARTIAL` — workflow evaluation, job creation, frontend ordinary checks, and
+all seven visual projects are proven by run `35621291855` attempt 2. The
+remote gate remains red only on backend interpreter provisioning; the
+`actions/setup-python@v5` remediation must complete in a new remote run before
+this slice can be marked `PASS`.
 
 ## Required follow-up
 
-1. Push the follow-up CI-only remediation with this ledger and QA evidence.
+1. Push the hosted Python setup remediation with this ledger and QA evidence.
 2. Record the new run URL, created jobs, step conclusions, and final commit
    SHA here.
 3. If a job still fails, classify it as configuration, environment, or product

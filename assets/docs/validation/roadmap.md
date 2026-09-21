@@ -63,7 +63,7 @@ adjacent regression, then update the ledger.
 
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
-| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Workflow evaluation is repaired and run `35620065349` created all three jobs, but backend setup could not provision Python `3.14.7` with `uv 0.11.30`, while the seven frontend visual projects hit an overlong Edge socket path; a follow-up CI-only remediation is pending. |
+| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Rerun `35621291855` created all three jobs; frontend install, checks, and all seven visual projects passed, while both backend jobs still could not provision Python `3.14.7`; hosted Python setup is the remaining CI remediation. |
 | `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | Normal launch, browser load, and owned stop passed; the controlled occupied-port scenario failed and is tracked as `ISSUE-006`. |
 
 ### Tier 1 — application foundations
@@ -138,9 +138,10 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 is intentionally not green yet. `ADS-T0-01` is `PARTIAL`: run
-`35620065349` created all three remote jobs, but hosted Python provisioning and
-the frontend visual browser temp path failed and require a follow-up run.
+Tier 0 is intentionally not green yet. `ADS-T0-01` is `PARTIAL`: rerun
+`35621291855` created all three remote jobs and closed the frontend visual-path
+failure, but both backend jobs still lack a hosted `3.14.7` interpreter and
+require a follow-up run after the `actions/setup-python` change.
 `ADS-T0-02` is `FAIL` because the occupied-port scenario attempted backend startup instead
 of refusing the unowned listener. Tier 1 and later slices remain `UNTESTED`
 until Tier 0 is closed.
