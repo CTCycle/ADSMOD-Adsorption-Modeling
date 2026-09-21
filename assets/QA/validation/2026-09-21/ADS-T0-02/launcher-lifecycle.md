@@ -2,7 +2,7 @@
 
 Date: 2026-09-21
 Baseline: `develop` at `57baefed0b2be9e71cfa4f053226ac45ff2ffb6d`
-Remediation: active TCP-listener fallback in `start_on_windows.ps1` (working tree; commit pending)
+Remediation: active TCP-listener fallback in `start_on_windows.ps1` at `f68d082c5bd724296d45cc0726e9d79c6719603e`
 Environment: Windows, PowerShell 7, base profile, ports 6045/5173
 Evidence strength: official launcher + in-app browser + process/port checks
 

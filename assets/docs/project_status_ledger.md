@@ -7,8 +7,9 @@ compact index of what is working, validated, partial, blocked, unvalidated, or
 not implemented. Detailed architecture, debugging narratives, implementation
 plans, and long validation logs remain in their dedicated documents.
 
-The baseline inspected for this ledger is `develop` at `b52096bc`. Unrelated
-untracked cache paths were preserved during the campaign. Evidence that
+The current validation baseline for this ledger is `develop` at `f68d082c`.
+The CI workflow gate was repaired and evidenced against its preceding
+baseline `b52096bc`. Unrelated untracked cache paths were preserved during the campaign. Evidence that
 predates a later change to the same component is called out explicitly and
 does not qualify as current `VALIDATED` evidence by itself.
 
@@ -52,7 +53,7 @@ Tier 1 and later tiers remain untested until it closes.
 | Slice ID | Capability | Feature exists | Exercised | Status | Baseline revision | Issues | Evidence | Remaining gap | Evidence strength |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ADS-T0-01` | Current GitHub Actions quality gates | YES | YES | `PASS` | `b52096bc` | Final run `35622186997` created and completed base-backend, ml-backend, and frontend; all defined checks passed | [`tier-0-summary.md`](../QA/validation/2026-09-21/tier-0-summary.md); [`ADS-T0-01/ci-workflow.md`](../QA/validation/2026-09-21/ADS-T0-01/ci-workflow.md) | Repeat after workflow, dependency, runtime, or generated-contract changes | remote workflow + job logs + source diff |
-| `ADS-T0-02` | Official Windows base-profile launcher lifecycle | YES | YES | `PASS` | `start_on_windows.ps1` fallback pending commit | Official clean lifecycle, browser, owned stop, relaunch, and occupied 6045/5173 refusal all passed; the unowned listeners were preserved | [`ADS-T0-02/launcher-lifecycle.md`](../QA/validation/2026-09-21/ADS-T0-02/launcher-lifecycle.md) | Repeat after launcher, runtime, cache, or process-ownership changes | live launcher + browser + process/port checks |
+| `ADS-T0-02` | Official Windows base-profile launcher lifecycle | YES | YES | `PASS` | `f68d082c` | Official clean lifecycle, browser, owned stop, relaunch, and occupied 6045/5173 refusal all passed; the unowned listeners were preserved | [`ADS-T0-02/launcher-lifecycle.md`](../QA/validation/2026-09-21/ADS-T0-02/launcher-lifecycle.md) | Repeat after launcher, runtime, cache, or process-ownership changes | live launcher + browser + process/port checks |
 
 ## Status taxonomy
 
