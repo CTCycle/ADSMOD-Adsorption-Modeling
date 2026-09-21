@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-09-18
+Last updated: 2026-09-21
 
 ## Recommended startup
 
@@ -8,22 +8,43 @@ Last updated: 2026-09-18
 & .\start_on_windows.ps1
 ```
 
-The launcher reads `app/resources/adsmod.json`, synchronizes the locked
-`app/server` workspace according to the selected dependency profile, checks
-the frontend build against its Angular source/configuration and public assets,
-and rebuilds it when stale before starting one FastAPI backend. It waits for
-`/health/ready` before opening the browser. Optional machine learning support
-is loaded inside that backend when its dependencies were installed.
+The launcher reads `app/resources/adsmod.json`, inspects every configured
+application port before doing runtime, dependency, or build work, then starts
+one FastAPI backend and a static production preview server. If configured ports
+are occupied by resolvable processes, it presents the complete conflict set
+and asks once whether to terminate the deduplicated process list. A decline,
+non-interactive console, unresolved owner, ownership race, failed termination,
+or final occupied-port check cancels startup without launching ADSMOD. The
+launcher never terminates an unresolved listener or a process that no longer
+matches the preflight identity.
 
-Before starting either service, the launcher checks that the configured port
-is available. If another process owns a port, startup stops with its PID and
-process name; the launcher never terminates an unowned listener. After a
-successful launch, use **Stop application** in the same launcher session to
-stop only the backend and frontend processes started by that session. The
-backend runs in a visible terminal when launched from the PowerShell script. If
-an earlier session left ADSMOD processes running, use **Kill all application
-processes**; it stops recognized ADSMOD backend/frontend process trees after
-confirmation.
+The backend and frontend installations carry generated dependency-state
+manifests inside `.venv` and `node_modules`. They fingerprint the locked
+dependency inputs and pinned Python/Node runtimes, and record the selected
+Standard/Development and Base/ML profiles. A matching manifest skips
+installation; a stale manifest repairs only that environment while preserving
+the previously recorded profile. The frontend build carries
+`dist/.adsmod-build-state.json`, whose SHA-256 fingerprint covers the exact
+Angular/package/source/public inputs and the pinned Node version. A matching
+build is reused; a missing or stale state is rebuilt once. There is no
+unconditional rebuild flag.
+
+`app/client/scripts/preview-serve.mjs` serves `dist/browser` directly, falls
+back to `index.html` for extensionless Angular routes, rejects traversal, and
+proxies `/api/v1` and `/health` through the existing `proxy.conf.cjs` target.
+It fails immediately when the generated `index.html` is missing, so normal
+launches do not invoke Angular compilation a second time. The launcher waits
+for `/health/ready` and the frontend root while monitoring each started
+process; an early exit is reported immediately instead of waiting for the full
+timeout.
+
+After a successful launch, use **Stop application** in the same launcher
+session to stop only the backend and frontend processes started by that
+session. The backend runs in a visible terminal when launched from the
+PowerShell script. If an earlier session left ADSMOD processes running, use
+**Kill all application processes**; it stops recognized ADSMOD
+backend/frontend process trees after confirmation. That menu action remains
+separate from arbitrary port-conflict resolution.
 
 The interactive menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
@@ -51,7 +72,7 @@ From the repository root after `app/server/.venv` is ready:
 This is the only backend process. If the environment was synchronized with the
 `ml` extra, the process discovers and registers the optional ML extension at
 startup. The Angular development server can be started from `app/client` with
-`npm run dev`.
+`npm run dev`; this is separate from the launcher’s production preview path.
 
 ## Database startup rules
 
@@ -71,3 +92,12 @@ app\tests\run_tests.bat
 The automated suite validates configuration, persistence, backend routes,
 frontend behavior, and both dependency profiles. Live browser and
 hardware-specific ML checks should be run locally on the target machine.
+
+The frontend checks can also be run directly from `app/client`:
+
+```cmd
+npm run lint
+npm run test:unit
+npm run test:preview
+npm run build
+```

@@ -46,6 +46,11 @@ $NodeExe = Join-Path $NodeDir "node.exe"
 $NpmCmd = Join-Path $NodeDir "npm.cmd"
 $VenvDir = Join-Path $BackendDir ".venv"
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
+$BackendDependencyStateFile = Join-Path $VenvDir ".adsmod-dependency-state.json"
+$FrontendDependencyStateFile = Join-Path $ClientDir "node_modules\.adsmod-dependency-state.json"
+$FrontendBuildStateFile = Join-Path $ClientDir "dist\.adsmod-build-state.json"
+$DependencyStateSchemaVersion = 1
+$BuildStateSchemaVersion = 1
 
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
@@ -132,7 +137,11 @@ function Invoke-TrackedLauncherAction {
     )
     Write-Step "Starting $Name"
     try {
-        & $Action
+        $actionResult = & $Action
+        if ($actionResult -is [bool] -and -not $actionResult) {
+            Write-Warn "$Name cancelled."
+            return
+        }
         Write-Ok "$Name completed"
     } catch {
         Write-Fatal "$Name failed: $($_.Exception.Message)"
@@ -429,13 +438,25 @@ function Wait-ForHealth {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][uri]$Url,
-        [ValidateRange(1, 600)][int]$TimeoutSeconds = 60
+        [ValidateRange(1, 600)][int]$TimeoutSeconds = 60,
+        [System.Diagnostics.Process]$Process = $null
     )
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     $activity = "ADSMOD: wait for health $Url"
     $progressId = Start-LauncherProgress -Activity $activity -Status "Waiting up to $TimeoutSeconds seconds"
     try {
         do {
+            if ($null -ne $Process) {
+                try {
+                    $Process.Refresh()
+                    if ($Process.HasExited) {
+                        throw "Process PID $($Process.Id) exited before $Url became ready with exit code $($Process.ExitCode)."
+                    }
+                }
+                catch [System.InvalidOperationException] {
+                    throw "Process for $Url exited before it became ready."
+                }
+            }
             $elapsed = [int](([DateTime]::UtcNow - $deadline.AddSeconds(-$TimeoutSeconds)).TotalSeconds)
             Update-LauncherProgress -Id $progressId -Activity $activity -Status "Waiting for healthy response; ${elapsed}s elapsed"
             try {
@@ -448,7 +469,7 @@ function Wait-ForHealth {
                     throw "No healthy response from $Url within $TimeoutSeconds seconds."
                 }
             }
-            Start-Sleep -Seconds 1
+            Start-Sleep -Milliseconds 250
         } while ([DateTime]::UtcNow -lt $deadline)
         throw "No healthy response from $Url within $TimeoutSeconds seconds."
     } finally {
@@ -607,39 +628,228 @@ function Initialize-Runtimes {
     Write-Ok $uvVersion
 
     Initialize-NodeRuntime
-    Set-RuntimeEnvironment
 }
 
-function Sync-FrontendDependencies {
+function Get-RepositoryRelativePath([string]$Path) {
+    return ([System.IO.Path]::GetRelativePath($RepoRoot, [System.IO.Path]::GetFullPath($Path))).Replace('\', '/')
+}
+
+function Get-InputFingerprint {
+    [CmdletBinding()]
     param(
-        [switch]$BuildFrontend
+        [Parameter(Mandatory)][string[]]$Paths,
+        [hashtable]$AdditionalEntries = @{}
     )
 
-    Write-Step "Installing frontend dependencies"
-    Push-Location $ClientDir
-    try {
-        if (-not (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json'))) {
-            throw "Missing frontend lockfile: $(Join-Path $ClientDir 'package-lock.json')"
+    $files = [Collections.Generic.List[pscustomobject]]::new()
+    $filePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $missing = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $Paths) {
+        $fullPath = [System.IO.Path]::GetFullPath($path)
+        if (-not (Test-Path -LiteralPath $fullPath)) {
+            [void]$missing.Add((Get-RepositoryRelativePath $fullPath))
+            continue
         }
-        & $NpmCmd ci
-        Assert-LastExitCode "npm dependency installation"
-
-        if ($BuildFrontend) {
-            Write-Step "Building frontend"
-            & $NpmCmd run build
-            Assert-LastExitCode "frontend build"
+        $item = Get-Item -LiteralPath $fullPath -Force
+        $items = if ($item.PSIsContainer) {
+            @(Get-ChildItem -LiteralPath $fullPath -File -Recurse -Force -ErrorAction Stop)
+        } else {
+            @($item)
         }
-    } finally {
-        Pop-Location
+        foreach ($file in $items) {
+            $relativePath = Get-RepositoryRelativePath $file.FullName
+            if ($filePaths.Add($relativePath)) {
+                [void]$files.Add([pscustomobject]@{ FullPath = $file.FullName; RelativePath = $relativePath })
+            }
+        }
     }
-    Write-Ok "Frontend dependencies are ready."
+
+    $hasher = [System.Security.Cryptography.IncrementalHash]::CreateHash([System.Security.Cryptography.HashAlgorithmName]::SHA256)
+    $encoding = [System.Text.UTF8Encoding]::new($false)
+    try {
+        foreach ($key in @($AdditionalEntries.Keys | Sort-Object)) {
+            $metadata = "META|$key=$($AdditionalEntries[$key])`n"
+            $hasher.AppendData($encoding.GetBytes($metadata))
+        }
+        foreach ($relativePath in @($missing | Sort-Object)) {
+            $hasher.AppendData($encoding.GetBytes("MISSING|$relativePath`n"))
+        }
+        foreach ($file in @($files | Sort-Object @{ Expression = { $_.RelativePath.ToUpperInvariant() } }, RelativePath)) {
+            $hasher.AppendData($encoding.GetBytes("FILE|$($file.RelativePath)|`n"))
+            $stream = [System.IO.File]::OpenRead($file.FullPath)
+            try {
+                $buffer = [byte[]]::new(65536)
+                while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                    $hasher.AppendData($buffer, 0, $read)
+                }
+            } finally {
+                $stream.Dispose()
+            }
+            $hasher.AppendData($encoding.GetBytes("`nEND|$($file.RelativePath)`n"))
+        }
+        return ([Convert]::ToHexString($hasher.GetHashAndReset())).ToLowerInvariant()
+    } finally {
+        $hasher.Dispose()
+    }
 }
 
-function Sync-Dependencies {
-    param([switch]$BuildFrontend, [switch]$RuntimesReady, [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard', [ValidateSet('Base', 'ML')][string]$FeatureSet = 'Base')
-    Import-Settings | Out-Null
-    if (-not $RuntimesReady) { Initialize-Runtimes }
-    Set-RuntimeEnvironment
+function Get-BackendDependencyFingerprint {
+    return Get-InputFingerprint -Paths @(
+        (Join-Path $BackendDir 'pyproject.toml'),
+        (Join-Path $BackendDir 'uv.lock')
+    ) -AdditionalEntries @{ 'launcher-python-version' = $PythonVersion }
+}
+
+function Get-FrontendDependencyFingerprint {
+    return Get-InputFingerprint -Paths @(
+        (Join-Path $ClientDir 'package.json'),
+        (Join-Path $ClientDir 'package-lock.json')
+    ) -AdditionalEntries @{ 'launcher-node-version' = $NodeVersion }
+}
+
+function Get-FrontendBuildFingerprint {
+    return Get-InputFingerprint -Paths @(
+        (Join-Path $ClientDir 'package.json'),
+        (Join-Path $ClientDir 'package-lock.json'),
+        (Join-Path $ClientDir 'angular.json'),
+        (Join-Path $ClientDir 'tsconfig.json'),
+        (Join-Path $ClientDir 'tsconfig.app.json'),
+        (Join-Path $ClientDir 'index.html'),
+        (Join-Path $ClientDir 'src'),
+        (Join-Path $ClientDir 'public'),
+        (Join-Path $ClientDir 'scripts\verify-angular-migration.mjs')
+    ) -AdditionalEntries @{ 'launcher-node-version' = $NodeVersion }
+}
+
+function Read-StateFile([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+    try {
+        return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    } catch {
+        return $null
+    }
+}
+
+function Get-StateValue {
+    param([object]$State, [Parameter(Mandatory)][string]$Name)
+    if ($null -eq $State) {
+        return $null
+    }
+    $property = $State.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+    return $property.Value
+}
+
+function Write-StateFile {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][pscustomobject]$State
+    )
+    $directory = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    $temporaryPath = "$Path.tmp"
+    try {
+        $json = $State | ConvertTo-Json -Depth 5
+        [System.IO.File]::WriteAllText($temporaryPath, $json, [System.Text.UTF8Encoding]::new($false))
+        Move-Item -LiteralPath $temporaryPath -Destination $Path -Force | Out-Null
+    } finally {
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-RecordedBackendProfile {
+    $state = Read-StateFile -Path $BackendDependencyStateFile
+    $installationType = 'Standard'
+    $featureSet = 'Base'
+    if ($null -ne $state) {
+        $recordedInstallationType = [string](Get-StateValue -State $state -Name 'installationType')
+        $recordedFeatureSet = [string](Get-StateValue -State $state -Name 'featureSet')
+        if ($recordedInstallationType -in @('Standard', 'Development')) {
+            $installationType = $recordedInstallationType
+        }
+        if ($recordedFeatureSet -in @('Base', 'ML')) {
+            $featureSet = $recordedFeatureSet
+        }
+    }
+    return [pscustomobject]@{ InstallationType = $installationType; FeatureSet = $featureSet }
+}
+
+function Test-PortableRuntimeFilesReady {
+    return (Test-Path -LiteralPath $PythonExe -PathType Leaf) -and
+        (Test-Path -LiteralPath $UvExe -PathType Leaf) -and
+        (Test-Path -LiteralPath $NodeExe -PathType Leaf) -and
+        (Test-Path -LiteralPath $NpmCmd -PathType Leaf)
+}
+
+function Test-BackendDependenciesCurrent {
+    if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $BackendDir 'pyproject.toml') -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $BackendDir 'uv.lock') -PathType Leaf)) {
+        return $false
+    }
+    $state = Read-StateFile -Path $BackendDependencyStateFile
+    try {
+        if ($null -eq $state -or [int](Get-StateValue -State $state -Name 'schemaVersion') -ne $DependencyStateSchemaVersion -or
+            [string](Get-StateValue -State $state -Name 'pythonVersion') -ne $PythonVersion -or
+            [string](Get-StateValue -State $state -Name 'fingerprint') -ne (Get-BackendDependencyFingerprint)) {
+            return $false
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Test-FrontendDependenciesCurrent {
+    $runner = Join-Path $ClientDir 'node_modules\@angular\cli\bin\ng.js'
+    if (-not (Test-Path -LiteralPath $runner -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $ClientDir 'package.json') -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json') -PathType Leaf)) {
+        return $false
+    }
+    $state = Read-StateFile -Path $FrontendDependencyStateFile
+    try {
+        if ($null -eq $state -or [int](Get-StateValue -State $state -Name 'schemaVersion') -ne $DependencyStateSchemaVersion -or
+            [string](Get-StateValue -State $state -Name 'nodeVersion') -ne $NodeVersion -or
+            [string](Get-StateValue -State $state -Name 'fingerprint') -ne (Get-FrontendDependencyFingerprint)) {
+            return $false
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Test-FrontendBuildCurrent {
+    $buildPath = Join-Path $ClientDir 'dist\browser\index.html'
+    if (-not (Test-Path -LiteralPath $buildPath -PathType Leaf)) {
+        return $false
+    }
+    $state = Read-StateFile -Path $FrontendBuildStateFile
+    try {
+        if ($null -eq $state -or [int](Get-StateValue -State $state -Name 'schemaVersion') -ne $BuildStateSchemaVersion) {
+            return $false
+        }
+        return [string](Get-StateValue -State $state -Name 'fingerprint') -eq (Get-FrontendBuildFingerprint)
+    } catch {
+        return $false
+    }
+}
+
+function Sync-BackendDependencies {
+    param(
+        [switch]$RuntimesReady,
+        [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard',
+        [ValidateSet('Base', 'ML')][string]$FeatureSet = 'Base'
+    )
+    if (-not $RuntimesReady) {
+        Initialize-Runtimes
+        Set-RuntimeEnvironment
+    }
     $venvNeedsRebuild = -not (Test-Path -LiteralPath $VenvPython)
     if (-not $venvNeedsRebuild) {
         try {
@@ -663,93 +873,77 @@ function Sync-Dependencies {
         Assert-LastExitCode "uv sync"
     } finally { Pop-Location }
     if (-not (Test-Path -LiteralPath $VenvPython)) { throw "Backend virtual-environment Python was not created at $VenvPython." }
-    Write-Ok "Python dependencies are ready."
     if ($InstallationType -eq 'Development') {
         Write-Step "Installing Playwright Chromium browser"
         & $VenvPython -m playwright install chromium
         Assert-LastExitCode "Playwright Chromium installation"
         Write-Ok "Playwright Chromium is ready under $PlaywrightCacheDir."
     }
-    Sync-FrontendDependencies -BuildFrontend:$BuildFrontend
+    Write-StateFile -Path $BackendDependencyStateFile -State ([pscustomobject][ordered]@{
+        schemaVersion = $DependencyStateSchemaVersion
+        fingerprint = Get-BackendDependencyFingerprint
+        pythonVersion = $PythonVersion
+        installationType = $InstallationType
+        featureSet = $FeatureSet
+    })
+    Write-Ok "Python dependencies are ready ($InstallationType / $FeatureSet)."
 }
 
-function Test-FrontendBuildCurrent {
-    param([Parameter(Mandatory)][string]$BuildPath)
-
-    if (-not (Test-Path -LiteralPath $BuildPath -PathType Leaf)) {
-        return $false
-    }
-
-    $buildTimestamp = (Get-Item -LiteralPath $BuildPath).LastWriteTimeUtc
-    $sourcePaths = @(
-        (Join-Path $ClientDir 'angular.json'),
-        (Join-Path $ClientDir 'index.html'),
-        (Join-Path $ClientDir 'tsconfig.json'),
-        (Join-Path $ClientDir 'tsconfig.app.json'),
-        (Join-Path $ClientDir 'src'),
-        (Join-Path $ClientDir 'public')
-    )
-    foreach ($sourcePath in $sourcePaths) {
-        if (-not (Test-Path -LiteralPath $sourcePath)) {
-            continue
-        }
-        $source = Get-Item -LiteralPath $sourcePath
-        if ($source.LastWriteTimeUtc -gt $buildTimestamp) {
-            return $false
-        }
-        if ($source.PSIsContainer) {
-            $newerFile = Get-ChildItem -LiteralPath $sourcePath -File -Recurse -Force -ErrorAction SilentlyContinue |
-                Where-Object { $_.LastWriteTimeUtc -gt $buildTimestamp } |
-                Select-Object -First 1
-            if ($null -ne $newerFile) {
-                return $false
-            }
-        }
-    }
-    return $true
-}
-
-function Test-DependenciesReady {
-    param([switch]$IgnoreFrontendBuild)
-
-    $frontendPackage = Join-Path $ClientDir 'package.json'
-    $frontendLock = Join-Path $ClientDir 'package-lock.json'
-    $frontendModules = Join-Path $ClientDir 'node_modules'
-    $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
-    $frontendRunner = Join-Path $frontendModules '@angular/cli/bin/ng.js'
-    $frontendBuild = Join-Path $ClientDir 'dist\browser\index.html'
-    $backendEntrypoint = Join-Path $BackendDir 'cli.py'
-    $backendLock = Join-Path $BackendDir 'uv.lock'
-
-    if (-not (Test-Path -LiteralPath $PythonExe) -or
-        -not (Test-Path -LiteralPath $UvExe) -or
-        -not (Test-Path -LiteralPath $NodeExe) -or
-        -not (Test-Path -LiteralPath $NpmCmd) -or
-        -not (Test-Path -LiteralPath $VenvPython) -or
-        -not (Test-Path -LiteralPath $backendLock) -or
-        -not (Test-Path -LiteralPath $backendEntrypoint) -or
-        -not (Test-Path -LiteralPath $frontendPackage) -or
-        -not (Test-Path -LiteralPath $frontendLock) -or
-        -not (Test-Path -LiteralPath $frontendInstallState) -or
-        -not (Test-Path -LiteralPath $frontendRunner) -or
-        (-not $IgnoreFrontendBuild -and -not (Test-FrontendBuildCurrent -BuildPath $frontendBuild))) {
-        return $false
-    }
-
+function Install-FrontendDependencies {
+    Write-Step "Installing frontend dependencies"
+    Push-Location $ClientDir
     try {
-        if ((Get-PythonVersion -PythonExe $PythonExe) -ne $PythonVersion) { return $false }
-        if ((Get-PythonVersion -PythonExe $VenvPython) -ne $PythonVersion) { return $false }
-    } catch {
-        return $false
+        $lockfile = Join-Path $ClientDir 'package-lock.json'
+        if (-not (Test-Path -LiteralPath $lockfile -PathType Leaf)) {
+            throw "Missing frontend lockfile: $lockfile"
+        }
+        & $NpmCmd ci
+        Assert-LastExitCode "npm dependency installation"
+    } finally {
+        Pop-Location
     }
-    & $UvExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
-    & $NodeExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
-    & $VenvPython -c 'import server.app, fastapi, uvicorn' *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
+    Write-StateFile -Path $FrontendDependencyStateFile -State ([pscustomobject][ordered]@{
+        schemaVersion = $DependencyStateSchemaVersion
+        fingerprint = Get-FrontendDependencyFingerprint
+        nodeVersion = $NodeVersion
+    })
+    Write-Ok "Frontend dependencies are ready."
+}
 
-    return $true
+function Build-Frontend {
+    $buildPath = Join-Path $ClientDir 'dist\browser\index.html'
+    Remove-Item -LiteralPath $FrontendBuildStateFile -Force -ErrorAction SilentlyContinue
+    Write-Step "Building frontend"
+    Push-Location $ClientDir
+    try {
+        & $NpmCmd run build
+        Assert-LastExitCode "frontend build"
+    } finally {
+        Pop-Location
+    }
+    if (-not (Test-Path -LiteralPath $buildPath -PathType Leaf)) {
+        throw "Frontend build completed without producing $buildPath."
+    }
+    Write-StateFile -Path $FrontendBuildStateFile -State ([pscustomobject][ordered]@{
+        schemaVersion = $BuildStateSchemaVersion
+        fingerprint = Get-FrontendBuildFingerprint
+    })
+    Write-Ok "Frontend build is current."
+}
+
+function Sync-Dependencies {
+    param(
+        [switch]$BuildFrontend,
+        [switch]$RuntimesReady,
+        [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard',
+        [ValidateSet('Base', 'ML')][string]$FeatureSet = 'Base'
+    )
+    Import-Settings | Out-Null
+    if (-not $RuntimesReady) { Initialize-Runtimes }
+    Set-RuntimeEnvironment
+    Sync-BackendDependencies -RuntimesReady -InstallationType $InstallationType -FeatureSet $FeatureSet
+    Install-FrontendDependencies
+    if ($BuildFrontend) { Build-Frontend }
 }
 
 function Get-ListeningProcess([int]$Port) {
@@ -761,9 +955,15 @@ function Get-ListeningProcess([int]$Port) {
     )
     foreach ($processId in $processIds) {
         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue | Select-Object -First 1
+        $processStartTime = $null
+        if ($null -ne $process) {
+            try { $processStartTime = [string]$process.StartTime.ToUniversalTime().Ticks } catch { }
+        }
         [pscustomobject]@{
             Id = [int]$processId
             Name = if ($process) { $process.ProcessName } else { 'unknown' }
+            ProcessStartTime = $processStartTime
+            OwnershipResolved = $null -ne $process
         }
     }
 }
@@ -778,17 +978,158 @@ function Test-ActiveTcpListener([int]$Port) {
     }
 }
 
-function Assert-PortAvailable([int]$Port) {
-    $owners = @(Get-ListeningProcess -Port $Port)
-    if ($owners.Count -eq 0) {
-        if (Test-ActiveTcpListener -Port $Port) {
-            throw "Port $Port is already in use, but its owning process could not be resolved. ADSMOD will not terminate unowned processes; stop the owning application and retry."
+function Get-PortConflicts {
+    param([Parameter(Mandatory)][int[]]$Ports)
+
+    foreach ($port in @($Ports | Sort-Object -Unique)) {
+        $owners = @(Get-ListeningProcess -Port $port)
+        if ($owners.Count -gt 0) {
+            foreach ($owner in $owners) {
+                [pscustomobject]@{
+                    Port = $port
+                    Id = $owner.Id
+                    Name = $owner.Name
+                    ProcessStartTime = $owner.ProcessStartTime
+                    OwnershipResolved = $owner.OwnershipResolved
+                }
+            }
+            continue
         }
-        return
+        if (Test-ActiveTcpListener -Port $port) {
+            [pscustomobject]@{
+                Port = $port
+                Id = $null
+                Name = 'unresolved owner'
+                ProcessStartTime = $null
+                OwnershipResolved = $false
+            }
+        }
+    }
+}
+
+function Write-PortConflictSummary {
+    param([Parameter(Mandatory)][pscustomobject[]]$Conflicts)
+
+    Write-Host ""
+    Write-Host "Configured ADSMOD ports are already in use:" -ForegroundColor Yellow
+    foreach ($conflict in @($Conflicts | Sort-Object Port, Id)) {
+        if ($conflict.OwnershipResolved) {
+            Write-Host "  Port $($conflict.Port): PID $($conflict.Id) ($($conflict.Name))" -ForegroundColor Yellow
+        } else {
+            Write-Host "  Port $($conflict.Port): owner could not be resolved" -ForegroundColor Red
+        }
+    }
+}
+
+function Resolve-PortConflicts {
+    param([pscustomobject[]]$Conflicts = @())
+
+    $conflicts = @($Conflicts)
+    if ($conflicts.Count -eq 0) {
+        return $true
     }
 
-    $ownerText = ($owners | ForEach-Object { "PID $($_.Id) ($($_.Name))" }) -join ', '
-    throw "Port $Port is already in use by $ownerText. ADSMOD will not terminate unowned processes; stop the owning application and retry."
+    Write-PortConflictSummary -Conflicts $conflicts
+    if (@($conflicts | Where-Object { -not $_.OwnershipResolved }).Count -gt 0) {
+        Write-Warn "Launch cancelled because at least one listener owner could not be resolved. Stop the owning application and retry; ADSMOD will not terminate an unowned listener."
+        return $false
+    }
+    if (-not $script:LauncherInteractive) {
+        Write-Warn "Launch cancelled because this console is non-interactive. No conflicting process was terminated; stop the listed process(es) and retry."
+        return $false
+    }
+
+    $processIds = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($conflict in $conflicts) {
+        [void]$processIds.Add([int]$conflict.Id)
+    }
+    $processSummary = if ($processIds.Count -eq 1) { 'process listed above' } else { 'processes listed above' }
+    $confirmation = ([string](Read-Host "Terminate the $($processIds.Count) $processSummary and continue? [y/N]")).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
+        Write-Warn "Launch cancelled. No conflicting process was terminated."
+        return $false
+    }
+
+    $ports = @($conflicts | Select-Object -ExpandProperty Port | Sort-Object -Unique)
+    $currentConflicts = @(Get-PortConflicts -Ports $ports)
+    foreach ($port in $ports) {
+        $originalForPort = @($conflicts | Where-Object { $_.Port -eq $port })
+        $currentForPort = @($currentConflicts | Where-Object { $_.Port -eq $port })
+        if ($currentForPort.Count -eq 0) {
+            continue
+        }
+        if (@($currentForPort | Where-Object { -not $_.OwnershipResolved }).Count -gt 0) {
+            Write-PortConflictSummary -Conflicts $currentForPort
+            Write-Warn "Launch cancelled because port $port changed to an unresolved listener before termination."
+            return $false
+        }
+        $originalIdentities = @($originalForPort | ForEach-Object { "$($_.Id)|$($_.Name)|$($_.ProcessStartTime)" } | Sort-Object)
+        $currentIdentities = @($currentForPort | ForEach-Object { "$($_.Id)|$($_.Name)|$($_.ProcessStartTime)" } | Sort-Object)
+        if ($originalIdentities.Count -ne $currentIdentities.Count -or
+            (Compare-Object -ReferenceObject $originalIdentities -DifferenceObject $currentIdentities)) {
+            Write-PortConflictSummary -Conflicts $currentForPort
+            Write-Warn "Launch cancelled because ownership of port $port changed before termination."
+            return $false
+        }
+    }
+
+    $approved = [Collections.Generic.List[pscustomobject]]::new()
+    $approvedIds = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($current in $currentConflicts) {
+        if ($approvedIds.Add([int]$current.Id)) {
+            [void]$approved.Add($current)
+        }
+    }
+    foreach ($approvedConflict in $approved) {
+        $lastCheck = @(Get-PortConflicts -Ports @([int]$approvedConflict.Port))
+        if ($lastCheck.Count -eq 0) {
+            continue
+        }
+        if (@($lastCheck | Where-Object { -not $_.OwnershipResolved }).Count -gt 0) {
+            Write-PortConflictSummary -Conflicts $lastCheck
+            Write-Warn "Launch cancelled because the listener owner could not be resolved immediately before termination."
+            return $false
+        }
+        $matching = @($lastCheck | Where-Object {
+            [int]$_.Id -eq [int]$approvedConflict.Id -and
+            [string]$_.Name -eq [string]$approvedConflict.Name -and
+            [string]$_.ProcessStartTime -eq [string]$approvedConflict.ProcessStartTime
+        })
+        if ($matching.Count -eq 0) {
+            Write-PortConflictSummary -Conflicts $lastCheck
+            Write-Warn "Launch cancelled because port $($approvedConflict.Port) changed owner before termination."
+            return $false
+        }
+        $process = Get-Process -Id ([int]$approvedConflict.Id) -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $process) {
+            continue
+        }
+        try {
+            Write-Step "Stopping approved port-conflict process $($approvedConflict.Name) (PID $($approvedConflict.Id))"
+            $process.Kill($true)
+            if (-not $process.WaitForExit(5000)) {
+                throw "Process did not exit within five seconds."
+            }
+        }
+        catch [System.InvalidOperationException] {
+            # The approved process exited during the termination race.
+        }
+        catch {
+            Write-Warn "Could not stop approved port-conflict PID $($approvedConflict.Id): $($_.Exception.Message)"
+            $failureCheck = @(Get-PortConflicts -Ports $ports)
+            if ($failureCheck.Count -gt 0) { Write-PortConflictSummary -Conflicts $failureCheck }
+            return $false
+        }
+    }
+
+    $remaining = @(Get-PortConflicts -Ports $ports)
+    if ($remaining.Count -gt 0) {
+        Write-PortConflictSummary -Conflicts $remaining
+        Write-Warn "Launch cancelled because one or more configured ports remain occupied."
+        return $false
+    }
+    Write-Ok "Configured ADSMOD ports are available."
+    return $true
 }
 
 function Get-ApplicationProcessRecords {
@@ -816,7 +1157,8 @@ function Get-ApplicationProcessRecords {
                     $commandLine.Contains($backendPortToken) -or
                     $commandLine.Contains($backendPortEqualsToken)))
         $hasPreviewCommand = $commandLine.Contains('vite preview') -or
-            ($commandLine.Contains('npm') -and $commandLine.Contains('run preview'))
+            ($commandLine.Contains('npm') -and $commandLine.Contains('run preview')) -or
+            $commandLine.Contains('preview-serve.mjs')
         $isFrontend = $hasPreviewCommand -and
             ($commandLine.Contains($clientMarker) -or
                 $commandLine.Contains($frontendPortToken) -or
@@ -964,39 +1306,51 @@ function Stop-Application {
 
 function Start-Application {
     $settings = Import-Settings
-    Set-RuntimeEnvironment
-    $frontendBuild = Join-Path $ClientDir 'dist\browser\index.html'
-    if (-not (Test-DependenciesReady -IgnoreFrontendBuild)) {
-        Write-Step "Required application environments or frontend dependencies are missing or unusable; repairing the base installation."
-        Sync-Dependencies -BuildFrontend -FeatureSet Base
+    $configuredPorts = @($settings.BackendPort, $settings.FrontendPort)
+    $portConflicts = @(Get-PortConflicts -Ports $configuredPorts)
+    if (-not (Resolve-PortConflicts -Conflicts $portConflicts)) {
+        return $false
     }
-    elseif (-not (Test-FrontendBuildCurrent -BuildPath $frontendBuild)) {
-        Write-Step "Frontend source or configuration is newer than the generated bundle; rebuilding the frontend."
-        Sync-FrontendDependencies -BuildFrontend
-    }
-    else {
-        Write-Ok "Application environments and frontend build are ready; skipped dependency installation."
+
+    if (-not (Test-PortableRuntimeFilesReady)) {
+        Initialize-Runtimes
     }
     Set-RuntimeEnvironment
+
+    if (-not (Test-BackendDependenciesCurrent)) {
+        $profile = Get-RecordedBackendProfile
+        Write-Step "Backend dependency state is missing or stale; repairing the recorded $($profile.InstallationType) / $($profile.FeatureSet) profile."
+        Sync-BackendDependencies -RuntimesReady -InstallationType $profile.InstallationType -FeatureSet $profile.FeatureSet
+    }
+    if (-not (Test-FrontendDependenciesCurrent)) {
+        Write-Step "Frontend dependency state is missing or stale; installing the locked package set."
+        Install-FrontendDependencies
+    }
+    if (-not (Test-FrontendBuildCurrent)) {
+        Build-Frontend
+    } else {
+        Write-Ok "Application environments and frontend build are ready; skipped dependency installation and Angular build."
+    }
+
     $backendPort = $settings.BackendPort
     $uiPort = $settings.FrontendPort
-    Assert-PortAvailable -Port $backendPort
-    Assert-PortAvailable -Port $uiPort
     $backendArguments = @('-m', 'server.cli', '--config', ('"{0}"' -f $ConfigFile))
     Write-Step "Starting ADSMOD backend"
     $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
     $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
     Write-Step "Waiting for backend readiness at $healthUrl"
-    try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
+    try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process $script:BackendProcess } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
     Write-Step "Starting frontend preview"
-    $script:FrontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @('run', 'preview', '--', '--host', $settings.Host, '--port', $settings.FrontendPort) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
+    $previewScript = Join-Path $ClientDir 'scripts\preview-serve.mjs'
+    $script:FrontendProcess = Start-Process -FilePath $NodeExe -ArgumentList @((('"{0}"' -f $previewScript)), '--host', $settings.Host, '--port', $settings.FrontendPort) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
     $frontendUrl = "http://$($settings.Host):$($settings.FrontendPort)"
-    try { Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 } catch { Stop-OwnedProcess -Process $script:FrontendProcess -Name 'frontend'; $script:FrontendProcess = $null; Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
+    try { Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process $script:FrontendProcess } catch { Stop-OwnedProcess -Process $script:FrontendProcess -Name 'frontend'; $script:FrontendProcess = $null; Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
     Start-Process -FilePath 'explorer.exe' -ArgumentList $frontendUrl
     Write-Host ""
     Write-Ok "ADSMOD started successfully."
     Write-Host "Backend: $healthUrl (PID $($script:BackendProcess.Id))" -ForegroundColor Green
     Write-Host "Frontend: $frontendUrl (PID $($script:FrontendProcess.Id))" -ForegroundColor Green
+    return $true
 }
 
 function Install-UpdateDependencies {
@@ -1012,7 +1366,7 @@ function Install-UpdateDependencies {
 function Rebuild-Frontend {
     Initialize-NodeRuntime
     Set-RuntimeEnvironment
-    Sync-FrontendDependencies -BuildFrontend
+    Build-Frontend
     Write-Ok "Frontend rebuilt successfully."
 }
 
@@ -1420,7 +1774,7 @@ function Get-MainMenuEntries {
         [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Stop application'; Hint = 'Stop ADSMOD processes started by this session'; Key = 'Stop'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Kill all application processes'; Hint = 'Stop every recognized ADSMOD process, including previous sessions'; Key = 'KillAll'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Install / update dependencies'; Hint = 'Refresh local runtimes and packages'; Key = 'Install'; Destructive = $false }
-        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Rebuild frontend'; Hint = 'Install frontend packages and rebuild the bundle'; Key = 'Rebuild'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Rebuild frontend'; Hint = 'Rebuild the generated frontend bundle'; Key = 'Rebuild'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Initialize database'; Hint = 'Create or upgrade the Alembic-managed data store'; Key = 'Database'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Run test suite'; Hint = 'Execute the repository checks'; Key = 'Tests'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Label = 'Check for updates'; Hint = 'Report whether origin/main has a newer version'; Key = 'Check'; Destructive = $false }
