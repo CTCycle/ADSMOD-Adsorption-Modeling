@@ -64,7 +64,7 @@ adjacent regression, then update the ledger.
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
 | `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Final run `35622186997` created and completed all three jobs: base/ML installs and validation, generated contracts, frontend checks, and all seven visual projects passed. |
-| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | Normal launch, browser load, and owned stop passed; the controlled occupied-port scenario failed and is tracked as `ISSUE-006`. |
+| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | Official clean launch/browser/stop/relaunch passed; controlled listeners on both 6045 and 5173 were refused safely after the active-listener fallback. |
 
 ### Tier 1 — application foundations
 
@@ -138,9 +138,10 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 is intentionally not green yet. `ADS-T0-01` is `PASS`: final run
-`35622186997` completed all three remote jobs, including backend profiles,
-generated contracts, frontend checks, and all seven visual projects.
-`ADS-T0-02` is `FAIL` because the occupied-port scenario attempted backend startup instead
-of refusing the unowned listener. Tier 1 and later slices remain `UNTESTED`
-until Tier 0 is closed.
+Tier 0 is green for the validated baseline below. `ADS-T0-01` is `PASS`:
+final run `35622186997` completed all three remote jobs, including backend
+profiles, generated contracts, frontend checks, and all seven visual projects.
+`ADS-T0-02` is `PASS`: the official launcher now refuses controlled listeners
+on both 6045 and 5173 without terminating them, and the clean lifecycle
+regression passed around the fix. Tier 0 is closed; Tier 1 and later slices
+remain `UNTESTED` and are the next campaign work.

@@ -768,9 +768,22 @@ function Get-ListeningProcess([int]$Port) {
     }
 }
 
+function Test-ActiveTcpListener([int]$Port) {
+    try {
+        $listeners = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+        return @($listeners | Where-Object { [int]$_.Port -eq $Port }).Count -gt 0
+    }
+    catch {
+        return $false
+    }
+}
+
 function Assert-PortAvailable([int]$Port) {
     $owners = @(Get-ListeningProcess -Port $Port)
     if ($owners.Count -eq 0) {
+        if (Test-ActiveTcpListener -Port $Port) {
+            throw "Port $Port is already in use, but its owning process could not be resolved. ADSMOD will not terminate unowned processes; stop the owning application and retry."
+        }
         return
     }
 
