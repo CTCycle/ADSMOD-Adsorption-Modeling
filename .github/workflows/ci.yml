@@ -17,7 +17,6 @@ env:
   UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
   PIP_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pip
   NPM_CONFIG_CACHE: ${{ github.workspace }}/runtimes/cache/npm
-  npm_config_cache: ${{ github.workspace }}/runtimes/cache/npm
   XDG_CACHE_HOME: ${{ github.workspace }}/runtimes/cache
   PYTHONPYCACHEPREFIX: ${{ github.workspace }}/runtimes/cache/python
   PYTEST_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pytest
