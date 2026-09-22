@@ -1,6 +1,6 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Purpose and baseline
 
@@ -10,14 +10,14 @@ checks, browser workflows, provider access, and hardware-dependent ML runs so
 that future analysis can resume at a stable slice instead of treating the
 presence of tests as proof of current behavior.
 
-The campaign baseline is `develop` at `57baefed` (full SHA:
-`57baefed0b2be9e71cfa4f053226ac45ff2ffb6d`). The first gate is Tier 0 because
-the remote CI workflow was failing before creating any jobs, and the Windows
-launcher had changed after the last surviving live report.
+The current Tier 0 campaign baseline is committed `develop` SHA
+`2eb3bc13823bedae1be1791fc980a78613d00ef1`. The first gate was Tier 0 because
+the remote CI workflow had previously failed before creating any jobs and the
+Windows launcher had changed after the last surviving live report.
 
 The canonical current status is [`../project_status_ledger.md`](../project_status_ledger.md).
-The first execution evidence is under
-[`../../QA/validation/2026-09-21/`](../../QA/validation/2026-09-21/).
+The current execution evidence is under
+[`../../QA/validation/2026-09-22/`](../../QA/validation/2026-09-22/).
 
 ## Evidence contract
 
@@ -63,8 +63,8 @@ adjacent regression, then update the ledger.
 
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
-| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Final run `35622186997` created and completed all three jobs: base/ML installs and validation, generated contracts, frontend checks, and all seven visual projects passed. |
-| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | Official clean launch/browser/stop/relaunch passed; controlled listeners on both 6045 and 5173 were refused safely after the active-listener fallback. |
+| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Run `35725502460` on SHA `2eb3bc1` created and completed all three jobs, including `test:preview`, generated contracts, frontend checks, and all seven visual projects. |
+| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | The same SHA passed the official clean lifecycle, live controlled listeners, deterministic conflict/race matrix, invalidation matrix, ML-profile repair, readiness failure cleanup, and final port checks. |
 
 ### Tier 1 — application foundations
 
@@ -119,7 +119,7 @@ adjacent regression, then update the ledger.
 Use stable slice directories below `assets/QA/validation/<date>/`, for example:
 
 ```text
-assets/QA/validation/2026-09-21/
+assets/QA/validation/2026-09-22/
   ADS-T0-01/
   ADS-T0-02/
 ```
@@ -138,10 +138,13 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 is green for the validated baseline below. `ADS-T0-01` is `PASS`:
-final run `35622186997` completed all three remote jobs, including backend
-profiles, generated contracts, frontend checks, and all seven visual projects.
-`ADS-T0-02` is `PASS`: the official launcher now refuses controlled listeners
-on both 6045 and 5173 without terminating them, and the clean lifecycle
-regression passed around the fix. Tier 0 is closed; Tier 1 and later slices
-remain `UNTESTED` and are the next campaign work.
+Tier 0 is green for committed SHA
+`2eb3bc13823bedae1be1791fc980a78613d00ef1`. `ADS-T0-01` is `PASS`: hosted
+run `35725502460` completed all three remote jobs, including the new
+`test:preview` step, backend profiles, generated contracts, frontend checks,
+and all seven visual projects. `ADS-T0-02` is `PASS`: the official launcher
+completed the normal and warm lifecycle, refused or safely handled all tested
+conflict/race cases, repaired the recorded ML profile without downgrading it,
+cleaned up induced readiness failures, and left both configured ports free.
+Tier 0 is closed; Tier 1 and later slices remain `UNTESTED` and must not be
+claimed from this evidence.
