@@ -955,15 +955,23 @@ function Get-ListeningProcess([int]$Port) {
     )
     foreach ($processId in $processIds) {
         $process = Get-Process -Id $processId -ErrorAction SilentlyContinue | Select-Object -First 1
+        $processName = 'unknown'
         $processStartTime = $null
+        $ownershipResolved = $false
         if ($null -ne $process) {
-            try { $processStartTime = [string]$process.StartTime.ToUniversalTime().Ticks } catch { }
+            try {
+                $process.Refresh()
+                $processName = [string]$process.ProcessName
+                $processStartTime = [string]$process.StartTime.ToUniversalTime().Ticks
+                $ownershipResolved = -not [string]::IsNullOrWhiteSpace($processName) -and
+                    -not [string]::IsNullOrWhiteSpace($processStartTime)
+            } catch { }
         }
         [pscustomobject]@{
             Id = [int]$processId
-            Name = if ($process) { $process.ProcessName } else { 'unknown' }
+            Name = $processName
             ProcessStartTime = $processStartTime
-            OwnershipResolved = $null -ne $process
+            OwnershipResolved = $ownershipResolved
         }
     }
 }
@@ -1105,6 +1113,18 @@ function Resolve-PortConflicts {
             continue
         }
         try {
+            $process.Refresh()
+            if ($process.HasExited) {
+                continue
+            }
+            $currentName = [string]$process.ProcessName
+            $currentStartTime = [string]$process.StartTime.ToUniversalTime().Ticks
+            if ($currentName -ne [string]$approvedConflict.Name -or
+                $currentStartTime -ne [string]$approvedConflict.ProcessStartTime) {
+                Write-PortConflictSummary -Conflicts $lastCheck
+                Write-Warn "Launch cancelled because the approved PID $($approvedConflict.Id) changed process identity before termination."
+                return $false
+            }
             Write-Step "Stopping approved port-conflict process $($approvedConflict.Name) (PID $($approvedConflict.Id))"
             $process.Kill($true)
             if (-not $process.WaitForExit(5000)) {

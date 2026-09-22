@@ -93,6 +93,13 @@ The automated suite validates configuration, persistence, backend routes,
 frontend behavior, and both dependency profiles. Live browser and
 hardware-specific ML checks should be run locally on the target machine.
 
+`app\tests\run_tests.bat` reads the launcher dependency-state manifest and
+selects the recorded `Base` or `ML` scope. Base runs intentionally exclude
+the ML-only unit and E2E modules; they do not install optional ML packages.
+Set `STANDARD_TEST_PROFILE=Base` or `STANDARD_TEST_PROFILE=ML` to override the
+detected feature profile explicitly. The comprehensive runner requires a
+Development installation; its full ML scope therefore requires Development/ML.
+
 The frontend checks can also be run directly from `app/client`:
 
 ```cmd

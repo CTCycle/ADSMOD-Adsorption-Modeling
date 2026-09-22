@@ -43,6 +43,32 @@ set "APP_TEST_BACKEND_URL=http://%TEST_BACKEND_HOST%:%BACKEND_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
 if "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
 if "!STANDARD_TEST_SKIP_FRONTEND!"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
+if "!STANDARD_TEST_PROFILE!"=="" set "STANDARD_TEST_PROFILE=auto"
+if /i "!STANDARD_TEST_PROFILE!"=="auto" (
+  set "PROFILE_STATE_FILE=%BACKEND_DIR%\.venv\.adsmod-dependency-state.json"
+  if exist "!PROFILE_STATE_FILE!" (
+    for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "$state=Get-Content -Raw -LiteralPath '%BACKEND_DIR%\.venv\.adsmod-dependency-state.json' | ConvertFrom-Json; if ($state.featureSet -in @('Base','ML')) { $state.featureSet } else { 'UNKNOWN' }"`) do set "STANDARD_TEST_PROFILE=%%A"
+  )
+)
+if /i "!STANDARD_TEST_PROFILE!"=="auto" set "STANDARD_TEST_PROFILE=unknown"
+if /i not "!STANDARD_TEST_PROFILE!"=="base" if /i not "!STANDARD_TEST_PROFILE!"=="ml" (
+  echo [ERROR] Could not determine the backend feature profile.
+  echo [ERROR] Run the official launcher dependency install first, or set STANDARD_TEST_PROFILE=Base or ML explicitly.
+  exit /b 1
+)
+if "!STANDARD_TEST_INSTALLATION!"=="" set "STANDARD_TEST_INSTALLATION=auto"
+if /i "!STANDARD_TEST_INSTALLATION!"=="auto" (
+  if exist "!PROFILE_STATE_FILE!" (
+    for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "$state=Get-Content -Raw -LiteralPath '%BACKEND_DIR%\.venv\.adsmod-dependency-state.json' | ConvertFrom-Json; if ($state.installationType -in @('Development','Standard')) { $state.installationType } else { 'UNKNOWN' }"`) do set "STANDARD_TEST_INSTALLATION=%%A"
+  )
+)
+if /i "!STANDARD_TEST_INSTALLATION!"=="auto" set "STANDARD_TEST_INSTALLATION=unknown"
+if /i not "!STANDARD_TEST_INSTALLATION!"=="development" (
+  echo [ERROR] The comprehensive test runner requires a Development backend installation.
+  echo [ERROR] Recorded installation profile: !STANDARD_TEST_INSTALLATION!. Run the official launcher install with Development first.
+  exit /b 1
+)
+echo [INFO] Running profile-correct validation for !STANDARD_TEST_PROFILE!.
 set "TEST_RESULT=0"
 set "STARTED_BACKEND=0"
 set "STARTED_FRONTEND=0"
@@ -79,12 +105,28 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" (
 :frontend_ready
 echo [STEP] Running Python tests...
 if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" (
-  "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_TEMP_DIR%" %*
+  if /i "!STANDARD_TEST_PROFILE!"=="base" (
+    echo [INFO] Base scope excludes ML-only tests and positive capability assertions.
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\backend\test_core_routes.py" --ignore "%TESTS_DIR%\backend\test_ml_routes.py" --ignore "%TESTS_DIR%\unit\test_data_processing.py" --ignore "%TESTS_DIR%\unit\test_ml_boundary.py" --ignore "%TESTS_DIR%\unit\test_resume_validation.py" --ignore "%TESTS_DIR%\unit\test_serializer.py" -k "not performance and not test_unified_runtime_contracts" -v --tb=short --basetemp "%PYTEST_TEMP_DIR%" %*
+  ) else (
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_TEMP_DIR%" %*
+  )
+  if errorlevel 1 set "TEST_RESULT=1"
 ) else (
-  "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_BACKEND_TEMP_DIR%" %*
+  if /i "!STANDARD_TEST_PROFILE!"=="base" (
+    echo [INFO] Base scope excludes ML-only tests and positive capability assertions.
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\backend\test_core_routes.py" --ignore "%TESTS_DIR%\backend\test_ml_routes.py" --ignore "%TESTS_DIR%\unit\test_data_processing.py" --ignore "%TESTS_DIR%\unit\test_ml_boundary.py" --ignore "%TESTS_DIR%\unit\test_resume_validation.py" --ignore "%TESTS_DIR%\unit\test_serializer.py" -k "not performance and not test_unified_runtime_contracts" -v --tb=short --basetemp "%PYTEST_BACKEND_TEMP_DIR%" %*
+  ) else (
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_BACKEND_TEMP_DIR%" %*
+  )
   if errorlevel 1 set "TEST_RESULT=1"
   echo [STEP] Running E2E tests...
-  "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_E2E_TEMP_DIR%" %*
+  if /i "!STANDARD_TEST_PROFILE!"=="base" (
+    echo [INFO] Base scope excludes the ML-only Training navigation and API E2E modules.
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\e2e\test_training_api.py" -k "not performance and not test_navigate_to_training_page" -v --tb=short --basetemp "%PYTEST_E2E_TEMP_DIR%" %*
+  ) else (
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_E2E_TEMP_DIR%" %*
+  )
   if errorlevel 1 set "TEST_RESULT=1"
 )
 if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="false" if exist "%CLIENT_DIR%\package.json" (

@@ -75,3 +75,17 @@ def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None
     assert "non-interactive" in conflict_code
     assert "ownership of port" in conflict_code
     assert "remaining" in conflict_code
+
+
+def test_port_conflict_termination_rechecks_process_identity() -> None:
+    text = launcher_text()
+    conflict_start = text.index("function Get-PortConflicts")
+    conflict_end = text.index("function Get-ApplicationProcessRecords", conflict_start)
+    conflict_code = text[conflict_start:conflict_end]
+
+    assert "ProcessStartTime" in conflict_code
+    assert "$process.Refresh()" in conflict_code
+    assert "$process.HasExited" in conflict_code
+    assert "$process.ProcessName" in conflict_code
+    assert "$process.StartTime.ToUniversalTime().Ticks" in conflict_code
+    assert "changed process identity before termination" in conflict_code
