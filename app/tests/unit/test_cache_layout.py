@@ -99,4 +99,9 @@ def test_launcher_and_batch_runner_export_canonical_cache_environment() -> None:
     assert "set \"STARTED_FRONTEND=0\"" in runner
     assert '--ignore "%TESTS_DIR%\\e2e"' in runner
     assert '"%TESTS_DIR%\\e2e" -k "not performance"' in runner
+    assert "STANDARD_TEST_PROFILE" in runner
+    assert "STANDARD_TEST_INSTALLATION" in runner
+    assert "requires a Development backend installation" in runner
+    assert "test_data_processing.py" in runner
+    assert "test_navigate_to_training_page" in runner
     assert "playwright install chromium" in launcher
