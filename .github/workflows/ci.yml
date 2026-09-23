@@ -57,7 +57,14 @@ jobs:
           with tempfile.TemporaryDirectory() as tmp:
               payload['storage']['root'] = tmp
               with TestClient(create_app(AdsmodConfig.model_validate(payload))) as client:
-                  assert client.get('/api/v1/system/capabilities').json()['features']['machine_learning'] is False
+                  capabilities = client.get('/api/v1/system/capabilities').json()
+                  assert capabilities['features']['datasets'] is True
+                  assert capabilities['features']['fitting'] is True
+                  assert capabilities['features']['machine_learning'] is False
+                  assert client.get('/api/v1/system/configuration').status_code == 200
+                  assert client.get('/api/v1/fitting/models').status_code == 200
+                  assert client.get('/api/v1/training/configuration').status_code == 404
+                  assert client.get('/api/v1/training/status').status_code == 404
                   assert client.get('/api/v1/public-data/sources?check_health=false').status_code == 200
                   assert client.get('/health/ready').json()['state'] == 'ready'
           PY
