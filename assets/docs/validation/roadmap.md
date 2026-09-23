@@ -12,16 +12,18 @@ presence of tests as proof of current behavior.
 
 The official Windows launcher evidence remains anchored to committed `develop`
 SHA `2eb3bc13823bedae1be1791fc980a78613d00ef1`; no launcher source changed on
-the path to the current `ADS-T1-01` baseline, SHA
-`1affb39a2c4e475a8616004ee0566c30c5d189e7`. Hosted run `35832020842` on that
-baseline passed all three CI jobs. Tier 0 was the first gate because the remote
+the path to the current application gates. `ADS-T1-01` passed on SHA
+`1affb39a2c4e475a8616004ee0566c30c5d189e7`. `ADS-T1-02` passed on tested code
+SHA `ed80c0975e583cd9842338fca5f59157c4071f97`; hosted run `35852874401` on
+that SHA passed all three CI jobs. Tier 0 was the first gate because the remote
 CI workflow had previously failed before creating any jobs and the Windows
 launcher had changed after the last surviving live report.
 
 The canonical current status is [`../project_status_ledger.md`](../project_status_ledger.md).
 Execution evidence is under [`../../QA/validation/2026-09-22/`](../../QA/validation/2026-09-22/)
 for Tier 0 and [`../../QA/validation/2026-09-23/ADS-T1-01/`](../../QA/validation/2026-09-23/ADS-T1-01/)
-for the current Tier 1 slice.
+for `ADS-T1-01`, and [`../../QA/validation/2026-09-23/ADS-T1-02/`](../../QA/validation/2026-09-23/ADS-T1-02/)
+for `ADS-T1-02`.
 
 ## Evidence contract
 
@@ -67,15 +69,15 @@ adjacent regression, then update the ledger.
 
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
-| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Run `35832020842` on SHA `1affb39` passed all three jobs; the Base profile now also verifies system configuration, fitting availability, and absent training routes. |
-| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | The official lifecycle passed on SHA `2eb3bc1`; no launcher source changed through `1affb39`. The detailed conflict/race, invalidation, ML-profile repair, readiness cleanup, and final-port evidence remains in the 2026-09-22 report. |
+| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Run `35852874401` on SHA `ed80c09` passed all three jobs; the Base profile verifies system configuration, fitting availability, and absent training routes. |
+| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | The official lifecycle passed on SHA `2eb3bc1`; no launcher source changed through `ed80c09`. The detailed conflict/race, invalidation, ML-profile repair, readiness cleanup, and final-port evidence remains in the 2026-09-22 report. |
 
 ### Tier 1 — application foundations
 
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
 | `ADS-T1-01` | Health, system capabilities/configuration, core route availability, base-profile absence of ML routes, capability refresh/retry, and fitting configuration. | `PASS` on SHA `1affb39`; hosted run `35832020842` and focused local API/frontend tests. |
-| `ADS-T1-02` | Missing/empty/current/invalid SQLite startup states, Alembic head and lock behavior, and minimal record persistence across restart. | `UNTESTED`; next in dependency order. |
+| `ADS-T1-02` | Missing/empty/current/invalid SQLite startup states, Alembic head and lock behavior, and minimal record persistence across restart. | `PASS` on tested code SHA `ed80c09`; 22 focused local tests passed, including fail-closed invalid states and dataset persistence across two application lifespans. Hosted run `35852874401` passed all three CI jobs. |
 | `ADS-T1-03` | Implemented top-level routes, redirects, unknown-route recovery, Help focus behavior, backend Offline/Online recovery, and truthful unavailable Docs/Settings controls. | `UNTESTED`. |
 
 ### Tier 2 — core product workflows
@@ -142,8 +144,8 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 remains closed. `ADS-T0-01` passed again on implementation SHA
-`1affb39a2c4e475a8616004ee0566c30c5d189e7` in hosted run `35832020842`; all
+Tier 0 remains closed. `ADS-T0-01` passed on implementation SHA
+`ed80c0975e583cd9842338fca5f59157c4071f97` in hosted run `35852874401`; all
 three jobs completed, including the Base/ML profile checks, generated
 contracts, frontend checks, and browser layout validation. `ADS-T0-02` remains
 `PASS` on its official lifecycle evidence at `2eb3bc1`; launcher source was
@@ -154,5 +156,9 @@ capabilities, system configuration, fitting models, readiness, and Public
 Data availability while keeping ML unavailable and both training routes
 absent. The hosted ML profile and frontend capability retry/refresh tests also
 passed. See [`ADS-T1-01/summary.md`](../../QA/validation/2026-09-23/ADS-T1-01/summary.md).
-Tier 1 is not closed: `ADS-T1-02` and `ADS-T1-03` remain `UNTESTED`; the next
-slice is `ADS-T1-02`.
+`ADS-T1-02` also passed on code SHA `ed80c09`, covering SQLite startup state
+handling, Alembic head/lock behavior, and one dataset persisted across app
+shutdown and restart. See
+[`ADS-T1-02/summary.md`](../../QA/validation/2026-09-23/ADS-T1-02/summary.md).
+Tier 1 remains partial because `ADS-T1-03` is still `UNTESTED`; it is the next
+slice in dependency order.
