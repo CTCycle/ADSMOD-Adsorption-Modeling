@@ -166,5 +166,13 @@ shutdown and restart. See
 Help focus/closing, unavailable controls, and backend status recovery. Local
 frontend unit/lint/build gates and hosted run `35876297668` passed. See
 [`ADS-T1-03/summary.md`](../../QA/validation/2026-09-23/ADS-T1-03/summary.md).
-Tier 1 is closed. The next slice in dependency order is `ADS-T2-01`: the
-complete browser CSV import lifecycle on disposable data.
+Tier 1 is closed. Tier 2 slices `ADS-T2-01`, `ADS-T2-02`, and `ADS-T2-03`
+passed on implementation SHA `c876a063d3fcef4de1ea074aaebba861da4b2c4c`.
+Evidence covers CSV import/persistence/deletion, real `.xls` and `.xlsx`
+browser imports, and invalid-input boundaries. See the three linked
+[`ADS-T2-01`](../../QA/validation/2026-09-23/ADS-T2-01/summary.md),
+[`ADS-T2-02`](../../QA/validation/2026-09-23/ADS-T2-02/summary.md), and
+[`ADS-T2-03`](../../QA/validation/2026-09-23/ADS-T2-03/summary.md) summaries.
+Tier 2 remains partial because `ADS-T2-04`–`ADS-T2-06` have not been exercised.
+The next slice in dependency order is `ADS-T2-04`: dataset/experiment
+selection, fitting configuration, all nine model cards, and parameter forms.
