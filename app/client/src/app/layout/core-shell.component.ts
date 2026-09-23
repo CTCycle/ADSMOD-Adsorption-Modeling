@@ -111,11 +111,11 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                 </nav>
 
                 <div class="console-sidebar-footer">
-                    <button class="console-footer-link" type="button" aria-label="Docs (not available)">
+                    <button class="console-footer-link" type="button" aria-label="Docs, not available yet" title="Documentation is not available yet." disabled>
                         <span aria-hidden="true">?</span>
                         <span>Docs</span>
                     </button>
-                    <button class="console-footer-link" type="button" aria-label="Settings (not available)">
+                    <button class="console-footer-link" type="button" aria-label="Settings, not available yet" title="Settings are not available yet." disabled>
                         <span aria-hidden="true">⚙</span>
                         <span>Settings</span>
                     </button>
@@ -142,7 +142,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
         </div>
         @if (helpOpen()) {
             <div class="help-modal-backdrop" (click)="closeHelp()">
-                <section class="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" (click)="$event.stopPropagation()">
+                <section #helpDialog class="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" (click)="$event.stopPropagation()" (keydown)="handleHelpKeydown($event)">
                     <div class="help-modal-header">
                         <div>
                             <p class="eyebrow">Page guide</p>
@@ -176,6 +176,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
 export class CoreShellComponent {
     @ViewChild('helpTrigger') private helpTrigger?: ElementRef<HTMLButtonElement>;
     @ViewChild('helpCloseButton') private helpCloseButton?: ElementRef<HTMLButtonElement>;
+    @ViewChild('helpDialog') private helpDialog?: ElementRef<HTMLElement>;
     @ViewChild('mainContent') private mainContent?: ElementRef<HTMLElement>;
     @ViewChild('sidebar') private sidebar?: ElementRef<HTMLElement>;
     private readonly router = inject(Router);
@@ -242,6 +243,41 @@ export class CoreShellComponent {
     protected closeHelp(): void {
         this.helpOpen.set(false);
         queueMicrotask(() => this.helpTrigger?.nativeElement.focus());
+    }
+
+    protected handleHelpKeydown(event: KeyboardEvent): void {
+        if (event.key !== 'Tab' || !this.helpOpen()) {
+            return;
+        }
+
+        const dialog = this.helpDialog?.nativeElement;
+        if (!dialog) {
+            return;
+        }
+
+        const focusableElements = Array.from(
+            dialog.querySelectorAll<HTMLElement>(
+                'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+            )
+        );
+        if (focusableElements.length === 0) {
+            event.preventDefault();
+            return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        const activeElement = document.activeElement;
+        if (!dialog.contains(activeElement)) {
+            event.preventDefault();
+            firstElement.focus();
+        } else if (event.shiftKey && activeElement === firstElement) {
+            event.preventDefault();
+            lastElement.focus();
+        } else if (!event.shiftKey && activeElement === lastElement) {
+            event.preventDefault();
+            firstElement.focus();
+        }
     }
 
     constructor() {
