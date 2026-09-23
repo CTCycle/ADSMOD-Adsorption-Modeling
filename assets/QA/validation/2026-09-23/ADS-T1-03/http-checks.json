@@ -1,0 +1,27 @@
+[
+  {
+    "url": "http://127.0.0.1:5173/health/ready",
+    "status": 200,
+    "body": {
+      "service": "backend",
+      "version": "3.0.0",
+      "state": "ready",
+      "details": {}
+    }
+  },
+  {
+    "url": "http://127.0.0.1:5173/api/v1/system/capabilities",
+    "status": 200,
+    "body": {
+      "version": "3.0.0",
+      "features": {
+        "datasets": true,
+        "nist": true,
+        "fitting": true,
+        "machine_learning": false,
+        "training": false,
+        "checkpoints": false
+      }
+    }
+  }
+]
