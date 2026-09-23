@@ -20,6 +20,9 @@ that SHA passed all three CI jobs. `ADS-T1-03` passed on tested code SHA
 three CI jobs. Tier 0 was the first gate because the remote
 CI workflow had previously failed before creating any jobs and the Windows
 launcher had changed after the last surviving live report.
+The three-job workflow most recently passed on SHA `270e94df63969feb6fbe81b081dc7d3e85744c2d`
+in hosted run `35910483168`, including Base/ML dependency installation,
+frontend checks, and browser layout validation.
 
 The canonical current status is [`../project_status_ledger.md`](../project_status_ledger.md).
 Execution evidence is under [`../../QA/validation/2026-09-22/`](../../QA/validation/2026-09-22/)
@@ -147,9 +150,9 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 remains closed. `ADS-T0-01` passed in current hosted run `35876297668`
-on SHA `6154532`; all three jobs completed, including the Base/ML profile
-checks, generated contracts, frontend checks, and browser layout validation.
+Tier 0 remains closed. `ADS-T0-01` passed in hosted run `35910483168` on SHA
+`270e94d`; all three jobs completed, including the Base/ML profile checks,
+generated contracts, frontend checks, and browser layout validation.
 `ADS-T0-02` remains `PASS` on its official lifecycle evidence at `2eb3bc1`;
 launcher source was unchanged through SHA `6154532`.
 
