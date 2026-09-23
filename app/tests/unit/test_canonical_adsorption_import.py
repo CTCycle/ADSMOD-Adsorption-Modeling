@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from server.domain.datasets import ImportMapping
 from server.services.data.importer import AdsorptionImportEngine
+
+FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 ###############################################################################
 def test_atomic_import_groups_rows_and_normalizes_units() -> None:
@@ -60,6 +64,40 @@ def test_atomic_import_preserves_adsorbate_smiles_for_training() -> None:
     assert bundle.response.status == "valid"
     assert bundle.experiments[0]["adsorbates"][0]["smiles"] == "O=C=O"
     assert bundle.response.experiments[0].adsorbate_smiles == "O=C=O"
+
+###############################################################################
+@pytest.mark.parametrize("extension", [".xls", ".xlsx"])
+def test_excel_workbooks_preview_and_validate_as_canonical_datasets(
+    extension: str,
+) -> None:
+    payload = (FIXTURES_DIR / f"sample_adsorption{extension}").read_bytes()
+    engine = AdsorptionImportEngine()
+
+    preview = engine.preview(payload, f"sample_adsorption{extension}")
+    mapping = ImportMapping(
+        dataset_name="excel-sample",
+        structure=preview.detected_structure,
+        column_roles={
+            column.name: column.proposed_role for column in preview.columns
+        },
+        grouping_columns=preview.proposed_grouping_columns,
+        pressure_basis=preview.proposed_pressure_basis or "absolute",
+        unit_overrides={
+            column.proposed_role: column.detected_unit
+            for column in preview.columns
+            if column.detected_unit
+            and column.proposed_role in {"pressure", "uptake", "temperature"}
+        },
+    )
+    bundle = engine.validate(payload, f"sample_adsorption{extension}", mapping)
+
+    assert preview.row_count == 6
+    assert preview.column_count == 9
+    assert bundle.response.status == "valid"
+    assert bundle.response.experiment_count == 2
+    assert bundle.response.observation_count == 6
+    assert bundle.experiments[0]["observations"][0]["pressure_canonical"] == 10_000
+    assert bundle.experiments[0]["observations"][0]["uptake_mol_kg"] == 0.12
 
 ###############################################################################
 def test_import_rejects_extensions_outside_the_canonical_policy() -> None:

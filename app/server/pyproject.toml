@@ -17,7 +17,9 @@ dependencies = [
     "psycopg[binary]==3.3.4",
     "numpy==2.5.2",
     "pandas==3.0.5",
+    "openpyxl==3.1.5",
     "scipy==1.16.3",
+    "xlrd==2.0.2",
 ]
 
 [project.optional-dependencies]
