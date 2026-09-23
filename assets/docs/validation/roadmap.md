@@ -15,7 +15,9 @@ SHA `2eb3bc13823bedae1be1791fc980a78613d00ef1`; no launcher source changed on
 the path to the current application gates. `ADS-T1-01` passed on SHA
 `1affb39a2c4e475a8616004ee0566c30c5d189e7`. `ADS-T1-02` passed on tested code
 SHA `ed80c0975e583cd9842338fca5f59157c4071f97`; hosted run `35852874401` on
-that SHA passed all three CI jobs. Tier 0 was the first gate because the remote
+that SHA passed all three CI jobs. `ADS-T1-03` passed on tested code SHA
+`6154532dd6628bb70e98fae6fa427e2d9108cd5f`; hosted run `35876297668` passed all
+three CI jobs. Tier 0 was the first gate because the remote
 CI workflow had previously failed before creating any jobs and the Windows
 launcher had changed after the last surviving live report.
 
@@ -23,7 +25,8 @@ The canonical current status is [`../project_status_ledger.md`](../project_statu
 Execution evidence is under [`../../QA/validation/2026-09-22/`](../../QA/validation/2026-09-22/)
 for Tier 0 and [`../../QA/validation/2026-09-23/ADS-T1-01/`](../../QA/validation/2026-09-23/ADS-T1-01/)
 for `ADS-T1-01`, and [`../../QA/validation/2026-09-23/ADS-T1-02/`](../../QA/validation/2026-09-23/ADS-T1-02/)
-for `ADS-T1-02`.
+for `ADS-T1-02`, and [`../../QA/validation/2026-09-23/ADS-T1-03/`](../../QA/validation/2026-09-23/ADS-T1-03/)
+for `ADS-T1-03`.
 
 ## Evidence contract
 
@@ -49,7 +52,7 @@ validator, and evidence strength (`live UI`, `live API`, `automated`,
 | Tier | Stable slices | Focus | Gate to leave the tier |
 | --- | --- | --- | --- |
 | Tier 0 | `ADS-T0-01`–`ADS-T0-02` | CI executability, Windows runtime, readiness, browser load, ownership-safe shutdown | All three CI jobs start and finish; launcher clean lifecycle and occupied-port protection pass |
-| Tier 1 | `ADS-T1-01`–`ADS-T1-03` | Core API/capability boundaries, SQLite/Alembic startup, shell navigation and recovery | Base runtime and persistence are current-revision validated |
+| Tier 1 | `ADS-T1-01`–`ADS-T1-03` | Core API/capability boundaries, SQLite/Alembic startup, shell navigation and recovery | Base runtime, persistence, and shell navigation/recovery are current-revision validated |
 | Tier 2 | `ADS-T2-01`–`ADS-T2-06` | CSV/Excel input, invalid boundaries, fitting configuration, execution, persistence, cancellation | Core product workflows pass with disposable data |
 | Tier 3 | `ADS-T3-01`–`ADS-T3-05` | Local public data, NIST, PubChem, and COD positive/degraded paths | Provider claims have explicit positive or externally blocked evidence |
 | Tier 4 | `ADS-T4-01`–`ADS-T4-04` | ML profile, valid training data, real training, checkpoints, resume, dashboard | Positive ML lifecycle is demonstrated on the ML profile |
@@ -78,7 +81,7 @@ adjacent regression, then update the ledger.
 | --- | --- | --- |
 | `ADS-T1-01` | Health, system capabilities/configuration, core route availability, base-profile absence of ML routes, capability refresh/retry, and fitting configuration. | `PASS` on SHA `1affb39`; hosted run `35832020842` and focused local API/frontend tests. |
 | `ADS-T1-02` | Missing/empty/current/invalid SQLite startup states, Alembic head and lock behavior, and minimal record persistence across restart. | `PASS` on tested code SHA `ed80c09`; 22 focused local tests passed, including fail-closed invalid states and dataset persistence across two application lifespans. Hosted run `35852874401` passed all three CI jobs. |
-| `ADS-T1-03` | Implemented top-level routes, redirects, unknown-route recovery, Help focus behavior, backend Offline/Online recovery, and truthful unavailable Docs/Settings controls. | `UNTESTED`. |
+| `ADS-T1-03` | Implemented top-level routes, redirects, unknown-route recovery, Help focus behavior, backend Offline/Online recovery, and truthful unavailable Docs/Settings controls. | `PASS` on tested code SHA `6154532`; 70 frontend unit tests, lint, build, official-launcher browser/HTTP evidence, and hosted run `35876297668` passed. See [`ADS-T1-03/summary.md`](../../QA/validation/2026-09-23/ADS-T1-03/summary.md). |
 
 ### Tier 2 — core product workflows
 
@@ -144,12 +147,11 @@ after every surgical fix; the defined adjacent regression is the minimum.
 
 ## Current stopping point
 
-Tier 0 remains closed. `ADS-T0-01` passed on implementation SHA
-`ed80c0975e583cd9842338fca5f59157c4071f97` in hosted run `35852874401`; all
-three jobs completed, including the Base/ML profile checks, generated
-contracts, frontend checks, and browser layout validation. `ADS-T0-02` remains
-`PASS` on its official lifecycle evidence at `2eb3bc1`; launcher source was
-unchanged through the current implementation SHA.
+Tier 0 remains closed. `ADS-T0-01` passed in current hosted run `35876297668`
+on SHA `6154532`; all three jobs completed, including the Base/ML profile
+checks, generated contracts, frontend checks, and browser layout validation.
+`ADS-T0-02` remains `PASS` on its official lifecycle evidence at `2eb3bc1`;
+launcher source was unchanged through SHA `6154532`.
 
 `ADS-T1-01` is `PASS` on SHA `1affb39`. The Base profile reported core
 capabilities, system configuration, fitting models, readiness, and Public
@@ -160,5 +162,9 @@ passed. See [`ADS-T1-01/summary.md`](../../QA/validation/2026-09-23/ADS-T1-01/su
 handling, Alembic head/lock behavior, and one dataset persisted across app
 shutdown and restart. See
 [`ADS-T1-02/summary.md`](../../QA/validation/2026-09-23/ADS-T1-02/summary.md).
-Tier 1 remains partial because `ADS-T1-03` is still `UNTESTED`; it is the next
-slice in dependency order.
+`ADS-T1-03` passed on code SHA `6154532`, covering shell routes and recovery,
+Help focus/closing, unavailable controls, and backend status recovery. Local
+frontend unit/lint/build gates and hosted run `35876297668` passed. See
+[`ADS-T1-03/summary.md`](../../QA/validation/2026-09-23/ADS-T1-03/summary.md).
+Tier 1 is closed. The next slice in dependency order is `ADS-T2-01`: the
+complete browser CSV import lifecycle on disposable data.
