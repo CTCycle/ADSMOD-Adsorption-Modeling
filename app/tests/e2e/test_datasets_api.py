@@ -6,6 +6,7 @@ import json
 import uuid
 from typing import Any
 
+import pytest
 from playwright.sync_api import APIRequestContext
 
 ###############################################################################
@@ -171,3 +172,126 @@ class TestDatasetDeletion:
         listing = api_context.get("/api/v1/datasets")
         assert listing.ok
         assert dataset["id"] not in {item["id"] for item in listing.json()["datasets"]}
+
+###############################################################################
+class TestDatasetImportBoundaries:
+    """Malformed input and incomplete mappings stay client-visible errors."""
+
+    # -------------------------------------------------------------------------
+    def test_preview_rejects_an_empty_upload(
+        self, api_context: APIRequestContext
+    ) -> None:
+        response = api_context.post(
+            "/api/v1/datasets/import/preview",
+            multipart={
+                "file": {
+                    "name": "empty.csv",
+                    "mimeType": "text/csv",
+                    "buffer": b"",
+                }
+            },
+        )
+
+        assert response.status == 400
+        assert response.json()["detail"] == "Uploaded dataset is empty."
+
+    # -------------------------------------------------------------------------
+    @pytest.mark.parametrize("extension", [".xls", ".xlsx"])
+    def test_preview_rejects_corrupt_excel_uploads(
+        self,
+        api_context: APIRequestContext,
+        extension: str,
+    ) -> None:
+        response = api_context.post(
+            "/api/v1/datasets/import/preview",
+            multipart={
+                "file": {
+                    "name": f"corrupt{extension}",
+                    "mimeType": "application/octet-stream",
+                    "buffer": b"not an Excel workbook",
+                }
+            },
+        )
+
+        assert response.status == 400
+        assert response.json()["detail"]
+
+    # -------------------------------------------------------------------------
+    def test_validation_reports_missing_required_columns(
+        self,
+        api_context: APIRequestContext,
+    ) -> None:
+        mapping = {
+            "dataset_name": "missing-required-columns",
+            "structure": "atomic",
+            "column_roles": {
+                "experiment_id": "experiment_id",
+                "notes": "metadata",
+            },
+            "grouping_columns": ["experiment_id"],
+            "pressure_basis": "absolute",
+            "duplicate_policy": "keep",
+        }
+        response = api_context.post(
+            "/api/v1/datasets/import/validate",
+            multipart={
+                "mapping": json.dumps(mapping),
+                "file": {
+                    "name": "missing-columns.csv",
+                    "mimeType": "text/csv",
+                    "buffer": b"experiment_id,notes\nEXP-1,source row\n",
+                },
+            },
+        )
+
+        assert response.ok, response.text()
+        validation = response.json()
+        assert validation["status"] == "invalid"
+        issue_codes = {issue["code"] for issue in validation["issues"]}
+        assert {"missing_pressure", "missing_uptake", "missing_temperature"} <= issue_codes
+        assert {"missing_adsorbate", "missing_adsorbent"} <= issue_codes
+
+    # -------------------------------------------------------------------------
+    def test_validation_reports_malformed_numeric_values(
+        self,
+        api_context: APIRequestContext,
+    ) -> None:
+        mapping = {
+            "dataset_name": "malformed-measurement",
+            "structure": "atomic",
+            "column_roles": {
+                "experiment_id": "experiment_id",
+                "pressure": "pressure",
+                "uptake": "uptake",
+                "temperature": "temperature",
+                "adsorbate": "adsorbate",
+                "adsorbent": "adsorbent",
+            },
+            "grouping_columns": ["experiment_id"],
+            "pressure_basis": "absolute",
+            "unit_overrides": {
+                "pressure": "Pa",
+                "uptake": "mol/kg",
+                "temperature": "K",
+            },
+            "duplicate_policy": "keep",
+        }
+        response = api_context.post(
+            "/api/v1/datasets/import/validate",
+            multipart={
+                "mapping": json.dumps(mapping),
+                "file": {
+                    "name": "malformed-measurement.csv",
+                    "mimeType": "text/csv",
+                    "buffer": (
+                        b"experiment_id,pressure,uptake,temperature,adsorbate,adsorbent\n"
+                        b"EXP-1,not-a-number,0.12,298.15,CO2,13X\n"
+                    ),
+                },
+            },
+        )
+
+        assert response.ok, response.text()
+        validation = response.json()
+        assert validation["status"] == "invalid"
+        assert "invalid_row" in {issue["code"] for issue in validation["issues"]}
