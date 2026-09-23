@@ -96,6 +96,48 @@ def test_empty_version_table_with_application_tables_fails_safely(
         migrator.migrate_database(sqlite_config(path))
 
 ###############################################################################
+def test_unknown_alembic_revision_is_rejected_without_schema_inference(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "unknown-revision.db"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO alembic_version (version_num) VALUES (?)",
+            ("unknown_revision",),
+        )
+
+    with pytest.raises(DatabaseMigrationError, match="not packaged"):
+        migrator.migrate_database(sqlite_config(path))
+
+    assert table_names(path) == {"alembic_version"}
+
+###############################################################################
+def test_database_stamped_at_head_but_incomplete_is_rejected(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "incomplete-head.db"
+    head = migrator.build_alembic_config().attributes["head_revision"]
+    assert isinstance(head, str)
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO alembic_version (version_num) VALUES (?)", (head,)
+        )
+
+    with pytest.raises(
+        DatabaseMigrationError,
+        match="stamped at Alembic head but is missing tables",
+    ):
+        migrator.migrate_database(sqlite_config(path))
+
+    assert table_names(path) == {"alembic_version"}
+
+###############################################################################
 def test_failed_migration_rolls_back_schema(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
