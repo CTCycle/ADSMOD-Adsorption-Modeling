@@ -8,6 +8,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from alembic.util import CommandError
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
@@ -100,9 +101,14 @@ def _run_command(
 
 ###############################################################################
 def _validate_known_heads(current: tuple[str, ...], script: ScriptDirectory) -> None:
-    unknown = [
-        revision for revision in current if script.get_revision(revision) is None
-    ]
+    unknown: list[str] = []
+    for revision in current:
+        try:
+            known_revision = script.get_revision(revision)
+        except CommandError:
+            known_revision = None
+        if known_revision is None:
+            unknown.append(revision)
     if unknown:
         raise DatabaseMigrationError(
             "Database references revisions that are not packaged: "
