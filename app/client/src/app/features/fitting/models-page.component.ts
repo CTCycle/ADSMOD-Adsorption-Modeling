@@ -2,8 +2,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { CoreWorkspaceStore, OptimizationMethod } from '../../core/state/core-workspace.store';
 import { HeaderTabsComponent } from '../../layout/header-tabs.component';
 import type {
-    FittingResponse,
-    ModelFitResult,
+    FittingResultModelSummary,
+    FittingResultSummary,
     ModelParameters,
 } from '../../models/fitting.model';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';
@@ -47,6 +47,7 @@ import { ModelCardComponent } from './model-card.component';
                                         <div class="fitting-dataset-row">
                                             <select
                                                 id="fitting-dataset-control"
+                                                [disabled]="store.fittingRunning()"
                                                 [value]="store.selectedDatasetId() || ''"
                                                 (change)="selectDataset($event)"
                                                 class="select-input fitting-dataset-select"
@@ -64,7 +65,7 @@ import { ModelCardComponent } from './model-card.component';
                                             id="fitting-experiment-control"
                                             class="select-input"
                                             [value]="store.selectedExperimentId() || ''"
-                                            [disabled]="store.experimentsLoading() || !store.experiments().length"
+                                            [disabled]="store.fittingRunning() || store.experimentsLoading() || !store.experiments().length"
                                             (change)="selectExperiment($event)"
                                         >
                                             <option value="" [selected]="store.selectedExperimentId() === null">
@@ -116,6 +117,11 @@ import { ModelCardComponent } from './model-card.component';
                                             <button class="primary fitting-action-primary" type="button" [disabled]="!store.fittingConfiguration() || store.fittingRunning()" (click)="startFitting()">
                                                 Start Fitting
                                             </button>
+                                            @if (store.fittingJobId()) {
+                                                <button class="secondary fitting-action-secondary" type="button" [disabled]="store.fittingCancellationPending()" (click)="cancelFitting()">
+                                                    {{ store.fittingCancellationPending() ? 'Cancelling…' : 'Cancel Fitting' }}
+                                                </button>
+                                            }
                                             <button class="secondary fitting-action-secondary" type="button" (click)="store.resetFittingStatus()">
                                                 Reset Log
                                             </button>
@@ -261,11 +267,11 @@ export class ModelsPageComponent {
         return value === 'inverse_sigma' ? 'Inverse sigma (complete uncertainties)' : 'Unweighted';
     }
 
-    protected bestModelLabel(result: FittingResponse): string {
+    protected bestModelLabel(result: FittingResultSummary): string {
         return this.bestModelResult(result)?.name ?? result.best_model ?? '—';
     }
 
-    protected fittedModelCount(result: FittingResponse): number {
+    protected fittedModelCount(result: FittingResultSummary): number {
         return result.results.filter((fit) => fit.status !== 'failed').length;
     }
 
@@ -275,7 +281,7 @@ export class ModelsPageComponent {
             : new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 }).format(value);
     }
 
-    private bestModelResult(result: FittingResponse): ModelFitResult | null {
+    private bestModelResult(result: FittingResultSummary): FittingResultModelSummary | null {
         return result.results.find((fit) => fit.model === result.best_model) ?? null;
     }
 
@@ -285,5 +291,9 @@ export class ModelsPageComponent {
 
     protected async startFitting(): Promise<void> {
         await this.store.startFitting();
+    }
+
+    protected async cancelFitting(): Promise<void> {
+        await this.store.cancelFitting();
     }
 }

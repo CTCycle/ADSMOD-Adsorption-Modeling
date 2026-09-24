@@ -1,0 +1,88 @@
+
+> adsmod-client@3.0.0 test:unit
+> ng test --watch=false
+
+> Building...
+√ Building...
+Initial chunk files                                                             | Names                                                                        |  Raw size
+styles.css                                                                      | styles                                                                       | 142.38 kB |
+chunk-A6BSQB2A.js                                                               | -                                                                            | 132.75 kB |
+chunk-TEIHEYA5.js                                                               | -                                                                            |  72.93 kB |
+chunk-KBUOPMUN.js                                                               | -                                                                            |  43.63 kB |
+chunk-5GZZUXBQ.js                                                               | -                                                                            |  33.71 kB |
+chunk-7B2XHE3W.js                                                               | -                                                                            |  28.84 kB |
+chunk-BIYGMXQM.js                                                               | -                                                                            |  28.39 kB |
+chunk-XYYHCCPU.js                                                               | -                                                                            |  22.35 kB |
+chunk-WYQMBACL.js                                                               | -                                                                            |  19.24 kB |
+chunk-QULTHXBA.js                                                               | -                                                                            |  15.36 kB |
+spec-app-features-fitting-models-page.component.js                              | spec-app-features-fitting-models-page.component                              |  11.99 kB |
+spec-app-core-state-core-workspace.store.js                                     | spec-app-core-state-core-workspace.store                                     |  11.78 kB |
+chunk-XKVTSTNP.js                                                               | -                                                                            |  11.74 kB |
+chunk-X7TPYIWH.js                                                               | -                                                                            |  10.76 kB |
+chunk-FOKDPRYA.js                                                               | -                                                                            |   9.84 kB |
+chunk-UL2XER5M.js                                                               | -                                                                            |   8.21 kB |
+chunk-5QN22UO7.js                                                               | -                                                                            |   7.49 kB |
+chunk-OUSPNMXN.js                                                               | -                                                                            |   7.21 kB |
+spec-app-layout-core-shell.component.js                                         | spec-app-layout-core-shell.component                                         |   7.18 kB |
+chunk-BJMMIZHD.js                                                               | -                                                                            |   5.99 kB |
+spec-app-services-training.service.js                                           | spec-app-services-training.service                                           |   5.58 kB |
+spec-app-features-training-services-training-status-polling.service.js          | spec-app-features-training-services-training-status-polling.service          |   5.36 kB |
+chunk-WNHUKSQP.js                                                               | -                                                                            |   5.31 kB |
+spec-app-core-state-training-workspace.store.js                                 | spec-app-core-state-training-workspace.store                                 |   5.20 kB |
+spec-app-services-system.service.js                                             | spec-app-services-system.service                                             |   4.88 kB |
+chunk-Z7VQFNYE.js                                                               | -                                                                            |   4.32 kB |
+chunk-3VY7RQ73.js                                                               | -                                                                            |   4.12 kB |
+spec-app-app.routes.js                                                          | spec-app-app.routes                                                          |   4.07 kB |
+chunk-32QALP5A.js                                                               | -                                                                            |   3.73 kB |
+spec-app-shared-components-markdown-renderer-markdown-renderer.component.js     | spec-app-shared-components-markdown-renderer-markdown-renderer.component     |   3.71 kB |
+chunk-5RGVJK2P.js                                                               | -                                                                            |   3.62 kB |
+spec-app-features-nist-nist-collection-rows.component.js                        | spec-app-features-nist-nist-collection-rows.component                        |   3.54 kB |
+chunk-O6BUZ5QV.js                                                               | -                                                                            |   3.43 kB |
+chunk-T6EKFITS.js                                                               | -                                                                            |   3.15 kB |
+spec-app-features-training-components-new-training-wizard.component.js          | spec-app-features-training-components-new-training-wizard.component          |   3.11 kB |
+chunk-W2YRCJEM.js                                                               | -                                                                            |   2.90 kB |
+chunk-NAP5XHRA.js                                                               | -                                                                            |   2.76 kB |
+spec-app-features-training-pages-machine-learning-page.component.js             | spec-app-features-training-pages-machine-learning-page.component             |   2.74 kB |
+spec-app-features-training-components-training-history-chart-panel.component.js | spec-app-features-training-components-training-history-chart-panel.component |   2.54 kB |
+spec-app-features-fitting-model-card.component.js                               | spec-app-features-fitting-model-card.component                               |   2.46 kB |
+spec-app-services-dataset-builder.service.js                                    | spec-app-services-dataset-builder.service                                    |   2.40 kB |
+spec-app-services-public-data.service.js                                        | spec-app-services-public-data.service                                        |   2.29 kB |
+chunk-QHDQDMHI.js                                                               | -                                                                            |   2.08 kB |
+spec-app-features-training-services-training-modal-data.js                      | spec-app-features-training-services-training-modal-data                      |   2.07 kB |
+spec-app-features-training-components-resume-training-wizard.component.js       | spec-app-features-training-components-resume-training-wizard.component       |   1.98 kB |
+spec-app-features-training-components-dataset-processing-wizard.component.js    | spec-app-features-training-components-dataset-processing-wizard.component    |   1.92 kB |
+chunk-4WOCWMAZ.js                                                               | -                                                                            |   1.91 kB |
+spec-app-shared-components-info-modal-info-modal.component.js                   | spec-app-shared-components-info-modal-info-modal.component                   |   1.83 kB |
+chunk-WNXXV44H.js                                                               | -                                                                            |   1.81 kB |
+spec-app-features-fitting-model-config-form.component.js                        | spec-app-features-fitting-model-config-form.component                        |   1.80 kB |
+spec-app-shared-components-equation-renderer-equation-renderer.component.js     | spec-app-shared-components-equation-renderer-equation-renderer.component     |   1.60 kB |
+spec-app-features-training-services-training-action-runner.service.js           | spec-app-features-training-services-training-action-runner.service           |   1.56 kB |
+init-testbed.js                                                                 | init-testbed                                                                 |   1.27 kB |
+chunk-KCQLVFKN.js                                                               | -                                                                            |   1.22 kB |
+spec-app-features-training-services-training-view-navigation.service.js         | spec-app-features-training-services-training-view-navigation.service         |   1.04 kB |
+chunk-QJYS7I2J.js                                                               | -                                                                            |   1.03 kB |
+vitest-mock-patch.js                                                            | vitest-mock-patch                                                            | 974 bytes |
+spec-app-services-dataset.service.js                                            | spec-app-services-dataset.service                                            | 969 bytes |
+spec-app-services-job.service.js                                                | spec-app-services-job.service                                                | 827 bytes |
+polyfills.js                                                                    | polyfills                                                                    | 121 bytes |
+
+                                                                                | Initial total                                                                | 739.00 kB
+
+Lazy chunk files                                                                | Names                                                                        |  Raw size
+chunk-Z6HRJAYW.js                                                               | custom-datasets-page-component                                               | 174.19 kB |
+chunk-3P7SNR44.js                                                               | public-data-workspace-component                                              | 160.36 kB |
+chunk-TOH6PZES.js                                                               | dashboards-page-component                                                    |   2.31 kB |
+chunk-2UAMRWDN.js                                                               | machine-learning-page-component                                              | 786 bytes |
+chunk-GXQSZLQJ.js                                                               | system-service                                                               | 440 bytes |
+chunk-WUDTADLU.js                                                               | models-page-component                                                        | 438 bytes |
+
+Application bundle generation complete. [7.552 seconds] - 2026-09-24T08:09:48.099Z
+
+
+ RUN  v4.1.10 G:/Projects/Repositories/Active projects/ADSMOD Adsorption Modeling/app/client
+
+
+ Test Files  26 passed (26)
+      Tests  72 passed (72)
+   Start at  10:09:48
+   Duration  6.57s (transform 3.79s, setup 18.50s, import 7.39s, tests 4.14s, environment 75.49s)

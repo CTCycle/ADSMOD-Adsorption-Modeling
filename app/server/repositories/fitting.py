@@ -13,9 +13,9 @@ from server.repositories.schemas.models import (
     FittingRun,
 )
 
+
 ###############################################################################
 class FittingRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -81,6 +81,23 @@ class FittingRepository:
             run.status = "failed"
             run.message = message
             run.completed_at = datetime.now(timezone.utc)
+
+    # -------------------------------------------------------------------------
+    def is_run_running(self, run_id: int) -> bool:
+        with self.database.session_factory() as session:
+            run = session.get(FittingRun, run_id)
+            return run is not None and run.status == "running"
+
+    # -------------------------------------------------------------------------
+    def cancel_run(self, run_id: int, message: str = "Fitting cancelled.") -> bool:
+        with self.database.transaction() as session:
+            run = session.get(FittingRun, run_id)
+            if run is None or run.status != "running":
+                return False
+            run.status = "cancelled"
+            run.message = message
+            run.completed_at = datetime.now(timezone.utc)
+            return True
 
     # -------------------------------------------------------------------------
     def get_run(self, run_id: int) -> FittingRun:

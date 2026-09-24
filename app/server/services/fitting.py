@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 import numpy as np
@@ -16,10 +17,12 @@ from server.domain.fitting import (
     PersistedRunCurvePointResponse,
 )
 from server.services.modeling.fitting import (
+    FittingCancelledError,
     MODEL_VERSION,
     FitComputation,
     FittingPipeline,
     parameter_unit,
+    raise_if_cancelled,
 )
 from server.common.utils.logger import logger
 from server.domain.jobs import (
@@ -32,6 +35,7 @@ from server.repositories.datasets import DatasetRepository
 from server.repositories.fitting import FittingRepository
 from server.services.job_responses import JobResponseFactory
 from server.services.jobs import JobManager
+
 
 ###############################################################################
 class FittingService:
@@ -52,6 +56,9 @@ class FittingService:
         self.results = results
         self.job_manager = job_manager or JobManager(logger=logger)
         self.pipeline = pipeline or FittingPipeline()
+        self._start_lock = threading.Lock()
+        self._run_lifecycle_lock = threading.RLock()
+        self._run_ids_by_job_id: dict[str, int] = {}
 
     # -------------------------------------------------------------------------
     def model_catalog(
@@ -165,14 +172,19 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def _run_fitting_sync(
-        self, payload_dict: dict[str, Any], run_id: int
+        self,
+        payload_dict: dict[str, Any],
+        run_id: int,
+        stop_event: Any | None = None,
     ) -> dict[str, Any]:
         payload = FittingRequest.model_validate(payload_dict)
         try:
+            raise_if_cancelled(stop_event)
             series = self.datasets.fitting_series(
                 payload.dataset_id, payload.isotherm_id
             )
-            computations = self.pipeline.run(series, payload)
+            computations = self.pipeline.run(series, payload, stop_event=stop_event)
+            raise_if_cancelled(stop_event)
             pressure = np.asarray(series["pressure"], dtype=np.float64)
             uptake = np.asarray(series["uptake"], dtype=np.float64)
             response_results = [
@@ -204,17 +216,19 @@ class FittingService:
                 if best
                 else "No selected model produced a valid fitted result."
             )
-            self.results.complete_run(
-                run_id,
-                status=run_status,
-                message=summary,
-                results=[
-                    self._persistence_record(
-                        item, len(pressure), series["pressure_basis"]
-                    )
-                    for item in computations
-                ],
-            )
+            with self._run_lifecycle_lock:
+                raise_if_cancelled(stop_event)
+                self.results.complete_run(
+                    run_id,
+                    status=run_status,
+                    message=summary,
+                    results=[
+                        self._persistence_record(
+                            item, len(pressure), series["pressure_basis"]
+                        )
+                        for item in computations
+                    ],
+                )
             return FittingResponse(
                 status=(
                     "success"
@@ -239,41 +253,61 @@ class FittingService:
                 results=response_results,
                 summary=summary,
             ).model_dump(mode="json")
+        except FittingCancelledError as exc:
+            with self._run_lifecycle_lock:
+                self.results.cancel_run(run_id, str(exc))
+            raise
         except Exception as exc:
-            self.results.fail_run(run_id, str(exc))
+            with self._run_lifecycle_lock:
+                if stop_event is not None and stop_event.is_set():
+                    self.results.cancel_run(run_id)
+                else:
+                    self.results.fail_run(run_id, str(exc))
             raise
 
     # -------------------------------------------------------------------------
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
-        if self.job_manager.is_job_running(self.JOB_TYPE):
-            raise ValueError("A fitting job is already running.")
-        series = self.datasets.fitting_series(payload.dataset_id, payload.isotherm_id)
-        run_id = self.results.create_run(
-            isotherm_id=payload.isotherm_id,
-            input_sha256=self.pipeline.input_hash(series),
-            optimizer=payload.optimizer,
-            max_evaluations=payload.max_evaluations,
-            pressure_display_unit=payload.display_units.pressure,
-            uptake_display_unit=payload.display_units.uptake,
-            configuration=payload.model_dump(mode="json"),
-        )
-        job_id = self.job_manager.start_job(
-            job_type=self.JOB_TYPE,
-            runner=self._run_fitting_sync,
-            args=(payload.model_dump(mode="json"), run_id),
-        )
-        return JobResponseFactory.start(
-            job_id=job_id,
-            job_type=self.JOB_TYPE,
-            message=f"Fitting run {run_id} started.",
-            poll_interval=self.config.application.jobs.polling_interval,
-        )
+        with self._start_lock:
+            if self.job_manager.is_job_running(self.JOB_TYPE):
+                raise ValueError("A fitting job is already running.")
+            series = self.datasets.fitting_series(
+                payload.dataset_id, payload.isotherm_id
+            )
+            run_id = self.results.create_run(
+                isotherm_id=payload.isotherm_id,
+                input_sha256=self.pipeline.input_hash(series),
+                optimizer=payload.optimizer,
+                max_evaluations=payload.max_evaluations,
+                pressure_display_unit=payload.display_units.pressure,
+                uptake_display_unit=payload.display_units.uptake,
+                configuration=payload.model_dump(mode="json"),
+            )
+            try:
+                job_id = self.job_manager.start_job(
+                    job_type=self.JOB_TYPE,
+                    runner=self._run_fitting_sync,
+                    args=(payload.model_dump(mode="json"), run_id),
+                )
+            except Exception as exc:
+                self.results.fail_run(run_id, str(exc))
+                raise
+            with self._run_lifecycle_lock:
+                self._run_ids_by_job_id[job_id] = run_id
+            return JobResponseFactory.start(
+                job_id=job_id,
+                job_type=self.JOB_TYPE,
+                message=f"Fitting run {run_id} started.",
+                poll_interval=self.config.application.jobs.polling_interval,
+            )
 
     # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise LookupError(f"Job {job_id} not found.")
+        if job_status["status"] in {"completed", "failed", "cancelled"}:
+            with self._run_lifecycle_lock:
+                self._run_ids_by_job_id.pop(job_id, None)
         return JobResponseFactory.status(
             job_status=job_status,
             poll_interval=self.config.application.jobs.polling_interval,
@@ -288,11 +322,20 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> JobCancelResponse:
-        if not self.job_manager.cancel_job(job_id):
-            raise ValueError(
-                f"Job {job_id} cannot be cancelled (not found or already completed)."
-            )
-        return JobResponseFactory.cancelled(job_id)
+        with self._run_lifecycle_lock:
+            run_id = self._run_ids_by_job_id.get(job_id)
+            if run_id is not None and not self.results.is_run_running(run_id):
+                raise ValueError(
+                    f"Job {job_id} cannot be cancelled (not found or already completed)."
+                )
+            if not self.job_manager.cancel_job(job_id):
+                raise ValueError(
+                    f"Job {job_id} cannot be cancelled (not found or already completed)."
+                )
+            if run_id is not None:
+                self.results.cancel_run(run_id)
+                self._run_ids_by_job_id.pop(job_id, None)
+            return JobResponseFactory.cancelled(job_id)
 
     # -------------------------------------------------------------------------
     def get_persisted_run(self, run_id: int) -> PersistedRunResponse:

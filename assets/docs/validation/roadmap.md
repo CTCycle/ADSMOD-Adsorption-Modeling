@@ -1,6 +1,6 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 ## Purpose and baseline
 
@@ -88,14 +88,14 @@ adjacent regression, then update the ledger.
 
 ### Tier 2 — core product workflows
 
-| Slice | Scope |
-| --- | --- |
-| `ADS-T2-01` | Complete browser CSV import through preview, mapping, validation, save, persisted inspection, experiment switching, reload, and deletion. |
-| `ADS-T2-02` | Real `.xlsx` and `.xls` files through the canonical browser/API path. |
-| `ADS-T2-03` | Invalid uploads, missing columns, malformed values, mismatched arrays, and other input-boundary failures. |
-| `ADS-T2-04` | Dataset/experiment selection, fitting configuration, all nine model cards, and parameter forms. |
-| `ADS-T2-05` | Positive asynchronous fitting, metrics/result rendering, persistence, and reload. |
-| `ADS-T2-06` | Fitting cancellation, duplicate-job prevention, recovery, and clean follow-up execution. |
+| Slice | Scope | Current checkpoint |
+| --- | --- | --- |
+| `ADS-T2-01` | Complete browser CSV import through preview, mapping, validation, save, persisted inspection, experiment switching, reload, and deletion. | PASS on `c876a06`; see [`ADS-T2-01`](../../QA/validation/2026-09-23/ADS-T2-01/summary.md). |
+| `ADS-T2-02` | Real `.xlsx` and `.xls` files through the canonical browser/API path. | PASS on `c876a06`; see [`ADS-T2-02`](../../QA/validation/2026-09-23/ADS-T2-02/summary.md). |
+| `ADS-T2-03` | Invalid uploads, missing columns, malformed values, mismatched arrays, and other input-boundary failures. | PASS on `c876a06`; see [`ADS-T2-03`](../../QA/validation/2026-09-23/ADS-T2-03/summary.md). |
+| `ADS-T2-04` | Dataset/experiment selection, fitting configuration, all nine model cards, and parameter forms. | PASS in the 2026-09-24 live fitting campaign; see [`ADS-T2-04`](../../QA/validation/2026-09-24/ADS-T2-04/summary.md). |
+| `ADS-T2-05` | Positive asynchronous fitting, metrics/result rendering, persistence, and reload. | PASS after fixing result restoration on page reload; see [`ADS-T2-05`](../../QA/validation/2026-09-24/ADS-T2-05/summary.md). |
+| `ADS-T2-06` | Fitting cancellation, duplicate-job prevention, recovery, and clean follow-up execution. | PASS after adding `20260924_fitting_cancel`; see [`ADS-T2-06`](../../QA/validation/2026-09-24/ADS-T2-06/summary.md). |
 
 ### Tier 3 — feature families and providers
 
@@ -176,6 +176,23 @@ browser imports, and invalid-input boundaries. See the three linked
 [`ADS-T2-01`](../../QA/validation/2026-09-23/ADS-T2-01/summary.md),
 [`ADS-T2-02`](../../QA/validation/2026-09-23/ADS-T2-02/summary.md), and
 [`ADS-T2-03`](../../QA/validation/2026-09-23/ADS-T2-03/summary.md) summaries.
-Tier 2 remains partial because `ADS-T2-04`–`ADS-T2-06` have not been exercised.
-The next slice in dependency order is `ADS-T2-04`: dataset/experiment
-selection, fitting configuration, all nine model cards, and parameter forms.
+Tier 2 is closed. On the 2026-09-24 official-launcher campaign, `ADS-T2-04`
+validated the fitting controls and all nine model cards, `ADS-T2-05` completed
+a fit and verified that rendered metrics return after a page reload, and
+`ADS-T2-06` exercised cancellation, duplicate rejection, and follow-up
+recovery. The campaign found and fixed a missing `cancelled` SQLite status and
+the result-reload gap. See the linked slice summaries and the canonical
+[`project status ledger`](../project_status_ledger.md).
+
+The next actionable slice is `ADS-T3-01`: inspect locally persisted Public
+Data records in the browser, including filtering, pagination, and provenance,
+without requiring a new provider fetch. The remaining provider gates are
+separate: NIST coverage remains `PARTIAL` because 14 previously fetched records
+had unsupported units or metadata (`ISSUE-002`); PubChem enrichment remains
+`UNVALIDATED`; and positive COD search/import/linking remains `UNVALIDATED`
+(`ISSUE-004`). The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) until
+a valid `adsorbate_SMILE` fixture, ML-enabled runtime, and suitable compute are
+available. The top-level dashboards remain `PARTIAL` (`ISSUE-005`) pending a
+product-scope decision and positive training output. These provider, ML, and
+dashboard gates do not share a manageable validation scope with the fitting
+campaign and remain explicit follow-up work.

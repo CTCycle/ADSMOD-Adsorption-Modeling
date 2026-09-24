@@ -1,0 +1,32 @@
+
+> adsmod-client@3.0.0 build
+> node scripts/verify-angular-migration.mjs && node node_modules/@angular/cli/bin/ng.js build --progress=false --verbose
+
+Angular migration verification passed.
+Initial chunk files   | Names                           |  Raw size | Estimated transfer size
+chunk-Z6XQBOWN.js     | -                               | 156.23 kB |                46.52 kB
+styles-EZOZ37WT.css   | styles                          | 117.47 kB |                18.60 kB
+chunk-GFXYADH5.js     | -                               | 108.41 kB |                27.34 kB
+polyfills-RV3JTMEC.js | polyfills                       |  35.78 kB |                11.63 kB
+main-TNLM42TT.js      | main                            |  13.12 kB |                 3.97 kB
+chunk-E7SN7JQ6.js     | -                               |  11.18 kB |                 3.70 kB
+chunk-MJTBAAZM.js     | -                               | 853 bytes |               853 bytes
+chunk-OULITS4G.js     | -                               | 829 bytes |               829 bytes
+
+                      | Initial total                   | 443.88 kB |               113.45 kB
+
+Lazy chunk files      | Names                           |  Raw size | Estimated transfer size
+chunk-5FTQR625.js     | models-page-component           | 315.02 kB |                77.97 kB
+chunk-NYKFOIBU.js     | machine-learning-page-component | 101.44 kB |                20.27 kB
+chunk-GZTRN3T2.js     | public-data-workspace-component |  65.99 kB |                14.40 kB
+chunk-IPNET3ZW.js     | custom-datasets-page-component  |  45.47 kB |                10.26 kB
+chunk-SMZ57XK7.js     | -                               |  35.27 kB |                 7.60 kB
+chunk-OCEC3BY3.js     | -                               |  11.82 kB |                 2.88 kB
+chunk-DOGCP3SL.js     | -                               |   2.16 kB |               844 bytes
+chunk-777VXFQG.js     | -                               |   1.45 kB |               607 bytes
+chunk-J4M5WMR6.js     | -                               |   1.44 kB |               535 bytes
+chunk-QLH3UPJN.js     | dashboards-page-component       | 644 bytes |               644 bytes
+
+Application bundle generation complete. [6.959 seconds] - 2026-09-24T07:49:41.540Z
+
+Output location: G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\client\dist

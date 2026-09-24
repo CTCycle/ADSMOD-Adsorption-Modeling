@@ -128,6 +128,30 @@ function setupFetchMock(
                 models: [],
             }));
         }
+        if (/\/fitting\/runs\/\d+$/.test(url)) {
+            return Promise.resolve(response({
+                run_id: 42,
+                dataset_id: 1,
+                isotherm_id: 101,
+                status_detail: 'completed',
+                message: '1 of 1 models fitted; best model: langmuir.',
+                results: [{
+                    model: 'langmuir',
+                    status: 'success',
+                    metrics: {
+                        sse: 0.5,
+                        rmse: 0.25,
+                        mae: 0.2,
+                        r_squared: 0.9,
+                        adjusted_r_squared: 0.8,
+                        chi_square: null,
+                        aic: 1,
+                        aicc: 2,
+                        bic: 3,
+                    },
+                }],
+            }));
+        }
 
         const experimentMatch = url.match(/\/datasets\/(\d+)\/experiments$/);
         if (experimentMatch) {
@@ -181,6 +205,7 @@ describe('CoreWorkspaceStore', () => {
     beforeEach(() => {
         TestBed.resetTestingModule();
         fetchMock.mockReset();
+        window.localStorage.clear();
         vi.stubGlobal('fetch', fetchMock);
     });
 
@@ -321,5 +346,36 @@ describe('CoreWorkspaceStore', () => {
 
         expect(store.fittingResult()).toEqual(result);
         expect(store.fittingRunning()).toBe(false);
+        expect(JSON.parse(window.localStorage.getItem('adsmod.fitting.last-run') ?? '{}').run_id).toBe(1);
+    });
+
+    it('restores the last completed fitting result from the persisted run', async () => {
+        window.localStorage.setItem('adsmod.fitting.last-run', JSON.stringify({
+            run_id: 42,
+            dataset_name: 'dataset-1',
+            experiment_name: 'experiment-101',
+            observation_count: 14,
+            best_model: 'langmuir',
+            model_names: { langmuir: 'Langmuir' },
+        }));
+        setupFetchMock({});
+
+        const store = TestBed.inject(CoreWorkspaceStore);
+        await vi.waitFor(() => expect(store.fittingResult()?.run_id).toBe(42));
+
+        expect(store.fittingResult()).toMatchObject({
+            status: 'success',
+            dataset_name: 'dataset-1',
+            experiment_name: 'experiment-101',
+            observation_count: 14,
+            best_model: 'langmuir',
+            results: [{
+                model: 'langmuir',
+                name: 'Langmuir',
+                status: 'success',
+                metrics: { rmse: 0.25, r_squared: 0.9 },
+            }],
+        });
+        expect(store.fittingStatus()).toBe('[INFO] Restored the last completed fitting run.');
     });
 });

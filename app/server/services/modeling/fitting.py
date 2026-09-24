@@ -31,11 +31,24 @@ CONDITION_WARNING = 1e12
 CURVE_POINT_COUNT = 200
 MODEL_VERSION = "2.0"
 
+
+###############################################################################
+class FittingCancelledError(RuntimeError):
+    """Raised when a fitting job receives a cooperative cancellation request."""
+
+
+###############################################################################
+def raise_if_cancelled(stop_event: Any | None) -> None:
+    if stop_event is not None and stop_event.is_set():
+        raise FittingCancelledError("Fitting cancelled.")
+
+
 ###############################################################################
 @dataclass
 class MetricResult:
     values: dict[str, float | None]
     warnings: list[str] = field(default_factory=list)
+
 
 ###############################################################################
 @dataclass
@@ -57,9 +70,11 @@ class FitComputation:
     warnings: list[str] = field(default_factory=list)
     rank: int | None = None
 
+
 ###############################################################################
 def finite_or_none(value: float) -> float | None:
     return float(value) if math.isfinite(float(value)) else None
+
 
 ###############################################################################
 def compute_metrics(
@@ -166,6 +181,7 @@ def compute_metrics(
         warnings=warnings,
     )
 
+
 ###############################################################################
 def pressure_factor(unit: str, pressure_basis: str) -> float:
     resolved = UnitRegistry.pressure_unit(unit)
@@ -180,6 +196,7 @@ def pressure_factor(unit: str, pressure_basis: str) -> float:
     if resolved not in UnitRegistry.PRESSURE_TO_PA:
         raise UnitConversionError("A dimensional pressure display unit is required.")
     return UnitRegistry.PRESSURE_TO_PA[resolved]
+
 
 ###############################################################################
 def parameter_unit(
@@ -216,6 +233,7 @@ def parameter_unit(
         )
     return "1"
 
+
 ###############################################################################
 def parameter_to_display(
     parameter: ParameterSpec,
@@ -244,6 +262,7 @@ def parameter_to_display(
         )
     return value
 
+
 ###############################################################################
 def display_parameter_value(
     value: float | None,
@@ -262,6 +281,7 @@ def display_parameter_value(
         uptake_factor_value=uptake_factor_value,
         related_value=related_value,
     )
+
 
 ###############################################################################
 def parameter_from_display(
@@ -291,6 +311,7 @@ def parameter_from_display(
         )
     return value
 
+
 ###############################################################################
 def _fit_residual(
     parameters: np.ndarray,
@@ -314,9 +335,9 @@ def _fit_residual(
     values = uptake - predicted
     return values / sigma if sigma is not None else values
 
+
 ###############################################################################
 class ModelSolver:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.models = AdsorptionModels()
@@ -401,7 +422,9 @@ class ModelSolver:
         display_uptake_unit: str,
         molar_mass_g_mol: float | None,
         weighting: str = "unweighted",
+        stop_event: Any | None = None,
     ) -> FitComputation:
+        raise_if_cancelled(stop_event)
         parameter_count = len(spec.parameters)
         if pressure.size <= parameter_count:
             return self.failure(
@@ -480,6 +503,7 @@ class ModelSolver:
                 )
             candidates = []
             for start in starts:
+                raise_if_cancelled(stop_event)
                 result = least_squares(
                     _fit_residual,
                     start,
@@ -498,7 +522,15 @@ class ModelSolver:
                     loss="linear",
                     x_scale="jac",
                     max_nfev=max_evaluations,
+                    callback=(
+                        lambda _result: (
+                            raise_if_cancelled(stop_event)
+                            if stop_event is not None
+                            else None
+                        )
+                    ),
                 )
+                raise_if_cancelled(stop_event)
                 predicted_candidate = self.models.evaluate(
                     spec.key,
                     pressure,
@@ -682,9 +714,9 @@ class ModelSolver:
             warnings=[message],
         )
 
+
 ###############################################################################
 class FittingPipeline:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.solver = ModelSolver()
@@ -711,8 +743,13 @@ class FittingPipeline:
 
     # -------------------------------------------------------------------------
     def run(
-        self, series: dict[str, Any], request: FittingRequest
+        self,
+        series: dict[str, Any],
+        request: FittingRequest,
+        *,
+        stop_event: Any | None = None,
     ) -> list[FitComputation]:
+        raise_if_cancelled(stop_event)
         pressure = np.asarray(series["pressure"], dtype=np.float64)
         uptake = np.asarray(series["uptake"], dtype=np.float64)
         if pressure.ndim != 1 or uptake.ndim != 1 or pressure.size != uptake.size:
@@ -742,25 +779,28 @@ class FittingPipeline:
             if spec.key not in seen:
                 seen.add(spec.key)
                 resolved_specs.append(spec)
-        computations = [
-            self.solver.fit(
-                spec=spec,
-                pressure=pressure,
-                uptake=uptake,
-                uncertainty=uncertainty,
-                temperature_k=float(series["temperature_k"]),
-                pressure_basis=series["pressure_basis"],
-                saturation_pressure_pa=series.get("saturation_pressure_pa"),
-                optimizer=request.optimizer,
-                max_evaluations=request.max_evaluations,
-                overrides=request.parameter_configuration.get(spec.key, {}),
-                display_pressure_unit=request.display_units.pressure,
-                display_uptake_unit=request.display_units.uptake,
-                molar_mass_g_mol=series.get("adsorbate_molar_mass_g_mol"),
-                weighting=request.weighting,
+        computations = []
+        for spec in resolved_specs:
+            raise_if_cancelled(stop_event)
+            computations.append(
+                self.solver.fit(
+                    spec=spec,
+                    pressure=pressure,
+                    uptake=uptake,
+                    uncertainty=uncertainty,
+                    temperature_k=float(series["temperature_k"]),
+                    pressure_basis=series["pressure_basis"],
+                    saturation_pressure_pa=series.get("saturation_pressure_pa"),
+                    optimizer=request.optimizer,
+                    max_evaluations=request.max_evaluations,
+                    overrides=request.parameter_configuration.get(spec.key, {}),
+                    display_pressure_unit=request.display_units.pressure,
+                    display_uptake_unit=request.display_units.uptake,
+                    molar_mass_g_mol=series.get("adsorbate_molar_mass_g_mol"),
+                    weighting=request.weighting,
+                    stop_event=stop_event,
+                )
             )
-            for spec in resolved_specs
-        ]
         successful = [
             item
             for item in computations
