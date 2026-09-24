@@ -68,23 +68,49 @@ export interface ModelFitResult {
     rank: number | null;
 }
 
-export interface FittingResponse {
+export interface FittingResultModelSummary {
+    model: string;
+    name: string;
+    status: 'success' | 'warning' | 'failed';
+    metrics: FitMetrics;
+}
+
+export interface FittingResultSummary {
     status: 'success' | 'warning' | 'error';
     run_id: number | null;
     dataset_id: number;
     isotherm_id: number;
     dataset_name: string;
     experiment_name: string;
+    observation_count: number;
+    best_model: string | null;
+    results: FittingResultModelSummary[];
+    summary: string;
+}
+
+export interface FittingResponse extends FittingResultSummary {
     adsorbent: string;
     adsorbate: string;
     temperature_k: number;
     pressure_basis: string;
     pressure_unit: string;
     uptake_unit: string;
-    observation_count: number;
-    best_model: string | null;
     results: ModelFitResult[];
-    summary: string;
+}
+
+export interface PersistedFittingRunModel {
+    model: string;
+    status: 'success' | 'warning' | 'failed';
+    metrics: FitMetrics;
+}
+
+export interface PersistedFittingRunResponse {
+    run_id: number;
+    dataset_id: number;
+    isotherm_id: number;
+    status_detail: 'running' | 'completed' | 'warning' | 'failed' | 'cancelled';
+    message: string;
+    results: PersistedFittingRunModel[];
 }
 
 export interface ModelParameters {

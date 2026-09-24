@@ -18,9 +18,9 @@ from typing import Any
 from server.common.utils.encoding import normalize_error_text
 from server.common.utils.logger import logger as shared_logger
 
+
 ###############################################################################
 class _JobState:
-
     # -------------------------------------------------------------------------
     def __init__(self, job_id: str, job_type: str, status: str) -> None:
         self.job_id = job_id
@@ -55,9 +55,9 @@ class _JobState:
                 "completed_at": self.completed_at,
             }
 
+
 ###############################################################################
 class _JobExecutionConfig:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -74,9 +74,9 @@ class _JobExecutionConfig:
         self.process_message_handler = process_message_handler
         self.completion_handler = completion_handler
 
+
 ###############################################################################
 class _ProcessJobState:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -91,6 +91,7 @@ class _ProcessJobState:
         self.result_queue = result_queue
         self.message_queue = message_queue
         self.created_at = monotonic()
+
 
 ###############################################################################
 def run_process_runner(
@@ -127,6 +128,7 @@ def run_process_runner(
         except Exception:
             pass
 
+
 ###############################################################################
 class JobManager:
     PROCESS_STOP_TIMEOUT_SECONDS = 10.0
@@ -136,6 +138,7 @@ class JobManager:
         self._logger = logger or shared_logger
         self.jobs: dict[str, _JobState] = {}
         self.threads: dict[str, threading.Thread] = {}
+        self.thread_stop_events: dict[str, threading.Event] = {}
         self.processes: dict[str, _ProcessJobState] = {}
         self.job_configs: dict[str, _JobExecutionConfig] = {}
         self.lock = threading.Lock()
@@ -221,6 +224,11 @@ class JobManager:
             job_id = str(uuid.uuid4())[:8]
         state = _JobState(job_id=job_id, job_type=job_type, status="pending")
         runner_kwargs = kwargs.copy() if kwargs else {}
+        thread_stop_event = None
+
+        if run_mode == "thread" and self.supports_argument(runner, "stop_event"):
+            thread_stop_event = threading.Event()
+            runner_kwargs["stop_event"] = thread_stop_event
 
         if self._runner_accepts_job_id(runner):
             runner_kwargs["job_id"] = job_id
@@ -240,6 +248,8 @@ class JobManager:
         with self.lock:
             self.jobs[job_id] = state
             self.job_configs[job_id] = config
+            if thread_stop_event is not None:
+                self.thread_stop_events[job_id] = thread_stop_event
 
         thread = threading.Thread(
             target=self._run_job,
@@ -269,23 +279,34 @@ class JobManager:
         with self.lock:
             state = self.jobs.get(job_id)
             process_state = self.processes.get(job_id)
-        if state is None:
-            return False
-        if state.status not in ("pending", "running"):
-            return False
-        state.update(stop_requested=True, status="cancelled", completed_at=monotonic())
+            thread_stop_event = self.thread_stop_events.get(job_id)
+            if state is None:
+                return False
+            with state.lock:
+                if state.status not in ("pending", "running"):
+                    return False
+                state.stop_requested = True
+                state.status = "cancelled"
+                state.completed_at = monotonic()
         if process_state is not None:
             process_state.stop_event.set()
+        if thread_stop_event is not None:
+            thread_stop_event.set()
         self._logger.info("Cancelled job %s", job_id)
         return True
 
     # -------------------------------------------------------------------------
     def is_job_running(self, job_type: str | None = None) -> bool:
         with self.lock:
-            for state in self.jobs.values():
-                if state.status in ("pending", "running"):
-                    if job_type is None or state.job_type == job_type:
+            for job_id, state in self.jobs.items():
+                if job_type is not None and state.job_type != job_type:
+                    continue
+                with state.lock:
+                    if state.status in ("pending", "running"):
                         return True
+                thread = self.threads.get(job_id)
+                if thread is not None and thread.is_alive():
+                    return True
         return False
 
     # -------------------------------------------------------------------------
@@ -329,7 +350,7 @@ class JobManager:
     ) -> bool:
         try:
             signature = inspect.signature(runner)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
         for param in signature.parameters.values():
@@ -341,7 +362,7 @@ class JobManager:
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
         for param in signature.parameters.values():
             if param.kind == param.VAR_KEYWORD:
@@ -434,15 +455,11 @@ class JobManager:
         try:
             process_queue.close()
         except Exception as exc:  # noqa: BLE001
-            self._logger.debug(
-                "Could not close %s queue: %s", queue_name, exc
-            )
+            self._logger.debug("Could not close %s queue: %s", queue_name, exc)
         try:
             process_queue.join_thread()
         except Exception as exc:  # noqa: BLE001
-            self._logger.debug(
-                "Could not join %s queue feeder: %s", queue_name, exc
-            )
+            self._logger.debug("Could not join %s queue feeder: %s", queue_name, exc)
 
     # -------------------------------------------------------------------------
     def _cleanup_process_job(
@@ -679,13 +696,18 @@ class JobManager:
                 self._logger.info("Job %s completed successfully", job_id)
         except Exception as exc:  # noqa: BLE001
             error_msg = format_error_message(exc)
-            self.finalize_job(job_id, "failed", None, error_msg)
-            self._logger.error("Job %s failed: %s", job_id, error_msg)
-            self._logger.debug("Job %s error details", job_id, exc_info=True)
+            if state.stop_requested:
+                self.finalize_job(job_id, "cancelled", None, None)
+            else:
+                self.finalize_job(job_id, "failed", None, error_msg)
+                self._logger.error("Job %s failed: %s", job_id, error_msg)
+                self._logger.debug("Job %s error details", job_id, exc_info=True)
         finally:
             with self.lock:
                 self.job_configs.pop(job_id, None)
+                self.thread_stop_events.pop(job_id, None)
                 self.threads.pop(job_id, None)
+
 
 ###############################################################################
 def format_error_message(exc: Exception) -> str:

@@ -1,0 +1,8 @@
+.....                                                                    [100%]
+============================== warnings summary ===============================
+app\server\.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\server\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\tests\..\..\runtimes\cache\pytest\v\cache\nodeids: [Errno 13] Permission denied: 'G:\\Projects\\Repositories\\Active projects\\ADSMOD Adsorption Modeling\\app\\tests\\..\\..\\runtimes\\cache\\pytest\\v\\cache\\nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+5 passed, 1 warning in 1.93s

@@ -21,13 +21,16 @@ from server.repositories.schemas.types import (
     normalize_identity,
 )
 
+
 ###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
+
 ###############################################################################
 class Base(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class Dataset(Base):
@@ -75,6 +78,7 @@ class Dataset(Base):
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
+
 ###############################################################################
 class DatasetImport(Base):
     __tablename__ = "dataset_imports"
@@ -109,6 +113,7 @@ class DatasetImport(Base):
         ),
     )
 
+
 ###############################################################################
 class Adsorbate(Base):
     __tablename__ = "adsorbates"
@@ -141,6 +146,7 @@ class Adsorbate(Base):
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
+
 ###############################################################################
 class Adsorbent(Base):
     __tablename__ = "adsorbents"
@@ -171,6 +177,7 @@ class Adsorbent(Base):
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
+
 
 ###############################################################################
 class Isotherm(Base):
@@ -247,6 +254,7 @@ class Isotherm(Base):
         Index("ix_isotherms_dataset_name", "dataset_id", "name"),
     )
 
+
 ###############################################################################
 class IsothermComponent(Base):
     __tablename__ = "isotherm_components"
@@ -278,6 +286,7 @@ class IsothermComponent(Base):
             name="ck_components_fraction",
         ),
     )
+
 
 ###############################################################################
 class Observation(Base):
@@ -341,6 +350,7 @@ class Observation(Base):
         ),
     )
 
+
 ###############################################################################
 class FittingRun(Base):
     __tablename__ = "fitting_runs"
@@ -374,12 +384,13 @@ class FittingRun(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('running', 'completed', 'warning', 'failed')",
+            "status IN ('running', 'completed', 'warning', 'failed', 'cancelled')",
             name="ck_fitting_runs_status",
         ),
         CheckConstraint("max_evaluations > 0", name="ck_fitting_runs_evaluations"),
         Index("ix_fitting_runs_isotherm_created", "isotherm_id", "created_at"),
     )
+
 
 ###############################################################################
 class FitResult(Base):
@@ -431,6 +442,7 @@ class FitResult(Base):
         Index("ix_fit_results_run_rank", "run_id", "rank"),
     )
 
+
 ###############################################################################
 class FitParameter(Base):
     __tablename__ = "fit_parameters"
@@ -452,6 +464,7 @@ class FitParameter(Base):
         UniqueConstraint("result_id", "position", name="uq_fit_parameters_position"),
         CheckConstraint("position >= 0", name="ck_fit_parameters_position"),
     )
+
 
 ###############################################################################
 class TrainingSnapshot(Base):
@@ -477,6 +490,7 @@ class TrainingSnapshot(Base):
     __table_args__ = (
         CheckConstraint("row_count > 0", name="ck_training_snapshots_row_count"),
     )
+
 
 ###############################################################################
 class TrainingSnapshotRow(Base):

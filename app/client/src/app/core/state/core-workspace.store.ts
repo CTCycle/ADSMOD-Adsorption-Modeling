@@ -8,8 +8,10 @@ import type {
     FittingConfiguration,
     FittingPayload,
     FittingResponse,
+    FittingResultSummary,
     ModelParameters,
     ModelCatalogResponse,
+    PersistedFittingRunResponse,
 } from '../../models/fitting.model';
 import {
     deleteDataset,
@@ -19,6 +21,8 @@ import {
     updateMetadata,
 } from '../../services/dataset.service';
 import {
+    cancelFittingJob,
+    fetchPersistedFittingRun,
     pollFittingJobUntilComplete,
     startFittingJob,
     fetchFittingConfiguration,
@@ -26,6 +30,17 @@ import {
 } from '../../services/fitting.service';
 
 export type OptimizationMethod = FittingPayload['optimizer'];
+
+const FITTING_LAST_RUN_KEY = 'adsmod.fitting.last-run';
+
+interface StoredFittingRunContext {
+    run_id: number;
+    dataset_name: string;
+    experiment_name: string;
+    observation_count: number;
+    best_model: string | null;
+    model_names: Record<string, string>;
+}
 
 interface ModelState {
     enabled: boolean;
@@ -42,8 +57,10 @@ export class CoreWorkspaceStore {
     readonly optimizationMethod = signal<OptimizationMethod | null>(null);
     readonly weighting = signal<FittingPayload['weighting'] | null>(null);
     readonly fittingStatus = signal('');
-    readonly fittingResult = signal<FittingResponse | null>(null);
+    readonly fittingResult = signal<FittingResultSummary | null>(null);
     readonly fittingRunning = signal(false);
+    readonly fittingJobId = signal<string | null>(null);
+    readonly fittingCancellationPending = signal(false);
     readonly datasets = signal<DatasetSummary[]>([]);
     readonly customDatasets = computed(() => this.datasets().filter((dataset) => dataset.source === 'uploaded'));
     readonly selectedDatasetId = signal<number | null>(null);
@@ -78,6 +95,7 @@ export class CoreWorkspaceStore {
         void this.refreshDatasets();
         void this.loadConfiguration();
         void this.loadCatalog();
+        void this.restoreLastFittingRun();
     }
 
     async loadConfiguration(): Promise<void> {
@@ -146,6 +164,7 @@ export class CoreWorkspaceStore {
         this.selectedExperimentId.set(null);
         this.experiments.set([]);
         this.fittingResult.set(null);
+        this.clearStoredFittingRun();
         if (datasetId === null) {
             this.experimentsLoading.set(false);
             return;
@@ -176,6 +195,7 @@ export class CoreWorkspaceStore {
         this.fittingRunning.set(false);
         this.selectedExperimentId.set(experimentId);
         this.fittingResult.set(null);
+        this.clearStoredFittingRun();
     }
 
     async deleteDataset(datasetId: number): Promise<void> {
@@ -226,6 +246,7 @@ export class CoreWorkspaceStore {
     resetFittingStatus(): void {
         this.fittingStatus.set('');
         this.fittingResult.set(null);
+        this.clearStoredFittingRun();
     }
 
     setModelEnabled(modelId: string, enabled: boolean): void {
@@ -247,6 +268,7 @@ export class CoreWorkspaceStore {
     }
 
     async startFitting(): Promise<void> {
+        if (this.fittingRunning()) return;
         const datasetId = this.selectedDatasetId();
         const experiment = this.selectedExperiment();
         if (datasetId === null) {
@@ -282,6 +304,7 @@ export class CoreWorkspaceStore {
         }
 
         const revision = ++this.fittingRevision;
+        this.clearStoredFittingRun();
         const fittingContext = {
             datasetId,
             experimentId: experiment.id,
@@ -294,13 +317,37 @@ export class CoreWorkspaceStore {
             optimizer,
             max_evaluations: maxEvaluations,
             weighting,
-            parameter_configuration: {},
+            parameter_configuration: Object.fromEntries(
+                Object.entries(this.modelStates())
+                    .filter(([, state]) => state.enabled)
+                    .map(([modelId, state]) => {
+                        const model = this.modelCatalog()?.models.find(
+                            (candidate) => candidate.key === modelId,
+                        );
+                        const parameters = Object.fromEntries(
+                            Object.entries(state.config).map(([name, bounds]) => {
+                                const catalogInitial = model?.parameters.find(
+                                    (parameter) => parameter.name === name,
+                                )?.initial;
+                                const initial = catalogInitial ?? (bounds.min + bounds.max) / 2;
+                                return [name, {
+                                    lower: bounds.min,
+                                    upper: bounds.max,
+                                    initial: Math.min(bounds.max, Math.max(bounds.min, initial)),
+                                }];
+                            }),
+                        );
+                        return [modelId, parameters];
+                    }),
+            ),
             display_units: {
                 pressure: experiment.pressure_basis === 'relative' ? '1' : configuration.display_units.default_pressure,
                 uptake: configuration.display_units.default_uptake,
             },
         };
         this.fittingRunning.set(true);
+        this.fittingJobId.set(null);
+        this.fittingCancellationPending.set(false);
         this.fittingStatus.set('[INFO] Fitting canonical observation series…');
         this.fittingResult.set(null);
         const started = await startFittingJob(payload);
@@ -309,15 +356,21 @@ export class CoreWorkspaceStore {
             this.selectedDatasetId() !== fittingContext.datasetId ||
             this.selectedExperimentId() !== fittingContext.experimentId
         ) {
+            if (started.jobId) await cancelFittingJob(started.jobId);
+            this.fittingRunning.set(false);
+            this.fittingJobId.set(null);
+            this.fittingCancellationPending.set(false);
             return;
         }
         if (started.error || !started.jobId) {
             this.fittingRunning.set(false);
+            this.fittingJobId.set(null);
             this.fittingStatus.set(
                 `[ERROR] ${started.error || 'Failed to start fitting.'}`,
             );
             return;
         }
+        this.fittingJobId.set(started.jobId);
         const result = await pollFittingJobUntilComplete(
             started.jobId,
             started.pollInterval,
@@ -327,10 +380,146 @@ export class CoreWorkspaceStore {
             this.selectedDatasetId() !== fittingContext.datasetId ||
             this.selectedExperimentId() !== fittingContext.experimentId
         ) {
+            this.fittingRunning.set(false);
+            this.fittingJobId.set(null);
+            this.fittingCancellationPending.set(false);
             return;
         }
         this.fittingRunning.set(false);
+        this.fittingJobId.set(null);
+        this.fittingCancellationPending.set(false);
         this.fittingStatus.set(result.message);
         this.fittingResult.set(result.data);
+        this.storeFittingRunContext(result.data);
+    }
+
+    async cancelFitting(): Promise<void> {
+        const jobId = this.fittingJobId();
+        if (!jobId || !this.fittingRunning() || this.fittingCancellationPending()) {
+            return;
+        }
+        this.fittingCancellationPending.set(true);
+        const result = await cancelFittingJob(jobId);
+        if (result.error) {
+            this.fittingCancellationPending.set(false);
+            this.fittingStatus.set(
+                `[WARN] Cancellation could not be confirmed: ${result.error}`,
+            );
+            return;
+        }
+        this.fittingStatus.set('[INFO] Cancellation requested…');
+    }
+
+    private async restoreLastFittingRun(): Promise<void> {
+        const context = this.readStoredFittingRunContext();
+        if (!context) return;
+
+        const revision = this.fittingRevision;
+        const restored = await fetchPersistedFittingRun(context.run_id);
+        if (
+            revision !== this.fittingRevision ||
+            this.fittingRunning() ||
+            !this.readStoredFittingRunContext()
+        ) {
+            return;
+        }
+        if (!restored.data) {
+            this.fittingStatus.set(
+                `[WARN] Could not restore the last fitting result: ${restored.error || 'No result was returned.'}`,
+            );
+            if (restored.error?.toLowerCase().includes('does not exist')) {
+                this.clearStoredFittingRun();
+            }
+            return;
+        }
+        if (
+            restored.data.status_detail !== 'completed' &&
+            restored.data.status_detail !== 'warning'
+        ) {
+            this.clearStoredFittingRun();
+            return;
+        }
+
+        this.fittingResult.set(
+            this.toFittingResultSummary(restored.data, context),
+        );
+        this.fittingStatus.set('[INFO] Restored the last completed fitting run.');
+    }
+
+    private toFittingResultSummary(
+        run: PersistedFittingRunResponse,
+        context: StoredFittingRunContext,
+    ): FittingResultSummary {
+        return {
+            status: run.status_detail === 'warning' ? 'warning' : 'success',
+            run_id: run.run_id,
+            dataset_id: run.dataset_id,
+            isotherm_id: run.isotherm_id,
+            dataset_name: context.dataset_name,
+            experiment_name: context.experiment_name,
+            observation_count: context.observation_count,
+            best_model: context.best_model,
+            results: run.results.map((result) => ({
+                model: result.model,
+                name: context.model_names[result.model] ?? result.model,
+                status: result.status,
+                metrics: result.metrics,
+            })),
+            summary: run.message,
+        };
+    }
+
+    private storeFittingRunContext(result: FittingResponse | null): void {
+        if (!result?.run_id || result.status === 'error') return;
+        try {
+            const context: StoredFittingRunContext = {
+                run_id: result.run_id,
+                dataset_name: result.dataset_name,
+                experiment_name: result.experiment_name,
+                observation_count: result.observation_count,
+                best_model: result.best_model,
+                model_names: Object.fromEntries(
+                    result.results.map((fit) => [fit.model, fit.name]),
+                ),
+            };
+            window.localStorage.setItem(
+                FITTING_LAST_RUN_KEY,
+                JSON.stringify(context),
+            );
+        } catch {
+            // Local storage can be disabled; the live result remains usable.
+        }
+    }
+
+    private readStoredFittingRunContext(): StoredFittingRunContext | null {
+        try {
+            const stored = window.localStorage.getItem(FITTING_LAST_RUN_KEY);
+            if (!stored) return null;
+            const context = JSON.parse(stored) as Partial<StoredFittingRunContext>;
+            if (
+                !Number.isInteger(context.run_id) ||
+                (context.run_id ?? 0) < 1 ||
+                typeof context.dataset_name !== 'string' ||
+                typeof context.experiment_name !== 'string' ||
+                !Number.isInteger(context.observation_count) ||
+                !context.model_names ||
+                typeof context.model_names !== 'object'
+            ) {
+                this.clearStoredFittingRun();
+                return null;
+            }
+            return context as StoredFittingRunContext;
+        } catch {
+            this.clearStoredFittingRun();
+            return null;
+        }
+    }
+
+    private clearStoredFittingRun(): void {
+        try {
+            window.localStorage.removeItem(FITTING_LAST_RUN_KEY);
+        } catch {
+            // Local storage can be disabled.
+        }
     }
 }

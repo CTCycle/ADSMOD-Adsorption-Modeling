@@ -1,0 +1,315 @@
+....................FFFFF                                                [100%]
+================================== FAILURES ===================================
+__________________ TestFittingRun.test_run_fitting_langmuir ___________________
+
+self = <e2e.test_fitting_api.TestFittingRun object at 0x0000027A018BE5D0>
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x0000027A020D6F90>
+sample_csv_path = WindowsPath('G:/Projects/Repositories/Active projects/ADSMOD Adsorption Modeling/app/tests/fixtures/sample_adsorption.csv')
+
+    def test_run_fitting_langmuir(
+        self, api_context: APIRequestContext, sample_csv_path: str
+    ) -> None:
+        """Verify fitting with Langmuir model succeeds."""
+>       dataset_id, isotherm_id = self._fitting_target(api_context, sample_csv_path)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\tests\e2e\test_fitting_api.py:72:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\tests\e2e\test_fitting_api.py:33: in _fitting_target
+    dataset = _commit_sample(
+app\tests\e2e\test_datasets_api.py:68: in _commit_sample
+    file_content, mapping = _build_mapping(api_context, sample_csv_path, dataset_name)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\e2e\test_datasets_api.py:24: in _build_mapping
+    response = api_context.post(
+app\server\.venv\Lib\site-packages\playwright\sync_api\_generated.py:21455: in post
+    self._sync(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:290: in post
+    return await self.fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:329: in fetch
+    return await self._inner_fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:435: in _inner_fetch
+    response = await self._channel.send(
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x0000027A020D4EC0>
+cb = <function Channel.send.<locals>.<lambda> at 0x0000027A02108250>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: APIRequestContext.post: connect ECONNREFUSED 127.0.0.1:6045
+E           Call log:
+E             - \u2192 POST http://127.0.0.1:6045/api/v1/datasets/import/preview
+E               - user-agent: Playwright/1.62.0 (x64; windows 10.0) python/3.14
+E               - accept: */*
+E               - accept-encoding: gzip,deflate,br
+E               - content-type: multipart/form-data; boundary=----WebKitFormBoundaryrpzvCx0NN7wfhElI
+E               - content-length: 1275
+
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:632: Error
+_______________ TestFittingRun.test_run_fitting_multiple_models _______________
+
+self = <e2e.test_fitting_api.TestFittingRun object at 0x0000027A018BE0D0>
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x0000027A020D6F90>
+sample_csv_path = WindowsPath('G:/Projects/Repositories/Active projects/ADSMOD Adsorption Modeling/app/tests/fixtures/sample_adsorption.csv')
+
+    def test_run_fitting_multiple_models(
+        self, api_context: APIRequestContext, sample_csv_path: str
+    ) -> None:
+        """Verify fitting with multiple models succeeds."""
+>       dataset_id, isotherm_id = self._fitting_target(api_context, sample_csv_path)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\tests\e2e\test_fitting_api.py:98:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\tests\e2e\test_fitting_api.py:33: in _fitting_target
+    dataset = _commit_sample(
+app\tests\e2e\test_datasets_api.py:68: in _commit_sample
+    file_content, mapping = _build_mapping(api_context, sample_csv_path, dataset_name)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\e2e\test_datasets_api.py:24: in _build_mapping
+    response = api_context.post(
+app\server\.venv\Lib\site-packages\playwright\sync_api\_generated.py:21455: in post
+    self._sync(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:290: in post
+    return await self.fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:329: in fetch
+    return await self._inner_fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:435: in _inner_fetch
+    response = await self._channel.send(
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x0000027A020D4EC0>
+cb = <function Channel.send.<locals>.<lambda> at 0x0000027A01F68670>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: APIRequestContext.post: connect ECONNREFUSED 127.0.0.1:6045
+E           Call log:
+E             - \u2192 POST http://127.0.0.1:6045/api/v1/datasets/import/preview
+E               - user-agent: Playwright/1.62.0 (x64; windows 10.0) python/3.14
+E               - accept: */*
+E               - accept-encoding: gzip,deflate,br
+E               - content-type: multipart/form-data; boundary=----WebKitFormBoundaryDLE8BA5RkW6eqs73
+E               - content-length: 1275
+
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:632: Error
+______________ TestFittingRun.test_run_fitting_invalid_optimizer ______________
+
+self = <e2e.test_fitting_api.TestFittingRun object at 0x0000027A0188B100>
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x0000027A020D6F90>
+sample_csv_path = WindowsPath('G:/Projects/Repositories/Active projects/ADSMOD Adsorption Modeling/app/tests/fixtures/sample_adsorption.csv')
+
+    def test_run_fitting_invalid_optimizer(
+        self, api_context: APIRequestContext, sample_csv_path: str
+    ) -> None:
+        """Verify an unsupported optimizer is rejected by request validation."""
+>       dataset_id, isotherm_id = self._fitting_target(api_context, sample_csv_path)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\tests\e2e\test_fitting_api.py:124:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\tests\e2e\test_fitting_api.py:33: in _fitting_target
+    dataset = _commit_sample(
+app\tests\e2e\test_datasets_api.py:68: in _commit_sample
+    file_content, mapping = _build_mapping(api_context, sample_csv_path, dataset_name)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\tests\e2e\test_datasets_api.py:24: in _build_mapping
+    response = api_context.post(
+app\server\.venv\Lib\site-packages\playwright\sync_api\_generated.py:21455: in post
+    self._sync(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:290: in post
+    return await self.fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:329: in fetch
+    return await self._inner_fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:435: in _inner_fetch
+    response = await self._channel.send(
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x0000027A020D4EC0>
+cb = <function Channel.send.<locals>.<lambda> at 0x0000027A4D9C6820>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: APIRequestContext.post: connect ECONNREFUSED 127.0.0.1:6045
+E           Call log:
+E             - \u2192 POST http://127.0.0.1:6045/api/v1/datasets/import/preview
+E               - user-agent: Playwright/1.62.0 (x64; windows 10.0) python/3.14
+E               - accept: */*
+E               - accept-encoding: gzip,deflate,br
+E               - content-type: multipart/form-data; boundary=----WebKitFormBoundaryBIZYqaN5VTp3tqK7
+E               - content-length: 1275
+
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:632: Error
+___________________ TestModelCatalog.test_get_model_catalog ___________________
+
+self = <e2e.test_fitting_api.TestModelCatalog object at 0x0000027A018BE710>
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x0000027A020D6F90>
+
+    def test_get_model_catalog(self, api_context: APIRequestContext) -> None:
+>       response = api_context.get("/api/v1/fitting/models")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\tests\e2e\test_fitting_api.py:145:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\server\.venv\Lib\site-packages\playwright\sync_api\_generated.py:21154: in get
+    self._sync(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:203: in get
+    return await self.fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:329: in fetch
+    return await self._inner_fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:435: in _inner_fetch
+    response = await self._channel.send(
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x0000027A020D4EC0>
+cb = <function Channel.send.<locals>.<lambda> at 0x0000027A01E37A00>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: APIRequestContext.get: connect ECONNREFUSED 127.0.0.1:6045
+E           Call log:
+E             - \u2192 GET http://127.0.0.1:6045/api/v1/fitting/models
+E               - user-agent: Playwright/1.62.0 (x64; windows 10.0) python/3.14
+E               - accept: */*
+E               - accept-encoding: gzip,deflate,br
+
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:632: Error
+____________ TestFittingJobs.test_cancel_unknown_job_returns_error ____________
+
+self = <e2e.test_fitting_api.TestFittingJobs object at 0x0000027A018BE850>
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x0000027A020D6F90>
+
+    def test_cancel_unknown_job_returns_error(
+        self, api_context: APIRequestContext
+    ) -> None:
+>       response = api_context.delete("/api/v1/fitting/jobs/unknown-job")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\tests\e2e\test_fitting_api.py:166:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\server\.venv\Lib\site-packages\playwright\sync_api\_generated.py:20962: in delete
+    self._sync(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:145: in delete
+    return await self.fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:329: in fetch
+    return await self._inner_fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:435: in _inner_fetch
+    response = await self._channel.send(
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:76: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x0000027A020D4EC0>
+cb = <function Channel.send.<locals>.<lambda> at 0x0000027A0206B110>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        parsed_st = _attach_api_call_information(
+            getattr(task, "__pw_stack__", None) or _capture_stack_trace(),
+            is_internal,
+            title,
+        )
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: APIRequestContext.delete: connect ECONNREFUSED 127.0.0.1:6045
+E           Call log:
+E             - \u2192 DELETE http://127.0.0.1:6045/api/v1/fitting/jobs/unknown-job
+E               - user-agent: Playwright/1.62.0 (x64; windows 10.0) python/3.14
+E               - accept: */*
+E               - accept-encoding: gzip,deflate,br
+
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:632: Error
+============================== warnings summary ===============================
+app\server\.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\server\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\tests\..\..\runtimes\cache\pytest\v\cache\nodeids: [Errno 13] Permission denied: 'G:\\Projects\\Repositories\\Active projects\\ADSMOD Adsorption Modeling\\app\\tests\\..\\..\\runtimes\\cache\\pytest\\v\\cache\\nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+app\server\.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\server\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\tests\..\..\runtimes\cache\pytest\v\cache\lastfailed: [WinError 183] Impossibile creare un file, se il file esiste gi�: 'G:\\Projects\\Repositories\\Active projects\\ADSMOD Adsorption Modeling\\app\\tests\\..\\..\\runtimes\\cache\\pytest\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED app\tests\e2e\test_fitting_api.py::TestFittingRun::test_run_fitting_langmuir
+FAILED app\tests\e2e\test_fitting_api.py::TestFittingRun::test_run_fitting_multiple_models
+FAILED app\tests\e2e\test_fitting_api.py::TestFittingRun::test_run_fitting_invalid_optimizer
+FAILED app\tests\e2e\test_fitting_api.py::TestModelCatalog::test_get_model_catalog
+FAILED app\tests\e2e\test_fitting_api.py::TestFittingJobs::test_cancel_unknown_job_returns_error
+5 failed, 20 passed, 2 warnings in 41.67s

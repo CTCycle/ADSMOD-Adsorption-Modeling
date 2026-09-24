@@ -1,4 +1,4 @@
-import type { FittingConfiguration, FittingPayload, FittingResponse, ModelCatalogResponse } from '../models/fitting.model';
+import type { FittingConfiguration, FittingPayload, FittingResponse, ModelCatalogResponse, PersistedFittingRunResponse } from '../models/fitting.model';
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type { JobStatusResponse } from '../models/job.model';
 import { pollJobUntilTerminal, startJob } from './job.service';
@@ -9,6 +9,52 @@ export async function startFittingJob(
     payload: FittingPayload
 ): Promise<JobStartResult> {
     return startJob('/fitting/run', payload);
+}
+
+export async function cancelFittingJob(
+    jobId: string,
+): Promise<{ error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/fitting/jobs/${encodeURIComponent(jobId)}`,
+            { method: 'DELETE' },
+            HTTP_TIMEOUT,
+        );
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return { error: extractErrorMessage(response, body) };
+        }
+        return { error: null };
+    } catch (error) {
+        return {
+            error: error instanceof Error ? error.message : 'An unknown error occurred.',
+        };
+    }
+}
+
+export async function fetchPersistedFittingRun(
+    runId: number,
+): Promise<{ data: PersistedFittingRunResponse | null; error: string | null }> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/fitting/runs/${runId}`,
+            { method: 'GET' },
+            HTTP_TIMEOUT,
+        );
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return { data: null, error: extractErrorMessage(response, body) };
+        }
+        if (!body || typeof body !== 'object') {
+            return { data: null, error: 'Invalid persisted fitting run response.' };
+        }
+        return { data: body as PersistedFittingRunResponse, error: null };
+    } catch (error) {
+        return {
+            data: null,
+            error: error instanceof Error ? error.message : 'An unknown error occurred.',
+        };
+    }
 }
 
 export async function pollFittingJobUntilComplete(
