@@ -207,4 +207,4 @@ the current Base virtual environment has neither Torch nor RDKit, so the
 positive lifecycle has not been rerun against this revision. The top-level
 dashboards remain `PARTIAL` (`ISSUE-005`) pending a product-scope decision and
 positive current training output. These ML/dashboard gates remain separate
-follow-up work.
+follow-up work. See the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
