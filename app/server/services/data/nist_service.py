@@ -668,24 +668,29 @@ class NISTDataService:
             category = "guest"
             data = guest_data.copy()
             adsorbate_series = adsorption_data.get("adsorbate", pd.Series(dtype=str))
-            name_series = pd.concat(
-                [
-                    adsorbate_series,
-                    data.get("name", pd.Series(dtype=str)),
-                ]
-            )
         elif target == "host":
             category = "host"
             data = host_data.copy()
             adsorbent_series = adsorption_data.get("adsorbent", pd.Series(dtype=str))
-            name_series = pd.concat(
-                [
-                    adsorbent_series,
-                    data.get("name", pd.Series(dtype=str)),
-                ]
-            )
         else:
             raise ValueError("Target must be 'guest' or 'host'.")
+
+        reference_data = await asyncio.to_thread(
+            self.repository.load_nist_reference_materials, category
+        )
+        data = pd.concat([data, reference_data], ignore_index=True)
+        if not data.empty:
+            data["_normalized_name"] = (
+                data["name"].astype("string").str.strip().str.casefold()
+            )
+            data = data.drop_duplicates(subset=["_normalized_name"], keep="last")
+            data = data.drop(columns=["_normalized_name"])
+        name_series = pd.concat(
+            [
+                adsorbate_series if category == "guest" else adsorbent_series,
+                data.get("name", pd.Series(dtype=str)),
+            ]
+        )
 
         weight_col = "molecular_weight"
         formula_col = "molecular_formula"

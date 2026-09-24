@@ -102,9 +102,9 @@ adjacent regression, then update the ledger.
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
 | `ADS-T3-01` | Locally persisted Public Data browsing, filtering, pagination, and provenance without requiring new retrieval. | PASS on `396e2e0`; isolated-database browser evidence covers lists, filters, pagination, detail provenance, and empty structures state. |
-| `ADS-T3-02` | NIST status, index, fetch, and job lifecycle without chemical enrichment. | PARTIAL on `396e2e0`; pings/index and experiments fetch passed, guest/host fetch remains unrun after browser access was denied at the usage limit. |
-| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. | PARTIAL on `396e2e0`; focused tests and the live 14/40 unsupported-unit skip counter passed; guest/host enrichment remains unvalidated. |
-| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. | UNTESTED in this campaign; positive enrichment and persistence still need a bounded run. |
+| `ADS-T3-02` | NIST status, index, fetch, and job lifecycle without chemical enrichment. | PASS on the 2026-09-24 working-tree NIST fix; all pings/indexes and bounded experiment/guest/host fetches completed, repeated category fetches added no duplicates, and counts persisted after reload. |
+| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. | PARTIAL on the 2026-09-24 working-tree NIST fix; guest enrichment matched/updated 1/1, host enrichment matched/updated 0/10, and 14/40 experiments remain excluded under `ISSUE-002`. |
+| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. | UNTESTED for the separate Public Data provider flow; NIST's legacy `PubChemClient` guest enrichment does not cover provider resolution, structures, or provenance. |
 | `ADS-T3-05` | Positive COD search, CIF import, normalized persistence, linking, and re-import; no 3D viewer claim. | UNTESTED in this campaign; historical no-result search is not positive import/link evidence. |
 
 ### Tier 4 — ML and integration-heavy workflows
@@ -184,22 +184,26 @@ recovery. The campaign found and fixed a missing `cancelled` SQLite status and
 the result-reload gap. See the linked slice summaries and the canonical
 [`project status ledger`](../project_status_ledger.md).
 
-On baseline SHA `396e2e092d810ef5182713a563f1de69eb0b5eca`, `ADS-T3-01` passed
-for local persisted browsing. `ADS-T3-02` and `ADS-T3-03` are `PARTIAL`: NIST
-ping/index and an experiments fetch completed, and the live job reported 14
-records without canonical units among 40 requested. Guest/host fetch and
-enrichment were not run because browser auto-review denied further access after
-the usage limit was reached. See the current
+On code based on baseline SHA `223dc5862cb453f5171155af5486490965a6cdd9` plus
+the NIST working-tree fix, `ADS-T3-01` and `ADS-T3-02` are `PASS`.
+`ADS-T3-02` now has rendered evidence for all three pings/indexes, an
+experiments fetch (40 requested and received, 26 persisted, 14 skipped),
+guest/host fetches (1 and 10 records), duplicate suppression on repeated
+fetches, and persisted counts after reload. `ADS-T3-03` remains `PARTIAL`:
+guest enrichment matched and updated 1/1, while the bounded host sample matched
+and updated 0/10; the 14 experiment records without safe canonical units remain
+excluded under `ISSUE-002`. See the current
 [`ADS-T3-01`](../../QA/validation/2026-09-24/ADS-T3-01/summary.md),
 [`ADS-T3-02`](../../QA/validation/2026-09-24/ADS-T3-02/summary.md), and
 [`ADS-T3-03`](../../QA/validation/2026-09-24/ADS-T3-03/summary.md) evidence.
 
-The next actionable work is to complete guest/host NIST fetch and enrichment
-through the rendered workflow on an isolated database, then confirm persisted
-records and counts. `ISSUE-002` remains open until the 14 skipped measurement
-bases can be converted safely or a coverage policy explicitly handles them.
-Only after the NIST slices are complete should the positive PubChem (`ADS-T3-04`)
-and COD (`ADS-T3-05`, `ISSUE-004`) paths be selected.
+The next NIST action is to resolve `ISSUE-002`: choose a physically supported
+conversion basis or document how the 14 unsupported measurement records are
+handled, then rerun representative cases. Do not infer conversions from the
+current sample. A positive host-enrichment sample also remains useful because
+the bounded set of 10 hosts had no PubChem match. The separate Public Data
+PubChem flow (`ADS-T3-04`) and positive COD import (`ADS-T3-05`, `ISSUE-004`)
+remain `UNTESTED`; select them after the NIST coverage limitation is resolved.
 
 The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) for the current
 baseline: a valid-SMILES fixture and historical CPU certification exist, but

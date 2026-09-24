@@ -1,0 +1,13 @@
+Ruff validation evidence
+
+Repository and repository-test files: exit 0
+All checks passed!
+
+Service at baseline HEAD: exit 0
+All checks passed!
+
+Current service default rules: exit 0
+All checks passed!
+
+Current service with existing complexity rules ignored: exit 0
+All checks passed!

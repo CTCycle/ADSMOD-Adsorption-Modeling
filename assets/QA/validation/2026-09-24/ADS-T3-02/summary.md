@@ -1,45 +1,61 @@
 # ADS-T3-02 — NIST status, indexing, and fetch lifecycle
 
 Date: 2026-09-24
-Baseline: `396e2e092d810ef5182713a563f1de69eb0b5eca`
-Status: `PARTIAL`
+
+Code under test: working-tree changes based on `223dc5862cb453f5171155af5486490965a6cdd9`
+Status: `PASS`
 
 ## Exercised
 
-On the isolated database copy, the rendered Sources view reached NIST status
-and showed 433 cached NIST records. The experiments, guest, and host provider
-ping actions all reported that their servers were reachable. Index actions
-completed and reported 39,988 available experiments, 455 guests, and 9,328
-hosts.
+Started the official Windows launcher with a fresh isolated `%LOCALAPPDATA%`
+profile and exercised the rendered Public Data → Sources workflow in the
+Codex in-app browser at `http://127.0.0.1:5173/public-data/sources` (1280×720).
+The configured application database was not used or modified.
 
-The experiments fetch used a fraction of `0.001`. The UI reported 40 requested,
-14 fetched, 255 local records, and 14 skipped for lack of canonical units. The
-backend log confirms `requested=40`, `fetched=14`, `local=255`, followed by
-`skipped 14 of 14 fetched records`; the local count remained 255, so no
-positive persisted growth is established. The log records unsupported `%
-Volume Adsorbed` and `wt%` measurements that lacked a positive adsorbate molar
-mass. See [`../ADS-T3-01/backend.stderr.log`](../ADS-T3-01/backend.stderr.log)
-and [`../ADS-T3-03/summary.md`](../ADS-T3-03/summary.md).
+The three NIST pings reported reachable. Index actions reported 39,988
+experiments, 455 guests, and 9,328 hosts. With fraction `0.001`, the rendered
+workflow fetched 1 guest and 10 hosts. Repeating both category fetches returned
+zero new records, leaving their local source-record totals at 1 and 10.
 
-## Incomplete coverage
+The experiments fetch requested and received 40 records. The UI reported 26
+local records and 14 skipped records without canonical units. SQLite confirms
+26 persisted isotherms and 26 NIST adsorption provenance records. The 14 skips
+are tracked under `ISSUE-002` and `ADS-T3-03`.
 
-Guest and host fetch jobs were not run. Further browser interaction was denied
-by Codex browser auto-review after the experiments fetch, with the tool
-reporting that the usage limit had been reached. This is an access/tooling
-boundary, not a failed NIST response; no workaround was attempted. The
-experiments fetch completed before that denial. As a result, the full NIST job
-lifecycle is not validated and this slice remains `PARTIAL`.
+After a browser reload, the acquisition view still showed 26/39,988
+experiments, 8/455 guests, and 14/9,328 hosts (48 local category records in
+total). The larger guest/host totals include entities linked to the fetched
+experiments as well as the directly fetched category records. The provider card
+reported 37 cached NIST provenance records: 26 adsorption, 1 chemical, and 10
+material records.
+
+## Persistence and integrity
+
+The isolated database passed `PRAGMA quick_check` and was at Alembic revision
+`20260924_fitting_cancel`. Its NIST source-record composition and experiment
+count match the rendered totals. The original configured database SHA-256
+remained `5446E0BAB31479D86D7A4C80EA5D2349008C06B13F0CC70E97FA7284F65E7722`.
+
+The live fetch exposed a defect in category counts and duplicate filtering:
+standalone NIST guest/host source records were not included by repository
+queries. The repository now includes direct NIST source links alongside
+experiment-linked records. The regression tests cover these counts, identifier
+sets, and standalone reference-material loading. See
+[`../ADS-T3-03/summary.md`](../ADS-T3-03/summary.md) for the associated
+enrichment repair.
 
 ## Supporting checks
 
-The focused backend public-data/NIST suite passed 14 tests, the NIST frontend
-unit suite passed 3 tests, focused Ruff passed, frontend lint passed, and the
-production frontend build completed. See
-[`../ADS-T3-01/summary.md`](../ADS-T3-01/summary.md) for commands, build output,
-isolation, source-database integrity, and cleanup evidence.
+`test_nist_repository.py` and `test_public_data.py`: 15 passed. Ruff passed for
+the changed repository, service, and repository tests. `git diff --check`
+passed. Logs are in [`nist-public-data-tests.log`](nist-public-data-tests.log)
+and [`nist-ruff.log`](nist-ruff.log); the rendered state is captured in
+[`browser-state.md`](browser-state.md).
 
-## Next action
+## Remaining scope
 
-Complete guest and host fetch through the rendered workflow on an isolated
-database when in-app browser access is available. Confirm resulting local
-counts and persisted records before upgrading this slice to `PASS`.
+This pass validates bounded fractions and reachable provider responses; it
+does not establish completeness or stable availability of the full external
+NIST catalog. Unsupported experiment measurements remain explicitly tracked by
+`ISSUE-002`. Positive PubChem public-data provider behavior and COD importing
+remain separate `UNTESTED` gates (`ADS-T3-04` and `ADS-T3-05`).
