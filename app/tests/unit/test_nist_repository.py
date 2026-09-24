@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from server.configurations.settings import DatabaseConfig
+from server.repositories.public_data import PublicDataRepository
 from server.services.data.nist_mapper import NISTCanonicalMapper
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
@@ -23,10 +24,13 @@ def build_nist_repository(path: Path) -> NISTRepository:
     database = DatabaseManager(settings)
     Base.metadata.create_all(database.engine)
     datasets = DatasetRepository(database)
+    public_data = PublicDataRepository(database)
+    public_data.ensure_sources()
     return NISTRepository(
         database=database,
         datasets=datasets,
         materials=MaterialRepository(database),
+        public_data=public_data,
     )
 
 ###############################################################################
@@ -133,6 +137,48 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
     assert {"pressure", "adsorbed_amount"}.issubset(adsorption.columns)
     assert set(guests["name"]) == {"methane", "nitrogen", "argon"}
     assert set(hosts["name"]) == {"silica", "carbon"}
+    assert repository.count_local_records_by_category() == {
+        "experiments": 2,
+        "guest": 6,
+        "host": 4,
+    }
+    assert repository.list_adsorbate_inchi_keys() == {
+        "a" * 27,
+        "b" * 27,
+        "c" * 27,
+    }
+    assert repository.list_adsorbent_hash_keys() == {"host-1", "host-2"}
+
+###############################################################################
+def test_nist_category_counts_include_standalone_reference_records(
+    tmp_path: Path,
+) -> None:
+    repository = build_nist_repository(tmp_path / "nist.db")
+    mapper = NISTCanonicalMapper()
+    repository.save_materials(
+        mapper.material_records(
+            pd.DataFrame([{"name": "methane", "InChIKey": "A" * 27}]),
+            "adsorbate",
+        ),
+        mapper.material_records(
+            pd.DataFrame([{"name": "silica", "hashkey": "host-1"}]),
+            "adsorbent",
+        ),
+    )
+
+    assert repository.count_local_records_by_category() == {
+        "experiments": 0,
+        "guest": 1,
+        "host": 1,
+    }
+    assert repository.list_adsorbate_inchi_keys() == {"a" * 27}
+    assert repository.list_adsorbent_hash_keys() == {"host-1"}
+    assert set(repository.load_nist_reference_materials("guest")["name"]) == {
+        "methane"
+    }
+    assert set(repository.load_nist_reference_materials("host")["name"]) == {
+        "silica"
+    }
 
 ###############################################################################
 def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> None:

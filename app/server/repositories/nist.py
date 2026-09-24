@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
@@ -16,6 +16,12 @@ from server.repositories.schemas.models import (
     Isotherm,
     IsothermComponent,
     Observation,
+)
+from server.repositories.schemas.public_data import (
+    AdsorbateSourceRecord,
+    AdsorbentSourceRecord,
+    DataSource,
+    SourceRecord,
 )
 from server.repositories.schemas.types import normalize_identity
 
@@ -54,15 +60,24 @@ class NISTRepository:
         with self.database.session_factory() as session:
             values = session.scalars(
                 select(Adsorbate.inchi_key)
-                .join(
+                .outerjoin(
                     IsothermComponent,
                     IsothermComponent.adsorbate_id == Adsorbate.id,
                 )
-                .join(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
-                .join(Dataset, Dataset.id == Isotherm.dataset_id)
+                .outerjoin(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
+                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
+                .outerjoin(
+                    AdsorbateSourceRecord,
+                    AdsorbateSourceRecord.adsorbate_id == Adsorbate.id,
+                )
+                .outerjoin(
+                    SourceRecord,
+                    SourceRecord.id == AdsorbateSourceRecord.source_record_id,
+                )
+                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
                 .where(
-                    Dataset.source == "nist",
                     Adsorbate.inchi_key.is_not(None),
+                    or_(Dataset.source == "nist", DataSource.key == "nist"),
                 )
                 .distinct()
             )
@@ -73,11 +88,20 @@ class NISTRepository:
         with self.database.session_factory() as session:
             values = session.scalars(
                 select(Adsorbent.external_identifier)
-                .join(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
-                .join(Dataset, Dataset.id == Isotherm.dataset_id)
+                .outerjoin(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
+                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
+                .outerjoin(
+                    AdsorbentSourceRecord,
+                    AdsorbentSourceRecord.adsorbent_id == Adsorbent.id,
+                )
+                .outerjoin(
+                    SourceRecord,
+                    SourceRecord.id == AdsorbentSourceRecord.source_record_id,
+                )
+                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
                 .where(
-                    Dataset.source == "nist",
                     Adsorbent.external_identifier.is_not(None),
+                    or_(Dataset.source == "nist", DataSource.key == "nist"),
                 )
                 .distinct()
             )
@@ -93,19 +117,37 @@ class NISTRepository:
             )
             guests = session.scalar(
                 select(func.count(func.distinct(Adsorbate.id)))
-                .join(
+                .outerjoin(
                     IsothermComponent,
                     IsothermComponent.adsorbate_id == Adsorbate.id,
                 )
-                .join(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
-                .join(Dataset, Dataset.id == Isotherm.dataset_id)
-                .where(Dataset.source == "nist")
+                .outerjoin(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
+                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
+                .outerjoin(
+                    AdsorbateSourceRecord,
+                    AdsorbateSourceRecord.adsorbate_id == Adsorbate.id,
+                )
+                .outerjoin(
+                    SourceRecord,
+                    SourceRecord.id == AdsorbateSourceRecord.source_record_id,
+                )
+                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(or_(Dataset.source == "nist", DataSource.key == "nist"))
             )
             hosts = session.scalar(
                 select(func.count(func.distinct(Adsorbent.id)))
-                .join(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
-                .join(Dataset, Dataset.id == Isotherm.dataset_id)
-                .where(Dataset.source == "nist")
+                .outerjoin(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
+                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
+                .outerjoin(
+                    AdsorbentSourceRecord,
+                    AdsorbentSourceRecord.adsorbent_id == Adsorbent.id,
+                )
+                .outerjoin(
+                    SourceRecord,
+                    SourceRecord.id == AdsorbentSourceRecord.source_record_id,
+                )
+                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(or_(Dataset.source == "nist", DataSource.key == "nist"))
             )
         return {
             "experiments": int(experiments or 0),
@@ -232,6 +274,69 @@ class NISTRepository:
             ]
         )
         return adsorption, guest, host
+
+    # -------------------------------------------------------------------------
+    def load_nist_reference_materials(self, category: str) -> pd.DataFrame:
+        with self.database.session_factory() as session:
+            if category == "guest":
+                records = session.scalars(
+                    select(Adsorbate)
+                    .join(
+                        AdsorbateSourceRecord,
+                        AdsorbateSourceRecord.adsorbate_id == Adsorbate.id,
+                    )
+                    .join(
+                        SourceRecord,
+                        SourceRecord.id == AdsorbateSourceRecord.source_record_id,
+                    )
+                    .join(DataSource, DataSource.id == SourceRecord.source_id)
+                    .where(DataSource.key == "nist")
+                    .distinct()
+                    .order_by(Adsorbate.id)
+                ).all()
+                return pd.DataFrame(
+                    [
+                        {
+                            "name": item.name,
+                            "InChIKey": item.inchi_key,
+                            "molecular_weight": item.molar_mass_g_mol,
+                            "molecular_formula": item.formula,
+                            "smile_code": item.smiles,
+                        }
+                        for item in records
+                    ]
+                )
+
+            if category == "host":
+                records = session.scalars(
+                    select(Adsorbent)
+                    .join(
+                        AdsorbentSourceRecord,
+                        AdsorbentSourceRecord.adsorbent_id == Adsorbent.id,
+                    )
+                    .join(
+                        SourceRecord,
+                        SourceRecord.id == AdsorbentSourceRecord.source_record_id,
+                    )
+                    .join(DataSource, DataSource.id == SourceRecord.source_id)
+                    .where(DataSource.key == "nist")
+                    .distinct()
+                    .order_by(Adsorbent.id)
+                ).all()
+                return pd.DataFrame(
+                    [
+                        {
+                            "name": item.name,
+                            "hashkey": item.external_identifier,
+                            "molecular_weight": item.molar_mass_g_mol,
+                            "molecular_formula": item.formula,
+                            "smile_code": item.smiles,
+                        }
+                        for item in records
+                    ]
+                )
+
+        raise ValueError("Category must be 'guest' or 'host'.")
 
     # -------------------------------------------------------------------------
     def save_materials(
