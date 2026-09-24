@@ -99,13 +99,13 @@ adjacent regression, then update the ledger.
 
 ### Tier 3 — feature families and providers
 
-| Slice | Scope |
-| --- | --- |
-| `ADS-T3-01` | Locally persisted Public Data browsing, filtering, pagination, and provenance without requiring new retrieval. |
-| `ADS-T3-02` | NIST status, index, fetch, and job lifecycle without chemical enrichment. |
-| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. |
-| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. |
-| `ADS-T3-05` | Positive COD search, CIF import, normalized persistence, linking, and re-import; no 3D viewer claim. |
+| Slice | Scope | Current checkpoint |
+| --- | --- | --- |
+| `ADS-T3-01` | Locally persisted Public Data browsing, filtering, pagination, and provenance without requiring new retrieval. | PASS on `396e2e0`; isolated-database browser evidence covers lists, filters, pagination, detail provenance, and empty structures state. |
+| `ADS-T3-02` | NIST status, index, fetch, and job lifecycle without chemical enrichment. | PARTIAL on `396e2e0`; pings/index and experiments fetch passed, guest/host fetch remains unrun after browser access was denied at the usage limit. |
+| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. | PARTIAL on `396e2e0`; focused tests and the live 14/40 unsupported-unit skip counter passed; guest/host enrichment remains unvalidated. |
+| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. | UNTESTED in this campaign; positive enrichment and persistence still need a bounded run. |
+| `ADS-T3-05` | Positive COD search, CIF import, normalized persistence, linking, and re-import; no 3D viewer claim. | UNTESTED in this campaign; historical no-result search is not positive import/link evidence. |
 
 ### Tier 4 — ML and integration-heavy workflows
 
@@ -184,15 +184,27 @@ recovery. The campaign found and fixed a missing `cancelled` SQLite status and
 the result-reload gap. See the linked slice summaries and the canonical
 [`project status ledger`](../project_status_ledger.md).
 
-The next actionable slice is `ADS-T3-01`: inspect locally persisted Public
-Data records in the browser, including filtering, pagination, and provenance,
-without requiring a new provider fetch. The remaining provider gates are
-separate: NIST coverage remains `PARTIAL` because 14 previously fetched records
-had unsupported units or metadata (`ISSUE-002`); PubChem enrichment remains
-`UNVALIDATED`; and positive COD search/import/linking remains `UNVALIDATED`
-(`ISSUE-004`). The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) until
-a valid `adsorbate_SMILE` fixture, ML-enabled runtime, and suitable compute are
-available. The top-level dashboards remain `PARTIAL` (`ISSUE-005`) pending a
-product-scope decision and positive training output. These provider, ML, and
-dashboard gates do not share a manageable validation scope with the fitting
-campaign and remain explicit follow-up work.
+On baseline SHA `396e2e092d810ef5182713a563f1de69eb0b5eca`, `ADS-T3-01` passed
+for local persisted browsing. `ADS-T3-02` and `ADS-T3-03` are `PARTIAL`: NIST
+ping/index and an experiments fetch completed, and the live job reported 14
+records without canonical units among 40 requested. Guest/host fetch and
+enrichment were not run because browser auto-review denied further access after
+the usage limit was reached. See the current
+[`ADS-T3-01`](../../QA/validation/2026-09-24/ADS-T3-01/summary.md),
+[`ADS-T3-02`](../../QA/validation/2026-09-24/ADS-T3-02/summary.md), and
+[`ADS-T3-03`](../../QA/validation/2026-09-24/ADS-T3-03/summary.md) evidence.
+
+The next actionable work is to complete guest/host NIST fetch and enrichment
+through the rendered workflow on an isolated database, then confirm persisted
+records and counts. `ISSUE-002` remains open until the 14 skipped measurement
+bases can be converted safely or a coverage policy explicitly handles them.
+Only after the NIST slices are complete should the positive PubChem (`ADS-T3-04`)
+and COD (`ADS-T3-05`, `ISSUE-004`) paths be selected.
+
+The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) for the current
+baseline: a valid-SMILES fixture and historical CPU certification exist, but
+the current Base virtual environment has neither Torch nor RDKit, so the
+positive lifecycle has not been rerun against this revision. The top-level
+dashboards remain `PARTIAL` (`ISSUE-005`) pending a product-scope decision and
+positive current training output. These ML/dashboard gates remain separate
+follow-up work.

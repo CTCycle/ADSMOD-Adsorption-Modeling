@@ -1,0 +1,26 @@
+
+> adsmod-client@3.0.0 test:unit
+> ng test --watch=false --include=src/app/features/nist/nist-collection-rows.component.spec.ts
+
+> Building...
+√ Building...
+Initial chunk files                                      | Names                                                 |  Raw size
+styles.css                                               | styles                                                | 142.38 kB |
+spec-app-features-nist-nist-collection-rows.component.js | spec-app-features-nist-nist-collection-rows.component |  41.39 kB |
+chunk-WNHUKSQP.js                                        | -                                                     |   5.31 kB |
+init-testbed.js                                          | init-testbed                                          |   1.27 kB |
+vitest-mock-patch.js                                     | vitest-mock-patch                                     | 974 bytes |
+polyfills.js                                             | polyfills                                             | 121 bytes |
+
+                                                         | Initial total                                         | 191.45 kB
+
+Application bundle generation complete. [14.358 seconds] - 2026-09-24T13:02:06.587Z
+
+
+ RUN  v4.1.10 G:/Projects/Repositories/Active projects/ADSMOD Adsorption Modeling/app/client
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  15:02:08
+   Duration  7.76s (transform 382ms, setup 1.05s, import 242ms, tests 435ms, environment 5.52s)

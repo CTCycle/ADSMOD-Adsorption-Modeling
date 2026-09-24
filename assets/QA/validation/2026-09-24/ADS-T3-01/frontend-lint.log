@@ -1,0 +1,9 @@
+
+> adsmod-client@3.0.0 lint
+> npm run verify:angular-migration && eslint . --max-warnings 0
+
+
+> adsmod-client@3.0.0 verify:angular-migration
+> node scripts/verify-angular-migration.mjs
+
+Angular migration verification passed.

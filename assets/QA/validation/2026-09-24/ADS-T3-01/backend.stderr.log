@@ -1,0 +1,36 @@
+INFO - Optional machine learning support is unavailable because the ML profile is not installed.
+INFO:     Started server process [23112]
+INFO:     Waiting for application startup.
+INFO - Checking sqlite database schema and Alembic revision.
+INFO - Applying Alembic migrations from 20260902_public_data to 20260924_fitting_cancel.
+INFO - Database migration status=success backend=sqlite before=20260902_public_data after=20260924_fitting_cancel head=20260924_fitting_cancel applied_migrations=True lock_timeout=30s elapsed=0.04s.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:6045 (Press CTRL+C to quit)
+INFO - Started job cb36a522 (type=nist_experiments_index)
+INFO - Started NIST experiments index job cb36a522
+INFO - Job cb36a522 completed successfully
+INFO - Started job b5b4bc48 (type=nist_guest_index)
+INFO - Started NIST guest index job b5b4bc48
+INFO - Job b5b4bc48 completed successfully
+INFO - Started job 6c2afea5 (type=nist_host_index)
+INFO - Started NIST host index job 6c2afea5
+INFO - Job 6c2afea5 completed successfully
+INFO - Started job 62177d54 (type=nist_experiments_fetch)
+INFO - Started NIST experiments fetch job 62177d54
+WARNING - Skipping NIST experiment 10.1002adem.200500223.isotherm3: cannot map measurements to canonical units: Unsupported uptake unit '% Volume Adsorbed'.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm1: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm2: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm3: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm4: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm5: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm6: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm7: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500561.Isotherm8: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500830.Isotherm1: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500830.Isotherm1-1: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200500830.Isotherm2: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200600944.Isotherm1: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - Skipping NIST experiment 10.1002adfm.200600944.Isotherm2: cannot map measurements to canonical units: Uptake unit 'wt%' requires a positive adsorbate molar mass.
+WARNING - NIST experiment mapping skipped 14 of 14 fetched records
+INFO - NIST category fetch completed (category=experiments, available=39988, requested=40, fetched=14, local=255, elapsed_s=6.48)
+INFO - Job 62177d54 completed successfully
