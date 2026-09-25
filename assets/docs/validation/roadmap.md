@@ -1,6 +1,6 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 ## Purpose and baseline
 
@@ -103,9 +103,9 @@ adjacent regression, then update the ledger.
 | --- | --- | --- |
 | `ADS-T3-01` | Locally persisted Public Data browsing, filtering, pagination, and provenance without requiring new retrieval. | PASS on `396e2e0`; isolated-database browser evidence covers lists, filters, pagination, detail provenance, and empty structures state. |
 | `ADS-T3-02` | NIST status, index, fetch, and job lifecycle without chemical enrichment. | PASS on the 2026-09-24 working-tree NIST fix; all pings/indexes and bounded experiment/guest/host fetches completed, repeated category fetches added no duplicates, and counts persisted after reload. |
-| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. | PARTIAL on the 2026-09-24 working-tree NIST fix; guest enrichment matched/updated 1/1, host enrichment matched/updated 0/10, and 14/40 experiments remain excluded under `ISSUE-002`. |
-| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. | UNTESTED for the separate Public Data provider flow; NIST's legacy `PubChemClient` guest enrichment does not cover provider resolution, structures, or provenance. |
-| `ADS-T3-05` | Positive COD search, CIF import, normalized persistence, linking, and re-import; no 3D viewer claim. | UNTESTED in this campaign; historical no-result search is not positive import/link evidence. |
+| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. | PASS for the bounded workflow on 2026-09-25: experiments 40 requested/received, 26 persisted, 14 skipped under the accepted `ISSUE-002` policy; guest enrichment matched/updated 7/7 and host enrichment 1/51. The 14/40 coverage limitation remains explicit. |
+| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. | PASS on 2026-09-25: Public Data resolved CID 280, rendered normalized identity/properties and PubChem provenance, and retained them after page reload. Mocked synonyms and conformer failures preserved the primary record. |
+| `ADS-T3-05` | Positive COD search, CIF import, normalized persistence, linking, and re-import; no 3D viewer claim. | PASS on 2026-09-25: the live bounded `wurtzite` search returned 68 records; COD 1011195 retained CIF and normalized fields, linked to an isolated ZnS fixture, and survived browser re-import without duplication. No existing local ZnS candidate was available. |
 
 ### Tier 4 — ML and integration-heavy workflows
 
@@ -184,26 +184,38 @@ recovery. The campaign found and fixed a missing `cancelled` SQLite status and
 the result-reload gap. See the linked slice summaries and the canonical
 [`project status ledger`](../project_status_ledger.md).
 
-On code based on baseline SHA `223dc5862cb453f5171155af5486490965a6cdd9` plus
-the NIST working-tree fix, `ADS-T3-01` and `ADS-T3-02` are `PASS`.
-`ADS-T3-02` now has rendered evidence for all three pings/indexes, an
-experiments fetch (40 requested and received, 26 persisted, 14 skipped),
-guest/host fetches (1 and 10 records), duplicate suppression on repeated
-fetches, and persisted counts after reload. `ADS-T3-03` remains `PARTIAL`:
-guest enrichment matched and updated 1/1, while the bounded host sample matched
-and updated 0/10; the 14 experiment records without safe canonical units remain
-excluded under `ISSUE-002`. See the current
-[`ADS-T3-01`](../../QA/validation/2026-09-24/ADS-T3-01/summary.md),
-[`ADS-T3-02`](../../QA/validation/2026-09-24/ADS-T3-02/summary.md), and
-[`ADS-T3-03`](../../QA/validation/2026-09-24/ADS-T3-03/summary.md) evidence.
+Tier 3's five slices are now `PASS` in their bounded scopes. The 2026-09-25
+official-launcher run used an isolated `%LOCALAPPDATA%` profile and database.
+For NIST, the browser showed 26/39,988 experiments, 7/455 guests, and 51/9,328
+hosts. Fetching 40 experiment records persisted 26 and reported 14 skips;
+guest enrichment matched/updated 7/7, and a 47-record host fetch produced a
+51-host enrichment sample with 1 match/update. `ISSUE-002` now records the
+accepted skip-and-report policy; the 14/40 coverage limitation remains and no
+unit conversion is inferred.
 
-The next NIST action is to resolve `ISSUE-002`: choose a physically supported
-conversion basis or document how the 14 unsupported measurement records are
-handled, then rerun representative cases. Do not infer conversions from the
-current sample. A positive host-enrichment sample also remains useful because
-the bounded set of 10 hosts had no PubChem match. The separate Public Data
-PubChem flow (`ADS-T3-04`) and positive COD import (`ADS-T3-05`, `ISSUE-004`)
-remain `UNTESTED`; select them after the NIST coverage limitation is resolved.
+The Public Data PubChem flow resolved CID 280 in the rendered Chemicals page,
+persisted normalized CO2 identity, properties, structure references, and
+PubChem provenance, then restored them after a full page reload. Focused tests
+confirmed that synonyms or conformer endpoint failures do not discard the
+primary record. The live COD `wurtzite` query returned 68 results; importing
+COD 1011195 retained its 2,238-character CIF, normalized cell and two atom
+sites, and source provenance. The explicit import association was checked with
+a disposable isolated ZnS material fixture because no pre-existing local ZnS
+material was available. A rendered browser re-import preserved that link and
+left one structure row. No automatic name/formula association or 3D viewer
+claim is made. See the dated [`ADS-T3-03`](../../QA/validation/2026-09-25/ADS-T3-03/summary.md),
+[`ADS-T3-04`](../../QA/validation/2026-09-25/ADS-T3-04/summary.md), and
+[`ADS-T3-05`](../../QA/validation/2026-09-25/ADS-T3-05/summary.md) evidence.
+
+The 14 unsupported NIST measurements remain outside canonical coverage until
+additional source metadata or a supported conversion basis exists. This is an
+accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
+4's positive training workflow remains `BLOCKED` (`ISSUE-001`) because the
+current Base runtime lacks Torch and RDKit. Tier 5 and the dashboard product
+scope (`ISSUE-005`) remain follow-up work. The requested 1280×720 browser spot
+check exposed horizontal overflow on the Sources page; record this observation
+for `ADS-T5-03`, whose full responsive/accessibility gate remains untested.
+See the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
 
 The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) for the current
 baseline: a valid-SMILES fixture and historical CPU certification exist, but

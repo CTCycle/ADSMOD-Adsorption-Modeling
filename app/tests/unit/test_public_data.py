@@ -250,6 +250,56 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
     assert payload["conformer_3d_url"] is not None
 
 ###############################################################################
+@pytest.mark.parametrize("failed_endpoint", ["synonyms", "conformer"])
+def test_pubchem_resolution_keeps_primary_record_when_secondary_endpoint_fails(
+    monkeypatch, failed_endpoint: str
+) -> None:  # type: ignore[no-untyped-def]
+    provider = PubChemProvider(parallel_requests=1)
+
+    async def fake_request(method: str, url: str, **kwargs):  # type: ignore[no-untyped-def]
+        del method, kwargs
+        if "/property/" in url:
+            return httpx.Response(
+                200,
+                json={
+                    "PropertyTable": {
+                        "Properties": [
+                            {
+                                "CID": 297,
+                                "Title": "Methane",
+                                "MolecularFormula": "CH4",
+                                "MolecularWeight": "16.043",
+                                "InChIKey": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+                            }
+                        ]
+                    }
+                },
+            )
+        if "/synonyms/" in url:
+            if failed_endpoint == "synonyms":
+                raise ProviderUnavailableError("simulated secondary endpoint failure")
+            return httpx.Response(
+                200,
+                json={
+                    "InformationList": {
+                        "Information": [{"CID": 297, "Synonym": ["Marsh gas"]}]
+                    }
+                },
+            )
+        if failed_endpoint == "conformer":
+            raise ProviderUnavailableError("simulated secondary endpoint failure")
+        return httpx.Response(200, text="3D SDF")
+
+    monkeypatch.setattr(provider, "_request", fake_request)
+    payload = asyncio.run(provider.resolve("methane"))
+
+    assert payload["cid"] == "297"
+    assert payload["formula"] == "CH4"
+    expected_synonyms = [] if failed_endpoint == "synonyms" else ["Marsh gas"]
+    assert payload["synonyms"] == expected_synonyms
+    assert (payload["conformer_3d_url"] is None) is (failed_endpoint == "conformer")
+
+###############################################################################
 def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     created: list[object] = []
 

@@ -1,0 +1,68 @@
+[
+  {
+    "job_id": "52bd0aa3",
+    "job_type": "nist_experiments_fetch",
+    "status": "completed",
+    "progress": 100.0,
+    "result": {
+      "category": "experiments",
+      "available_count": 39988,
+      "requested_count": 40,
+      "fetched_count": 40,
+      "local_count": 26,
+      "skipped_count": 14,
+      "single_component_rows": 697,
+      "binary_mixture_rows": 10
+    },
+    "error": null,
+    "poll_interval": 1.0
+  },
+  {
+    "job_id": "cc015d0e",
+    "job_type": "nist_host_fetch",
+    "status": "completed",
+    "progress": 100.0,
+    "result": {
+      "category": "host",
+      "available_count": 9328,
+      "requested_count": 47,
+      "fetched_count": 47,
+      "local_count": 51,
+      "skipped_count": 0,
+      "single_component_rows": 0,
+      "binary_mixture_rows": 0
+    },
+    "error": null,
+    "poll_interval": 1.0
+  },
+  {
+    "job_id": "2a98b91b",
+    "job_type": "nist_host_enrich",
+    "status": "completed",
+    "progress": 100.0,
+    "result": {
+      "category": "host",
+      "names_requested": 51,
+      "names_matched": 1,
+      "rows_updated": 1,
+      "local_count": 51
+    },
+    "error": null,
+    "poll_interval": 1.0
+  },
+  {
+    "job_id": "f7a46d63",
+    "job_type": "nist_guest_enrich",
+    "status": "completed",
+    "progress": 100.0,
+    "result": {
+      "category": "guest",
+      "names_requested": 7,
+      "names_matched": 7,
+      "rows_updated": 7,
+      "local_count": 7
+    },
+    "error": null,
+    "poll_interval": 1.0
+  }
+]

@@ -1,0 +1,62 @@
+{
+  "sqlite_integrity_check": "ok",
+  "foreign_key_violations": [],
+  "alembic_revision": "20260924_fitting_cancel",
+  "structure_count": 1,
+  "structure": {
+    "id": 1,
+    "cod_id": "1011195",
+    "format": "cif",
+    "cif_characters": 2238,
+    "cif_sha256": "2a59fc77cb14d2c5e324dfb77085d2a39d464e20729d50afdb4713c55200319e",
+    "stored_content_sha256": "2a59fc77cb14d2c5e324dfb77085d2a39d464e20729d50afdb4713c55200319e",
+    "name": "Zinc sulfide",
+    "formula": "- S Zn -",
+    "space_group": "P 63 m c",
+    "space_group_number": 186,
+    "cell_a_angstrom": 3.8,
+    "cell_b_angstrom": 3.8,
+    "cell_c_angstrom": 6.23,
+    "cell_alpha_deg": 90.0,
+    "cell_beta_deg": 90.0,
+    "cell_gamma_deg": 120.0,
+    "cell_volume_angstrom3": 77.9,
+    "has_coordinates": true,
+    "atoms": [
+      {
+        "sequence_index": 0,
+        "label": "Zn1",
+        "element": "Zn",
+        "fractional_x": 0.3333,
+        "fractional_y": 0.6667,
+        "fractional_z": 0.0,
+        "occupancy": 1.0
+      },
+      {
+        "sequence_index": 1,
+        "label": "S1",
+        "element": "S",
+        "fractional_x": 0.3333,
+        "fractional_y": 0.6667,
+        "fractional_z": 0.375,
+        "occupancy": 1.0
+      }
+    ],
+    "material": {
+      "id": 52,
+      "key": "qa-cod-zns",
+      "name": "Zinc sulfide (validation fixture)",
+      "formula": "ZnS"
+    },
+    "provenance": [
+      {
+        "source": "cod",
+        "record_type": "structure",
+        "external_id": "1011195",
+        "source_url": "https://www.crystallography.net/cod/1011195.html",
+        "transform_version": "public-data-v1",
+        "raw_metadata_characters": 1455
+      }
+    ]
+  }
+}

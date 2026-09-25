@@ -1,0 +1,23 @@
+{
+  "query": "wurtzite",
+  "result_count": 68,
+  "selected": {
+    "cod_id": "1011195",
+    "name": "Zinc sulfide",
+    "formula": "- S Zn -",
+    "space_group": "P 63 m c",
+    "space_group_number": 186,
+    "cell_a_angstrom": 3.8,
+    "cell_b_angstrom": 3.8,
+    "cell_c_angstrom": 6.23,
+    "cell_alpha_deg": 90.0,
+    "cell_beta_deg": 90.0,
+    "cell_gamma_deg": 120.0,
+    "cell_volume_angstrom3": 77.9,
+    "doi": null,
+    "year": 1923,
+    "has_coordinates": true,
+    "source_url": "https://www.crystallography.net/cod/1011195.html",
+    "cif_url": "https://www.crystallography.net/cod/1011195.cif"
+  }
+}

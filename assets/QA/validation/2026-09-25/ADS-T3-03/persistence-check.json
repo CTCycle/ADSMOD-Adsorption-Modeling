@@ -1,0 +1,39 @@
+{
+  "sqlite_integrity_check": "ok",
+  "foreign_key_violations": [],
+  "alembic_revision": "20260924_fitting_cancel",
+  "isolated_database_counts": {
+    "isotherms": 26,
+    "adsorbates": 8,
+    "adsorbents": 52,
+    "structures": 1,
+    "structure_atoms": 2,
+    "source_records": 75,
+    "chemical_properties": 13
+  },
+  "source_records_by_source_and_type": [
+    {
+      "source": "cod",
+      "record_type": "structure",
+      "count": 1
+    },
+    {
+      "source": "nist",
+      "record_type": "adsorption",
+      "count": 26
+    },
+    {
+      "source": "nist",
+      "record_type": "material",
+      "count": 47
+    },
+    {
+      "source": "pubchem",
+      "record_type": "chemical",
+      "count": 1
+    }
+  ],
+  "configured_database_hash_before": "5446E0BAB31479D86D7A4C80EA5D2349008C06B13F0CC70E97FA7284F65E7722",
+  "configured_database_hash_after": "5446E0BAB31479D86D7A4C80EA5D2349008C06B13F0CC70E97FA7284F65E7722",
+  "configured_database_unchanged": true
+}

@@ -1,0 +1,17 @@
+{
+  "launcher_session": "official Windows launcher",
+  "stopped_process_ids": [
+    12632,
+    37232
+  ],
+  "remaining_started_processes": [],
+  "verified_ports": [
+    6045,
+    5173
+  ],
+  "remaining_listeners": [],
+  "configured_database_sha256": "5446E0BAB31479D86D7A4C80EA5D2349008C06B13F0CC70E97FA7284F65E7722",
+  "configured_database_matches_pre_run": true,
+  "isolated_database_final_check": "ISOLATED_DB_INTEGRITY=ok; FOREIGN_KEY_VIOLATIONS=0",
+  "isolated_profile_removed": true
+}
