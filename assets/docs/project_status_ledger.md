@@ -45,7 +45,7 @@ The long-term campaign and stable slice catalog live in
 is now closed; Tier 1 is now closed. Tier 2 is now closed: `ADS-T2-01` through
 `ADS-T2-03` passed on implementation commit `c876a063`, while `ADS-T2-04`
 through `ADS-T2-06` passed on the 2026-09-24 working tree based on `9fde82b`.
-`ADS-T5-03` passed on the 2026-09-25 Angular revision `503dc10`; the
+`ADS-T5-03` passed on the 2026-09-25 Angular revision `bb898ba`; the
 remaining Tier 5 slices are still untested.
 
 | Tier | Slice IDs | Status | Current gate |
@@ -97,7 +97,7 @@ remaining Tier 5 slices are still untested.
 
 | Slice ID | Capability | Feature exists | Exercised | Status | Baseline revision | Issues | Evidence | Remaining gap | Evidence strength |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ADS-T5-03` | Keyboard operation, focus management, responsive workflows from desktop through configured narrow viewports, and overflow | YES | YES | `PASS` | `503dc10` | Historical 1280×720 Sources-page overflow did not reproduce; the bounded suite does not constitute a complete screen-reader audit | [`ADS-T5-03/summary.md`](../QA/validation/2026-09-25/ADS-T5-03/summary.md); [`ADS-T5-03/browser-state.md`](../QA/validation/2026-09-25/ADS-T5-03/browser-state.md) | Full product-wide keyboard/screen-reader review and the remaining Tier 5 slices are still open | official launcher + rendered in-app browser + 32-test viewport/keyboard suite |
+| `ADS-T5-03` | Keyboard operation, focus management, responsive workflows from desktop through configured narrow viewports, and overflow | YES | YES | `PASS` | `bb898ba` | Historical 1280×720 Sources-page overflow did not reproduce; the bounded suite does not constitute a complete screen-reader audit | [`ADS-T5-03/summary.md`](../QA/validation/2026-09-25/ADS-T5-03/summary.md); [`ADS-T5-03/browser-state.md`](../QA/validation/2026-09-25/ADS-T5-03/browser-state.md) | Full product-wide keyboard/screen-reader review and the remaining Tier 5 slices are still open | official launcher + rendered in-app browser + 32-test viewport/keyboard suite |
 
 ## Status taxonomy
 

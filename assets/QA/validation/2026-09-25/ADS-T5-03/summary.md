@@ -1,7 +1,7 @@
 # ADS-T5-03 responsive and accessibility validation
 
 Date: 2026-09-25
-Validated revision: `503dc10` (final commit)
+Validated Angular revision: `bb898ba`
 Scope: Shared Angular shell, primary route containment, narrow responsive layout, active navigation semantics, dataset rename/delete interactions, and confirmation-dialog keyboard focus behavior.
 
 ## Result
