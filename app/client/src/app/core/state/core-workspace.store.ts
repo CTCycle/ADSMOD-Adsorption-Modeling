@@ -143,6 +143,7 @@ export class CoreWorkspaceStore {
             );
             return;
         }
+        this.managementStatus.set('');
         this.datasets.set(result.data.datasets);
         if (selectId !== undefined) {
             await this.selectDataset(selectId);

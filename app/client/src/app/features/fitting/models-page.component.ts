@@ -1,6 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CoreWorkspaceStore, OptimizationMethod } from '../../core/state/core-workspace.store';
-import { HeaderTabsComponent } from '../../layout/header-tabs.component';
 import type {
     FittingResultModelSummary,
     FittingResultSummary,
@@ -12,26 +11,9 @@ import { ModelCardComponent } from './model-card.component';
 @Component({
     selector: 'adsmod-models-page',
     standalone: true,
-    imports: [ModelCardComponent, NumberInputComponent, HeaderTabsComponent],
+    imports: [ModelCardComponent, NumberInputComponent],
     template: `
-        <div class="route-workspace route-workspace-fitting">
-            <aside class="route-rail route-rail-fitting" aria-label="Fitting overview">
-                <div class="route-rail-brand">
-                    <div class="route-rail-logo" aria-hidden="true">AD</div>
-                    <div class="route-rail-wordmark">ADSMOD</div>
-                </div>
-                <div class="route-rail-copy">
-                    <h1>Fitting</h1>
-                    <p>Configure the optimizer and run the fit.</p>
-                </div>
-            </aside>
-
-            <section class="route-canvas route-canvas-fitting">
-                <div class="route-tabs-row">
-                    <adsmod-header-tabs />
-                </div>
-
-                <div class="models-page">
+        <div class="models-page route-canvas-fitting">
                     <div class="fitting-config-panel">
                         <div class="models-header-row">
                             <div class="models-title-block">
@@ -138,7 +120,10 @@ import { ModelCardComponent } from './model-card.component';
                             </div>
                         </div>
                         @if (store.fittingConfigurationError()) {
-                            <p class="status-text">Fitting configuration unavailable: {{ store.fittingConfigurationError() }}</p>
+                            <div class="fitting-config-error" role="alert">
+                                <p>Fitting configuration unavailable: {{ store.fittingConfigurationError() }}</p>
+                                <button class="button secondary" type="button" (click)="store.loadConfiguration()">Retry</button>
+                            </div>
                         }
 
                         @if (store.fittingResult(); as result) {
@@ -202,6 +187,15 @@ import { ModelCardComponent } from './model-card.component';
 
                     <hr class="section-separator" />
 
+                    @if (store.modelCatalogError()) {
+                        <div class="fitting-config-error" role="alert">
+                            <p>Model list unavailable: {{ store.modelCatalogError() }}</p>
+                            <button class="button secondary" type="button" (click)="store.loadCatalog()">Retry</button>
+                        </div>
+                    } @else if (!models().length) {
+                        <p class="empty-state-copy">No fitting models are available.</p>
+                    }
+
                     <div class="models-grid-header">
                         <h3>Select Adsorption Models</h3>
                     </div>
@@ -219,8 +213,6 @@ import { ModelCardComponent } from './model-card.component';
                             />
                         }
                     </div>
-                </div>
-            </section>
         </div>
     `,
 })

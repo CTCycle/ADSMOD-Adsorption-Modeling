@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { TrainingViewId, TrainingWorkspaceStore } from '../../../core/state/training-workspace.store';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { InfoModalComponent } from '../../../shared/components/info-modal/info-modal.component';
 import { MetricCardComponent } from '../../../shared/components/metric-card/metric-card.component';
 import { DatasetBuilderCardComponent } from '../components/dataset-builder-card.component';
@@ -40,6 +41,11 @@ const TRAINING_VIEWS: readonly TrainingViewSpec[] = [
 const isTrainingViewId = (value: string | null): value is TrainingViewId =>
     value === 'processing' || value === 'datasets' || value === 'checkpoints' || value === 'dashboard';
 
+interface PendingTrainingDelete {
+    kind: 'dataset' | 'checkpoint';
+    name: string;
+}
+
 @Component({
     selector: 'adsmod-machine-learning-page',
     standalone: true,
@@ -53,17 +59,13 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
         InfoModalComponent,
         MetricCardComponent,
         TrainingHistoryChartPanelComponent,
+        ConfirmDialogComponent,
     ],
     template: `
-        <main class="route-workspace route-workspace-training">
-            <section class="route-rail route-rail-training training-rail" aria-label="Training workspace navigation">
-                <div class="route-rail-brand">
-                    <div class="route-rail-logo" aria-hidden="true">AD</div>
-                    <div class="route-rail-wordmark">ADSMOD</div>
-                </div>
-                <nav class="training-view-toolbar" aria-label="Training views">
+        <div class="training-page training-view-panel">
+            <nav class="training-view-toolbar" aria-label="Training views">
                     @for (view of views; track view.id) {
-                        <a class="training-view-tab" [routerLink]="['/training', view.id]" routerLinkActive="active">
+                        <a class="training-view-tab" [routerLink]="['/training', view.id]" routerLinkActive="active" ariaCurrentWhenActive="page">
                             <span class="training-view-tab-icon" aria-hidden="true">
                                 @switch (view.id) {
                                     @case ('processing') {
@@ -100,14 +102,12 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                             <span class="training-view-tab-label">{{ view.label }}</span>
                         </a>
                     }
-                </nav>
-            </section>
+            </nav>
 
-            <section class="route-canvas route-canvas-training training-view-panel">
-                <div class="training-view-description">
-                    <h2>{{ activeView().label }}</h2>
-                    <p>{{ activeView().description }}</p>
-                </div>
+            <div class="training-view-description">
+                <h2>{{ activeView().label }}</h2>
+                <p>{{ activeView().description }}</p>
+            </div>
 
                 @if (trainingAvailability() === 'checking') {
                     <section class="training-unavailable-card" aria-live="polite">
@@ -144,9 +144,9 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                                     (newTrainingRequested)="openNewTrainingWizard($event)"
                                     (resumeTrainingRequested)="openResumeTrainingWizard($event)"
                                     (datasetMetadataRequested)="viewDatasetMetadata($event)"
-                                    (datasetDeleteRequested)="deleteDataset($event)"
+                                    (datasetDeleteRequested)="requestDatasetDelete($event)"
                                     (checkpointDetailsRequested)="viewCheckpointDetails($event)"
-                                    (checkpointDeleteRequested)="deleteCheckpoint($event)"
+                                    (checkpointDeleteRequested)="requestCheckpointDelete($event)"
                                 />
                             </div>
                         }
@@ -163,24 +163,16 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                                     (newTrainingRequested)="openNewTrainingWizard($event)"
                                     (resumeTrainingRequested)="openResumeTrainingWizard($event)"
                                     (datasetMetadataRequested)="viewDatasetMetadata($event)"
-                                    (datasetDeleteRequested)="deleteDataset($event)"
+                                    (datasetDeleteRequested)="requestDatasetDelete($event)"
                                     (checkpointDetailsRequested)="viewCheckpointDetails($event)"
-                                    (checkpointDeleteRequested)="deleteCheckpoint($event)"
+                                    (checkpointDeleteRequested)="requestCheckpointDelete($event)"
                                 />
                             </div>
                         }
                         @case ('dashboard') {
                         <div class="training-view-widget training-dashboard">
                             <div class="dashboard-header">
-                                <div class="dashboard-title">
-                                    <span class="dashboard-icon" aria-hidden="true">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M3 17l6-6 4 4 8-8" />
-                                            <path d="M15 7h6v6" />
-                                        </svg>
-                                    </span>
-                                    <span>Training Dashboard</span>
-                                </div>
+                                <strong>Run status</strong>
                                 <span class="training-status-badge" [class.active]="store.trainingStatus().is_training" [class.idle]="!store.trainingStatus().is_training">
                                     {{ store.trainingStatus().is_training ? 'Training in Progress' : 'Idle' }}
                                 </span>
@@ -239,8 +231,6 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                         }
                     }
                 }
-            </section>
-
             @if (store.showNewTrainingWizard() && store.config()) {
                 <adsmod-new-training-wizard
                     [initialConfig]="store.config()!"
@@ -272,7 +262,16 @@ const isTrainingViewId = (value: string | null): value is TrainingViewId =>
                 [data]="store.infoModalData()"
                 (closed)="store.closeInfoModal()"
             />
-        </main>
+
+            <adsmod-confirm-dialog
+                [open]="pendingDelete() !== null"
+                [title]="pendingDelete()?.kind === 'checkpoint' ? 'Delete checkpoint?' : 'Delete processed dataset?'"
+                [message]="deleteMessage()"
+                confirmLabel="Delete"
+                (closed)="pendingDelete.set(null)"
+                (confirmed)="confirmPendingDelete()"
+            />
+        </div>
     `,
 })
 export class MachineLearningPageComponent {
@@ -282,6 +281,7 @@ export class MachineLearningPageComponent {
     private readonly statusPolling = inject(TrainingStatusPollingService);
     private readonly viewNavigation = inject(TrainingViewNavigationService);
     protected readonly views = TRAINING_VIEWS;
+    protected readonly pendingDelete = signal<PendingTrainingDelete | null>(null);
     protected readonly chartColors = {
         loss: '#f59e0b',
         valLoss: '#2563eb',
@@ -437,10 +437,37 @@ export class MachineLearningPageComponent {
         });
     }
 
-    protected async deleteDataset(label: string): Promise<void> {
-        if (!window.confirm(`Are you sure you want to delete dataset '${label}'?`)) {
+    protected requestDatasetDelete(label: string): void {
+        this.pendingDelete.set({ kind: 'dataset', name: label });
+    }
+
+    protected requestCheckpointDelete(name: string): void {
+        this.pendingDelete.set({ kind: 'checkpoint', name });
+    }
+
+    protected deleteMessage(): string {
+        const request = this.pendingDelete();
+        if (!request) {
+            return '';
+        }
+        const label = request.kind === 'dataset' ? 'processed dataset' : 'checkpoint';
+        return `This will permanently delete the ${label} “${request.name}”. This action cannot be undone.`;
+    }
+
+    protected async confirmPendingDelete(): Promise<void> {
+        const request = this.pendingDelete();
+        this.pendingDelete.set(null);
+        if (!request) {
             return;
         }
+        if (request.kind === 'dataset') {
+            await this.deleteDataset(request.name);
+        } else {
+            await this.deleteCheckpoint(request.name);
+        }
+    }
+
+    private async deleteDataset(label: string): Promise<void> {
         const result = await this.store.deleteProcessedDataset(label);
         if (result.success) {
             await this.store.loadProcessedDatasets();
@@ -460,10 +487,7 @@ export class MachineLearningPageComponent {
         }
     }
 
-    protected async deleteCheckpoint(name: string): Promise<void> {
-        if (!window.confirm(`Are you sure you want to delete checkpoint '${name}'?`)) {
-            return;
-        }
+    private async deleteCheckpoint(name: string): Promise<void> {
         const result = await this.store.deleteCheckpoint(name);
         if (result.success) {
             await this.store.loadCheckpoints();
