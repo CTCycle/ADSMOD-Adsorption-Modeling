@@ -5,11 +5,11 @@ import { Component, input, output } from '@angular/core';
     standalone: true,
     template: `
         <div class="split-table-actions-wrap">
-            <button class="icon-action-button" type="button" [title]="viewTitle()" (click)="handleView($event)">
-                <span aria-hidden="true">i</span>
+            <button class="button secondary training-row-action" type="button" [title]="viewTitle()" [attr.aria-label]="viewTitle()" (click)="handleView($event)">
+                View
             </button>
-            <button class="icon-action-button" type="button" [title]="deleteTitle()" (click)="handleDelete($event)">
-                <span aria-hidden="true">x</span>
+            <button class="button quiet danger training-row-action" type="button" [title]="deleteTitle()" [attr.aria-label]="deleteTitle()" (click)="handleDelete($event)">
+                Delete
             </button>
         </div>
     `,

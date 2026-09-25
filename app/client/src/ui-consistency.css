@@ -15,6 +15,7 @@
 /* Shell geometry and primary navigation */
 .console-shell {
   grid-template-columns: var(--console-sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .console-sidebar {
@@ -93,6 +94,7 @@
 
 /* Align the global page header and page content to the same horizontal grid. */
 .console-stage {
+  min-height: 0;
   grid-template-rows: var(--console-header-height) minmax(0, 1fr);
 }
 
@@ -108,9 +110,10 @@
 }
 
 .console-header p {
+  max-width: 72ch;
   margin-top: 0.375rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
 .header-icon-button {
@@ -223,6 +226,72 @@
   padding: var(--spacing-sm) var(--spacing-md);
 }
 
+.dataset-record-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.user-dataset-list-card .empty-state-copy {
+  margin: 0;
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  color: var(--console-text-muted, #657386);
+  font-size: 0.875rem;
+}
+
+.dataset-add-row .add-dataset-button {
+  width: auto;
+  min-width: 7.5rem;
+  height: 42px;
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-sm);
+  background: var(--primary-600);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.dataset-record-actions .button {
+  min-height: 36px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.dataset-record.renaming {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dataset-rename-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--spacing-sm) var(--spacing-md);
+  width: 100%;
+}
+
+.dataset-rename-inline h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--console-text, #1c2a45);
+  font-size: 0.9rem;
+}
+
+.dataset-rename-inline label {
+  display: grid;
+  gap: var(--spacing-xs);
+  color: var(--console-text, #1c2a45);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dataset-rename-inline input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #cbd7e8;
+  border-radius: var(--radius-sm);
+  color: var(--console-text, #1c2a45);
+}
+
 /* Keep fitting and training section headings subordinate to the shell page title. */
 .models-header-row,
 .models-grid-header {
@@ -250,13 +319,246 @@
   font-weight: 600;
 }
 
+.training-view-description h2 {
+  display: block;
+  margin: 0 0 var(--spacing-xs);
+}
+
+.training-page .training-view-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-xs);
+  margin: 0 0 var(--spacing-lg);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  position: static;
+}
+
+.training-page .training-view-tab {
+  width: auto;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.training-row-action {
+  min-height: 36px;
+  padding: 0.4rem 0.7rem;
+  white-space: nowrap;
+}
+
+.training-row-action.danger {
+  color: #a3232d;
+}
+
+.split-table-actions-wrap {
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.split-table-actions-wrap .training-row-action {
+  min-height: 32px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.74rem;
+}
+
+.dashboards-placeholder {
+  min-height: 0;
+  display: block;
+}
+
+.dashboards-placeholder-content {
+  max-width: 48rem;
+  padding: var(--spacing-lg);
+  text-align: left;
+}
+
+.dashboard-placeholder-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--slate-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--slate-700);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dashboard-placeholder-actions .button:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.dashboard-placeholder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.fitting-config-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm) var(--spacing-md);
+  margin: 0 0 var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid #e8b5b8;
+  border-radius: var(--radius-sm);
+  background: #fff5f5;
+  color: #8d2730;
+}
+
+.fitting-config-error p {
+  margin: 0;
+}
+
+.fitting-status-box .status-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.page-context {
+  margin: 0;
+  color: var(--console-text-muted, #657386);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.dataset-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.dataset-status .button {
+  min-height: 36px;
+}
+
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-md);
+  background: rgba(3, 24, 47, 0.42);
+}
+
+.confirm-dialog {
+  width: min(100%, 28rem);
+  padding: var(--spacing-lg);
+  border: 1px solid #d4deed;
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(3, 29, 51, 0.26);
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  color: var(--console-text, #1c2a45);
+  font-size: 1.125rem;
+}
+
+.confirm-dialog p {
+  margin: var(--spacing-sm) 0 0;
+  color: var(--console-text-muted, #657386);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.confirm-dialog .confirm-destructive {
+  min-height: 42px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #a3232d;
+  border-radius: var(--radius-sm);
+  background: #a3232d;
+  color: #fff;
+  font-weight: 600;
+}
+
+.dataset-rename-form {
+  display: grid;
+  gap: var(--spacing-md);
+  width: min(100%, 28rem);
+  padding: var(--spacing-lg);
+  border: 1px solid #d4deed;
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(3, 29, 51, 0.26);
+}
+
+.dataset-rename-form h2 {
+  margin: 0;
+  color: var(--console-text, #1c2a45);
+  font-size: 1.125rem;
+}
+
+.dataset-rename-form label {
+  display: grid;
+  gap: var(--spacing-xs);
+  color: var(--console-text, #1c2a45);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dataset-rename-form input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #cbd7e8;
+  border-radius: var(--radius-sm);
+  color: var(--console-text, #1c2a45);
+}
+
+.dataset-rename-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
+
 /* Responsive shell proportions. The sidebar becomes compact top navigation. */
 @media (max-width: 1180px) {
   :root {
     --console-content-inline: var(--spacing-xl);
   }
 
+  body {
+    overflow: hidden;
+  }
+
+  .console-shell {
+    height: calc(100dvh - var(--console-status-height));
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
   .console-sidebar {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
     padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
   }
 
@@ -278,11 +580,33 @@
   }
 
   .console-stage {
-    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: var(--console-header-height) minmax(0, 1fr);
   }
 
   .console-header {
-    padding: var(--spacing-lg) var(--console-content-inline);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    min-height: 0;
+    padding: var(--spacing-md) var(--console-content-inline);
+  }
+
+  .console-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .service-status-row {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+
+  .console-main {
+    min-height: 0;
+    overflow: auto;
   }
 }
 
@@ -293,6 +617,16 @@
 
   .route-workspace-training .training-view-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .training-page .training-view-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .training-page .training-view-tab {
+    width: auto;
+    min-width: 0;
   }
 }
 
@@ -321,6 +655,18 @@
     font-size: 1.65rem;
   }
 
+  .console-header p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 0.78rem;
+  }
+
+  .service-status-row {
+    align-self: auto;
+  }
+
   .console-main {
     padding: var(--spacing-md) var(--console-content-inline) var(--spacing-lg);
   }
@@ -333,5 +679,13 @@
 
   .dataset-record {
     gap: var(--spacing-sm);
+  }
+
+  .dataset-rename-inline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-placeholder-actions > * {
+    flex: 1 1 auto;
   }
 }

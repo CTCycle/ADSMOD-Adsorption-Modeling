@@ -211,11 +211,13 @@ The 14 unsupported NIST measurements remain outside canonical coverage until
 additional source metadata or a supported conversion basis exists. This is an
 accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
 4's positive training workflow remains `BLOCKED` (`ISSUE-001`) because the
-current Base runtime lacks Torch and RDKit. Tier 5 and the dashboard product
-scope (`ISSUE-005`) remain follow-up work. The requested 1280×720 browser spot
-check exposed horizontal overflow on the Sources page; record this observation
-for `ADS-T5-03`, whose full responsive/accessibility gate remains untested.
-See the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
+current Base runtime lacks Torch and RDKit. `ADS-T5-03` now passes its bounded
+responsive, overflow, and keyboard/focus scope after the historical 1280×720
+Sources-page overflow was not reproduced in the current implementation. The
+remaining Tier 5 slices and the dashboard product scope (`ISSUE-005`) remain
+follow-up work. See the dated
+[`ADS-T5-03`](../../QA/validation/2026-09-25/ADS-T5-03/summary.md) evidence and
+the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
 
 The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) for the current
 baseline: a valid-SMILES fixture and historical CPU certification exist, but

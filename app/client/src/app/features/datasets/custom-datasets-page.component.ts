@@ -27,14 +27,13 @@ const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
     ],
     template: `
         <div class="data-page custom-datasets-page">
-            <div class="page-intro-card console-card">
-                <p class="eyebrow">Workspace data</p>
-                <h2>Custom Datasets</h2>
-                <p>Upload, inspect, and maintain datasets provided by your team. Public source collections are managed on their dedicated pages.</p>
-            </div>
+            <p class="page-context">Public source collections are available under Public Data.</p>
             <input #sourceFileInput class="source-file-input" type="file" [accept]="acceptedFileTypes()" (change)="fileChanged($event)" />
             @if (store.managementStatus()) {
-                <p class="dataset-status error" role="alert">{{ store.managementStatus() }}</p>
+                <div class="dataset-status error" role="alert">
+                    <span>{{ store.managementStatus() }}</span>
+                    <button class="button secondary" type="button" (click)="store.refreshDatasets()">Retry</button>
+                </div>
             }
             <adsmod-dataset-management
                 [datasets]="store.customDatasets()"

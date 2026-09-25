@@ -86,24 +86,24 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                 </div>
 
                 <nav class="console-nav" aria-label="Primary">
-                    <a class="console-nav-item" routerLink="/datasets" routerLinkActive="active">
+                    <a class="console-nav-item" routerLink="/datasets" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">□</span>
                         <span>Custom Datasets</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/public-data/overview" routerLinkActive="active">
+                    <a class="console-nav-item" routerLink="/public-data/overview" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⇩</span>
                         <span>Public Data</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/dashboards" routerLinkActive="active">
+                    <a class="console-nav-item" routerLink="/dashboards" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">▦</span>
                         <span>Dashboards</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/fitting" routerLinkActive="active">
+                    <a class="console-nav-item" routerLink="/fitting" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⌁</span>
                         <span>Fitting</span>
                     </a>
                     @if (machineLearningAvailable()) {
-                        <a class="console-nav-item" routerLink="/training" routerLinkActive="active">
+                        <a class="console-nav-item" routerLink="/training" routerLinkActive="active" ariaCurrentWhenActive="page">
                             <span class="console-nav-icon" aria-hidden="true">✺</span>
                             <span>Training</span>
                         </a>
