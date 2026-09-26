@@ -133,9 +133,9 @@ contracts, truthful provider-unavailable rendering, and backend Offline/Online
 recovery passed, but the validation host could not reach the three upstream
 providers and the official launcher frontend build exited with Windows status
 `-1073741819`. `ADS-T5-04` passed its bounded measured public-data, import,
-polling, and cleanup scope. `ADS-T5-05` is `PARTIAL`: configuration-schema,
-documentation-link, stale-reference, and fail-closed generator checks passed,
-but full canonical OpenAPI regeneration still requires the ML-enabled profile.
+polling, and cleanup scope. `ADS-T5-05` passed configuration-schema,
+documentation-link, stale-reference, fail-closed generator, and hosted
+ML-enabled canonical OpenAPI regeneration checks.
 
 ## Evidence layout and regression checkpoints
 
@@ -229,10 +229,10 @@ Sources-page overflow was not reproduced in the current implementation.
 persistence, rendered reload, and cleanup. `ADS-T5-01` remains `PARTIAL`
 because deterministic retry/error handling and backend recovery passed, while
 live provider availability and the official launcher build were blocked by the
-validation host. `ADS-T5-04` passes its bounded measured scope. `ADS-T5-05` is `PARTIAL`:
-configuration schema, documentation links, stale-reference checks, and the
-fail-closed OpenAPI generator guard passed, but full canonical OpenAPI
-regeneration still requires the ML-enabled profile. The dashboard product
+validation host. `ADS-T5-04` passes its bounded measured scope.
+`ADS-T5-05` passes: configuration schema, documentation links, stale-reference
+checks, the fail-closed OpenAPI generator guard, and hosted ML-enabled
+canonical OpenAPI regeneration all passed. The dashboard product
 scope (`ISSUE-005`) remains follow-up work. See the dated
 [`ADS-T5-01`](../../QA/validation/2026-09-26/ADS-T5-01/summary.md),
 [`ADS-T5-02`](../../QA/validation/2026-09-26/ADS-T5-02/summary.md), and

@@ -50,9 +50,9 @@ through `ADS-T2-06` passed on the 2026-09-24 working tree based on `9fde82b`.
 exercised `ADS-T5-01` as `PARTIAL`: deterministic provider retry/error
 contracts and rendered backend offline/online recovery passed, while live
 upstream availability and the official launcher build were limited by the
-validation host. `ADS-T5-05` is `PARTIAL`: configuration-schema and
-documentation reconciliation passed, while full canonical OpenAPI regeneration
-still requires the ML-enabled profile.
+validation host. `ADS-T5-05` now passes: the configuration/schema, stale-link,
+documentation, fail-closed Base-profile guard, and current ML-enabled hosted
+OpenAPI regeneration checks all passed.
 
 | Tier | Slice IDs | Status | Current gate |
 | --- | --- | --- | --- |
@@ -61,7 +61,7 @@ still requires the ML-enabled profile.
 | Tier 2 — core product workflows | `ADS-T2-01`–`ADS-T2-06` | `PASS` | `ADS-T2-01`–`ADS-T2-03` passed on `c876a06`; `ADS-T2-04`–`ADS-T2-06` passed in the 2026-09-24 live fitting campaign. |
 | Tier 3 — feature families/providers | `ADS-T3-01`–`ADS-T3-05` | `PASS` | All five slices pass in their stated bounded scope. The 14/40 unsupported NIST experiment measurements remain skipped and reported under the accepted `ISSUE-002` coverage policy; positive guest/host enrichment, PubChem persistence, and COD import/link/re-import are evidenced on 2026-09-25. |
 | Tier 4 — ML workflows | `ADS-T4-01`–`ADS-T4-04` | `BLOCKED` | The current Base runtime lacks Torch and RDKit, so current-baseline positive training and checkpoint workflows cannot run; historical CPU certification is not current-revision evidence. |
-| Tier 5 — resilience and closure | `ADS-T5-01`–`ADS-T5-05` | `PARTIAL` | `ADS-T5-02` and `ADS-T5-04` pass their bounded scopes; `ADS-T5-01` is `PARTIAL` because provider/network recovery could not obtain a positive live upstream and the launcher build hit host status `-1073741819`; `ADS-T5-03` passes; `ADS-T5-05` is `PARTIAL` pending the ML-enabled OpenAPI generation lane. |
+| Tier 5 — resilience and closure | `ADS-T5-01`–`ADS-T5-05` | `PARTIAL` | `ADS-T5-02`, `ADS-T5-03`, `ADS-T5-04`, and `ADS-T5-05` pass their stated scopes; `ADS-T5-01` remains `PARTIAL` because provider/network recovery could not obtain a positive live upstream and the launcher build hit host status `-1073741819`. |
 
 ### Tier 0 slice ledger
 
@@ -107,7 +107,7 @@ still requires the ML-enabled profile.
 | `ADS-T5-02` | Repeated imports, duplicate active jobs, backend restart, persisted records/results, stale state, and process/job cleanup | YES | YES | `PASS` | `bcc81e824f62fbbc13a8059a8b989b9ce31f8d25` + validation tests | None in the bounded repetition/restart/cleanup scope | [`ADS-T5-02/summary.md`](../QA/validation/2026-09-26/ADS-T5-02/summary.md); [`ADS-T5-02/restart-persistence.json`](../QA/validation/2026-09-26/ADS-T5-02/restart-persistence.json); [`ADS-T5-02/job-cleanup.json`](../QA/validation/2026-09-26/ADS-T5-02/job-cleanup.json); [`ADS-T5-02/browser-state.md`](../QA/validation/2026-09-26/ADS-T5-02/browser-state.md) | No long-duration load/stress campaign; existing cancellation/lifespan tests remain adjacent regression evidence | live API + rendered restart reload + focused backend tests + final listener check |
 | `ADS-T5-03` | Keyboard operation, focus management, responsive workflows from desktop through configured narrow viewports, and overflow | YES | YES | `PASS` | `bb898ba` | Historical 1280×720 Sources-page overflow did not reproduce; the bounded suite does not constitute a complete screen-reader audit | [`ADS-T5-03/summary.md`](../QA/validation/2026-09-25/ADS-T5-03/summary.md); [`ADS-T5-03/browser-state.md`](../QA/validation/2026-09-25/ADS-T5-03/browser-state.md) | Full product-wide keyboard/screen-reader review and the remaining Tier 5 slices are still open | official launcher + rendered in-app browser + 32-test viewport/keyboard suite |
 | `ADS-T5-04` | Bounded public-data queries, imports, polling, and performance-sensitive boundaries with measured fixtures | YES | YES | `PASS` | `ac90d3a` + current scoped validation | No defect in the bounded fixture; long-duration load/stress remains outside scope | [`ADS-T5-04/summary.md`](../QA/validation/2026-09-26/ADS-T5-04/summary.md); [`ADS-T5-04/metrics.json`](../QA/validation/2026-09-26/ADS-T5-04/metrics.json) | No long-duration stress campaign; live provider latency remains under `ADS-T5-01` | isolated TestClient + measured fixture + focused backend/frontend tests |
-| `ADS-T5-05` | Documentation, generated OpenAPI/configuration contracts, stale references, QA links, and final ledger reconciliation | YES | YES | `PARTIAL` | `ac90d3a` + current scoped validation | Configuration schema, links, stale-reference checks, and fail-closed guard passed; current Base profile cannot regenerate the ML-inclusive OpenAPI snapshot | [`ADS-T5-05/summary.md`](../QA/validation/2026-09-26/ADS-T5-05/summary.md); [`ADS-T5-05/contract-results.json`](../QA/validation/2026-09-26/ADS-T5-05/contract-results.json) | Recheck canonical 56-path OpenAPI regeneration in the ML-enabled profile | focused contract tests + Ruff + documentation link scan |
+| `ADS-T5-05` | Documentation, generated OpenAPI/configuration contracts, stale references, QA links, and final ledger reconciliation | YES | YES | `PASS` | `ac90d3a` + current scoped validation + hosted run `36266365072` | Base profile cannot regenerate the ML-inclusive snapshot, but the fail-closed guard is covered and the ML-enabled hosted lane regenerated the current canonical contracts | [`ADS-T5-05/summary.md`](../QA/validation/2026-09-26/ADS-T5-05/summary.md); [`ADS-T5-05/contract-results.json`](../QA/validation/2026-09-26/ADS-T5-05/contract-results.json) | No remaining T5-05 gate gap; use the ML-enabled profile for future canonical regeneration | focused contract tests + Ruff + documentation link scan + hosted ML CI |
 
 ## Status taxonomy
 
@@ -211,7 +211,7 @@ useful test without treating every untested path as broken.
 | `ADS-T5-02` | High / current bounded pass | Repeated import rejection, duplicate fitting prevention, persisted dataset/result restart behavior, terminal-job cleanup, and final listener cleanup passed. A long-duration load/stress campaign remains outside scope. | Low |
 | `ADS-T5-03` | High / current browser, viewport, and keyboard pass | The bounded shell, primary-route, dense Public Data, overflow-regression, rename, delete-confirmation, Tab-cycle, Escape, and focus-restoration checks passed across 1480×920 through 600×900 plus the live 1280×720 in-app browser. A full product-wide screen-reader audit and remaining Tier 5 slices are still open. | Medium |
 | `ADS-T5-04` | High / current measured bounded pass | Isolated readiness, CSV import, five local Public Data listings, fitting polling to completion, cleanup, bounded SQL round-trips, parser/provider contracts, and frontend polling helpers passed. Long-duration load/stress and live provider latency remain outside scope. | Low |
-| `ADS-T5-05` | Medium / current partial pass | Configuration schema, snapshot surface, fail-closed generator behavior, Ruff, 31-document/248-link scan, and stale-reference checks passed. Full canonical OpenAPI regeneration remains unverified because the current Base profile lacks Torch and RDKit. | Medium |
+| `ADS-T5-05` | High / current hosted pass | Configuration schema, snapshot surface, fail-closed Base-profile behavior, Ruff, 31-document/248-link scan, stale-reference checks, and current ML-enabled OpenAPI regeneration passed in hosted CI. The local Base profile remains intentionally unable to generate the ML-inclusive contract. | — |
 
 ## Resolved / historical findings
 
