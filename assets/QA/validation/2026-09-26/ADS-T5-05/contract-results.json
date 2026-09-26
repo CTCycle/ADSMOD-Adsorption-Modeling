@@ -1,6 +1,6 @@
 {
   "slice": "ADS-T5-05",
-  "status": "PARTIAL",
+  "status": "PASS",
   "baseline": "ac90d3a0d3e2a73f50affe899256feba7d5f5435 plus current scoped contract-guard changes",
   "config_schema": {
     "tracked_sha256": "A2220982EECB219C2009032AE9E75043F2A2789D613CBC8D07BCF925D20FA168",
@@ -15,7 +15,7 @@
     "training_paths_missing_from_base_profile": 15,
     "base_cli_guard_exit_code": 1,
     "base_cli_created_output": false,
-    "limitation": "The current Base profile lacks Torch and RDKit, so it cannot regenerate the canonical ML-inclusive snapshot. The generator now fails closed instead of writing the reduced contract."
+    "base_profile_note": "The current Base profile lacks Torch and RDKit, so the generator fails closed instead of writing the reduced contract; the supported ML-enabled hosted lane regenerated and matched the canonical snapshot."
   },
   "focused_tests": {
     "contract_and_config_tests": {
@@ -46,5 +46,16 @@
       "historical dual-backend wording in the ledger"
     ],
     "obsolete_active_runtime_references": 0
+  },
+  "hosted_ci": {
+    "run_id": 36266365072,
+    "head_sha": "15294177748ffa30929a15394df4361ff94254d7",
+    "conclusion": "success",
+    "jobs": {
+      "ml-backend": "success",
+      "base-backend": "success",
+      "frontend": "success"
+    },
+    "canonical_generation": "The ML-enabled backend job generated OpenAPI and configuration schema and passed the exact git-diff check."
   }
 }
