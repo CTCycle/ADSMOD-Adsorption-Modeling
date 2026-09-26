@@ -1,6 +1,6 @@
 # ADSMOD quality gates
 
-Last updated: 2026-09-02
+Last updated: 2026-09-26
 
 ## Python
 
@@ -13,7 +13,9 @@ Last updated: 2026-09-02
   the `ml` extra installed.
 - Regenerate `app/resources/adsmod.schema.json` and
   `app/server/openapi/backend.json`; require no unexpected diff after
-  generation.
+  generation. The canonical OpenAPI snapshot must be generated from the
+  ML-enabled profile because it includes training and checkpoint routes; the
+  generator fails closed under the Base profile.
 
 ## Frontend
 

@@ -1,0 +1,50 @@
+{
+  "slice": "ADS-T5-05",
+  "status": "PARTIAL",
+  "baseline": "ac90d3a0d3e2a73f50affe899256feba7d5f5435 plus current scoped contract-guard changes",
+  "config_schema": {
+    "tracked_sha256": "A2220982EECB219C2009032AE9E75043F2A2789D613CBC8D07BCF925D20FA168",
+    "generated_sha256": "A2220982EECB219C2009032AE9E75043F2A2789D613CBC8D07BCF925D20FA168",
+    "exact_match": true
+  },
+  "openapi": {
+    "tracked_sha256": "4A7D33EBE0E772FFB868D5C40FF373D0AF68E3460FC842F759F18ADB080428EB",
+    "base_profile_sha256": "E40075E84F754C4F88128A12C9EDBE640DE1067948A61A3CEB093268BE33A8FA",
+    "tracked_path_count": 56,
+    "base_profile_path_count": 41,
+    "training_paths_missing_from_base_profile": 15,
+    "base_cli_guard_exit_code": 1,
+    "base_cli_created_output": false,
+    "limitation": "The current Base profile lacks Torch and RDKit, so it cannot regenerate the canonical ML-inclusive snapshot. The generator now fails closed instead of writing the reduced contract."
+  },
+  "focused_tests": {
+    "contract_and_config_tests": {
+      "passed": 14,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "generator_guard_tests": {
+      "passed": 5,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "ruff_changed_files": {
+      "passed": true,
+      "exit_code": 0
+    }
+  },
+  "documentation_links": {
+    "documents": 31,
+    "relative_links": 248,
+    "external_or_anchor_links": 6,
+    "missing_links": 0
+  },
+  "stale_reference_scan": {
+    "result": "pass",
+    "intentional_matches": [
+      "src/app/core/state in the TypeScript architecture guide",
+      "historical dual-backend wording in the ledger"
+    ],
+    "obsolete_active_runtime_references": 0
+  }
+}
