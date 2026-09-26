@@ -1,6 +1,6 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 ## Purpose and baseline
 
@@ -126,6 +126,14 @@ adjacent regression, then update the ledger.
 | `ADS-T5-04` | Bounded public-data queries, imports, polling, and other performance-sensitive boundaries with measured fixtures. |
 | `ADS-T5-05` | Documentation, generated OpenAPI/configuration contracts, stale references, QA links, and final ledger reconciliation. |
 
+2026-09-26 checkpoint: `ADS-T5-02` passed bounded repeated-import,
+duplicate-job, restart-persistence, rendered reload, and process/job cleanup
+validation. `ADS-T5-01` is `PARTIAL`: deterministic provider retry/error
+contracts, truthful provider-unavailable rendering, and backend Offline/Online
+recovery passed, but the validation host could not reach the three upstream
+providers and the official launcher frontend build exited with Windows status
+`-1073741819`. `ADS-T5-04` and `ADS-T5-05` remain untested.
+
 ## Evidence layout and regression checkpoints
 
 Use stable slice directories below `assets/QA/validation/<date>/`, for example:
@@ -211,11 +219,17 @@ The 14 unsupported NIST measurements remain outside canonical coverage until
 additional source metadata or a supported conversion basis exists. This is an
 accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
 4's positive training workflow remains `BLOCKED` (`ISSUE-001`) because the
-current Base runtime lacks Torch and RDKit. `ADS-T5-03` now passes its bounded
+current Base runtime lacks Torch and RDKit. `ADS-T5-03` passes its bounded
 responsive, overflow, and keyboard/focus scope after the historical 1280×720
-Sources-page overflow was not reproduced in the current implementation. The
-remaining Tier 5 slices and the dashboard product scope (`ISSUE-005`) remain
-follow-up work. See the dated
+Sources-page overflow was not reproduced in the current implementation.
+`ADS-T5-02` now passes bounded repetition, duplicate prevention, restart
+persistence, rendered reload, and cleanup. `ADS-T5-01` remains `PARTIAL`
+because deterministic retry/error handling and backend recovery passed, while
+live provider availability and the official launcher build were blocked by the
+validation host. `ADS-T5-04` and `ADS-T5-05`, plus the dashboard product scope
+(`ISSUE-005`), remain follow-up work. See the dated
+[`ADS-T5-01`](../../QA/validation/2026-09-26/ADS-T5-01/summary.md),
+[`ADS-T5-02`](../../QA/validation/2026-09-26/ADS-T5-02/summary.md), and
 [`ADS-T5-03`](../../QA/validation/2026-09-25/ADS-T5-03/summary.md) evidence and
 the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
 

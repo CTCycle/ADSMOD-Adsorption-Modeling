@@ -1,6 +1,6 @@
 # ADSMOD Project Status Ledger
 
-Last updated: 2026-09-25
+Last updated: 2026-09-26
 
 This is the canonical current operational status catalog for ADSMOD. It is a
 compact index of what is working, validated, partial, blocked, unvalidated, or
@@ -45,8 +45,12 @@ The long-term campaign and stable slice catalog live in
 is now closed; Tier 1 is now closed. Tier 2 is now closed: `ADS-T2-01` through
 `ADS-T2-03` passed on implementation commit `c876a063`, while `ADS-T2-04`
 through `ADS-T2-06` passed on the 2026-09-24 working tree based on `9fde82b`.
-`ADS-T5-03` passed on the 2026-09-25 Angular revision `bb898ba`; the
-remaining Tier 5 slices are still untested.
+`ADS-T5-03` passed on the 2026-09-25 Angular revision `bb898ba`. The
+2026-09-26 bounded campaign passed `ADS-T5-02` and exercised `ADS-T5-01` as
+`PARTIAL`: deterministic provider retry/error contracts and rendered backend
+offline/online recovery passed, while live upstream availability and the
+official launcher build were limited by the validation host. `ADS-T5-04` and
+`ADS-T5-05` remain untested.
 
 | Tier | Slice IDs | Status | Current gate |
 | --- | --- | --- | --- |
@@ -55,7 +59,7 @@ remaining Tier 5 slices are still untested.
 | Tier 2 — core product workflows | `ADS-T2-01`–`ADS-T2-06` | `PASS` | `ADS-T2-01`–`ADS-T2-03` passed on `c876a06`; `ADS-T2-04`–`ADS-T2-06` passed in the 2026-09-24 live fitting campaign. |
 | Tier 3 — feature families/providers | `ADS-T3-01`–`ADS-T3-05` | `PASS` | All five slices pass in their stated bounded scope. The 14/40 unsupported NIST experiment measurements remain skipped and reported under the accepted `ISSUE-002` coverage policy; positive guest/host enrichment, PubChem persistence, and COD import/link/re-import are evidenced on 2026-09-25. |
 | Tier 4 — ML workflows | `ADS-T4-01`–`ADS-T4-04` | `BLOCKED` | The current Base runtime lacks Torch and RDKit, so current-baseline positive training and checkpoint workflows cannot run; historical CPU certification is not current-revision evidence. |
-| Tier 5 — resilience and closure | `ADS-T5-01`–`ADS-T5-05` | `PARTIAL` | `ADS-T5-03` passes the current bounded shell, responsive, overflow, and keyboard/focus campaign; `ADS-T5-01`, `ADS-T5-02`, `ADS-T5-04`, and `ADS-T5-05` remain untested. |
+| Tier 5 — resilience and closure | `ADS-T5-01`–`ADS-T5-05` | `PARTIAL` | `ADS-T5-02` passes bounded repetition, duplicate prevention, restart persistence, and cleanup evidence; `ADS-T5-01` is `PARTIAL` because provider/network recovery could not obtain a positive live upstream and the launcher build hit host status `-1073741819`; `ADS-T5-03` passes; `ADS-T5-04` and `ADS-T5-05` remain untested. |
 
 ### Tier 0 slice ledger
 
@@ -97,6 +101,8 @@ remaining Tier 5 slices are still untested.
 
 | Slice ID | Capability | Feature exists | Exercised | Status | Baseline revision | Issues | Evidence | Remaining gap | Evidence strength |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ADS-T5-01` | Temporary provider/network/backend failures, retry/error contracts, truthful degraded provider state, and backend offline/online recovery | YES | YES | `PARTIAL` | `bcc81e824f62fbbc13a8059a8b989b9ce31f8d25` + validation tests | Live COD, NIST, and PubChem endpoints were unavailable in this host/network; the official launcher frontend build exited `-1073741819` before listener startup | [`ADS-T5-01/summary.md`](../QA/validation/2026-09-26/ADS-T5-01/summary.md); [`ADS-T5-01/provider-health.json`](../QA/validation/2026-09-26/ADS-T5-01/provider-health.json); [`ADS-T5-01/browser-state.md`](../QA/validation/2026-09-26/ADS-T5-01/browser-state.md) | Positive live provider retry-to-success and a current-host official-launcher build remain unverified; existing bundle/manual preview was used only for the live recovery UI path | focused backend tests + mocked retry contract + live API failure contract + rendered in-app Browser |
+| `ADS-T5-02` | Repeated imports, duplicate active jobs, backend restart, persisted records/results, stale state, and process/job cleanup | YES | YES | `PASS` | `bcc81e824f62fbbc13a8059a8b989b9ce31f8d25` + validation tests | None in the bounded repetition/restart/cleanup scope | [`ADS-T5-02/summary.md`](../QA/validation/2026-09-26/ADS-T5-02/summary.md); [`ADS-T5-02/restart-persistence.json`](../QA/validation/2026-09-26/ADS-T5-02/restart-persistence.json); [`ADS-T5-02/job-cleanup.json`](../QA/validation/2026-09-26/ADS-T5-02/job-cleanup.json); [`ADS-T5-02/browser-state.md`](../QA/validation/2026-09-26/ADS-T5-02/browser-state.md) | No long-duration load/stress campaign; existing cancellation/lifespan tests remain adjacent regression evidence | live API + rendered restart reload + focused backend tests + final listener check |
 | `ADS-T5-03` | Keyboard operation, focus management, responsive workflows from desktop through configured narrow viewports, and overflow | YES | YES | `PASS` | `bb898ba` | Historical 1280×720 Sources-page overflow did not reproduce; the bounded suite does not constitute a complete screen-reader audit | [`ADS-T5-03/summary.md`](../QA/validation/2026-09-25/ADS-T5-03/summary.md); [`ADS-T5-03/browser-state.md`](../QA/validation/2026-09-25/ADS-T5-03/browser-state.md) | Full product-wide keyboard/screen-reader review and the remaining Tier 5 slices are still open | official launcher + rendered in-app browser + 32-test viewport/keyboard suite |
 
 ## Status taxonomy
@@ -197,6 +203,8 @@ useful test without treating every untested path as broken.
 | `data.public.pubchem-enrichment` | Low / current pass | Positive PubChem resolution, property/provenance persistence, reload, and mocked secondary-endpoint failure handling passed. | — |
 | `quality.validation-gates` | High / current hosted pass | No current three-job CI gate debt; revalidate after future workflow, dependency, or generated-contract changes. | — |
 | `ui.dashboards` | Low / current placeholder-route pass | Product-scope decision, completed top-level view, and populated training metrics remain open; the current placeholder route is contained and navigable. | Low |
+| `ADS-T5-01` | High / current bounded partial | Deterministic retry/error mapping and rendered backend offline/online recovery passed. Positive live provider recovery and the official current-host launcher build remain unverified because all three upstreams were unavailable and the Angular build exited `-1073741819`. | High |
+| `ADS-T5-02` | High / current bounded pass | Repeated import rejection, duplicate fitting prevention, persisted dataset/result restart behavior, terminal-job cleanup, and final listener cleanup passed. A long-duration load/stress campaign remains outside scope. | Low |
 | `ADS-T5-03` | High / current browser, viewport, and keyboard pass | The bounded shell, primary-route, dense Public Data, overflow-regression, rename, delete-confirmation, Tab-cycle, Escape, and focus-restoration checks passed across 1480×920 through 600×900 plus the live 1280×720 in-app browser. A full product-wide screen-reader audit and remaining Tier 5 slices are still open. | Medium |
 
 ## Resolved / historical findings

@@ -8,10 +8,14 @@ import pytest
 from sqlalchemy import event, select
 from sqlalchemy.exc import IntegrityError
 
+from server.api.public_data import PublicDataEndpoint
 from server.configurations.settings import DatabaseConfig
 from server.services.providers.cod import CODProvider
 from server.services.providers.pubchem import PubChemProvider
-from server.services.providers.public_data import ProviderUnavailableError
+from server.services.providers.public_data import (
+    ProviderRateLimitError,
+    ProviderUnavailableError,
+)
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.public_data import PublicDataRepository
 from server.repositories.schemas import Base
@@ -338,6 +342,69 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
         assert created[0].closed is True  # type: ignore[attr-defined]
 
     asyncio.run(exercise())
+
+###############################################################################
+def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    responses = [
+        httpx.Response(
+            503,
+            request=httpx.Request("GET", "https://example.test/retry"),
+        ),
+        httpx.Response(
+            200,
+            request=httpx.Request("GET", "https://example.test/retry"),
+            text="{}",
+        ),
+    ]
+    sleeps: list[float] = []
+
+    class FakeClient:
+        def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            del kwargs
+
+        async def request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            del args, kwargs
+            return responses.pop(0)
+
+        async def aclose(self) -> None:
+            return None
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    provider = CODProvider(
+        request_timeout_seconds=1.0,
+        retry_attempts=2,
+        max_interactive_results=10,
+    )
+
+    async def exercise() -> None:
+        response = await provider._request("GET", "https://example.test/retry")
+        assert response.status_code == 200
+        await provider.close()
+
+    asyncio.run(exercise())
+    assert responses == []
+    assert sleeps == [0.5]
+
+###############################################################################
+@pytest.mark.parametrize(
+    ("error", "status_code"),
+    [
+        (ProviderRateLimitError("rate limited"), 429),
+        (ProviderUnavailableError("unavailable"), 503),
+    ],
+)
+def test_public_provider_errors_keep_explicit_http_contract(
+    error: ProviderUnavailableError,
+    status_code: int,
+) -> None:
+    mapped = PublicDataEndpoint._provider_error(error)
+
+    assert mapped.status_code == status_code
+    assert mapped.detail == str(error)
 
 ###############################################################################
 def test_pubchem_resolution_maps_successful_malformed_json_to_provider_error(

@@ -1,0 +1,35 @@
+{
+  "date": "2026-09-26",
+  "backend": "http://127.0.0.1:6045",
+  "endpoint": "/api/v1/public-data/sources?check_health=true",
+  "sources": [
+    {
+      "key": "cod",
+      "status": "unavailable",
+      "status_detail": "Crystallography Open Database could not be reached after 3 attempts.",
+      "record_count": 0,
+      "last_checked_at": "2026-09-26T08:36:29.568462Z"
+    },
+    {
+      "key": "nist",
+      "status": "unavailable",
+      "status_detail": "NIST adsorption endpoint did not respond successfully.",
+      "record_count": 0,
+      "last_checked_at": "2026-09-26T08:36:28.028998Z"
+    },
+    {
+      "key": "pubchem",
+      "status": "unavailable",
+      "status_detail": "PubChem could not be reached after 3 attempts.",
+      "record_count": 0,
+      "last_checked_at": "2026-09-26T08:36:29.568711Z"
+    }
+  ],
+  "pubchem_resolve": {
+    "query": "carbon dioxide",
+    "observed_at": "2026-09-26T08:36:29Z",
+    "http_status": 503,
+    "detail": "PubChem could not be reached after 3 attempts."
+  },
+  "classification": "provider/network unavailable; local API and truthful degraded UI exercised"
+}
