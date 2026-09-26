@@ -1,0 +1,72 @@
+{
+  "slice": "ADS-T5-04",
+  "status": "PASS",
+  "baseline": "ac90d3a0d3e2a73f50affe899256feba7d5f5435 plus current scoped contract-guard changes",
+  "fixture": "app/tests/fixtures/sample_adsorption.csv",
+  "storage": "TemporaryDirectory",
+  "health_ready_ms": 55.871,
+  "import": {
+    "preview_ms": 88.506,
+    "validation_ms": 13.102,
+    "commit_ms": 47.912,
+    "experiment_count": 2,
+    "observation_count": 21
+  },
+  "public_data": {
+    "sources": {
+      "status": 200,
+      "item_count": 3,
+      "elapsed_ms": 5.434
+    },
+    "adsorption": {
+      "status": 200,
+      "item_count": 2,
+      "total": 2,
+      "elapsed_ms": 12.877
+    },
+    "materials": {
+      "status": 200,
+      "item_count": 2,
+      "total": 2,
+      "elapsed_ms": 7.224
+    },
+    "chemicals": {
+      "status": 200,
+      "item_count": 2,
+      "total": 2,
+      "elapsed_ms": 14.212
+    },
+    "structures": {
+      "status": 200,
+      "item_count": 0,
+      "total": 0,
+      "elapsed_ms": 5.056
+    }
+  },
+  "polling": {
+    "start_ms": 34.442,
+    "poll_count": 4,
+    "elapsed_ms": 355.621,
+    "server_poll_interval_seconds": 1.0,
+    "terminal_status": "completed"
+  },
+  "experiment_lookup_ms": 12.945,
+  "cleanup_delete_ms": 13.577,
+  "focused_tests": {
+    "backend_public_data_import_contracts": {
+      "passed": 40,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "sql_round_trip_guard": {
+      "passed": 1,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "frontend_polling_helpers": {
+      "passed": 8,
+      "failed": 0,
+      "exit_code": 0
+    }
+  }
+}

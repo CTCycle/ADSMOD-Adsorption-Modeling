@@ -1,6 +1,6 @@
 # ADSMOD operational commands
 
-Last updated: 2026-09-18
+Last updated: 2026-09-26
 
 ## Launch and maintenance
 
@@ -34,9 +34,18 @@ app\tests\run_tests.bat
 
 ```powershell
 & .\app\server\.venv\Scripts\python.exe -m pytest -c app\tests\pytest.ini app\tests -v --basetemp .\runtimes\cache\pytest-tmp
-& .\app\server\.venv\Scripts\python.exe app\scripts\generate_openapi.py --config app\resources\adsmod.json --output app\server\openapi\backend.json
 & .\app\server\.venv\Scripts\python.exe app\scripts\generate_config_schema.py --output app\resources\adsmod.schema.json
 ```
+
+The canonical OpenAPI snapshot includes the optional training and checkpoint
+routes, so generate it from the ML-enabled development profile:
+
+```powershell
+& .\runtimes\uv\uv.exe run --project .\app\server --extra ml --group dev python app\scripts\generate_openapi.py --config app\resources\adsmod.json --output app\server\openapi\backend.json
+```
+
+The generator fails closed under the Base profile rather than overwriting the
+canonical snapshot with a reduced contract.
 
 ## Frontend
 

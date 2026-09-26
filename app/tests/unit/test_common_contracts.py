@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
+from scripts.generate_openapi import build_openapi_schema
 from server.domain.capabilities import CapabilitiesResponse
 from server.configurations.settings import AdsmodConfig, load_config
 
@@ -44,3 +46,16 @@ def test_capability_contract_is_strict() -> None:
         },
     })
     assert response.features.machine_learning is False
+
+
+###############################################################################
+def test_openapi_generation_fails_closed_without_ml_profile(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    application = SimpleNamespace(
+        state=SimpleNamespace(
+            runtime=SimpleNamespace(machine_learning_available=False)
+        )
+    )
+    monkeypatch.setattr("scripts.generate_openapi.create_app", lambda config: application)
+
+    with pytest.raises(RuntimeError, match="requires the ML-enabled backend profile"):
+        build_openapi_schema(CONFIG_PATH)
