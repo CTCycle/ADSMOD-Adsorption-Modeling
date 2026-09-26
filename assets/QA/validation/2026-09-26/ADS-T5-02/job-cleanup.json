@@ -1,0 +1,20 @@
+{
+  "duplicate_fitting_submission": {
+    "first_job_id": "cc6dd30e",
+    "first_submission_status": 200,
+    "second_submission_status": 400,
+    "second_submission_detail": "A fitting job is already running.",
+    "first_job_terminal_status": "completed"
+  },
+  "automated_cleanup": {
+    "focused_backend_tests": 42,
+    "deselected_ml_positive_tests": 1,
+    "repeated_terminal_job_bookkeeping": "empty after success, failure, success",
+    "process_job_lifespan_cleanup": "passed"
+  },
+  "final_runtime_cleanup": {
+    "backend_listener_6045": false,
+    "frontend_listener_5173": false,
+    "temporary_live_profile_removed": true
+  }
+}

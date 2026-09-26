@@ -86,6 +86,25 @@ def test_thread_success_releases_execution_bookkeeping() -> None:
 
 
 ###############################################################################
+def test_repeated_terminal_jobs_do_not_leave_stale_execution_bookkeeping() -> None:
+    manager = JobManager()
+
+    for runner in (_successful_thread_job, _failing_thread_job, _successful_thread_job):
+        job_id = manager.start_job("repeated-test", runner)
+        status = _wait_for_terminal(manager, job_id)
+        _wait_for_cleanup(manager, job_id)
+        assert status["status"] in {"completed", "failed"}
+
+    with manager.lock:
+        assert manager.threads == {}
+        assert manager.thread_stop_events == {}
+        assert manager.processes == {}
+        assert manager.job_configs == {}
+    assert not manager.is_job_running("repeated-test")
+    assert len(manager.list_jobs("repeated-test")) == 3
+
+
+###############################################################################
 def test_thread_exception_releases_execution_bookkeeping() -> None:
     manager = JobManager()
     job_id = manager.start_job("test", _failing_thread_job)

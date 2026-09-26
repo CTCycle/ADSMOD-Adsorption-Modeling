@@ -110,6 +110,41 @@ class TestDatasetImport:
         assert dataset["experiment_count"] > 0
         assert dataset["observation_count"] > 0
 
+    # -------------------------------------------------------------------------
+    def test_repeated_import_rejects_duplicate_without_creating_a_second_dataset(
+        self, api_context: APIRequestContext, sample_csv_path: str
+    ) -> None:
+        dataset_name = f"repeat_adsorption_{uuid.uuid4().hex[:8]}"
+        first = _commit_sample(api_context, sample_csv_path, dataset_name)
+
+        file_content, mapping = _build_mapping(
+            api_context, sample_csv_path, dataset_name
+        )
+        duplicate_response = api_context.post(
+            "/api/v1/datasets/import/commit",
+            multipart={
+                "mapping": json.dumps(mapping),
+                "file": {
+                    "name": f"{dataset_name}.csv",
+                    "mimeType": "text/csv",
+                    "buffer": file_content,
+                },
+            },
+        )
+
+        assert duplicate_response.status == 400
+        assert duplicate_response.json()["detail"] == (
+            f"A dataset named '{dataset_name}' already exists."
+        )
+        listing = api_context.get("/api/v1/datasets")
+        assert listing.ok, listing.text()
+        matching = [
+            item
+            for item in listing.json()["datasets"]
+            if item["name"] == dataset_name
+        ]
+        assert matching == [first]
+
 ###############################################################################
 class TestDatasetList:
     """Tests for listing canonical dataset summaries."""

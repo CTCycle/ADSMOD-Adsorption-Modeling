@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-26",
+  "isolated_storage": "temporary LOCALAPPDATA profile (removed after validation)",
+  "dataset": {
+    "name": "repeat_adsorption_6c23775c",
+    "id": 2,
+    "experiment_count": 2,
+    "observation_count": 21,
+    "matching_records_after_restart": 1
+  },
+  "migration": {
+    "before": "20260924_fitting_cancel",
+    "after": "20260924_fitting_cancel",
+    "head": "20260924_fitting_cancel",
+    "applied_migrations_on_restart": false
+  },
+  "fitting_run": {
+    "run_id": 1,
+    "status_after_completion": "completed",
+    "status_after_restart": "completed"
+  },
+  "restarted_job_manager": {
+    "job_count": 0,
+    "active_jobs": []
+  }
+}
