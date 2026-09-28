@@ -26,14 +26,14 @@ The three-job workflow most recently passed on SHA `270e94df63969feb6fbe81b081dc
 in hosted run `35910483168`, including Base/ML dependency installation,
 frontend checks, and browser layout validation.
 
-The residual Tier 5 recheck was performed on the current working tree based on
-`17f247e` plus the scoped dataset-import focus fix. `ADS-T5-02` covered a
+The residual Tier 5 recheck was performed on tested source/evidence commit
+`dc841b4f251eff3f868385cf52d3d16a0b05aea4`. `ADS-T5-02` covered a
 serial 600-second repetition run with two controlled backend restarts,
 restart persistence, duplicate-job rejection, and final cleanup. `ADS-T5-03`
 covered current rendered route checks at 1280×720, supporting 600×900 captures,
 keyboard-only shell/help/import behavior, and the adjacent frontend gates.
-The final validation source/evidence commit is recorded in the ledger after
-publication. Audible screen-reader output was not observable, and the soak is
+The final validation source/evidence commit is recorded in the ledger and is
+followed only by documentation publication. Audible screen-reader output was not observable, and the soak is
 bounded evidence rather than a production-scale stress claim.
 
 The canonical current status is [`../project_status_ledger.md`](../project_status_ledger.md).
