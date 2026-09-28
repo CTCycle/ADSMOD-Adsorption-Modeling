@@ -25,7 +25,7 @@
       "module": "server.cli",
       "args": [
         "--config",
-        "${workspaceFolder}/app/resources/adsmod.json"
+        "${workspaceFolder}/resources/adsmod.json"
       ],
       "jinja": true,
       "serverReadyAction": {

@@ -10,8 +10,9 @@ from playwright.sync_api import APIRequestContext, Page, Playwright
 TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
 APP_ROOT = TESTS_DIR.parent
+REPOSITORY_ROOT = APP_ROOT.parent
 WILDCARD_BIND_HOSTS = {"", "0.0.0.0", "::", "[::]"}
-CANONICAL_CONFIG = APP_ROOT / "resources" / "adsmod.json"
+CANONICAL_CONFIG = REPOSITORY_ROOT / "resources" / "adsmod.json"
 
 ###############################################################################
 def normalize_client_host(bind_host: str) -> str:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from server.configurations.settings import DatabaseConfig, load_config
 from pathlib import Path
 
-CANONICAL_CONFIGURATION_FILE = Path("app/resources/adsmod.json")
+CANONICAL_CONFIGURATION_FILE = Path("resources/adsmod.json")
 
 ###############################################################################
 def project(payload: dict[str, object]) -> DatabaseConfig:

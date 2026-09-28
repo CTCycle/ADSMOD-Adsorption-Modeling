@@ -10,7 +10,7 @@ from server.configurations.settings import StorageConfig, load_config
 from server.repositories.schemas.models import Dataset
 
 
-CONFIG_PATH = Path("app/resources/adsmod.json")
+CONFIG_PATH = Path("resources/adsmod.json")
 
 
 ###############################################################################

@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-09-21
+Last updated: 2026-09-28
 
 ## Recommended startup
 
@@ -8,7 +8,8 @@ Last updated: 2026-09-21
 & .\start_on_windows.ps1
 ```
 
-The launcher reads `app/resources/adsmod.json`, inspects every configured
+The launcher reads `resources/adsmod.json` by default, or the selected
+resource directory's `adsmod.json`, inspects every configured
 application port before doing runtime, dependency, or build work, then starts
 one FastAPI backend and a static production preview server. If configured ports
 are occupied by resolvable processes, it presents the complete conflict set
@@ -66,7 +67,7 @@ branches or modify local changes.
 From the repository root after `app/server/.venv` is ready:
 
 ```powershell
-& .\app\server\.venv\Scripts\python.exe -m server.cli --config .\app\resources\adsmod.json
+& .\app\server\.venv\Scripts\python.exe -m server.cli --config .\resources\adsmod.json
 ```
 
 This is the only backend process. If the environment was synchronized with the

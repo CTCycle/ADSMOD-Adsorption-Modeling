@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from server.configurations.settings import JobConfig, PublicDataConfig, TrainingConfig, load_config
 
-CANONICAL_CONFIGURATION_FILE = Path("app/resources/adsmod.json")
+CANONICAL_CONFIGURATION_FILE = Path("resources/adsmod.json")
 
 ###############################################################################
 def test_json_training_configuration_projects_from_canonical_model() -> None:

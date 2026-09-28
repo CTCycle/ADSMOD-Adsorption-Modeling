@@ -27,6 +27,19 @@ def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     assert "function Sync-FrontendDependencies" not in text
 
 
+def test_launcher_uses_repository_resources_by_default_and_supports_override() -> None:
+    text = launcher_text()
+
+    assert '[string]$ResourcesPath = ""' in text
+    assert '$DefaultResourcesDir = Join-Path $RepoRoot "resources"' in text
+    assert "function Get-ConfiguredResourcePath" in text
+    assert "function Set-ConfiguredResourcePaths" in text
+    assert "ADSMOD_RESOURCES_DIR" in text
+    assert "-ResourcesPath" in (REPOSITORY_ROOT / "assets/docs/operations/commands.md").read_text(
+        encoding="utf-8"
+    )
+
+
 def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
     text = launcher_text()
     fingerprint_start = text.index("function Get-FrontendBuildFingerprint")

@@ -1,8 +1,13 @@
 # ADSMOD runtime configuration
 
-Last updated: 2026-09-16
+Last updated: 2026-09-28
 
-`app/resources/adsmod.json` is the only runtime value file. Its complete shape is validated by `server.configurations.settings.AdsmodConfig`; the generated `app/resources/adsmod.schema.json` is a validation aid, not a second authority.
+`resources/adsmod.json` is the default runtime value file. The launcher and
+frontend development proxy accept `ADSMOD_RESOURCES_DIR` (or the launcher's
+`-ResourcesPath` parameter) when a different configuration directory is
+desired. The complete shape is validated by
+`server.configurations.settings.AdsmodConfig`; the generated
+`resources/adsmod.schema.json` is a validation aid, not a second authority.
 
 The configuration describes one backend runtime plus the frontend and application settings. It does not select between multiple backend services. Machine learning availability is determined by whether the optional `ml` dependency extra is installed and loadable.
 
@@ -10,7 +15,10 @@ The same config path is used by the unified backend, launcher, maintenance scrip
 
 `application.datasets.allowed_extensions` is the authoritative upload policy. The backend import engine validates uploaded filenames against this configured list, the dataset capability response exposes the same list, and the frontend file picker consumes that response. The canonical v3 defaults are `.csv`, `.xls`, and `.xlsx`.
 
-`settings/.env.example` is an optional developer-environment template for local tooling and IDEs. Copy it to `settings/.env` when needed; it does not replace or override the canonical JSON configuration.
+`settings/.env.example` is an optional developer-environment template for
+local tooling and IDEs. Its `ADSMOD_RESOURCES_DIR` setting selects the
+configuration directory; it does not replace or override the canonical JSON
+configuration.
 
 The `runtime` section supplies the backend and frontend network settings. The `storage` section supplies the root for logs, the embedded database, checkpoints, and optional ML artifacts. Relative database paths are resolved below that root.
 
