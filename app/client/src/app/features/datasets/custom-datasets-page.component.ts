@@ -28,7 +28,7 @@ const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
     template: `
         <div class="data-page custom-datasets-page">
             <p class="page-context">Public source collections are available under Public Data.</p>
-            <input #sourceFileInput class="source-file-input" type="file" [accept]="acceptedFileTypes()" (change)="fileChanged($event)" />
+            <input #sourceFileInput class="source-file-input" type="file" aria-label="Choose a dataset file" [accept]="acceptedFileTypes()" (change)="fileChanged($event)" />
             @if (store.managementStatus()) {
                 <div class="dataset-status error" role="alert">
                     <span>{{ store.managementStatus() }}</span>
@@ -36,6 +36,7 @@ const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
                 </div>
             }
             <adsmod-dataset-management
+                #datasetManagement
                 [datasets]="store.customDatasets()"
                 [selected]="store.selectedDatasetId()"
                 (addRequested)="sourceFileInput.click()"
@@ -60,7 +61,7 @@ const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
                 />
             }
             @if (pendingFile(); as file) {
-                <adsmod-dataset-import-wizard [file]="file" (closed)="pendingFile.set(null)" (saved)="wizardSaved()" />
+                <adsmod-dataset-import-wizard [file]="file" (closed)="wizardClosed(datasetManagement)" (saved)="wizardSaved()" />
             }
         </div>
     `,
@@ -166,5 +167,10 @@ export class CustomDatasetsPageComponent {
     protected wizardSaved(): void {
         this.pendingFile.set(null);
         void this.store.refreshDatasets();
+    }
+
+    protected wizardClosed(management: DatasetManagementComponent): void {
+        this.pendingFile.set(null);
+        queueMicrotask(() => management.focusAddButton());
     }
 }

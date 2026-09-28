@@ -1,0 +1,50 @@
+{
+  "tested_revision": "17f247e plus scoped current-revision focus fix",
+  "started_at_utc": "2026-09-28T18:38:25.770Z",
+  "duration_target_seconds": 600.0,
+  "duration_seconds": 600.132,
+  "cycle_interval_seconds": 15.0,
+  "storage": "writable isolated runtime used after the official QA-directory SQLite ACL limitation was recorded",
+  "counts": {
+    "sentinel_commits": 1,
+    "sentinel_fitting_runs": 1,
+    "dataset_commits": 38,
+    "duplicate_dataset_checks": 38,
+    "dataset_list_checks": 38,
+    "fitting_runs": 37,
+    "duplicate_fit_checks": 37,
+    "delete_list_checks": 37
+  },
+  "http_outcomes": {
+    "duplicate_dataset_400": 38,
+    "dataset_delete_204": 37,
+    "sentinel_delete_204": 1
+  },
+  "restart_observations": [
+    {"offset_seconds": "approximately 186-190", "stopped_pid": 22348, "restarted_pid": 39108, "readiness": 200},
+    {"offset_seconds": "approximately 465-470", "stopped_pid": 39108, "restarted_pid": 16792, "readiness": 200}
+  ],
+  "restart_gap_failures": [
+    {"offset_seconds": 196.04, "error": "ECONNRESET"},
+    {"offset_seconds": 213.05, "error": "ECONNREFUSED"},
+    {"offset_seconds": 485.138, "error": "ECONNREFUSED"}
+  ],
+  "sentinel": {
+    "dataset_id": 2,
+    "experiment_count": 2,
+    "observation_count": 21,
+    "job_status": "completed",
+    "duplicate_job_status": 400
+  },
+  "final": {
+    "active_jobs": [],
+    "job_list_count": 7,
+    "sentinel_delete_status": 204,
+    "remaining_dataset_count": 2
+  },
+  "post_soak_cleanup": {
+    "remaining_dataset_count": 0,
+    "active_job_count": 0,
+    "terminal_job_history_count": 9
+  }
+}

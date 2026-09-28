@@ -26,6 +26,16 @@ The three-job workflow most recently passed on SHA `270e94df63969feb6fbe81b081dc
 in hosted run `35910483168`, including Base/ML dependency installation,
 frontend checks, and browser layout validation.
 
+The residual Tier 5 recheck was performed on the current working tree based on
+`17f247e` plus the scoped dataset-import focus fix. `ADS-T5-02` covered a
+serial 600-second repetition run with two controlled backend restarts,
+restart persistence, duplicate-job rejection, and final cleanup. `ADS-T5-03`
+covered current rendered route checks at 1280×720, supporting 600×900 captures,
+keyboard-only shell/help/import behavior, and the adjacent frontend gates.
+The final validation source/evidence commit is recorded in the ledger after
+publication. Audible screen-reader output was not observable, and the soak is
+bounded evidence rather than a production-scale stress claim.
+
 The canonical current status is [`../project_status_ledger.md`](../project_status_ledger.md).
 Execution evidence is under [`../../QA/validation/2026-09-22/`](../../QA/validation/2026-09-22/)
 for Tier 0 and [`../../QA/validation/2026-09-23/ADS-T1-01/`](../../QA/validation/2026-09-23/ADS-T1-01/)
@@ -147,12 +157,21 @@ PubChem and COD calls, reran the non-ML retry/error regression subset, and
 completed the official launcher `Rebuild frontend` action with portable Node
 22.13.0. The existing rendered provider-degraded and backend Offline/Online
 recovery evidence remains valid because the relevant runtime source was
-unchanged. `ADS-T5-02`, `ADS-T5-03`, and `ADS-T5-04` remain passing in their
-bounded scopes, and `ADS-T5-05` passed its configuration-schema,
-documentation-link, stale-reference, fail-closed generator, and hosted
-ML-enabled canonical OpenAPI regeneration checks. Tier 5 is therefore closed
-for the stated bounded scopes; continuous provider availability and
-long-duration stress are not claimed.
+unchanged. The residual `ADS-T5-02` recheck completed 38 dataset commit and
+duplicate checks, 37 fitting and duplicate-job cycles, two controlled
+restarts, and final deletion/listener cleanup after a 600.132-second run. Its
+official launcher UI/readiness path passed, but multipart commit in the
+protected QA directory hit a host ACL readonly-database error; the same
+fixture and API contract passed through the clean managed server lane. The
+residual `ADS-T5-03` recheck passed current rendered route, keyboard/focus,
+responsive, lint, unit, preview, development-build, and focused regression
+checks. Narrator/Speech Recap output was not observable, so the screen-reader
+sub-gate remains `PARTIAL`; the local production builder and configured visual
+runner also have host-specific limitations recorded in the evidence. The
+other Tier 5 slices and `ADS-T5-05` remain passing in their bounded scopes.
+Tier 5 is therefore closed for the stated bounded scopes; continuous provider
+availability, production-scale stress, and audible screen-reader coverage are
+not claimed.
 
 ## Evidence layout and regression checkpoints
 
@@ -242,14 +261,17 @@ additional source metadata or a supported conversion basis exists. This is an
 accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
 4 now passes its bounded ML lifecycle on the locked ML profile; the tiny
 synthetic fixture does not establish model quality, convergence, or
-production-scale readiness. `ADS-T5-03`
-passes its bounded responsive, overflow, and keyboard/focus scope after the
+production-scale readiness. The residual `ADS-T5-03` recheck passes its
+bounded rendered responsive, overflow, and keyboard/focus scope after the
 historical 1280×720 Sources-page overflow was not reproduced in the current
-implementation. `ADS-T5-02` passes bounded repetition, duplicate prevention,
-restart persistence, rendered reload, and cleanup. `ADS-T5-01` now passes its
-bounded scope: deterministic retry/error handling, live provider health and
-positive provider calls, backend recovery, and the official launcher rebuild
-all passed. `ADS-T5-04` passes its bounded measured scope.
+implementation; its audible screen-reader sub-gate remains `PARTIAL` because
+no Narrator/Speech Recap output was observable. `ADS-T5-02` passes bounded
+repetition, duplicate prevention, two-restart persistence, rendered reload,
+and cleanup; the official launcher write path remains host-ACL limited in the
+protected QA directory, while the clean managed server lane passed. `ADS-T5-01`
+now passes its bounded scope: deterministic retry/error handling, live provider
+health and positive provider calls, backend recovery, and the official launcher
+rebuild all passed. `ADS-T5-04` passes its bounded measured scope.
 `ADS-T5-05` passes: configuration schema, documentation links, stale-reference
 checks, the fail-closed OpenAPI generator guard, and hosted ML-enabled
 canonical OpenAPI regeneration all passed. The dashboard product
@@ -257,8 +279,8 @@ scope (`ISSUE-005`) remains follow-up work. See the dated
 [`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md),
 the [ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md),
 [`ADS-T5-01`](../../QA/validation/2026-09-28/ADS-T5-01/summary.md),
-[`ADS-T5-02`](../../QA/validation/2026-09-26/ADS-T5-02/summary.md), and
-[`ADS-T5-03`](../../QA/validation/2026-09-25/ADS-T5-03/summary.md),
+[`ADS-T5-02`](../../QA/validation/2026-09-28/ADS-T5-02/summary.md),
+[`ADS-T5-03`](../../QA/validation/2026-09-28/ADS-T5-03/summary.md),
 [`ADS-T5-04`](../../QA/validation/2026-09-26/ADS-T5-04/summary.md), and
 [`ADS-T5-05`](../../QA/validation/2026-09-26/ADS-T5-05/summary.md) evidence and
 the [current ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
