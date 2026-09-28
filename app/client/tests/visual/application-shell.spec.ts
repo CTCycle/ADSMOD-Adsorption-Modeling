@@ -107,6 +107,10 @@ test('primary routes share one stable shell at each supported viewport', async (
             expect(tabRows).toHaveLength(page.viewportSize()!.width <= 760 ? 2 : 1);
         }
 
+        if (route.key === 'datasets') {
+            await expect(page.locator('input[type="file"]')).toHaveAttribute('aria-label', 'Choose a dataset file');
+        }
+
         const captureDesktop = testInfo.project.name === 'viewport-1440x920';
         const captureMobile = testInfo.project.name === 'mobile-600x900' && ['datasets', 'training'].includes(route.key);
         const captureKnownOverflowViewport = testInfo.project.name === 'known-overflow-1280x720' && route.key === 'public-data';
@@ -181,4 +185,65 @@ test('dataset rename stays in-page and deletion requires an explicit confirmatio
     await page.getByRole('button', { name: 'Delete dataset', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Renamed workspace dataset', exact: true })).toHaveCount(0);
     expect(deleteRequests).toBe(1);
+});
+
+test('dataset import keeps keyboard focus inside the wizard and restores the trigger', async ({ page }) => {
+    await installShellApiMocks(page, false);
+    await page.route('**/api/v1/datasets', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ datasets: [] }) });
+    });
+    await page.route('**/api/v1/datasets/supported-units', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ allowed_extensions: ['.csv', '.xls', '.xlsx'] }),
+        });
+    });
+    await page.route('**/api/v1/datasets/import/preview', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                status: 'success',
+                filename: 'sample.csv',
+                source_sha256: 'test-sha256',
+                row_count: 2,
+                column_count: 3,
+                detected_structure: 'atomic',
+                structure_confidence: 0.95,
+                columns: [
+                    { name: 'pressure', inferred_type: 'number', proposed_role: 'pressure', detected_unit: 'bar' },
+                    { name: 'uptake', inferred_type: 'number', proposed_role: 'uptake', detected_unit: 'mmol/g' },
+                    { name: 'temperature', inferred_type: 'number', proposed_role: 'temperature', detected_unit: 'K' },
+                ],
+                preview_rows: [{ pressure: 1, uptake: 0.1, temperature: 298 }],
+                proposed_grouping_columns: [],
+                proposed_pressure_basis: 'absolute',
+                issues: [],
+                guidance: [],
+            }),
+        });
+    });
+
+    await page.goto('/datasets');
+    const chooserPromise = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Add dataset', exact: true }).click();
+    const chooser = await chooserPromise;
+    await chooser.setFiles({
+        name: 'sample.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('pressure,uptake,temperature\n1,0.1,298\n'),
+    });
+
+    const dialog = page.getByRole('dialog', { name: 'Understand sample.csv' });
+    await expect(dialog).toBeVisible();
+    const closeButton = dialog.getByRole('button', { name: 'Close import wizard', exact: true });
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(dialog.getByRole('button', { name: 'Review mapping', exact: true })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(closeButton).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Add dataset', exact: true })).toBeFocused();
 });

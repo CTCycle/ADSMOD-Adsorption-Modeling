@@ -1,0 +1,11 @@
+{
+  "final_cleanup": {
+    "deleted_disposable_datasets": 6,
+    "delete_http_statuses": [204, 204, 204, 204, 204, 204],
+    "remaining_dataset_count": 0,
+    "active_job_count": 0,
+    "terminal_job_history_count": 9,
+    "listeners_checked": [6045, 5173]
+  },
+  "scope": "isolated QA runtime only; no canonical data or protected cache residue was modified"
+}

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, ViewChild, signal } from '@angular/core';
 import type { DatasetMetadata, DatasetSummary } from '../../models/dataset.model';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 
@@ -17,7 +17,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                 </div>
             </div>
             <div class="dataset-add-row">
-                <button class="button primary add-dataset-button" type="button" (click)="addRequested.emit()">Add dataset</button>
+                <button #addDatasetButton class="button primary add-dataset-button" type="button" (click)="addRequested.emit()">Add dataset</button>
                 <div>
                     <h3>{{ datasets.length ? 'Add another dataset' : 'Add your first dataset' }}</h3>
                     <p>Import CSV or Excel observations. One observation per row is recommended.</p>
@@ -119,6 +119,7 @@ export class DatasetManagementComponent implements OnChanges {
     @Output() readonly deleted = new EventEmitter<number>();
     @Output() readonly renamed = new EventEmitter<DatasetRenameEvent>();
     @Output() readonly metadataSaved = new EventEmitter<{ id: number; metadata: DatasetMetadata }>();
+    @ViewChild('addDatasetButton') private addDatasetButton?: ElementRef<HTMLButtonElement>;
     readonly tags = signal('');
     readonly description = signal('');
     readonly metadataEditing = signal(false);
@@ -131,6 +132,10 @@ export class DatasetManagementComponent implements OnChanges {
         const dataset = this.datasets.find((item) => item.id === this.selected);
         this.tags.set(dataset?.tags.join(', ') ?? '');
         this.description.set(dataset?.description ?? '');
+    }
+
+    focusAddButton(): void {
+        this.addDatasetButton?.nativeElement.focus();
     }
 
     protected read(event: Event): string {

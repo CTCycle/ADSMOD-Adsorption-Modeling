@@ -1,10 +1,13 @@
 import { CommonModule } from '@angular/common';
 import {
+    AfterViewInit,
     Component,
+    ElementRef,
     EventEmitter,
     Input,
     OnInit,
     Output,
+    ViewChild,
     signal,
 } from '@angular/core';
 import type {
@@ -51,6 +54,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="import-wizard-title"
+                (keydown)="handleKeydown($event)"
             >
                 <header class="import-wizard-header">
                     <div>
@@ -64,6 +68,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                         </p>
                     </div>
                     <button
+                        #closeButton
                         class="button quiet"
                         type="button"
                         aria-label="Close import wizard"
@@ -966,11 +971,12 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
         `,
     ],
 })
-export class DatasetImportWizardComponent implements OnInit {
+export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
     @Input({ required: true }) file!: File;
     @Output() readonly cancelled = new EventEmitter<void>();
     @Output() readonly closed = new EventEmitter<void>();
     @Output() readonly saved = new EventEmitter<number>();
+    @ViewChild('closeButton') private closeButton?: ElementRef<HTMLButtonElement>;
 
     protected readonly stepLabels = [
         'Preview',
@@ -1011,6 +1017,50 @@ export class DatasetImportWizardComponent implements OnInit {
 
     protected importedPreview(): DatasetImportResponse | null {
         return this.savedImport();
+    }
+
+    ngAfterViewInit(): void {
+        window.setTimeout(() => this.closeButton?.nativeElement.focus());
+    }
+
+    protected handleKeydown(event: KeyboardEvent): void {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            this.closed.emit();
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const dialog = event.currentTarget instanceof HTMLElement
+            ? event.currentTarget
+            : null;
+        if (!dialog) {
+            return;
+        }
+
+        const focusableElements = Array.from(
+            dialog.querySelectorAll<HTMLElement>(
+                'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+            )
+        );
+        if (focusableElements.length === 0) {
+            event.preventDefault();
+            return;
+        }
+
+        const firstElement = focusableElements[0];
+        const activeElement = document.activeElement;
+        const currentIndex = focusableElements.indexOf(activeElement as HTMLElement);
+        const nextIndex = !dialog.contains(activeElement)
+            ? event.shiftKey ? focusableElements.length - 1 : 0
+            : event.shiftKey
+                ? (currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1)
+                : (currentIndex === focusableElements.length - 1 ? 0 : currentIndex + 1);
+        event.preventDefault();
+        (focusableElements[nextIndex] || firstElement).focus();
     }
 
     async ngOnInit(): Promise<void> {
