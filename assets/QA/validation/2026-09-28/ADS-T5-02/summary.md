@@ -1,8 +1,8 @@
 # ADS-T5-02 — residual repetition, restart, and cleanup recheck
 
 Date: 2026-09-28
-Tested revision: `17f247e` plus the scoped current-revision focus fix; the
-final pushed SHA is recorded in the ledger and roadmap after commit.
+Tested source/evidence revision: `dc841b4f251eff3f868385cf52d3d16a0b05aea4`.
+The subsequent documentation publication commit only records this tested SHA.
 Status: `PASS` for the bounded repetition/restart/cleanup scope below.
 
 ## Implementation and regression

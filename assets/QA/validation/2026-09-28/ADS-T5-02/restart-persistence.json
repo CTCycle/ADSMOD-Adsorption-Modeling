@@ -1,5 +1,5 @@
 {
-  "tested_revision": "17f247e plus scoped current-revision focus fix",
+  "tested_revision": "dc841b4f251eff3f868385cf52d3d16a0b05aea4",
   "api_e2e": "16 passed",
   "unit_and_persistence": "13 passed",
   "soak_duration_seconds": 600.132,
