@@ -8,7 +8,7 @@ from scripts.generate_openapi import build_openapi_schema
 from server.domain.capabilities import CapabilitiesResponse
 from server.configurations.settings import AdsmodConfig, load_config
 
-CONFIG_PATH = Path("app/resources/adsmod.json")
+CONFIG_PATH = Path("resources/adsmod.json")
 
 ###############################################################################
 def test_canonical_config_loads_single_backend_runtime() -> None:

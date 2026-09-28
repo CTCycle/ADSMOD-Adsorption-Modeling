@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [Alias("ResourcesDir", "ResourceDirectory")]
+    [string]$ResourcesPath = ""
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -9,11 +12,12 @@ $AppDir = Join-Path $RepoRoot "app"
 $BackendDir = Join-Path $AppDir "server"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
-$DefaultResourcesDir = Join-Path $AppDir "resources"
+$DefaultResourcesDir = Join-Path $RepoRoot "resources"
 $ResourcesDir = $DefaultResourcesDir
 $LogDir = Join-Path $ResourcesDir "logs"
 $CheckpointsDir = Join-Path $ResourcesDir "checkpoints"
 $ConfigFile = Join-Path $ResourcesDir "adsmod.json"
+$ConfigSchemaFile = Join-Path $ResourcesDir "adsmod.schema.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
@@ -168,6 +172,66 @@ function Resolve-CanonicalPath([string]$ConfiguredPath) {
         $expandedPath = Join-Path $RepoRoot $expandedPath
     }
     return [System.IO.Path]::GetFullPath($expandedPath)
+}
+
+function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
+    if ([string]::IsNullOrWhiteSpace($ConfiguredPath)) {
+        return [System.IO.Path]::GetFullPath($DefaultResourcesDir)
+    }
+
+    $expandedPath = [Environment]::ExpandEnvironmentVariables($ConfiguredPath.Trim())
+    if (-not [System.IO.Path]::IsPathRooted($expandedPath)) {
+        $expandedPath = Join-Path $RepoRoot $expandedPath
+    }
+    return [System.IO.Path]::GetFullPath($expandedPath)
+}
+
+function Set-ConfiguredResourcePaths([string]$ConfiguredPath) {
+    $script:ResourcesDir = Resolve-ResourcesDirectory $ConfiguredPath
+    $script:LogDir = Join-Path $script:ResourcesDir "logs"
+    $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
+    $script:ConfigFile = Join-Path $script:ResourcesDir "adsmod.json"
+    $script:ConfigSchemaFile = Join-Path $script:ResourcesDir "adsmod.schema.json"
+    [Environment]::SetEnvironmentVariable(
+        'ADSMOD_RESOURCES_DIR',
+        $script:ResourcesDir,
+        'Process'
+    )
+}
+
+function Get-ConfiguredResourcePath {
+    if (-not [string]::IsNullOrWhiteSpace($ResourcesPath)) {
+        return $ResourcesPath
+    }
+
+    $configuredPath = [Environment]::GetEnvironmentVariable('ADSMOD_RESOURCES_DIR', 'Process')
+    if (-not [string]::IsNullOrWhiteSpace($configuredPath)) {
+        return $configuredPath
+    }
+
+    $envFile = Join-Path $RepoRoot "settings\.env"
+    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
+        return $null
+    }
+
+    foreach ($line in Get-Content -LiteralPath $envFile) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';')) {
+            continue
+        }
+        $separator = $trimmed.IndexOf('=')
+        if ($separator -lt 1 -or $trimmed.Substring(0, $separator).Trim() -ne 'ADSMOD_RESOURCES_DIR') {
+            continue
+        }
+        $configuredPath = $trimmed.Substring($separator + 1).Trim()
+        if (($configuredPath.StartsWith('"') -and $configuredPath.EndsWith('"')) -or
+            ($configuredPath.StartsWith("'") -and $configuredPath.EndsWith("'"))) {
+            $configuredPath = $configuredPath.Substring(1, $configuredPath.Length - 2)
+        }
+        return $configuredPath
+    }
+
+    return $null
 }
 
 function Remove-LauncherPath {
@@ -478,6 +542,7 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
+    Set-ConfiguredResourcePaths (Get-ConfiguredResourcePath)
     if (-not (Test-Path -LiteralPath $ConfigFile)) { throw "Missing canonical configuration: $ConfigFile" }
     $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
     if (-not $canonical.runtime -or -not $canonical.storage) { throw "Canonical configuration is missing runtime or storage settings: $ConfigFile" }
@@ -1632,7 +1697,7 @@ function Remove-DatabaseFiles {
 
     $protectedPaths = @(
         [System.IO.Path]::GetFullPath($ConfigFile),
-        [System.IO.Path]::GetFullPath((Join-Path $DefaultResourcesDir 'adsmod.schema.json'))
+        [System.IO.Path]::GetFullPath($ConfigSchemaFile)
     )
     foreach ($path in @($databasePath, "$databasePath-wal", "$databasePath-shm")) {
         $fullPath = [System.IO.Path]::GetFullPath($path)

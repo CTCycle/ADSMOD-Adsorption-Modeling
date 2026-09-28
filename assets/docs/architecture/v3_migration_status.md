@@ -1,10 +1,10 @@
 # Canonical architecture status
 
-Last updated: 2026-09-16
+Last updated: 2026-09-28
 
 The architecture cutover is complete for the current runtime:
 
-- one validated `AdsmodConfig` loaded from `app/resources/adsmod.json`;
+- one validated `AdsmodConfig` loaded from `resources/adsmod.json` by default;
 - one Hatch backend package and lockfile;
 - repository-owned migrations, operational persistence, and training snapshots;
 - ML isolated behind a lazy optional dependency profile and in-process snapshot

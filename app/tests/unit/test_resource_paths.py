@@ -15,7 +15,7 @@ def test_relative_database_path_follows_the_canonical_storage_root(
         == (tmp_path / "data" / "database.db").resolve()
     )
 
-    config = load_config(Path("app/resources/adsmod.json")).model_copy(
+    config = load_config(Path("resources/adsmod.json")).model_copy(
         update={"storage": StorageConfig(root=tmp_path)}
     )
     assert (

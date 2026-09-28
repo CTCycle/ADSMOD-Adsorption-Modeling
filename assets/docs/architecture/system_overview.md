@@ -1,10 +1,11 @@
 # System overview
 
-Last updated: 2026-09-16
+Last updated: 2026-09-28
 
 ## Repository layout
 
 ```text
+resources/  adsmod.json and generated configuration schema
 app/
   server/
     api/                      FastAPI routers and HTTP entrypoints
@@ -21,14 +22,14 @@ app/
     pyproject.toml            single Hatch package
     uv.lock
   client/      Angular application
-  resources/   adsmod.json and generated configuration schema
   scripts/     maintenance and schema-generation entry points
   tests/       Python, browser, and integration validation
 ```
 
 ## Runtime flow
 
-The Windows launcher reads `app/resources/adsmod.json`, synchronizes the
+The Windows launcher reads `resources/adsmod.json` by default, or the selected
+resource directory's `adsmod.json`, and synchronizes the
 backend workspace, starts one FastAPI backend on the configured backend port,
 and serves the Angular bundle on the configured frontend port. The browser
 uses the same backend for datasets, NIST data, fitting, capability discovery,

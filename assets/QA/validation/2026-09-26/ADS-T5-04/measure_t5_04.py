@@ -28,7 +28,7 @@ def timed_request(
 
 
 def main() -> int:
-    config = load_config(REPOSITORY_ROOT / "app/resources/adsmod.json")
+    config = load_config(REPOSITORY_ROOT / "resources/adsmod.json")
     fixture = (REPOSITORY_ROOT / "app/tests/fixtures/sample_adsorption.csv").read_bytes()
     dataset_name = f"t5_04_{uuid.uuid4().hex[:10]}"
 
