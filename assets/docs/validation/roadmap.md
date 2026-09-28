@@ -116,12 +116,18 @@ adjacent regression, then update the ledger.
 | `ADS-T4-03` | Short real training run, status/metrics, and cancellation. |
 | `ADS-T4-04` | Checkpoint creation, compatibility, resume, deletion, and populated dashboard. |
 
-The 2026-09-28 `ADS-T4-01` recheck passed the current Base-profile
-capability and route-gating scope. `ADS-T4-02` through `ADS-T4-04` remain
-`BLOCKED`: the current Base environment has no Torch, RDKit, Keras, or
-scikit-learn, so current-revision positive ML lifecycle evidence cannot be
-produced. See [`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md)
-and the [ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
+The 2026-09-28 ML-profile recheck passed all four Tier 4 slices. The locked
+profile activated Torch-backed Keras and CUDA, the current revision built the
+processed dataset and immutable snapshot, completed a real training run and
+terminal cancellation, created/resumed/deleted a compatible checkpoint, and
+rendered the populated `/training/dashboard` route. The separate top-level
+`/dashboards` placeholder remains `PARTIAL` under `ISSUE-005`; it is a product
+scope item rather than a remaining ML blocker. See the four dated slice
+summaries [`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md),
+[`ADS-T4-02`](../../QA/validation/2026-09-28/ADS-T4-02/summary.md),
+[`ADS-T4-03`](../../QA/validation/2026-09-28/ADS-T4-03/summary.md), and
+[`ADS-T4-04`](../../QA/validation/2026-09-28/ADS-T4-04/summary.md), plus the
+[ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
 
 ### Tier 5 — resilience and closure
 
@@ -230,8 +236,9 @@ claim is made. See the dated [`ADS-T3-03`](../../QA/validation/2026-09-25/ADS-T3
 The 14 unsupported NIST measurements remain outside canonical coverage until
 additional source metadata or a supported conversion basis exists. This is an
 accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
-4's positive training workflow remains `BLOCKED` (`ISSUE-001`) because the
-current Base runtime lacks Torch, RDKit, Keras, and scikit-learn. `ADS-T5-03`
+4 now passes its bounded ML lifecycle on the locked ML profile; the tiny
+synthetic fixture does not establish model quality, convergence, or
+production-scale readiness. `ADS-T5-03`
 passes its bounded responsive, overflow, and keyboard/focus scope after the
 historical 1280×720 Sources-page overflow was not reproduced in the current
 implementation. `ADS-T5-02` passes bounded repetition, duplicate prevention,
@@ -250,13 +257,12 @@ the [ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md),
 [`ADS-T5-03`](../../QA/validation/2026-09-25/ADS-T5-03/summary.md),
 [`ADS-T5-04`](../../QA/validation/2026-09-26/ADS-T5-04/summary.md), and
 [`ADS-T5-05`](../../QA/validation/2026-09-26/ADS-T5-05/summary.md) evidence and
-the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
+the [current ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
 
-The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) for the current
-baseline: a valid-SMILES fixture and historical CPU certification exist, but
-the current Base virtual environment has no Torch, RDKit, Keras, or
-scikit-learn, so the positive lifecycle has not been rerun against this
-revision. The top-level dashboards remain `PARTIAL` (`ISSUE-005`) pending a
-product-scope decision and positive current training output. These ML/dashboard
-gates remain separate follow-up work. See the [current ML blocker
-recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
+The former ML blocker (`ISSUE-001`) is resolved for the current bounded
+workflow: the ML profile is installed, current-revision positive evidence is
+recorded, and the two defects found during the run have regression coverage.
+The top-level dashboards remain `PARTIAL` (`ISSUE-005`) pending a product-scope
+decision; populated training metrics are already validated on
+`/training/dashboard`. See the [current ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md)
+and the dated Tier 4 summaries.

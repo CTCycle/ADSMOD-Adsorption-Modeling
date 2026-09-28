@@ -70,6 +70,19 @@ class SnapshotStore:
         snapshot_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc)
         with self.database.transaction() as session:
+            existing = session.scalar(
+                select(TrainingSnapshot).where(
+                    TrainingSnapshot.content_hash == content_hash
+                )
+            )
+            if existing is not None:
+                return SnapshotRecord(
+                    snapshot_id=existing.snapshot_id,
+                    content_hash=existing.content_hash,
+                    created_at=existing.created_at.isoformat(),
+                    row_count=existing.row_count,
+                    rows=frozen_rows,
+                )
             snapshot = TrainingSnapshot(
                 snapshot_id=snapshot_id,
                 content_hash=content_hash,
