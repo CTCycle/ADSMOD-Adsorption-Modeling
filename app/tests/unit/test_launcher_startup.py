@@ -27,15 +27,15 @@ def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     assert "function Sync-FrontendDependencies" not in text
 
 
-def test_launcher_uses_repository_resources_by_default_and_supports_override() -> None:
+def test_launcher_uses_repository_data_by_default_and_supports_override() -> None:
     text = launcher_text()
 
-    assert '[string]$ResourcesPath = ""' in text
-    assert '$DefaultResourcesDir = Join-Path $RepoRoot "resources"' in text
-    assert "function Get-ConfiguredResourcePath" in text
-    assert "function Set-ConfiguredResourcePaths" in text
-    assert "ADSMOD_RESOURCES_DIR" in text
-    assert "-ResourcesPath" in (REPOSITORY_ROOT / "assets/docs/operations/commands.md").read_text(
+    assert '[string]$DataPath = ""' in text
+    assert '$DefaultDataDir = Join-Path $RepoRoot "data"' in text
+    assert "function Get-ConfiguredDataPath" in text
+    assert "function Set-ConfiguredDataPaths" in text
+    assert "ADSMOD_DATA_DIR" in text
+    assert "-DataPath" in (REPOSITORY_ROOT / "assets/docs/operations/commands.md").read_text(
         encoding="utf-8"
     )
 

@@ -9,7 +9,7 @@ from server.configurations.settings import StorageConfig, load_config
 import server.app as app_module
 from server.app import create_app, create_app_from_path
 
-CONFIG_PATH = Path("resources/adsmod.json")
+CONFIG_PATH = Path("data/adsmod.json")
 
 ###############################################################################
 def _shutdown_process_runner(stop_event: Any) -> dict[str, str]:

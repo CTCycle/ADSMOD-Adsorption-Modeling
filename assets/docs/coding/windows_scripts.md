@@ -10,7 +10,7 @@ Last updated: 2026-09-28
 - Keep disposable application and test-tool caches below `runtimes/cache`.
 - Avoid destructive operations outside intended directories.
 - Keep script behavior compatible with the existing launcher and runtime flow.
-- Keep the launcher’s canonical paths aligned with `resources/adsmod.json`;
+- Keep the launcher’s canonical paths aligned with `data/adsmod.json`;
   dependency readiness is checked before reinstalling runtimes or packages.
 
 ## Documentation Expectation
