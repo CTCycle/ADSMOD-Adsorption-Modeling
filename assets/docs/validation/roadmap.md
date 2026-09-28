@@ -10,9 +10,11 @@ checks, browser workflows, provider access, and hardware-dependent ML runs so
 that future analysis can resume at a stable slice instead of treating the
 presence of tests as proof of current behavior.
 
-The official Windows launcher evidence remains anchored to committed `develop`
-SHA `2eb3bc13823bedae1be1791fc980a78613d00ef1`; no launcher source changed on
-the path to the current application gates. `ADS-T1-01` passed on SHA
+The historical official Windows launcher evidence remains anchored to committed
+`develop` SHA `2eb3bc13823bedae1be1791fc980a78613d00ef1`. The current
+data-directory migration and launcher source are validated on
+`efcc858c9b41cca8d44356cc4e62baefb88a39b3`; its default and alternate-path
+live reruns passed. `ADS-T1-01` passed on SHA
 `1affb39a2c4e475a8616004ee0566c30c5d189e7`. `ADS-T1-02` passed on tested code
 SHA `ed80c0975e583cd9842338fca5f59157c4071f97`; hosted run `35852874401` on
 that SHA passed all three CI jobs. `ADS-T1-03` passed on tested code SHA
@@ -76,7 +78,7 @@ adjacent regression, then update the ledger.
 | Slice | Scope | Current checkpoint |
 | --- | --- | --- |
 | `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Run `35852874401` on SHA `ed80c09` passed all three jobs; the Base profile verifies system configuration, fitting availability, and absent training routes. |
-| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | The official lifecycle passed on SHA `2eb3bc1`; no launcher source changed through `ed80c09`. The detailed conflict/race, invalidation, ML-profile repair, readiness cleanup, and final-port evidence remains in the 2026-09-22 report. |
+| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | The historical conflict/race, invalidation, ML-profile repair, readiness cleanup, and final-port evidence passed on SHA `2eb3bc1`; the current data-directory migration passed default and alternate-path live launcher runs on `efcc858`. See the 2026-09-28 migration evidence. |
 
 ### Tier 1 — application foundations
 
@@ -179,8 +181,10 @@ after every surgical fix; the defined adjacent regression is the minimum.
 Tier 0 remains closed. `ADS-T0-01` passed in hosted run `35910483168` on SHA
 `270e94d`; all three jobs completed, including the Base/ML profile checks,
 generated contracts, frontend checks, and browser layout validation.
-`ADS-T0-02` remains `PASS` on its official lifecycle evidence at `2eb3bc1`;
-launcher source was unchanged through SHA `6154532`.
+`ADS-T0-02` is `PASS` on the historical lifecycle evidence at `2eb3bc1` and
+the current default/alternate data-directory live rerun on `efcc858`; the
+current launcher source is therefore covered by both historical conflict
+evidence and current-revision lifecycle evidence.
 
 `ADS-T1-01` is `PASS` on SHA `1affb39`. The Base profile reported core
 capabilities, system configuration, fitting models, readiness, and Public
