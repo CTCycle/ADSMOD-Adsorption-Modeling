@@ -11,7 +11,7 @@ Last updated: 2026-09-28
   optional-extension import direction.
 - Validate both dependency profiles: base backend without ML and backend with
   the `ml` extra installed.
-- Regenerate `resources/adsmod.schema.json` and
+- Regenerate `data/adsmod.schema.json` and
   `app/server/openapi/backend.json`; require no unexpected diff after
   generation. The canonical OpenAPI snapshot must be generated from the
   ML-enabled profile because it includes training and checkpoint routes; the

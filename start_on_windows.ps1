@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [Alias("ResourcesDir", "ResourceDirectory")]
-    [string]$ResourcesPath = ""
+    [Alias("DataDir", "DataDirectory")]
+    [string]$DataPath = ""
 )
 
 Set-StrictMode -Version Latest
@@ -12,12 +12,12 @@ $AppDir = Join-Path $RepoRoot "app"
 $BackendDir = Join-Path $AppDir "server"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
-$DefaultResourcesDir = Join-Path $RepoRoot "resources"
-$ResourcesDir = $DefaultResourcesDir
-$LogDir = Join-Path $ResourcesDir "logs"
-$CheckpointsDir = Join-Path $ResourcesDir "checkpoints"
-$ConfigFile = Join-Path $ResourcesDir "adsmod.json"
-$ConfigSchemaFile = Join-Path $ResourcesDir "adsmod.schema.json"
+$DefaultDataDir = Join-Path $RepoRoot "data"
+$DataDir = $DefaultDataDir
+$LogDir = Join-Path $DataDir "logs"
+$CheckpointsDir = Join-Path $DataDir "checkpoints"
+$ConfigFile = Join-Path $DataDir "adsmod.json"
+$ConfigSchemaFile = Join-Path $DataDir "adsmod.schema.json"
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
@@ -174,9 +174,9 @@ function Resolve-CanonicalPath([string]$ConfiguredPath) {
     return [System.IO.Path]::GetFullPath($expandedPath)
 }
 
-function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
+function Resolve-DataDirectory([string]$ConfiguredPath) {
     if ([string]::IsNullOrWhiteSpace($ConfiguredPath)) {
-        return [System.IO.Path]::GetFullPath($DefaultResourcesDir)
+        return [System.IO.Path]::GetFullPath($DefaultDataDir)
     }
 
     $expandedPath = [Environment]::ExpandEnvironmentVariables($ConfiguredPath.Trim())
@@ -186,25 +186,25 @@ function Resolve-ResourcesDirectory([string]$ConfiguredPath) {
     return [System.IO.Path]::GetFullPath($expandedPath)
 }
 
-function Set-ConfiguredResourcePaths([string]$ConfiguredPath) {
-    $script:ResourcesDir = Resolve-ResourcesDirectory $ConfiguredPath
-    $script:LogDir = Join-Path $script:ResourcesDir "logs"
-    $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
-    $script:ConfigFile = Join-Path $script:ResourcesDir "adsmod.json"
-    $script:ConfigSchemaFile = Join-Path $script:ResourcesDir "adsmod.schema.json"
+function Set-ConfiguredDataPaths([string]$ConfiguredPath) {
+    $script:DataDir = Resolve-DataDirectory $ConfiguredPath
+    $script:LogDir = Join-Path $script:DataDir "logs"
+    $script:CheckpointsDir = Join-Path $script:DataDir "checkpoints"
+    $script:ConfigFile = Join-Path $script:DataDir "adsmod.json"
+    $script:ConfigSchemaFile = Join-Path $script:DataDir "adsmod.schema.json"
     [Environment]::SetEnvironmentVariable(
-        'ADSMOD_RESOURCES_DIR',
-        $script:ResourcesDir,
+        'ADSMOD_DATA_DIR',
+        $script:DataDir,
         'Process'
     )
 }
 
-function Get-ConfiguredResourcePath {
-    if (-not [string]::IsNullOrWhiteSpace($ResourcesPath)) {
-        return $ResourcesPath
+function Get-ConfiguredDataPath {
+    if (-not [string]::IsNullOrWhiteSpace($DataPath)) {
+        return $DataPath
     }
 
-    $configuredPath = [Environment]::GetEnvironmentVariable('ADSMOD_RESOURCES_DIR', 'Process')
+    $configuredPath = [Environment]::GetEnvironmentVariable('ADSMOD_DATA_DIR', 'Process')
     if (-not [string]::IsNullOrWhiteSpace($configuredPath)) {
         return $configuredPath
     }
@@ -220,7 +220,7 @@ function Get-ConfiguredResourcePath {
             continue
         }
         $separator = $trimmed.IndexOf('=')
-        if ($separator -lt 1 -or $trimmed.Substring(0, $separator).Trim() -ne 'ADSMOD_RESOURCES_DIR') {
+        if ($separator -lt 1 -or $trimmed.Substring(0, $separator).Trim() -ne 'ADSMOD_DATA_DIR') {
             continue
         }
         $configuredPath = $trimmed.Substring($separator + 1).Trim()
@@ -366,24 +366,24 @@ function Remove-RepoDirectoryContents([string]$Path) {
     [void](Remove-LauncherPath -Path $fullPath -KeepRoot -Activity 'ADSMOD: remove repository contents')
 }
 
-function Remove-ResourcePath([string]$Path) {
-    $resourcePrefix = [System.IO.Path]::GetFullPath($ResourcesDir).TrimEnd('\') + '\'
+function Remove-DataPath([string]$Path) {
+    $dataPrefix = [System.IO.Path]::GetFullPath($DataDir).TrimEnd('\') + '\'
     $fullPath = [System.IO.Path]::GetFullPath($Path)
-    if (-not $fullPath.StartsWith($resourcePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove a path outside the selected resource directory: $fullPath"
+    if (-not $fullPath.StartsWith($dataPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove a path outside the selected data directory: $fullPath"
     }
     $result = Remove-LauncherPath -Path $fullPath -PreserveNames @('.gitkeep') -Activity "ADSMOD: remove user data"
     return $result.Skipped -eq 0 -and $result.EnumerationErrors.Count -eq 0
 }
 
-function Remove-ResourceDirectoryContents([string]$Path) {
-    $resourcePrefix = [System.IO.Path]::GetFullPath($ResourcesDir).TrimEnd('\') + '\'
+function Remove-DataDirectoryContents([string]$Path) {
+    $dataPrefix = [System.IO.Path]::GetFullPath($DataDir).TrimEnd('\') + '\'
     $fullPath = [System.IO.Path]::GetFullPath($Path)
-    if (-not $fullPath.StartsWith($resourcePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove resource contents outside the selected resource directory: $fullPath"
+    if (-not $fullPath.StartsWith($dataPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove data contents outside the selected data directory: $fullPath"
     }
     if (-not (Test-Path -LiteralPath $fullPath -PathType Container)) { return }
-    [void](Remove-LauncherPath -Path $fullPath -KeepRoot -PreserveNames @('.gitkeep') -Activity 'ADSMOD: remove resource contents')
+    [void](Remove-LauncherPath -Path $fullPath -KeepRoot -PreserveNames @('.gitkeep') -Activity 'ADSMOD: remove data contents')
 }
 
 # -----------------------------------------------------------------------------
@@ -542,15 +542,15 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
-    Set-ConfiguredResourcePaths (Get-ConfiguredResourcePath)
+    Set-ConfiguredDataPaths (Get-ConfiguredDataPath)
     if (-not (Test-Path -LiteralPath $ConfigFile)) { throw "Missing canonical configuration: $ConfigFile" }
     $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
     if (-not $canonical.runtime -or -not $canonical.storage) { throw "Canonical configuration is missing runtime or storage settings: $ConfigFile" }
     $runtimeHost = [string]$canonical.runtime.host
     if ([string]::IsNullOrWhiteSpace($runtimeHost)) { throw "runtime.host must be configured." }
-    $script:ResourcesDir = Resolve-CanonicalPath ([string]$canonical.storage.root)
-    $script:LogDir = Join-Path $script:ResourcesDir "logs"
-    $script:CheckpointsDir = Join-Path $script:ResourcesDir "checkpoints"
+    $script:DataDir = Resolve-CanonicalPath ([string]$canonical.storage.root)
+    $script:LogDir = Join-Path $script:DataDir "logs"
+    $script:CheckpointsDir = Join-Path $script:DataDir "checkpoints"
     return [pscustomobject]@{ Host = $runtimeHost; BackendPort = [int]$canonical.runtime.backend_port; FrontendPort = [int]$canonical.runtime.frontend_port }
 }
 
@@ -1685,7 +1685,7 @@ function Get-ConfiguredDatabasePath {
     if ([System.IO.Path]::IsPathRooted($expandedPath)) {
         return [System.IO.Path]::GetFullPath($expandedPath)
     }
-    return [System.IO.Path]::GetFullPath((Join-Path $ResourcesDir $expandedPath))
+    return [System.IO.Path]::GetFullPath((Join-Path $DataDir $expandedPath))
 }
 
 function Remove-DatabaseFiles {
@@ -1716,7 +1716,7 @@ function Remove-DatabaseFiles {
 
 function Clear-CheckpointFiles {
     Write-Step "Removing saved checkpoints"
-    Remove-ResourceDirectoryContents -Path $CheckpointsDir
+    Remove-DataDirectoryContents -Path $CheckpointsDir
     Write-Ok "Saved checkpoints removed."
 }
 
@@ -1733,7 +1733,7 @@ function Remove-All-Data {
     Write-Step "Removing local user-generated data"
     Remove-DatabaseFiles
     Clear-CheckpointFiles
-    Remove-ResourceDirectoryContents -Path $LogDir
+    Remove-DataDirectoryContents -Path $LogDir
     Write-Ok "All local user-generated data was removed; application files and settings were preserved."
 }
 

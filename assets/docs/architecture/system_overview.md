@@ -5,7 +5,7 @@ Last updated: 2026-09-28
 ## Repository layout
 
 ```text
-resources/  adsmod.json and generated configuration schema
+data/       adsmod.json and generated configuration schema
 app/
   server/
     api/                      FastAPI routers and HTTP entrypoints
@@ -28,8 +28,8 @@ app/
 
 ## Runtime flow
 
-The Windows launcher reads `resources/adsmod.json` by default, or the selected
-resource directory's `adsmod.json`, and synchronizes the
+The Windows launcher reads `data/adsmod.json` by default, or the selected
+data directory's `adsmod.json`, and synchronizes the
 backend workspace, starts one FastAPI backend on the configured backend port,
 and serves the Angular bundle on the configured frontend port. The browser
 uses the same backend for datasets, NIST data, fitting, capability discovery,

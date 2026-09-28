@@ -307,7 +307,7 @@ Normal users do not need to run the project checks. Project maintainers can use
 dependencies. The launcher also provides **Rebuild Frontend** when the local web
 interface needs to be rebuilt.
 
-## Resources and maintenance
+## Data and maintenance
 
 Use the launcher menu for the supported maintenance actions:
 

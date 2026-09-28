@@ -4,8 +4,8 @@ Last updated: 2026-09-28
 
 ## Backend or UI unreachable
 
-- Check the backend and frontend host/port values in `resources/adsmod.json`,
-  or in the selected resource directory when an override is active.
+- Check the backend and frontend host/port values in `data/adsmod.json`,
+  or in the selected data directory when an override is active.
 - Confirm the backend responds at `/health/ready`.
 - Confirm `app/client/dist/browser/index.html` exists and the frontend preview
   serves the built Angular application.

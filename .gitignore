@@ -1,6 +1,6 @@
 # Project-specific generated/runtime artifacts
-resources/checkpoints/**
-resources/logs/**
+data/checkpoints/**
+data/logs/**
 app/client/node_modules/
 app/client/dist/
 app/client/dist-ssr/

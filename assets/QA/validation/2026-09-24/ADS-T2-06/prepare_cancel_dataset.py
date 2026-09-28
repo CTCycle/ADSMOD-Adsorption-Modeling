@@ -17,7 +17,7 @@ from e2e.test_datasets_api import _commit_sample  # noqa: E402
 
 def main() -> None:
     config = json.loads(
-        (REPO_ROOT / "app" / "resources" / "adsmod.json").read_text(
+        (REPO_ROOT / "data" / "adsmod.json").read_text(
             encoding="utf-8"
         )
     )

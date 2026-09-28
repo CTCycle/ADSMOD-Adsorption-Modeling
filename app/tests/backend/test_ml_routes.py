@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from server.configurations.settings import StorageConfig, load_config
 from server.app import create_app
 
-CONFIG_PATH = Path("resources/adsmod.json")
+CONFIG_PATH = Path("data/adsmod.json")
 
 ###############################################################################
 def _config(tmp_path: Path):
