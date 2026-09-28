@@ -22,8 +22,8 @@ that SHA passed all three CI jobs. `ADS-T1-03` passed on tested code SHA
 three CI jobs. Tier 0 was the first gate because the remote
 CI workflow had previously failed before creating any jobs and the Windows
 launcher had changed after the last surviving live report.
-The three-job workflow most recently passed on SHA `270e94df63969feb6fbe81b081dc7d3e85744c2d`
-in hosted run `35910483168`, including Base/ML dependency installation,
+The three-job workflow most recently passed on publication SHA `1eab9c7`
+in hosted run `36474039764`, including Base/ML dependency installation,
 frontend checks, and browser layout validation.
 
 The residual Tier 5 recheck was performed on tested source/evidence commit
@@ -171,7 +171,9 @@ runner also have host-specific limitations recorded in the evidence. The
 other Tier 5 slices and `ADS-T5-05` remain passing in their bounded scopes.
 Tier 5 is therefore closed for the stated bounded scopes; continuous provider
 availability, production-scale stress, and audible screen-reader coverage are
-not claimed.
+not claimed. Hosted run `36474039764` passed `base-backend`, `ml-backend`, and
+`frontend`; its Node.js and Ubuntu image notices are platform maintenance
+annotations only.
 
 ## Evidence layout and regression checkpoints
 
