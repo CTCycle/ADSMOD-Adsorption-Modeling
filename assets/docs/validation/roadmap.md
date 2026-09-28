@@ -1,6 +1,6 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-26
+Last updated: 2026-09-28
 
 ## Purpose and baseline
 
@@ -116,6 +116,13 @@ adjacent regression, then update the ledger.
 | `ADS-T4-03` | Short real training run, status/metrics, and cancellation. |
 | `ADS-T4-04` | Checkpoint creation, compatibility, resume, deletion, and populated dashboard. |
 
+The 2026-09-28 `ADS-T4-01` recheck passed the current Base-profile
+capability and route-gating scope. `ADS-T4-02` through `ADS-T4-04` remain
+`BLOCKED`: the current Base environment has no Torch, RDKit, Keras, or
+scikit-learn, so current-revision positive ML lifecycle evidence cannot be
+produced. See [`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md)
+and the [ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
+
 ### Tier 5 — resilience and closure
 
 | Slice | Scope |
@@ -126,16 +133,18 @@ adjacent regression, then update the ledger.
 | `ADS-T5-04` | Bounded public-data queries, imports, polling, and other performance-sensitive boundaries with measured fixtures. |
 | `ADS-T5-05` | Documentation, generated OpenAPI/configuration contracts, stale references, QA links, and final ledger reconciliation. |
 
-2026-09-26 checkpoint: `ADS-T5-02` passed bounded repeated-import,
-duplicate-job, restart-persistence, rendered reload, and process/job cleanup
-validation. `ADS-T5-01` is `PARTIAL`: deterministic provider retry/error
-contracts, truthful provider-unavailable rendering, and backend Offline/Online
-recovery passed, but the validation host could not reach the three upstream
-providers and the official launcher frontend build exited with Windows status
-`-1073741819`. `ADS-T5-04` passed its bounded measured public-data, import,
-polling, and cleanup scope. `ADS-T5-05` passed configuration-schema,
+2026-09-28 checkpoint: `ADS-T5-01` upgraded to `PASS` for its bounded scope.
+The current host reported all three providers available, completed positive
+PubChem and COD calls, reran the non-ML retry/error regression subset, and
+completed the official launcher `Rebuild frontend` action with portable Node
+22.13.0. The existing rendered provider-degraded and backend Offline/Online
+recovery evidence remains valid because the relevant runtime source was
+unchanged. `ADS-T5-02`, `ADS-T5-03`, and `ADS-T5-04` remain passing in their
+bounded scopes, and `ADS-T5-05` passed its configuration-schema,
 documentation-link, stale-reference, fail-closed generator, and hosted
-ML-enabled canonical OpenAPI regeneration checks.
+ML-enabled canonical OpenAPI regeneration checks. Tier 5 is therefore closed
+for the stated bounded scopes; continuous provider availability and
+long-duration stress are not claimed.
 
 ## Evidence layout and regression checkpoints
 
@@ -222,19 +231,21 @@ The 14 unsupported NIST measurements remain outside canonical coverage until
 additional source metadata or a supported conversion basis exists. This is an
 accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
 4's positive training workflow remains `BLOCKED` (`ISSUE-001`) because the
-current Base runtime lacks Torch and RDKit. `ADS-T5-03` passes its bounded
-responsive, overflow, and keyboard/focus scope after the historical 1280×720
-Sources-page overflow was not reproduced in the current implementation.
-`ADS-T5-02` now passes bounded repetition, duplicate prevention, restart
-persistence, rendered reload, and cleanup. `ADS-T5-01` remains `PARTIAL`
-because deterministic retry/error handling and backend recovery passed, while
-live provider availability and the official launcher build were blocked by the
-validation host. `ADS-T5-04` passes its bounded measured scope.
+current Base runtime lacks Torch, RDKit, Keras, and scikit-learn. `ADS-T5-03`
+passes its bounded responsive, overflow, and keyboard/focus scope after the
+historical 1280×720 Sources-page overflow was not reproduced in the current
+implementation. `ADS-T5-02` passes bounded repetition, duplicate prevention,
+restart persistence, rendered reload, and cleanup. `ADS-T5-01` now passes its
+bounded scope: deterministic retry/error handling, live provider health and
+positive provider calls, backend recovery, and the official launcher rebuild
+all passed. `ADS-T5-04` passes its bounded measured scope.
 `ADS-T5-05` passes: configuration schema, documentation links, stale-reference
 checks, the fail-closed OpenAPI generator guard, and hosted ML-enabled
 canonical OpenAPI regeneration all passed. The dashboard product
 scope (`ISSUE-005`) remains follow-up work. See the dated
-[`ADS-T5-01`](../../QA/validation/2026-09-26/ADS-T5-01/summary.md),
+[`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md),
+the [ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md),
+[`ADS-T5-01`](../../QA/validation/2026-09-28/ADS-T5-01/summary.md),
 [`ADS-T5-02`](../../QA/validation/2026-09-26/ADS-T5-02/summary.md), and
 [`ADS-T5-03`](../../QA/validation/2026-09-25/ADS-T5-03/summary.md),
 [`ADS-T5-04`](../../QA/validation/2026-09-26/ADS-T5-04/summary.md), and
@@ -243,8 +254,9 @@ the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-reche
 
 The ML training lifecycle remains `BLOCKED` (`ISSUE-001`) for the current
 baseline: a valid-SMILES fixture and historical CPU certification exist, but
-the current Base virtual environment has neither Torch nor RDKit, so the
-positive lifecycle has not been rerun against this revision. The top-level
-dashboards remain `PARTIAL` (`ISSUE-005`) pending a product-scope decision and
-positive current training output. These ML/dashboard gates remain separate
-follow-up work. See the [current ML blocker recheck](../../QA/validation/2026-09-24/ML-blocker-recheck.md).
+the current Base virtual environment has no Torch, RDKit, Keras, or
+scikit-learn, so the positive lifecycle has not been rerun against this
+revision. The top-level dashboards remain `PARTIAL` (`ISSUE-005`) pending a
+product-scope decision and positive current training output. These ML/dashboard
+gates remain separate follow-up work. See the [current ML blocker
+recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).

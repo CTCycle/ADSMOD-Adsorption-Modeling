@@ -1,0 +1,56 @@
+{
+  "date": "2026-09-28",
+  "baseline": "2f52eb0fcfbe955418b6b5071d1b5811226d2c2c",
+  "backend": "http://127.0.0.1:6045",
+  "readiness": {
+    "status": 200,
+    "state": "ready",
+    "version": "3.0.0"
+  },
+  "sources": [
+    {
+      "key": "cod",
+      "status": "available",
+      "last_checked_at": "2026-09-28T06:58:05.526811Z"
+    },
+    {
+      "key": "nist",
+      "status": "available",
+      "last_checked_at": "2026-09-28T06:58:05.256245Z"
+    },
+    {
+      "key": "pubchem",
+      "status": "available",
+      "last_checked_at": "2026-09-28T06:58:05.741614Z"
+    }
+  ],
+  "positive_requests": {
+    "pubchem_resolve": {
+      "method": "POST",
+      "query": "carbon dioxide",
+      "status": "success",
+      "id": 1,
+      "name": "Carbon Dioxide",
+      "formula": "CO2"
+    },
+    "cod_search": {
+      "method": "GET",
+      "query": "cod_id=1011195",
+      "http_status": 200,
+      "result_count": 1,
+      "cod_id": "1011195",
+      "name": "Zinc sulfide",
+      "has_coordinates": true
+    }
+  },
+  "base_capabilities": {
+    "machine_learning": false,
+    "training": false,
+    "checkpoints": false
+  },
+  "cleanup": {
+    "port_6045_listeners": 0,
+    "port_5173_listeners": 0
+  },
+  "classification": "positive live provider health and bounded provider calls succeeded; Base ML routes remained correctly unavailable"
+}
