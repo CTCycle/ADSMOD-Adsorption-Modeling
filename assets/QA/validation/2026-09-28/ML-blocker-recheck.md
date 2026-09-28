@@ -1,12 +1,13 @@
-# ML training blocker recheck
+# ML training blocker recheck and resolution
 
 Date: 2026-09-28
-Application baseline: `2f52eb0fcfbe955418b6b5071d1b5811226d2c2c`
-Result: `BLOCKED` for positive `ADS-T4-02` through `ADS-T4-04`
+Result: prior Base-profile blocker resolved for the current ML-enabled
+validation; `ADS-T4-02` through `ADS-T4-04` now pass their stated scopes.
 
-The existing `app/server/.venv` dependency-state file records
-`Development / Base`. The configured `runtimes/.venv` fallback does not exist.
-The current Base interpreter reported:
+## Prior Base boundary
+
+Before the positive run, the existing `app/server/.venv` dependency-state file
+recorded `Development / Base`. The Base interpreter reported:
 
 ```text
 python=G:\Projects\Repositories\Active projects\ADSMOD Adsorption Modeling\app\server\.venv\Scripts\python.exe
@@ -16,15 +17,31 @@ keras=False
 sklearn=False
 ```
 
-No ML installation was performed and no positive training run was attempted.
-The current host therefore cannot provide current-revision evidence for the
-processed-dataset build, real training, cancellation/metrics, checkpoint,
-resume, or populated training-dashboard gates. The blocker is an unavailable
-ML-enabled dependency profile/compute environment, not an observed product
-failure. Reopen with the locked ML profile and suitable compute.
+That boundary correctly kept the training routes unavailable. It was an
+environment blocker at that time, not a product failure.
 
-Direct collection of the ML-positive boundary module in this Base environment
-also stopped at `ModuleNotFoundError: No module named 'keras'`; the Base test
-selection intentionally excludes that ML-positive module. The current Base
-route-gating checks therefore ran separately and passed as recorded in
-[`ADS-T4-01/summary.md`](ADS-T4-01/summary.md).
+## Current ML profile
+
+The official installer then activated the locked `Development / ML` profile.
+The current interpreter reports Torch `2.10.0+cu130`, Keras `3.13.1`, and
+scikit-learn `1.8.0`; Keras uses the Torch backend, CUDA is available, and the
+runtime sees one `NVIDIA GeForce RTX 3060 Laptop GPU`. The current source has no
+RDKit import and the ML extra does not require it, so RDKit is not an active
+gate for this implementation.
+
+The live current-revision checks then passed:
+
+- [`ADS-T4-02`](ADS-T4-02/summary.md) built the valid-SMILES dataset and
+  persisted the immutable snapshot.
+- [`ADS-T4-03`](ADS-T4-03/summary.md) completed a real one-epoch run and a
+  cancelled long run with terminal status evidence.
+- [`ADS-T4-04`](ADS-T4-04/summary.md) created, inspected, resumed, and deleted
+  a compatible checkpoint and rendered the populated training dashboard.
+
+The focused regression selection passed 40 tests, and the ML-profile OpenAPI
+regeneration matched the 56-path canonical snapshot. The only remaining
+dashboard limitation is the separate top-level `/dashboards` placeholder,
+tracked as `ISSUE-005`; it is not an ML dependency blocker.
+
+The Base route-gating evidence and the current ML-profile evidence are both
+summarized in [`ADS-T4-01/summary.md`](ADS-T4-01/summary.md).

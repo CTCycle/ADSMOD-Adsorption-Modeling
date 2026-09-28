@@ -7,7 +7,7 @@ from pandas.api.types import is_string_dtype
 from server.common.units import UnitRegistry
 from server.common.utils.encoding import sanitize_dataframe_strings
 from server.services.data.conversion import PressureConversion, UptakeConversion
-from server.services.data.sanitizer import DataSanitizer
+from server.services.data.sanitizer import AggregateDatasets, DataSanitizer
 
 ###############################################################################
 def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
@@ -90,3 +90,25 @@ def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     assert filtered.iloc[0]["pressure"] == [0.0]
     assert filtered.iloc[0]["adsorbed_amount"] == [1.0]
     assert frame.loc[0, "pressure"] == [0.0, 12_000_000.0, 5.0]
+
+
+def test_aggregate_preserves_uploaded_adsorbate_features() -> None:
+    frame = pd.DataFrame(
+        {
+            "filename": ["uploaded:qa-smiles-298"] * 2,
+            "temperature": [298.15, 298.15],
+            "adsorbent_name": ["activated carbon"] * 2,
+            "adsorbate_name": ["co2"] * 2,
+            "adsorbate_molecular_weight": [44.01, 44.01],
+            "adsorbate_SMILE": ["O=C=O", "O=C=O"],
+            "pressure_units": ["Pa", "Pa"],
+            "adsorption_units": ["mol/kg", "mol/kg"],
+            "pressure": [10000.0, 20000.0],
+            "adsorbed_amount": [0.1, 0.2],
+        }
+    )
+
+    aggregated = AggregateDatasets({}).aggregate_adsorption_measurements(frame)
+
+    assert aggregated.loc[0, "adsorbate_SMILE"] == "O=C=O"
+    assert aggregated.loc[0, "adsorbate_molecular_weight"] == 44.01

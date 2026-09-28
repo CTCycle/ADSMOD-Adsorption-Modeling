@@ -61,6 +61,21 @@ def test_get_page_returns_ordered_slice_and_total(
     assert result.rows == tuple(rows[(page_number - 1) * 3 : page_number * 3])
 
 ###############################################################################
+def test_create_reuses_existing_snapshot_for_same_content(
+    database: DatabaseManager,
+) -> None:
+    store = SnapshotStore(database)
+    rows = _rows()
+
+    first = store.create(rows, metadata={"attempt": 1})
+    second = store.create(rows, metadata={"attempt": 2})
+
+    assert second.snapshot_id == first.snapshot_id
+    assert second.content_hash == first.content_hash
+    assert second.created_at == first.created_at
+    assert second.rows == first.rows
+
+###############################################################################
 def test_get_page_uses_ordered_bounded_row_query(
     database: DatabaseManager,
 ) -> None:

@@ -1,28 +1,31 @@
-# ADS-T4-01 — current Base-profile ML boundary
+# ADS-T4-01 — ML profile, capability detection, and Base gating
 
 Date: 2026-09-28
-Validated implementation SHA: `2f52eb0fcfbe955418b6b5071d1b5811226d2c2c`
-Status: `PASS` for Base-profile gating; positive ML lifecycle remains `BLOCKED`
+Status: `PASS`
 
-## Current Base-profile checks
+## Profile and topology checks
 
-- `app/server/.venv/.adsmod-dependency-state.json` records
-  `Development / Base` on Python `3.14.7`.
-- The isolated backend became ready and reported `datasets=true`,
-  `nist=true`, `fitting=true`, `machine_learning=false`, `training=false`,
-  and `checkpoints=false`.
-- `/api/v1/system/configuration` returned HTTP 200;
-  `/api/v1/training/configuration` and `/api/v1/training/status` returned
-  HTTP 404; the generated Base OpenAPI omitted
-  `/api/v1/training/configuration`.
-- The current Base unit boundary checks passed `11` tests with one intentional
-  ML-positive test deselected. The current non-ML architecture/provider subset
-  is recorded in [`../ADS-T5-01/summary.md`](../ADS-T5-01/summary.md).
+- The official dependency installer activated the locked
+  `Development / ML` profile on Python `3.14.7` with Torch `2.10.0+cu130`,
+  Keras `3.13.1`, and scikit-learn `1.8.0`.
+- The backend remained the same FastAPI process and reported
+  `datasets=true`, `nist=true`, `fitting=true`, `machine_learning=true`,
+  `training=true`, and `checkpoints=true`.
+- `/api/v1/training/configuration` reported Keras backend `torch`, CUDA
+  available, one device, and `NVIDIA GeForce RTX 3060 Laptop GPU`.
+- ML-profile OpenAPI generation produced 56 paths and matched the tracked
+  canonical snapshot by SHA-256
+  `4A7D33EBE0E772FFB868D5C40FF373D0AF68E3460FC842F759F18ADB080428EB`.
 
-## Remaining Tier 4 gates
+## Base-profile boundary
 
-The positive `ADS-T4-02` through `ADS-T4-04` lifecycle was not attempted in
-the Base environment. The current dependency check found no Torch, RDKit,
-Keras, or scikit-learn, so dataset build, real training, checkpoint,
-resume, and populated-dashboard claims remain blocked. The exact environment
-boundary is recorded in [`../ML-blocker-recheck.md`](../ML-blocker-recheck.md).
+The earlier isolated Base-profile recheck remains valid evidence for the
+fail-closed boundary: ML capability flags were false, training routes returned
+404, and the Base OpenAPI omitted training paths. The Base and ML profiles use
+the same backend topology; the profile selects whether optional ML routes are
+registered. No current source imports RDKit, and it is not part of the locked
+ML extra, so the former RDKit absence wording was stale and has been removed
+from the active blocker description.
+
+The profile gate and the positive lifecycle are now both covered by the dated
+`ADS-T4-02`, `ADS-T4-03`, and `ADS-T4-04` evidence.

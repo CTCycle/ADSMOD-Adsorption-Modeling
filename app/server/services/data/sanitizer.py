@@ -56,6 +56,8 @@ class AggregateDatasets:
             "temperature": "first",
             "adsorbent_name": "first",
             "adsorbate_name": "first",
+            "adsorbate_molecular_weight": "first",
+            "adsorbate_SMILE": "first",
             "pressure_units": "first",
             "adsorption_units": "first",
             "pressure": lambda x: [float(v) for v in x],
