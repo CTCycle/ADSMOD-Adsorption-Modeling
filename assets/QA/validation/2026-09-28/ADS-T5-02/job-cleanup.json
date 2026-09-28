@@ -7,5 +7,16 @@
     "terminal_job_history_count": 9,
     "listeners_checked": [6045, 5173]
   },
+  "transient_qa_cleanup": {
+    "status": "PARTIAL",
+    "remaining_protected_directories": [
+      ".qa-runtime/pytest-cache-e2e-final",
+      ".qa-runtime/pytest-cache-sentinel",
+      ".qa-runtime/pytest-cache-unit-final",
+      ".qa-runtime/pytest-temp-unit-final"
+    ],
+    "reason": "The exact task-created cache paths rejected removal under the host ACL, including the narrowly scoped escalated cleanup attempt.",
+    "scope": "Only disposable pytest/cache residue remains; runtime storage, application processes, listeners, and the task-created official-launcher residual directory were removed. Pre-existing app/server/core and app/tests/cache residue was preserved."
+  },
   "scope": "isolated QA runtime only; no canonical data or protected cache residue was modified"
 }

@@ -47,6 +47,14 @@ the restart/API/persistence reconciliation is [`restart-persistence.json`](resta
 and cleanup is [`job-cleanup.json`](job-cleanup.json). The reproducible runner
 is [`soak_runner.py`](soak_runner.py).
 
+The final cleanup left four task-created pytest cache directories under
+`.qa-runtime` because the host ACL denied removal of those exact paths,
+including the narrowly scoped escalated cleanup attempt. The runtime database,
+application processes, ports, and task-created official-launcher residual
+directory were removed. Pre-existing `app/server/core/` and `app/tests/cache/`
+residue was preserved; this is a host cleanup limitation, not a product-data
+or active-process condition.
+
 ## Runtime limitation
 
 The official Windows launcher was exercised with isolated storage under
