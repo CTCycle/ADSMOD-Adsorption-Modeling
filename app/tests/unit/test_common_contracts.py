@@ -47,7 +47,6 @@ def test_capability_contract_is_strict() -> None:
     })
     assert response.features.machine_learning is False
 
-
 ###############################################################################
 def test_openapi_generation_fails_closed_without_ml_profile(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     application = SimpleNamespace(

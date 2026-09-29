@@ -92,6 +92,7 @@ def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     assert frame.loc[0, "pressure"] == [0.0, 12_000_000.0, 5.0]
 
 
+###############################################################################
 def test_aggregate_preserves_uploaded_adsorbate_features() -> None:
     frame = pd.DataFrame(
         {

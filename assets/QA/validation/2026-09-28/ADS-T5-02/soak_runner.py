@@ -23,6 +23,7 @@ FITTING_MODELS = [
 ]
 
 
+###############################################################################
 def payload(response: Any) -> dict[str, Any]:
     try:
         value = response.json()
@@ -31,6 +32,7 @@ def payload(response: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {"value": value}
 
 
+###############################################################################
 def build_mapping(api: APIRequestContext, content: bytes, name: str) -> dict[str, Any]:
     response = api.post(
         "/api/v1/datasets/import/preview",
@@ -60,6 +62,7 @@ def build_mapping(api: APIRequestContext, content: bytes, name: str) -> dict[str
     }
 
 
+###############################################################################
 def commit_dataset(api: APIRequestContext, content: bytes, name: str) -> tuple[dict[str, Any], dict[str, Any], float]:
     started = time.monotonic()
     mapping = build_mapping(api, content, name)
@@ -76,6 +79,7 @@ def commit_dataset(api: APIRequestContext, content: bytes, name: str) -> tuple[d
     return payload(committed)["dataset"], mapping, time.monotonic() - started
 
 
+###############################################################################
 def wait_ready(api: APIRequestContext, timeout_seconds: float = 45.0) -> float:
     started = time.monotonic()
     deadline = started + timeout_seconds
@@ -90,6 +94,7 @@ def wait_ready(api: APIRequestContext, timeout_seconds: float = 45.0) -> float:
     raise TimeoutError("backend did not become ready within the bounded restart window")
 
 
+###############################################################################
 def poll_job(api: APIRequestContext, job_id: str, timeout_seconds: float = 45.0) -> dict[str, Any]:
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -103,6 +108,7 @@ def poll_job(api: APIRequestContext, job_id: str, timeout_seconds: float = 45.0)
     raise TimeoutError(f"job {job_id} did not reach a terminal state")
 
 
+###############################################################################
 def start_fit(api: APIRequestContext, dataset_id: int, isotherm_id: int) -> tuple[str, int]:
     request = {
         "dataset_id": dataset_id,
@@ -121,6 +127,7 @@ def start_fit(api: APIRequestContext, dataset_id: int, isotherm_id: int) -> tupl
     return job_id, duplicate.status
 
 
+###############################################################################
 def main() -> None:
     content = FIXTURE.read_bytes()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)

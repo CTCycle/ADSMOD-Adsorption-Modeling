@@ -36,7 +36,6 @@ from server.repositories.fitting import FittingRepository
 from server.services.job_responses import JobResponseFactory
 from server.services.jobs import JobManager
 
-
 ###############################################################################
 class FittingService:
     JOB_TYPE = "fitting"

@@ -16,7 +16,6 @@ down_revision: str | None = "20260902_public_data"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-
 ###############################################################################
 def upgrade() -> None:
     with op.batch_alter_table("fitting_runs") as batch_op:
@@ -25,7 +24,6 @@ def upgrade() -> None:
             "ck_fitting_runs_status",
             "status IN ('running', 'completed', 'warning', 'failed', 'cancelled')",
         )
-
 
 ###############################################################################
 def downgrade() -> None:

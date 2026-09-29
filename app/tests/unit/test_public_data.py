@@ -358,14 +358,19 @@ def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) ->
     ]
     sleeps: list[float] = []
 
+    ###############################################################################
     class FakeClient:
+
+        # -------------------------------------------------------------------------
         def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
             del kwargs
 
+        # -------------------------------------------------------------------------
         async def request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
             del args, kwargs
             return responses.pop(0)
 
+        # -------------------------------------------------------------------------
         async def aclose(self) -> None:
             return None
 

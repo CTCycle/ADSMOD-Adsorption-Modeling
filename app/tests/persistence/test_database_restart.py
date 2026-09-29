@@ -12,7 +12,6 @@ from server.repositories.schemas.models import Dataset
 
 CONFIG_PATH = Path("data/adsmod.json")
 
-
 ###############################################################################
 def _temporary_config(storage_root: Path):
     base = load_config(CONFIG_PATH)
@@ -28,7 +27,6 @@ def _temporary_config(storage_root: Path):
             ),
         }
     )
-
 
 ###############################################################################
 def test_app_restart_preserves_persisted_dataset(tmp_path: Path) -> None:
