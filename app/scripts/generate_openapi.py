@@ -18,7 +18,6 @@ def build_openapi_schema(config_path: Path) -> dict[str, object]:
         )
     return application.openapi()
 
-
 ###############################################################################
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate OpenAPI JSON for the unified ADSMOD backend.")

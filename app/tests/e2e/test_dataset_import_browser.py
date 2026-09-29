@@ -13,6 +13,7 @@ CSV_FIXTURE = REPOSITORY_ROOT / "assets" / "QA" / "adsmod-dataset-csv-20260916.c
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
 
+###############################################################################
 def _browser_errors(page: Page) -> tuple[list[str], list[str], list[str]]:
     console_errors: list[str] = []
     page_errors: list[str] = []
@@ -35,6 +36,7 @@ def _browser_errors(page: Page) -> tuple[list[str], list[str], list[str]]:
     return console_errors, page_errors, api_errors
 
 
+###############################################################################
 def _import_inspect_reload_and_delete(
     page: Page,
     fixture_path: Path,
@@ -102,6 +104,7 @@ def _import_inspect_reload_and_delete(
     ).to_have_count(0)
 
 
+###############################################################################
 def test_csv_import_persists_inspection_experiment_switch_and_deletion(
     page_context: Page,
 ) -> None:
@@ -120,6 +123,7 @@ def test_csv_import_persists_inspection_experiment_switch_and_deletion(
     assert not api_errors, "\n".join(api_errors)
 
 
+###############################################################################
 @pytest.mark.parametrize("extension", [".xls", ".xlsx"])
 def test_excel_import_persists_inspection_and_reload(
     page_context: Page,

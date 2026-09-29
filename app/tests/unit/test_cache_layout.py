@@ -9,11 +9,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CANONICAL_CACHE_ROOT = (REPO_ROOT / "runtimes" / "cache").resolve()
 
-
 ###############################################################################
 def _resolve_configured_path(value: str, base: Path) -> Path:
     return (base / value).resolve()
-
 
 ###############################################################################
 def test_tool_configuration_resolves_to_the_canonical_cache_root() -> None:
@@ -48,7 +46,6 @@ def test_tool_configuration_resolves_to_the_canonical_cache_root() -> None:
         angular_config["cli"]["cache"]["path"], REPO_ROOT / "app" / "client"
     ) == CANONICAL_CACHE_ROOT / "angular"
 
-
 ###############################################################################
 def test_supported_tooling_has_no_legacy_cache_destination() -> None:
     paths = (
@@ -70,7 +67,6 @@ def test_supported_tooling_has_no_legacy_cache_destination() -> None:
     for path in paths:
         text = path.read_text(encoding="utf-8")
         assert not any(fragment in text for fragment in forbidden_fragments), path
-
 
 ###############################################################################
 def test_launcher_and_batch_runner_export_canonical_cache_environment() -> None:

@@ -19,6 +19,7 @@ from server.app import create_app  # noqa: E402
 from server.configurations.settings import StorageConfig, load_config  # noqa: E402
 
 
+###############################################################################
 def timed_request(
     request: Callable[[], Any],
 ) -> tuple[Any, float]:
@@ -27,6 +28,7 @@ def timed_request(
     return response, round((time.perf_counter() - started) * 1000, 3)
 
 
+###############################################################################
 def main() -> int:
     config = load_config(REPOSITORY_ROOT / "data/adsmod.json")
     fixture = (REPOSITORY_ROOT / "app/tests/fixtures/sample_adsorption.csv").read_bytes()

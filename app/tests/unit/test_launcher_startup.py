@@ -5,10 +5,12 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 LAUNCHER = REPOSITORY_ROOT / "start_on_windows.ps1"
 
 
+###############################################################################
 def launcher_text() -> str:
     return LAUNCHER.read_text(encoding="utf-8-sig")
 
 
+###############################################################################
 def start_application_body() -> str:
     text = launcher_text()
     start = text.index("function Start-Application")
@@ -16,6 +18,7 @@ def start_application_body() -> str:
     return text[start:end]
 
 
+###############################################################################
 def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     text = launcher_text()
 
@@ -27,6 +30,7 @@ def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     assert "function Sync-FrontendDependencies" not in text
 
 
+###############################################################################
 def test_launcher_uses_repository_data_by_default_and_supports_override() -> None:
     text = launcher_text()
 
@@ -40,6 +44,7 @@ def test_launcher_uses_repository_data_by_default_and_supports_override() -> Non
     )
 
 
+###############################################################################
 def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
     text = launcher_text()
     fingerprint_start = text.index("function Get-FrontendBuildFingerprint")
@@ -65,6 +70,7 @@ def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
     assert "eslint.config.js" not in fingerprint
 
 
+###############################################################################
 def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     body = start_application_body()
 
@@ -75,6 +81,7 @@ def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     assert "Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process" in body
 
 
+###############################################################################
 def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None:
     text = launcher_text()
     conflict_start = text.index("function Get-PortConflicts")
@@ -90,6 +97,7 @@ def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None
     assert "remaining" in conflict_code
 
 
+###############################################################################
 def test_port_conflict_termination_rechecks_process_identity() -> None:
     text = launcher_text()
     conflict_start = text.index("function Get-PortConflicts")
