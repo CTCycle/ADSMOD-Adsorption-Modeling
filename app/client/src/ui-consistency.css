@@ -559,22 +559,37 @@
     height: auto;
     min-height: 0;
     overflow: visible;
-    padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md) 0.5rem;
   }
 
   .console-brand {
-    margin: 0 0 var(--spacing-md);
+    grid-template-columns: 36px minmax(0, 1fr);
+    margin: 0 0 var(--spacing-sm);
+  }
+
+  .console-brand-logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .console-brand-name {
+    font-size: 1.3rem;
+  }
+
+  .console-brand-subtitle {
+    margin-top: 0.2rem;
+    font-size: 0.7rem;
   }
 
   .console-nav {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.375rem;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.5rem;
   }
 
   .console-nav-item {
     grid-template-columns: 1.5rem minmax(0, 1fr);
-    min-height: 44px;
+    min-height: 40px;
     padding: 0 var(--spacing-sm);
     font-size: 0.84rem;
   }
@@ -602,6 +617,18 @@
   .service-status-row {
     flex: 0 0 auto;
     flex-wrap: nowrap;
+  }
+
+  .console-sidebar-footer {
+    padding: 0 0.25rem;
+  }
+
+  .console-sidebar-footer::before {
+    margin-bottom: 0.5rem;
+  }
+
+  .console-footer-link {
+    min-height: 34px;
   }
 
   .console-main {

@@ -23,9 +23,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                     <p>Import CSV or Excel observations. One observation per row is recommended.</p>
                 </div>
             </div>
-            @if (!datasets.length) {
-                <p class="empty-state-copy">No datasets have been imported yet. Add a dataset to get started.</p>
-            } @else {
+            @if (datasets.length) {
                 <div class="dataset-record-list" role="list" aria-label="Workspace datasets">
                     @for (dataset of datasets; track dataset.id) {
                         <article class="dataset-record" role="listitem" [class.selected]="dataset.id === selected" [class.renaming]="renameTarget()?.id === dataset.id">

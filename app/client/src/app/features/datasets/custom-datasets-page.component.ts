@@ -27,7 +27,6 @@ const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
     ],
     template: `
         <div class="data-page custom-datasets-page">
-            <p class="page-context">Public source collections are available under Public Data.</p>
             <input #sourceFileInput class="source-file-input" type="file" aria-label="Choose a dataset file" [accept]="acceptedFileTypes()" (change)="fileChanged($event)" />
             @if (store.managementStatus()) {
                 <div class="dataset-status error" role="alert">

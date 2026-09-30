@@ -128,7 +128,14 @@
 }
 
 .section-heading {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
     margin-bottom: 16px;
+}
+
+.public-workspace .section-heading > div:first-child {
+    min-width: 0;
 }
 
 .section-heading.small {
@@ -252,8 +259,25 @@
 .provider-query select {
     min-width: 0;
     width: 100%;
-    height: 34px;
+    min-height: 42px;
+    height: 42px;
+    padding: 0 0.75rem;
     box-sizing: border-box;
+    border: 1px solid #dbe4f4;
+    border-radius: 10px;
+    background: #ffffff;
+    color: var(--text-primary, #18202c);
+    font: inherit;
+    font-size: 0.87rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.filter-bar input:focus-visible,
+.filter-bar select:focus-visible,
+.provider-query input:focus-visible,
+.provider-query select:focus-visible {
+    outline: 3px solid rgba(50, 112, 218, 0.14);
+    border-color: #6f9ee8;
 }
 
 .filter-actions {
