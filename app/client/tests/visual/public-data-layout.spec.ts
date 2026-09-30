@@ -60,6 +60,8 @@ test('public data workspace remains contained across dense scientific views', as
     await installApiMocks(page);
     await page.goto('/public-data/overview');
     await expect(page.getByRole('heading', { name: 'Integrated sources' })).toBeVisible();
+    await expect(page.locator('.public-workspace .section-heading').last()).toHaveCSS('flex-direction', 'row');
+    await expect(page.locator('.public-workspace .section-heading').last()).toHaveCSS('text-align', 'left');
     await assertContainedLayout(page);
 
     for (const view of ['adsorption', 'materials', 'chemicals', 'structures', 'sources']) {
@@ -67,6 +69,9 @@ test('public data workspace remains contained across dense scientific views', as
         await expect(page.locator('.public-workspace')).toBeVisible();
         await assertContainedLayout(page);
     }
+
+    await page.goto('/public-data/materials');
+    await expect(page.locator('.filter-bar input, .filter-bar select').first()).toHaveCSS('height', '42px');
 
     await page.goto('/public-data/adsorption');
     await page.getByRole('button', { name: 'Inspect' }).click();

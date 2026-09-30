@@ -879,21 +879,22 @@ pre,
 
 .fitting-action-buttons {
   display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .fitting-action-primary {
-  flex: 1;
+  flex: 0 1 auto;
   width: auto;
   justify-content: center;
 }
 
 .fitting-action-secondary {
-  flex: 1;
+  flex: 0 1 auto;
   width: auto;
   justify-content: center;
-  padding: 0.6rem;
+  padding: 0.65rem 1rem;
 }
 
 .fitting-status-column {
@@ -4096,7 +4097,7 @@ body {
 
 .fitting-config-panel {
   margin-bottom: 1.5rem;
-  padding: 0.82rem 0.95rem 0;
+  padding: 0.82rem 0.95rem 0.95rem;
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 252, 255, 0.96));
   border: 1px solid #e2eaf8;
@@ -4112,7 +4113,7 @@ body {
 }
 
 .fitting-main-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
   gap: 0.95rem;
   margin-top: 0;
 }
@@ -4131,7 +4132,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.94fr);
   gap: 0.68rem 0.88rem;
-  align-content: space-between;
+  align-content: start;
 }
 
 .control-group:last-child {
@@ -4348,18 +4349,18 @@ button.secondary {
 
 .models-grid {
   gap: 0.88rem;
-  grid-auto-rows: 196px;
+  grid-auto-rows: minmax(196px, auto);
   align-items: start;
 }
 
 .model-grid-card {
   position: relative;
-  height: 196px;
-  min-height: 0;
+  height: auto;
+  min-height: 196px;
   border-radius: 14px;
   border-color: #e2eaf8;
   box-shadow: 0 12px 28px -26px rgba(30, 41, 59, 0.24);
-  overflow: visible;
+  overflow: hidden;
   align-self: start;
 }
 
@@ -4368,17 +4369,13 @@ button.secondary {
 }
 
 .model-grid-card.expanded .model-card-content {
-  position: absolute;
-  top: 3rem;
-  left: -1px;
-  right: -1px;
-  z-index: 2;
+  position: static;
   max-height: min(430px, calc(100vh - 10rem));
   overflow: auto;
-  border: 1px solid #e2eaf8;
+  border: 0;
   border-top: 0;
   border-radius: 0 0 14px 14px;
-  box-shadow: 0 18px 32px -24px rgba(30, 41, 59, 0.45);
+  box-shadow: none;
 }
 
 .model-card-header {
@@ -5114,11 +5111,11 @@ input.source-file-input {
 .dataset-record-copy > p { margin: 4px 0 3px; color: var(--console-text-muted, #657386); font-size: 0.76rem; font-style: italic; line-height: 1.35; }
 .dataset-record-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 4px; color: var(--console-text-muted, #657386); font-size: 0.75rem; }
 .dataset-record-info { min-width: 0; }
-.dataset-record-stats { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px 18px; margin-top: 2px; color: var(--console-text-muted, #657386); font-size: 0.75rem; font-weight: 400; white-space: nowrap; }
+.dataset-record-stats { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px 18px; min-width: 0; margin-top: 2px; color: var(--console-text-muted, #657386); font-size: 0.75rem; font-weight: 400; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .dataset-record-stats span { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .dataset-record-meta span { position: relative; }
 .dataset-record-meta span + span::before { content: ''; position: absolute; left: -10px; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: #9eacc0; transform: translateY(-50%); }
-.dataset-record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.dataset-record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; }
 .dataset-record-actions .button { min-height: 32px; padding: 0.42rem 0.7rem; font-size: 0.74rem; white-space: nowrap; }
 .dataset-record-actions .danger { color: #a3232d; }
 .dataset-add-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; padding: 0.75rem 1.2rem; color: var(--console-text-muted, #657386); }
