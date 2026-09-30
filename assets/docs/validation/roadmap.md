@@ -1,296 +1,109 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-28
+Last updated: 2026-09-30
 
-## Purpose and baseline
+## Purpose
 
-This document is the durable, repository-local digest of the comprehensive
-validation roadmap. It separates source evidence, automated checks, live API
-checks, browser workflows, provider access, and hardware-dependent ML runs so
-that future analysis can resume at a stable slice instead of treating the
-presence of tests as proof of current behavior.
+This document defines the stable validation campaign for the current v3
+application. It owns slice IDs, scope, evidence rules, and dependency order.
+The [project status ledger](../project_status_ledger.md) owns current status,
+validated guarantees, limitations, and evidence anchors. Do not copy execution
+narratives or historical run logs into this roadmap.
 
-The historical official Windows launcher evidence remains anchored to committed
-`develop` SHA `2eb3bc13823bedae1be1791fc980a78613d00ef1`. The current
-data-directory migration and launcher source are validated on
-`efcc858c9b41cca8d44356cc4e62baefb88a39b3`; its default and alternate-path
-live reruns passed. `ADS-T1-01` passed on SHA
-`1affb39a2c4e475a8616004ee0566c30c5d189e7`. `ADS-T1-02` passed on tested code
-SHA `ed80c0975e583cd9842338fca5f59157c4071f97`; hosted run `35852874401` on
-that SHA passed all three CI jobs. `ADS-T1-03` passed on tested code SHA
-`6154532dd6628bb70e98fae6fa427e2d9108cd5f`; hosted run `35876297668` passed all
-three CI jobs. Tier 0 was the first gate because the remote
-CI workflow had previously failed before creating any jobs and the Windows
-launcher had changed after the last surviving live report.
-The three-job workflow most recently passed on publication SHA `1eab9c7`
-in hosted run `36474039764`, including Base/ML dependency installation,
-frontend checks, and browser layout validation.
-
-The residual Tier 5 recheck was performed on tested source/evidence commit
-`dc841b4f251eff3f868385cf52d3d16a0b05aea4`. `ADS-T5-02` covered a
-serial 600-second repetition run with two controlled backend restarts,
-restart persistence, duplicate-job rejection, and final cleanup. `ADS-T5-03`
-covered current rendered route checks at 1280×720, supporting 600×900 captures,
-keyboard-only shell/help/import behavior, and the adjacent frontend gates.
-The final validation source/evidence commit is recorded in the ledger and is
-followed only by documentation publication. Audible screen-reader output was not observable, and the soak is
-bounded evidence rather than a production-scale stress claim.
-
-The canonical current status is [`../project_status_ledger.md`](../project_status_ledger.md).
-Execution evidence is under [`../../QA/validation/2026-09-22/`](../../QA/validation/2026-09-22/)
-for Tier 0 and [`../../QA/validation/2026-09-23/ADS-T1-01/`](../../QA/validation/2026-09-23/ADS-T1-01/)
-for `ADS-T1-01`, and [`../../QA/validation/2026-09-23/ADS-T1-02/`](../../QA/validation/2026-09-23/ADS-T1-02/)
-for `ADS-T1-02`, and [`../../QA/validation/2026-09-23/ADS-T1-03/`](../../QA/validation/2026-09-23/ADS-T1-03/)
-for `ADS-T1-03`.
+The campaign describes the current `develop` application line: one Angular
+client, one FastAPI backend, the canonical `data/adsmod.json` configuration,
+and optional ML capabilities loaded in-process.
 
 ## Evidence contract
 
-Use these distinctions in every slice:
+Use these distinctions for every slice:
 
-- `Feature exists` records source/configuration presence only.
-- `Exercised` records whether the named scenarios actually ran: `YES`, `NO`,
-  or `PARTIAL`.
-- `Status` is `PASS`, `PARTIAL`, `FAIL`, `BLOCKED`, `UNTESTED`, or `UNKNOWN`.
-- Historical evidence never upgrades a changed current revision by itself.
-- A browser claim requires the visible user-facing workflow; API calls, DOM
-  inspection, tests, and logs are supporting evidence rather than substitutes.
-- A `BLOCKED` result must name the external dependency or environment cause;
-  it must not hide an observed product failure.
+- **Feature exists** means source or configuration presence only.
+- **Exercised** means the named scenario actually ran.
+- **Status** is `PASS`, `PARTIAL`, `FAIL`, `BLOCKED`, or `UNTESTED`.
+- Evidence is revision-scoped. Historical evidence does not upgrade a changed
+  revision by itself.
+- A browser claim requires the visible user-facing workflow. API calls, DOM or
+  accessibility-tree inspection, tests, and logs are supporting evidence, not
+  substitutes for rendered interaction.
+- A provider or ML claim must state whether it is local, external, hardware-
+  dependent, synthetic, bounded, or representative.
+- A blocker names the external dependency or environment cause; it must not hide
+  an observed product failure.
 
-Each slice should record its baseline SHA, exact scenarios, environment,
-issues, fixes, adjacent regression, evidence paths, remaining gaps, timestamp,
-validator, and evidence strength (`live UI`, `live API`, `automated`,
-`source-only`, or `historical`).
+Prefer source tests, generated contracts, and hosted CI links as evidence
+anchors. Retain a screenshot, provider response, or raw run artifact only when
+it supports a current claim that cannot be reproduced from the repository.
 
 ## Ordered campaign
 
-| Tier | Stable slices | Focus | Gate to leave the tier |
+| Tier | Stable slices | Focus | Exit gate |
 | --- | --- | --- | --- |
-| Tier 0 | `ADS-T0-01`–`ADS-T0-02` | CI executability, Windows runtime, readiness, browser load, ownership-safe shutdown | All three CI jobs start and finish; launcher clean lifecycle and occupied-port protection pass |
-| Tier 1 | `ADS-T1-01`–`ADS-T1-03` | Core API/capability boundaries, SQLite/Alembic startup, shell navigation and recovery | Base runtime, persistence, and shell navigation/recovery are current-revision validated |
-| Tier 2 | `ADS-T2-01`–`ADS-T2-06` | CSV/Excel input, invalid boundaries, fitting configuration, execution, persistence, cancellation | Core product workflows pass with disposable data |
-| Tier 3 | `ADS-T3-01`–`ADS-T3-05` | Local public data, NIST, PubChem, and COD positive/degraded paths | Provider claims have explicit positive or externally blocked evidence |
-| Tier 4 | `ADS-T4-01`–`ADS-T4-04` | ML profile, valid training data, real training, checkpoints, resume, dashboard | Positive ML lifecycle is demonstrated on the ML profile |
-| Tier 5 | `ADS-T5-01`–`ADS-T5-05` | Recovery, repetition/restart integrity, responsive/accessibility, performance, documentation/contracts | Evidence and ledger reconcile against the final tested SHA |
+| Tier 0 | `ADS-T0-01`–`ADS-T0-02` | CI execution and Windows launcher lifecycle | Hosted jobs complete; launcher readiness, ownership-safe shutdown, and occupied-port protection pass |
+| Tier 1 | `ADS-T1-01`–`ADS-T1-03` | Core API, persistence, shell navigation, and recovery | Base runtime and persistence are current-revision validated |
+| Tier 2 | `ADS-T2-01`–`ADS-T2-06` | Dataset import and fitting workflows | Core workflows pass with disposable data |
+| Tier 3 | `ADS-T3-01`–`ADS-T3-05` | Local public data and provider boundaries | Provider claims have explicit positive or externally bounded evidence |
+| Tier 4 | `ADS-T4-01`–`ADS-T4-04` | ML profile, training data, training, and checkpoints | Positive ML lifecycle is demonstrated on the ML profile |
+| Tier 5 | `ADS-T5-01`–`ADS-T5-05` | Recovery, repetition, UI/accessibility, performance, and contracts | Evidence and ledger reconcile against the tested source |
 
 The dependency order is:
 
 `T0-01 → T0-02 → T1-01 → T1-02 → T1-03 → T2-01 → T2-02 → T2-03 → T2-04 → T2-05 → T2-06 → T3-01 → T3-02 → T3-03 → T3-04/T3-05 → T4-01 → T4-02 → T4-03 → T4-04 → T5-01 → T5-02 → T5-03 → T5-04 → T5-05`
 
-Do not advance when a slice exposes a reproducible defect. Stop, isolate the
-smallest code path, apply the smallest fix, rerun the failed scenario and its
-adjacent regression, then update the ledger.
+Stop at the smallest reproducible defect, fix only the affected path, rerun that
+slice and its adjacent regression, then update the ledger.
 
-## Slice catalog
+## Stable slice catalog
 
-### Tier 0 — environment and startup
-
-| Slice | Scope | Current checkpoint |
+| Slice | Ontology concept | Scope |
 | --- | --- | --- |
-| `ADS-T0-01` | Diagnose the remote workflow, validate the YAML/configuration, repair it surgically, then confirm `base-backend`, `ml-backend`, and `frontend` execute their repository-defined commands. | Run `35852874401` on SHA `ed80c09` passed all three jobs; the Base profile verifies system configuration, fitting availability, and absent training routes. |
-| `ADS-T0-02` | Use the official Windows launcher for dependency reuse, backend/frontend readiness, browser load, occupied-port refusal, owned-process stop, and clean relaunch. | The historical conflict/race, invalidation, ML-profile repair, readiness cleanup, and final-port evidence passed on SHA `2eb3bc1`; the current data-directory migration passed default and alternate-path live launcher runs on `efcc858`. See the 2026-09-28 migration evidence. |
+| `ADS-T0-01` | `quality.validation-gates` | Hosted workflow configuration and Base/ML/frontend jobs |
+| `ADS-T0-02` | `runtime.startup.windows` | Launcher setup, readiness, browser load, conflict refusal, stop, relaunch, and cleanup |
+| `ADS-T1-01` | `backend.core.api` | Health, capabilities, core routes, Base ML gating, and fitting configuration |
+| `ADS-T1-02` | `persistence.database-migrations` | SQLite/Alembic startup states, locks, and restart persistence |
+| `ADS-T1-03` | `ui.shell.navigation` | Routes, redirects, Help focus behavior, backend status, and unavailable controls |
+| `ADS-T2-01` | `data.local-dataset.csv-lifecycle` | CSV preview, mapping, validation, save, inspect, reload, and delete |
+| `ADS-T2-02` | `data.local-dataset.excel-import` | Real `.xls` and `.xlsx` parsing through the browser path |
+| `ADS-T2-03` | `data.local-dataset.validation` | Empty, corrupt, malformed, unsupported, and mismatched input boundaries |
+| `ADS-T2-04` | `workflow.fitting` | Dataset selection, model cards, options, and parameter forms |
+| `ADS-T2-05` | `workflow.fitting` | Asynchronous fitting, metrics, persistence, and reload |
+| `ADS-T2-06` | `workflow.fitting` | Cancellation, duplicate prevention, recovery, and follow-up execution |
+| `ADS-T3-01` | `data.public.local-browsing` | Persisted public-data lists, filters, pagination, and provenance |
+| `ADS-T3-02` | `data.public.nist` | NIST status, reachability, index, fetch, and job lifecycle |
+| `ADS-T3-03` | `data.public.nist` | NIST enrichment, normalization, and unsupported-unit reporting |
+| `ADS-T3-04` | `data.public.pubchem-enrichment` | PubChem identity, properties, structures, provenance, and secondary failures |
+| `ADS-T3-05` | `data.public.cod-import` | COD search, CIF import, normalized persistence, linking, and re-import |
+| `ADS-T4-01` | `runtime.ml-capabilities` | ML profile, one-backend topology, capability discovery, and Base gating |
+| `ADS-T4-02` | `workflow.ml-training` | Processed dataset and immutable snapshot creation |
+| `ADS-T4-03` | `workflow.ml-training` | Real training run, status/metrics, and cancellation |
+| `ADS-T4-04` | `workflow.ml-training` | Checkpoints, compatibility, resume, deletion, and training dashboard |
+| `ADS-T5-01` | `backend.core.api` and `data.public.*` | Provider/network/backend failures, retry contracts, and recovery |
+| `ADS-T5-02` | `runtime.startup.windows` and `persistence.database-migrations` | Repetition, restart integrity, stale state, duplicate jobs, and cleanup |
+| `ADS-T5-03` | `ui.responsive-accessibility` | Keyboard/focus behavior, responsive layouts, overflow, and rendered states |
+| `ADS-T5-04` | `quality.validation-gates` | Bounded public-data queries, imports, polling, and measured fixtures |
+| `ADS-T5-05` | `quality.validation-gates` | Documentation, generated contracts, stale references, and ledger reconciliation |
 
-### Tier 1 — application foundations
+## Retention and ownership
 
-| Slice | Scope | Current checkpoint |
-| --- | --- | --- |
-| `ADS-T1-01` | Health, system capabilities/configuration, core route availability, base-profile absence of ML routes, capability refresh/retry, and fitting configuration. | `PASS` on SHA `1affb39`; hosted run `35832020842` and focused local API/frontend tests. |
-| `ADS-T1-02` | Missing/empty/current/invalid SQLite startup states, Alembic head and lock behavior, and minimal record persistence across restart. | `PASS` on tested code SHA `ed80c09`; 22 focused local tests passed, including fail-closed invalid states and dataset persistence across two application lifespans. Hosted run `35852874401` passed all three CI jobs. |
-| `ADS-T1-03` | Implemented top-level routes, redirects, unknown-route recovery, Help focus behavior, backend Offline/Online recovery, and truthful unavailable Docs/Settings controls. | `PASS` on tested code SHA `6154532`; 70 frontend unit tests, lint, build, official-launcher browser/HTTP evidence, and hosted run `35876297668` passed. See [`ADS-T1-03/summary.md`](../../QA/validation/2026-09-23/ADS-T1-03/summary.md). |
+- Put current guarantees, decisions, limitations, and next actions in the
+  ledger or the relevant architecture, runtime, operations, or UI document.
+- Put reusable implementation checks in `app/tests` or the relevant package
+  test suite, not in a dated QA report.
+- Use `assets/QA/validation/<slice>/` only for durable evidence that is not
+  represented by source tests, generated contracts, or hosted CI.
+- Do not commit duplicate screenshots, generated contract copies, raw logs, or
+  per-run narrative files when the underlying source and a concise ledger entry
+  are sufficient.
+- Never store credentials, tokens, or machine-specific secrets in evidence.
 
-### Tier 2 — core product workflows
+## Revalidation map
 
-| Slice | Scope | Current checkpoint |
-| --- | --- | --- |
-| `ADS-T2-01` | Complete browser CSV import through preview, mapping, validation, save, persisted inspection, experiment switching, reload, and deletion. | PASS on `c876a06`; see [`ADS-T2-01`](../../QA/validation/2026-09-23/ADS-T2-01/summary.md). |
-| `ADS-T2-02` | Real `.xlsx` and `.xls` files through the canonical browser/API path. | PASS on `c876a06`; see [`ADS-T2-02`](../../QA/validation/2026-09-23/ADS-T2-02/summary.md). |
-| `ADS-T2-03` | Invalid uploads, missing columns, malformed values, mismatched arrays, and other input-boundary failures. | PASS on `c876a06`; see [`ADS-T2-03`](../../QA/validation/2026-09-23/ADS-T2-03/summary.md). |
-| `ADS-T2-04` | Dataset/experiment selection, fitting configuration, all nine model cards, and parameter forms. | PASS in the 2026-09-24 live fitting campaign; see [`ADS-T2-04`](../../QA/validation/2026-09-24/ADS-T2-04/summary.md). |
-| `ADS-T2-05` | Positive asynchronous fitting, metrics/result rendering, persistence, and reload. | PASS after fixing result restoration on page reload; see [`ADS-T2-05`](../../QA/validation/2026-09-24/ADS-T2-05/summary.md). |
-| `ADS-T2-06` | Fitting cancellation, duplicate-job prevention, recovery, and clean follow-up execution. | PASS after adding `20260924_fitting_cancel`; see [`ADS-T2-06`](../../QA/validation/2026-09-24/ADS-T2-06/summary.md). |
-
-### Tier 3 — feature families and providers
-
-| Slice | Scope | Current checkpoint |
-| --- | --- | --- |
-| `ADS-T3-01` | Locally persisted Public Data browsing, filtering, pagination, and provenance without requiring new retrieval. | PASS on `396e2e0`; isolated-database browser evidence covers lists, filters, pagination, detail provenance, and empty structures state. |
-| `ADS-T3-02` | NIST status, index, fetch, and job lifecycle without chemical enrichment. | PASS on the 2026-09-24 working-tree NIST fix; all pings/indexes and bounded experiment/guest/host fetches completed, repeated category fetches added no duplicates, and counts persisted after reload. |
-| `ADS-T3-03` | NIST guest/host enrichment, unsupported-unit handling, skip counts, and normalization. | PASS for the bounded workflow on 2026-09-25: experiments 40 requested/received, 26 persisted, 14 skipped under the accepted `ISSUE-002` policy; guest enrichment matched/updated 7/7 and host enrichment 1/51. The 14/40 coverage limitation remains explicit. |
-| `ADS-T3-04` | Positive PubChem resolution and normalized persistence. | PASS on 2026-09-25: Public Data resolved CID 280, rendered normalized identity/properties and PubChem provenance, and retained them after page reload. Mocked synonyms and conformer failures preserved the primary record. |
-| `ADS-T3-05` | Positive COD search, CIF import, normalized persistence, linking, and re-import; no 3D viewer claim. | PASS on 2026-09-25: the live bounded `wurtzite` search returned 68 records; COD 1011195 retained CIF and normalized fields, linked to an isolated ZnS fixture, and survived browser re-import without duplication. No existing local ZnS candidate was available. |
-
-### Tier 4 — ML and integration-heavy workflows
-
-| Slice | Scope |
+| Change area | Minimum revalidation |
 | --- | --- |
-| `ADS-T4-01` | ML installation profile, one-backend topology, capability detection, and base-profile gating. |
-| `ADS-T4-02` | Valid processed training dataset and immutable snapshot creation. |
-| `ADS-T4-03` | Short real training run, status/metrics, and cancellation. |
-| `ADS-T4-04` | Checkpoint creation, compatibility, resume, deletion, and populated dashboard. |
-
-The 2026-09-28 ML-profile recheck passed all four Tier 4 slices. The locked
-profile activated Torch-backed Keras and CUDA, the current revision built the
-processed dataset and immutable snapshot, completed a real training run and
-terminal cancellation, created/resumed/deleted a compatible checkpoint, and
-rendered the populated `/training/dashboard` route. The separate top-level
-`/dashboards` placeholder remains `PARTIAL` under `ISSUE-005`; it is a product
-scope item rather than a remaining ML blocker. See the four dated slice
-summaries [`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md),
-[`ADS-T4-02`](../../QA/validation/2026-09-28/ADS-T4-02/summary.md),
-[`ADS-T4-03`](../../QA/validation/2026-09-28/ADS-T4-03/summary.md), and
-[`ADS-T4-04`](../../QA/validation/2026-09-28/ADS-T4-04/summary.md), plus the
-[ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
-
-### Tier 5 — resilience and closure
-
-| Slice | Scope |
-| --- | --- |
-| `ADS-T5-01` | Temporary network/provider/backend failures and truthful recovery without changing product behavior. |
-| `ADS-T5-02` | Repeated operations, backend restart, stale state, duplicate records, and process/job cleanup. |
-| `ADS-T5-03` | Keyboard operation, focus management, responsive workflows from desktop through the configured narrow viewports, and overflow. |
-| `ADS-T5-04` | Bounded public-data queries, imports, polling, and other performance-sensitive boundaries with measured fixtures. |
-| `ADS-T5-05` | Documentation, generated OpenAPI/configuration contracts, stale references, QA links, and final ledger reconciliation. |
-
-2026-09-28 checkpoint: `ADS-T5-01` upgraded to `PASS` for its bounded scope.
-The current host reported all three providers available, completed positive
-PubChem and COD calls, reran the non-ML retry/error regression subset, and
-completed the official launcher `Rebuild frontend` action with portable Node
-22.13.0. The existing rendered provider-degraded and backend Offline/Online
-recovery evidence remains valid because the relevant runtime source was
-unchanged. The residual `ADS-T5-02` recheck completed 38 dataset commit and
-duplicate checks, 37 fitting and duplicate-job cycles, two controlled
-restarts, and final deletion/listener cleanup after a 600.132-second run. Its
-official launcher UI/readiness path passed, but multipart commit in the
-protected QA directory hit a host ACL readonly-database error; the same
-fixture and API contract passed through the clean managed server lane. The
-residual `ADS-T5-03` recheck passed current rendered route, keyboard/focus,
-responsive, lint, unit, preview, development-build, and focused regression
-checks. Narrator/Speech Recap output was not observable, so the screen-reader
-sub-gate remains `PARTIAL`; the local production builder and configured visual
-runner also have host-specific limitations recorded in the evidence. The
-other Tier 5 slices and `ADS-T5-05` remain passing in their bounded scopes.
-Tier 5 is therefore closed for the stated bounded scopes; continuous provider
-availability, production-scale stress, and audible screen-reader coverage are
-not claimed. Hosted run `36474039764` passed `base-backend`, `ml-backend`, and
-`frontend`; its Node.js and Ubuntu image notices are platform maintenance
-annotations only.
-
-## Evidence layout and regression checkpoints
-
-Use stable slice directories below `assets/QA/validation/<date>/`, for example:
-
-```text
-assets/QA/validation/2026-09-22/
-  ADS-T0-01/
-  ADS-T0-02/
-```
-
-UI slices should retain screenshots or an equivalent durable rendered-state
-record, route and viewport, console errors, relevant network status, and any
-failure trace. Backend/persistence slices should retain commands, exit status,
-logs, API results, database state before/after, and migration/job identifiers.
-Provider records must include provider, timestamp, query/identifier, result
-classification, and whether the boundary was local, provider-side,
-rate-limited, or network-related; never store secrets.
-
-Run the full application checkpoint after Tier 0, Tier 2, Tier 4, and for the
-final release candidate. The entire application does not need to be rerun
-after every surgical fix; the defined adjacent regression is the minimum.
-
-## Current stopping point
-
-Tier 0 remains closed. `ADS-T0-01` passed in hosted run `35910483168` on SHA
-`270e94d`; all three jobs completed, including the Base/ML profile checks,
-generated contracts, frontend checks, and browser layout validation.
-`ADS-T0-02` is `PASS` on the historical lifecycle evidence at `2eb3bc1` and
-the current default/alternate data-directory live rerun on `efcc858`; the
-current launcher source is therefore covered by both historical conflict
-evidence and current-revision lifecycle evidence.
-
-`ADS-T1-01` is `PASS` on SHA `1affb39`. The Base profile reported core
-capabilities, system configuration, fitting models, readiness, and Public
-Data availability while keeping ML unavailable and both training routes
-absent. The hosted ML profile and frontend capability retry/refresh tests also
-passed. See [`ADS-T1-01/summary.md`](../../QA/validation/2026-09-23/ADS-T1-01/summary.md).
-`ADS-T1-02` also passed on code SHA `ed80c09`, covering SQLite startup state
-handling, Alembic head/lock behavior, and one dataset persisted across app
-shutdown and restart. See
-[`ADS-T1-02/summary.md`](../../QA/validation/2026-09-23/ADS-T1-02/summary.md).
-`ADS-T1-03` passed on code SHA `6154532`, covering shell routes and recovery,
-Help focus/closing, unavailable controls, and backend status recovery. Local
-frontend unit/lint/build gates and hosted run `35876297668` passed. See
-[`ADS-T1-03/summary.md`](../../QA/validation/2026-09-23/ADS-T1-03/summary.md).
-Tier 1 is closed. Tier 2 slices `ADS-T2-01`, `ADS-T2-02`, and `ADS-T2-03`
-passed on implementation SHA `c876a063d3fcef4de1ea074aaebba861da4b2c4c`.
-Evidence covers CSV import/persistence/deletion, real `.xls` and `.xlsx`
-browser imports, and invalid-input boundaries. See the three linked
-[`ADS-T2-01`](../../QA/validation/2026-09-23/ADS-T2-01/summary.md),
-[`ADS-T2-02`](../../QA/validation/2026-09-23/ADS-T2-02/summary.md), and
-[`ADS-T2-03`](../../QA/validation/2026-09-23/ADS-T2-03/summary.md) summaries.
-Tier 2 is closed. On the 2026-09-24 official-launcher campaign, `ADS-T2-04`
-validated the fitting controls and all nine model cards, `ADS-T2-05` completed
-a fit and verified that rendered metrics return after a page reload, and
-`ADS-T2-06` exercised cancellation, duplicate rejection, and follow-up
-recovery. The campaign found and fixed a missing `cancelled` SQLite status and
-the result-reload gap. See the linked slice summaries and the canonical
-[`project status ledger`](../project_status_ledger.md).
-
-Tier 3's five slices are now `PASS` in their bounded scopes. The 2026-09-25
-official-launcher run used an isolated `%LOCALAPPDATA%` profile and database.
-For NIST, the browser showed 26/39,988 experiments, 7/455 guests, and 51/9,328
-hosts. Fetching 40 experiment records persisted 26 and reported 14 skips;
-guest enrichment matched/updated 7/7, and a 47-record host fetch produced a
-51-host enrichment sample with 1 match/update. `ISSUE-002` now records the
-accepted skip-and-report policy; the 14/40 coverage limitation remains and no
-unit conversion is inferred.
-
-The Public Data PubChem flow resolved CID 280 in the rendered Chemicals page,
-persisted normalized CO2 identity, properties, structure references, and
-PubChem provenance, then restored them after a full page reload. Focused tests
-confirmed that synonyms or conformer endpoint failures do not discard the
-primary record. The live COD `wurtzite` query returned 68 results; importing
-COD 1011195 retained its 2,238-character CIF, normalized cell and two atom
-sites, and source provenance. The explicit import association was checked with
-a disposable isolated ZnS material fixture because no pre-existing local ZnS
-material was available. A rendered browser re-import preserved that link and
-left one structure row. No automatic name/formula association or 3D viewer
-claim is made. See the dated [`ADS-T3-03`](../../QA/validation/2026-09-25/ADS-T3-03/summary.md),
-[`ADS-T3-04`](../../QA/validation/2026-09-25/ADS-T3-04/summary.md), and
-[`ADS-T3-05`](../../QA/validation/2026-09-25/ADS-T3-05/summary.md) evidence.
-
-The 14 unsupported NIST measurements remain outside canonical coverage until
-additional source metadata or a supported conversion basis exists. This is an
-accepted limitation under `ISSUE-002`, not a reason to infer conversions. Tier
-4 now passes its bounded ML lifecycle on the locked ML profile; the tiny
-synthetic fixture does not establish model quality, convergence, or
-production-scale readiness. The residual `ADS-T5-03` recheck passes its
-bounded rendered responsive, overflow, and keyboard/focus scope after the
-historical 1280×720 Sources-page overflow was not reproduced in the current
-implementation; its audible screen-reader sub-gate remains `PARTIAL` because
-no Narrator/Speech Recap output was observable. `ADS-T5-02` passes bounded
-repetition, duplicate prevention, two-restart persistence, rendered reload,
-and cleanup; the official launcher write path remains host-ACL limited in the
-protected QA directory, while the clean managed server lane passed. `ADS-T5-01`
-now passes its bounded scope: deterministic retry/error handling, live provider
-health and positive provider calls, backend recovery, and the official launcher
-rebuild all passed. `ADS-T5-04` passes its bounded measured scope.
-`ADS-T5-05` passes: configuration schema, documentation links, stale-reference
-checks, the fail-closed OpenAPI generator guard, and hosted ML-enabled
-canonical OpenAPI regeneration all passed. The dashboard product
-scope (`ISSUE-005`) remains follow-up work. See the dated
-[`ADS-T4-01`](../../QA/validation/2026-09-28/ADS-T4-01/summary.md),
-the [ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md),
-[`ADS-T5-01`](../../QA/validation/2026-09-28/ADS-T5-01/summary.md),
-[`ADS-T5-02`](../../QA/validation/2026-09-28/ADS-T5-02/summary.md),
-[`ADS-T5-03`](../../QA/validation/2026-09-28/ADS-T5-03/summary.md),
-[`ADS-T5-04`](../../QA/validation/2026-09-26/ADS-T5-04/summary.md), and
-[`ADS-T5-05`](../../QA/validation/2026-09-26/ADS-T5-05/summary.md) evidence and
-the [current ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md).
-
-The former ML blocker (`ISSUE-001`) is resolved for the current bounded
-workflow: the ML profile is installed, current-revision positive evidence is
-recorded, and the two defects found during the run have regression coverage.
-The top-level dashboards remain `PARTIAL` (`ISSUE-005`) pending a product-scope
-decision; populated training metrics are already validated on
-`/training/dashboard`. See the [current ML blocker recheck](../../QA/validation/2026-09-28/ML-blocker-recheck.md)
-and the dated Tier 4 summaries.
+| Launcher, ports, startup, cache roots, or data-directory selection | `runtime.startup.windows` plus readiness, rendered load, stop, and final listener checks |
+| Routes, service boundaries, API contracts, schema, or migrations | `backend.core.api`, `persistence.database-migrations`, affected workflow, and generated contracts |
+| Import parser, units, mapping, or inspection UI | `data.local-dataset.csv-lifecycle`, `data.local-dataset.excel-import`, persistence reload, and fitting selection |
+| NIST, PubChem, or COD adapters | The affected provider slice, including provenance and explicit external-failure behavior |
+| ML dependencies, capability discovery, training data, models, or checkpoints | `runtime.ml-capabilities` and the full positive `workflow.ml-training` lifecycle |
+| Angular routes, shared styles, responsive layout, or accessibility states | `ui.shell.navigation`, affected component tests, and rendered/browser viewport checks |
+| Documentation, generated snapshots, or validation organization | `ADS-T5-05`, link/reference scan, and ledger reconciliation |

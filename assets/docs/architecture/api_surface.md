@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-09-02
+Last updated: 2026-09-30
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -13,6 +13,7 @@ The unified backend serves all versioned routes under `/api/v1`:
 - `/system/capabilities` and `/system/configuration`
 - `/datasets/*`
 - `/nist/*`
+- `/public-data/*`
 - `/fitting/*`
 - `/training/configuration` and the training lifecycle under `/training/*`
   when the optional machine learning dependencies are installed
