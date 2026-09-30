@@ -1,6 +1,6 @@
 # ADSMOD architecture
 
-Last updated: 2026-09-16
+Last updated: 2026-09-30
 
 ADSMOD has a single source of truth for runtime configuration and one layered
 FastAPI package:

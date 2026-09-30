@@ -1,6 +1,6 @@
 # Findings and remediation
 
-Last updated: 2026-09-02
+Last updated: 2026-09-30
 
 The repository previously contained two FastAPI processes with separate
 startup, health, routing, proxy, configuration, and coordination concerns.
@@ -23,6 +23,9 @@ The remediation is complete:
 7. Legacy dual-service configuration, service tokens, proxy routing, entry
    points, and compatibility paths were removed rather than retained.
 
-Remaining verification is operational: run the Windows launcher on the target
-host and exercise normal and ML-enabled workflows with the locally available
-hardware and browser environment.
+The bounded normal and ML-enabled workflows, provider paths, and launcher
+lifecycle have since been exercised. Remaining limits are recorded in the
+canonical [status ledger](../project_status_ledger.md): the general dashboard
+is still a product placeholder, NIST skips unsupported measurements rather than
+inferring conversions, and scientific/release claims require broader data and
+longer ML runs.

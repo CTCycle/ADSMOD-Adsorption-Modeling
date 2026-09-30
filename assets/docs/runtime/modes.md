@@ -1,6 +1,6 @@
 # ADSMOD installation profiles
 
-Last updated: 2026-09-02
+Last updated: 2026-09-30
 
 ADSMOD has one runtime architecture and one FastAPI backend process. Optional
 machine learning support is an installation profile, not a separate runtime
@@ -29,5 +29,6 @@ validation asserts that the ML package is absent and the normal application is
 ready. ML-enabled validation asserts that capability discovery enables machine
 learning and that training endpoints are registered.
 
-Live browser and hardware-specific training checks are intentionally separate
-from these deterministic automated gates.
+The bounded live ML lifecycle is validated separately from these deterministic
+automated gates. It does not establish representative-data quality, convergence,
+long-duration stability, or release readiness.

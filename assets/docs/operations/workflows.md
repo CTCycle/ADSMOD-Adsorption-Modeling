@@ -1,20 +1,20 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-08-03
+Last updated: 2026-09-30
 
 ## Main Navigation
 
-The application uses one frontend with these primary routes:
+The application uses one Angular frontend with these primary routes:
 
 - `datasets` for custom workspace datasets and file import
 - `public-data` for NIST-A adsorption experiments
-- `public-materials` for NIST adsorbates, adsorbent materials, and existing PubChem enrichment
+- `public-data/:view` for NIST adsorption data, materials, chemicals, structures, sources, and PubChem/COD enrichment
 - `dashboards` for the current dashboard placeholder
 - `fitting` for adsorption model fitting
 - `training` for processing, training datasets, checkpoints, and the dashboard
 
-Custom dataset management, public adsorption data, and public materials/adsorbates
-are standalone top-level routes.
+Custom dataset management and public data are standalone workspaces. The former
+split `public-materials` destination is not a supported route.
 
 ## Upload And Fit A Local Dataset
 
@@ -36,18 +36,20 @@ are standalone top-level routes.
 
 ## Retrieve Public Materials And Adsorbates
 
-1. Open `public-materials`.
-2. Use the Adsorbates section for NIST guest-species index and fetch actions.
-3. Use the Adsorbent Materials section for NIST host-material index and fetch actions.
-4. Run the existing PubChem enrichment action only after records are available locally.
-5. Treat NIST retrieval and PubChem enrichment as separate status and provenance steps.
+1. Open `public-data/overview`.
+2. Use `public-data/sources` for NIST guest-species and host-material index/fetch actions.
+3. Use the Materials, Chemicals, and Structures views to inspect normalized records.
+4. Run PubChem or COD enrichment/import only after the relevant local records are available.
+5. Treat each provider action as a separate status and provenance step.
 
 ## Build Training Data And Run Training
 
-1. Open the unified UI and navigate to `training`.
+1. Open the unified UI and navigate to `training/processing`.
 2. In `Data Processing`, build processed datasets.
 3. In `Train datasets`, start a new training run.
-4. Use `Training Dashboard` to monitor progress, metrics, and logs.
+4. Use `training/dashboard` to monitor progress, metrics, and logs.
+5. Training is available only when the optional ML profile is installed and
+   capability discovery reports it available.
 
 ## Resume From A Checkpoint
 

@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-09-21
+Last updated: 2026-09-30
 
 ## Purpose
 
@@ -35,19 +35,21 @@ This file is the root index for `assets/docs`. Read it first, then open the smal
 for the project's current operational state. Update it whenever implementation,
 validation evidence, a regression, a blocker, or an issue's remediation status
 changes. Keep detailed architecture and ownership rules in
-[`architecture/`](architecture/), detailed validation logs and artifacts under
-`assets/QA/`, and implementation intent in the relevant plan or design
-document; the ledger summarizes and links to those sources without replacing
-them. A plan or historical report does not change current status until the
-repository state and supporting evidence have been updated.
+[`architecture/`](architecture/), user and maintainer procedures in
+[`operations/`](operations/) and [`runtime/`](runtime/), and UI rules in
+[`ui/`](ui/). The ledger summarizes current guarantees, limitations, evidence
+anchors, and revalidation paths without becoming a chronological report.
 
 ### Validation campaign
 
 [`validation/roadmap.md`](validation/roadmap.md) is the durable digest of the
 long-term validation campaign, its stable slice IDs, evidence rules, and
 dependency order. The current execution ledger remains in
-[`project_status_ledger.md`](project_status_ledger.md); detailed run evidence
-belongs under `assets/QA/validation/`.
+[`project_status_ledger.md`](project_status_ledger.md). Retained evidence that
+cannot be reproduced from source tests, generated contracts, or hosted CI may
+live under `assets/QA/validation/<slice>/`; that directory is an evidence vault,
+not a second status catalog. Duplicate logs, screenshots, generated snapshots,
+and per-run narratives should not be added there.
 
 ### Architecture
 
