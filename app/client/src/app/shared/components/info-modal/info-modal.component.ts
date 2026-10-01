@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, computed, input, output } from '@angular/core';
 import type { InfoModalData, InfoModalValue } from '../../../models/json.model';
 

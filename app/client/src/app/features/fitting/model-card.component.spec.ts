@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const MODEL = { id: 'langmuir', name: 'Langmuir', shortDescription: 'test', equationLatex: 'q=Kp', parameterDefaults: { k: [0, 1] as [number, number] } };

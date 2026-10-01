@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type { FittingConfiguration } from '../models/fitting.model';
 import type { TrainingConfiguration } from '../models/training.model';

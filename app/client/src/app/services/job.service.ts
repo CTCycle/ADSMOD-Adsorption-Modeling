@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import type { JobStartResponse, JobStatusResponse } from '../models/job.model';
 import { API_BASE_URL } from '../core/config/api-base-url';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';

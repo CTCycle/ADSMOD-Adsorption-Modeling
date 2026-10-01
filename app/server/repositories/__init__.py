@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 from server.repositories.datasets import DatasetRepository
 from server.repositories.fitting import FittingRepository
 from server.repositories.materials import MaterialRepository

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteDataset } from './dataset.service';
 

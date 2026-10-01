@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createServer, request as requestHttp } from 'node:http';

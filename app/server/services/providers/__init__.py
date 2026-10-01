@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 from server.services.providers.cod import CODProvider
 from server.services.providers.nist import NISTPublicDataProvider
 from server.services.providers.pubchem import PubChemProvider

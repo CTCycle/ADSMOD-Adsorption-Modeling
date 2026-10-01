@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Utilities for ML training, inference, and model definitions."""
 
 from server.services.ml_bootstrap import configure_environment

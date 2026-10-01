@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import type { InfoModalData } from '../../../models/json.model';
 import type { CheckpointFullDetails, DatasetFullInfo } from '../../../models/training.model';
 

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Injectable } from '@angular/core';
 
 type TrainingActionResult<TSuccessStatus extends string> = {

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { extractErrorMessage } from '../shared/utils/error-message';
 
 export const HTTP_TIMEOUT = 120000;

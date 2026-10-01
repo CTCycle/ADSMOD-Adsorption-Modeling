@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { describe, expect, it, vi } from 'vitest';
 import { TrainingActionRunnerService } from './training-action-runner.service';
 

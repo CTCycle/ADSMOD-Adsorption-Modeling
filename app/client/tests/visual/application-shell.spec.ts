@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 const datasetRecord = {

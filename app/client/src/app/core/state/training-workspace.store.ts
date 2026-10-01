@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Injectable, signal } from '@angular/core';
 import type { InfoModalData } from '../../models/json.model';
 import type {

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { computed, Injectable, signal } from '@angular/core';
 import type {
     DatasetMetadata,

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { DestroyRef, Injectable, inject } from '@angular/core';
 import { Subscription, timer } from 'rxjs';
 import { normalizePollingIntervalSeconds } from '../../../services/job.service';

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { machineLearningAvailable } from '../../services/system.service';

@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Browser coverage for the canonical CSV and Excel import lifecycle."""
 
 from __future__ import annotations

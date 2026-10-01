@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
