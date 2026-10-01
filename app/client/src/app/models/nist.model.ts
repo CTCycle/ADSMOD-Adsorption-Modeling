@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 export interface NISTFetchRequest {
     experiments_fraction: number;
     guest_fraction: number;

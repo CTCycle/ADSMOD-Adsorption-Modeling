@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 const fs = require('node:fs');
 const path = require('node:path');
 

@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """E2E tests for the fitting pipeline endpoints."""
 
 from __future__ import annotations

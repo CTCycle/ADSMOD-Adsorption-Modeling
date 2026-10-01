@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, input, output, signal } from '@angular/core';
 import { SplitSelectionCardComponent } from './split-selection-card.component';
 import { TrainingTableActionsComponent } from './training-table-actions.component';

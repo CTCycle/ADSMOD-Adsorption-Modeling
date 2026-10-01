@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Pydantic transport/workflow contracts for background jobs."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, DestroyRef, ElementRef, HostListener, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';

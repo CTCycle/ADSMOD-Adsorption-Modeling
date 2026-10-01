@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { describe, expect, it } from 'vitest';
 import { normalizePollingIntervalSeconds, resolvePollingIntervalMs } from './job.service';
 

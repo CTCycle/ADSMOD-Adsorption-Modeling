@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import type { TrainingViewId } from '../../../core/state/training-workspace.store';

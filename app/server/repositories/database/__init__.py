@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 from server.repositories.database.initializer import initialize_database
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.database.migrator import (

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, OnInit, computed, input, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { DatasetBuildConfig, DatasetSelection } from '../../../models/dataset-build.model';

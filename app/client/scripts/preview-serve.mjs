@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { Buffer } from 'node:buffer';
 import { createServer, request as requestHttp } from 'node:http';

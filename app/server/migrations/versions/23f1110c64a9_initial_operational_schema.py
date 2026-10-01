@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """initial operational schema
 
 Revision ID: 23f1110c64a9

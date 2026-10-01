@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 export function extractErrorMessage(response: Response, data: unknown): string {
     if (typeof data === 'object' && data !== null) {
         const obj = data as Record<string, unknown>;

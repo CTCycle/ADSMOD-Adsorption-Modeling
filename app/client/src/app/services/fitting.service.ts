@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import type { FittingConfiguration, FittingPayload, FittingResponse, ModelCatalogResponse, PersistedFittingRunResponse } from '../models/fitting.model';
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type { JobStatusResponse } from '../models/job.model';

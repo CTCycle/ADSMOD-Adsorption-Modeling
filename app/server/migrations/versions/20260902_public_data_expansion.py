@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Add normalized multi-source public data and structural provenance.
 
 Revision ID: 20260902_public_data

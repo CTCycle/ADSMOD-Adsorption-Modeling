@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchPublicChemicals, resolvePubChem } from './public-data.service';
 

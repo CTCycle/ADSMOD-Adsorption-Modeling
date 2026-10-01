@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, computed, inject, signal } from '@angular/core';
 import { CoreWorkspaceStore, OptimizationMethod } from '../../core/state/core-workspace.store';
 import type {

@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 from server.repositories.schemas.models import Base
 from server.repositories.schemas.public_data import (
     AdsorbateSourceRecord,

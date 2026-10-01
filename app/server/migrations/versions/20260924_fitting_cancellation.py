@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Allow cancelled fitting runs to persist their terminal status.
 
 Revision ID: 20260924_fitting_cancel

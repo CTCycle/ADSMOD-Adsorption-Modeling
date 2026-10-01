@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { expect, test, type Page } from '@playwright/test';
 
 const longMaterial = 'Hierarchical activated carbon framework with an intentionally long scientific sample designation 2026-09-A';

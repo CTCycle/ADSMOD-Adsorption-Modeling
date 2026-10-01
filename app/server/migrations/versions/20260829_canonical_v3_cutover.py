@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Move the operational schema to the canonical Core-owned v3 model.
 
 Revision ID: 20260829_v3

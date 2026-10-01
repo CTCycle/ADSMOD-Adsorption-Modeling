@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 from pathlib import Path
 
 from server.configurations.settings import DatabaseConfig, StorageConfig, load_config

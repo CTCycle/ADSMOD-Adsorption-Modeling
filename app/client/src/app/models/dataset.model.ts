@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 export type DatasetSource = 'uploaded' | 'nist';
 export type DatasetStructure = 'atomic' | 'aggregated' | 'mixed' | 'ambiguous';
 export type ImportableStructure = Exclude<DatasetStructure, 'ambiguous'>;

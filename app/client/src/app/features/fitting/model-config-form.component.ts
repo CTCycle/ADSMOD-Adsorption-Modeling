@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import type { ModelParameters } from '../../models/fitting.model';
 import { NumberInputComponent } from '../../shared/components/number-input/number-input.component';

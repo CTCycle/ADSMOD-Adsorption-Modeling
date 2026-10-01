@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 export type PublicDataView = 'overview' | 'adsorption' | 'materials' | 'chemicals' | 'structures' | 'sources';
 export type SourceStatus = 'available' | 'degraded' | 'unavailable' | 'unknown';
 

@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """Pytest configuration and shared fixtures for ADSMOD E2E tests."""
 from __future__ import annotations
 

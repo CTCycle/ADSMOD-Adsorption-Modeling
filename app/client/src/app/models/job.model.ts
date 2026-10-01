@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 export interface JobStartResponse {
     job_id: string;
     job_type: string;

@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import type { AdsorptionModel } from '../../models/adsorption-model.model';
 import type { ModelParameters } from '../../models/fitting.model';

@@ -1,3 +1,6 @@
+# Copyright © 2023 Thomas Virdis
+# Licensed under the MIT License.
+
 """NIST enrichment adapter backed by the canonical PubChem provider."""
 
 from __future__ import annotations

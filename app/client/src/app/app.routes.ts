@@ -1,3 +1,6 @@
+// Copyright © 2023 Thomas Virdis
+// Licensed under the MIT License.
+
 import { Routes } from '@angular/router';
 import { machineLearningEntryGuard, machineLearningGuard } from './core/guards/machine-learning.guard';
 import { CoreShellComponent } from './layout/core-shell.component';
