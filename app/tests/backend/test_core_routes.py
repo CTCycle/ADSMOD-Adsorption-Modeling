@@ -47,13 +47,14 @@ def test_unified_routes_expose_core_optional_ml_and_public_data_surface(
             ".xlsx",
         ]
         assert client.get("/api/v1/training/configuration").status_code == 200
-        sources = client.get("/api/v1/public-data/sources?check_health=false")
+        sources = client.get("/api/v1/public-data/sources")
         assert sources.status_code == 200
         assert {item["key"] for item in sources.json()["sources"]} == {
             "nist",
             "pubchem",
             "cod",
         }
+        assert all(item["health_status"] == "unknown" for item in sources.json()["sources"])
         assert client.get("/api/health").status_code == 404
 
 ###############################################################################
@@ -64,6 +65,17 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "/api/v1/fitting/models" in paths
         assert "/api/v1/training/configuration" in paths
         assert "/api/v1/public-data/sources" in paths
+        assert "/api/v1/public-data/sources/{source_key}/health-check" in paths
+        assert "/api/v1/public-data/sync-runs" in paths
+        assert "/api/v1/public-data/sync-runs/{run_id}" in paths
+        assert "/api/v1/public-data/sync-runs/{run_id}/cancel" in paths
         assert "/api/v1/public-data/adsorption" in paths
         assert "/api/v1/public-data/chemicals/resolve" in paths
         assert "/api/v1/public-data/structures/search" in paths
+        resolve_responses = paths["/api/v1/public-data/chemicals/resolve"]["post"]["responses"]
+        import_responses = paths["/api/v1/public-data/structures/import"]["post"]["responses"]
+        assert "200" in resolve_responses
+        assert "202" not in resolve_responses
+        assert "200" in import_responses
+        assert "202" not in import_responses
+        assert "post" in paths["/api/v1/public-data/sync-runs/{run_id}/cancel"]

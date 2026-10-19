@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import threading
 from time import monotonic
 from typing import Any
 from urllib.parse import quote
@@ -20,6 +21,27 @@ from server.services.providers.public_data import (
 
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
 _INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
+
+###############################################################################
+class PubChemRequestBudget:
+    """Share PubChem pacing safely across provider instances and event loops."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self, minimum_interval_seconds: float = 0.22) -> None:
+        self.minimum_interval_seconds = max(0.0, float(minimum_interval_seconds))
+        self._lock = threading.Lock()
+        self._next_request_at = 0.0
+
+    # -------------------------------------------------------------------------
+    async def wait_turn(self) -> None:
+        while True:
+            with self._lock:
+                now = monotonic()
+                delay = self._next_request_at - now
+                if delay <= 0:
+                    self._next_request_at = now + self.minimum_interval_seconds
+                    return
+            await asyncio.sleep(delay)
 
 ###############################################################################
 class PubChemProvider(RetryingHttpProvider):
@@ -65,25 +87,24 @@ class PubChemProvider(RetryingHttpProvider):
         parallel_requests: int = 2,
         request_timeout_seconds: float = 20.0,
         retry_attempts: int = 3,
+        retry_backoff_max_seconds: float = 30.0,
+        max_response_bytes: int = 16_777_216,
+        request_budget: PubChemRequestBudget | None = None,
     ) -> None:
         super().__init__(
             parallel_requests=min(max(1, parallel_requests), 3),
             request_timeout_seconds=request_timeout_seconds,
             retry_attempts=retry_attempts,
+            allowed_hosts={"pubchem.ncbi.nlm.nih.gov"},
+            max_response_bytes=max_response_bytes,
+            retry_backoff_max_seconds=retry_backoff_max_seconds,
         )
-        self._rate_lock = asyncio.Lock()
-        self._next_request_at = 0.0
-        self._minimum_interval_seconds = 0.22
+        self.request_budget = request_budget or PubChemRequestBudget()
 
     # -------------------------------------------------------------------------
     async def _before_attempt(self) -> None:
         # PubChem asks programmatic clients to stay below five requests/second.
-        async with self._rate_lock:
-            now = monotonic()
-            delay = self._next_request_at - now
-            if delay > 0:
-                await asyncio.sleep(delay)
-            self._next_request_at = monotonic() + self._minimum_interval_seconds
+        await self.request_budget.wait_turn()
 
     # -------------------------------------------------------------------------
     async def _health_request(self) -> None:
@@ -218,4 +239,4 @@ class PubChemProvider(RetryingHttpProvider):
         }
 
 
-__all__ = ["PubChemProvider"]
+__all__ = ["PubChemProvider", "PubChemRequestBudget"]

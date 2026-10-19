@@ -162,6 +162,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         storage_root=storage_root,
     )
     application.state.core_container.public_data_repository.ensure_sources()
+    await application.state.core_container.public_data_sync.start()
     application.state.ready = True
     try:
         yield

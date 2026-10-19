@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 SourceStatus = Literal["available", "degraded", "unavailable", "unknown"]
@@ -24,18 +24,124 @@ class PublicSourceSummary(BaseModel):
     name: str
     description: str
     capabilities: list[ProviderCapability]
-    status: SourceStatus = "unknown"
-    status_detail: str | None = None
     homepage_url: str
     license_name: str | None = None
     license_url: str | None = None
     terms_url: str | None = None
     record_count: int = 0
-    last_checked_at: datetime | None = None
+    health_status: SourceStatus = "unknown"
+    health_detail: str | None = None
+    last_health_checked_at: datetime | None = None
+    health_fresh: bool = False
+    last_successful_sync_at: datetime | None = None
 
 ###############################################################################
 class PublicSourceListResponse(BaseModel):
     sources: list[PublicSourceSummary]
+
+###############################################################################
+###############################################################################
+class PublicDataOverviewResponse(BaseModel):
+    adsorption_records: int = Field(ge=0)
+    materials: int = Field(ge=0)
+    chemicals: int = Field(ge=0)
+    structures: int = Field(ge=0)
+    active_sync_runs: int = Field(default=0, ge=0)
+    failed_sync_runs: int = Field(default=0, ge=0)
+    latest_successful_sync_at: datetime | None = None
+
+###############################################################################
+SyncOperation = Literal[
+    "health_check",
+    "nist_category",
+    "pubchem_resolve",
+    "cod_import",
+]
+SyncRunStatus = Literal[
+    "queued",
+    "running",
+    "completed",
+    "partially_completed",
+    "failed",
+    "cancelled",
+    "interrupted",
+]
+
+###############################################################################
+class PublicDataSyncCreateRequest(BaseModel):
+    source_key: Literal["nist", "pubchem", "cod"]
+    operation: Literal["nist_category", "pubchem_resolve", "cod_import"]
+    category: Literal["experiments", "guest", "host"] | None = None
+    fraction: float = Field(default=1.0, gt=0.0, le=1.0)
+    query: str | None = Field(default=None, min_length=1, max_length=512)
+    cod_id: str | None = Field(default=None, pattern=r"^\d{4,12}$")
+    cod_ids: list[str] | None = Field(default=None, min_length=1, max_length=50)
+    adsorbent_id: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def validate_operation_parameters(self) -> "PublicDataSyncCreateRequest":
+        required = {
+            "nist_category": ("nist", self.category is not None),
+            "pubchem_resolve": ("pubchem", bool(self.query and self.query.strip())),
+            "cod_import": (
+                "cod",
+                (self.cod_id is not None) != (self.cod_ids is not None),
+            ),
+        }
+        source, has_value = required[self.operation]
+        if source != self.source_key or not has_value:
+            raise ValueError(
+                f"{self.operation} requires source_key={source!r} and its matching parameters."
+            )
+        if self.query is not None:
+            self.query = self.query.strip()
+        if self.cod_ids is not None:
+            if len(set(self.cod_ids)) != len(self.cod_ids):
+                raise ValueError("cod_ids must not contain duplicate identifiers.")
+            if any(
+                not cod_id.isdigit() or not 4 <= len(cod_id) <= 12
+                for cod_id in self.cod_ids
+            ):
+                raise ValueError("Each COD identifier must contain 4 to 12 digits.")
+        return self
+
+###############################################################################
+class PublicDataSyncRunView(BaseModel):
+    id: str
+    source_key: str
+    operation: SyncOperation
+    parameters: dict[str, object]
+    status: SyncRunStatus
+    progress: float = Field(ge=0.0, le=100.0)
+    processed_count: int = Field(ge=0)
+    imported_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    failed_count: int = Field(ge=0)
+    checkpoint: dict[str, object]
+    cancel_requested: bool
+    error_detail: str | None = None
+    created_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+###############################################################################
+class PublicDataSyncRunListResponse(BaseModel):
+    runs: list[PublicDataSyncRunView]
+    total: int = Field(ge=0)
+
+###############################################################################
+class PublicDataSyncFailureView(BaseModel):
+    id: int
+    source_key: str
+    external_id: str | None = None
+    reason: str
+    retry_eligible_at: datetime | None = None
+    created_at: datetime
+
+###############################################################################
+class PublicDataSyncFailureListResponse(BaseModel):
+    failures: list[PublicDataSyncFailureView]
+    total: int = Field(ge=0)
 
 ###############################################################################
 class Pagination(BaseModel):
@@ -230,10 +336,17 @@ __all__ = [
     "MeasurementView",
     "Pagination",
     "ProviderCapability",
+    "PublicDataSyncCreateRequest",
+    "PublicDataSyncFailureListResponse",
+    "PublicDataSyncFailureView",
+    "PublicDataSyncRunListResponse",
+    "PublicDataSyncRunView",
     "PublicSourceListResponse",
     "PublicSourceSummary",
     "PubChemResolveRequest",
     "SourceStatus",
+    "SyncOperation",
+    "SyncRunStatus",
     "StructureAtomView",
     "StructurePageResponse",
     "StructureRecordView",

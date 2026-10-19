@@ -24,6 +24,10 @@ def test_json_training_configuration_projects_from_canonical_model() -> None:
     )
     assert config.application.public_data.pubchem_parallel_requests == 2
     assert config.application.public_data.cod_max_interactive_results == 250
+    assert config.application.public_data.sync_max_records_per_run == 200
+    assert config.application.public_data.sync_resume_on_startup is False
+    assert config.application.public_data.auto_sync_enabled is False
+    assert config.application.public_data.auto_sync_categories == ()
 
 ###############################################################################
 def test_training_configuration_values_are_validated_by_canonical_model() -> None:
@@ -61,6 +65,29 @@ def test_public_data_configuration_bounds_external_request_policy() -> None:
     assert config.retry_attempts == 3
     assert config.pubchem_parallel_requests == 2
     assert config.cod_max_interactive_results == 250
+    assert config.health_cache_ttl_seconds == 900
+    assert config.sync_batch_size == 50
+    assert config.sync_max_records_per_run == 200
+    assert config.sync_max_concurrent_jobs == 1
+    assert config.sync_resume_on_startup is False
+    assert config.auto_sync_enabled is False
+    assert config.auto_sync_categories == ()
+    assert config.auto_sync_interval_hours == 24
+
+    with pytest.raises(ValidationError, match="auto_sync_categories"):
+        PublicDataConfig.model_validate(
+            {"auto_sync_enabled": True, "auto_sync_categories": []}
+        )
+    scheduled = PublicDataConfig.model_validate(
+        {
+            "auto_sync_enabled": True,
+            "auto_sync_categories": ["guest", "host"],
+            "auto_sync_interval_hours": 12,
+            "auto_sync_fraction": 0.5,
+        }
+    )
+    assert scheduled.auto_sync_categories == ("guest", "host")
+    assert scheduled.auto_sync_interval_hours == 12
 
 ###############################################################################
 def test_canonical_runtime_configuration_validates() -> None:

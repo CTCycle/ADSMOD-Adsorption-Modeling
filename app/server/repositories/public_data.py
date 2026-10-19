@@ -6,8 +6,9 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from server.repositories.database.manager import DatabaseManager
@@ -27,6 +28,8 @@ from server.repositories.schemas.public_data import (
     ChemicalProperty,
     DataSource,
     IsothermSourceRecord,
+    PublicDataSyncFailure,
+    PublicDataSyncRun,
     Reference,
     SourceRecord,
     SourceRecordReference,
@@ -160,9 +163,298 @@ class PublicDataRepository:
                     "terms_url": source.terms_url,
                     "capabilities": list(source.capabilities),
                     "record_count": int(count or 0),
+                    "health_status": source.health_status,
+                    "health_detail": source.health_detail,
+                    "last_health_checked_at": source.last_health_checked_at,
+                    "last_successful_sync_at": source.last_successful_sync_at,
                 }
                 for source, count in rows
             ]
+
+    # -------------------------------------------------------------------------
+    def overview_counts(self) -> dict[str, int]:
+        with self.database.session_factory() as session:
+            row = session.execute(
+                select(
+                    select(func.count(Isotherm.id))
+                    .scalar_subquery()
+                    .label("adsorption_records"),
+                    select(func.count(Adsorbent.id))
+                    .scalar_subquery()
+                    .label("materials"),
+                    select(func.count(Adsorbate.id))
+                    .scalar_subquery()
+                    .label("chemicals"),
+                    select(func.count(Structure.id))
+                    .scalar_subquery()
+                    .label("structures"),
+                    select(func.count(PublicDataSyncRun.id))
+                    .where(PublicDataSyncRun.status.in_(("queued", "running")))
+                    .scalar_subquery()
+                    .label("active_sync_runs"),
+                    select(func.count(PublicDataSyncRun.id))
+                    .where(
+                        PublicDataSyncRun.status.in_(
+                            ("failed", "partially_completed")
+                        )
+                    )
+                    .scalar_subquery()
+                    .label("failed_sync_runs"),
+                    select(func.max(DataSource.last_successful_sync_at))
+                    .scalar_subquery()
+                    .label("latest_successful_sync_at"),
+                )
+            ).one()
+            return {
+                "adsorption_records": int(row.adsorption_records or 0),
+                "materials": int(row.materials or 0),
+                "chemicals": int(row.chemicals or 0),
+                "structures": int(row.structures or 0),
+                "active_sync_runs": int(row.active_sync_runs or 0),
+                "failed_sync_runs": int(row.failed_sync_runs or 0),
+                "latest_successful_sync_at": row.latest_successful_sync_at,
+            }
+
+    # -------------------------------------------------------------------------
+    def update_source_health(
+        self, source_key: str, *, status: str, detail: str | None, checked_at: datetime
+    ) -> None:
+        with self.database.transaction() as session:
+            source = self._source(session, source_key)
+            source.health_status = status
+            source.health_detail = detail[:2000] if detail else None
+            source.last_health_checked_at = checked_at
+
+    # -------------------------------------------------------------------------
+    def create_sync_run(
+        self,
+        *,
+        source_key: str,
+        operation: str,
+        parameters: dict[str, Any],
+    ) -> dict[str, Any]:
+        run = PublicDataSyncRun(
+            id=str(uuid4()),
+            source_key=source_key,
+            operation=operation,
+            parameters=parameters,
+            status="queued",
+        )
+        with self.database.transaction() as session:
+            self._source(session, source_key)
+            session.add(run)
+            session.flush()
+            return self._sync_run_payload(run)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _sync_run_payload(run: PublicDataSyncRun) -> dict[str, Any]:
+        return {
+            "id": run.id,
+            "source_key": run.source_key,
+            "operation": run.operation,
+            "parameters": dict(run.parameters),
+            "status": run.status,
+            "progress": float(run.progress),
+            "processed_count": int(run.processed_count),
+            "imported_count": int(run.imported_count),
+            "skipped_count": int(run.skipped_count),
+            "failed_count": int(run.failed_count),
+            "checkpoint": dict(run.checkpoint),
+            "cancel_requested": bool(run.cancel_requested),
+            "error_detail": run.error_detail,
+            "created_at": run.created_at,
+            "started_at": run.started_at,
+            "finished_at": run.finished_at,
+        }
+
+    # -------------------------------------------------------------------------
+    def claim_next_sync_run(self) -> dict[str, Any] | None:
+        with self.database.transaction() as session:
+            run = session.scalar(
+                select(PublicDataSyncRun)
+                .where(PublicDataSyncRun.status == "queued")
+                .order_by(PublicDataSyncRun.created_at, PublicDataSyncRun.id)
+                .limit(1)
+            )
+            if run is None:
+                return None
+            now = datetime.now(timezone.utc)
+            result = session.execute(
+                update(PublicDataSyncRun)
+                .where(
+                    PublicDataSyncRun.id == run.id,
+                    PublicDataSyncRun.status == "queued",
+                )
+                .values(status="running", started_at=now, updated_at=now)
+            )
+            if result.rowcount != 1:
+                return None
+            session.refresh(run)
+            return self._sync_run_payload(run)
+
+    # -------------------------------------------------------------------------
+    def get_sync_run(self, run_id: str) -> dict[str, Any]:
+        with self.database.session_factory() as session:
+            run = session.get(PublicDataSyncRun, run_id)
+            if run is None:
+                raise LookupError(f"Public-data sync run {run_id!r} was not found.")
+            return self._sync_run_payload(run)
+
+    # -------------------------------------------------------------------------
+    def list_sync_runs(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        source_key: str | None = None,
+        status_filter: str | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        with self.database.session_factory() as session:
+            query = select(PublicDataSyncRun)
+            if source_key:
+                query = query.where(PublicDataSyncRun.source_key == source_key)
+            if status_filter:
+                query = query.where(PublicDataSyncRun.status == status_filter)
+            total = int(
+                session.scalar(select(func.count()).select_from(query.subquery())) or 0
+            )
+            rows = session.scalars(
+                query.order_by(PublicDataSyncRun.created_at.desc(), PublicDataSyncRun.id)
+                .offset(offset)
+                .limit(limit)
+            ).all()
+            return [self._sync_run_payload(run) for run in rows], total
+
+    # -------------------------------------------------------------------------
+    def update_sync_run(self, run_id: str, **values: Any) -> None:
+        allowed = {
+            "status",
+            "progress",
+            "processed_count",
+            "imported_count",
+            "skipped_count",
+            "failed_count",
+            "checkpoint",
+            "cancel_requested",
+            "error_detail",
+            "started_at",
+            "finished_at",
+        }
+        unknown = set(values) - allowed
+        if unknown:
+            raise ValueError(f"Unsupported sync-run fields: {', '.join(sorted(unknown))}")
+        values["updated_at"] = datetime.now(timezone.utc)
+        with self.database.transaction() as session:
+            result = session.execute(
+                update(PublicDataSyncRun)
+                .where(PublicDataSyncRun.id == run_id)
+                .values(**values)
+            )
+            if result.rowcount != 1:
+                raise LookupError(f"Public-data sync run {run_id!r} was not found.")
+
+    # -------------------------------------------------------------------------
+    def request_sync_cancel(self, run_id: str) -> dict[str, Any]:
+        with self.database.transaction() as session:
+            run = session.get(PublicDataSyncRun, run_id)
+            if run is None:
+                raise LookupError(f"Public-data sync run {run_id!r} was not found.")
+            if run.status == "queued":
+                run.status = "cancelled"
+                run.finished_at = datetime.now(timezone.utc)
+            elif run.status == "running":
+                run.cancel_requested = True
+            return self._sync_run_payload(run)
+
+    # -------------------------------------------------------------------------
+    def sync_cancel_requested(self, run_id: str) -> bool:
+        with self.database.session_factory() as session:
+            run = session.get(PublicDataSyncRun, run_id)
+            return run is None or bool(run.cancel_requested)
+
+    # -------------------------------------------------------------------------
+    def mark_unfinished_sync_runs(self, *, resume: bool) -> int:
+        now = datetime.now(timezone.utc)
+        with self.database.transaction() as session:
+            query = update(PublicDataSyncRun).where(
+                PublicDataSyncRun.status.in_(("queued", "running"))
+            )
+            if resume:
+                result = session.execute(
+                    query.values(
+                        status="queued",
+                        started_at=None,
+                        finished_at=None,
+                        cancel_requested=False,
+                        updated_at=now,
+                    )
+                )
+            else:
+                result = session.execute(
+                    query.values(
+                        status="interrupted",
+                        error_detail="Application stopped before the run completed.",
+                        finished_at=now,
+                        updated_at=now,
+                    )
+                )
+            return int(result.rowcount or 0)
+
+    # -------------------------------------------------------------------------
+    def add_sync_failure(
+        self,
+        *,
+        sync_run_id: str,
+        source_key: str,
+        reason: str,
+        external_id: str | None = None,
+        retry_eligible_at: datetime | None = None,
+    ) -> None:
+        with self.database.transaction() as session:
+            session.add(
+                PublicDataSyncFailure(
+                    sync_run_id=sync_run_id,
+                    source_key=source_key,
+                    external_id=external_id,
+                    reason=reason[:2000],
+                    retry_eligible_at=retry_eligible_at,
+                )
+            )
+
+    # -------------------------------------------------------------------------
+    def list_sync_failures(
+        self, run_id: str, *, limit: int = 100, offset: int = 0
+    ) -> tuple[list[dict[str, Any]], int]:
+        with self.database.session_factory() as session:
+            query = select(PublicDataSyncFailure).where(
+                PublicDataSyncFailure.sync_run_id == run_id
+            )
+            total = int(
+                session.scalar(select(func.count()).select_from(query.subquery())) or 0
+            )
+            rows = session.scalars(
+                query.order_by(PublicDataSyncFailure.id).offset(offset).limit(limit)
+            ).all()
+            return (
+                [
+                    {
+                        "id": row.id,
+                        "source_key": row.source_key,
+                        "external_id": row.external_id,
+                        "reason": row.reason,
+                        "retry_eligible_at": row.retry_eligible_at,
+                        "created_at": row.created_at,
+                    }
+                    for row in rows
+                ],
+                total,
+            )
+
+    # -------------------------------------------------------------------------
+    def mark_source_sync_success(self, source_key: str, when: datetime) -> None:
+        with self.database.transaction() as session:
+            self._source(session, source_key).last_successful_sync_at = when
 
     # -------------------------------------------------------------------------
     def link_adsorbate_record(
@@ -384,6 +676,31 @@ class PublicDataRepository:
             return adsorbate.id
 
     # -------------------------------------------------------------------------
+    def find_local_pubchem_adsorbate(self, query: str) -> int | None:
+        value = query.strip()
+        if not value:
+            return None
+        with self.database.session_factory() as session:
+            if value.isdigit():
+                return session.scalar(
+                    select(AdsorbateSourceRecord.adsorbate_id)
+                    .join(SourceRecord, SourceRecord.id == AdsorbateSourceRecord.source_record_id)
+                    .join(DataSource, DataSource.id == SourceRecord.source_id)
+                    .where(
+                        DataSource.key == "pubchem",
+                        SourceRecord.record_type == "chemical",
+                        SourceRecord.external_id == value,
+                    )
+                )
+            if len(value) == 27 and value[14] == "-" and value[25] == "-":
+                return session.scalar(
+                    select(Adsorbate.id).where(
+                        Adsorbate.inchi_key == value.upper()
+                    )
+                )
+            return None
+
+    # -------------------------------------------------------------------------
     def upsert_cod_structure(
         self,
         *,
@@ -408,6 +725,14 @@ class PublicDataRepository:
             )
             link = session.get(StructureSourceRecord, record.id)
             structure = session.get(Structure, link.structure_id) if link else None
+            if (
+                structure is not None
+                and adsorbent_id is not None
+                and structure.adsorbent_id not in (None, adsorbent_id)
+            ):
+                raise ValueError(
+                    f"COD structure {cod_id} is already linked to another material."
+                )
             if structure is None:
                 structure = Structure(
                     format="cif",
@@ -469,6 +794,54 @@ class PublicDataRepository:
                         )
                     )
             session.flush()
+            return structure.id
+
+    # -------------------------------------------------------------------------
+    def find_cod_structure_id(self, cod_id: str) -> int | None:
+        with self.database.session_factory() as session:
+            return session.scalar(
+                select(StructureSourceRecord.structure_id)
+                .join(
+                    SourceRecord,
+                    SourceRecord.id == StructureSourceRecord.source_record_id,
+                )
+                .join(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(
+                    DataSource.key == "cod",
+                    SourceRecord.record_type == "structure",
+                    SourceRecord.external_id == str(cod_id),
+                )
+            )
+
+    # -------------------------------------------------------------------------
+    def link_cod_structure_to_material(self, cod_id: str, adsorbent_id: int) -> int:
+        with self.database.transaction() as session:
+            if session.get(Adsorbent, adsorbent_id) is None:
+                raise LookupError(f"Material {adsorbent_id} does not exist.")
+            structure = session.scalar(
+                select(Structure)
+                .join(
+                    StructureSourceRecord,
+                    StructureSourceRecord.structure_id == Structure.id,
+                )
+                .join(
+                    SourceRecord,
+                    SourceRecord.id == StructureSourceRecord.source_record_id,
+                )
+                .join(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(
+                    DataSource.key == "cod",
+                    SourceRecord.record_type == "structure",
+                    SourceRecord.external_id == str(cod_id),
+                )
+            )
+            if structure is None:
+                raise LookupError(f"COD structure {cod_id!r} was not imported.")
+            if structure.adsorbent_id not in (None, adsorbent_id):
+                raise ValueError(
+                    f"COD structure {cod_id} is already linked to another material."
+                )
+            structure.adsorbent_id = adsorbent_id
             return structure.id
 
     # -------------------------------------------------------------------------

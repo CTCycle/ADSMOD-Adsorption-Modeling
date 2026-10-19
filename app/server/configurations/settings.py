@@ -106,8 +106,31 @@ class NISTConfig(StrictModel):
 class PublicDataConfig(StrictModel):
     request_timeout_seconds: float = Field(default=20.0, gt=0.0, le=120.0)
     retry_attempts: int = Field(default=3, ge=1, le=6)
+    retry_backoff_max_seconds: float = Field(default=30.0, ge=0.1, le=120.0)
     pubchem_parallel_requests: int = Field(default=2, ge=1, le=3)
     cod_max_interactive_results: int = Field(default=250, ge=1, le=1000)
+    health_cache_ttl_seconds: int = Field(default=900, ge=30, le=86400)
+    sync_batch_size: int = Field(default=50, ge=1, le=500)
+    sync_max_records_per_run: int = Field(default=200, ge=1, le=10000)
+    sync_max_concurrent_jobs: int = Field(default=1, ge=1, le=4)
+    sync_response_size_limit_bytes: int = Field(
+        default=16777216, ge=1024, le=67108864
+    )
+    sync_resume_on_startup: bool = False
+    auto_sync_enabled: bool = False
+    auto_sync_categories: tuple[Literal["experiments", "guest", "host"], ...] = ()
+    auto_sync_interval_hours: int = Field(default=24, ge=1, le=720)
+    auto_sync_fraction: float = Field(default=1.0, gt=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_auto_sync_scope(self) -> "PublicDataConfig":
+        if self.auto_sync_enabled and not self.auto_sync_categories:
+            raise ValueError(
+                "auto_sync_categories must include at least one NIST collection when automatic sync is enabled."
+            )
+        if len(set(self.auto_sync_categories)) != len(self.auto_sync_categories):
+            raise ValueError("auto_sync_categories cannot contain duplicates.")
+        return self
 
 ###############################################################################
 class FittingConfig(StrictModel):

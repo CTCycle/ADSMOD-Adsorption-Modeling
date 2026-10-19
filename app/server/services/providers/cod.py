@@ -45,11 +45,16 @@ class CODProvider(RetryingHttpProvider):
         request_timeout_seconds: float,
         retry_attempts: int,
         max_interactive_results: int,
+        retry_backoff_max_seconds: float = 30.0,
+        max_response_bytes: int = 16_777_216,
     ) -> None:
         super().__init__(
             parallel_requests=1,
             request_timeout_seconds=request_timeout_seconds,
             retry_attempts=retry_attempts,
+            allowed_hosts={"www.crystallography.net"},
+            max_response_bytes=max_response_bytes,
+            retry_backoff_max_seconds=retry_backoff_max_seconds,
         )
         self.max_interactive_results = max(1, int(max_interactive_results))
 
@@ -200,6 +205,20 @@ class CODProvider(RetryingHttpProvider):
         if not cif_text.strip():
             raise ProviderUnavailableError(f"COD entry {cod_id} returned an empty CIF file.")
         return metadata, cif_text
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def validate_cif(
+        metadata: dict[str, Any], cif_text: str, atoms: list[dict[str, Any]]
+    ) -> None:
+        if not re.search(r"(?im)^\s*data_[^\s#]+", cif_text):
+            raise ProviderUnavailableError(
+                "COD returned content without a valid CIF data block."
+            )
+        if metadata.get("has_coordinates") and not atoms:
+            raise ProviderUnavailableError(
+                "COD reported atomic coordinates but the CIF contained no valid atom-site rows."
+            )
 
     # -------------------------------------------------------------------------
     @classmethod

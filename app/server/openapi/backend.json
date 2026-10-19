@@ -1255,6 +1255,27 @@
         }
       }
     },
+    "/api/v1/public-data/overview": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Get Overview",
+        "operationId": "get_overview_api_v1_public_data_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataOverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public-data/sources": {
       "get": {
         "tags": [
@@ -1262,15 +1283,125 @@
         ],
         "summary": "List Sources",
         "operationId": "list_sources_api_v1_public_data_sources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSourceListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sources/{source_key}/health-check": {
+      "post": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Start Source Health Check",
+        "operationId": "start_source_health_check_api_v1_public_data_sources__source_key__health_check_post",
         "parameters": [
           {
-            "name": "check_health",
+            "name": "source_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataSyncRunView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sync-runs": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "List Sync Runs",
+        "operationId": "list_sync_runs_api_v1_public_data_sync_runs_get",
+        "parameters": [
+          {
+            "name": "limit",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "default": true,
-              "title": "Check Health"
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "source_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Key"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(queued|running|completed|partially_completed|failed|cancelled|interrupted)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
             }
           }
         ],
@@ -1280,7 +1411,235 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PublicSourceListResponse"
+                  "$ref": "#/components/schemas/PublicDataSyncRunListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Create Sync Run",
+        "operationId": "create_sync_run_api_v1_public_data_sync_runs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicDataSyncCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataSyncRunView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sync-runs/{run_id}": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Get Sync Run",
+        "operationId": "get_sync_run_api_v1_public_data_sync_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataSyncRunView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Cancel Sync Run",
+        "operationId": "cancel_sync_run_api_v1_public_data_sync_runs__run_id__delete",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataSyncRunView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sync-runs/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Cancel Sync Run",
+        "operationId": "cancel_sync_run_api_v1_public_data_sync_runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataSyncRunView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sync-runs/{run_id}/failures": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "List Sync Failures",
+        "operationId": "list_sync_failures_api_v1_public_data_sync_runs__run_id__failures_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDataSyncFailureListResponse"
                 }
               }
             }
@@ -6372,6 +6731,394 @@
         ],
         "title": "PubChemResolveRequest"
       },
+      "PublicDataOverviewResponse": {
+        "properties": {
+          "adsorption_records": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Adsorption Records"
+          },
+          "materials": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Materials"
+          },
+          "chemicals": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Chemicals"
+          },
+          "structures": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Structures"
+          },
+          "active_sync_runs": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Sync Runs",
+            "default": 0
+          },
+          "failed_sync_runs": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Failed Sync Runs",
+            "default": 0
+          },
+          "latest_successful_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Successful Sync At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adsorption_records",
+          "materials",
+          "chemicals",
+          "structures"
+        ],
+        "title": "PublicDataOverviewResponse"
+      },
+      "PublicDataSyncCreateRequest": {
+        "properties": {
+          "source_key": {
+            "type": "string",
+            "enum": [
+              "nist",
+              "pubchem",
+              "cod"
+            ],
+            "title": "Source Key"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nist_category",
+              "pubchem_resolve",
+              "cod_import"
+            ],
+            "title": "Operation"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "experiments",
+                  "guest",
+                  "host"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "fraction": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Fraction",
+            "default": 1.0
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "cod_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4,12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cod Id"
+          },
+          "cod_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cod Ids"
+          },
+          "adsorbent_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_key",
+          "operation"
+        ],
+        "title": "PublicDataSyncCreateRequest"
+      },
+      "PublicDataSyncFailureListResponse": {
+        "properties": {
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/PublicDataSyncFailureView"
+            },
+            "type": "array",
+            "title": "Failures"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "failures",
+          "total"
+        ],
+        "title": "PublicDataSyncFailureListResponse"
+      },
+      "PublicDataSyncFailureView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "source_key": {
+            "type": "string",
+            "title": "Source Key"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "retry_eligible_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Eligible At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_key",
+          "reason",
+          "created_at"
+        ],
+        "title": "PublicDataSyncFailureView"
+      },
+      "PublicDataSyncRunListResponse": {
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PublicDataSyncRunView"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs",
+          "total"
+        ],
+        "title": "PublicDataSyncRunListResponse"
+      },
+      "PublicDataSyncRunView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source_key": {
+            "type": "string",
+            "title": "Source Key"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "health_check",
+              "nist_category",
+              "pubchem_resolve",
+              "cod_import"
+            ],
+            "title": "Operation"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "partially_completed",
+              "failed",
+              "cancelled",
+              "interrupted"
+            ],
+            "title": "Status"
+          },
+          "progress": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress"
+          },
+          "processed_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Processed Count"
+          },
+          "imported_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Imported Count"
+          },
+          "skipped_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Skipped Count"
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Failed Count"
+          },
+          "checkpoint": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Checkpoint"
+          },
+          "cancel_requested": {
+            "type": "boolean",
+            "title": "Cancel Requested"
+          },
+          "error_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Detail"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_key",
+          "operation",
+          "parameters",
+          "status",
+          "progress",
+          "processed_count",
+          "imported_count",
+          "skipped_count",
+          "failed_count",
+          "checkpoint",
+          "cancel_requested",
+          "created_at"
+        ],
+        "title": "PublicDataSyncRunView"
+      },
       "PublicSourceListResponse": {
         "properties": {
           "sources": {
@@ -6416,28 +7163,6 @@
             "type": "array",
             "title": "Capabilities"
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "available",
-              "degraded",
-              "unavailable",
-              "unknown"
-            ],
-            "title": "Status",
-            "default": "unknown"
-          },
-          "status_detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status Detail"
-          },
           "homepage_url": {
             "type": "string",
             "title": "Homepage Url"
@@ -6480,7 +7205,29 @@
             "title": "Record Count",
             "default": 0
           },
-          "last_checked_at": {
+          "health_status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "degraded",
+              "unavailable",
+              "unknown"
+            ],
+            "title": "Health Status",
+            "default": "unknown"
+          },
+          "health_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health Detail"
+          },
+          "last_health_checked_at": {
             "anyOf": [
               {
                 "type": "string",
@@ -6490,7 +7237,24 @@
                 "type": "null"
               }
             ],
-            "title": "Last Checked At"
+            "title": "Last Health Checked At"
+          },
+          "health_fresh": {
+            "type": "boolean",
+            "title": "Health Fresh",
+            "default": false
+          },
+          "last_successful_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Successful Sync At"
           }
         },
         "type": "object",

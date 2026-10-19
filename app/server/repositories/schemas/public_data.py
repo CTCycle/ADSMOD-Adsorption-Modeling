@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,9 +36,105 @@ class DataSource(Base):
     terms_url: Mapped[str | None] = mapped_column(String(1024))
     capabilities: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    health_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unknown", server_default="unknown"
+    )
+    health_detail: Mapped[str | None] = mapped_column(String(2000))
+    last_health_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    last_successful_sync_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "health_status IN ('available', 'degraded', 'unavailable', 'unknown')",
+            name="ck_data_sources_health_status",
+        ),
+    )
+
+###############################################################################
+class PublicDataSyncRun(Base):
+    __tablename__ = "public_data_sync_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    source_key: Mapped[str] = mapped_column(
+        ForeignKey("data_sources.key", ondelete="RESTRICT"), nullable=False
+    )
+    operation: Mapped[str] = mapped_column(String(32), nullable=False)
+    parameters: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="queued", server_default="queued"
+    )
+    progress: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
+    processed_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    imported_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    skipped_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    failed_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    checkpoint: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    cancel_requested: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    error_detail: Mapped[str | None] = mapped_column(String(2000))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'partially_completed', "
+            "'failed', 'cancelled', 'interrupted')",
+            name="ck_public_data_sync_runs_status",
+        ),
+        CheckConstraint(
+            "operation IN ('health_check', 'nist_category', 'pubchem_resolve', 'cod_import')",
+            name="ck_public_data_sync_runs_operation",
+        ),
+        CheckConstraint(
+            "progress >= 0 AND progress <= 100",
+            name="ck_public_data_sync_runs_progress",
+        ),
+        Index("ix_public_data_sync_runs_queue", "status", "created_at"),
+        Index("ix_public_data_sync_runs_source_created", "source_key", "created_at"),
+    )
+
+###############################################################################
+class PublicDataSyncFailure(Base):
+    __tablename__ = "public_data_sync_failures"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sync_run_id: Mapped[str] = mapped_column(
+        ForeignKey("public_data_sync_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    source_key: Mapped[str] = mapped_column(
+        ForeignKey("data_sources.key", ondelete="RESTRICT"), nullable=False
+    )
+    external_id: Mapped[str | None] = mapped_column(String(512))
+    reason: Mapped[str] = mapped_column(String(2000), nullable=False)
+    retry_eligible_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+
+    __table_args__ = (
+        Index("ix_public_data_sync_failures_run", "sync_run_id", "id"),
+        Index("ix_public_data_sync_failures_retry", "source_key", "retry_eligible_at"),
     )
 
 ###############################################################################

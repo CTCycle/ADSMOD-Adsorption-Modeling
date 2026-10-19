@@ -8,17 +8,23 @@ from datetime import datetime, timezone
 
 import httpx
 import pytest
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import event, select
 from sqlalchemy.exc import IntegrityError
 
 from server.api.public_data import PublicDataEndpoint
 from server.configurations.settings import DatabaseConfig
+from server.domain.public_data import CODStructureImportRequest, PubChemResolveRequest
 from server.services.providers.cod import CODProvider
 from server.services.providers.pubchem import PubChemProvider
 from server.services.providers.public_data import (
+    ProviderCapability,
+    ProviderHealth,
     ProviderRateLimitError,
     ProviderUnavailableError,
+    PublicDataProvider,
 )
+from server.services.data.public_data import PublicDataService
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.public_data import PublicDataRepository
 from server.repositories.schemas import Base
@@ -69,6 +75,31 @@ def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[
     finally:
         event.remove(manager.engine, "before_cursor_execute", capture_selects)
     return len(statements)
+
+
+def test_synchronous_provider_endpoints_keep_validation_status_codes() -> None:
+    class InvalidProviderService:
+        async def resolve_pubchem(self, query: str) -> object:
+            del query
+            raise ValueError("PubChem query could not be resolved.")
+
+        async def import_cod(self, request: CODStructureImportRequest) -> object:
+            del request
+            raise ValueError("COD record cannot be imported.")
+
+    endpoint = PublicDataEndpoint(
+        router=APIRouter(),
+        service=InvalidProviderService(),  # type: ignore[arg-type]
+        sync=object(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(HTTPException) as pubchem_error:
+        asyncio.run(endpoint.resolve_pubchem(PubChemResolveRequest(query="unknown")))
+    with pytest.raises(HTTPException) as cod_error:
+        asyncio.run(endpoint.import_cod(CODStructureImportRequest(cod_id="1234")))
+
+    assert pubchem_error.value.status_code == 409
+    assert cod_error.value.status_code == 400
 
 ###############################################################################
 def _seed_listing_rows(repository: PublicDataRepository) -> int:
@@ -164,6 +195,27 @@ def _seed_listing_rows(repository: PublicDataRepository) -> int:
     return first_structure_id
 
 ###############################################################################
+def test_overview_counts_use_one_local_query() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources()
+        _seed_listing_rows(repository)
+
+        assert _count_selects(manager, repository.overview_counts) == 1
+        assert repository.overview_counts() == {
+            "adsorption_records": 2,
+            "materials": 2,
+            "chemicals": 2,
+            "structures": 2,
+            "active_sync_runs": 0,
+            "failed_sync_runs": 0,
+            "latest_successful_sync_at": None,
+        }
+    finally:
+        manager.dispose()
+
+###############################################################################
 def test_provider_registry_and_source_identity_constraints() -> None:
     manager = _manager()
     try:
@@ -203,6 +255,121 @@ def test_provider_registry_and_source_identity_constraints() -> None:
                 session.rollback()
             else:
                 raise AssertionError("duplicate source identity was accepted")
+    finally:
+        manager.dispose()
+
+###############################################################################
+def test_source_registry_uses_cached_health_without_probing_providers() -> None:
+    class ProbeCountingProvider(PublicDataProvider):
+        key = "nist"
+        name = "NIST test provider"
+        description = "Provider used to verify local source listing."
+        homepage_url = "https://example.org"
+        license_name = None
+        license_url = None
+        terms_url = None
+        capabilities = (ProviderCapability.ADSORPTION,)
+
+        def __init__(self) -> None:
+            self.health_checks = 0
+
+        async def health(self) -> ProviderHealth:
+            self.health_checks += 1
+            return ProviderHealth(
+                status="available",
+                detail=None,
+                checked_at=datetime.now(timezone.utc),
+            )
+
+    class FailingProvider(ProbeCountingProvider):
+        key = "cod"
+        name = "COD test provider"
+
+        async def health(self) -> ProviderHealth:
+            self.health_checks += 1
+            raise RuntimeError("provider timeout")
+
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources()
+        provider = ProbeCountingProvider()
+        failing_provider = FailingProvider()
+        service = PublicDataService(repository=repository, providers=[provider, failing_provider])
+
+        registry = service.list_sources()
+
+        assert provider.health_checks == 0
+        assert failing_provider.health_checks == 0
+        assert {source.key for source in registry.sources} == {"nist", "cod"}
+        assert all(source.health_status == "unknown" for source in registry.sources)
+
+        assert provider.health_checks == 0
+        assert failing_provider.health_checks == 0
+    finally:
+        manager.dispose()
+
+###############################################################################
+def test_public_data_health_and_durable_sync_run_state_persist() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources()
+        checked_at = datetime.now(timezone.utc)
+        repository.update_source_health(
+            "nist", status="available", detail=None, checked_at=checked_at
+        )
+
+        run = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "experiments", "fraction": 0.25},
+        )
+        run_id = str(run["id"])
+        claimed = repository.claim_next_sync_run()
+        assert claimed is not None and claimed["id"] == run_id
+        assert claimed["status"] == "running"
+        repository.update_sync_run(
+            run_id,
+            progress=40.0,
+            processed_count=20,
+            imported_count=17,
+            skipped_count=2,
+            failed_count=1,
+            checkpoint={"category": "experiments", "last_external_id": "nist-20"},
+        )
+        repository.add_sync_failure(
+            sync_run_id=run_id,
+            source_key="nist",
+            external_id="nist-20",
+            reason="NIST record request failed.",
+            retry_eligible_at=checked_at,
+        )
+
+        sources = {source["key"]: source for source in repository.source_rows()}
+        assert sources["nist"]["health_status"] == "available"
+        assert sources["nist"]["last_health_checked_at"] == checked_at
+        failures, total = repository.list_sync_failures(run_id)
+        assert total == 1
+        assert failures[0]["external_id"] == "nist-20"
+
+        assert repository.mark_unfinished_sync_runs(resume=True) == 1
+        resumed = repository.get_sync_run(run_id)
+        assert resumed["status"] == "queued"
+        assert resumed["checkpoint"]["last_external_id"] == "nist-20"
+        assert resumed["imported_count"] == 17
+
+        repository.claim_next_sync_run()
+        cancellation = repository.request_sync_cancel(run_id)
+        assert cancellation["status"] == "running"
+        assert cancellation["cancel_requested"] is True
+        assert repository.mark_unfinished_sync_runs(resume=False) == 1
+        assert repository.get_sync_run(run_id)["status"] == "interrupted"
+
+        cancelled = repository.create_sync_run(
+            source_key="cod", operation="cod_import", parameters={"cod_id": "9012345"}
+        )
+        assert repository.request_sync_cancel(str(cancelled["id"]))["status"] == "cancelled"
     finally:
         manager.dispose()
 
@@ -310,6 +477,16 @@ def test_pubchem_resolution_keeps_primary_record_when_secondary_endpoint_fails(
 def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     created: list[object] = []
 
+    class FakeStream:
+        def __init__(self, response: httpx.Response) -> None:
+            self.response = response
+
+        async def __aenter__(self):  # type: ignore[no-untyped-def]
+            return self.response
+
+        async def __aexit__(self, *_args):  # type: ignore[no-untyped-def]
+            return None
+
     ###############################################################################
     class FakeClient:
 
@@ -320,10 +497,12 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
             created.append(self)
 
         # -------------------------------------------------------------------------
-        async def request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        def stream(self, *args, **kwargs):  # type: ignore[no-untyped-def]
             del kwargs
             self.requests += 1
-            return httpx.Response(200, request=httpx.Request(args[0], args[1]), text="{}")
+            return FakeStream(
+                httpx.Response(200, request=httpx.Request(args[0], args[1]), text="{}")
+            )
 
         # -------------------------------------------------------------------------
         async def aclose(self) -> None:
@@ -337,8 +516,8 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
     )
 
     async def exercise() -> None:
-        await provider._request("GET", "https://example.test/one")
-        await provider._request("GET", "https://example.test/two")
+        await provider._request("GET", "https://www.crystallography.net/cod/one")
+        await provider._request("GET", "https://www.crystallography.net/cod/two")
         assert len(created) == 1
         assert created[0].requests == 2  # type: ignore[attr-defined]
         await provider.close()
@@ -351,15 +530,25 @@ def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) ->
     responses = [
         httpx.Response(
             503,
-            request=httpx.Request("GET", "https://example.test/retry"),
+            request=httpx.Request("GET", "https://www.crystallography.net/cod/retry"),
         ),
         httpx.Response(
             200,
-            request=httpx.Request("GET", "https://example.test/retry"),
+            request=httpx.Request("GET", "https://www.crystallography.net/cod/retry"),
             text="{}",
         ),
     ]
     sleeps: list[float] = []
+
+    class FakeStream:
+        def __init__(self, response: httpx.Response) -> None:
+            self.response = response
+
+        async def __aenter__(self):  # type: ignore[no-untyped-def]
+            return self.response
+
+        async def __aexit__(self, *_args):  # type: ignore[no-untyped-def]
+            return None
 
     ###############################################################################
     class FakeClient:
@@ -369,9 +558,9 @@ def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) ->
             del kwargs
 
         # -------------------------------------------------------------------------
-        async def request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        def stream(self, *args, **kwargs):  # type: ignore[no-untyped-def]
             del args, kwargs
-            return responses.pop(0)
+            return FakeStream(responses.pop(0))
 
         # -------------------------------------------------------------------------
         async def aclose(self) -> None:
@@ -389,7 +578,9 @@ def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) ->
     )
 
     async def exercise() -> None:
-        response = await provider._request("GET", "https://example.test/retry")
+        response = await provider._request(
+            "GET", "https://www.crystallography.net/cod/retry"
+        )
         assert response.status_code == 200
         await provider.close()
 
@@ -512,6 +703,14 @@ O1 O 0.500(2) 0.625 0.750 0.5
             "occupancy": 0.5,
         },
     ]
+
+###############################################################################
+def test_cod_cif_validation_rejects_malformed_payloads() -> None:
+    with pytest.raises(ProviderUnavailableError, match="valid CIF data block"):
+        CODProvider.validate_cif({"has_coordinates": False}, "not CIF", [])
+
+    with pytest.raises(ProviderUnavailableError, match="no valid atom-site rows"):
+        CODProvider.validate_cif({"has_coordinates": True}, "data_test", [])
 
 ###############################################################################
 def test_cod_search_maps_successful_malformed_json_to_provider_error(

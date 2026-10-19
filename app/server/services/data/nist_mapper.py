@@ -66,7 +66,19 @@ class NISTCanonicalMapper:
         single_component: pd.DataFrame | None,
         binary_mixture: pd.DataFrame | None,
     ) -> list[dict[str, Any]]:
+        records, _skipped = self.experiment_records_with_skips(
+            single_component, binary_mixture
+        )
+        return records
+
+    # -------------------------------------------------------------------------
+    def experiment_records_with_skips(
+        self,
+        single_component: pd.DataFrame | None,
+        binary_mixture: pd.DataFrame | None,
+    ) -> tuple[list[dict[str, Any]], dict[str, str]]:
         records: list[dict[str, Any]] = []
+        skipped: dict[str, str] = {}
         for source_id, rows, structure in self._grouped_experiments(
             single_component, binary_mixture
         ):
@@ -82,9 +94,10 @@ class NISTCanonicalMapper:
                     source_id,
                     exc,
                 )
+                skipped[source_id] = str(exc) or "Unsupported NIST measurement units."
                 continue
             records.append(record)
-        return records
+        return records, skipped
 
     # -------------------------------------------------------------------------
     @staticmethod

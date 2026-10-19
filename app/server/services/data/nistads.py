@@ -6,7 +6,10 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 import pandas as pd
@@ -275,9 +278,25 @@ class NISTDatasetBuilder:
 class NISTApiClient:
 
     # -------------------------------------------------------------------------
-    def __init__(self, parallel_tasks: int) -> None:
+    def __init__(
+        self,
+        parallel_tasks: int,
+        *,
+        retry_attempts: int = 3,
+        retry_backoff_max_seconds: float = 30.0,
+        max_response_bytes: int = 16_777_216,
+    ) -> None:
         self.parallel_tasks = max(1, int(parallel_tasks))
         self.semaphore = asyncio.Semaphore(self.parallel_tasks)
+        self.max_attempts = max(1, int(retry_attempts))
+        self.retry_backoff_max_seconds = max(0.1, float(retry_backoff_max_seconds))
+        self.max_response_bytes = max(1024, int(max_response_bytes))
+        self._request_stats = {
+            "requests": 0,
+            "retries": 0,
+            "rate_limits": 0,
+            "failures": 0,
+        }
         self.exp_identifier = "filename"
         self.guest_identifier = "InChIKey"
         self.host_identifier = "hashkey"
@@ -299,18 +318,129 @@ class NISTApiClient:
     async def fetch_json(
         self, client: httpx.AsyncClient, url: str
     ) -> dict[str, Any] | list[Any] | None:
+        parsed_url = urlsplit(url)
+        if parsed_url.scheme != "https" or parsed_url.hostname != "adsorption.nist.gov":
+            logger.warning("Rejected NIST request outside the configured HTTPS host.")
+            self._request_stats["failures"] += 1
+            return None
+        content: bytes | None = None
+        for attempt in range(self.max_attempts):
+            try:
+                content, retry_delay = await self._fetch_attempt(
+                    client, url, attempt
+                )
+                if retry_delay is not None:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                if content is None:
+                    return None
+                return self._decode_json(content)
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                if attempt + 1 >= self.max_attempts:
+                    logger.warning("Failed to fetch NIST record: %s", exc)
+                    self._request_stats["failures"] += 1
+                    return None
+                retry_delay = self._retry_delay(None, attempt)
+                self._request_stats["retries"] += 1
+                logger.warning(
+                    "NIST transport request failed; retrying attempt %d/%d after %.2fs: %s",
+                    attempt + 2,
+                    self.max_attempts,
+                    retry_delay,
+                    exc,
+                )
+                await asyncio.sleep(retry_delay)
+
+        return None
+
+    # -------------------------------------------------------------------------
+    async def _fetch_attempt(
+        self, client: httpx.AsyncClient, url: str, attempt: int
+    ) -> tuple[bytes | None, float | None]:
+        self._request_stats["requests"] += 1
         async with self.semaphore:
-            try:
-                response = await client.get(url)
-                response.raise_for_status()
-            except httpx.HTTPError as exc:
-                logger.warning("Failed to fetch %s: %s", url, exc)
+            async with client.stream("GET", url) as response:
+                status_code = response.status_code
+                if status_code in {429, 500, 502, 503, 504}:
+                    return self._retryable_response(response, attempt)
+                if status_code >= 400 or 300 <= status_code < 400:
+                    logger.warning("NIST returned HTTP %d for a record request.", status_code)
+                    self._request_stats["failures"] += 1
+                    return None, None
+                content = await self._read_bounded_body(response)
+                if content is None:
+                    self._request_stats["failures"] += 1
+                return content, None
+
+    # -------------------------------------------------------------------------
+    def _retryable_response(
+        self, response: httpx.Response, attempt: int
+    ) -> tuple[None, float | None]:
+        status_code = response.status_code
+        if status_code == 429:
+            self._request_stats["rate_limits"] += 1
+        if attempt + 1 >= self.max_attempts:
+            logger.warning("NIST returned HTTP %d for a record request.", status_code)
+            self._request_stats["failures"] += 1
+            return None, None
+        delay = self._retry_delay(response.headers.get("Retry-After"), attempt)
+        self._request_stats["retries"] += 1
+        logger.warning(
+            "NIST request returned HTTP %d; retrying attempt %d/%d after %.2fs",
+            status_code,
+            attempt + 2,
+            self.max_attempts,
+            delay,
+        )
+        return None, delay
+
+    # -------------------------------------------------------------------------
+    async def _read_bounded_body(self, response: httpx.Response) -> bytes | None:
+        length = response.headers.get("Content-Length")
+        if length and length.isdigit() and int(length) > self.max_response_bytes:
+            logger.warning("NIST response exceeded the configured size limit.")
+            return None
+        body = bytearray()
+        async for chunk in response.aiter_bytes():
+            body.extend(chunk)
+            if len(body) > self.max_response_bytes:
+                logger.warning("NIST response exceeded the configured size limit.")
                 return None
+        return bytes(body)
+
+    # -------------------------------------------------------------------------
+    def _decode_json(self, content: bytes) -> dict[str, Any] | list[Any] | None:
+        try:
+            return decode_json_response_bytes(content)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            logger.warning("NIST returned malformed JSON: %s", exc)
+            self._request_stats["failures"] += 1
+            return None
+
+    # -------------------------------------------------------------------------
+    def request_statistics(self) -> dict[str, int]:
+        return dict(self._request_stats)
+
+    # -------------------------------------------------------------------------
+    def _retry_delay(self, retry_after: str | None, attempt: int) -> float:
+        delay: float | None = None
+        if retry_after:
             try:
-                return decode_json_response_bytes(response.content)
-            except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-                logger.warning("Invalid JSON from %s: %s", url, exc)
-                return None
+                delay = max(0.0, float(retry_after.strip()))
+            except ValueError:
+                try:
+                    retry_at = parsedate_to_datetime(retry_after)
+                    if retry_at.tzinfo is None:
+                        retry_at = retry_at.replace(tzinfo=timezone.utc)
+                    delay = max(
+                        0.0,
+                        (retry_at - datetime.now(timezone.utc)).total_seconds(),
+                    )
+                except (TypeError, ValueError, OverflowError):
+                    delay = None
+        if delay is None:
+            delay = 0.5 * (2**attempt)
+        return min(delay, self.retry_backoff_max_seconds)
 
     # -------------------------------------------------------------------------
     async def fetch_multiple(

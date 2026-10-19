@@ -9,15 +9,35 @@ import asyncio
 from typing import Any
 
 from server.services.providers.public_data import ProviderError
-from server.services.providers.pubchem import PubChemProvider
+from server.services.providers.pubchem import PubChemProvider, PubChemRequestBudget
 
 ###############################################################################
 class PubChemClient:
     """Adapt normalized PubChem records to the NIST enrichment row contract."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, parallel_tasks: int) -> None:
-        self.provider = PubChemProvider(parallel_requests=parallel_tasks)
+    def __init__(
+        self,
+        parallel_tasks: int,
+        *,
+        request_budget: PubChemRequestBudget | None = None,
+        request_timeout_seconds: float = 20.0,
+        retry_attempts: int = 3,
+        retry_backoff_max_seconds: float = 30.0,
+        max_response_bytes: int = 16_777_216,
+    ) -> None:
+        self.provider = PubChemProvider(
+            parallel_requests=parallel_tasks,
+            request_budget=request_budget,
+            request_timeout_seconds=request_timeout_seconds,
+            retry_attempts=retry_attempts,
+            retry_backoff_max_seconds=retry_backoff_max_seconds,
+            max_response_bytes=max_response_bytes,
+        )
+
+    # -------------------------------------------------------------------------
+    async def close(self) -> None:
+        await self.provider.close()
 
     # -------------------------------------------------------------------------
     @staticmethod
