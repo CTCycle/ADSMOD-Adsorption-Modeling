@@ -1,7 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 const longMaterial = 'Hierarchical activated carbon framework with an intentionally long scientific sample designation 2026-09-A';
 const longExternalId = 'NIST-ISODB-EXPERIMENT-IDENTIFIER-WITH-LONG-PROVENANCE-SUFFIX-0000000000001';
@@ -59,18 +59,53 @@ async function assertContainedLayout(page: Page): Promise<void> {
     await expect(page.locator('.public-workspace')).toBeVisible();
 }
 
-test('public data workspace remains contained across dense scientific views', async ({ page }) => {
+test('public data workspace remains contained across dense scientific views', async ({ page }, testInfo: TestInfo) => {
     await installApiMocks(page);
+    let useOverviewScreenshotFixture = true;
+    await page.route('**/api/v1/public-data/sources**', async (route) => {
+        if (!useOverviewScreenshotFixture) {
+            await route.fallback();
+            return;
+        }
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: [
+            { key: 'cod', name: 'Crystallography Open Database', description: 'Open crystallographic structures with unit-cell metadata, atomic coordinates, CIF files, and publication references.', capabilities: ['materials', 'structures', 'references'], status: 'available', status_detail: null, homepage_url: 'https://www.crystallography.net/cod/', license_name: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/', terms_url: 'https://wiki.crystallography.net/howtoobtaincod/', record_count: 0, last_checked_at: null },
+            { key: 'nist', name: 'NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials', description: 'Public adsorption experiments plus guest-species and host-material records from the ADSMOD NIST integration.', capabilities: ['adsorption', 'materials', 'chemicals', 'references'], status: 'available', status_detail: null, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: 'https://adsorption.nist.gov/', record_count: 0, last_checked_at: null },
+            { key: 'pubchem', name: 'PubChem', description: 'NIH public chemical information, identifiers, molecular descriptors, and 2D/3D structure records.', capabilities: ['chemicals', 'structures', 'references'], status: 'available', status_detail: null, homepage_url: 'https://pubchem.ncbi.nlm.nih.gov/', license_name: 'Public domain / source-attributed records', license_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/downloads', terms_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access', record_count: 0, last_checked_at: null },
+        ] }) });
+    });
+    for (const resource of ['adsorption', 'materials', 'chemicals', 'structures']) {
+        await page.route(`**/api/v1/public-data/${resource}**`, async (route) => {
+            if (!useOverviewScreenshotFixture) {
+                await route.fallback();
+                return;
+            }
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], pagination: { page: 1, page_size: 1, total: 0 } }) });
+        });
+    }
     await page.goto('/public-data/overview');
+    await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
     await expect(page.getByRole('heading', { name: 'Integrated sources' })).toBeVisible();
     await expect(page.locator('.public-workspace .section-heading').last()).toHaveCSS('flex-direction', 'row');
     await expect(page.locator('.public-workspace .section-heading').last()).toHaveCSS('text-align', 'left');
     await assertContainedLayout(page);
+    if (testInfo.project.name === 'viewport-1440x920') {
+        await page.screenshot({ path: testInfo.outputPath('public-data-overview-after.jpg') });
+    }
+    useOverviewScreenshotFixture = false;
 
     for (const view of ['adsorption', 'materials', 'chemicals', 'structures', 'sources']) {
         await page.goto(`/public-data/${view}`);
         await expect(page.locator('.public-workspace')).toBeVisible();
+        await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
         await assertContainedLayout(page);
+    }
+
+    await page.getByRole('link', { name: 'Fitting', exact: true }).hover();
+    await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
+    await expect(page.getByRole('link', { name: 'Fitting', exact: true })).not.toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('link', { name: 'Fitting', exact: true })).toHaveCSS('box-shadow', 'none');
+    if (testInfo.project.name === 'viewport-1440x920') {
+        await page.screenshot({ path: testInfo.outputPath('public-nav-unselected-hover.png') });
     }
 
     await page.goto('/public-data/materials');

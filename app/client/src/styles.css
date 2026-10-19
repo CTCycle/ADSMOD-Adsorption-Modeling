@@ -4565,7 +4565,6 @@ body {
   text-decoration: none;
 }
 
-.console-nav-item:hover,
 .console-nav-item.active {
   background: linear-gradient(135deg, #0f72d7 0%, #0754a8 100%);
   color: #ffffff;
@@ -5103,13 +5102,13 @@ input.source-file-input {
 .dataset-status { margin: 0; padding: 0.75rem 1rem; border: 1px solid currentColor; border-radius: 0.45rem; }
 .dataset-status.error { color: #a3232d; background: #fff5f5; }
 .user-dataset-list-card { min-height: 0; overflow: hidden; }
-.user-dataset-list-card .card-title-row { min-height: 40px; }
+.user-dataset-list-card .card-title-row { min-height: 0; align-items: flex-start; padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xs); }
 .dataset-record-list { display: grid; gap: 10px; min-height: 0; max-height: min(52vh, 34rem); margin-top: 14px; padding: 0 1px 2px; overflow-y: auto; overscroll-behavior: contain; }
 .dataset-record { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(150px, 0.8fr) auto; gap: 18px; align-items: center; padding: 10px 16px; border: 1px solid var(--console-border, #d7dee8); border-radius: 10px; background: var(--console-surface, #fff); transition: border-color 160ms ease, box-shadow 160ms ease; }
 .dataset-record:hover, .dataset-record.selected { border-color: #9bbcf0; box-shadow: 0 8px 20px -18px rgba(7, 91, 213, 0.75); }
 .dataset-record-copy { min-width: 0; }
 .dataset-record-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.dataset-record-heading h3 { margin: 0; overflow: hidden; color: var(--console-text, #1c2a45); font-size: 1rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.dataset-record-heading h3 { margin: 0; min-width: 0; color: var(--console-text, #1c2a45); font-size: 1rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
 .dataset-source { flex: 0 0 auto; padding: 3px 8px; border-radius: 999px; background: #eef4ff; color: #3768ad; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; }
 .dataset-record-copy > p { margin: 4px 0 3px; color: var(--console-text-muted, #657386); font-size: 0.76rem; font-style: italic; line-height: 1.35; }
 .dataset-record-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 4px; color: var(--console-text-muted, #657386); font-size: 0.75rem; }
@@ -5119,7 +5118,7 @@ input.source-file-input {
 .dataset-record-meta span { position: relative; }
 .dataset-record-meta span + span::before { content: ''; position: absolute; left: -10px; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: #9eacc0; transform: translateY(-50%); }
 .dataset-record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; }
-.dataset-record-actions .button { min-height: 32px; padding: 0.42rem 0.7rem; font-size: 0.74rem; white-space: nowrap; }
+.dataset-record-actions .button { min-height: 40px; padding: 0.4rem 0.7rem; font-size: 0.78rem; white-space: normal; }
 .dataset-record-actions .danger { color: #a3232d; }
 .dataset-add-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; padding: 0.75rem 1.2rem; color: var(--console-text-muted, #657386); }
 .dataset-add-row h3 { margin: 0 0 0.25rem; color: var(--console-text, #1c2a45); font-size: 0.98rem; }
@@ -5164,7 +5163,7 @@ input.source-file-input {
 .help-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.35rem 1.4rem 1.1rem; border-bottom: 1px solid #e4eaf3; }
 .help-modal-header h2 { margin: 0; color: var(--console-text, #1c2a45); font-size: 1.2rem; }
 .help-modal-header p:last-child { max-width: 46rem; margin: 0.35rem 0 0; color: var(--console-text-muted, #657386); font-size: 0.85rem; line-height: 1.5; }
-.help-modal-close { width: 2rem; height: 2rem; min-height: 0; padding: 0; border-radius: 50%; font-size: 1.2rem; line-height: 1; }
+.help-modal-close { width: 42px; height: 42px; min-width: 42px; min-height: 42px; padding: 0; border-radius: 50%; font-size: 1.2rem; line-height: 1; }
 .help-modal-body { display: grid; gap: 0.75rem; padding: 1.25rem 1.4rem 1.4rem; }
 .help-modal-body h3 { margin: 0.1rem 0 0; color: var(--console-text, #1c2a45); font-size: 0.9rem; }
 .help-step-list, .help-tip-list { display: grid; gap: 0.7rem; margin: 0; padding-left: 1.3rem; color: var(--console-text-muted, #657386); font-size: 0.84rem; line-height: 1.45; }

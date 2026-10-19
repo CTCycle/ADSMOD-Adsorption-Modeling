@@ -827,9 +827,11 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 margin: 0.3rem 0;
             }
             .import-table-wrap {
+                min-width: 0;
                 max-width: 100%;
                 margin-top: 1rem;
                 overflow: auto;
+                overscroll-behavior-x: contain;
                 border: 1px solid #dfe5ed;
                 border-radius: 10px;
             }
@@ -969,6 +971,51 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 }
                 .import-steps li span {
                     font-size: 0.8rem;
+                }
+            }
+            @media (max-width: 520px) {
+                .import-wizard {
+                    width: calc(100vw - 1rem);
+                    max-height: calc(100dvh - 1rem);
+                    border-radius: 12px;
+                }
+                .import-wizard-header,
+                .import-wizard-footer {
+                    gap: 0.65rem;
+                    padding: 0.75rem;
+                }
+                .import-wizard-header h2 {
+                    font-size: 1.05rem;
+                    line-height: 1.3;
+                }
+                .import-wizard-header p:not(.eyebrow) {
+                    font-size: 0.8rem;
+                    line-height: 1.4;
+                }
+                .import-steps {
+                    gap: 0.25rem;
+                    padding: 0.6rem 0.75rem;
+                }
+                .import-steps li {
+                    justify-content: center;
+                }
+                .import-wizard-body {
+                    min-height: 0;
+                    padding: 0.75rem;
+                }
+                .import-summary-grid,
+                .import-settings-grid {
+                    grid-template-columns: minmax(0, 1fr);
+                    gap: 0.6rem;
+                }
+                .import-summary-grid > div {
+                    padding: 0.65rem;
+                }
+                .import-mapping-table {
+                    min-width: 680px;
+                }
+                .wide-pair-row {
+                    grid-template-columns: minmax(0, 1fr);
                 }
             }
         `,
