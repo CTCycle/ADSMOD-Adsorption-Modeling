@@ -121,6 +121,24 @@ test('primary routes share one stable shell at each supported viewport', async (
             await page.screenshot({ path: testInfo.outputPath(`${route.key}.png`) });
         }
     }
+
+    if (testInfo.project.name === 'mobile-600x900') {
+        for (const viewport of [
+            { width: 390, height: 844 },
+            { width: 195, height: 422 },
+        ]) {
+            await page.setViewportSize(viewport);
+            await page.goto('/public-data/materials');
+            await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
+            const geometry = await readShellGeometry(page);
+            expect(geometry.documentWidth).toBeLessThanOrEqual(viewport.width + 1);
+            expect(geometry.help.x + geometry.help.width).toBeLessThanOrEqual(viewport.width + 1);
+
+            if (viewport.width === 390) {
+                await page.screenshot({ path: testInfo.outputPath('public-materials-mobile-390x844.png') });
+            }
+        }
+    }
 });
 
 test('training routes remain gated when the optional service is unavailable', async ({ page }) => {
@@ -190,7 +208,7 @@ test('dataset rename stays in-page and deletion requires an explicit confirmatio
     expect(deleteRequests).toBe(1);
 });
 
-test('dataset import keeps keyboard focus inside the wizard and restores the trigger', async ({ page }) => {
+test('dataset import keeps keyboard focus inside the wizard and restores the trigger', async ({ page }, testInfo: TestInfo) => {
     await installShellApiMocks(page, false);
     await page.route('**/api/v1/datasets', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ datasets: [] }) });
@@ -249,4 +267,46 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Add dataset', exact: true })).toBeFocused();
+
+    if (testInfo.project.name !== 'mobile-600x900') {
+        return;
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileChooserPromise = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Add dataset', exact: true }).click();
+    const mobileChooser = await mobileChooserPromise;
+    await mobileChooser.setFiles({
+        name: 'sample.csv',
+        mimeType: 'text/csv',
+        buffer: Buffer.from('pressure,uptake,temperature\n1,0.1,298\n'),
+    });
+
+    const mobileDialog = page.getByRole('dialog', { name: 'Understand sample.csv' });
+    await mobileDialog.getByRole('button', { name: 'Review mapping', exact: true }).click();
+
+    const mappingGeometry = await mobileDialog.evaluate((element) => {
+        const settings = element.querySelector<HTMLElement>('.import-settings-grid');
+        const table = element.querySelector<HTMLElement>('.import-mapping-table');
+        const tableWrap = table?.parentElement;
+        const body = element.querySelector<HTMLElement>('.import-wizard-body');
+        return {
+            settingsColumns: settings ? getComputedStyle(settings).gridTemplateColumns.trim().split(/\s+/).length : 0,
+            documentWidth: document.documentElement.scrollWidth,
+            viewportWidth: document.documentElement.clientWidth,
+            tableWrapWidth: tableWrap?.getBoundingClientRect().width ?? 0,
+            tableWrapScrollWidth: tableWrap?.scrollWidth ?? 0,
+            tableWrapClientWidth: tableWrap?.clientWidth ?? 0,
+            bodyWidth: body?.getBoundingClientRect().width ?? 0,
+        };
+    });
+    expect(mappingGeometry.settingsColumns).toBe(1);
+    expect(mappingGeometry.documentWidth).toBeLessThanOrEqual(mappingGeometry.viewportWidth + 1);
+    expect(mappingGeometry.tableWrapWidth).toBeLessThanOrEqual(mappingGeometry.bodyWidth + 1);
+    expect(mappingGeometry.tableWrapScrollWidth).toBeGreaterThan(mappingGeometry.tableWrapClientWidth);
+
+    await page.setViewportSize({ width: 195, height: 422 });
+    await expect(mobileDialog.getByRole('button', { name: 'Validate and preview series', exact: true })).toBeVisible();
+    const narrowDocumentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(narrowDocumentWidth).toBeLessThanOrEqual(196);
 });

@@ -153,16 +153,27 @@
 
 .source-summary {
     display: grid;
-    gap: 12px;
+    grid-template-rows: auto 1fr auto auto;
+    gap: var(--spacing-sm);
     min-width: 0;
     padding: 14px;
     border: 1px solid var(--border-color, #d8dee8);
+}
+
+.source-summary-head {
+    align-items: flex-start;
+    gap: var(--spacing-sm);
 }
 
 .source-summary-head > div {
     display: grid;
     gap: 3px;
     min-width: 0;
+}
+
+.source-summary-head strong {
+    line-height: 1.35;
+    overflow-wrap: anywhere;
 }
 
 .source-key {
@@ -178,6 +189,8 @@
 }
 
 .source-status {
+    flex: 0 0 auto;
+    margin-top: 2px;
     color: var(--text-secondary, #667085);
     font-size: 0.72rem;
     font-weight: 700;
@@ -216,7 +229,15 @@
 }
 
 .source-summary-foot {
+    align-items: baseline;
     justify-content: space-between;
+}
+
+.public-workspace .section-heading > button.secondary {
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding-inline: var(--spacing-md);
+    white-space: nowrap;
 }
 
 .text-link,

@@ -93,7 +93,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <span class="console-nav-icon" aria-hidden="true">□</span>
                         <span>Custom Datasets</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/public-data/overview" routerLinkActive="active" ariaCurrentWhenActive="page">
+                    <a class="console-nav-item" routerLink="/public-data" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⇩</span>
                         <span>Public Data</span>
                     </a>
