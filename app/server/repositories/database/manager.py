@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import os
 from pathlib import Path
+from threading import RLock
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -60,6 +61,7 @@ class DatabaseManager:
             if database.embedded_database
             else self._normalize_backend(database.engine)
         )
+        self._transaction_lock = RLock() if self.backend == "sqlite" else nullcontext()
         self.engine = self._create_engine()
         self.session_factory = sessionmaker(
             bind=self.engine,
@@ -149,7 +151,7 @@ class DatabaseManager:
     # -------------------------------------------------------------------------
     @contextmanager
     def transaction(self) -> Iterator[Session]:
-        with self.session_factory() as session:
+        with self._transaction_lock, self.session_factory() as session:
             try:
                 yield session
                 session.commit()

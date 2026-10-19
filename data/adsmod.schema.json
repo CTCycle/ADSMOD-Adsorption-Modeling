@@ -280,6 +280,13 @@
           "title": "Retry Attempts",
           "type": "integer"
         },
+        "retry_backoff_max_seconds": {
+          "default": 30.0,
+          "maximum": 120.0,
+          "minimum": 0.1,
+          "title": "Retry Backoff Max Seconds",
+          "type": "number"
+        },
         "pubchem_parallel_requests": {
           "default": 2,
           "maximum": 3,
@@ -293,6 +300,78 @@
           "minimum": 1,
           "title": "Cod Max Interactive Results",
           "type": "integer"
+        },
+        "health_cache_ttl_seconds": {
+          "default": 900,
+          "maximum": 86400,
+          "minimum": 30,
+          "title": "Health Cache Ttl Seconds",
+          "type": "integer"
+        },
+        "sync_batch_size": {
+          "default": 50,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Sync Batch Size",
+          "type": "integer"
+        },
+        "sync_max_records_per_run": {
+          "default": 200,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Sync Max Records Per Run",
+          "type": "integer"
+        },
+        "sync_max_concurrent_jobs": {
+          "default": 1,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Sync Max Concurrent Jobs",
+          "type": "integer"
+        },
+        "sync_response_size_limit_bytes": {
+          "default": 16777216,
+          "maximum": 67108864,
+          "minimum": 1024,
+          "title": "Sync Response Size Limit Bytes",
+          "type": "integer"
+        },
+        "sync_resume_on_startup": {
+          "default": false,
+          "title": "Sync Resume On Startup",
+          "type": "boolean"
+        },
+        "auto_sync_enabled": {
+          "default": false,
+          "title": "Auto Sync Enabled",
+          "type": "boolean"
+        },
+        "auto_sync_categories": {
+          "default": [],
+          "items": {
+            "enum": [
+              "experiments",
+              "guest",
+              "host"
+            ],
+            "type": "string"
+          },
+          "title": "Auto Sync Categories",
+          "type": "array"
+        },
+        "auto_sync_interval_hours": {
+          "default": 24,
+          "maximum": 720,
+          "minimum": 1,
+          "title": "Auto Sync Interval Hours",
+          "type": "integer"
+        },
+        "auto_sync_fraction": {
+          "default": 1.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 1.0,
+          "title": "Auto Sync Fraction",
+          "type": "number"
         }
       },
       "title": "PublicDataConfig",

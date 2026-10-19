@@ -45,13 +45,20 @@ class NISTPublicDataProvider(PublicDataProvider):
                 status="unavailable",
                 detail=f"NIST adsorption endpoint check failed: {exc}",
                 checked_at=checked_at,
+                request_stats={"requests": 1, "retries": 0, "rate_limits": 0, "failures": 1},
             )
         if bool(status.get("server_ok", False)):
-            return ProviderHealth(status="available", detail=None, checked_at=checked_at)
+            return ProviderHealth(
+                status="available",
+                detail=None,
+                checked_at=checked_at,
+                request_stats=dict(status.get("request_stats") or {}),
+            )
         return ProviderHealth(
             status="unavailable",
             detail="NIST adsorption endpoint did not respond successfully.",
             checked_at=checked_at,
+            request_stats=dict(status.get("request_stats") or {}),
         )
 
 

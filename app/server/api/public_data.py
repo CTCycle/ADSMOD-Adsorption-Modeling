@@ -13,6 +13,11 @@ from server.domain.public_data import (
     ChemicalPageResponse,
     ChemicalRecordView,
     MaterialPageResponse,
+    PublicDataSyncCreateRequest,
+    PublicDataSyncFailureListResponse,
+    PublicDataSyncRunListResponse,
+    PublicDataSyncRunView,
+    PublicDataOverviewResponse,
     PublicSourceListResponse,
     PubChemResolveRequest,
     StructurePageResponse,
@@ -25,14 +30,21 @@ from server.services.providers import (
 )
 from server.services.container import CoreServiceContainer
 from server.services.data.public_data import PublicDataService
+from server.services.data.public_data_sync import PublicDataSyncCoordinator
 
 ###############################################################################
 class PublicDataEndpoint:
 
     # -------------------------------------------------------------------------
-    def __init__(self, router: APIRouter, service: PublicDataService) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        service: PublicDataService,
+        sync: PublicDataSyncCoordinator,
+    ) -> None:
         self.router = router
         self.service = service
+        self.sync = sync
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -51,8 +63,95 @@ class PublicDataEndpoint:
         return HTTPException(status_code=code, detail=str(exc))
 
     # -------------------------------------------------------------------------
-    async def list_sources(self, check_health: bool = True) -> PublicSourceListResponse:
-        return await self.service.list_sources(check_health=check_health)
+    def list_sources(self) -> PublicSourceListResponse:
+        return self.service.list_sources()
+
+    # -------------------------------------------------------------------------
+    async def start_source_health_check(self, source_key: str) -> PublicDataSyncRunView:
+        try:
+            run = await self.sync.enqueue(
+                source_key=source_key,
+                operation="health_check",
+                parameters={},
+            )
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        return PublicDataSyncRunView.model_validate(run)
+
+    # -------------------------------------------------------------------------
+    async def create_sync_run(
+        self, request: PublicDataSyncCreateRequest
+    ) -> PublicDataSyncRunView:
+        parameters = request.model_dump(
+            exclude={"source_key", "operation"}, exclude_none=True
+        )
+        try:
+            run = await self.sync.enqueue(
+                source_key=request.source_key,
+                operation=request.operation,
+                parameters=parameters,
+            )
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        return PublicDataSyncRunView.model_validate(run)
+
+    # -------------------------------------------------------------------------
+    async def list_sync_runs(
+        self,
+        limit: int = Query(default=50, ge=1, le=100),
+        offset: int = Query(default=0, ge=0),
+        source_key: str | None = Query(default=None, max_length=64),
+        run_status: str | None = Query(
+            default=None,
+            alias="status",
+            pattern="^(queued|running|completed|partially_completed|failed|cancelled|interrupted)$",
+        ),
+    ) -> PublicDataSyncRunListResponse:
+        runs, total = await self.sync.list(
+            limit=limit,
+            offset=offset,
+            source_key=source_key,
+            status_filter=run_status,
+        )
+        return PublicDataSyncRunListResponse(
+            runs=[PublicDataSyncRunView.model_validate(run) for run in runs],
+            total=total,
+        )
+
+    # -------------------------------------------------------------------------
+    async def get_sync_run(self, run_id: str) -> PublicDataSyncRunView:
+        try:
+            run = await self.sync.get(run_id)
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        return PublicDataSyncRunView.model_validate(run)
+
+    # -------------------------------------------------------------------------
+    async def cancel_sync_run(self, run_id: str) -> PublicDataSyncRunView:
+        try:
+            run = await self.sync.cancel(run_id)
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        return PublicDataSyncRunView.model_validate(run)
+
+    # -------------------------------------------------------------------------
+    async def list_sync_failures(
+        self,
+        run_id: str,
+        limit: int = Query(default=100, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> PublicDataSyncFailureListResponse:
+        try:
+            failures, total = await self.sync.failures(
+                run_id, limit=limit, offset=offset
+            )
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        return PublicDataSyncFailureListResponse(failures=failures, total=total)
+
+    # -------------------------------------------------------------------------
+    def get_overview(self) -> PublicDataOverviewResponse:
+        return self.service.get_overview()
 
     # -------------------------------------------------------------------------
     def list_adsorption(
@@ -150,7 +249,7 @@ class PublicDataEndpoint:
     # -------------------------------------------------------------------------
     async def resolve_pubchem(self, request: PubChemResolveRequest) -> ChemicalRecordView:
         try:
-            return await self.service.resolve_pubchem(request.query)
+            return await self.service.resolve_pubchem(request.query.strip())
         except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
             raise self._provider_error(exc) from exc
         except ValueError as exc:
@@ -177,9 +276,7 @@ class PublicDataEndpoint:
             raise self._provider_error(exc) from exc
 
     # -------------------------------------------------------------------------
-    async def import_cod(
-        self, request: CODStructureImportRequest
-    ) -> StructureRecordView:
+    async def import_cod(self, request: CODStructureImportRequest) -> StructureRecordView:
         try:
             return await self.service.import_cod(request)
         except LookupError as exc:
@@ -219,10 +316,60 @@ class PublicDataEndpoint:
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route(
+            "/overview",
+            self.get_overview,
+            methods=["GET"],
+            response_model=PublicDataOverviewResponse,
+        )
+        self.router.add_api_route(
             "/sources",
             self.list_sources,
             methods=["GET"],
             response_model=PublicSourceListResponse,
+        )
+        self.router.add_api_route(
+            "/sources/{source_key}/health-check",
+            self.start_source_health_check,
+            methods=["POST"],
+            response_model=PublicDataSyncRunView,
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/sync-runs",
+            self.list_sync_runs,
+            methods=["GET"],
+            response_model=PublicDataSyncRunListResponse,
+        )
+        self.router.add_api_route(
+            "/sync-runs",
+            self.create_sync_run,
+            methods=["POST"],
+            response_model=PublicDataSyncRunView,
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/sync-runs/{run_id}",
+            self.get_sync_run,
+            methods=["GET"],
+            response_model=PublicDataSyncRunView,
+        )
+        self.router.add_api_route(
+            "/sync-runs/{run_id}/cancel",
+            self.cancel_sync_run,
+            methods=["POST"],
+            response_model=PublicDataSyncRunView,
+        )
+        self.router.add_api_route(
+            "/sync-runs/{run_id}",
+            self.cancel_sync_run,
+            methods=["DELETE"],
+            response_model=PublicDataSyncRunView,
+        )
+        self.router.add_api_route(
+            "/sync-runs/{run_id}/failures",
+            self.list_sync_failures,
+            methods=["GET"],
+            response_model=PublicDataSyncFailureListResponse,
         )
         self.router.add_api_route(
             "/adsorption",
@@ -288,7 +435,11 @@ class PublicDataEndpoint:
 ###############################################################################
 def create_public_data_router(container: CoreServiceContainer) -> APIRouter:
     router = APIRouter(prefix="/public-data", tags=["public-data"])
-    PublicDataEndpoint(router=router, service=container.public_data_service).add_routes()
+    PublicDataEndpoint(
+        router=router,
+        service=container.public_data_service,
+        sync=container.public_data_sync,
+    ).add_routes()
     return router
 
 

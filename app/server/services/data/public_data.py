@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from server.domain.public_data import (
@@ -15,6 +16,7 @@ from server.domain.public_data import (
     ChemicalRecordView,
     MaterialPageResponse,
     Pagination,
+    PublicDataOverviewResponse,
     PublicSourceListResponse,
     PublicSourceSummary,
     StructurePageResponse,
@@ -35,9 +37,11 @@ class PublicDataService:
         *,
         repository: PublicDataRepository,
         providers: list[PublicDataProvider],
+        health_cache_ttl_seconds: int = 900,
     ) -> None:
         self.repository = repository
         self.providers = {provider.key: provider for provider in providers}
+        self.health_cache_ttl = timedelta(seconds=max(30, health_cache_ttl_seconds))
 
     # -------------------------------------------------------------------------
     async def close(self) -> None:
@@ -47,50 +51,44 @@ class PublicDataService:
         )
 
     # -------------------------------------------------------------------------
-    async def list_sources(self, *, check_health: bool = True) -> PublicSourceListResponse:
+    def list_sources(self) -> PublicSourceListResponse:
         persisted = {row["key"]: row for row in self.repository.source_rows()}
-        health_by_key: dict[str, Any] = {}
-        if check_health:
-            keys = list(self.providers)
-            health = await asyncio.gather(
-                *(self.providers[key].health() for key in keys),
-                return_exceptions=True,
-            )
-            for key, result in zip(keys, health, strict=True):
-                if isinstance(result, BaseException):
-                    health_by_key[key] = {
-                        "status": "unavailable",
-                        "detail": str(result),
-                        "checked_at": None,
-                    }
-                else:
-                    health_by_key[key] = {
-                        "status": result.status,
-                        "detail": result.detail,
-                        "checked_at": result.checked_at,
-                    }
-
         items: list[PublicSourceSummary] = []
         for key, provider in sorted(self.providers.items(), key=lambda item: item[1].name):
             row = persisted.get(key, {})
-            health = health_by_key.get(key, {})
             items.append(
                 PublicSourceSummary(
                     key=key,
                     name=provider.name,
                     description=provider.description,
                     capabilities=[capability.value for capability in provider.capabilities],
-                    status=health.get("status", "unknown"),
-                    status_detail=health.get("detail"),
                     homepage_url=provider.homepage_url,
                     license_name=provider.license_name,
                     license_url=provider.license_url,
                     terms_url=provider.terms_url,
                     record_count=int(row.get("record_count", 0)),
-                    last_checked_at=health.get("checked_at"),
+                    health_status=row.get("health_status", "unknown"),
+                    health_detail=row.get("health_detail"),
+                    last_health_checked_at=row.get("last_health_checked_at"),
+                    health_fresh=self._health_is_fresh(
+                        row.get("last_health_checked_at")
+                    ),
+                    last_successful_sync_at=row.get("last_successful_sync_at"),
                 )
             )
         return PublicSourceListResponse(sources=items)
+
+    # -------------------------------------------------------------------------
+    def _health_is_fresh(self, checked_at: datetime | None) -> bool:
+        if checked_at is None:
+            return False
+        if checked_at.tzinfo is None:
+            checked_at = checked_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) - checked_at <= self.health_cache_ttl
+
+    # -------------------------------------------------------------------------
+    def get_overview(self) -> PublicDataOverviewResponse:
+        return PublicDataOverviewResponse.model_validate(self.repository.overview_counts())
 
     # -------------------------------------------------------------------------
     def list_adsorption(self, **filters: Any) -> AdsorptionPageResponse:
@@ -142,6 +140,11 @@ class PublicDataService:
 
     # -------------------------------------------------------------------------
     async def resolve_pubchem(self, query: str) -> ChemicalRecordView:
+        local_id = await asyncio.to_thread(
+            self.repository.find_local_pubchem_adsorbate, query
+        )
+        if local_id is not None:
+            return await asyncio.to_thread(self.get_chemical, local_id)
         provider = self.providers.get("pubchem")
         if not isinstance(provider, PubChemProvider):
             raise RuntimeError("PubChem provider is not configured.")
@@ -169,11 +172,26 @@ class PublicDataService:
     async def import_cod(
         self, request: CODStructureImportRequest
     ) -> StructureRecordView:
+        structure_id = await asyncio.to_thread(
+            self.repository.find_cod_structure_id, request.cod_id
+        )
+        if structure_id is not None:
+            if request.adsorbent_id is not None:
+                structure_id = await asyncio.to_thread(
+                    self.repository.link_cod_structure_to_material,
+                    request.cod_id,
+                    request.adsorbent_id,
+                )
+            payload = await asyncio.to_thread(
+                self.repository.get_structure, structure_id
+            )
+            return StructureRecordView.model_validate(payload)
         provider = self.providers.get("cod")
         if not isinstance(provider, CODProvider):
             raise RuntimeError("COD provider is not configured.")
         metadata, cif_text = await provider.fetch_record(request.cod_id)
         atoms = provider.parse_atoms(cif_text)
+        provider.validate_cif(metadata, cif_text, atoms)
         structure_id = await asyncio.to_thread(
             self.repository.upsert_cod_structure,
             metadata=metadata,
