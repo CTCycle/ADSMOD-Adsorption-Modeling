@@ -2,7 +2,15 @@
 // Licensed under the MIT License.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchPublicChemicals, resolvePubChem } from './public-data.service';
+import {
+    fetchPublicChemicals,
+    fetchPublicOverview,
+    checkPublicSourceHealth,
+    fetchPublicDataSyncFailures,
+    fetchPublicSources,
+    resolvePubChem,
+    cancelPublicDataSyncRun,
+} from './public-data.service';
 
 describe('public data service', () => {
     const fetchMock = vi.fn();
@@ -42,20 +50,88 @@ describe('public data service', () => {
         expect(url.searchParams.get('molecular_weight_max')).toBe('50');
     });
 
-    it('resolves PubChem records through the normalized public-data endpoint', async () => {
+    it('queues PubChem resolution as a durable sync run', async () => {
         fetchMock.mockResolvedValue({
             ok: true,
-            json: async () => ({ id: 1, name: 'methane' }),
+            json: async () => ({ id: 'run-1', source_key: 'pubchem', operation: 'pubchem_resolve', status: 'queued' }),
         });
 
         const result = await resolvePubChem('VNWKTOKETHGBQD-UHFFFAOYSA-N');
 
         expect(result.error).toBeNull();
         const [requestUrl, requestInit] = fetchMock.mock.calls[0];
-        expect(String(requestUrl)).toContain('/api/v1/public-data/chemicals/resolve');
+        expect(String(requestUrl)).toContain('/api/v1/public-data/sync-runs');
         expect(requestInit.method).toBe('POST');
         expect(JSON.parse(requestInit.body as string)).toEqual({
+            source_key: 'pubchem',
+            operation: 'pubchem_resolve',
             query: 'VNWKTOKETHGBQD-UHFFFAOYSA-N',
         });
+    });
+
+    it('loads all local Overview totals from one endpoint', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({ adsorption_records: 40, materials: 12, chemicals: 8, structures: 3, active_sync_runs: 1, failed_sync_runs: 0, latest_successful_sync_at: null }),
+        });
+
+        const result = await fetchPublicOverview();
+
+        expect(result.data).toEqual({ adsorption_records: 40, materials: 12, chemicals: 8, structures: 3, active_sync_runs: 1, failed_sync_runs: 0, latest_successful_sync_at: null });
+        expect(result.error).toBeNull();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/public-data/overview');
+    });
+
+    it('loads source registration without requesting provider health', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({ sources: [] }),
+        });
+
+        const result = await fetchPublicSources();
+
+        expect(result.data).toEqual({ sources: [] });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/public-data/sources');
+    });
+
+    it('queues provider health checks without waiting for the provider', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({ id: 'health-1', source_key: 'nist', operation: 'health_check', status: 'queued' }),
+        });
+
+        const result = await checkPublicSourceHealth('nist');
+
+        expect(result.data?.source_key).toBe('nist');
+        expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/public-data/sources/nist/health-check');
+    });
+
+    it('posts cooperative cancellation to the durable run action', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({ id: 'run-1', status: 'cancelled' }),
+        });
+
+        const result = await cancelPublicDataSyncRun('run-1');
+
+        expect(result.data?.status).toBe('cancelled');
+        expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+        expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/public-data/sync-runs/run-1/cancel');
+    });
+
+    it('loads paginated record failure details for a durable run', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => ({ failures: [], total: 0 }),
+        });
+
+        const result = await fetchPublicDataSyncFailures('run-1');
+
+        expect(result.data).toEqual({ failures: [], total: 0 });
+        expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/public-data/sync-runs/run-1/failures?limit=100&offset=0');
     });
 });

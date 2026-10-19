@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-09-16
+Last updated: 2026-10-19
 
 ## Backend package
 
@@ -16,6 +16,11 @@ Core owns the operational database and Alembic history under
 file or a known Alembic state; it never infers or silently adopts an unknown
 schema. The current schema includes immutable `training_snapshots` and
 `training_snapshot_rows` tables.
+
+SQLite transactions serialize writes within the single backend process to
+avoid lock-upgrade collisions when independent public-data runs are queued or
+updated concurrently. PostgreSQL continues to use database-managed transaction
+concurrency.
 
 ## ML artifacts
 

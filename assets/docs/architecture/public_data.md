@@ -1,6 +1,6 @@
 # Public data architecture
 
-Last updated: 2026-09-02
+Last updated: 2026-10-19
 
 ## Scope
 
@@ -27,6 +27,11 @@ NIST acquisition remains asynchronous because full collection retrieval can be e
 
 The NIST web service is treated as an external dependency. Provider health failures do not make locally cached data unavailable.
 
+Official references:
+
+- https://www.nist.gov/programs-projects/nist-data-resources-adsorption
+- https://adsorption.nist.gov/isodb/index.php#apis
+
 ### PubChem
 
 Purpose:
@@ -40,7 +45,7 @@ Purpose:
 - 2D structure images;
 - 3D SDF conformer availability where PubChem provides one.
 
-ADSMOD uses PubChem's documented PUG REST interface. Requests are paced below PubChem's documented five-requests-per-second ceiling, bounded by configured concurrency, and retried only for transient failures.
+ADSMOD uses PubChem's documented PUG REST interface. Requests from workspace lookups, NIST enrichment, health checks, and retries share one thread-safe pacing budget below PubChem's documented five-requests-per-second ceiling. Each event loop owns its own HTTP client; only the small request-budget state is shared. Transient retries use capped exponential backoff or the provider's `Retry-After` value.
 
 Official references:
 
@@ -85,9 +90,11 @@ Every provider declares:
 - human-readable name and description;
 - homepage, license, and terms links where known;
 - supported capabilities;
-- a health check.
+- a bounded health check.
 
-HTTP-backed providers share bounded concurrency, timeout handling, transient retry behavior, rate-limit mapping, and a stable ADSMOD user agent. Provider-specific code adds only the remote query and normalization logic required by that source.
+Health checks run as durable background jobs. The source registry reads only saved health state and marks whether that state is within the configured cache lifetime; registry and Overview requests never contact providers. The NIST probe requests only response headers for a one-byte range so it does not download a full collection index.
+
+HTTP-backed providers use HTTPS host allowlists, bounded concurrency, request timeouts, capped response bodies, transient retries, `Retry-After` handling with a configured maximum backoff, rate-limit mapping, and a stable ADSMOD user agent. All redirects are rejected so a provider response cannot move a request outside the validated endpoint. Retry, rate-limit, and failed-request counts are logged and retained on durable run checkpoints. Provider-specific code adds only the remote query and normalization logic required by that source.
 
 To add another source:
 
@@ -149,7 +156,14 @@ The canonical API prefix is `/api/v1/public-data`.
 
 Key endpoints:
 
+- `GET /overview`
 - `GET /sources`
+- `POST /sources/{source_key}/health-check` (HTTP 202)
+- `GET /sync-runs`
+- `POST /sync-runs` (HTTP 202)
+- `GET /sync-runs/{run_id}`
+- `POST /sync-runs/{run_id}/cancel`
+- `GET /sync-runs/{run_id}/failures`
 - `GET /adsorption`
 - `GET /adsorption/{isotherm_id}`
 - `GET /materials`
@@ -161,7 +175,19 @@ Key endpoints:
 - `GET /structures/search`
 - `POST /structures/import`
 
-List endpoints use server-side pagination and filters. External provider failures are mapped to explicit HTTP errors and do not invalidate unrelated providers or local records.
+List endpoints use server-side pagination and filters. New workspace actions enqueue operations through `POST /sync-runs`, return HTTP 202, and expose progress, cancellation, and per-record failures. The existing `POST /chemicals/resolve` and `POST /structures/import` endpoints remain synchronous and keep their original response contracts for API clients; the Angular workspace uses the durable routes. `DELETE /sync-runs/{run_id}` remains a cancellation alias for clients that used the early durable-run contract. External provider failures are recorded on the run and do not invalidate unrelated providers or local records.
+
+The Overview endpoint returns aggregate counts and acquisition summaries from local tables in one database read. `GET /sources` returns provider registration, saved health state, freshness, last successful sync time, and cached counts without contacting providers. Health-check requests return a durable run ID immediately. The Sources view polls saved run state and keeps registry details visible while checks are pending. Counts remain unresolved in the Overview UI until the local response arrives, and a response from a previous view is ignored after navigation.
+
+## Durable acquisition runs
+
+`public_data_sync_runs` stores operation parameters, queued/running/terminal status, progress counters, checkpoint, cancellation request, error summary, and timestamps. `public_data_sync_failures` stores per-record failures with an optional retry-eligible time. Source rows retain health status and last successful sync time. The startup migration is additive and preserves all imported records.
+
+The in-process coordinator polls and claims queued rows from the local database; it adds no broker or separate service. Its configured concurrency is bounded and defaults to one active run. SQLite write transactions are serialized within the single backend process. NIST fetches are split into batches, write each batch before saving its checkpoint, and use the existing canonical upserts and identifier checks. With startup resume enabled, NIST and COD continue after the last checkpointed external ID. If a record was committed immediately before a crash but its checkpoint was not, the local identifier check skips it instead of importing a duplicate. Interrupted runs remain visible; automatic resume is disabled by default and can be enabled explicitly. Cancellation is checked between NIST batches and selected COD records; a single in-flight PubChem or COD request is allowed to finish before its run becomes terminal.
+
+Acquisition is incremental and bounded. NIST runs fetch at most the configured record cap, retain committed batches, and save explicit reasons for transport failures and records excluded by current schema or unit support. PubChem resolves a requested CID, InChIKey, or name and reuses local CID/InChIKey matches before making remote requests; it does not mirror the catalog. COD imports one selected ID or an explicit selection of up to 50 IDs per run, preserves each returned CIF and provenance, rejects content without a CIF data block, and refuses to reassign a structure already linked to a different material. Partial COD batches retain successful imports and report each failed record.
+
+Automatic refresh is disabled by default. It can be enabled for an explicit list of NIST collections with a configured interval and fraction; each scheduled refresh is stored as an ordinary durable run. PubChem and COD remain targeted user actions.
 
 ## Frontend workspace
 
@@ -174,7 +200,7 @@ The Angular route `/public-data/:view` is the single public-data workspace. View
 - Structures
 - Sources
 
-The old split public-materials destination is removed rather than retained as a compatibility route. NIST acquisition controls live in Sources, while normalized data exploration lives in domain views.
+The old split public-materials destination is removed rather than retained as a compatibility route. NIST collection fetches, PubChem resolution, COD single or selected multi-record imports, provider health checks, cancellation, and persisted run history use the same durable coordinator; normalized data exploration lives in domain views. Sources shows provider registration, last known connection state and freshness, local provenance counts, last successful sync, and durable activity. PubChem resolution remains in Chemicals and COD search/import remains in Structures so existing controls are not duplicated.
 
 The central tables use bounded columns, truncation for long identifiers, explicit detail actions, server-side pagination, loading/empty/error states, and horizontally scrollable table frames when the available viewport cannot represent all scientific columns safely.
 

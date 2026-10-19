@@ -119,6 +119,13 @@
     font-size: 0.76rem;
 }
 
+.acquisition-summary {
+    grid-column: 1 / -1;
+    margin: -14px 0 0;
+    color: var(--text-secondary, #667085);
+    font-size: 0.74rem;
+}
+
 .section-heading,
 .source-summary-head,
 .detail-header,
@@ -207,6 +214,10 @@
     color: #b42318;
 }
 
+.health-dot.degraded {
+    color: #b54708;
+}
+
 .capability-list {
     display: flex;
     flex-wrap: wrap;
@@ -226,6 +237,78 @@
     gap: 8px 14px;
     color: var(--text-secondary, #667085);
     font-size: 0.72rem;
+}
+
+.sync-run-list {
+    display: grid;
+    gap: 8px;
+}
+
+.sync-run-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(100px, 0.7fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #e3e7ee);
+    font-size: 0.73rem;
+}
+
+.sync-run-row > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.sync-run-row > div span {
+    color: var(--text-secondary, #667085);
+}
+
+.sync-run-row progress {
+    width: 100%;
+}
+
+.sync-run-row > span {
+    color: var(--text-secondary, #667085);
+    white-space: nowrap;
+}
+
+.sync-run-error {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--danger, #b42318);
+    font-size: 0.82rem;
+}
+
+.sync-run-details {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface-muted, #f5f7fa);
+}
+
+.sync-run-details p {
+    margin: 0;
+    color: var(--text-secondary, #667085);
+    font-size: 0.8rem;
+}
+
+.sync-failures {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding-left: 18px;
+}
+
+.sync-failures li {
+    display: grid;
+    gap: 2px;
+    overflow-wrap: anywhere;
+    font-size: 0.8rem;
+}
+
+.sync-failures li span {
+    color: var(--text-secondary, #667085);
 }
 
 .source-summary-foot {
@@ -627,6 +710,13 @@
     font-size: 0.68rem;
 }
 
+.source-configured {
+    color: var(--text-secondary, #667085);
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 .health-dot {
     width: 8px;
     height: 8px;
@@ -706,6 +796,10 @@
         align-items: start;
     }
 
+    .sync-run-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
     .source-detail {
         grid-column: 1 / -1;
     }
@@ -736,6 +830,11 @@
 
     .source-detail {
         grid-column: auto;
+    }
+
+    .sync-run-row {
+        grid-template-columns: 1fr;
+        align-items: start;
     }
 
     .atom-list {

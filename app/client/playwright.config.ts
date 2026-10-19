@@ -3,6 +3,8 @@
 
 import { defineConfig } from '@playwright/test';
 
+const frontendPort = Number(process.env.ADSMOD_FRONTEND_TEST_PORT ?? 5173);
+
 export default defineConfig({
     testDir: './tests/visual',
     outputDir: '../../assets/QA/core-visual-artifacts',
@@ -21,7 +23,7 @@ export default defineConfig({
         { name: 'mobile-600x900', use: { viewport: { width: 600, height: 900 } } },
     ],
     use: {
-        baseURL: 'http://127.0.0.1:5173',
+        baseURL: `http://127.0.0.1:${frontendPort}`,
         channel: 'msedge',
         colorScheme: 'light',
         locale: 'en-US',
@@ -31,8 +33,8 @@ export default defineConfig({
         video: 'off',
     },
     webServer: {
-        command: 'npm run dev',
-        url: 'http://127.0.0.1:5173/datasets',
+        command: `npm run dev -- --port ${frontendPort}`,
+        url: `http://127.0.0.1:${frontendPort}/datasets`,
         reuseExistingServer: !process.env.CI,
         stdout: 'pipe',
         stderr: 'pipe',

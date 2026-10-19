@@ -13,12 +13,18 @@ async function installApiMocks(page: Page): Promise<void> {
     await page.route('**/api/v1/system/capabilities**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ version: '3.0.0', features: { datasets: true, nist: true, fitting: true, machine_learning: false, training: false, checkpoints: false } }) });
     });
-    await page.route('**/api/v1/public-data/sources**', async (route) => {
+    await page.route('**/api/v1/public-data/sources', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: [
-            { key: 'nist', name: 'NIST/ARPA-E Adsorption Database', description: 'Adsorption experiments, guest species, and host materials.', capabilities: ['adsorption', 'materials', 'chemicals', 'references'], status: 'available', status_detail: null, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: 'https://adsorption.nist.gov/', record_count: 3210, last_checked_at: '2026-09-02T12:00:00Z' },
-            { key: 'pubchem', name: 'PubChem', description: 'Chemical identities, descriptors, synonyms, and molecular structures.', capabilities: ['chemicals', 'structures', 'references'], status: 'available', status_detail: null, homepage_url: 'https://pubchem.ncbi.nlm.nih.gov/', license_name: 'Public domain / source-attributed records', license_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/downloads', terms_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access', record_count: 142, last_checked_at: '2026-09-02T12:00:00Z' },
-            { key: 'cod', name: 'Crystallography Open Database', description: 'Open crystal structures, CIF records, and publication metadata.', capabilities: ['materials', 'structures', 'references'], status: 'unavailable', status_detail: 'Validation fixture: provider temporarily unavailable.', homepage_url: 'https://www.crystallography.net/cod/', license_name: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/', terms_url: 'https://wiki.crystallography.net/howtoobtaincod/', record_count: 38, last_checked_at: '2026-09-02T12:00:00Z' },
+            { key: 'nist', name: 'NIST/ARPA-E Adsorption Database', description: 'Adsorption experiments, guest species, and host materials.', capabilities: ['adsorption', 'materials', 'chemicals', 'references'], health_status: 'available', health_detail: null, health_fresh: true, last_health_checked_at: '2026-09-02T12:00:00Z', last_successful_sync_at: null, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: 'https://adsorption.nist.gov/', record_count: 3210 },
+            { key: 'pubchem', name: 'PubChem', description: 'Chemical identities, descriptors, synonyms, and molecular structures.', capabilities: ['chemicals', 'structures', 'references'], health_status: 'available', health_detail: null, health_fresh: true, last_health_checked_at: '2026-09-02T12:00:00Z', last_successful_sync_at: null, homepage_url: 'https://pubchem.ncbi.nlm.nih.gov/', license_name: 'Public domain / source-attributed records', license_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/downloads', terms_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access', record_count: 142 },
+            { key: 'cod', name: 'Crystallography Open Database', description: 'Open crystal structures, CIF records, and publication metadata.', capabilities: ['materials', 'structures', 'references'], health_status: 'unavailable', health_detail: 'Validation fixture: provider temporarily unavailable.', health_fresh: true, last_health_checked_at: '2026-09-02T12:00:00Z', last_successful_sync_at: null, homepage_url: 'https://www.crystallography.net/cod/', license_name: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/', terms_url: 'https://wiki.crystallography.net/howtoobtaincod/', record_count: 38 },
         ] }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs**', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ runs: [], total: 0 }) });
+    });
+    await page.route('**/api/v1/public-data/overview', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ adsorption_records: 101, materials: 50, chemicals: 80, structures: 38, active_sync_runs: 0, failed_sync_runs: 0, latest_successful_sync_at: null }) });
     });
     await page.route('**/api/v1/public-data/adsorption/1', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, external_id: longExternalId, source: 'nist', source_url: 'https://adsorption.nist.gov/', material: longMaterial, adsorbates: ['carbon dioxide'], temperature_k: 298.15, pressure_min_pa: 1000, pressure_max_pa: 1000000, uptake_min_mol_kg: 0.02, uptake_max_mol_kg: 8.4, point_count: 4, reference: '10.1000/example', retrieved_at: '2026-09-02T12:00:00Z', pressure_basis: 'absolute', conditions: { method: 'volumetric' }, provenance: { normalized: true }, external_identifiers: [{ source: 'nist', external_id: longExternalId, source_url: 'https://adsorption.nist.gov/', retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], measurements: [
@@ -62,15 +68,15 @@ async function assertContainedLayout(page: Page): Promise<void> {
 test('public data workspace remains contained across dense scientific views', async ({ page }, testInfo: TestInfo) => {
     await installApiMocks(page);
     let useOverviewScreenshotFixture = true;
-    await page.route('**/api/v1/public-data/sources**', async (route) => {
+    await page.route('**/api/v1/public-data/sources', async (route) => {
         if (!useOverviewScreenshotFixture) {
             await route.fallback();
             return;
         }
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: [
-            { key: 'cod', name: 'Crystallography Open Database', description: 'Open crystallographic structures with unit-cell metadata, atomic coordinates, CIF files, and publication references.', capabilities: ['materials', 'structures', 'references'], status: 'available', status_detail: null, homepage_url: 'https://www.crystallography.net/cod/', license_name: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/', terms_url: 'https://wiki.crystallography.net/howtoobtaincod/', record_count: 0, last_checked_at: null },
-            { key: 'nist', name: 'NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials', description: 'Public adsorption experiments plus guest-species and host-material records from the ADSMOD NIST integration.', capabilities: ['adsorption', 'materials', 'chemicals', 'references'], status: 'available', status_detail: null, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: 'https://adsorption.nist.gov/', record_count: 0, last_checked_at: null },
-            { key: 'pubchem', name: 'PubChem', description: 'NIH public chemical information, identifiers, molecular descriptors, and 2D/3D structure records.', capabilities: ['chemicals', 'structures', 'references'], status: 'available', status_detail: null, homepage_url: 'https://pubchem.ncbi.nlm.nih.gov/', license_name: 'Public domain / source-attributed records', license_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/downloads', terms_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access', record_count: 0, last_checked_at: null },
+            { key: 'cod', name: 'Crystallography Open Database', description: 'Open crystallographic structures with unit-cell metadata, atomic coordinates, CIF files, and publication references.', capabilities: ['materials', 'structures', 'references'], health_status: 'unknown', health_detail: null, health_fresh: false, last_health_checked_at: null, last_successful_sync_at: null, homepage_url: 'https://www.crystallography.net/cod/', license_name: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/', terms_url: 'https://wiki.crystallography.net/howtoobtaincod/', record_count: 0 },
+            { key: 'nist', name: 'NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials', description: 'Public adsorption experiments plus guest-species and host-material records from the ADSMOD NIST integration.', capabilities: ['adsorption', 'materials', 'chemicals', 'references'], health_status: 'unknown', health_detail: null, health_fresh: false, last_health_checked_at: null, last_successful_sync_at: null, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: 'https://adsorption.nist.gov/', record_count: 0 },
+            { key: 'pubchem', name: 'PubChem', description: 'NIH public chemical information, identifiers, molecular descriptors, and 2D/3D structure records.', capabilities: ['chemicals', 'structures', 'references'], health_status: 'unknown', health_detail: null, health_fresh: false, last_health_checked_at: null, last_successful_sync_at: null, homepage_url: 'https://pubchem.ncbi.nlm.nih.gov/', license_name: 'Public domain / source-attributed records', license_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/downloads', terms_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access', record_count: 0 },
         ] }) });
     });
     for (const resource of ['adsorption', 'materials', 'chemicals', 'structures']) {
@@ -120,4 +126,224 @@ test('public data workspace remains contained across dense scientific views', as
     await page.getByRole('button', { name: 'Inspect' }).click();
     await expect(page.getByRole('heading', { name: 'carbon dioxide' })).toBeVisible();
     await assertContainedLayout(page);
+});
+
+test('Overview renders before one local summary response and skips provider health probes', async ({ page }) => {
+    await installApiMocks(page);
+
+    const sourceRequests: string[] = [];
+    const providerRequests: string[] = [];
+    let overviewRequests = 0;
+    let releaseOverview!: () => void;
+    let markOverviewStarted!: () => void;
+    const overviewGate = new Promise<void>((resolve) => { releaseOverview = resolve; });
+    const overviewStarted = new Promise<void>((resolve) => { markOverviewStarted = resolve; });
+
+    await page.route('**/api/v1/public-data/sources', async (route) => {
+        sourceRequests.push(route.request().url());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: [] }) });
+    });
+    await page.route('**/api/v1/public-data/overview', async (route) => {
+        overviewRequests += 1;
+        markOverviewStarted();
+        await overviewGate;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ adsorption_records: 40, materials: 12, chemicals: 8, structures: 3, active_sync_runs: 0, failed_sync_runs: 0, latest_successful_sync_at: null }) });
+    });
+    page.on('request', (request) => {
+        if (/adsorption\.nist\.gov|pubchem\.ncbi\.nlm\.nih\.gov|crystallography\.net/i.test(request.url())) {
+            providerRequests.push(request.url());
+        }
+    });
+
+    await page.goto('/public-data/overview');
+    await overviewStarted;
+    await expect(page.getByRole('heading', { name: 'Integrated sources' })).toBeVisible();
+    await expect(page.locator('.overview-totals strong').first()).toHaveText('—');
+    expect(overviewRequests).toBe(1);
+    expect(sourceRequests).toHaveLength(1);
+    expect(new URL(sourceRequests[0]).pathname).toBe('/api/v1/public-data/sources');
+    expect(providerRequests).toEqual([]);
+
+    releaseOverview();
+    await expect(page.locator('.overview-totals strong').nth(0)).toHaveText('40');
+    await expect(page.locator('.overview-totals strong').nth(1)).toHaveText('12');
+    await expect(page.locator('.overview-totals strong').nth(2)).toHaveText('8');
+    await expect(page.locator('.overview-totals strong').nth(3)).toHaveText('3');
+});
+
+test('Sources shows cached status and refreshes it through a background health run', async ({ page }) => {
+    await installApiMocks(page);
+
+    let releaseHealth!: () => void;
+    let markHealthStarted!: () => void;
+    let healthResolved = false;
+    const healthGate = new Promise<void>((resolve) => { releaseHealth = resolve; });
+    const healthStarted = new Promise<void>((resolve) => { markHealthStarted = resolve; });
+
+    await page.route('**/api/v1/public-data/sources', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: [
+            { key: 'nist', name: 'NIST test provider', description: 'Local provider registration.', capabilities: ['adsorption'], health_status: healthResolved ? 'available' : 'unknown', health_detail: null, health_fresh: healthResolved, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: null, record_count: 4, last_health_checked_at: healthResolved ? '2026-10-19T10:00:00Z' : null, last_successful_sync_at: null },
+        ] }) });
+    });
+    await page.route('**/api/v1/public-data/sources/nist/health-check', async (route) => {
+        await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'health-1', source_key: 'nist', operation: 'health_check', parameters: {}, status: 'queued', progress: 0, processed_count: 0, imported_count: 0, skipped_count: 0, failed_count: 0, checkpoint: {}, cancel_requested: false, error_detail: null, created_at: '2026-10-19T10:00:00Z', started_at: null, finished_at: null }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs/health-1', async (route) => {
+        markHealthStarted();
+        await healthGate;
+        healthResolved = true;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'health-1', source_key: 'nist', operation: 'health_check', parameters: {}, status: 'completed', progress: 100, processed_count: 1, imported_count: 0, skipped_count: 0, failed_count: 0, checkpoint: {}, cancel_requested: false, error_detail: null, created_at: '2026-10-19T10:00:00Z', started_at: '2026-10-19T10:00:00Z', finished_at: '2026-10-19T10:00:01Z' }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs?limit=20&offset=0', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ runs: [], total: 0 }) });
+    });
+
+    await page.goto('/public-data/sources');
+    await expect(page.getByText('NIST test provider')).toBeVisible();
+    await expect(page.getByText('Configured', { exact: true })).toBeVisible();
+    await expect(page.getByText('4 cached provenance records')).toBeVisible();
+    await expect(page.getByText('Not checked')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Refresh status' }).click();
+    await healthStarted;
+    await expect(page.getByText('Not checked')).toBeVisible();
+    releaseHealth();
+    await expect(page.getByText('available', { exact: true })).toBeVisible();
+});
+
+test('NIST collection fetching uses durable progress and cooperative cancellation', async ({ page }) => {
+    await installApiMocks(page);
+
+    let cancelRequested = false;
+    let requestBody: Record<string, unknown> | null = null;
+    await page.route('**/api/v1/public-data/sync-runs', async (route) => {
+        if (route.request().method() !== 'POST') {
+            await route.fallback();
+            return;
+        }
+        requestBody = route.request().postDataJSON() as Record<string, unknown>;
+        await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({
+            id: 'nist-run-1', source_key: 'nist', operation: 'nist_category', parameters: requestBody,
+            status: 'queued', progress: 0, processed_count: 0, imported_count: 0,
+            skipped_count: 0, failed_count: 0, checkpoint: {}, cancel_requested: false,
+            error_detail: null, created_at: '2026-10-19T10:00:00Z', started_at: null, finished_at: null,
+        }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs/nist-run-1', async (route) => {
+        const status = cancelRequested ? 'cancelled' : 'running';
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+            id: 'nist-run-1', source_key: 'nist', operation: 'nist_category',
+            parameters: { category: 'experiments', fraction: 1 }, status,
+            progress: cancelRequested ? 30 : 30, processed_count: 15, imported_count: 12,
+            skipped_count: 2, failed_count: 1, checkpoint: { pending_count: 5 },
+            cancel_requested: cancelRequested, error_detail: null,
+            created_at: '2026-10-19T10:00:00Z', started_at: '2026-10-19T10:00:01Z',
+            finished_at: cancelRequested ? '2026-10-19T10:00:02Z' : null,
+        }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs/nist-run-1/cancel', async (route) => {
+        cancelRequested = true;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+            id: 'nist-run-1', source_key: 'nist', operation: 'nist_category',
+            parameters: { category: 'experiments', fraction: 1 }, status: 'cancelled',
+            progress: 30, processed_count: 15, imported_count: 12, skipped_count: 2,
+            failed_count: 1, checkpoint: { pending_count: 5 }, cancel_requested: true,
+            error_detail: null, created_at: '2026-10-19T10:00:00Z',
+            started_at: '2026-10-19T10:00:01Z', finished_at: '2026-10-19T10:00:02Z',
+        }) });
+    });
+    await page.route(/\/api\/v1\/public-data\/sync-runs\?limit=20&offset=0$/, async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+            total: 1,
+            runs: [{
+                id: 'nist-run-1', source_key: 'nist', operation: 'nist_category',
+                parameters: { category: 'experiments', fraction: 1 }, status: 'cancelled',
+                progress: 30, processed_count: 15, imported_count: 12, skipped_count: 2,
+                failed_count: 1, checkpoint: { pending_count: 5, request_stats: { requests: 5, retries: 1 } },
+                cancel_requested: true, error_detail: null, created_at: '2026-10-19T10:00:00Z',
+                started_at: '2026-10-19T10:00:01Z', finished_at: '2026-10-19T10:00:02Z',
+            }],
+        }) });
+    });
+    await page.route(/\/api\/v1\/public-data\/sync-runs\/nist-run-1\/failures\?limit=100&offset=0$/, async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+            total: 1,
+            failures: [{ id: 1, source_key: 'nist', external_id: 'record-unsupported-1', reason: 'Unsupported uptake unit: foo.', retry_eligible_at: null, created_at: '2026-10-19T10:00:02Z' }],
+        }) });
+    });
+
+    await page.goto('/public-data/sources');
+    await page.getByRole('button', { name: 'Fetch Adsorption experiments' }).click();
+    await expect.poll(() => requestBody).toMatchObject({
+        source_key: 'nist', operation: 'nist_category', category: 'experiments', fraction: 1,
+    });
+    const cancelButton = page.getByRole('button', { name: 'Cancel' }).first();
+    await expect(cancelButton).toBeVisible();
+    await cancelButton.click();
+    await expect(page.getByText(/acquisition cancelled/i)).toBeVisible();
+    await page.getByRole('button', { name: 'View skipped and failed records' }).click();
+    await expect(page.getByText('Unsupported uptake unit: foo.')).toBeVisible();
+    expect(requestBody).not.toBeNull();
+});
+
+test('COD search supports a bounded multi-record durable import', async ({ page }) => {
+    await installApiMocks(page);
+    let requestBody: Record<string, unknown> | null = null;
+    await page.route('**/api/v1/public-data/structures/search**', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [
+            { cod_id: '9012345', name: 'Carbon dioxide phase A', formula: 'CO2', space_group: 'P 21/c', space_group_number: 14, cell_volume_angstrom3: 200.0, has_coordinates: true, source_url: 'https://www.crystallography.net/cod/9012345.html', cif_url: 'https://www.crystallography.net/cod/9012345.cif' },
+            { cod_id: '9012346', name: 'Carbon dioxide phase B', formula: 'CO2', space_group: 'P 1', space_group_number: 1, cell_volume_angstrom3: 210.0, has_coordinates: true, source_url: 'https://www.crystallography.net/cod/9012346.html', cif_url: 'https://www.crystallography.net/cod/9012346.cif' },
+        ] }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs', async (route) => {
+        if (route.request().method() !== 'POST') {
+            await route.fallback();
+            return;
+        }
+        requestBody = route.request().postDataJSON() as Record<string, unknown>;
+        await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({
+            id: 'cod-batch-1', source_key: 'cod', operation: 'cod_import', parameters: requestBody,
+            status: 'completed', progress: 100, processed_count: 2, imported_count: 2,
+            skipped_count: 0, failed_count: 0, checkpoint: { entity_ids: [1, 2], pending_count: 0 },
+            cancel_requested: false, error_detail: null, created_at: '2026-10-19T10:00:00Z',
+            started_at: '2026-10-19T10:00:01Z', finished_at: '2026-10-19T10:00:02Z',
+        }) });
+    });
+
+    await page.goto('/public-data/structures');
+    await page.getByLabel('COD search').fill('carbon dioxide');
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByText('Carbon dioxide phase A')).toBeVisible();
+    await page.getByRole('checkbox', { name: 'Select COD 9012345' }).check();
+    await page.getByRole('checkbox', { name: 'Select COD 9012346' }).check();
+    await page.getByRole('button', { name: 'Import selected (2)' }).click();
+
+    await expect.poll(() => requestBody).toMatchObject({
+        source_key: 'cod',
+        operation: 'cod_import',
+        cod_ids: ['9012345', '9012346'],
+    });
+    expect(requestBody?.['cod_id']).toBeUndefined();
+    await expect(page.getByRole('heading', { name: 'Structures' })).toBeVisible();
+});
+
+test('late Overview responses do not overwrite the selected view', async ({ page }) => {
+    await installApiMocks(page);
+
+    let releaseOverview!: () => void;
+    let markOverviewStarted!: () => void;
+    const overviewGate = new Promise<void>((resolve) => { releaseOverview = resolve; });
+    const overviewStarted = new Promise<void>((resolve) => { markOverviewStarted = resolve; });
+    await page.route('**/api/v1/public-data/overview', async (route) => {
+        markOverviewStarted();
+        await overviewGate;
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Delayed Overview failure' }) });
+    });
+
+    await page.goto('/public-data/overview');
+    await overviewStarted;
+    await page.getByRole('link', { name: 'Materials', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Materials' })).toBeVisible();
+    releaseOverview();
+    await expect(page.getByRole('alert')).toHaveCount(0);
 });

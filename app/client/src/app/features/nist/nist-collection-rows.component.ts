@@ -7,12 +7,16 @@ import {
     pingNistCategoryServer,
     pollNistJobUntilComplete,
     startNistCategoryEnrichJob,
-    startNistCategoryFetchJob,
     startNistCategoryIndexJob,
 } from '../../services/nist.service';
 import type { JobStartResult } from '../../services/job.service';
+import {
+    cancelPublicDataSyncRun,
+    fetchPublicDataSyncRun,
+    startPublicDataSync,
+} from '../../services/public-data.service';
+import type { PublicDataSyncRun } from '../../models/public-data.model';
 import type {
-    NISTCategoryFetchRequest,
     NISTCategoryKey,
     NISTCategoryOperationResponse,
     NISTCategoryRecordStatus,
@@ -24,6 +28,7 @@ interface CategoryOperationState {
     running: boolean;
     operation: CategoryOperation;
     progress: number;
+    runId: string | null;
 }
 
 interface NistActionIcon {
@@ -133,9 +138,9 @@ const initialStatusMap = (): Record<NISTCategoryKey, NISTCategoryRecordStatus> =
     host: emptyStatus('host'),
 });
 const initialOperationMap = (): Record<NISTCategoryKey, CategoryOperationState> => ({
-    experiments: { running: false, operation: 'idle', progress: 0 },
-    guest: { running: false, operation: 'idle', progress: 0 },
-    host: { running: false, operation: 'idle', progress: 0 },
+    experiments: { running: false, operation: 'idle', progress: 0, runId: null },
+    guest: { running: false, operation: 'idle', progress: 0, runId: null },
+    host: { running: false, operation: 'idle', progress: 0, runId: null },
 });
 
 @Component({
@@ -235,6 +240,9 @@ const initialOperationMap = (): Record<NISTCategoryKey, CategoryOperationState> 
                         <span>{{ operationLabels[operation.operation] }}</span>
                         <progress max="100" [value]="operation.progress"></progress>
                         <span>{{ operation.progress }}%</span>
+                        @if (operation.operation === 'fetch' && operation.runId) {
+                            <button class="text-button" type="button" (click)="cancelFetch(category)">Cancel</button>
+                        }
                     </div>
                 }
             }
@@ -365,19 +373,66 @@ export class NistCollectionRowsComponent implements OnInit {
         persistFraction(category, fraction);
         this.fractions.update((previous) => ({ ...previous, [category]: fraction }));
         this.fractionInputs.update((previous) => ({ ...previous, [category]: fraction.toFixed(3) }));
-        const payload: NISTCategoryFetchRequest = { fraction };
-        void this.runCategoryJob(category, 'fetch', () => startNistCategoryFetchJob(category, payload), (result) => {
-            this.statusUpdate.emit([
-                `[INFO] ${CATEGORY_LABELS[category]} records updated.`,
-                '',
-                `- Requested records: ${result.requested_count ?? 0}`,
-                `- New records fetched: ${result.fetched_count ?? 0}`,
-                `- Local records: ${result.local_count ?? 0}`,
-                ...(result.skipped_count
-                    ? [`- Skipped records without canonical units: ${result.skipped_count}`]
-                    : []),
-            ].join('\n'));
-        });
+        void this.runDurableFetch(category, fraction);
+    }
+
+    protected async cancelFetch(category: NISTCategoryKey): Promise<void> {
+        const runId = this.operations()[category].runId;
+        if (!runId) return;
+        const result = await cancelPublicDataSyncRun(runId);
+        if (result.error) this.statusUpdate.emit(`[ERROR] ${CATEGORY_LABELS[category]}: ${result.error}`);
+        else this.statusUpdate.emit(`[INFO] Cancellation requested for ${CATEGORY_LABELS[category]}.`);
+    }
+
+    private async runDurableFetch(category: NISTCategoryKey, fraction: number): Promise<void> {
+        if (this.operations()[category].running) return;
+        this.setCategoryOperation(category, { running: true, operation: 'fetch', progress: 0, runId: null });
+        try {
+            const started = await startPublicDataSync({
+                source_key: 'nist',
+                operation: 'nist_category',
+                category,
+                fraction,
+            });
+            if (!started.data || started.error) {
+                this.statusUpdate.emit(`[ERROR] ${CATEGORY_LABELS[category]}: ${started.error || 'Unable to queue acquisition.'}`);
+                return;
+            }
+            this.setCategoryOperation(category, { runId: started.data.id });
+            let run: PublicDataSyncRun = started.data;
+            while (run.status === 'queued' || run.status === 'running') {
+                await new Promise((resolve) => window.setTimeout(resolve, 1000));
+                const current = await fetchPublicDataSyncRun(run.id);
+                if (!current.data || current.error) {
+                    this.statusUpdate.emit(`[ERROR] ${CATEGORY_LABELS[category]}: ${current.error || 'Unable to read acquisition status.'}`);
+                    return;
+                }
+                run = current.data;
+                this.setCategoryOperation(category, {
+                    progress: Math.round(run.progress),
+                    runId: run.id,
+                });
+            }
+            if (run.status === 'completed' || run.status === 'partially_completed') {
+                const pendingCount = Number(run.checkpoint['pending_count'] ?? 0);
+                this.statusUpdate.emit([
+                    `[INFO] ${CATEGORY_LABELS[category]} acquisition ${run.status.replace('_', ' ')}.`,
+                    '',
+                    `- Records processed: ${run.processed_count}`,
+                    `- New records saved: ${run.imported_count}`,
+                    `- Skipped: ${run.skipped_count}`,
+                    `- Failed: ${run.failed_count}`,
+                    ...(pendingCount > 0
+                        ? [`- ${pendingCount} records remain for a later bounded run.`]
+                        : []),
+                ].join('\n'));
+            } else {
+                this.statusUpdate.emit(`[${run.status === 'cancelled' ? 'INFO' : 'ERROR'}] ${CATEGORY_LABELS[category]} acquisition ${run.status.replace('_', ' ')}${run.error_detail ? `: ${run.error_detail}` : '.'}`);
+            }
+        } finally {
+            this.setCategoryOperation(category, { running: false, operation: 'idle', progress: 0, runId: null });
+            await this.loadCategoryStatus();
+        }
     }
 
     protected handleEnrich(category: NISTCategoryKey): void {
