@@ -4180,20 +4180,6 @@ button.secondary {
   color: #58657f;
 }
 
-.route-canvas-fitting button.primary,
-.route-canvas-fitting input:checked + .slider {
-  background: linear-gradient(135deg, #6337e8 0%, #7554f3 100%);
-  box-shadow: 0 14px 30px -22px rgba(99, 55, 232, 0.9);
-}
-
-.route-canvas-fitting .header-tab.active {
-  color: #5f40e5;
-}
-
-.route-canvas-fitting .header-tab.active::after {
-  background: #6847e8;
-}
-
 .status-text {
   min-height: 148px;
   max-height: none;
@@ -5154,10 +5140,6 @@ input.source-file-input {
 .nist-clear-button svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .nist-log-empty { flex: 1; min-height: 0; margin: 0 1rem 1rem; padding: 1rem 1.1rem; border: 1px solid #d9e2ee; border-radius: 8px; background: #f8fbff; color: #61708a; font-size: 0.85rem; }
 .nist-log-card .reference-log { flex: 1; min-height: 0; height: auto; max-height: none; margin: 0 1rem 1rem; overflow-y: auto; border: 1px solid #d9e2ee; background: #f8fbff; color: #33425c; }
-.dashboards-placeholder { min-height: 220px; display: grid; place-items: center; }
-.dashboards-placeholder-content { max-width: 34rem; padding: 2.5rem; text-align: center; }
-.dashboards-placeholder-content h2 { margin: 0 0 0.45rem; color: var(--console-text, #1c2a45); font-size: 1.3rem; }
-.dashboards-placeholder-content p:last-child { margin: 0; color: var(--console-text-muted, #657386); font-size: 0.9rem; }
 .help-modal-backdrop { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 1.5rem; background: rgba(3, 24, 47, 0.38); backdrop-filter: blur(4px); }
 .help-modal { width: min(100%, 660px); max-height: min(720px, calc(100vh - 3rem)); overflow: auto; border: 1px solid #d4deed; border-radius: 18px; background: #ffffff; box-shadow: 0 24px 70px rgba(3, 29, 51, 0.26); }
 .help-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.35rem 1.4rem 1.1rem; border-bottom: 1px solid #e4eaf3; }

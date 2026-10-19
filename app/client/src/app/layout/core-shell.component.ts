@@ -305,7 +305,17 @@ export class CoreShellComponent {
                         this.sidebar.nativeElement.scrollLeft = 0;
                     }
                 });
+                this.revealActiveNavItem();
             });
+        this.revealActiveNavItem();
+    }
+
+    /** On narrow screens the nav is a scrollable row; keep the current page's item visible. */
+    private revealActiveNavItem(): void {
+        setTimeout(() => {
+            const active = this.sidebar?.nativeElement.querySelector<HTMLElement>('.console-nav-item.active');
+            active?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+        });
     }
 
     private async refreshBackendStatus(): Promise<void> {
