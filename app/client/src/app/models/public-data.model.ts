@@ -3,6 +3,8 @@
 
 export type PublicDataView = 'overview' | 'adsorption' | 'materials' | 'chemicals' | 'structures' | 'sources';
 export type SourceStatus = 'available' | 'degraded' | 'unavailable' | 'unknown';
+export type PublicDataSyncStatus = 'queued' | 'running' | 'completed' | 'partially_completed' | 'failed' | 'cancelled' | 'interrupted';
+export type PublicDataSyncOperation = 'health_check' | 'nist_category' | 'pubchem_resolve' | 'cod_import';
 
 export interface Pagination {
     page: number;
@@ -23,18 +25,79 @@ export interface PublicSourceSummary {
     name: string;
     description: string;
     capabilities: string[];
-    status: SourceStatus;
-    status_detail: string | null;
     homepage_url: string;
     license_name: string | null;
     license_url: string | null;
     terms_url: string | null;
     record_count: number;
-    last_checked_at: string | null;
+    health_status: SourceStatus;
+    health_detail: string | null;
+    last_health_checked_at: string | null;
+    health_fresh: boolean;
+    last_successful_sync_at: string | null;
 }
 
 export interface PublicSourceListResponse {
     sources: PublicSourceSummary[];
+}
+
+export interface PublicDataOverviewResponse {
+    adsorption_records: number;
+    materials: number;
+    chemicals: number;
+    structures: number;
+    active_sync_runs: number;
+    failed_sync_runs: number;
+    latest_successful_sync_at: string | null;
+}
+
+export interface PublicDataSyncRequest {
+    source_key: 'nist' | 'pubchem' | 'cod';
+    operation: 'nist_category' | 'pubchem_resolve' | 'cod_import';
+    category?: 'experiments' | 'guest' | 'host';
+    fraction?: number;
+    query?: string;
+    cod_id?: string;
+    cod_ids?: string[];
+    adsorbent_id?: number | null;
+}
+
+export interface PublicDataSyncRun {
+    id: string;
+    source_key: string;
+    operation: PublicDataSyncOperation;
+    parameters: Record<string, unknown>;
+    status: PublicDataSyncStatus;
+    progress: number;
+    processed_count: number;
+    imported_count: number;
+    skipped_count: number;
+    failed_count: number;
+    checkpoint: Record<string, unknown>;
+    cancel_requested: boolean;
+    error_detail: string | null;
+    created_at: string;
+    started_at: string | null;
+    finished_at: string | null;
+}
+
+export interface PublicDataSyncRunListResponse {
+    runs: PublicDataSyncRun[];
+    total: number;
+}
+
+export interface PublicDataSyncFailure {
+    id: number;
+    source_key: string;
+    external_id: string | null;
+    reason: string;
+    retry_eligible_at: string | null;
+    created_at: string;
+}
+
+export interface PublicDataSyncFailureListResponse {
+    failures: PublicDataSyncFailure[];
+    total: number;
 }
 
 export interface AdsorptionRecordView {

@@ -12,6 +12,9 @@ import type {
     ChemicalPageResponse,
     ChemicalRecordView,
     MaterialPageResponse,
+    PublicDataOverviewResponse,
+    PublicDataSyncFailure,
+    PublicDataSyncRun,
     PublicDataView,
     PublicSourceSummary,
     StructurePageResponse,
@@ -23,12 +26,18 @@ import {
     fetchPublicChemicalDetail,
     fetchPublicChemicals,
     fetchPublicMaterials,
+    fetchPublicOverview,
+    checkPublicSourceHealth,
+    cancelPublicDataSyncRun,
+    fetchPublicDataSyncRun,
+    fetchPublicDataSyncFailures,
+    fetchPublicDataSyncRuns,
     fetchPublicSources,
     fetchPublicStructureDetail,
     fetchPublicStructures,
-    importCOD,
     resolvePubChem,
     searchCOD,
+    startPublicDataSync,
 } from '../../services/public-data.service';
 import { NistCollectionRowsComponent } from '../nist/nist-collection-rows.component';
 
@@ -77,11 +86,12 @@ const VIEWS: readonly PublicDataView[] = [
                             <p>Discover external records, cache normalized scientific metadata locally, and retain source identifiers, retrieval times, original units, and source links.</p>
                         </div>
                         <div class="overview-totals" aria-label="Local public data counts">
-                            <div><strong>{{ overviewAdsorptionTotal() }}</strong><span>adsorption records</span></div>
-                            <div><strong>{{ overviewMaterialTotal() }}</strong><span>materials</span></div>
-                            <div><strong>{{ overviewChemicalTotal() }}</strong><span>chemicals</span></div>
-                            <div><strong>{{ overviewStructureTotal() }}</strong><span>structures</span></div>
+                            <div><strong>{{ overviewAdsorptionTotal() ?? '—' }}</strong><span>adsorption records</span></div>
+                            <div><strong>{{ overviewMaterialTotal() ?? '—' }}</strong><span>materials</span></div>
+                            <div><strong>{{ overviewChemicalTotal() ?? '—' }}</strong><span>chemicals</span></div>
+                            <div><strong>{{ overviewStructureTotal() ?? '—' }}</strong><span>structures</span></div>
                         </div>
+                        <p class="acquisition-summary" aria-live="polite">Acquisition activity: {{ activeSyncRuns() }} active · {{ failedSyncRuns() }} failed · latest successful sync {{ formatDate(latestSyncAt()) }}</p>
                     </section>
                     <section class="public-section">
                         <div class="section-heading">
@@ -93,7 +103,7 @@ const VIEWS: readonly PublicDataView[] = [
                                 <article class="source-summary">
                                     <div class="source-summary-head">
                                         <div><strong>{{ source.name }}</strong><span class="source-key">{{ source.key }}</span></div>
-                                        <span class="source-status" [class.available]="source.status === 'available'" [class.unavailable]="source.status === 'unavailable'">{{ source.status }}</span>
+                                        <span class="source-status" [class.available]="source.health_status === 'available'" [class.unavailable]="source.health_status === 'unavailable'">{{ source.health_status }}</span>
                                     </div>
                                     <p>{{ source.description }}</p>
                                     <div class="capability-list">
@@ -191,7 +201,7 @@ const VIEWS: readonly PublicDataView[] = [
                     <section class="public-section">
                         <div class="section-heading"><div><p class="eyebrow">Crystallographic records</p><h3>Structures</h3><p>Search COD with a bounded query, inspect crystallographic metadata, then explicitly link imported structures to a canonical material when appropriate.</p></div></div>
                         <div class="provider-query structure-query"><div><label for="cod-query">COD search</label><span>Use a COD ID, formula, or text query. Broad result sets are rejected server-side.</span></div><input id="cod-query" [(ngModel)]="codQuery" placeholder="COD ID, formula, or text" (keyup.enter)="searchStructures()"/><select [(ngModel)]="codQueryType"><option value="text">Text</option><option value="formula">Formula</option><option value="id">COD ID</option></select><button class="button primary" type="button" [disabled]="providerBusy() || !codQuery.trim()" (click)="searchStructures()">Search</button></div>
-                        @if (codResults().length) {<div class="provider-results"><div class="section-heading small"><div><h4>COD results</h4><p>Importing stores the original CIF plus normalized unit-cell and atom-site coordinates.</p></div></div><div class="table-frame"><table><thead><tr><th>COD ID</th><th>Name</th><th>Formula</th><th>Space group</th><th>Cell volume</th><th>Coordinates</th><th></th></tr></thead><tbody>@for (item of codResults(); track item.cod_id) {<tr><td>{{ item.cod_id }}</td><td class="truncate-cell" [title]="item.name || ''">{{ item.name || '—' }}</td><td>{{ item.formula || '—' }}</td><td>{{ item.space_group || '—' }}</td><td>{{ item.cell_volume_angstrom3 === null ? '—' : formatNumber(item.cell_volume_angstrom3) + ' Å³' }}</td><td>{{ item.has_coordinates ? 'Yes' : 'Unknown' }}</td><td><button class="row-action" type="button" (click)="importStructure(item)">Import</button></td></tr>}</tbody></table></div></div>} @else if (codSearchCompleted()) {<p class="empty-inline provider-empty-state" role="status">No COD records matched that query. Try a COD ID, formula, or narrower text query.</p>}
+                        @if (codResults().length) {<div class="provider-results"><div class="section-heading small"><div><h4>COD results</h4><p>Importing stores the original CIF plus normalized unit-cell and atom-site coordinates. Select up to 50 records for one bounded acquisition.</p></div><div class="filter-actions"><button class="button secondary" type="button" (click)="selectAllCodResults()">Select up to 50</button><button class="button primary" type="button" [disabled]="providerBusy() || !selectedCodIds().length" (click)="importSelectedStructures()">Import selected ({{ selectedCodIds().length }})</button></div></div><div class="table-frame"><table><thead><tr><th>Select</th><th>COD ID</th><th>Name</th><th>Formula</th><th>Space group</th><th>Cell volume</th><th>Coordinates</th><th></th></tr></thead><tbody>@for (item of codResults(); track item.cod_id) {<tr><td><input type="checkbox" [checked]="selectedCodIds().includes(item.cod_id)" [attr.aria-label]="'Select COD ' + item.cod_id" (change)="toggleCodSelection(item.cod_id, $event)" /></td><td>{{ item.cod_id }}</td><td class="truncate-cell" [title]="item.name || ''">{{ item.name || '—' }}</td><td>{{ item.formula || '—' }}</td><td>{{ item.space_group || '—' }}</td><td>{{ item.cell_volume_angstrom3 === null ? '—' : formatNumber(item.cell_volume_angstrom3) + ' Å³' }}</td><td>{{ item.has_coordinates ? 'Yes' : 'Unknown' }}</td><td><button class="row-action" type="button" [disabled]="providerBusy()" (click)="importStructure(item)">Import</button></td></tr>}</tbody></table></div></div>} @else if (codSearchCompleted()) {<p class="empty-inline provider-empty-state" role="status">No COD records matched that query. Try a COD ID, formula, or narrower text query.</p>}
                         <div class="filter-bar compact"><label>Local structures<input [(ngModel)]="structureQuery" placeholder="Name or formula" /></label><label>Link status<select [(ngModel)]="structureLink"><option value="">Any</option><option value="linked">Linked to material</option><option value="unlinked">Unlinked</option></select></label><div class="filter-actions"><button class="button primary" type="button" (click)="applyStructureFilters()">Apply</button><button class="button secondary" type="button" (click)="resetStructureFilters()">Reset</button></div></div>
                         <div class="table-frame"><table><thead><tr><th>Source</th><th>Source ID</th><th>Material</th><th>Formula</th><th>Space group</th><th>Atoms</th><th>Retrieved</th><th></th></tr></thead><tbody>@for (item of structures()?.items ?? []; track item.id) {<tr><td><span class="source-key">{{ item.source }}</span></td><td>{{ item.external_id }}</td><td class="truncate-cell">{{ item.material_name || 'Unlinked' }}</td><td>{{ item.formula || '—' }}</td><td>{{ item.space_group || '—' }}</td><td>{{ item.atom_count }}</td><td>{{ formatDate(item.retrieved_at) }}</td><td><button class="row-action" type="button" (click)="openStructure(item.id)">Inspect</button></td></tr>} @empty {<tr><td colspan="8" class="empty-table">No imported structures match the current filters.</td></tr>}</tbody></table></div>
                         <div class="pagination-row">{{ pageSummary(structures()?.pagination) }}<div><button class="button secondary" type="button" [disabled]="page() <= 1" (click)="previousPage()">Previous</button><button class="button secondary" type="button" [disabled]="!hasNextPage(structures()?.pagination)" (click)="nextPage()">Next</button></div></div>
@@ -200,15 +210,44 @@ const VIEWS: readonly PublicDataView[] = [
                 }
                 @case ('sources') {
                     <section class="public-section">
-                        <div class="section-heading"><div><p class="eyebrow">Provider registry</p><h3>Sources & acquisition</h3><p>Provider availability is independent. An outage in one public service does not make locally cached records or other providers unavailable.</p></div><button class="button secondary" type="button" (click)="refreshSources()">Refresh status</button></div>
+                        <div class="section-heading"><div><p class="eyebrow">Provider registry</p><h3>Sources & acquisition</h3><p>Provider availability is independent. The status shown here is the last saved check; refreshing queues a bounded background check.</p></div><button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button></div>
                         <div class="source-table">
                             @for (source of sources(); track source.key) {
-                                <article class="source-row"><div class="source-health"><span class="health-dot" [class.available]="source.status === 'available'" [class.unavailable]="source.status === 'unavailable'"></span><div><strong>{{ source.name }}</strong><code>{{ source.key }}</code></div></div><p>{{ source.description }}</p><div class="capability-list">@for (capability of source.capabilities; track capability) {<span>{{ capability }}</span>}</div><div class="source-meta"><span>{{ source.record_count }} cached provenance records</span><span>Checked {{ formatDate(source.last_checked_at) }}</span>@if (source.license_name) {<span>{{ source.license_name }}</span>}</div><div class="source-actions"><a [href]="source.homepage_url" target="_blank" rel="noopener noreferrer">Source</a>@if (source.license_url) {<a [href]="source.license_url" target="_blank" rel="noopener noreferrer">License</a>}</div>@if (source.status_detail) {<p class="source-detail">{{ source.status_detail }}</p>}</article>
+                                <article class="source-row"><div class="source-health"><span class="health-dot" [class.available]="source.health_status === 'available'" [class.degraded]="source.health_status === 'degraded'" [class.unavailable]="source.health_status === 'unavailable'"></span><div><strong>{{ source.name }}</strong><code>{{ source.key }}</code></div><span class="source-configured">Configured</span><span>{{ source.health_status === 'unknown' ? 'Not checked' : source.health_status }}</span></div><p>{{ source.description }}</p><div class="capability-list">@for (capability of source.capabilities; track capability) {<span>{{ capability }}</span>}</div><div class="source-meta"><span>{{ source.record_count }} cached provenance records</span><span>Checked {{ formatDate(source.last_health_checked_at) }}{{ source.health_fresh ? '' : source.last_health_checked_at ? ' · stale' : '' }}</span><span>Last sync {{ formatDate(source.last_successful_sync_at) }}</span>@if (source.license_name) {<span>{{ source.license_name }}</span>}</div><div class="source-actions"><a [href]="source.homepage_url" target="_blank" rel="noopener noreferrer">Source</a>@if (source.license_url) {<a [href]="source.license_url" target="_blank" rel="noopener noreferrer">License</a>}</div>@if (source.health_detail) {<p class="source-detail">{{ source.health_detail }}</p>}</article>
                             }
                         </div>
                     </section>
                     <section class="public-section acquisition-section"><div class="section-heading"><div><p class="eyebrow">NIST acquisition</p><h3>Download NIST collections</h3><p>The existing NIST jobs remain the ingestion mechanism for experiments, guest species, and host materials. Retrieved records are normalized into the shared provenance model.</p></div></div><adsmod-nist-collection-rows [categories]="nistCategories" (statusUpdate)="appendStatus($event)" /></section>
-                    <section class="public-section activity-section"><div class="section-heading"><div><p class="eyebrow">Activity</p><h3>Retrieval status</h3></div><button class="button secondary" type="button" (click)="statusMessages.set([])">Clear</button></div>@if (statusMessages().length) {<pre class="activity-log">{{ statusMessages().join('\n\n') }}</pre>} @else {<p class="empty-inline">NIST acquisition updates will appear here.</p>}</section>
+                    <section class="public-section activity-section">
+                        <div class="section-heading"><div><p class="eyebrow">Activity</p><h3>Retrieval status</h3></div><div class="filter-actions"><button class="button secondary" type="button" (click)="refreshActivity()">Refresh activity</button><button class="button secondary" type="button" (click)="statusMessages.set([])">Clear messages</button></div></div>
+                        @if (durableRuns().length) {
+                            <div class="sync-run-list">
+                                @for (run of durableRuns(); track run.id) {
+                                    <article class="sync-run-row">
+                                        <div><strong>{{ syncOperationLabel(run) }}</strong><span>{{ run.source_key }} · {{ run.status.replace('_', ' ') }}</span></div>
+                                        <progress max="100" [value]="run.progress"></progress>
+                                        <span>{{ run.imported_count }} saved · {{ run.skipped_count }} skipped · {{ run.failed_count }} failed</span>
+                                        @if (syncRequestSummary(run); as summary) {<span>{{ summary }}</span>}
+                                        @if (run.status === 'queued' || run.status === 'running') {<button class="text-button" type="button" (click)="cancelRun(run.id)">Cancel</button>}
+                                        @if (run.error_detail) {<p class="sync-run-error">{{ run.error_detail }}</p>}
+                                        @if (run.failed_count || run.skipped_count || run.error_detail) {
+                                            <button class="text-button" type="button" (click)="viewRunFailures(run.id)">View skipped and failed records</button>
+                                        }
+                                        @if (selectedFailureRun() === run.id) {
+                                            <div class="sync-run-details">
+                                                @if (failureLoading()) {<p>Loading record details…</p>}
+                                                @else if (syncFailures().length) {
+                                                    <ul class="sync-failures">@for (failure of syncFailures(); track failure.id) {<li><strong>{{ failure.external_id || 'Record' }}</strong><span>{{ failure.reason }}</span></li>}</ul>
+                                                    @if (syncFailureTotal() > syncFailures().length) {<p>Showing {{ syncFailures().length }} of {{ syncFailureTotal() }} records.</p>}
+                                                } @else {<p>No record-level details were returned for this run.</p>}
+                                            </div>
+                                        }
+                                    </article>
+                                }
+                            </div>
+                        } @else {<p class="empty-inline">No durable acquisition runs yet.</p>}
+                        @if (statusMessages().length) {<pre class="activity-log">{{ statusMessages().join('\n\n') }}</pre>}
+                    </section>
                 }
             }
         </div>
@@ -219,13 +258,22 @@ export class PublicDataWorkspaceComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly destroyRef = inject(DestroyRef);
+    private loadSequence = 0;
+    private sourceRegistrySequence = 0;
+    private sourceHealthSequence = 0;
 
     protected readonly views = VIEWS;
     protected readonly view = signal<PublicDataView>('overview');
     protected readonly loading = signal(false);
     protected readonly providerBusy = signal(false);
+    protected readonly sourceHealthLoading = signal(false);
     protected readonly error = signal<string | null>(null);
     protected readonly sources = signal<PublicSourceSummary[]>([]);
+    protected readonly durableRuns = signal<PublicDataSyncRun[]>([]);
+    protected readonly selectedFailureRun = signal<string | null>(null);
+    protected readonly syncFailures = signal<PublicDataSyncFailure[]>([]);
+    protected readonly syncFailureTotal = signal(0);
+    protected readonly failureLoading = signal(false);
     protected readonly adsorption = signal<AdsorptionPageResponse | null>(null);
     protected readonly adsorptionDetail = signal<AdsorptionDetailResponse | null>(null);
     protected readonly materials = signal<MaterialPageResponse | null>(null);
@@ -234,16 +282,20 @@ export class PublicDataWorkspaceComponent {
     protected readonly structures = signal<StructurePageResponse | null>(null);
     protected readonly structureDetail = signal<StructureRecordView | null>(null);
     protected readonly codResults = signal<CODSearchResult[]>([]);
+    protected readonly selectedCodIds = signal<string[]>([]);
     protected readonly codSearchCompleted = signal(false);
     protected readonly statusMessages = signal<string[]>([]);
     protected readonly page = signal(1);
     protected readonly pageSize = 25;
     protected readonly nistCategories = ['experiments', 'guest', 'host'] as const;
 
-    protected readonly overviewAdsorptionTotal = signal(0);
-    protected readonly overviewMaterialTotal = signal(0);
-    protected readonly overviewChemicalTotal = signal(0);
-    protected readonly overviewStructureTotal = signal(0);
+    protected readonly overviewAdsorptionTotal = signal<number | null>(null);
+    protected readonly overviewMaterialTotal = signal<number | null>(null);
+    protected readonly overviewChemicalTotal = signal<number | null>(null);
+    protected readonly overviewStructureTotal = signal<number | null>(null);
+    protected readonly activeSyncRuns = signal(0);
+    protected readonly failedSyncRuns = signal(0);
+    protected readonly latestSyncAt = signal<string | null>(null);
 
     protected adsorptionSource = '';
     protected adsorptionMaterial = '';
@@ -314,67 +366,93 @@ export class PublicDataWorkspaceComponent {
 
     protected async reload(): Promise<void> { await this.loadCurrent(); }
 
-    private async ensureSources(checkHealth = false): Promise<void> {
-        if (this.sources().length && !checkHealth) return;
-        const result = await fetchPublicSources(checkHealth);
+    private isCurrentLoad(requestId: number, expectedView: PublicDataView): boolean {
+        return requestId === this.loadSequence && this.view() === expectedView;
+    }
+
+    private async ensureSources(requestId: number, expectedView: PublicDataView): Promise<void> {
+        if (this.sources().length) return;
+        const result = await fetchPublicSources();
+        if (!this.isCurrentLoad(requestId, expectedView)) return;
         if (result.data) this.sources.set(result.data.sources);
-        else if (checkHealth) this.error.set(result.error);
+        else this.error.set(result.error);
     }
 
     private async loadCurrent(): Promise<void> {
+        const requestId = ++this.loadSequence;
+        this.sourceRegistrySequence += 1;
+        const currentView = this.view();
+        if (currentView !== 'sources') {
+            this.sourceHealthSequence += 1;
+            this.sourceHealthLoading.set(false);
+        }
         this.loading.set(true);
         this.error.set(null);
         try {
-            await this.ensureSources(this.view() === 'overview' || this.view() === 'sources');
-            switch (this.view()) {
-                case 'overview': await this.loadOverview(); break;
-                case 'adsorption': await this.loadAdsorption(); break;
-                case 'materials': await this.loadMaterials(); break;
-                case 'chemicals': await this.loadChemicals(); break;
-                case 'structures': await this.loadStructures(); break;
-                case 'sources': break;
+            const sourcesLoad = this.ensureSources(requestId, currentView);
+            switch (currentView) {
+                case 'overview': await Promise.all([sourcesLoad, this.loadOverview(requestId)]); break;
+                case 'adsorption': await Promise.all([sourcesLoad, this.loadAdsorption(requestId)]); break;
+                case 'materials': await Promise.all([sourcesLoad, this.loadMaterials(requestId)]); break;
+                case 'chemicals': await Promise.all([sourcesLoad, this.loadChemicals(requestId)]); break;
+                case 'structures': await Promise.all([sourcesLoad, this.loadStructures(requestId)]); break;
+                case 'sources':
+                    await sourcesLoad;
+                    if (this.isCurrentLoad(requestId, 'sources')) void this.refreshActivity();
+                    break;
             }
         } finally {
-            this.loading.set(false);
+            if (this.isCurrentLoad(requestId, currentView)) this.loading.set(false);
         }
     }
 
-    private async loadOverview(): Promise<void> {
-        const [adsorption, materials, chemicals, structures] = await Promise.all([
-            fetchPublicAdsorption({ page: 1, page_size: 1 }),
-            fetchPublicMaterials({ page: 1, page_size: 1 }),
-            fetchPublicChemicals({ page: 1, page_size: 1 }),
-            fetchPublicStructures({ page: 1, page_size: 1 }),
-        ]);
-        this.overviewAdsorptionTotal.set(adsorption.data?.pagination.total ?? 0);
-        this.overviewMaterialTotal.set(materials.data?.pagination.total ?? 0);
-        this.overviewChemicalTotal.set(chemicals.data?.pagination.total ?? 0);
-        this.overviewStructureTotal.set(structures.data?.pagination.total ?? 0);
-        this.error.set(adsorption.error || materials.error || chemicals.error || structures.error);
+    private async loadOverview(requestId: number): Promise<void> {
+        this.overviewAdsorptionTotal.set(null);
+        this.overviewMaterialTotal.set(null);
+        this.overviewChemicalTotal.set(null);
+        this.overviewStructureTotal.set(null);
+        const result = await fetchPublicOverview();
+        if (!this.isCurrentLoad(requestId, 'overview')) return;
+        this.setOverviewTotals(result.data);
+        this.error.set(result.error);
     }
 
-    private async loadAdsorption(): Promise<void> {
+    private setOverviewTotals(overview: PublicDataOverviewResponse | null): void {
+        this.overviewAdsorptionTotal.set(overview?.adsorption_records ?? null);
+        this.overviewMaterialTotal.set(overview?.materials ?? null);
+        this.overviewChemicalTotal.set(overview?.chemicals ?? null);
+        this.overviewStructureTotal.set(overview?.structures ?? null);
+        this.activeSyncRuns.set(overview?.active_sync_runs ?? 0);
+        this.failedSyncRuns.set(overview?.failed_sync_runs ?? 0);
+        this.latestSyncAt.set(overview?.latest_successful_sync_at ?? null);
+    }
+
+    private async loadAdsorption(requestId = this.loadSequence): Promise<void> {
         const result = await fetchPublicAdsorption({ page: this.page(), page_size: this.pageSize, source: this.adsorptionSource, material: this.adsorptionMaterial, adsorbate: this.adsorptionAdsorbate, temperature_min_k: this.temperatureMin, temperature_max_k: this.temperatureMax });
+        if (!this.isCurrentLoad(requestId, 'adsorption')) return;
         this.adsorption.set(result.data);
         this.error.set(result.error);
     }
 
-    private async loadMaterials(): Promise<void> {
+    private async loadMaterials(requestId = this.loadSequence): Promise<void> {
         const hasStructure = this.materialStructure === 'yes' ? true : this.materialStructure === 'no' ? false : null;
         const result = await fetchPublicMaterials({ page: this.page(), page_size: this.pageSize, q: this.materialQuery, formula: this.materialFormula, has_structure: hasStructure });
+        if (!this.isCurrentLoad(requestId, 'materials')) return;
         this.materials.set(result.data);
         this.error.set(result.error);
     }
 
-    private async loadChemicals(): Promise<void> {
+    private async loadChemicals(requestId = this.loadSequence): Promise<void> {
         const result = await fetchPublicChemicals({ page: this.page(), page_size: this.pageSize, q: this.chemicalQuery, formula: this.chemicalFormula, molecular_weight_min: this.chemicalMassMin, molecular_weight_max: this.chemicalMassMax });
+        if (!this.isCurrentLoad(requestId, 'chemicals')) return;
         this.chemicals.set(result.data);
         this.error.set(result.error);
     }
 
-    private async loadStructures(): Promise<void> {
+    private async loadStructures(requestId = this.loadSequence): Promise<void> {
         const linked = this.structureLink === 'linked' ? true : this.structureLink === 'unlinked' ? false : null;
         const result = await fetchPublicStructures({ page: this.page(), page_size: this.pageSize, q: this.structureQuery, linked_only: linked });
+        if (!this.isCurrentLoad(requestId, 'structures')) return;
         this.structures.set(result.data);
         this.error.set(result.error);
     }
@@ -400,10 +478,21 @@ export class PublicDataWorkspaceComponent {
         if (!query) return;
         this.providerBusy.set(true); this.error.set(null);
         try {
-            const result = await resolvePubChem(query);
-            this.chemicalDetail.set(result.data);
-            this.error.set(result.error);
-            if (result.data) { this.pubchemQuery = ''; await this.loadChemicals(); }
+            const queued = await resolvePubChem(query);
+            if (!queued.data) { this.error.set(queued.error); return; }
+            const run = await this.waitForSyncRun(queued.data);
+            if (!run || !['completed', 'partially_completed'].includes(run.status)) {
+                this.error.set(run?.error_detail ?? 'PubChem acquisition did not complete.');
+                return;
+            }
+            const chemicalId = Number(run.checkpoint['entity_id']);
+            if (Number.isFinite(chemicalId)) {
+                const detail = await fetchPublicChemicalDetail(chemicalId);
+                this.chemicalDetail.set(detail.data);
+                this.error.set(detail.error);
+            }
+            this.pubchemQuery = '';
+            await Promise.all([this.loadChemicals(), this.refreshActivity()]);
         } finally { this.providerBusy.set(false); }
     }
 
@@ -411,6 +500,7 @@ export class PublicDataWorkspaceComponent {
         const query = this.codQuery.trim();
         if (!query) return;
         this.providerBusy.set(true); this.error.set(null); this.codSearchCompleted.set(false); this.codResults.set([]);
+        this.selectedCodIds.set([]);
         try {
             const params = this.codQueryType === 'id' ? { cod_id: query } : this.codQueryType === 'formula' ? { formula: query } : { q: query };
             const result = await searchCOD(params);
@@ -421,17 +511,172 @@ export class PublicDataWorkspaceComponent {
     }
 
     protected async importStructure(item: CODSearchResult): Promise<void> {
+        await this.runCodImport([item.cod_id]);
+    }
+
+    protected selectAllCodResults(): void {
+        this.selectedCodIds.set(this.codResults().slice(0, 50).map((item) => item.cod_id));
+    }
+
+    protected toggleCodSelection(codId: string, event: Event): void {
+        const checked = (event.target as HTMLInputElement).checked;
+        const selected = this.selectedCodIds();
+        if (!checked) {
+            this.selectedCodIds.set(selected.filter((item) => item !== codId));
+            return;
+        }
+        if (selected.length >= 50) {
+            this.error.set('Select at most 50 COD records per acquisition.');
+            return;
+        }
+        this.selectedCodIds.set([...selected, codId]);
+    }
+
+    protected async importSelectedStructures(): Promise<void> {
+        const selected = this.selectedCodIds();
+        if (!selected.length) return;
+        await this.runCodImport(selected);
+    }
+
+    private async runCodImport(codIds: string[]): Promise<void> {
         this.providerBusy.set(true); this.error.set(null);
         try {
-            const result = await importCOD(item.cod_id);
-            this.structureDetail.set(result.data);
-            this.error.set(result.error);
-            if (result.data) await this.loadStructures();
+            const request = codIds.length === 1
+                ? { source_key: 'cod' as const, operation: 'cod_import' as const, cod_id: codIds[0] }
+                : { source_key: 'cod' as const, operation: 'cod_import' as const, cod_ids: codIds };
+            const queued = await startPublicDataSync(request);
+            if (!queued.data) { this.error.set(queued.error); return; }
+            const run = await this.waitForSyncRun(queued.data);
+            if (!run || !['completed', 'partially_completed'].includes(run.status)) {
+                this.error.set(run?.error_detail ?? 'COD acquisition did not complete.');
+                return;
+            }
+            const structureId = Number(run.checkpoint['entity_id']);
+            if (Number.isFinite(structureId)) {
+                const detail = await fetchPublicStructureDetail(structureId);
+                this.structureDetail.set(detail.data);
+                this.error.set(detail.error);
+            }
+            this.selectedCodIds.set([]);
+            await Promise.all([this.loadStructures(), this.refreshActivity()]);
         } finally { this.providerBusy.set(false); }
     }
 
-    protected async refreshSources(): Promise<void> { this.loading.set(true); this.error.set(null); try { await this.ensureSources(true); } finally { this.loading.set(false); } }
-    protected appendStatus(message: string): void { this.statusMessages.update((entries) => [...entries, message]); void this.refreshSources(); }
+    private async waitForSyncRun(started: PublicDataSyncRun): Promise<PublicDataSyncRun | null> {
+        let run = started;
+        while (run.status === 'queued' || run.status === 'running') {
+            await new Promise((resolve) => window.setTimeout(resolve, 800));
+            const result = await fetchPublicDataSyncRun(run.id);
+            if (!result.data) {
+                this.error.set(result.error);
+                return null;
+            }
+            run = result.data;
+            this.mergeRuns([run]);
+        }
+        return run;
+    }
+
+    protected async refreshSources(): Promise<void> {
+        const requestId = ++this.sourceRegistrySequence;
+        const currentView = this.view();
+        const result = await fetchPublicSources();
+        if (requestId !== this.sourceRegistrySequence || this.view() !== currentView) return;
+        if (result.data) {
+            this.sources.set(result.data.sources);
+        } else {
+            this.error.set(result.error);
+        }
+    }
+
+    protected async refreshSourceHealth(): Promise<void> {
+        const requestId = ++this.sourceHealthSequence;
+        this.sourceHealthLoading.set(true);
+        this.error.set(null);
+        try {
+            const queued = await Promise.all(
+                this.sources().map((source) => checkPublicSourceHealth(source.key))
+            );
+            const runs = queued.flatMap((result) => result.data ? [result.data] : []);
+            const errors = queued.flatMap((result) => result.error ? [result.error] : []);
+            if (requestId !== this.sourceHealthSequence || this.view() !== 'sources') return;
+            if (errors.length) this.error.set(errors.join(' '));
+            this.mergeRuns(runs);
+            let pending = runs.filter((run) => run.status === 'queued' || run.status === 'running');
+            while (pending.length && requestId === this.sourceHealthSequence && this.view() === 'sources') {
+                await new Promise((resolve) => window.setTimeout(resolve, 800));
+                const updated = await Promise.all(pending.map((run) => fetchPublicDataSyncRun(run.id)));
+                const fresh = updated.flatMap((result) => result.data ? [result.data] : []);
+                const pollErrors = updated.flatMap((result) => result.error ? [result.error] : []);
+                if (pollErrors.length) this.error.set(pollErrors.join(' '));
+                this.mergeRuns(fresh);
+                pending = fresh.filter((run) => run.status === 'queued' || run.status === 'running');
+            }
+            if (requestId === this.sourceHealthSequence && this.view() === 'sources') {
+                await Promise.all([this.refreshSources(), this.refreshActivity()]);
+            }
+        } finally {
+            if (requestId === this.sourceHealthSequence && this.view() === 'sources') {
+                this.sourceHealthLoading.set(false);
+            }
+        }
+    }
+
+    protected async refreshActivity(): Promise<void> {
+        const result = await fetchPublicDataSyncRuns();
+        if (result.data) this.durableRuns.set(result.data.runs);
+        else if (this.view() === 'sources') this.error.set(result.error);
+    }
+
+    protected async cancelRun(runId: string): Promise<void> {
+        const result = await cancelPublicDataSyncRun(runId);
+        if (result.error) this.error.set(result.error);
+        await this.refreshActivity();
+    }
+
+    protected async viewRunFailures(runId: string): Promise<void> {
+        this.selectedFailureRun.set(runId);
+        this.syncFailures.set([]);
+        this.syncFailureTotal.set(0);
+        this.failureLoading.set(true);
+        const result = await fetchPublicDataSyncFailures(runId);
+        if (result.data) {
+            this.syncFailures.set(result.data.failures);
+            this.syncFailureTotal.set(result.data.total);
+        } else {
+            this.error.set(result.error);
+        }
+        this.failureLoading.set(false);
+    }
+
+    private mergeRuns(runs: PublicDataSyncRun[]): void {
+        if (!runs.length) return;
+        const current = new Map(this.durableRuns().map((run) => [run.id, run]));
+        runs.forEach((run) => current.set(run.id, run));
+        this.durableRuns.set([...current.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    }
+
+    protected syncOperationLabel(run: PublicDataSyncRun): string {
+        if (run.operation === 'health_check') return 'Provider health check';
+        if (run.operation === 'nist_category') return `NIST ${String(run.parameters['category'] ?? 'collection')}`;
+        if (run.operation === 'pubchem_resolve') return `PubChem ${String(run.parameters['query'] ?? 'lookup')}`;
+        return `COD ${String(run.parameters['cod_id'] ?? 'structure import')}`;
+    }
+
+    protected syncRequestSummary(run: PublicDataSyncRun): string {
+        const statistics = run.checkpoint['request_stats'];
+        if (!statistics || typeof statistics !== 'object') return '';
+        const values = statistics as Record<string, unknown>;
+        const requests = Number(values['requests'] ?? 0);
+        const retries = Number(values['retries'] ?? 0);
+        return requests || retries ? `${requests} requests · ${retries} retries` : '';
+    }
+
+    protected appendStatus(message: string): void {
+        this.statusMessages.update((entries) => [...entries, message]);
+        void this.refreshSources();
+        void this.refreshActivity();
+    }
 
     private closeDetails(): void { this.adsorptionDetail.set(null); this.chemicalDetail.set(null); this.structureDetail.set(null); }
 

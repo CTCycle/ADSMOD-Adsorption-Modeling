@@ -9,6 +9,11 @@ import type {
     ChemicalPageResponse,
     ChemicalRecordView,
     MaterialPageResponse,
+    PublicDataOverviewResponse,
+    PublicDataSyncFailureListResponse,
+    PublicDataSyncRequest,
+    PublicDataSyncRun,
+    PublicDataSyncRunListResponse,
     PublicSourceListResponse,
     StructurePageResponse,
     StructureRecordView,
@@ -47,8 +52,40 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<Api
     }
 }
 
-export function fetchPublicSources(checkHealth = true): Promise<ApiResult<PublicSourceListResponse>> {
-    return requestJson(`/public-data/sources${queryString({ check_health: checkHealth })}`);
+export function fetchPublicSources(): Promise<ApiResult<PublicSourceListResponse>> {
+    return requestJson('/public-data/sources');
+}
+
+export function checkPublicSourceHealth(sourceKey: string): Promise<ApiResult<PublicDataSyncRun>> {
+    return requestJson(`/public-data/sources/${encodeURIComponent(sourceKey)}/health-check`, { method: 'POST' });
+}
+
+export function startPublicDataSync(request: PublicDataSyncRequest): Promise<ApiResult<PublicDataSyncRun>> {
+    return requestJson('/public-data/sync-runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+}
+
+export function fetchPublicDataSyncRun(runId: string): Promise<ApiResult<PublicDataSyncRun>> {
+    return requestJson(`/public-data/sync-runs/${encodeURIComponent(runId)}`);
+}
+
+export function fetchPublicDataSyncRuns(): Promise<ApiResult<PublicDataSyncRunListResponse>> {
+    return requestJson('/public-data/sync-runs?limit=20&offset=0');
+}
+
+export function fetchPublicDataSyncFailures(runId: string): Promise<ApiResult<PublicDataSyncFailureListResponse>> {
+    return requestJson(`/public-data/sync-runs/${encodeURIComponent(runId)}/failures?limit=100&offset=0`);
+}
+
+export function cancelPublicDataSyncRun(runId: string): Promise<ApiResult<PublicDataSyncRun>> {
+    return requestJson(`/public-data/sync-runs/${encodeURIComponent(runId)}/cancel`, { method: 'POST' });
+}
+
+export function fetchPublicOverview(): Promise<ApiResult<PublicDataOverviewResponse>> {
+    return requestJson('/public-data/overview');
 }
 
 export function fetchPublicAdsorption(params: {
@@ -94,12 +131,8 @@ export function fetchPublicChemicalDetail(id: number): Promise<ApiResult<Chemica
     return requestJson(`/public-data/chemicals/${id}`);
 }
 
-export function resolvePubChem(query: string): Promise<ApiResult<ChemicalRecordView>> {
-    return requestJson('/public-data/chemicals/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-    });
+export function resolvePubChem(query: string): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({ source_key: 'pubchem', operation: 'pubchem_resolve', query });
 }
 
 export function searchCOD(params: {
@@ -110,11 +143,12 @@ export function searchCOD(params: {
     return requestJson(`/public-data/structures/search${queryString(params)}`);
 }
 
-export function importCOD(codId: string, adsorbentId?: number | null): Promise<ApiResult<StructureRecordView>> {
-    return requestJson('/public-data/structures/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cod_id: codId, adsorbent_id: adsorbentId ?? null }),
+export function importCOD(codId: string, adsorbentId?: number | null): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({
+        source_key: 'cod',
+        operation: 'cod_import',
+        cod_id: codId,
+        ...(adsorbentId == null ? {} : { adsorbent_id: adsorbentId }),
     });
 }
 
