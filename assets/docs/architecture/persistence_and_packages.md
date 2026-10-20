@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Backend package
 
@@ -16,6 +16,11 @@ Core owns the operational database and Alembic history under
 file or a known Alembic state; it never infers or silently adopts an unknown
 schema. The current schema includes immutable `training_snapshots` and
 `training_snapshot_rows` tables.
+
+SQLite migrations run with foreign-key enforcement disabled and must pass
+`PRAGMA foreign_key_check` before commit. Alembic batch operations rebuild a
+SQLite table by dropping the original, and with enforcement on that drop would
+cascade into child rows.
 
 SQLite transactions serialize writes within the single backend process to
 avoid lock-upgrade collisions when independent public-data runs are queued or

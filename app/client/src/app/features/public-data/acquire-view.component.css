@@ -1,0 +1,186 @@
+/* Copyright © 2023 Thomas Virdis */
+/* Licensed under the MIT License. */
+
+:host {
+    display: grid;
+    gap: 18px;
+    min-width: 0;
+}
+
+.acquire-intro .section-heading {
+    margin-bottom: 0;
+}
+
+.acquire-intro .public-alert {
+    margin-top: 14px;
+}
+
+.source-panel h4,
+#acquire-runs h4 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.acquire-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.collection-list {
+    display: grid;
+    border: 1px solid var(--border-color, #d8dee8);
+}
+
+.collection-row {
+    display: grid;
+    grid-template-columns: minmax(200px, 1.3fr) minmax(170px, 1fr) 130px auto;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color, #e3e7ee);
+}
+
+.collection-row:last-child {
+    border-bottom: 0;
+}
+
+.collection-name,
+.collection-count {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.collection-name strong,
+.collection-count strong {
+    font-size: 0.84rem;
+}
+
+.collection-name span,
+.collection-count span {
+    color: var(--text-secondary, #667085);
+    font-size: 0.72rem;
+}
+
+.collection-fraction {
+    display: grid;
+    gap: 5px;
+    color: var(--text-secondary, #667085);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.collection-fraction input {
+    min-height: 38px;
+    padding: 0 0.6rem;
+    border: 1px solid #dbe4f4;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-primary, #18202c);
+    font: inherit;
+    font-size: 0.84rem;
+}
+
+.provider-query {
+    grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 1.3fr) auto;
+}
+
+.provider-query.structure-query {
+    grid-template-columns: minmax(150px, 0.7fr) minmax(160px, 1.2fr) 110px auto;
+}
+
+.panel-footer {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-secondary, #667085);
+    font-size: 0.74rem;
+}
+
+.panel-footer .button {
+    flex: 0 0 auto;
+}
+
+.target-chip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    background: var(--surface-subtle, #f7f9fc);
+    font-size: 0.78rem;
+}
+
+.cod-results table {
+    min-width: 640px;
+}
+
+.select-column {
+    width: 44px;
+}
+
+.cod-results a {
+    color: var(--accent-color, #2563eb);
+}
+
+.cod-import-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: end;
+    justify-content: space-between;
+    margin-top: 12px;
+}
+
+.cod-import-bar .target-chip {
+    margin: 0;
+}
+
+.run-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.run-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--text-secondary, #667085);
+    font-size: 0.74rem;
+}
+
+.run-failures-toggle {
+    grid-column: 1 / -1;
+    justify-self: start;
+}
+
+@media (max-width: 1180px) {
+    .acquire-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .collection-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .collection-row,
+    .provider-query,
+    .provider-query.structure-query {
+        grid-template-columns: 1fr;
+    }
+
+    .panel-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .run-actions {
+        justify-content: flex-start;
+    }
+}

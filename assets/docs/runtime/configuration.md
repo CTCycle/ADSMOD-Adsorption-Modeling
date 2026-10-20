@@ -28,15 +28,15 @@ The `runtime` section supplies the backend and frontend network settings. The `s
 
 - `request_timeout_seconds`: timeout for one external request;
 - `retry_attempts` and `retry_backoff_max_seconds`: bounded retry count and maximum `Retry-After` or exponential delay;
-- `pubchem_parallel_requests`: per-client PubChem concurrency, constrained to a maximum of three. Workspace lookups, health checks, and NIST enrichment also share one paced request budget;
+- `pubchem_parallel_requests`: per-client PubChem concurrency, constrained to a maximum of three. Lookups, enrichment runs, and health checks share one paced request budget;
 - `cod_max_interactive_results`: maximum COD matches ADSMOD will retrieve for one interactive search after the provider's count-first check;
 - `health_cache_ttl_seconds`: how long a saved provider-health result is shown as fresh;
-- `sync_batch_size`, `sync_max_records_per_run`, and `sync_max_concurrent_jobs`: bounded acquisition batch size, per-run NIST record cap, and coordinator concurrency;
+- `sync_batch_size`, `sync_max_records_per_run`, and `sync_max_concurrent_jobs`: bounded acquisition batch size, per-run record cap for NIST fetches, PubChem enrichment, and COD imports, and coordinator concurrency;
 - COD imports accept at most 50 explicitly selected identifiers per durable run;
-- `sync_response_size_limit_bytes`: maximum response body read from a provider;
+- `sync_response_size_limit_bytes`: maximum decoded response body read from a provider (default 64 MiB). The NIST isotherm index alone is about 18 MB, so values below that prevent NIST isotherm acquisition;
 - `sync_resume_on_startup`: whether queued and running acquisitions are safely re-queued after a restart; disabled runs are recorded as interrupted;
 - `auto_sync_enabled`, `auto_sync_categories`, `auto_sync_interval_hours`, and `auto_sync_fraction`: optional NIST-only scheduled refresh. It is off by default and requires at least one explicitly selected collection when enabled.
 
-`application.nist.parallel_tasks` controls NIST request concurrency. `application.nist.pubchem_parallel_tasks` remains the per-client concurrency for the existing NIST enrichment contract; its requests still use the shared PubChem pacing budget.
+`application.nist.parallel_tasks` controls NIST request concurrency.
 
 Provider endpoints, source identifiers, licenses, and capabilities are application-owned integration metadata rather than user configuration. See `assets/docs/architecture/public_data.md` for provider and provenance architecture.

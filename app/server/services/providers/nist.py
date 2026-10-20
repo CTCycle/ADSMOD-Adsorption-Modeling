@@ -39,7 +39,7 @@ class NISTPublicDataProvider(PublicDataProvider):
     async def health(self) -> ProviderHealth:
         checked_at = datetime.now(timezone.utc)
         try:
-            status = await self.service.ping_experiments_server()
+            status = await self.service.ping_server("experiments")
         except Exception as exc:  # noqa: BLE001
             return ProviderHealth(
                 status="unavailable",

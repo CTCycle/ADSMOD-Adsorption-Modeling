@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -21,6 +22,14 @@ def _text(value: object) -> str:
     except (TypeError, ValueError):
         pass
     return str(value).strip()
+
+# NIST gives species without a public InChIKey a placeholder such as
+# "NIST-ISODB-...". It identifies the NIST record but is not an InChIKey.
+_INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
+
+###############################################################################
+def _inchi_key(value: str) -> str | None:
+    return value if _INCHI_KEY.fullmatch(value) else None
 
 ###############################################################################
 class NISTCanonicalMapper:
@@ -45,7 +54,11 @@ class NISTCanonicalMapper:
                     "key": stable_material_key(kind, name, external or None),
                     "name": name,
                     **(
-                        {"inchi_key": external or None}
+                        {
+                            "inchi_key": _inchi_key(external),
+                            "nist_identifier": external or None,
+                            "inchi": _text(row.get("inchi")) or None,
+                        }
                         if kind == "adsorbate"
                         else {"external_identifier": external or None}
                     ),
@@ -59,6 +72,49 @@ class NISTCanonicalMapper:
                 }
             )
         return records
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def attach_source_identities(
+        records: list[dict[str, Any]], payloads: list[dict[str, Any]]
+    ) -> None:
+        """Copy NIST identifiers and DOI from raw isotherm payloads to records.
+
+        The flattened measurement frames drop the adsorbent hashkey, adsorbate
+        InChIKeys, and DOI; without them species and materials would be keyed
+        by display name and duplicate the NIST catalogue rows.
+        """
+        by_filename = {
+            _text(payload.get("filename")).casefold(): payload
+            for payload in payloads
+            if _text(payload.get("filename"))
+        }
+        for record in records:
+            payload = by_filename.get(_text(record["external_key"]).casefold())
+            if payload is None:
+                continue
+            adsorbent = payload.get("adsorbent")
+            hashkey = _text(adsorbent.get("hashkey")) if isinstance(adsorbent, dict) else ""
+            if hashkey:
+                record["adsorbent"]["external_identifier"] = hashkey
+                record["adsorbent"]["name"] = (
+                    _text(adsorbent.get("name")) or record["adsorbent"]["name"]
+                )
+            inchi_keys = {
+                _text(item.get("name")).casefold(): _text(item.get("InChIKey"))
+                for item in payload.get("adsorbates") or []
+                if isinstance(item, dict)
+            }
+            for adsorbate in record["adsorbates"]:
+                identifier = inchi_keys.get(_text(adsorbate["name"]).casefold())
+                if identifier:
+                    adsorbate["key"] = stable_material_key(
+                        "adsorbate", adsorbate["name"], identifier
+                    )
+                    adsorbate["inchi_key"] = _inchi_key(identifier)
+            doi = _text(payload.get("DOI"))
+            if doi:
+                record["provenance"]["doi"] = doi
 
     # -------------------------------------------------------------------------
     def experiment_records(

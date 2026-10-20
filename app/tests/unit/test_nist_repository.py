@@ -14,7 +14,13 @@ from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
-from server.repositories.schemas.models import Base
+from server.repositories.schemas.models import Adsorbate, Adsorbent, Base
+from server.repositories.schemas.public_data import Reference
+from sqlalchemy import func, select
+
+from server.services.providers import PROVIDER_CLASSES
+
+PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
 
 ###############################################################################
 def build_nist_repository(path: Path) -> NISTRepository:
@@ -28,7 +34,7 @@ def build_nist_repository(path: Path) -> NISTRepository:
     Base.metadata.create_all(database.engine)
     datasets = DatasetRepository(database)
     public_data = PublicDataRepository(database)
-    public_data.ensure_sources()
+    public_data.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
     return NISTRepository(
         database=database,
         datasets=datasets,
@@ -122,9 +128,27 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
         ]
     )
 
-    repository.save_experiments(
-        mapper.experiment_records(single_component, binary_mixture)
+    experiments = mapper.experiment_records(single_component, binary_mixture)
+    mapper.attach_source_identities(
+        experiments,
+        [
+            {
+                "filename": "single-1",
+                "DOI": "10.1000/single",
+                "adsorbent": {"hashkey": "host-1", "name": "Silica"},
+                "adsorbates": [{"name": "Methane", "InChIKey": "A" * 27}],
+            },
+            {
+                "filename": "binary-1",
+                "adsorbent": {"hashkey": "host-2", "name": "Carbon"},
+                "adsorbates": [
+                    {"name": "Nitrogen", "InChIKey": "B" * 27},
+                    {"name": "Argon", "InChIKey": "C" * 27},
+                ],
+            },
+        ],
     )
+    repository.save_experiments(experiments)
 
     counts = repository.count_nist_rows()
     assert counts == {
@@ -140,10 +164,15 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
     assert {"pressure", "adsorbed_amount"}.issubset(adsorption.columns)
     assert set(guests["name"]) == {"methane", "nitrogen", "argon"}
     assert set(hosts["name"]) == {"silica", "carbon"}
+    # Experiment species and materials reuse the NIST catalogue identities.
+    with repository.database.session_factory() as session:
+        assert session.scalar(select(func.count(Adsorbate.id))) == 3
+        assert session.scalar(select(func.count(Adsorbent.id))) == 2
+        assert session.scalars(select(Reference.doi)).all() == ["10.1000/single"]
     assert repository.count_local_records_by_category() == {
         "experiments": 2,
-        "guest": 6,
-        "host": 4,
+        "guest": 3,
+        "host": 2,
     }
     assert repository.list_adsorbate_inchi_keys() == {
         "a" * 27,
@@ -176,12 +205,56 @@ def test_nist_category_counts_include_standalone_reference_records(
     }
     assert repository.list_adsorbate_inchi_keys() == {"a" * 27}
     assert repository.list_adsorbent_hash_keys() == {"host-1"}
-    assert set(repository.load_nist_reference_materials("guest")["name"]) == {
-        "methane"
-    }
-    assert set(repository.load_nist_reference_materials("host")["name"]) == {
-        "silica"
-    }
+
+###############################################################################
+def test_nist_placeholder_identifier_keeps_identity_without_fake_inchikey(
+    tmp_path: Path,
+) -> None:
+    repository = build_nist_repository(tmp_path / "nist.db")
+    mapper = NISTCanonicalMapper()
+    placeholder = "NIST-ISODB-95AA5E6F8FA9B6AE19EC"
+    repository.save_materials(
+        mapper.material_records(
+            pd.DataFrame([{"name": "Coal gas", "InChIKey": placeholder}]),
+            "adsorbate",
+        ),
+        [],
+    )
+    experiments = mapper.experiment_records(
+        pd.DataFrame(
+            [
+                {
+                    "name": "placeholder-1",
+                    "pressure_units": "kPa",
+                    "adsorption_units": "mol/kg",
+                    "temperature": 298.15,
+                    "adsorbent": "carbon",
+                    "adsorbate": "coal gas",
+                    "adsorbate_molecular_weight": None,
+                    "pressure": pressure,
+                    "adsorbed_amount": uptake,
+                }
+                for pressure, uptake in ((1.0, 0.1), (2.0, 0.2))
+            ]
+        ),
+        None,
+    )
+    mapper.attach_source_identities(
+        experiments,
+        [
+            {
+                "filename": "placeholder-1",
+                "adsorbent": {"hashkey": "host-9", "name": "Carbon"},
+                "adsorbates": [{"name": "Coal gas", "InChIKey": placeholder}],
+            }
+        ],
+    )
+    repository.save_experiments(experiments)
+
+    with repository.database.session_factory() as session:
+        rows = session.execute(select(Adsorbate.name, Adsorbate.inchi_key)).all()
+    assert rows == [("Coal gas", None)]
+    assert repository.list_adsorbate_inchi_keys() == {placeholder.casefold()}
 
 ###############################################################################
 def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> None:

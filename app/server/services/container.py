@@ -7,7 +7,7 @@ from server.configurations.settings import AdsmodConfig
 from server.common.utils.logger import logger
 from server.common.path import resolve_storage_root
 from server.services.providers import CODProvider, NISTPublicDataProvider, PubChemProvider
-from server.services.providers.pubchem import PubChemRequestBudget
+from server.services.providers.public_data import RequestBudget
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
 from server.repositories.fitting import FittingRepository
@@ -37,7 +37,7 @@ class CoreServiceContainer:
         self.materials = MaterialRepository(self.database)
         self.fitting = FittingRepository(self.database)
         self.public_data_repository = PublicDataRepository(self.database)
-        self.pubchem_request_budget = PubChemRequestBudget()
+        self.pubchem_request_budget = RequestBudget()
         self.dataset_service = DatasetService(
             repository=self.datasets,
             allowed_extensions=config.application.datasets.allowed_extensions,
@@ -50,10 +50,8 @@ class CoreServiceContainer:
         )
         self.nist_service = NISTDataService(
             config=config,
-            job_manager=self.job_manager,
             repository=self.nist_repository,
             mapper=NISTCanonicalMapper(),
-            pubchem_request_budget=self.pubchem_request_budget,
         )
         public_data_config = config.application.public_data
         self.public_data_service = PublicDataService(

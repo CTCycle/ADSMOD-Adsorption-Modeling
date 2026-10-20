@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -291,6 +290,7 @@ class NISTApiClient:
         self.max_attempts = max(1, int(retry_attempts))
         self.retry_backoff_max_seconds = max(0.1, float(retry_backoff_max_seconds))
         self.max_response_bytes = max(1024, int(max_response_bytes))
+        self.last_failure: str | None = None
         self._request_stats = {
             "requests": 0,
             "retries": 0,
@@ -320,8 +320,7 @@ class NISTApiClient:
     ) -> dict[str, Any] | list[Any] | None:
         parsed_url = urlsplit(url)
         if parsed_url.scheme != "https" or parsed_url.hostname != "adsorption.nist.gov":
-            logger.warning("Rejected NIST request outside the configured HTTPS host.")
-            self._request_stats["failures"] += 1
+            self._record_failure("the request target is outside the NIST HTTPS host")
             return None
         content: bytes | None = None
         for attempt in range(self.max_attempts):
@@ -337,8 +336,7 @@ class NISTApiClient:
                 return self._decode_json(content)
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 if attempt + 1 >= self.max_attempts:
-                    logger.warning("Failed to fetch NIST record: %s", exc)
-                    self._request_stats["failures"] += 1
+                    self._record_failure(f"the request failed after retries ({exc})")
                     return None
                 retry_delay = self._retry_delay(None, attempt)
                 self._request_stats["retries"] += 1
@@ -364,12 +362,14 @@ class NISTApiClient:
                 if status_code in {429, 500, 502, 503, 504}:
                     return self._retryable_response(response, attempt)
                 if status_code >= 400 or 300 <= status_code < 400:
-                    logger.warning("NIST returned HTTP %d for a record request.", status_code)
-                    self._request_stats["failures"] += 1
+                    self._record_failure(f"NIST returned HTTP {status_code}")
                     return None, None
                 content = await self._read_bounded_body(response)
                 if content is None:
-                    self._request_stats["failures"] += 1
+                    self._record_failure(
+                        "the response exceeded the configured size limit of "
+                        f"{self.max_response_bytes} bytes"
+                    )
                 return content, None
 
     # -------------------------------------------------------------------------
@@ -380,8 +380,7 @@ class NISTApiClient:
         if status_code == 429:
             self._request_stats["rate_limits"] += 1
         if attempt + 1 >= self.max_attempts:
-            logger.warning("NIST returned HTTP %d for a record request.", status_code)
-            self._request_stats["failures"] += 1
+            self._record_failure(f"NIST returned HTTP {status_code} after retries")
             return None, None
         delay = self._retry_delay(response.headers.get("Retry-After"), attempt)
         self._request_stats["retries"] += 1
@@ -398,13 +397,11 @@ class NISTApiClient:
     async def _read_bounded_body(self, response: httpx.Response) -> bytes | None:
         length = response.headers.get("Content-Length")
         if length and length.isdigit() and int(length) > self.max_response_bytes:
-            logger.warning("NIST response exceeded the configured size limit.")
             return None
         body = bytearray()
         async for chunk in response.aiter_bytes():
             body.extend(chunk)
             if len(body) > self.max_response_bytes:
-                logger.warning("NIST response exceeded the configured size limit.")
                 return None
         return bytes(body)
 
@@ -413,9 +410,14 @@ class NISTApiClient:
         try:
             return decode_json_response_bytes(content)
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-            logger.warning("NIST returned malformed JSON: %s", exc)
-            self._request_stats["failures"] += 1
+            self._record_failure(f"NIST returned malformed JSON ({exc})")
             return None
+
+    # -------------------------------------------------------------------------
+    def _record_failure(self, reason: str) -> None:
+        logger.warning("NIST request failed: %s.", reason)
+        self.last_failure = reason
+        self._request_stats["failures"] += 1
 
     # -------------------------------------------------------------------------
     def request_statistics(self) -> dict[str, int]:
@@ -443,89 +445,28 @@ class NISTApiClient:
         return min(delay, self.retry_backoff_max_seconds)
 
     # -------------------------------------------------------------------------
-    async def fetch_multiple(
-        self, client: httpx.AsyncClient, urls: list[str]
-    ) -> list[Any]:
-        if not urls:
-            return []
-        tasks = [self.fetch_json(client, url) for url in urls]
-        results = await asyncio.gather(*tasks)
-        return [result for result in results if result is not None]
+    async def fetch_experiments_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
+        return await self._fetch_index(client, self.url_isotherms, "adsorption isotherm")
 
     # -------------------------------------------------------------------------
-    async def fetch_experiments_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
-        payload = await self.fetch_json(client, self.url_isotherms)
+    async def _fetch_index(
+        self, client: httpx.AsyncClient, url: str, label: str
+    ) -> pd.DataFrame:
+        payload = await self.fetch_json(client, url)
         if payload is None:
-            raise ValueError("Failed to retrieve NIST adsorption isotherm index.")
+            raise ValueError(
+                f"Failed to retrieve the NIST {label} index: "
+                f"{self.last_failure or 'no response'}."
+            )
         return pd.DataFrame(payload)
 
     # -------------------------------------------------------------------------
-    async def fetch_experiments_data(
-        self,
-        client: httpx.AsyncClient,
-        experiments_index: pd.DataFrame,
-        experiments_fraction: float,
-    ) -> pd.DataFrame:
-        if experiments_index.empty:
-            return pd.DataFrame()
-        if self.exp_identifier not in experiments_index.columns:
-            raise ValueError("NIST isotherm index missing filename column.")
-        identifiers = experiments_index[self.exp_identifier].tolist()
-        if not identifiers or experiments_fraction <= 0:
-            return pd.DataFrame()
-        num_samples = int(math.ceil(experiments_fraction * len(identifiers)))
-        urls = [
-            f"https://adsorption.nist.gov/isodb/api/isotherm/{identifier}.json"
-            for identifier in identifiers[:num_samples]
-        ]
-        results = await self.fetch_multiple(client, urls)
-        return pd.DataFrame(results)
-
-    # -------------------------------------------------------------------------
-    async def fetch_experiments_data_by_identifiers(
-        self, client: httpx.AsyncClient, identifiers: list[str]
-    ) -> pd.DataFrame:
-        filtered_identifiers = [identifier for identifier in identifiers if identifier]
-        if not filtered_identifiers:
-            return pd.DataFrame()
-        urls = [
-            f"https://adsorption.nist.gov/isodb/api/isotherm/{identifier}.json"
-            for identifier in filtered_identifiers
-        ]
-        results = await self.fetch_multiple(client, urls)
-        return pd.DataFrame(results)
-
-    # -------------------------------------------------------------------------
-    async def fetch_materials_index(
-        self, client: httpx.AsyncClient
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        guest_payload = await self.fetch_json(client, self.url_guest_index)
-        host_payload = await self.fetch_json(client, self.url_host_index)
-        guest_data = pd.DataFrame(guest_payload or [])
-        host_data = pd.DataFrame(host_payload or [])
-        return guest_data, host_data
-
-    # -------------------------------------------------------------------------
     async def fetch_guest_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
-        payload = await self.fetch_json(client, self.url_guest_index)
-        return pd.DataFrame(payload or [])
+        return await self._fetch_index(client, self.url_guest_index, "adsorbate species")
 
     # -------------------------------------------------------------------------
     async def fetch_host_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
-        payload = await self.fetch_json(client, self.url_host_index)
-        return pd.DataFrame(payload or [])
-
-    # -------------------------------------------------------------------------
-    def build_material_urls(
-        self, identifiers: list[str], fraction: float, url_template: str
-    ) -> list[str]:
-        if not identifiers or fraction <= 0:
-            return []
-        num_samples = int(math.ceil(fraction * len(identifiers)))
-        return [
-            url_template.format(identifier=identifier)
-            for identifier in identifiers[:num_samples]
-        ]
+        return await self._fetch_index(client, self.url_host_index, "adsorbent material")
 
     # -------------------------------------------------------------------------
     def prepare_materials_frame(
@@ -539,91 +480,16 @@ class NISTApiClient:
         if data.empty:
             return pd.DataFrame(columns=[identifier_column, "name", *extra_columns])
         data = data.drop(columns=drop_columns, errors="ignore")
-        data["name"] = data["name"].astype(str).str.lower()
+        data["name"] = data["name"].astype(str).str.strip()
         for col in extra_columns:
             data[col] = pd.NA
+        # NIST catalogue records publish their own formula and InChI string.
+        if "formula" in data.columns:
+            data["molecular_formula"] = data["formula"].replace("", pd.NA)
+        if "InChICode" in data.columns:
+            data["inchi"] = data["InChICode"].replace("", pd.NA)
         return data
 
-    # -------------------------------------------------------------------------
-    async def fetch_material_dataset(
-        self,
-        client: httpx.AsyncClient,
-        index: pd.DataFrame,
-        identifier_column: str,
-        fraction: float,
-        url_template: str,
-        extra_columns: list[str],
-        drop_columns: list[str],
-        label: str,
-    ) -> pd.DataFrame:
-        if index.empty or fraction <= 0:
-            logger.warning("No %s index available for NIST fetch.", label)
-            return pd.DataFrame()
-        if identifier_column not in index.columns:
-            raise ValueError(f"NIST {label} index missing {identifier_column} column.")
-        identifiers = index[identifier_column].tolist()
-        urls = self.build_material_urls(identifiers, fraction, url_template)
-        results = await self.fetch_multiple(client, urls)
-        return self.prepare_materials_frame(
-            results, identifier_column, extra_columns, drop_columns
-        )
-
-    # -------------------------------------------------------------------------
-    async def fetch_material_dataset_by_identifiers(
-        self,
-        client: httpx.AsyncClient,
-        identifiers: list[str],
-        identifier_column: str,
-        url_template: str,
-        extra_columns: list[str],
-        drop_columns: list[str],
-    ) -> pd.DataFrame:
-        filtered_identifiers = [identifier for identifier in identifiers if identifier]
-        if not filtered_identifiers:
-            return pd.DataFrame()
-        urls = [
-            url_template.format(identifier=identifier)
-            for identifier in filtered_identifiers
-        ]
-        results = await self.fetch_multiple(client, urls)
-        return self.prepare_materials_frame(
-            results,
-            identifier_column=identifier_column,
-            extra_columns=extra_columns,
-            drop_columns=drop_columns,
-        )
-
-    # -------------------------------------------------------------------------
-    async def fetch_materials_data(
-        self,
-        client: httpx.AsyncClient,
-        guest_index: pd.DataFrame,
-        host_index: pd.DataFrame,
-        guest_fraction: float,
-        host_fraction: float,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        guest_data = await self.fetch_material_dataset(
-            client=client,
-            index=guest_index,
-            identifier_column=self.guest_identifier,
-            fraction=guest_fraction,
-            url_template="https://adsorption.nist.gov/isodb/api/gas/{identifier}.json",
-            extra_columns=self.extra_guest_columns,
-            drop_columns=["synonyms"],
-            label="guest",
-        )
-        host_data = await self.fetch_material_dataset(
-            client=client,
-            index=host_index,
-            identifier_column=self.host_identifier,
-            fraction=host_fraction,
-            url_template="https://adsorption.nist.gov/matdb/api/material/{identifier}.json",
-            extra_columns=self.extra_host_columns,
-            drop_columns=["External_Resources", "synonyms"],
-            label="host",
-        )
-
-        return guest_data, host_data
 
 
 __all__ = [

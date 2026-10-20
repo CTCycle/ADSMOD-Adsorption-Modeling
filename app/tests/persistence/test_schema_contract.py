@@ -33,6 +33,8 @@ EXPECTED_TABLES = {
     "training_snapshots",
     "training_snapshot_rows",
     "data_sources",
+    "public_data_sync_runs",
+    "public_data_sync_failures",
     "source_records",
     "adsorbate_source_records",
     "adsorbent_source_records",
@@ -42,7 +44,6 @@ EXPECTED_TABLES = {
     "structure_atoms",
     "adsorbate_synonyms",
     "chemical_properties",
-    "material_properties",
     "references",
     "source_record_references",
 }

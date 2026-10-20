@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from sqlalchemy import Table
+from sqlalchemy import Table, func
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -31,8 +31,13 @@ def upsert_records(
     table: Table,
     records: Iterable[dict[str, Any]],
     conflict_columns: Sequence[str],
+    *,
+    keep_existing_on_null: bool = False,
 ) -> int:
-    """Upsert records using the caller-supplied conflict contract in one session transaction."""
+    """Upsert records using the caller-supplied conflict contract in one session transaction.
+
+    With ``keep_existing_on_null`` an incoming NULL never clears a stored value.
+    """
     normalized_records = []
     for record in records:
         normalized = dict(record)
@@ -50,7 +55,11 @@ def upsert_records(
     excluded = statement.excluded
     conflict_set = set(conflict_columns)
     update_columns = {
-        column: excluded[column]
+        column: (
+            func.coalesce(excluded[column], table.c[column])
+            if keep_existing_on_null
+            else excluded[column]
+        )
         for column in batch[0]
         if column not in conflict_set and column in table.c
     }

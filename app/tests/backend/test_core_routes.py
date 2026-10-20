@@ -70,12 +70,14 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "/api/v1/public-data/sync-runs/{run_id}" in paths
         assert "/api/v1/public-data/sync-runs/{run_id}/cancel" in paths
         assert "/api/v1/public-data/adsorption" in paths
-        assert "/api/v1/public-data/chemicals/resolve" in paths
         assert "/api/v1/public-data/structures/search" in paths
-        resolve_responses = paths["/api/v1/public-data/chemicals/resolve"]["post"]["responses"]
-        import_responses = paths["/api/v1/public-data/structures/import"]["post"]["responses"]
-        assert "200" in resolve_responses
-        assert "202" not in resolve_responses
-        assert "200" in import_responses
-        assert "202" not in import_responses
+        assert "/api/v1/public-data/sources/nist/collections" in paths
+        assert "/api/v1/public-data/materials/{adsorbent_id}" in paths
+        assert "put" in paths["/api/v1/public-data/structures/{structure_id}/material"]
+        assert "/api/v1/public-data/structures/{structure_id}/file" in paths
         assert "post" in paths["/api/v1/public-data/sync-runs/{run_id}/cancel"]
+        # Acquisition runs only through durable sync runs.
+        assert "/api/v1/public-data/chemicals/resolve" not in paths
+        assert "/api/v1/public-data/structures/import" not in paths
+        assert "delete" not in paths["/api/v1/public-data/sync-runs/{run_id}"]
+        assert not any(path.startswith("/api/v1/nist") for path in paths)

@@ -10,6 +10,8 @@ import {
     fetchPublicSources,
     resolvePubChem,
     cancelPublicDataSyncRun,
+    importCOD,
+    setStructureMaterial,
 } from './public-data.service';
 
 describe('public data service', () => {
@@ -133,5 +135,35 @@ describe('public data service', () => {
 
         expect(result.data).toEqual({ failures: [], total: 0 });
         expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/public-data/sync-runs/run-1/failures?limit=100&offset=0');
+    });
+
+    it('imports one or many COD records as a single durable run with an optional material link', async () => {
+        fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'run-2', status: 'queued' }) });
+
+        await importCOD(['1000000']);
+        await importCOD(['1000000', '1000001'], 4);
+
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({
+            source_key: 'cod',
+            operation: 'cod_import',
+            cod_id: '1000000',
+        });
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
+            source_key: 'cod',
+            operation: 'cod_import',
+            cod_ids: ['1000000', '1000001'],
+            adsorbent_id: 4,
+        });
+    });
+
+    it('links and unlinks a structure through the explicit material endpoint', async () => {
+        fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 3, material_id: null }) });
+
+        await setStructureMaterial(3, null);
+
+        const [requestUrl, requestInit] = fetchMock.mock.calls[0];
+        expect(String(requestUrl)).toBe('/api/v1/public-data/structures/3/material');
+        expect(requestInit.method).toBe('PUT');
+        expect(JSON.parse(requestInit.body as string)).toEqual({ adsorbent_id: null });
     });
 });

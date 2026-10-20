@@ -1,0 +1,19 @@
+{
+  "alembic_revision": "20261020_public_data_nav",
+  "isotherms": 152,
+  "observations": 5913,
+  "adsorbates": 60,
+  "adsorbates_with_pubchem_record": 59,
+  "adsorbents": 114,
+  "duplicate_adsorbate_names": 0,
+  "duplicate_adsorbent_names": 0,
+  "isotherm_species_without_strong_identifier": 0,
+  "isotherm_materials_without_hashkey": 0,
+  "references": 8,
+  "source_record_references": 154,
+  "synonyms": 4920,
+  "chemical_properties": 802,
+  "structures": 2,
+  "structures_linked_to_material": 2,
+  "structure_atoms": 31
+}

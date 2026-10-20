@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from time import monotonic
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,6 +17,10 @@ from urllib.parse import urlsplit
 import httpx
 
 from server.common.utils.logger import logger
+
+_DECODED_BODY_HEADERS = frozenset(
+    {"content-encoding", "content-length", "transfer-encoding"}
+)
 
 ###############################################################################
 class ProviderCapability(StrEnum):
@@ -61,16 +66,17 @@ class PublicDataProvider(ABC):
     capabilities: tuple[ProviderCapability, ...]
 
     # -------------------------------------------------------------------------
-    def source_definition(self) -> dict[str, Any]:
+    @classmethod
+    def source_definition(cls) -> dict[str, Any]:
         return {
-            "key": self.key,
-            "name": self.name,
-            "description": self.description,
-            "homepage_url": self.homepage_url,
-            "license_name": self.license_name,
-            "license_url": self.license_url,
-            "terms_url": self.terms_url,
-            "capabilities": [capability.value for capability in self.capabilities],
+            "key": cls.key,
+            "name": cls.name,
+            "description": cls.description,
+            "homepage_url": cls.homepage_url,
+            "license_name": cls.license_name,
+            "license_url": cls.license_url,
+            "terms_url": cls.terms_url,
+            "capabilities": [capability.value for capability in cls.capabilities],
         }
 
     # -------------------------------------------------------------------------
@@ -83,10 +89,32 @@ class PublicDataProvider(ABC):
         """Release provider-owned asynchronous resources."""
 
 ###############################################################################
+class RequestBudget:
+    """Share request pacing safely across provider instances and event loops."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self, minimum_interval_seconds: float = 0.22) -> None:
+        self.minimum_interval_seconds = max(0.0, float(minimum_interval_seconds))
+        self._lock = threading.Lock()
+        self._next_request_at = 0.0
+
+    # -------------------------------------------------------------------------
+    async def wait_turn(self) -> None:
+        while True:
+            with self._lock:
+                now = monotonic()
+                delay = self._next_request_at - now
+                if delay <= 0:
+                    self._next_request_at = now + self.minimum_interval_seconds
+                    return
+            await asyncio.sleep(delay)
+
+###############################################################################
 class RetryingHttpProvider(PublicDataProvider):
     """Shared timeout, retry, and bounded-concurrency policy for public HTTP sources."""
 
     retry_statuses = frozenset({429, 500, 502, 503, 504})
+    minimum_retry_delay_seconds = 0.0
 
     # -------------------------------------------------------------------------
     def __init__(
@@ -189,6 +217,11 @@ class RetryingHttpProvider(PublicDataProvider):
             except ProviderError:
                 self._record_request_stat("failures")
                 raise
+            except httpx.DecodingError as exc:
+                self._record_request_stat("failures")
+                raise ProviderUnavailableError(
+                    f"{self.name} returned a response body that could not be decoded."
+                ) from exc
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_error = exc
                 if attempt < self.max_attempts - 1:
@@ -256,10 +289,17 @@ class RetryingHttpProvider(PublicDataProvider):
                     f"{self.name} returned HTTP {status_code}."
                 )
             content = await self._read_bounded_body(streamed)
+            # The body is already decoded, so encoding and framing headers no
+            # longer describe it and would make httpx decode it a second time.
+            headers = {
+                name: value
+                for name, value in streamed.headers.items()
+                if name.lower() not in _DECODED_BODY_HEADERS
+            }
             return (
                 httpx.Response(
                     status_code=status_code,
-                    headers=streamed.headers,
+                    headers=headers,
                     content=content,
                     request=streamed.request,
                 ),
@@ -325,7 +365,7 @@ class RetryingHttpProvider(PublicDataProvider):
                 except (TypeError, ValueError, OverflowError):
                     delay = None
         if delay is None:
-            delay = 0.5 * (2**attempt)
+            delay = max(0.5, self.minimum_retry_delay_seconds) * (2**attempt)
         return min(delay, self.retry_backoff_max_seconds)
 
     # -------------------------------------------------------------------------
@@ -366,5 +406,6 @@ __all__ = [
     "ProviderRateLimitError",
     "ProviderUnavailableError",
     "PublicDataProvider",
+    "RequestBudget",
     "RetryingHttpProvider",
 ]

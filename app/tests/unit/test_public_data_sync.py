@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,14 +20,19 @@ from server.services.data.public_data import PublicDataService
 from server.services.data.public_data_sync import PublicDataSyncCoordinator
 from server.services.data.nist_service import NISTDataService
 from server.services.data.nistads import NISTApiClient
-from server.services.providers import pubchem as pubchem_module
-from server.services.providers.pubchem import PubChemProvider, PubChemRequestBudget
+from server.services.providers.nist import NISTPublicDataProvider
+from server.services.providers import public_data as public_data_provider_module
+from server.services.providers.pubchem import PubChemProvider
 from server.services.providers.public_data import (
     ProviderCapability,
     ProviderUnavailableError,
     ProviderHealth,
     PublicDataProvider,
+    RequestBudget,
 )
+from server.services.providers import PROVIDER_CLASSES
+
+PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
 
 
 def _database(path: Path) -> DatabaseManager:
@@ -110,7 +116,7 @@ def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
     async def scenario() -> None:
         manager = _database(tmp_path)
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         public_data = PublicDataService(repository=repository, providers=[_Provider()])
         coordinator = PublicDataSyncCoordinator(
             repository=repository,
@@ -172,7 +178,7 @@ def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
 
         manager = _database(tmp_path)
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         public_data = PublicDataService(repository=repository, providers=[_Provider()])
         coordinator = PublicDataSyncCoordinator(
             repository=repository,
@@ -205,7 +211,7 @@ def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
     async def scenario() -> None:
         manager = _database(tmp_path)
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         adsorbate_id = repository.upsert_pubchem_compound(
             {
                 "cid": "297",
@@ -256,15 +262,16 @@ def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -
     async def scenario() -> None:
         manager = _database(tmp_path)
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         public_data = PublicDataService(repository=repository, providers=[_Provider()])
         imported: list[str] = []
 
-        async def import_cod(request: Any) -> Any:
-            if request.cod_id == "9012346":
+        async def import_cod(cod_id: str, adsorbent_id: int | None = None) -> Any:
+            del adsorbent_id
+            if cod_id == "9012346":
                 raise ProviderUnavailableError("COD CIF request timed out.")
-            imported.append(request.cod_id)
-            return type("Structure", (), {"id": len(imported)})()
+            imported.append(cod_id)
+            return len(imported), True
 
         public_data.import_cod = import_cod  # type: ignore[method-assign]
         coordinator = PublicDataSyncCoordinator(
@@ -285,9 +292,7 @@ def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -
             queued = await coordinator.enqueue(
                 source_key=request.source_key,
                 operation=request.operation,
-                parameters=request.model_dump(
-                    exclude={"source_key", "operation"}, exclude_none=True
-                ),
+                parameters=request.parameters(),
             )
             run = await _wait_for_terminal(coordinator, queued["id"])
             failures, total = await coordinator.failures(
@@ -339,7 +344,7 @@ def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -
     manager = _database(tmp_path)
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
 
         async def create_runs() -> list[dict[str, Any]]:
             return await asyncio.gather(
@@ -369,7 +374,7 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
     async def scenario() -> None:
         manager = _database(tmp_path)
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         run = repository.create_sync_run(
             source_key="nist",
             operation="nist_category",
@@ -453,7 +458,7 @@ def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
     async def scenario() -> None:
         manager = _database(tmp_path)
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         run = repository.create_sync_run(
             source_key="cod",
             operation="cod_import",
@@ -483,11 +488,12 @@ def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
         repository.find_cod_structure_id = find_local  # type: ignore[method-assign]
         public_data = PublicDataService(repository=repository, providers=[_Provider()])
 
-        async def import_cod(request: Any) -> Any:
-            imported.append(request.cod_id)
+        async def import_cod(cod_id: str, adsorbent_id: int | None = None) -> Any:
+            del adsorbent_id
+            imported.append(cod_id)
             structure_id = 100 + len(imported)
-            local_ids[request.cod_id] = structure_id
-            return type("Structure", (), {"id": structure_id})()
+            local_ids[cod_id] = structure_id
+            return structure_id, True
 
         public_data.import_cod = import_cod  # type: ignore[method-assign]
         coordinator = PublicDataSyncCoordinator(
@@ -516,7 +522,7 @@ def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path)
     manager = _database(tmp_path)
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         queued = repository.create_sync_run(
             source_key="nist", operation="nist_category", parameters={"category": "guest"}
         )
@@ -546,13 +552,13 @@ def test_pubchem_request_budget_is_shared_across_provider_instances(
 ) -> None:  # type: ignore[no-untyped-def]
     clock = [0.0]
     delays: list[float] = []
-    budget = PubChemRequestBudget(minimum_interval_seconds=0.22)
+    budget = RequestBudget(minimum_interval_seconds=0.22)
 
     async def fake_sleep(delay: float) -> None:
         delays.append(delay)
         clock[0] += delay
 
-    monkeypatch.setattr(pubchem_module, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(public_data_provider_module, "monotonic", lambda: clock[0])
     monkeypatch.setattr(asyncio, "sleep", fake_sleep)
     first = PubChemProvider(parallel_requests=1, request_budget=budget)
     second = PubChemProvider(parallel_requests=1, request_budget=budget)
@@ -705,17 +711,57 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
     monkeypatch.setattr(httpx, "AsyncClient", _Client)
     service = NISTDataService(
         config=load_config(Path("data/adsmod.json")),
-        job_manager=object(),  # type: ignore[arg-type]
         repository=object(),  # type: ignore[arg-type]
         mapper=object(),  # type: ignore[arg-type]
     )
-    result = asyncio.run(service.ping_server("experiments"))
+    health = asyncio.run(NISTPublicDataProvider(service).health())
 
-    assert result["server_ok"] is True
+    assert health.status == "available"
     assert calls == [
         (
             "GET",
             "https://adsorption.nist.gov/isodb/api/isotherms.json",
             {"Range": "bytes=0-0"},
         )
+    ]
+
+
+def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
+    claim_started = threading.Event()
+    release_claim = threading.Event()
+    updates: list[tuple[str, dict[str, Any]]] = []
+
+    class _BlockingRepository:
+        def mark_unfinished_sync_runs(self, *, resume: bool) -> int:
+            del resume
+            return 0
+
+        def claim_next_sync_run(self) -> dict[str, Any]:
+            claim_started.set()
+            release_claim.wait(timeout=5)
+            return {"id": "run-claimed-at-shutdown"}
+
+        def update_sync_run(self, run_id: str, **values: Any) -> None:
+            updates.append((run_id, values))
+
+    coordinator = PublicDataSyncCoordinator(
+        repository=_BlockingRepository(),  # type: ignore[arg-type]
+        public_data=object(),  # type: ignore[arg-type]
+        nist=object(),  # type: ignore[arg-type]
+        config=PublicDataConfig(),
+    )
+
+    async def scenario() -> None:
+        await coordinator.start()
+        await asyncio.to_thread(claim_started.wait, 5)
+        closing = asyncio.create_task(coordinator.close())
+        await asyncio.sleep(0.05)
+        # Returning now would leave the claim thread using the database.
+        assert not closing.done()
+        release_claim.set()
+        await asyncio.wait_for(closing, timeout=5)
+
+    asyncio.run(scenario())
+    assert updates == [
+        ("run-claimed-at-shutdown", {"status": "queued", "started_at": None})
     ]
