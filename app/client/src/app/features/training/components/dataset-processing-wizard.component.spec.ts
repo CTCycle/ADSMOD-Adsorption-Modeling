@@ -54,4 +54,28 @@ describe('DatasetProcessingWizardComponent', () => {
             INITIAL_CONFIG.max_uptake,
         ]);
     });
+
+    it('shows updated processing values in the build summary', async () => {
+        const fixture = TestBed.createComponent(DatasetProcessingWizardComponent);
+        fixture.componentRef.setInput('selectedDatasets', [SELECTED_DATASET]);
+        fixture.componentRef.setInput('initialConfig', INITIAL_CONFIG);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const root = fixture.nativeElement as HTMLElement;
+        const sampleSize = root.querySelector<HTMLInputElement>('.wizard-settings-grid input');
+        expect(sampleSize).not.toBeNull();
+
+        sampleSize!.value = '0.1';
+        sampleSize!.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        const nextButton = Array.from(root.querySelectorAll('button')).find((button) => button.textContent?.trim() === 'Next →');
+        expect(nextButton).toBeDefined();
+        nextButton!.click();
+        fixture.detectChanges();
+
+        const values = Array.from(root.querySelectorAll('.wizard-summary-grid strong')).map((element) => element.textContent?.trim());
+        expect(values).toEqual(['0.1', '0.2', '32', '3', '48', '5000', '12']);
+    });
 });
