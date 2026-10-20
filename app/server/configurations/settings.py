@@ -100,7 +100,6 @@ class DatasetConfig(StrictModel):
 ###############################################################################
 class NISTConfig(StrictModel):
     parallel_tasks: int = Field(ge=1)
-    pubchem_parallel_tasks: int = Field(ge=1, le=3)
 
 ###############################################################################
 class PublicDataConfig(StrictModel):
@@ -114,7 +113,7 @@ class PublicDataConfig(StrictModel):
     sync_max_records_per_run: int = Field(default=200, ge=1, le=10000)
     sync_max_concurrent_jobs: int = Field(default=1, ge=1, le=4)
     sync_response_size_limit_bytes: int = Field(
-        default=16777216, ge=1024, le=67108864
+        default=67108864, ge=1024, le=268435456
     )
     sync_resume_on_startup: bool = False
     auto_sync_enabled: bool = False

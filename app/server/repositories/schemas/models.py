@@ -136,7 +136,11 @@ class Adsorbate(Base):
         back_populates="adsorbate", lazy="raise"
     )
 
-    __table_args__ = (Index("ix_adsorbates_normalized_name", "normalized_name"),)
+    __table_args__ = (
+        Index("ix_adsorbates_normalized_name", "normalized_name"),
+        Index("ix_adsorbates_formula", "formula"),
+        Index("ix_adsorbates_molar_mass", "molar_mass_g_mol"),
+    )
 
     # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
@@ -167,7 +171,10 @@ class Adsorbent(Base):
         back_populates="adsorbent", lazy="raise"
     )
 
-    __table_args__ = (Index("ix_adsorbents_normalized_name", "normalized_name"),)
+    __table_args__ = (
+        Index("ix_adsorbents_normalized_name", "normalized_name"),
+        Index("ix_adsorbents_formula", "formula"),
+    )
 
     # -------------------------------------------------------------------------
     def __init__(self, **kwargs: Any) -> None:
@@ -248,6 +255,8 @@ class Isotherm(Base):
             name="ck_isotherms_saturation_pressure",
         ),
         Index("ix_isotherms_dataset_name", "dataset_id", "name"),
+        Index("ix_isotherms_adsorbent", "adsorbent_id"),
+        Index("ix_isotherms_temperature", "temperature_k"),
     )
 
 ###############################################################################
@@ -280,6 +289,7 @@ class IsothermComponent(Base):
             "mole_fraction IS NULL OR (mole_fraction >= 0 AND mole_fraction <= 1)",
             name="ck_components_fraction",
         ),
+        Index("ix_components_adsorbate", "adsorbate_id"),
     )
 
 ###############################################################################

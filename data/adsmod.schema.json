@@ -248,17 +248,10 @@
           "minimum": 1,
           "title": "Parallel Tasks",
           "type": "integer"
-        },
-        "pubchem_parallel_tasks": {
-          "maximum": 3,
-          "minimum": 1,
-          "title": "Pubchem Parallel Tasks",
-          "type": "integer"
         }
       },
       "required": [
-        "parallel_tasks",
-        "pubchem_parallel_tasks"
+        "parallel_tasks"
       ],
       "title": "NISTConfig",
       "type": "object"
@@ -330,8 +323,8 @@
           "type": "integer"
         },
         "sync_response_size_limit_bytes": {
-          "default": 16777216,
-          "maximum": 67108864,
+          "default": 67108864,
+          "maximum": 268435456,
           "minimum": 1024,
           "title": "Sync Response Size Limit Bytes",
           "type": "integer"

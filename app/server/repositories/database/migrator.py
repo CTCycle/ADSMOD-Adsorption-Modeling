@@ -220,20 +220,35 @@ def migrate_engine(
         with engine.connect() as connection:
             driver_connection = connection.connection.driver_connection
             driver_connection.autocommit = True
+            # Batch migrations rebuild SQLite tables by dropping the original.
+            # With enforcement on, that drop cascades into child rows, so it is
+            # disabled for the migration and integrity is verified before commit.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
             try:
                 connection.exec_driver_sql("BEGIN IMMEDIATE")
             except OperationalError as exc:
                 connection.rollback()
                 driver_connection.autocommit = False
                 driver_connection.rollback()
+                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
                 raise MigrationLockTimeoutError(
                     "Timed out waiting for the SQLite migration write lock."
                 ) from exc
             try:
                 result = _migrate_locked(connection, alembic_config, database)
+                violations = connection.exec_driver_sql(
+                    "PRAGMA foreign_key_check"
+                ).fetchall()
+                if violations:
+                    raise DatabaseMigrationError(
+                        "Database migration left foreign-key violations in "
+                        + ", ".join(sorted({str(row[0]) for row in violations}))
+                        + "."
+                    )
             except Exception:
                 connection.exec_driver_sql("ROLLBACK")
                 connection.rollback()
+                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
                 driver_connection.autocommit = False
                 driver_connection.rollback()
                 raise
@@ -241,6 +256,7 @@ def migrate_engine(
                 try:
                     connection.exec_driver_sql("COMMIT")
                     connection.commit()
+                    connection.exec_driver_sql("PRAGMA foreign_keys=ON")
                 finally:
                     driver_connection.autocommit = False
                     driver_connection.rollback()

@@ -53,10 +53,13 @@ class PublicDataOverviewResponse(BaseModel):
 ###############################################################################
 SyncOperation = Literal[
     "health_check",
+    "nist_index",
     "nist_category",
     "pubchem_resolve",
+    "pubchem_enrich",
     "cod_import",
 ]
+NISTCategory = Literal["experiments", "guest", "host"]
 SyncRunStatus = Literal[
     "queued",
     "running",
@@ -70,10 +73,13 @@ SyncRunStatus = Literal[
 ###############################################################################
 class PublicDataSyncCreateRequest(BaseModel):
     source_key: Literal["nist", "pubchem", "cod"]
-    operation: Literal["nist_category", "pubchem_resolve", "cod_import"]
-    category: Literal["experiments", "guest", "host"] | None = None
-    fraction: float = Field(default=1.0, gt=0.0, le=1.0)
+    operation: Literal[
+        "nist_index", "nist_category", "pubchem_resolve", "pubchem_enrich", "cod_import"
+    ]
+    category: NISTCategory | None = None
+    fraction: float | None = Field(default=None, gt=0.0, le=1.0)
     query: str | None = Field(default=None, min_length=1, max_length=512)
+    adsorbate_id: int | None = Field(default=None, ge=1)
     cod_id: str | None = Field(default=None, pattern=r"^\d{4,12}$")
     cod_ids: list[str] | None = Field(default=None, min_length=1, max_length=50)
     adsorbent_id: int | None = Field(default=None, ge=1)
@@ -81,8 +87,10 @@ class PublicDataSyncCreateRequest(BaseModel):
     @model_validator(mode="after")
     def validate_operation_parameters(self) -> "PublicDataSyncCreateRequest":
         required = {
+            "nist_index": ("nist", self.category is not None),
             "nist_category": ("nist", self.category is not None),
             "pubchem_resolve": ("pubchem", bool(self.query and self.query.strip())),
+            "pubchem_enrich": ("pubchem", True),
             "cod_import": (
                 "cod",
                 (self.cod_id is not None) != (self.cod_ids is not None),
@@ -104,6 +112,21 @@ class PublicDataSyncCreateRequest(BaseModel):
             ):
                 raise ValueError("Each COD identifier must contain 4 to 12 digits.")
         return self
+
+    # -------------------------------------------------------------------------
+    def parameters(self) -> dict[str, object]:
+        """Return only the parameters the selected operation uses."""
+        fields = {
+            "nist_index": ("category",),
+            "nist_category": ("category", "fraction"),
+            "pubchem_resolve": ("query", "adsorbate_id"),
+            "pubchem_enrich": (),
+            "cod_import": ("cod_id", "cod_ids", "adsorbent_id"),
+        }[self.operation]
+        values = {name: getattr(self, name) for name in fields}
+        if self.operation == "nist_category" and values["fraction"] is None:
+            values["fraction"] = 1.0
+        return {key: value for key, value in values.items() if value is not None}
 
 ###############################################################################
 class PublicDataSyncRunView(BaseModel):
@@ -158,20 +181,27 @@ class ExternalIdentifierView(BaseModel):
     source_version: str | None = None
 
 ###############################################################################
+class EntityReference(BaseModel):
+    id: int
+    name: str
+
+###############################################################################
 class AdsorptionRecordView(BaseModel):
     id: int
     external_id: str
     source: str
     source_url: str | None = None
+    material_id: int
     material: str
-    adsorbates: list[str]
+    adsorbates: list[EntityReference]
     temperature_k: float
     pressure_min_pa: float | None = None
     pressure_max_pa: float | None = None
     uptake_min_mol_kg: float | None = None
     uptake_max_mol_kg: float | None = None
     point_count: int = 0
-    reference: str | None = None
+    doi: str | None = None
+    reference_title: str | None = None
     retrieved_at: datetime | None = None
 
 ###############################################################################
@@ -205,6 +235,7 @@ class MaterialRecordView(BaseModel):
     formula: str | None = None
     molar_mass_g_mol: float | None = None
     structure_count: int = 0
+    isotherm_count: int = 0
     external_identifiers: list[ExternalIdentifierView]
 
 ###############################################################################
@@ -237,16 +268,13 @@ class ChemicalRecordView(BaseModel):
     external_identifiers: list[ExternalIdentifierView] = Field(default_factory=list)
     structure_2d_url: str | None = None
     conformer_3d_url: str | None = None
+    isotherm_count: int = 0
     retrieved_at: datetime | None = None
 
 ###############################################################################
 class ChemicalPageResponse(BaseModel):
     items: list[ChemicalRecordView]
     pagination: Pagination
-
-###############################################################################
-class PubChemResolveRequest(BaseModel):
-    query: str = Field(min_length=1, max_length=512)
 
 ###############################################################################
 class CODSearchResult(BaseModel):
@@ -273,9 +301,19 @@ class CODSearchResponse(BaseModel):
     items: list[CODSearchResult]
 
 ###############################################################################
-class CODStructureImportRequest(BaseModel):
-    cod_id: str = Field(pattern=r"^\d{4,12}$")
+class StructureMaterialLinkRequest(BaseModel):
     adsorbent_id: int | None = Field(default=None, ge=1)
+
+###############################################################################
+class NISTCollectionView(BaseModel):
+    category: NISTCategory
+    local_count: int = Field(ge=0)
+    available_count: int | None = Field(default=None, ge=0)
+    indexed_at: datetime | None = None
+
+###############################################################################
+class NISTCollectionListResponse(BaseModel):
+    collections: list[NISTCollectionView]
 
 ###############################################################################
 class StructureAtomView(BaseModel):
@@ -311,6 +349,7 @@ class StructureRecordView(BaseModel):
     has_coordinates: bool
     atom_count: int
     doi: str | None = None
+    reference_title: str | None = None
     retrieved_at: datetime | None = None
     atoms: list[StructureAtomView] = Field(default_factory=list)
 
@@ -318,6 +357,10 @@ class StructureRecordView(BaseModel):
 class StructurePageResponse(BaseModel):
     items: list[StructureRecordView]
     pagination: Pagination
+
+###############################################################################
+class MaterialDetailResponse(MaterialRecordView):
+    structures: list[StructureRecordView] = Field(default_factory=list)
 
 
 __all__ = [
@@ -329,11 +372,15 @@ __all__ = [
     "ChemicalRecordView",
     "CODSearchResponse",
     "CODSearchResult",
-    "CODStructureImportRequest",
+    "EntityReference",
     "ExternalIdentifierView",
+    "MaterialDetailResponse",
     "MaterialPageResponse",
     "MaterialRecordView",
     "MeasurementView",
+    "NISTCategory",
+    "NISTCollectionListResponse",
+    "NISTCollectionView",
     "Pagination",
     "ProviderCapability",
     "PublicDataSyncCreateRequest",
@@ -343,11 +390,11 @@ __all__ = [
     "PublicDataSyncRunView",
     "PublicSourceListResponse",
     "PublicSourceSummary",
-    "PubChemResolveRequest",
     "SourceStatus",
     "SyncOperation",
     "SyncRunStatus",
     "StructureAtomView",
+    "StructureMaterialLinkRequest",
     "StructurePageResponse",
     "StructureRecordView",
 ]

@@ -35,7 +35,6 @@ class DataSource(Base):
     license_url: Mapped[str | None] = mapped_column(String(1024))
     terms_url: Mapped[str | None] = mapped_column(String(1024))
     capabilities: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     health_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="unknown", server_default="unknown"
     )
@@ -105,7 +104,8 @@ class PublicDataSyncRun(Base):
             name="ck_public_data_sync_runs_status",
         ),
         CheckConstraint(
-            "operation IN ('health_check', 'nist_category', 'pubchem_resolve', 'cod_import')",
+            "operation IN ('health_check', 'nist_index', 'nist_category', "
+            "'pubchem_resolve', 'pubchem_enrich', 'cod_import')",
             name="ck_public_data_sync_runs_operation",
         ),
         CheckConstraint(
@@ -149,9 +149,6 @@ class SourceRecord(Base):
     external_id: Mapped[str] = mapped_column(String(512), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048))
     source_version: Mapped[str | None] = mapped_column(String(128))
-    transform_version: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="public-data-v1"
-    )
     retrieved_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
     raw_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONMapping, nullable=False, default=dict
@@ -162,7 +159,7 @@ class SourceRecord(Base):
             "source_id", "record_type", "external_id", name="uq_source_records_identity"
         ),
         CheckConstraint(
-            "record_type IN ('adsorption', 'chemical', 'material', 'structure', 'reference')",
+            "record_type IN ('adsorption', 'chemical', 'material', 'structure')",
             name="ck_source_records_type",
         ),
         Index("ix_source_records_source_retrieved", "source_id", "retrieved_at"),
@@ -254,6 +251,7 @@ class Structure(Base):
         CheckConstraint("format IN ('cif', 'sdf', 'xyz')", name="ck_structures_format"),
         Index("ix_structures_adsorbent", "adsorbent_id"),
         Index("ix_structures_formula", "formula"),
+        Index("ix_structures_updated", "updated_at"),
     )
 
 ###############################################################################
@@ -354,33 +352,6 @@ class ChemicalProperty(Base):
     )
 
 ###############################################################################
-class MaterialProperty(Base):
-    __tablename__ = "material_properties"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    adsorbent_id: Mapped[int] = mapped_column(
-        ForeignKey("adsorbents.id", ondelete="CASCADE"), nullable=False
-    )
-    source_record_id: Mapped[int] = mapped_column(
-        ForeignKey("source_records.id", ondelete="CASCADE"), nullable=False
-    )
-    key: Mapped[str] = mapped_column(String(128), nullable=False)
-    value_number: Mapped[float | None] = mapped_column(Float)
-    value_text: Mapped[str | None] = mapped_column(String(2048))
-    unit: Mapped[str | None] = mapped_column(String(64))
-
-    __table_args__ = (
-        UniqueConstraint(
-            "adsorbent_id", "source_record_id", "key", name="uq_material_properties_key"
-        ),
-        CheckConstraint(
-            "value_number IS NOT NULL OR value_text IS NOT NULL",
-            name="ck_material_properties_value",
-        ),
-        Index("ix_material_properties_adsorbent_key", "adsorbent_id", "key"),
-    )
-
-###############################################################################
 class Reference(Base):
     __tablename__ = "references"
 
@@ -413,7 +384,6 @@ __all__ = [
     "ChemicalProperty",
     "DataSource",
     "IsothermSourceRecord",
-    "MaterialProperty",
     "Reference",
     "SourceRecord",
     "SourceRecordReference",

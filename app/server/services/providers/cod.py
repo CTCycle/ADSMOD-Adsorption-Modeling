@@ -11,6 +11,7 @@ from server.services.providers.public_data import (
     ProviderCapability,
     ProviderNotFoundError,
     ProviderUnavailableError,
+    RequestBudget,
     RetryingHttpProvider,
 )
 
@@ -31,10 +32,13 @@ class CODProvider(RetryingHttpProvider):
     license_url = "https://creativecommons.org/publicdomain/zero/1.0/"
     terms_url = "https://wiki.crystallography.net/howtoobtaincod/"
     capabilities = (
-        ProviderCapability.MATERIALS,
         ProviderCapability.STRUCTURES,
         ProviderCapability.REFERENCES,
     )
+    # COD answers short request bursts with HTTP 403 for a few seconds, so
+    # requests are paced and a 403 is retried after a longer backoff.
+    retry_statuses = RetryingHttpProvider.retry_statuses | {403}
+    minimum_retry_delay_seconds = 5.0
     search_url = "https://www.crystallography.net/cod/result"
     entry_base_url = "https://www.crystallography.net/cod"
 
@@ -57,6 +61,11 @@ class CODProvider(RetryingHttpProvider):
             retry_backoff_max_seconds=retry_backoff_max_seconds,
         )
         self.max_interactive_results = max(1, int(max_interactive_results))
+        self.request_budget = RequestBudget(minimum_interval_seconds=1.0)
+
+    # -------------------------------------------------------------------------
+    async def _before_attempt(self) -> None:
+        await self.request_budget.wait_turn()
 
     # -------------------------------------------------------------------------
     async def _health_request(self) -> None:
@@ -96,6 +105,13 @@ class CODProvider(RetryingHttpProvider):
         return None
 
     # -------------------------------------------------------------------------
+    @classmethod
+    def _formula(cls, row: dict[str, Any]) -> str | None:
+        # COD wraps formulas in CIF-style dashes, for example "- C6 H6 -".
+        formula = cls._text(row, "formula", "calcformula")
+        return formula.strip("- ").strip() or None if formula else None
+
+    # -------------------------------------------------------------------------
     @staticmethod
     def _has_coordinates(row: dict[str, Any]) -> bool:
         flags = str(row.get("flags") or "").lower()
@@ -113,7 +129,7 @@ class CODProvider(RetryingHttpProvider):
         return {
             "cod_id": cod_id,
             "name": self._text(row, "chemname", "mineral", "name", "text"),
-            "formula": self._text(row, "formula", "calcformula"),
+            "formula": self._formula(row),
             "space_group": self._text(row, "sg", "spacegroup"),
             "space_group_number": self._integer(row.get("sgNumber") or row.get("sg_number")),
             "cell_a_angstrom": self._float(row.get("a")),
@@ -133,6 +149,25 @@ class CODProvider(RetryingHttpProvider):
             "cif_url": f"{self.entry_base_url}/{cod_id}.cif",
             "raw_metadata": row,
         }
+
+    # -------------------------------------------------------------------------
+    async def _bounded_count(self, params: dict[str, str]) -> int:
+        count_response = await self._request(
+            "GET",
+            self.search_url,
+            params={**params, "format": "count"},
+            headers={"Accept": "text/plain"},
+        )
+        try:
+            count = int(count_response.text.strip())
+        except ValueError as exc:
+            raise ProviderUnavailableError("COD returned an invalid result count.") from exc
+        if count > self.max_interactive_results:
+            raise ValueError(
+                f"COD query matches {count} records. Narrow the formula or text query "
+                f"to {self.max_interactive_results} records or fewer before retrieval."
+            )
+        return count
 
     # -------------------------------------------------------------------------
     async def search(
@@ -155,24 +190,10 @@ class CODProvider(RetryingHttpProvider):
         if not params:
             raise ValueError("Provide a COD ID, formula, or text query.")
 
-        count_response = await self._request(
-            "GET",
-            self.search_url,
-            params={**params, "format": "count"},
-            headers={"Accept": "text/plain"},
-        )
-        try:
-            count = int(count_response.text.strip())
-        except ValueError as exc:
-            raise ProviderUnavailableError("COD returned an invalid result count.") from exc
-        if count == 0:
+        # An exact COD ID matches at most one record, so only open queries
+        # need the count request that bounds the result size.
+        if set(params) != {"id"} and await self._bounded_count(params) == 0:
             return []
-        if count > self.max_interactive_results:
-            raise ValueError(
-                f"COD query matches {count} records. Narrow the formula or text query "
-                f"to {self.max_interactive_results} records or fewer before retrieval."
-            )
-
         response = await self._request(
             "GET",
             self.search_url,

@@ -15,8 +15,16 @@ from server.services.providers.public_data import (
     RetryingHttpProvider,
 )
 
+# Every public source ADSMOD registers, in display order.
+PROVIDER_CLASSES: tuple[type[PublicDataProvider], ...] = (
+    NISTPublicDataProvider,
+    PubChemProvider,
+    CODProvider,
+)
+
 __all__ = [
     "CODProvider",
+    "PROVIDER_CLASSES",
     "NISTPublicDataProvider",
     "ProviderCapability",
     "ProviderError",

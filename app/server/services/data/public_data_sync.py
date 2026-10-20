@@ -8,7 +8,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable
 
 from server.configurations.settings import PublicDataConfig
-from server.domain.public_data import CODStructureImportRequest
 from server.repositories.public_data import PublicDataRepository
 from server.services.data.nist_service import NISTDataService
 from server.services.data.public_data import PublicDataService
@@ -17,6 +16,8 @@ from server.services.providers.public_data import (
     ProviderError,
     ProviderUnavailableError,
 )
+
+NIST_CATEGORIES = ("experiments", "guest", "host")
 
 
 ProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
@@ -42,6 +43,7 @@ class PublicDataSyncCoordinator:
         self._wake = asyncio.Event()
         self._closing = False
         self._workers: list[asyncio.Task[None]] = []
+        self._executing: set[asyncio.Task[None]] = set()
         self._scheduler: asyncio.Task[None] | None = None
 
     # -------------------------------------------------------------------------
@@ -68,7 +70,12 @@ class PublicDataSyncCoordinator:
             self._scheduler.cancel()
             await asyncio.gather(self._scheduler, return_exceptions=True)
             self._scheduler = None
-        for worker in self._workers:
+        # Idle workers stop on their own once their current database call
+        # returns; cancelling them would leave that call's thread holding a
+        # connection after the engine is disposed. Only running acquisitions
+        # are cancelled, which records them as interrupted.
+        self._wake.set()
+        for worker in self._executing:
             worker.cancel()
         if self._workers:
             await asyncio.gather(*self._workers, return_exceptions=True)
@@ -145,22 +152,53 @@ class PublicDataSyncCoordinator:
         )
 
     # -------------------------------------------------------------------------
+    async def nist_collections(self) -> list[dict[str, Any]]:
+        """Local NIST counts with the latest remote availability seen by a run."""
+        local_counts = await self.nist.local_counts()
+        availability = await asyncio.to_thread(
+            self.repository.latest_nist_availability
+        )
+        return [
+            {
+                "category": category,
+                "local_count": int(local_counts.get(category, 0)),
+                **availability.get(category, {}),
+            }
+            for category in NIST_CATEGORIES
+        ]
+
+    # -------------------------------------------------------------------------
     async def _worker_loop(self) -> None:
+        worker = asyncio.current_task()
         while not self._closing:
             run = await asyncio.to_thread(self.repository.claim_next_sync_run)
+            if run is not None and self._closing:
+                await asyncio.to_thread(
+                    self.repository.update_sync_run,
+                    str(run["id"]),
+                    status="queued",
+                    started_at=None,
+                )
+                return
             if run is None:
+                if self._closing:
+                    return
                 self._wake.clear()
                 try:
                     await asyncio.wait_for(self._wake.wait(), timeout=1.0)
                 except TimeoutError:
                     pass
                 continue
+            if worker is not None:
+                self._executing.add(worker)
             try:
                 await self._execute(run)
             except asyncio.CancelledError:
                 raise
             except Exception:  # noqa: BLE001
                 continue
+            finally:
+                self._executing.discard(worker)
 
     # -------------------------------------------------------------------------
     async def _execute(self, run: dict[str, Any]) -> None:
@@ -312,12 +350,18 @@ class PublicDataSyncCoordinator:
         operation = str(run["operation"])
         if operation == "health_check":
             return await self._run_health_check(str(run["source_key"]))
+        if operation == "nist_index":
+            return await self._run_nist_index(run)
         if operation == "nist_category":
             return await self._run_nist_category(
                 run, on_progress=on_progress, should_cancel=should_cancel
             )
         if operation == "pubchem_resolve":
             return await self._run_pubchem_resolve(run)
+        if operation == "pubchem_enrich":
+            return await self._run_pubchem_enrich(
+                run, on_progress=on_progress, should_cancel=should_cancel
+            )
         if operation == "cod_import":
             return await self._run_cod_import(
                 run, on_progress=on_progress, should_cancel=should_cancel
@@ -343,6 +387,19 @@ class PublicDataSyncCoordinator:
             checked_at=health.checked_at,
         )
         return {"processed_count": 1, "checkpoint": {"request_stats": health.request_stats}}
+
+    # -------------------------------------------------------------------------
+    async def _run_nist_index(self, run: dict[str, Any]) -> dict[str, Any]:
+        result = await self.nist.index_category(str(run["parameters"]["category"]))
+        return {
+            "processed_count": 1,
+            "checkpoint": {
+                "category": result["category"],
+                "available_count": result["available_count"],
+                "local_count": result["local_count"],
+                "request_stats": dict(result.get("request_stats") or {}),
+            },
+        }
 
     # -------------------------------------------------------------------------
     async def _run_nist_category(
@@ -385,26 +442,88 @@ class PublicDataSyncCoordinator:
         return {
             f"{key}_count": int(result.get(f"{key}_count", 0))
             for key in ("processed", "imported", "skipped", "failed")
-        } | {"checkpoint": {"request_stats": dict(result.get("request_stats") or {})}}
+        } | {
+            "checkpoint": {
+                "category": str(parameters["category"]),
+                "available_count": int(result.get("available_count", 0)),
+                "local_count": int(result.get("local_count", 0)),
+                "request_stats": dict(result.get("request_stats") or {}),
+            }
+        }
 
     # -------------------------------------------------------------------------
     async def _run_pubchem_resolve(self, run: dict[str, Any]) -> dict[str, Any]:
-        query = str(run["parameters"]["query"])
-        local_id = await asyncio.to_thread(
-            self.repository.find_local_pubchem_adsorbate, query
+        parameters = dict(run["parameters"])
+        adsorbate_id = parameters.get("adsorbate_id")
+        entity_id, imported = await self.public_data.resolve_pubchem(
+            str(parameters["query"]),
+            int(adsorbate_id) if adsorbate_id is not None else None,
         )
-        if local_id is not None:
-            return {
-                "processed_count": 1,
-                "skipped_count": 1,
-                "checkpoint": {"entity_id": int(local_id)},
-            }
-        chemical = await self.public_data.resolve_pubchem(query)
         return {
             "processed_count": 1,
-            "imported_count": 1,
-            "checkpoint": {"entity_id": chemical.id},
+            "imported_count" if imported else "skipped_count": 1,
+            "checkpoint": {"entity_id": entity_id},
         }
+
+    # -------------------------------------------------------------------------
+    async def _run_pubchem_enrich(
+        self,
+        run: dict[str, Any],
+        *,
+        on_progress: ProgressCallback,
+        should_cancel: CancelCheck,
+    ) -> dict[str, Any]:
+        """Resolve stored chemicals that have no PubChem identity yet."""
+        run_id = str(run["id"])
+        candidates = await asyncio.to_thread(
+            self.repository.pubchem_enrichment_candidates,
+            self.config.sync_max_records_per_run,
+        )
+        counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
+        entity_ids: list[int] = []
+        for candidate in candidates:
+            if await should_cancel():
+                break
+            try:
+                entity_id, imported = await self.public_data.resolve_pubchem(
+                    str(candidate["query"]), int(candidate["id"])
+                )
+                entity_ids.append(entity_id)
+                counts["imported" if imported else "skipped"] += 1
+            except (ProviderError, ValueError, LookupError) as exc:
+                counts["failed"] += 1
+                await self._store_failure(
+                    run_id,
+                    "pubchem",
+                    f"adsorbate:{candidate['id']}",
+                    f"{candidate['query']}: {exc or exc.__class__.__name__}",
+                    self._retry_time(exc),
+                )
+            counts["processed"] += 1
+            await on_progress(
+                {
+                    "progress": 100.0 * counts["processed"] / len(candidates),
+                    **{f"{key}_count": value for key, value in counts.items()},
+                    "pending_count": len(candidates) - counts["processed"],
+                    "entity_ids": entity_ids,
+                }
+            )
+        return {
+            **{f"{key}_count": value for key, value in counts.items()},
+            "checkpoint": {
+                "entity_ids": entity_ids,
+                "candidate_count": len(candidates),
+                "pending_count": len(candidates) - counts["processed"],
+            },
+        }
+
+    # -------------------------------------------------------------------------
+    def _retry_time(self, error: Exception) -> datetime | None:
+        if not isinstance(error, ProviderUnavailableError):
+            return None
+        return datetime.now(timezone.utc) + timedelta(
+            seconds=min(30.0, self.config.retry_backoff_max_seconds)
+        )
 
     # -------------------------------------------------------------------------
     async def _run_cod_import(
@@ -439,22 +558,19 @@ class PublicDataSyncCoordinator:
                 break
             last_external_id = cod_id
             try:
-                entity_id, imported = await self._import_cod_record(
-                    cod_id=cod_id,
-                    adsorbent_id=parameters.get("adsorbent_id"),
+                entity_id, imported = await self.public_data.import_cod(
+                    cod_id, parameters.get("adsorbent_id")
                 )
                 entity_ids.append(entity_id)
                 counts["imported" if imported else "skipped"] += 1
-            except (ProviderError, ValueError) as exc:
+            except (ProviderError, ValueError, LookupError) as exc:
                 counts["failed"] += 1
-                retry_at = (
-                    datetime.now(timezone.utc)
-                    + timedelta(seconds=min(30.0, self.config.retry_backoff_max_seconds))
-                    if isinstance(exc, ProviderUnavailableError)
-                    else None
-                )
                 await self._store_failure(
-                    run_id, "cod", cod_id, str(exc) or exc.__class__.__name__, retry_at
+                    run_id,
+                    "cod",
+                    cod_id,
+                    str(exc) or exc.__class__.__name__,
+                    self._retry_time(exc),
                 )
             counts["processed"] += 1
             processed_count = processed_before + counts["processed"]
@@ -479,27 +595,6 @@ class PublicDataSyncCoordinator:
                 ),
             },
         }
-
-    # -------------------------------------------------------------------------
-    async def _import_cod_record(
-        self, *, cod_id: str, adsorbent_id: object
-    ) -> tuple[int, bool]:
-        local_id = await asyncio.to_thread(
-            self.repository.find_cod_structure_id, cod_id
-        )
-        if local_id is not None:
-            if adsorbent_id is not None:
-                await asyncio.to_thread(
-                    self.repository.link_cod_structure_to_material,
-                    cod_id,
-                    int(adsorbent_id),
-                )
-            return int(local_id), False
-        request = CODStructureImportRequest.model_validate(
-            {"cod_id": cod_id, "adsorbent_id": adsorbent_id}
-        )
-        structure = await self.public_data.import_cod(request)
-        return int(structure.id), True
 
     # -------------------------------------------------------------------------
     async def _store_failure(
@@ -537,17 +632,12 @@ class PublicDataSyncCoordinator:
     ) -> None:
         message = str(error) or error.__class__.__name__
         now = datetime.now(timezone.utc)
-        retry_at = (
-            now + timedelta(seconds=min(30.0, self.config.retry_backoff_max_seconds))
-            if isinstance(error, ProviderUnavailableError)
-            else None
-        )
         await self._store_failure(
             run_id,
             source_key,
-            self._failure_identifier(operation, parameters),
+            self._failure_identifier(operation, parameters, checkpoint),
             message,
-            retry_at,
+            self._retry_time(error),
         )
         if callable(statistics_reader) and "request_stats" not in checkpoint:
             checkpoint["request_stats"] = self._statistics_delta(
@@ -586,16 +676,21 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _failure_identifier(operation: str, parameters: dict[str, Any]) -> str | None:
+    def _failure_identifier(
+        operation: str, parameters: dict[str, Any], checkpoint: dict[str, Any]
+    ) -> str | None:
+        """Name the record a run-level failure concerns, when one is known."""
         if operation == "pubchem_resolve":
             return str(parameters.get("query") or "") or None
         if operation == "cod_import":
-            return str(parameters.get("cod_id") or "") or None
-        if operation == "nist_category":
-            checkpoint = parameters.get("checkpoint")
-            if isinstance(checkpoint, dict):
-                return str(checkpoint.get("last_external_id") or "") or None
-            return str(parameters.get("category") or "") or None
+            identifiers = parameters.get("cod_ids") or [parameters.get("cod_id")]
+            return ", ".join(str(item) for item in identifiers if item) or None
+        if operation in ("nist_index", "nist_category"):
+            return (
+                str(checkpoint.get("last_external_id") or "")
+                or str(parameters.get("category") or "")
+                or None
+            )
         return None
 
 

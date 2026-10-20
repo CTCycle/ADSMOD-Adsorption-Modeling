@@ -40,7 +40,6 @@ def test_core_runtime_does_not_statically_import_heavy_ml_packages() -> None:
         BACKEND_ROOT / "api" / "datasets.py",
         BACKEND_ROOT / "api" / "entrypoint.py",
         BACKEND_ROOT / "api" / "fitting.py",
-        BACKEND_ROOT / "api" / "nist.py",
         BACKEND_ROOT / "api" / "public_data.py",
         BACKEND_ROOT / "api" / "routes.py",
         BACKEND_ROOT / "services" / "container.py",

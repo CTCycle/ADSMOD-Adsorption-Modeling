@@ -1,10 +1,11 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-export type PublicDataView = 'overview' | 'adsorption' | 'materials' | 'chemicals' | 'structures' | 'sources';
+export type PublicDataView = 'overview' | 'acquire' | 'adsorption' | 'materials' | 'chemicals' | 'structures' | 'sources';
 export type SourceStatus = 'available' | 'degraded' | 'unavailable' | 'unknown';
 export type PublicDataSyncStatus = 'queued' | 'running' | 'completed' | 'partially_completed' | 'failed' | 'cancelled' | 'interrupted';
-export type PublicDataSyncOperation = 'health_check' | 'nist_category' | 'pubchem_resolve' | 'cod_import';
+export type PublicDataSyncOperation = 'health_check' | 'nist_index' | 'nist_category' | 'pubchem_resolve' | 'pubchem_enrich' | 'cod_import';
+export type NISTCategory = 'experiments' | 'guest' | 'host';
 
 export interface Pagination {
     page: number;
@@ -53,13 +54,25 @@ export interface PublicDataOverviewResponse {
 
 export interface PublicDataSyncRequest {
     source_key: 'nist' | 'pubchem' | 'cod';
-    operation: 'nist_category' | 'pubchem_resolve' | 'cod_import';
-    category?: 'experiments' | 'guest' | 'host';
+    operation: Exclude<PublicDataSyncOperation, 'health_check'>;
+    category?: NISTCategory;
     fraction?: number;
     query?: string;
+    adsorbate_id?: number;
     cod_id?: string;
     cod_ids?: string[];
-    adsorbent_id?: number | null;
+    adsorbent_id?: number;
+}
+
+export interface NISTCollectionView {
+    category: NISTCategory;
+    local_count: number;
+    available_count: number | null;
+    indexed_at: string | null;
+}
+
+export interface NISTCollectionListResponse {
+    collections: NISTCollectionView[];
 }
 
 export interface PublicDataSyncRun {
@@ -100,20 +113,27 @@ export interface PublicDataSyncFailureListResponse {
     total: number;
 }
 
+export interface EntityReference {
+    id: number;
+    name: string;
+}
+
 export interface AdsorptionRecordView {
     id: number;
     external_id: string;
     source: string;
     source_url: string | null;
+    material_id: number;
     material: string;
-    adsorbates: string[];
+    adsorbates: EntityReference[];
     temperature_k: number;
     pressure_min_pa: number | null;
     pressure_max_pa: number | null;
     uptake_min_mol_kg: number | null;
     uptake_max_mol_kg: number | null;
     point_count: number;
-    reference: string | null;
+    doi: string | null;
+    reference_title: string | null;
     retrieved_at: string | null;
 }
 
@@ -147,7 +167,12 @@ export interface MaterialRecordView {
     formula: string | null;
     molar_mass_g_mol: number | null;
     structure_count: number;
+    isotherm_count: number;
     external_identifiers: ExternalIdentifierView[];
+}
+
+export interface MaterialDetailResponse extends MaterialRecordView {
+    structures: StructureRecordView[];
 }
 
 export interface MaterialPageResponse {
@@ -179,6 +204,7 @@ export interface ChemicalRecordView {
     external_identifiers: ExternalIdentifierView[];
     structure_2d_url: string | null;
     conformer_3d_url: string | null;
+    isotherm_count: number;
     retrieved_at: string | null;
 }
 
@@ -244,6 +270,7 @@ export interface StructureRecordView {
     has_coordinates: boolean;
     atom_count: number;
     doi: string | null;
+    reference_title: string | null;
     retrieved_at: string | null;
     atoms: StructureAtomView[];
 }

@@ -3,10 +3,7 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
-import threading
-from time import monotonic
 from typing import Any
 from urllib.parse import quote
 
@@ -15,33 +12,13 @@ from server.services.providers.public_data import (
     ProviderError,
     ProviderNotFoundError,
     ProviderUnavailableError,
+    RequestBudget,
     RetryingHttpProvider,
 )
 
 
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
 _INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
-
-###############################################################################
-class PubChemRequestBudget:
-    """Share PubChem pacing safely across provider instances and event loops."""
-
-    # -------------------------------------------------------------------------
-    def __init__(self, minimum_interval_seconds: float = 0.22) -> None:
-        self.minimum_interval_seconds = max(0.0, float(minimum_interval_seconds))
-        self._lock = threading.Lock()
-        self._next_request_at = 0.0
-
-    # -------------------------------------------------------------------------
-    async def wait_turn(self) -> None:
-        while True:
-            with self._lock:
-                now = monotonic()
-                delay = self._next_request_at - now
-                if delay <= 0:
-                    self._next_request_at = now + self.minimum_interval_seconds
-                    return
-            await asyncio.sleep(delay)
 
 ###############################################################################
 class PubChemProvider(RetryingHttpProvider):
@@ -89,7 +66,7 @@ class PubChemProvider(RetryingHttpProvider):
         retry_attempts: int = 3,
         retry_backoff_max_seconds: float = 30.0,
         max_response_bytes: int = 16_777_216,
-        request_budget: PubChemRequestBudget | None = None,
+        request_budget: RequestBudget | None = None,
     ) -> None:
         super().__init__(
             parallel_requests=min(max(1, parallel_requests), 3),
@@ -99,7 +76,7 @@ class PubChemProvider(RetryingHttpProvider):
             max_response_bytes=max_response_bytes,
             retry_backoff_max_seconds=retry_backoff_max_seconds,
         )
-        self.request_budget = request_budget or PubChemRequestBudget()
+        self.request_budget = request_budget or RequestBudget()
 
     # -------------------------------------------------------------------------
     async def _before_attempt(self) -> None:
@@ -239,4 +216,4 @@ class PubChemProvider(RetryingHttpProvider):
         }
 
 
-__all__ = ["PubChemProvider", "PubChemRequestBudget"]
+__all__ = ["PubChemProvider"]

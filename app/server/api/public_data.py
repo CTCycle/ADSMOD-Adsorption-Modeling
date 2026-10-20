@@ -3,23 +3,24 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from server.domain.public_data import (
     AdsorptionDetailResponse,
     AdsorptionPageResponse,
     CODSearchResponse,
-    CODStructureImportRequest,
     ChemicalPageResponse,
     ChemicalRecordView,
+    MaterialDetailResponse,
     MaterialPageResponse,
+    NISTCollectionListResponse,
     PublicDataSyncCreateRequest,
     PublicDataSyncFailureListResponse,
     PublicDataSyncRunListResponse,
     PublicDataSyncRunView,
     PublicDataOverviewResponse,
     PublicSourceListResponse,
-    PubChemResolveRequest,
+    StructureMaterialLinkRequest,
     StructurePageResponse,
     StructureRecordView,
 )
@@ -82,14 +83,11 @@ class PublicDataEndpoint:
     async def create_sync_run(
         self, request: PublicDataSyncCreateRequest
     ) -> PublicDataSyncRunView:
-        parameters = request.model_dump(
-            exclude={"source_key", "operation"}, exclude_none=True
-        )
         try:
             run = await self.sync.enqueue(
                 source_key=request.source_key,
                 operation=request.operation,
-                parameters=parameters,
+                parameters=request.parameters(),
             )
         except LookupError as exc:
             raise self._lookup_error(exc) from exc
@@ -150,6 +148,12 @@ class PublicDataEndpoint:
         return PublicDataSyncFailureListResponse(failures=failures, total=total)
 
     # -------------------------------------------------------------------------
+    async def list_nist_collections(self) -> NISTCollectionListResponse:
+        return NISTCollectionListResponse(
+            collections=await self.sync.nist_collections()
+        )
+
+    # -------------------------------------------------------------------------
     def get_overview(self) -> PublicDataOverviewResponse:
         return self.service.get_overview()
 
@@ -161,6 +165,8 @@ class PublicDataEndpoint:
         source: str | None = None,
         material: str | None = None,
         adsorbate: str | None = None,
+        material_id: int | None = Query(default=None, ge=1),
+        adsorbate_id: int | None = Query(default=None, ge=1),
         temperature_min_k: float | None = Query(default=None, gt=0),
         temperature_max_k: float | None = Query(default=None, gt=0),
     ) -> AdsorptionPageResponse:
@@ -179,6 +185,8 @@ class PublicDataEndpoint:
             source=source,
             material=material,
             adsorbate=adsorbate,
+            material_id=material_id,
+            adsorbate_id=adsorbate_id,
             temperature_min_k=temperature_min_k,
             temperature_max_k=temperature_max_k,
         )
@@ -208,6 +216,13 @@ class PublicDataEndpoint:
             source=source,
             has_structure=has_structure,
         )
+
+    # -------------------------------------------------------------------------
+    def get_material(self, adsorbent_id: int) -> MaterialDetailResponse:
+        try:
+            return self.service.get_material(adsorbent_id)
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
 
     # -------------------------------------------------------------------------
     def list_chemicals(
@@ -247,18 +262,6 @@ class PublicDataEndpoint:
             raise self._lookup_error(exc) from exc
 
     # -------------------------------------------------------------------------
-    async def resolve_pubchem(self, request: PubChemResolveRequest) -> ChemicalRecordView:
-        try:
-            return await self.service.resolve_pubchem(request.query.strip())
-        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
-            raise self._provider_error(exc) from exc
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=str(exc),
-            ) from exc
-
-    # -------------------------------------------------------------------------
     async def search_cod(
         self,
         q: str | None = Query(default=None, max_length=512),
@@ -276,20 +279,6 @@ class PublicDataEndpoint:
             raise self._provider_error(exc) from exc
 
     # -------------------------------------------------------------------------
-    async def import_cod(self, request: CODStructureImportRequest) -> StructureRecordView:
-        try:
-            return await self.service.import_cod(request)
-        except LookupError as exc:
-            raise self._lookup_error(exc) from exc
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-            ) from exc
-        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
-            raise self._provider_error(exc) from exc
-
-    # -------------------------------------------------------------------------
     def list_structures(
         self,
         page: int = Query(1, ge=1),
@@ -297,6 +286,7 @@ class PublicDataEndpoint:
         q: str | None = Query(default=None, max_length=512),
         source: str | None = Query(default=None, max_length=64),
         linked_only: bool | None = None,
+        material_id: int | None = Query(default=None, ge=1),
     ) -> StructurePageResponse:
         return self.service.list_structures(
             page=page,
@@ -304,6 +294,7 @@ class PublicDataEndpoint:
             query_text=q,
             source=source,
             linked_only=linked_only,
+            material_id=material_id,
         )
 
     # -------------------------------------------------------------------------
@@ -312,6 +303,37 @@ class PublicDataEndpoint:
             return self.service.get_structure(structure_id)
         except LookupError as exc:
             raise self._lookup_error(exc) from exc
+
+    # -------------------------------------------------------------------------
+    def set_structure_material(
+        self, structure_id: int, request: StructureMaterialLinkRequest
+    ) -> StructureRecordView:
+        try:
+            return self.service.set_structure_material(
+                structure_id, request.adsorbent_id
+            )
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
+
+    # -------------------------------------------------------------------------
+    def download_structure_file(self, structure_id: int) -> Response:
+        try:
+            file_format, content = self.service.get_structure_content(structure_id)
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        return Response(
+            content=content,
+            media_type="chemical/x-cif" if file_format == "cif" else "text/plain",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="structure-{structure_id}.{file_format}"'
+                )
+            },
+        )
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
@@ -333,6 +355,12 @@ class PublicDataEndpoint:
             methods=["POST"],
             response_model=PublicDataSyncRunView,
             status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/sources/nist/collections",
+            self.list_nist_collections,
+            methods=["GET"],
+            response_model=NISTCollectionListResponse,
         )
         self.router.add_api_route(
             "/sync-runs",
@@ -360,12 +388,6 @@ class PublicDataEndpoint:
             response_model=PublicDataSyncRunView,
         )
         self.router.add_api_route(
-            "/sync-runs/{run_id}",
-            self.cancel_sync_run,
-            methods=["DELETE"],
-            response_model=PublicDataSyncRunView,
-        )
-        self.router.add_api_route(
             "/sync-runs/{run_id}/failures",
             self.list_sync_failures,
             methods=["GET"],
@@ -390,16 +412,16 @@ class PublicDataEndpoint:
             response_model=MaterialPageResponse,
         )
         self.router.add_api_route(
+            "/materials/{adsorbent_id}",
+            self.get_material,
+            methods=["GET"],
+            response_model=MaterialDetailResponse,
+        )
+        self.router.add_api_route(
             "/chemicals",
             self.list_chemicals,
             methods=["GET"],
             response_model=ChemicalPageResponse,
-        )
-        self.router.add_api_route(
-            "/chemicals/resolve",
-            self.resolve_pubchem,
-            methods=["POST"],
-            response_model=ChemicalRecordView,
         )
         self.router.add_api_route(
             "/chemicals/{adsorbate_id}",
@@ -414,12 +436,6 @@ class PublicDataEndpoint:
             response_model=CODSearchResponse,
         )
         self.router.add_api_route(
-            "/structures/import",
-            self.import_cod,
-            methods=["POST"],
-            response_model=StructureRecordView,
-        )
-        self.router.add_api_route(
             "/structures",
             self.list_structures,
             methods=["GET"],
@@ -430,6 +446,18 @@ class PublicDataEndpoint:
             self.get_structure,
             methods=["GET"],
             response_model=StructureRecordView,
+        )
+        self.router.add_api_route(
+            "/structures/{structure_id}/material",
+            self.set_structure_material,
+            methods=["PUT"],
+            response_model=StructureRecordView,
+        )
+        self.router.add_api_route(
+            "/structures/{structure_id}/file",
+            self.download_structure_file,
+            methods=["GET"],
+            response_class=Response,
         )
 
 ###############################################################################

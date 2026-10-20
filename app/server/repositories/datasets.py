@@ -347,6 +347,60 @@ class DatasetRepository:
             }
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _resolve_adsorbent(
+        session: Any, cache: dict[str, Adsorbent], record: dict[str, Any]
+    ) -> Adsorbent:
+        external = record.get("external_identifier")
+        key = record.get("key") or stable_material_key("adsorbent", record["name"], external)
+        adsorbent = cache.get(key) or session.scalar(
+            select(Adsorbent).where(Adsorbent.key == key)
+        )
+        if adsorbent is None and external:
+            adsorbent = session.scalar(
+                select(Adsorbent).where(Adsorbent.external_identifier == external)
+            )
+        if adsorbent is None:
+            adsorbent = Adsorbent(
+                key=key, name=record["name"].strip(), external_identifier=external
+            )
+            session.add(adsorbent)
+            session.flush()
+        cache[key] = adsorbent
+        return adsorbent
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _resolve_adsorbate(
+        session: Any, cache: dict[str, Adsorbate], record: dict[str, Any]
+    ) -> Adsorbate:
+        inchi_key = record.get("inchi_key")
+        key = record.get("key") or stable_material_key("adsorbate", record["name"], inchi_key)
+        adsorbate = cache.get(key) or session.scalar(
+            select(Adsorbate).where(Adsorbate.key == key)
+        )
+        if adsorbate is None and inchi_key:
+            adsorbate = session.scalar(
+                select(Adsorbate).where(Adsorbate.inchi_key == inchi_key)
+            )
+        if adsorbate is None:
+            adsorbate = Adsorbate(
+                key=key,
+                name=record["name"].strip(),
+                inchi_key=inchi_key,
+                inchi=record.get("inchi"),
+                formula=record.get("formula"),
+                molar_mass_g_mol=record.get("molar_mass_g_mol"),
+                smiles=record.get("smiles"),
+            )
+            session.add(adsorbate)
+            session.flush()
+        elif record.get("smiles") and not adsorbate.smiles:
+            adsorbate.smiles = record["smiles"]
+        cache[key] = adsorbate
+        return adsorbate
+
+    # -------------------------------------------------------------------------
     def persist_canonical(
         self,
         *,
@@ -390,26 +444,9 @@ class DatasetRepository:
             adsorbates_by_key: dict[str, Adsorbate] = {}
             adsorbents_by_key: dict[str, Adsorbent] = {}
             for record in experiments:
-                adsorbent_record = record["adsorbent"]
-                adsorbent_key = adsorbent_record.get("key") or stable_material_key(
-                    "adsorbent",
-                    adsorbent_record["name"],
-                    adsorbent_record.get("external_identifier"),
+                adsorbent = self._resolve_adsorbent(
+                    session, adsorbents_by_key, record["adsorbent"]
                 )
-                adsorbent = adsorbents_by_key.get(adsorbent_key)
-                if adsorbent is None:
-                    adsorbent = session.scalar(
-                        select(Adsorbent).where(Adsorbent.key == adsorbent_key)
-                    )
-                if adsorbent is None:
-                    adsorbent = Adsorbent(
-                        key=adsorbent_key,
-                        name=adsorbent_record["name"].strip(),
-                        external_identifier=adsorbent_record.get("external_identifier"),
-                    )
-                    session.add(adsorbent)
-                    session.flush()
-                adsorbents_by_key[adsorbent_key] = adsorbent
 
                 isotherm = Isotherm(
                     dataset_id=dataset.id,
@@ -432,31 +469,9 @@ class DatasetRepository:
                 for position, adsorbate_record in enumerate(
                     record["adsorbates"], start=1
                 ):
-                    adsorbate_key = adsorbate_record.get("key") or stable_material_key(
-                        "adsorbate",
-                        adsorbate_record["name"],
-                        adsorbate_record.get("inchi_key"),
+                    adsorbate = self._resolve_adsorbate(
+                        session, adsorbates_by_key, adsorbate_record
                     )
-                    adsorbate = adsorbates_by_key.get(adsorbate_key)
-                    if adsorbate is None:
-                        adsorbate = session.scalar(
-                            select(Adsorbate).where(Adsorbate.key == adsorbate_key)
-                        )
-                    if adsorbate is None:
-                        adsorbate = Adsorbate(
-                            key=adsorbate_key,
-                            name=adsorbate_record["name"].strip(),
-                            inchi_key=adsorbate_record.get("inchi_key"),
-                            inchi=adsorbate_record.get("inchi"),
-                            formula=adsorbate_record.get("formula"),
-                            molar_mass_g_mol=adsorbate_record.get("molar_mass_g_mol"),
-                            smiles=adsorbate_record.get("smiles"),
-                        )
-                        session.add(adsorbate)
-                        session.flush()
-                    elif adsorbate_record.get("smiles") and not adsorbate.smiles:
-                        adsorbate.smiles = adsorbate_record["smiles"]
-                    adsorbates_by_key[adsorbate_key] = adsorbate
                     component = IsothermComponent(
                         isotherm_id=isotherm.id,
                         position=position,

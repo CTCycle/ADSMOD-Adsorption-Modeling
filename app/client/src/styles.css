@@ -497,47 +497,6 @@ pre,
   border-left: 1px solid var(--slate-200);
 }
 
-.nist-icon-button {
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 1px solid var(--slate-300);
-  border-radius: var(--radius-sm);
-  background: #ffffff;
-  color: var(--slate-700);
-  box-shadow: var(--shadow-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nist-icon-button svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.nist-icon-button-placeholder {
-  width: 2rem;
-  height: 2rem;
-}
-
-.nist-icon-button:hover:not(:disabled) {
-  border-color: var(--slate-400);
-  background: var(--slate-50);
-}
-
-.nist-icon-button.is-online {
-  border-color: #86efac;
-  color: #166534;
-  background: #f0fdf4;
-}
-
-.nist-icon-button.is-offline {
-  border-color: #fca5a5;
-  color: #991b1b;
-  background: #fef2f2;
-}
-
 .nist-row-progress {
   grid-column: 1 / span 2;
   display: grid;
@@ -1271,7 +1230,6 @@ textarea:focus-visible,
 .select-input:focus-visible,
 .sidebar-icon:focus-visible,
 .icon-action-button:focus-visible,
-.nist-icon-button:focus-visible,
 .split-selection-refresh-button:focus-visible,
 .ghost-button:focus-visible,
 .info-modal-close-btn:focus-visible {
@@ -2964,7 +2922,6 @@ input:checked+.slider:before {
   }
 }
 
-
 @media (max-width: 600px) {
   .metrics-row {
     grid-template-columns: repeat(2, 1fr);
@@ -3566,12 +3523,6 @@ input:checked+.slider:before {
   border-left: none;
   grid-template-columns: repeat(4, 1.85rem);
   column-gap: 0.3rem;
-}
-
-.nist-icon-button,
-.nist-icon-button-placeholder {
-  width: 1.85rem;
-  height: 1.85rem;
 }
 
 .nist-row-progress {
@@ -4797,122 +4748,6 @@ body {
   line-height: 18px;
 }
 
-.reference-nist-table {
-  display: grid;
-}
-
-.reference-nist-header,
-.reference-nist-row,
-.reference-nist-progress {
-  display: grid;
-  grid-template-columns: 64px minmax(120px, 1fr) 96px 142px 90px 54px 54px 54px 54px;
-  align-items: center;
-  min-height: 42px;
-  padding: 0 18px;
-  column-gap: 7px;
-}
-
-.reference-nist-header {
-  min-height: 39px;
-  color: #10203d;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.reference-nist-row {
-  border-top: 1px solid #e3e9f2;
-  color: #1c2a45;
-  font-size: 13px;
-}
-
-.reference-status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #28a64a;
-}
-
-.reference-status-dot.slow {
-  background: #f4bd0a;
-}
-
-.reference-status-dot.empty {
-  background: #b9c4d4;
-}
-
-.reference-nist-row em {
-  display: inline-flex;
-  min-width: 45px;
-  justify-content: center;
-  padding: 4px 7px;
-  border: 1px solid #c7d6eb;
-  border-radius: 4px;
-  background: #eef5ff;
-  color: #075bd5;
-  font-style: normal;
-  font-weight: 600;
-}
-
-.reference-nist-row input {
-  width: 100%;
-  max-width: 67px;
-  height: 28px;
-  border: 1px solid #cbd6e5;
-  border-radius: 4px;
-  padding: 0 8px;
-  font-size: 13px;
-  color: #25324a;
-}
-
-.reference-nist-row .nist-icon-button {
-  width: 34px;
-  height: 29px;
-  border: 1px solid #cbd6e5;
-  border-radius: 4px;
-  background: #ffffff;
-  color: #075bd5;
-  padding: 5px;
-}
-
-.reference-nist-row input:disabled,
-.reference-nist-row .nist-icon-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.reference-nist-progress {
-  min-height: 34px;
-  border-top: 1px solid #e3e9f2;
-  color: #53627d;
-  font-size: 12px;
-}
-
-.reference-nist-progress span:first-child {
-  grid-column: 2 / 4;
-}
-
-.reference-nist-progress progress {
-  grid-column: 4 / 8;
-  width: 100%;
-}
-
-.reference-nist-footer {
-  min-height: 61px;
-  display: flex;
-  align-items: center;
-  gap: 26px;
-  padding: 0 18px;
-  border-top: 1px solid #dfe6ef;
-  color: #4e5d78;
-  font-size: 13px;
-}
-
-.reference-nist-footer span:last-child {
-  margin-left: auto;
-  color: #71809b;
-  white-space: nowrap;
-}
-
 .reference-markdown {
   height: calc(100% - 58px);
   margin: 0 19px 18px;
@@ -5174,53 +5009,8 @@ input.source-file-input {
   margin: 0 auto;
 }
 
-.page-intro-card,
-.public-source-card,
-.public-category-card {
-  padding: 20px 22px;
-}
-
-.page-intro-card h2,
-.public-source-heading h2,
-.public-category-card h2 {
-  margin: 0;
-  color: var(--console-text, #1c2a45);
-  font-size: 1.28rem;
-}
-
-.page-intro-card > p:last-child,
-.public-source-heading p:last-child,
-.public-category-card .card-title-row p:last-child {
-  margin-top: 7px;
-  color: var(--console-text-muted, #657386);
-  font-size: 0.84rem;
-  line-height: 1.5;
-}
-
-.public-source-heading,
-.public-category-card .card-title-row {
-  align-items: flex-start;
-}
-
-.public-source-heading > div,
-.public-category-card .card-title-row > div {
-  min-width: 0;
-}
-
-.public-source-card .reference-nist-table,
-.public-category-card .reference-nist-table {
-  margin-top: 16px;
-  border: 1px solid #d9e2ee;
-  border-radius: 8px;
-  background: #fbfdff;
-}
-
 .public-source-log {
   min-height: 220px;
-}
-
-.public-materials-page .public-category-card {
-  min-width: 0;
 }
 
 @media (max-width: 1180px) {
@@ -5231,20 +5021,6 @@ input.source-file-input {
   .data-page {
     max-width: none;
   }
-}
-
-@media (max-width: 600px) {
-  .page-intro-card,
-  .public-source-card,
-  .public-category-card {
-    padding: 16px;
-  }
-
-  .public-source-heading,
-  .public-category-card .card-title-row {
-    flex-direction: column;
-  }
-
 }
 
 /* Focused UI audit refinements. Keep these primitives token-driven and shared. */
@@ -5291,33 +5067,6 @@ input.source-file-input {
 
 .spreadsheet-table input {
   min-height: 2.5rem;
-}
-
-.reference-nist-table {
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-}
-
-.reference-nist-header,
-.reference-nist-row,
-.reference-nist-progress {
-  grid-template-columns: 42px minmax(120px, 1fr) 50px 112px 74px repeat(4, 38px);
-  min-width: 560px;
-  padding-left: 12px;
-  padding-right: 12px;
-  column-gap: 5px;
-}
-
-.reference-nist-header > *,
-.reference-nist-row > * {
-  min-width: 0;
-}
-
-.reference-nist-header > :nth-child(2),
-.reference-nist-row > :nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .inline-progress-bar-track {
@@ -5420,12 +5169,6 @@ input.source-file-input {
 
   .console-main {
     padding: var(--spacing-md) var(--spacing-sm) var(--spacing-lg);
-  }
-
-  .reference-nist-header,
-  .reference-nist-row,
-  .reference-nist-progress {
-    min-width: 840px;
   }
 
   .wizard-model-type-field {

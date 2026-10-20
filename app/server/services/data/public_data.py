@@ -11,9 +11,9 @@ from server.domain.public_data import (
     AdsorptionDetailResponse,
     AdsorptionPageResponse,
     CODSearchResponse,
-    CODStructureImportRequest,
     ChemicalPageResponse,
     ChemicalRecordView,
+    MaterialDetailResponse,
     MaterialPageResponse,
     Pagination,
     PublicDataOverviewResponse,
@@ -48,6 +48,12 @@ class PublicDataService:
         await asyncio.gather(
             *(provider.close() for provider in self.providers.values()),
             return_exceptions=True,
+        )
+
+    # -------------------------------------------------------------------------
+    def ensure_sources(self) -> None:
+        self.repository.ensure_sources(
+            [provider.source_definition() for provider in self.providers.values()]
         )
 
     # -------------------------------------------------------------------------
@@ -121,6 +127,12 @@ class PublicDataService:
         )
 
     # -------------------------------------------------------------------------
+    def get_material(self, adsorbent_id: int) -> MaterialDetailResponse:
+        return MaterialDetailResponse.model_validate(
+            self.repository.get_material(adsorbent_id)
+        )
+
+    # -------------------------------------------------------------------------
     def list_chemicals(self, **filters: Any) -> ChemicalPageResponse:
         rows, total = self.repository.list_chemicals(**filters)
         return ChemicalPageResponse(
@@ -139,20 +151,27 @@ class PublicDataService:
         )
 
     # -------------------------------------------------------------------------
-    async def resolve_pubchem(self, query: str) -> ChemicalRecordView:
-        local_id = await asyncio.to_thread(
-            self.repository.find_local_pubchem_adsorbate, query
-        )
-        if local_id is not None:
-            return await asyncio.to_thread(self.get_chemical, local_id)
+    async def resolve_pubchem(
+        self, query: str, adsorbate_id: int | None = None
+    ) -> tuple[int, bool]:
+        """Resolve one compound locally first, then through PubChem.
+
+        Returns the chemical ID and whether a remote record was imported.
+        """
+        if adsorbate_id is None:
+            local_id = await asyncio.to_thread(
+                self.repository.find_local_pubchem_adsorbate, query
+            )
+            if local_id is not None:
+                return int(local_id), False
         provider = self.providers.get("pubchem")
         if not isinstance(provider, PubChemProvider):
             raise RuntimeError("PubChem provider is not configured.")
         payload = await provider.resolve(query)
-        adsorbate_id = await asyncio.to_thread(
-            self.repository.upsert_pubchem_compound, payload
+        resolved_id = await asyncio.to_thread(
+            self.repository.upsert_pubchem_compound, payload, adsorbate_id
         )
-        return self.get_chemical(adsorbate_id)
+        return int(resolved_id), True
 
     # -------------------------------------------------------------------------
     async def search_cod(
@@ -170,26 +189,27 @@ class PublicDataService:
 
     # -------------------------------------------------------------------------
     async def import_cod(
-        self, request: CODStructureImportRequest
-    ) -> StructureRecordView:
+        self, cod_id: str, adsorbent_id: int | None = None
+    ) -> tuple[int, bool]:
+        """Import one COD record unless it is stored already.
+
+        Returns the structure ID and whether a remote record was imported.
+        """
         structure_id = await asyncio.to_thread(
-            self.repository.find_cod_structure_id, request.cod_id
+            self.repository.find_cod_structure_id, cod_id
         )
         if structure_id is not None:
-            if request.adsorbent_id is not None:
+            if adsorbent_id is not None:
                 structure_id = await asyncio.to_thread(
                     self.repository.link_cod_structure_to_material,
-                    request.cod_id,
-                    request.adsorbent_id,
+                    cod_id,
+                    adsorbent_id,
                 )
-            payload = await asyncio.to_thread(
-                self.repository.get_structure, structure_id
-            )
-            return StructureRecordView.model_validate(payload)
+            return int(structure_id), False
         provider = self.providers.get("cod")
         if not isinstance(provider, CODProvider):
             raise RuntimeError("COD provider is not configured.")
-        metadata, cif_text = await provider.fetch_record(request.cod_id)
+        metadata, cif_text = await provider.fetch_record(cod_id)
         atoms = provider.parse_atoms(cif_text)
         provider.validate_cif(metadata, cif_text, atoms)
         structure_id = await asyncio.to_thread(
@@ -197,11 +217,9 @@ class PublicDataService:
             metadata=metadata,
             cif_text=cif_text,
             atoms=atoms,
-            adsorbent_id=request.adsorbent_id,
+            adsorbent_id=adsorbent_id,
         )
-        return StructureRecordView.model_validate(
-            self.repository.get_structure(structure_id)
-        )
+        return int(structure_id), True
 
     # -------------------------------------------------------------------------
     def list_structures(self, **filters: Any) -> StructurePageResponse:
@@ -220,6 +238,17 @@ class PublicDataService:
         return StructureRecordView.model_validate(
             self.repository.get_structure(structure_id)
         )
+
+    # -------------------------------------------------------------------------
+    def set_structure_material(
+        self, structure_id: int, adsorbent_id: int | None
+    ) -> StructureRecordView:
+        self.repository.set_structure_material(structure_id, adsorbent_id)
+        return self.get_structure(structure_id)
+
+    # -------------------------------------------------------------------------
+    def get_structure_content(self, structure_id: int) -> tuple[str, str]:
+        return self.repository.get_structure_content(structure_id)
 
 
 __all__ = ["PublicDataService"]

@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 import pandas as pd
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
@@ -21,14 +22,13 @@ from server.repositories.schemas.models import (
     Observation,
 )
 from server.repositories.schemas.public_data import (
-    AdsorbateSourceRecord,
-    AdsorbentSourceRecord,
     DataSource,
     SourceRecord,
 )
 from server.repositories.schemas.types import normalize_identity
 
 NIST_DATASET_NAME = "NIST ISODB"
+NIST_ISOTHERM_URL = "https://adsorption.nist.gov/isodb/api/isotherm/{}.json"
 
 ###############################################################################
 class NISTRepository:
@@ -59,56 +59,24 @@ class NISTRepository:
             return {value.casefold() for value in values}
 
     # -------------------------------------------------------------------------
-    def list_adsorbate_inchi_keys(self) -> set[str]:
+    def _catalog_identifiers(self, record_type: str) -> set[str]:
         with self.database.session_factory() as session:
             values = session.scalars(
-                select(Adsorbate.inchi_key)
-                .outerjoin(
-                    IsothermComponent,
-                    IsothermComponent.adsorbate_id == Adsorbate.id,
-                )
-                .outerjoin(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
-                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
-                .outerjoin(
-                    AdsorbateSourceRecord,
-                    AdsorbateSourceRecord.adsorbate_id == Adsorbate.id,
-                )
-                .outerjoin(
-                    SourceRecord,
-                    SourceRecord.id == AdsorbateSourceRecord.source_record_id,
-                )
-                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
-                .where(
-                    Adsorbate.inchi_key.is_not(None),
-                    or_(Dataset.source == "nist", DataSource.key == "nist"),
-                )
-                .distinct()
+                select(SourceRecord.external_id)
+                .join(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(DataSource.key == "nist", SourceRecord.record_type == record_type)
             )
             return {str(value).casefold() for value in values}
 
     # -------------------------------------------------------------------------
+    def list_adsorbate_inchi_keys(self) -> set[str]:
+        """InChIKeys of guest species already imported from the NIST catalogue."""
+        return self._catalog_identifiers("chemical")
+
+    # -------------------------------------------------------------------------
     def list_adsorbent_hash_keys(self) -> set[str]:
-        with self.database.session_factory() as session:
-            values = session.scalars(
-                select(Adsorbent.external_identifier)
-                .outerjoin(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
-                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
-                .outerjoin(
-                    AdsorbentSourceRecord,
-                    AdsorbentSourceRecord.adsorbent_id == Adsorbent.id,
-                )
-                .outerjoin(
-                    SourceRecord,
-                    SourceRecord.id == AdsorbentSourceRecord.source_record_id,
-                )
-                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
-                .where(
-                    Adsorbent.external_identifier.is_not(None),
-                    or_(Dataset.source == "nist", DataSource.key == "nist"),
-                )
-                .distinct()
-            )
-            return {str(value).casefold() for value in values}
+        """Hashkeys of host materials already imported from the NIST catalogue."""
+        return self._catalog_identifiers("material")
 
     # -------------------------------------------------------------------------
     def count_local_records_by_category(self) -> dict[str, int]:
@@ -118,44 +86,10 @@ class NISTRepository:
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .where(Dataset.source == "nist")
             )
-            guests = session.scalar(
-                select(func.count(func.distinct(Adsorbate.id)))
-                .outerjoin(
-                    IsothermComponent,
-                    IsothermComponent.adsorbate_id == Adsorbate.id,
-                )
-                .outerjoin(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
-                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
-                .outerjoin(
-                    AdsorbateSourceRecord,
-                    AdsorbateSourceRecord.adsorbate_id == Adsorbate.id,
-                )
-                .outerjoin(
-                    SourceRecord,
-                    SourceRecord.id == AdsorbateSourceRecord.source_record_id,
-                )
-                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
-                .where(or_(Dataset.source == "nist", DataSource.key == "nist"))
-            )
-            hosts = session.scalar(
-                select(func.count(func.distinct(Adsorbent.id)))
-                .outerjoin(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
-                .outerjoin(Dataset, Dataset.id == Isotherm.dataset_id)
-                .outerjoin(
-                    AdsorbentSourceRecord,
-                    AdsorbentSourceRecord.adsorbent_id == Adsorbent.id,
-                )
-                .outerjoin(
-                    SourceRecord,
-                    SourceRecord.id == AdsorbentSourceRecord.source_record_id,
-                )
-                .outerjoin(DataSource, DataSource.id == SourceRecord.source_id)
-                .where(or_(Dataset.source == "nist", DataSource.key == "nist"))
-            )
         return {
             "experiments": int(experiments or 0),
-            "guest": int(guests or 0),
-            "host": int(hosts or 0),
+            "guest": len(self.list_adsorbate_inchi_keys()),
+            "host": len(self.list_adsorbent_hash_keys()),
         }
 
     # -------------------------------------------------------------------------
@@ -279,69 +213,6 @@ class NISTRepository:
         return adsorption, guest, host
 
     # -------------------------------------------------------------------------
-    def load_nist_reference_materials(self, category: str) -> pd.DataFrame:
-        with self.database.session_factory() as session:
-            if category == "guest":
-                records = session.scalars(
-                    select(Adsorbate)
-                    .join(
-                        AdsorbateSourceRecord,
-                        AdsorbateSourceRecord.adsorbate_id == Adsorbate.id,
-                    )
-                    .join(
-                        SourceRecord,
-                        SourceRecord.id == AdsorbateSourceRecord.source_record_id,
-                    )
-                    .join(DataSource, DataSource.id == SourceRecord.source_id)
-                    .where(DataSource.key == "nist")
-                    .distinct()
-                    .order_by(Adsorbate.id)
-                ).all()
-                return pd.DataFrame(
-                    [
-                        {
-                            "name": item.name,
-                            "InChIKey": item.inchi_key,
-                            "molecular_weight": item.molar_mass_g_mol,
-                            "molecular_formula": item.formula,
-                            "smile_code": item.smiles,
-                        }
-                        for item in records
-                    ]
-                )
-
-            if category == "host":
-                records = session.scalars(
-                    select(Adsorbent)
-                    .join(
-                        AdsorbentSourceRecord,
-                        AdsorbentSourceRecord.adsorbent_id == Adsorbent.id,
-                    )
-                    .join(
-                        SourceRecord,
-                        SourceRecord.id == AdsorbentSourceRecord.source_record_id,
-                    )
-                    .join(DataSource, DataSource.id == SourceRecord.source_id)
-                    .where(DataSource.key == "nist")
-                    .distinct()
-                    .order_by(Adsorbent.id)
-                ).all()
-                return pd.DataFrame(
-                    [
-                        {
-                            "name": item.name,
-                            "hashkey": item.external_identifier,
-                            "molecular_weight": item.molar_mass_g_mol,
-                            "molecular_formula": item.formula,
-                            "smile_code": item.smiles,
-                        }
-                        for item in records
-                    ]
-                )
-
-        raise ValueError("Category must be 'guest' or 'host'.")
-
-    # -------------------------------------------------------------------------
     def save_materials(
         self,
         guest_records: list[dict[str, Any]],
@@ -358,7 +229,7 @@ class NISTRepository:
             str(record["key"]) for record in guest_records
         )
         for record in guest_records:
-            inchi_key = str(record.get("inchi_key") or "").strip()
+            inchi_key = str(record.get("nist_identifier") or "").strip()
             if not inchi_key:
                 continue
             identifier = guest_ids.get(str(record["key"]))
@@ -433,7 +304,8 @@ class NISTRepository:
                     source_key="nist",
                     dataset_id=collection_id,
                     external_id=source_id,
-                    source_url="https://adsorption.nist.gov/",
+                    source_url=NIST_ISOTHERM_URL.format(quote(source_id, safe="")),
                     raw_metadata={"collection": NIST_DATASET_NAME},
+                    doi=experiment.get("provenance", {}).get("doi"),
                 )
             existing.add(source_id.casefold())

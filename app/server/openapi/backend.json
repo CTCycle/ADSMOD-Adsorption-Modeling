@@ -830,431 +830,6 @@
         }
       }
     },
-    "/api/v1/nist/fetch": {
-      "post": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Start Fetch Job",
-        "operationId": "start_fetch_job_api_v1_nist_fetch_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NISTFetchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/properties": {
-      "post": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Start Properties Job",
-        "operationId": "start_properties_job_api_v1_nist_properties_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NISTPropertiesRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/status": {
-      "get": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Fetch Nist Status",
-        "operationId": "fetch_nist_status_api_v1_nist_status_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NISTStatusResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/categories/status": {
-      "get": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Fetch Nist Category Status",
-        "operationId": "fetch_nist_category_status_api_v1_nist_categories_status_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NISTCategoryStatusResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/categories/{category}/ping": {
-      "post": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Ping Category Server",
-        "operationId": "ping_category_server_api_v1_nist_categories__category__ping_post",
-        "parameters": [
-          {
-            "name": "category",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "enum": [
-                "experiments",
-                "guest",
-                "host"
-              ],
-              "type": "string",
-              "title": "Category"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NISTCategoryPingResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/categories/{category}/index": {
-      "post": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Start Category Index Job",
-        "operationId": "start_category_index_job_api_v1_nist_categories__category__index_post",
-        "parameters": [
-          {
-            "name": "category",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "enum": [
-                "experiments",
-                "guest",
-                "host"
-              ],
-              "type": "string",
-              "title": "Category"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/categories/{category}/fetch": {
-      "post": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Start Category Fetch Job",
-        "operationId": "start_category_fetch_job_api_v1_nist_categories__category__fetch_post",
-        "parameters": [
-          {
-            "name": "category",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "enum": [
-                "experiments",
-                "guest",
-                "host"
-              ],
-              "type": "string",
-              "title": "Category"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NISTCategoryFetchRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/categories/{category}/enrich": {
-      "post": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Start Category Enrich Job",
-        "operationId": "start_category_enrich_job_api_v1_nist_categories__category__enrich_post",
-        "parameters": [
-          {
-            "name": "category",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "enum": [
-                "experiments",
-                "guest",
-                "host"
-              ],
-              "type": "string",
-              "title": "Category"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/jobs": {
-      "get": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "List Jobs",
-        "operationId": "list_jobs_api_v1_nist_jobs_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobListResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/nist/jobs/{job_id}": {
-      "get": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Get Job Status",
-        "operationId": "get_job_status_api_v1_nist_jobs__job_id__get",
-        "parameters": [
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Job Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobStatusResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "nist"
-        ],
-        "summary": "Cancel Job",
-        "operationId": "cancel_job_api_v1_nist_jobs__job_id__delete",
-        "parameters": [
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Job Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobCancelResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/public-data/overview": {
       "get": {
         "tags": [
@@ -1332,6 +907,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sources/nist/collections": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "List Nist Collections",
+        "operationId": "list_nist_collections_api_v1_public_data_sources_nist_collections_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NISTCollectionListResponse"
                 }
               }
             }
@@ -1475,46 +1071,6 @@
         ],
         "summary": "Get Sync Run",
         "operationId": "get_sync_run_api_v1_public_data_sync_runs__run_id__get",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicDataSyncRunView"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "Cancel Sync Run",
-        "operationId": "cancel_sync_run_api_v1_public_data_sync_runs__run_id__delete",
         "parameters": [
           {
             "name": "run_id",
@@ -1734,6 +1290,40 @@
                 }
               ],
               "title": "Adsorbate"
+            }
+          },
+          {
+            "name": "material_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Material Id"
+            }
+          },
+          {
+            "name": "adsorbate_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Adsorbate Id"
             }
           },
           {
@@ -1960,6 +1550,48 @@
         }
       }
     },
+    "/api/v1/public-data/materials/{adsorbent_id}": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Get Material",
+        "operationId": "get_material_api_v1_public_data_materials__adsorbent_id__get",
+        "parameters": [
+          {
+            "name": "adsorbent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Adsorbent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public-data/chemicals": {
       "get": {
         "tags": [
@@ -2084,47 +1716,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChemicalPageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/chemicals/resolve": {
-      "post": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "Resolve Pubchem",
-        "operationId": "resolve_pubchem_api_v1_public_data_chemicals_resolve_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PubChemResolveRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChemicalRecordView"
                 }
               }
             }
@@ -2268,47 +1859,6 @@
         }
       }
     },
-    "/api/v1/public-data/structures/import": {
-      "post": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "Import Cod",
-        "operationId": "import_cod_api_v1_public_data_structures_import_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CODStructureImportRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StructureRecordView"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/public-data/structures": {
       "get": {
         "tags": [
@@ -2389,6 +1939,23 @@
               ],
               "title": "Linked Only"
             }
+          },
+          {
+            "name": "material_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Material Id"
+            }
           }
         ],
         "responses": {
@@ -2443,6 +2010,93 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/structures/{structure_id}/material": {
+      "put": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Set Structure Material",
+        "operationId": "set_structure_material_api_v1_public_data_structures__structure_id__material_put",
+        "parameters": [
+          {
+            "name": "structure_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Structure Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureMaterialLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructureRecordView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/structures/{structure_id}/file": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Download Structure File",
+        "operationId": "download_structure_file_api_v1_public_data_structures__structure_id__file_get",
+        "parameters": [
+          {
+            "name": "structure_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Structure Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -3044,13 +2698,17 @@
             ],
             "title": "Source Url"
           },
+          "material_id": {
+            "type": "integer",
+            "title": "Material Id"
+          },
           "material": {
             "type": "string",
             "title": "Material"
           },
           "adsorbates": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EntityReference"
             },
             "type": "array",
             "title": "Adsorbates"
@@ -3108,7 +2766,7 @@
             "title": "Point Count",
             "default": 0
           },
-          "reference": {
+          "doi": {
             "anyOf": [
               {
                 "type": "string"
@@ -3117,7 +2775,18 @@
                 "type": "null"
               }
             ],
-            "title": "Reference"
+            "title": "Doi"
+          },
+          "reference_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Title"
           },
           "retrieved_at": {
             "anyOf": [
@@ -3165,6 +2834,7 @@
           "id",
           "external_id",
           "source",
+          "material_id",
           "material",
           "adsorbates",
           "temperature_k",
@@ -3221,13 +2891,17 @@
             ],
             "title": "Source Url"
           },
+          "material_id": {
+            "type": "integer",
+            "title": "Material Id"
+          },
           "material": {
             "type": "string",
             "title": "Material"
           },
           "adsorbates": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EntityReference"
             },
             "type": "array",
             "title": "Adsorbates"
@@ -3285,7 +2959,7 @@
             "title": "Point Count",
             "default": 0
           },
-          "reference": {
+          "doi": {
             "anyOf": [
               {
                 "type": "string"
@@ -3294,7 +2968,18 @@
                 "type": "null"
               }
             ],
-            "title": "Reference"
+            "title": "Doi"
+          },
+          "reference_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Title"
           },
           "retrieved_at": {
             "anyOf": [
@@ -3314,6 +2999,7 @@
           "id",
           "external_id",
           "source",
+          "material_id",
           "material",
           "adsorbates",
           "temperature_k"
@@ -3558,32 +3244,6 @@
           "cif_url"
         ],
         "title": "CODSearchResult"
-      },
-      "CODStructureImportRequest": {
-        "properties": {
-          "cod_id": {
-            "type": "string",
-            "pattern": "^\\d{4,12}$",
-            "title": "Cod Id"
-          },
-          "adsorbent_id": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Adsorbent Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "cod_id"
-        ],
-        "title": "CODStructureImportRequest"
       },
       "CapabilitiesResponse": {
         "properties": {
@@ -3927,6 +3587,11 @@
               }
             ],
             "title": "Conformer 3D Url"
+          },
+          "isotherm_count": {
+            "type": "integer",
+            "title": "Isotherm Count",
+            "default": 0
           },
           "retrieved_at": {
             "anyOf": [
@@ -4649,6 +4314,24 @@
         "additionalProperties": false,
         "type": "object",
         "title": "DisplayUnits"
+      },
+      "EntityReference": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "EntityReference"
       },
       "ExperimentListResponse": {
         "properties": {
@@ -5576,6 +5259,71 @@
         ],
         "title": "JobStatusResponse"
       },
+      "MaterialDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "molar_mass_g_mol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Molar Mass G Mol"
+          },
+          "structure_count": {
+            "type": "integer",
+            "title": "Structure Count",
+            "default": 0
+          },
+          "isotherm_count": {
+            "type": "integer",
+            "title": "Isotherm Count",
+            "default": 0
+          },
+          "external_identifiers": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalIdentifierView"
+            },
+            "type": "array",
+            "title": "External Identifiers"
+          },
+          "structures": {
+            "items": {
+              "$ref": "#/components/schemas/StructureRecordView"
+            },
+            "type": "array",
+            "title": "Structures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "external_identifiers"
+        ],
+        "title": "MaterialDetailResponse"
+      },
       "MaterialPageResponse": {
         "properties": {
           "items": {
@@ -5631,6 +5379,11 @@
           "structure_count": {
             "type": "integer",
             "title": "Structure Count",
+            "default": 0
+          },
+          "isotherm_count": {
+            "type": "integer",
+            "title": "Isotherm Count",
             "default": 0
           },
           "external_identifiers": {
@@ -5818,54 +5571,23 @@
         ],
         "title": "ModelParameterDefinition"
       },
-      "NISTCategoryFetchRequest": {
+      "NISTCollectionListResponse": {
         "properties": {
-          "fraction": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.001,
-            "title": "Fraction",
-            "default": 1.0
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "NISTCategoryFetchRequest"
-      },
-      "NISTCategoryPingResponse": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": "success"
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "experiments",
-              "guest",
-              "host"
-            ],
-            "title": "Category"
-          },
-          "server_ok": {
-            "type": "boolean",
-            "title": "Server Ok"
-          },
-          "checked_at": {
-            "type": "string",
-            "title": "Checked At"
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/NISTCollectionView"
+            },
+            "type": "array",
+            "title": "Collections"
           }
         },
         "type": "object",
         "required": [
-          "category",
-          "server_ok",
-          "checked_at"
+          "collections"
         ],
-        "title": "NISTCategoryPingResponse"
+        "title": "NISTCollectionListResponse"
       },
-      "NISTCategoryStatus": {
+      "NISTCollectionView": {
         "properties": {
           "category": {
             "type": "string",
@@ -5878,161 +5600,40 @@
           },
           "local_count": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Local Count"
           },
           "available_count": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Available Count"
           },
-          "last_update": {
+          "indexed_at": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Last Update"
-          },
-          "server_ok": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Server Ok"
-          },
-          "server_checked_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Server Checked At"
-          },
-          "supports_enrichment": {
-            "type": "boolean",
-            "title": "Supports Enrichment"
+            "title": "Indexed At"
           }
         },
         "type": "object",
         "required": [
           "category",
-          "local_count",
-          "available_count",
-          "supports_enrichment"
+          "local_count"
         ],
-        "title": "NISTCategoryStatus"
-      },
-      "NISTCategoryStatusResponse": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": "success"
-          },
-          "categories": {
-            "items": {
-              "$ref": "#/components/schemas/NISTCategoryStatus"
-            },
-            "type": "array",
-            "title": "Categories"
-          }
-        },
-        "type": "object",
-        "required": [
-          "categories"
-        ],
-        "title": "NISTCategoryStatusResponse"
-      },
-      "NISTFetchRequest": {
-        "properties": {
-          "experiments_fraction": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Experiments Fraction",
-            "default": 1.0
-          },
-          "guest_fraction": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Guest Fraction",
-            "default": 1.0
-          },
-          "host_fraction": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Host Fraction",
-            "default": 1.0
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "NISTFetchRequest"
-      },
-      "NISTPropertiesRequest": {
-        "properties": {
-          "target": {
-            "type": "string",
-            "enum": [
-              "guest",
-              "host"
-            ],
-            "title": "Target",
-            "default": "guest"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "NISTPropertiesRequest"
-      },
-      "NISTStatusResponse": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": "success"
-          },
-          "data_available": {
-            "type": "boolean",
-            "title": "Data Available"
-          },
-          "single_component_rows": {
-            "type": "integer",
-            "title": "Single Component Rows"
-          },
-          "binary_mixture_rows": {
-            "type": "integer",
-            "title": "Binary Mixture Rows"
-          },
-          "guest_rows": {
-            "type": "integer",
-            "title": "Guest Rows"
-          },
-          "host_rows": {
-            "type": "integer",
-            "title": "Host Rows"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data_available",
-          "single_component_rows",
-          "binary_mixture_rows",
-          "guest_rows",
-          "host_rows"
-        ],
-        "title": "NISTStatusResponse"
+        "title": "NISTCollectionView"
       },
       "NormalizedExperimentPreview": {
         "properties": {
@@ -6716,21 +6317,6 @@
         ],
         "title": "ProcessedDatasetsResponse"
       },
-      "PubChemResolveRequest": {
-        "properties": {
-          "query": {
-            "type": "string",
-            "maxLength": 512,
-            "minLength": 1,
-            "title": "Query"
-          }
-        },
-        "type": "object",
-        "required": [
-          "query"
-        ],
-        "title": "PubChemResolveRequest"
-      },
       "PublicDataOverviewResponse": {
         "properties": {
           "adsorption_records": {
@@ -6801,8 +6387,10 @@
           "operation": {
             "type": "string",
             "enum": [
+              "nist_index",
               "nist_category",
               "pubchem_resolve",
+              "pubchem_enrich",
               "cod_import"
             ],
             "title": "Operation"
@@ -6824,11 +6412,17 @@
             "title": "Category"
           },
           "fraction": {
-            "type": "number",
-            "maximum": 1.0,
-            "exclusiveMinimum": 0.0,
-            "title": "Fraction",
-            "default": 1.0
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fraction"
           },
           "query": {
             "anyOf": [
@@ -6842,6 +6436,18 @@
               }
             ],
             "title": "Query"
+          },
+          "adsorbate_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbate Id"
           },
           "cod_id": {
             "anyOf": [
@@ -7001,8 +6607,10 @@
             "type": "string",
             "enum": [
               "health_check",
+              "nist_index",
               "nist_category",
               "pubchem_resolve",
+              "pubchem_enrich",
               "cod_import"
             ],
             "title": "Operation"
@@ -7372,6 +6980,24 @@
         ],
         "title": "StructureAtomView"
       },
+      "StructureMaterialLinkRequest": {
+        "properties": {
+          "adsorbent_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbent Id"
+          }
+        },
+        "type": "object",
+        "title": "StructureMaterialLinkRequest"
+      },
       "StructurePageResponse": {
         "properties": {
           "items": {
@@ -7586,6 +7212,17 @@
               }
             ],
             "title": "Doi"
+          },
+          "reference_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Title"
           },
           "retrieved_at": {
             "anyOf": [

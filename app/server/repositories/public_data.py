@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import String, cast, delete, func, literal, or_, select, union, update
 from sqlalchemy.orm import Session
 
 from server.repositories.database.manager import DatabaseManager
@@ -40,39 +40,6 @@ from server.repositories.schemas.public_data import (
 from server.repositories.schemas.types import normalize_identity
 
 
-SOURCE_DEFINITIONS: tuple[dict[str, Any], ...] = (
-    {
-        "key": "nist",
-        "name": "NIST/ARPA-E Adsorption Database",
-        "description": "Adsorption experiments, guest species, and host materials.",
-        "homepage_url": "https://adsorption.nist.gov/",
-        "license_name": None,
-        "license_url": None,
-        "terms_url": "https://adsorption.nist.gov/",
-        "capabilities": ["adsorption", "materials", "chemicals", "references"],
-    },
-    {
-        "key": "pubchem",
-        "name": "PubChem",
-        "description": "Chemical identities, descriptors, synonyms, and molecular structures.",
-        "homepage_url": "https://pubchem.ncbi.nlm.nih.gov/",
-        "license_name": "Public domain / source-attributed records",
-        "license_url": "https://pubchem.ncbi.nlm.nih.gov/docs/downloads",
-        "terms_url": "https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access",
-        "capabilities": ["chemicals", "structures", "references"],
-    },
-    {
-        "key": "cod",
-        "name": "Crystallography Open Database",
-        "description": "Open crystal structures, CIF records, and publication metadata.",
-        "homepage_url": "https://www.crystallography.net/cod/",
-        "license_name": "CC0 1.0",
-        "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "terms_url": "https://wiki.crystallography.net/howtoobtaincod/",
-        "capabilities": ["materials", "structures", "references"],
-    },
-)
-
 ###############################################################################
 class PublicDataRepository:
 
@@ -81,9 +48,9 @@ class PublicDataRepository:
         self.database = database
 
     # -------------------------------------------------------------------------
-    def ensure_sources(self) -> None:
+    def ensure_sources(self, definitions: list[dict[str, Any]]) -> None:
         with self.database.transaction() as session:
-            for definition in SOURCE_DEFINITIONS:
+            for definition in definitions:
                 source = session.scalar(
                     select(DataSource).where(DataSource.key == definition["key"])
                 )
@@ -93,7 +60,6 @@ class PublicDataRepository:
                 for key, value in definition.items():
                     if key != "key":
                         setattr(source, key, value)
-                source.enabled = True
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -148,7 +114,6 @@ class PublicDataRepository:
             rows = session.execute(
                 select(DataSource, func.count(SourceRecord.id))
                 .outerjoin(SourceRecord, SourceRecord.source_id == DataSource.id)
-                .where(DataSource.enabled.is_(True))
                 .group_by(DataSource.id)
                 .order_by(DataSource.name)
             ).all()
@@ -176,16 +141,19 @@ class PublicDataRepository:
         with self.database.session_factory() as session:
             row = session.execute(
                 select(
-                    select(func.count(Isotherm.id))
+                    # Only provider-backed entities count as public data.
+                    select(func.count(func.distinct(IsothermSourceRecord.isotherm_id)))
                     .scalar_subquery()
                     .label("adsorption_records"),
-                    select(func.count(Adsorbent.id))
+                    select(func.count())
+                    .select_from(self._public_adsorbent_ids().subquery())
                     .scalar_subquery()
                     .label("materials"),
-                    select(func.count(Adsorbate.id))
+                    select(func.count())
+                    .select_from(self._public_adsorbate_ids().subquery())
                     .scalar_subquery()
                     .label("chemicals"),
-                    select(func.count(Structure.id))
+                    select(func.count(func.distinct(StructureSourceRecord.structure_id)))
                     .scalar_subquery()
                     .label("structures"),
                     select(func.count(PublicDataSyncRun.id))
@@ -214,6 +182,49 @@ class PublicDataRepository:
                 "failed_sync_runs": int(row.failed_sync_runs or 0),
                 "latest_successful_sync_at": row.latest_successful_sync_at,
             }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _public_adsorbate_ids(source: str | None = None) -> Any:
+        """Chemicals with a provider record, or used by a provider-backed isotherm."""
+        linked = (
+            select(AdsorbateSourceRecord.adsorbate_id.label("entity_id"))
+            .join(SourceRecord, SourceRecord.id == AdsorbateSourceRecord.source_record_id)
+            .join(DataSource, DataSource.id == SourceRecord.source_id)
+        )
+        measured = (
+            select(IsothermComponent.adsorbate_id.label("entity_id"))
+            .join(
+                IsothermSourceRecord,
+                IsothermSourceRecord.isotherm_id == IsothermComponent.isotherm_id,
+            )
+            .join(SourceRecord, SourceRecord.id == IsothermSourceRecord.source_record_id)
+            .join(DataSource, DataSource.id == SourceRecord.source_id)
+        )
+        if source:
+            linked = linked.where(DataSource.key == source)
+            measured = measured.where(DataSource.key == source)
+        return union(linked, measured)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _public_adsorbent_ids(source: str | None = None) -> Any:
+        """Materials with a provider record, or measured in a provider-backed isotherm."""
+        linked = (
+            select(AdsorbentSourceRecord.adsorbent_id.label("entity_id"))
+            .join(SourceRecord, SourceRecord.id == AdsorbentSourceRecord.source_record_id)
+            .join(DataSource, DataSource.id == SourceRecord.source_id)
+        )
+        measured = (
+            select(Isotherm.adsorbent_id.label("entity_id"))
+            .join(IsothermSourceRecord, IsothermSourceRecord.isotherm_id == Isotherm.id)
+            .join(SourceRecord, SourceRecord.id == IsothermSourceRecord.source_record_id)
+            .join(DataSource, DataSource.id == SourceRecord.source_id)
+        )
+        if source:
+            linked = linked.where(DataSource.key == source)
+            measured = measured.where(DataSource.key == source)
+        return union(linked, measured)
 
     # -------------------------------------------------------------------------
     def update_source_health(
@@ -325,6 +336,32 @@ class PublicDataRepository:
                 .limit(limit)
             ).all()
             return [self._sync_run_payload(run) for run in rows], total
+
+    # -------------------------------------------------------------------------
+    def latest_nist_availability(self) -> dict[str, dict[str, Any]]:
+        """Return the newest remote record count each NIST collection reported."""
+        with self.database.session_factory() as session:
+            runs = session.scalars(
+                select(PublicDataSyncRun)
+                .where(
+                    PublicDataSyncRun.source_key == "nist",
+                    PublicDataSyncRun.operation.in_(("nist_index", "nist_category")),
+                    PublicDataSyncRun.finished_at.is_not(None),
+                )
+                .order_by(PublicDataSyncRun.finished_at.desc())
+                .limit(200)
+            ).all()
+        availability: dict[str, dict[str, Any]] = {}
+        for run in runs:
+            category = run.checkpoint.get("category") or run.parameters.get("category")
+            count = run.checkpoint.get("available_count")
+            if category in availability or count is None:
+                continue
+            availability[str(category)] = {
+                "available_count": int(count),
+                "indexed_at": run.finished_at,
+            }
+        return availability
 
     # -------------------------------------------------------------------------
     def update_sync_run(self, run_id: str, **values: Any) -> None:
@@ -529,6 +566,7 @@ class PublicDataRepository:
         external_id: str,
         source_url: str | None = None,
         raw_metadata: dict[str, Any] | None = None,
+        doi: str | None = None,
     ) -> None:
         with self.database.transaction() as session:
             isotherm_id = session.scalar(
@@ -559,9 +597,57 @@ class PublicDataRepository:
                         source_record_id=record.id, isotherm_id=isotherm_id
                     )
                 )
+            self._attach_reference(session, record, doi=doi)
 
     # -------------------------------------------------------------------------
-    def upsert_pubchem_compound(self, payload: dict[str, Any]) -> int:
+    @staticmethod
+    def _attach_reference(
+        session: Session,
+        record: SourceRecord,
+        *,
+        doi: object,
+        title: str | None = None,
+        journal: str | None = None,
+        year: int | None = None,
+    ) -> None:
+        normalized_doi = str(doi or "").strip() or None
+        if normalized_doi is None:
+            return
+        reference = session.scalar(
+            select(Reference).where(
+                func.lower(Reference.doi) == normalized_doi.lower()
+            )
+        )
+        if reference is None:
+            reference = Reference(
+                doi=normalized_doi,
+                title=title,
+                journal=journal,
+                year=year,
+                url=f"https://doi.org/{normalized_doi}",
+            )
+            session.add(reference)
+            session.flush()
+        else:
+            reference.title = reference.title or title
+            reference.journal = reference.journal or journal
+            reference.year = reference.year or year
+        if session.get(SourceRecordReference, (record.id, reference.id)) is None:
+            session.add(
+                SourceRecordReference(
+                    source_record_id=record.id, reference_id=reference.id
+                )
+            )
+
+    # -------------------------------------------------------------------------
+    def upsert_pubchem_compound(
+        self, payload: dict[str, Any], adsorbate_id: int | None = None
+    ) -> int:
+        """Persist one PubChem compound, optionally onto an existing adsorbate.
+
+        An explicit ``adsorbate_id`` attaches the CID to that chemical; a
+        conflicting InChIKey or an existing CID link elsewhere is rejected.
+        """
         cid = str(payload["cid"])
         inchi_key = str(payload.get("inchi_key") or "").strip() or None
         name = str(payload.get("name") or payload.get("preferred_name") or cid).strip()
@@ -576,13 +662,13 @@ class PublicDataRepository:
                 raw_metadata=payload.get("raw_metadata") or {},
             )
             existing_link = session.get(AdsorbateSourceRecord, record.id)
-            adsorbate: Adsorbate | None = None
-            if existing_link is not None:
-                adsorbate = session.get(Adsorbate, existing_link.adsorbate_id)
-            elif inchi_key:
-                adsorbate = session.scalar(
-                    select(Adsorbate).where(Adsorbate.inchi_key == inchi_key)
-                )
+            adsorbate = self._pubchem_target(
+                session,
+                cid=cid,
+                inchi_key=inchi_key,
+                existing_link=existing_link,
+                adsorbate_id=adsorbate_id,
+            )
             if adsorbate is None:
                 adsorbate = Adsorbate(
                     key=stable_material_key("adsorbate", name, inchi_key or f"pubchem:{cid}"),
@@ -597,8 +683,7 @@ class PublicDataRepository:
                     "automatic merging was refused."
                 )
 
-            adsorbate.name = name or adsorbate.name
-            adsorbate.normalized_name = normalize_identity(adsorbate.name)
+            # Enrichment keeps the canonical display name chosen by its source.
             adsorbate.inchi_key = inchi_key or adsorbate.inchi_key
             adsorbate.inchi = payload.get("inchi") or adsorbate.inchi
             adsorbate.formula = payload.get("formula") or adsorbate.formula
@@ -676,6 +761,40 @@ class PublicDataRepository:
             return adsorbate.id
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _pubchem_target(
+        session: Session,
+        *,
+        cid: str,
+        inchi_key: str | None,
+        existing_link: AdsorbateSourceRecord | None,
+        adsorbate_id: int | None,
+    ) -> Adsorbate | None:
+        if adsorbate_id is None:
+            if existing_link is not None:
+                return session.get(Adsorbate, existing_link.adsorbate_id)
+            if inchi_key:
+                return session.scalar(
+                    select(Adsorbate).where(Adsorbate.inchi_key == inchi_key)
+                )
+            return None
+        adsorbate = session.get(Adsorbate, adsorbate_id)
+        if adsorbate is None:
+            raise LookupError(f"Chemical {adsorbate_id} does not exist.")
+        if existing_link is not None and existing_link.adsorbate_id != adsorbate_id:
+            raise ValueError(f"PubChem CID {cid} is already linked to another chemical.")
+        if inchi_key and session.scalar(
+            select(Adsorbate.id).where(
+                Adsorbate.inchi_key == inchi_key, Adsorbate.id != adsorbate_id
+            )
+        ):
+            raise ValueError(
+                f"PubChem CID {cid} matches another chemical's InChIKey; "
+                "automatic merging was refused."
+            )
+        return adsorbate
+
+    # -------------------------------------------------------------------------
     def find_local_pubchem_adsorbate(self, query: str) -> int | None:
         value = query.strip()
         if not value:
@@ -698,7 +817,58 @@ class PublicDataRepository:
                         Adsorbate.inchi_key == value.upper()
                     )
                 )
-            return None
+            # A name is reused only when PubChem itself listed it as a synonym
+            # of exactly one stored compound.
+            matches = session.scalars(
+                select(AdsorbateSynonym.adsorbate_id)
+                .join(
+                    SourceRecord,
+                    SourceRecord.id == AdsorbateSynonym.source_record_id,
+                )
+                .join(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(
+                    DataSource.key == "pubchem",
+                    AdsorbateSynonym.normalized_synonym == normalize_identity(value),
+                )
+                .distinct()
+                .limit(2)
+            ).all()
+            return int(matches[0]) if len(matches) == 1 else None
+
+    # -------------------------------------------------------------------------
+    def pubchem_enrichment_candidates(self, limit: int) -> list[dict[str, Any]]:
+        """Return chemicals without PubChem identity that may still resolve.
+
+        Chemicals whose earlier lookup failed permanently (no retry time) are
+        excluded so repeated enrichment runs make progress.
+        """
+        with self.database.session_factory() as session:
+            linked = (
+                select(AdsorbateSourceRecord.adsorbate_id)
+                .join(SourceRecord, SourceRecord.id == AdsorbateSourceRecord.source_record_id)
+                .join(DataSource, DataSource.id == SourceRecord.source_id)
+                .where(DataSource.key == "pubchem")
+            )
+            unresolvable = select(PublicDataSyncFailure.external_id).where(
+                PublicDataSyncFailure.source_key == "pubchem",
+                PublicDataSyncFailure.retry_eligible_at.is_(None),
+                PublicDataSyncFailure.external_id.like("adsorbate:%"),
+            )
+            rows = session.execute(
+                select(Adsorbate.id, Adsorbate.name, Adsorbate.inchi_key)
+                .where(
+                    Adsorbate.id.not_in(linked),
+                    (literal("adsorbate:") + cast(Adsorbate.id, String)).not_in(
+                        unresolvable
+                    ),
+                )
+                .order_by(Adsorbate.id)
+                .limit(max(1, limit))
+            ).all()
+            return [
+                {"id": int(row.id), "query": row.inchi_key or row.name}
+                for row in rows
+            ]
 
     # -------------------------------------------------------------------------
     def upsert_cod_structure(
@@ -769,30 +939,14 @@ class PublicDataRepository:
             for atom in atoms:
                 session.add(StructureAtom(structure_id=structure.id, **atom))
 
-            doi = str(metadata.get("doi") or "").strip() or None
-            if doi:
-                reference = session.scalar(
-                    select(Reference).where(func.lower(Reference.doi) == doi.lower())
-                )
-                if reference is None:
-                    reference = Reference(
-                        doi=doi,
-                        title=metadata.get("title"),
-                        journal=metadata.get("journal"),
-                        year=metadata.get("year"),
-                        url=f"https://doi.org/{doi}",
-                    )
-                    session.add(reference)
-                    session.flush()
-                link_exists = session.get(
-                    SourceRecordReference, (record.id, reference.id)
-                )
-                if link_exists is None:
-                    session.add(
-                        SourceRecordReference(
-                            source_record_id=record.id, reference_id=reference.id
-                        )
-                    )
+            self._attach_reference(
+                session,
+                record,
+                doi=metadata.get("doi"),
+                title=metadata.get("title"),
+                journal=metadata.get("journal"),
+                year=metadata.get("year"),
+            )
             session.flush()
             return structure.id
 
@@ -843,6 +997,32 @@ class PublicDataRepository:
                 )
             structure.adsorbent_id = adsorbent_id
             return structure.id
+
+    # -------------------------------------------------------------------------
+    def set_structure_material(
+        self, structure_id: int, adsorbent_id: int | None
+    ) -> None:
+        """Explicitly link a structure to a material, or unlink it with None."""
+        with self.database.transaction() as session:
+            structure = session.get(Structure, structure_id)
+            if structure is None:
+                raise LookupError(f"Structure {structure_id} was not found.")
+            if adsorbent_id is not None:
+                if session.get(Adsorbent, adsorbent_id) is None:
+                    raise LookupError(f"Material {adsorbent_id} does not exist.")
+                if structure.adsorbent_id not in (None, adsorbent_id):
+                    raise ValueError(
+                        "The structure is linked to another material; unlink it first."
+                    )
+            structure.adsorbent_id = adsorbent_id
+
+    # -------------------------------------------------------------------------
+    def get_structure_content(self, structure_id: int) -> tuple[str, str]:
+        with self.database.session_factory() as session:
+            structure = session.get(Structure, structure_id)
+            if structure is None:
+                raise LookupError(f"Structure {structure_id} was not found.")
+            return structure.format, structure.content
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -917,16 +1097,14 @@ class PublicDataRepository:
     @staticmethod
     def _references_for_records(
         session: Session, source_record_ids: list[int]
-    ) -> dict[int, str | None]:
+    ) -> dict[int, dict[str, str | None]]:
         if not source_record_ids:
             return {}
         rows = session.execute(
             select(
                 SourceRecordReference.source_record_id,
-                Reference.id,
                 Reference.doi,
                 Reference.title,
-                Reference.url,
             )
             .join(
                 Reference,
@@ -935,23 +1113,12 @@ class PublicDataRepository:
             .where(SourceRecordReference.source_record_id.in_(source_record_ids))
             .order_by(SourceRecordReference.source_record_id, Reference.id)
         ).all()
-        result: dict[int, str | None] = {}
+        result: dict[int, dict[str, str | None]] = {}
         for row in rows:
             result.setdefault(
-                int(row.source_record_id), row.doi or row.title or row.url
+                int(row.source_record_id), {"doi": row.doi, "title": row.title}
             )
         return result
-
-    # -------------------------------------------------------------------------
-    @classmethod
-    def _reference_for_record(
-        cls, session: Session, source_record_id: int | None
-    ) -> str | None:
-        if source_record_id is None:
-            return None
-        return cls._references_for_records(session, [source_record_id]).get(
-            source_record_id
-        )
 
     # -------------------------------------------------------------------------
     def list_adsorption(
@@ -962,6 +1129,8 @@ class PublicDataRepository:
         source: str | None = None,
         material: str | None = None,
         adsorbate: str | None = None,
+        material_id: int | None = None,
+        adsorbate_id: int | None = None,
         temperature_min_k: float | None = None,
         temperature_max_k: float | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -973,11 +1142,22 @@ class PublicDataRepository:
                     Isotherm.temperature_k,
                     Isotherm.pressure_basis,
                     Dataset.source.label("dataset_source"),
+                    Adsorbent.id.label("material_id"),
                     Adsorbent.name.label("material"),
                 )
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
             )
+            if material_id is not None:
+                query = query.where(Isotherm.adsorbent_id == material_id)
+            if adsorbate_id is not None:
+                query = query.where(
+                    Isotherm.id.in_(
+                        select(IsothermComponent.isotherm_id).where(
+                            IsothermComponent.adsorbate_id == adsorbate_id
+                        )
+                    )
+                )
             if source:
                 source_ids = (
                     select(IsothermSourceRecord.isotherm_id)
@@ -1020,15 +1200,15 @@ class PublicDataRepository:
         if not rows:
             return []
         isotherm_ids = [int(row.id) for row in rows]
-        adsorbates_by_isotherm: dict[int, list[str]] = {}
-        for isotherm_id, adsorbate_name in session.execute(
-            select(IsothermComponent.isotherm_id, Adsorbate.name)
+        adsorbates_by_isotherm: dict[int, list[dict[str, Any]]] = {}
+        for isotherm_id, adsorbate_id, adsorbate_name in session.execute(
+            select(IsothermComponent.isotherm_id, Adsorbate.id, Adsorbate.name)
             .join(Adsorbate, IsothermComponent.adsorbate_id == Adsorbate.id)
             .where(IsothermComponent.isotherm_id.in_(isotherm_ids))
             .order_by(IsothermComponent.isotherm_id, IsothermComponent.position)
         ):
             adsorbates_by_isotherm.setdefault(int(isotherm_id), []).append(
-                str(adsorbate_name)
+                {"id": int(adsorbate_id), "name": str(adsorbate_name)}
             )
 
         stats_by_isotherm = {
@@ -1062,12 +1242,14 @@ class PublicDataRepository:
             entries = provenance_by_isotherm.get(isotherm_id, [])
             source_record_id, primary = entries[0] if entries else (None, None)
             stats = stats_by_isotherm.get(isotherm_id)
+            reference = references.get(source_record_id, {}) if source_record_id else {}
             items.append(
                 {
                     "id": isotherm_id,
                     "external_id": primary["external_id"] if primary else row.external_key,
                     "source": primary["source"] if primary else row.dataset_source,
                     "source_url": primary["source_url"] if primary else None,
+                    "material_id": int(row.material_id),
                     "material": row.material,
                     "adsorbates": adsorbates_by_isotherm.get(isotherm_id, []),
                     "temperature_k": row.temperature_k,
@@ -1076,7 +1258,8 @@ class PublicDataRepository:
                     "uptake_min_mol_kg": stats.uptake_min if stats else None,
                     "uptake_max_mol_kg": stats.uptake_max if stats else None,
                     "point_count": int(stats.point_count if stats else 0),
-                    "reference": references.get(source_record_id) if source_record_id else None,
+                    "doi": reference.get("doi"),
+                    "reference_title": reference.get("title"),
                     "retrieved_at": primary["retrieved_at"] if primary else None,
                 }
             )
@@ -1098,6 +1281,7 @@ class PublicDataRepository:
                     Isotherm.conditions,
                     Isotherm.provenance,
                     Dataset.source.label("dataset_source"),
+                    Adsorbent.id.label("material_id"),
                     Adsorbent.name.label("material"),
                 )
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
@@ -1169,16 +1353,8 @@ class PublicDataRepository:
             if formula:
                 query = query.where(Adsorbent.formula.ilike(f"%{formula.strip()}%"))
             if source:
-                ids = (
-                    select(AdsorbentSourceRecord.adsorbent_id)
-                    .join(
-                        SourceRecord,
-                        SourceRecord.id == AdsorbentSourceRecord.source_record_id,
-                    )
-                    .join(DataSource, DataSource.id == SourceRecord.source_id)
-                    .where(DataSource.key == source)
-                )
-                query = query.where(Adsorbent.id.in_(ids))
+                ids = self._public_adsorbent_ids(source).subquery()
+                query = query.where(Adsorbent.id.in_(select(ids.c.entity_id)))
             if has_structure is not None:
                 structured = select(Structure.adsorbent_id).where(
                     Structure.adsorbent_id.is_not(None)
@@ -1196,31 +1372,68 @@ class PublicDataRepository:
                 .offset((page - 1) * page_size)
                 .limit(page_size)
             ).all()
-            row_ids = [item.id for item in rows]
-            structure_counts = {
-                int(adsorbent_id): int(count)
-                for adsorbent_id, count in session.execute(
-                    select(Structure.adsorbent_id, func.count(Structure.id))
-                    .where(Structure.adsorbent_id.in_(row_ids))
-                    .group_by(Structure.adsorbent_id)
-                )
-                if adsorbent_id is not None
+            return self._material_views(session, rows), total
+
+    # -------------------------------------------------------------------------
+    def _material_views(
+        self, session: Session, items: list[Adsorbent]
+    ) -> list[dict[str, Any]]:
+        row_ids = [item.id for item in items]
+        structure_counts = self._counts_by(
+            session, Structure.adsorbent_id, Structure.id, row_ids
+        )
+        isotherm_counts = self._counts_by(
+            session, Isotherm.adsorbent_id, Isotherm.id, row_ids
+        )
+        provenance = self._provenance_entries(session, "adsorbent", row_ids)
+        return [
+            {
+                "id": item.id,
+                "name": item.name,
+                "formula": item.formula,
+                "molar_mass_g_mol": item.molar_mass_g_mol,
+                "structure_count": structure_counts.get(item.id, 0),
+                "isotherm_count": isotherm_counts.get(item.id, 0),
+                "external_identifiers": [
+                    identifier for _, identifier in provenance.get(item.id, [])
+                ],
             }
-            provenance = self._provenance_entries(session, "adsorbent", row_ids)
-            return [
-                {
-                    "id": item.id,
-                    "name": item.name,
-                    "formula": item.formula,
-                    "molar_mass_g_mol": item.molar_mass_g_mol,
-                    "structure_count": structure_counts.get(item.id, 0),
-                    "external_identifiers": [
-                        identifier
-                        for _, identifier in provenance.get(item.id, [])
-                    ],
-                }
-                for item in rows
-            ], total
+            for item in items
+        ]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _counts_by(
+        session: Session, group_column: Any, count_column: Any, ids: list[int]
+    ) -> dict[int, int]:
+        if not ids:
+            return {}
+        return {
+            int(group_id): int(count)
+            for group_id, count in session.execute(
+                select(group_column, func.count(count_column))
+                .where(group_column.in_(ids))
+                .group_by(group_column)
+            )
+            if group_id is not None
+        }
+
+    # -------------------------------------------------------------------------
+    def get_material(self, adsorbent_id: int) -> dict[str, Any]:
+        with self.database.session_factory() as session:
+            item = session.get(Adsorbent, adsorbent_id)
+            if item is None:
+                raise LookupError(f"Material {adsorbent_id} was not found.")
+            view = self._material_views(session, [item])[0]
+            structures = session.scalars(
+                select(Structure)
+                .where(Structure.adsorbent_id == adsorbent_id)
+                .order_by(Structure.updated_at.desc())
+            ).all()
+            view["structures"] = self._structure_views(
+                session, list(structures), include_atoms=False
+            )
+            return view
 
     # -------------------------------------------------------------------------
     def list_chemicals(
@@ -1254,16 +1467,8 @@ class PublicDataRepository:
             if molecular_weight_max is not None:
                 query = query.where(Adsorbate.molar_mass_g_mol <= molecular_weight_max)
             if source:
-                ids = (
-                    select(AdsorbateSourceRecord.adsorbate_id)
-                    .join(
-                        SourceRecord,
-                        SourceRecord.id == AdsorbateSourceRecord.source_record_id,
-                    )
-                    .join(DataSource, DataSource.id == SourceRecord.source_id)
-                    .where(DataSource.key == source)
-                )
-                query = query.where(Adsorbate.id.in_(ids))
+                ids = self._public_adsorbate_ids(source).subquery()
+                query = query.where(Adsorbate.id.in_(select(ids.c.entity_id)))
             total = int(
                 session.scalar(select(func.count()).select_from(query.subquery())) or 0
             )
@@ -1324,13 +1529,19 @@ class PublicDataRepository:
         ):
             synonyms_by_adsorbate.setdefault(int(adsorbate_id), []).append(str(synonym))
 
+        isotherm_counts = self._counts_by(
+            session, IsothermComponent.adsorbate_id, IsothermComponent.isotherm_id, item_ids
+        )
         return [
-            self._chemical_payload(
-                item,
-                [identifier for _, identifier in provenance.get(item.id, [])],
-                properties_by_adsorbate.get(item.id, []),
-                synonyms_by_adsorbate.get(item.id, []),
-            )
+            {
+                **self._chemical_payload(
+                    item,
+                    [identifier for _, identifier in provenance.get(item.id, [])],
+                    properties_by_adsorbate.get(item.id, []),
+                    synonyms_by_adsorbate.get(item.id, []),
+                ),
+                "isotherm_count": isotherm_counts.get(item.id, 0),
+            }
             for item in items
         ]
 
@@ -1408,9 +1619,12 @@ class PublicDataRepository:
         query_text: str | None = None,
         source: str | None = None,
         linked_only: bool | None = None,
+        material_id: int | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         with self.database.session_factory() as session:
             query = select(Structure)
+            if material_id is not None:
+                query = query.where(Structure.adsorbent_id == material_id)
             if query_text:
                 pattern = f"%{query_text.strip()}%"
                 query = query.where(
@@ -1508,6 +1722,7 @@ class PublicDataRepository:
         for item in items:
             entries = provenance.get(item.id, [])
             source_record_id, primary = entries[0] if entries else (None, None)
+            reference = references.get(source_record_id, {}) if source_record_id else {}
             result.append(
                 {
                     "id": item.id,
@@ -1533,7 +1748,8 @@ class PublicDataRepository:
                     "cell_volume_angstrom3": item.cell_volume_angstrom3,
                     "has_coordinates": item.has_coordinates,
                     "atom_count": atom_counts.get(item.id, 0),
-                    "doi": references.get(source_record_id) if source_record_id else None,
+                    "doi": reference.get("doi"),
+                    "reference_title": reference.get("title"),
                     "retrieved_at": primary["retrieved_at"] if primary else None,
                     "atoms": atoms_by_structure.get(item.id, []),
                 }
@@ -1547,4 +1763,4 @@ class PublicDataRepository:
         return self._structure_views(session, [item], include_atoms=include_atoms)[0]
 
 
-__all__ = ["PublicDataRepository", "SOURCE_DEFINITIONS"]
+__all__ = ["PublicDataRepository"]

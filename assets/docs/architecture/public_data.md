@@ -1,6 +1,6 @@
 # Public data architecture
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Scope
 
@@ -21,7 +21,7 @@ Purpose:
 - adsorption experiments and isotherm measurements;
 - adsorbate reference records;
 - adsorbent/material reference records;
-- existing ADSMOD NIST acquisition jobs.
+- durable, bounded NIST collection acquisition runs.
 
 NIST acquisition remains asynchronous because full collection retrieval can be expensive. Retrieved experiments are persisted in the existing canonical adsorption schema and linked to NIST `source_records`.
 
@@ -132,7 +132,6 @@ Normalized enrichment tables:
 
 - `adsorbate_synonyms`;
 - `chemical_properties`;
-- `material_properties`;
 - `structures`;
 - `structure_atoms`.
 
@@ -158,51 +157,62 @@ Key endpoints:
 
 - `GET /overview`
 - `GET /sources`
+- `GET /sources/nist/collections`: stored and last-indexed available counts per NIST collection
 - `POST /sources/{source_key}/health-check` (HTTP 202)
-- `GET /sync-runs`
-- `POST /sync-runs` (HTTP 202)
-- `GET /sync-runs/{run_id}`
-- `POST /sync-runs/{run_id}/cancel`
-- `GET /sync-runs/{run_id}/failures`
-- `GET /adsorption`
-- `GET /adsorption/{isotherm_id}`
-- `GET /materials`
-- `GET /chemicals`
-- `GET /chemicals/{adsorbate_id}`
-- `POST /chemicals/resolve`
-- `GET /structures`
-- `GET /structures/{structure_id}`
-- `GET /structures/search`
-- `POST /structures/import`
+- `GET /sync-runs`, `POST /sync-runs` (HTTP 202), `GET /sync-runs/{run_id}`
+- `POST /sync-runs/{run_id}/cancel`, `GET /sync-runs/{run_id}/failures`
+- `GET /adsorption` (filters: `source`, `material`, `adsorbate`, `material_id`, `adsorbate_id`, temperature range), `GET /adsorption/{isotherm_id}`
+- `GET /materials`, `GET /materials/{adsorbent_id}` (with linked structures and isotherm count)
+- `GET /chemicals`, `GET /chemicals/{adsorbate_id}` (with isotherm count)
+- `GET /structures` (filters include `material_id`), `GET /structures/{structure_id}`
+- `PUT /structures/{structure_id}/material`: explicit link or unlink (`{"adsorbent_id": null}`)
+- `GET /structures/{structure_id}/file`: the stored original CIF
+- `GET /structures/search`: bounded COD search
 
-List endpoints use server-side pagination and filters. New workspace actions enqueue operations through `POST /sync-runs`, return HTTP 202, and expose progress, cancellation, and per-record failures. The existing `POST /chemicals/resolve` and `POST /structures/import` endpoints remain synchronous and keep their original response contracts for API clients; the Angular workspace uses the durable routes. `DELETE /sync-runs/{run_id}` remains a cancellation alias for clients that used the early durable-run contract. External provider failures are recorded on the run and do not invalidate unrelated providers or local records.
+All provider acquisition runs through `POST /sync-runs`. There are no synchronous import routes and no separate NIST job API. Operations:
 
-The Overview endpoint returns aggregate counts and acquisition summaries from local tables in one database read. `GET /sources` returns provider registration, saved health state, freshness, last successful sync time, and cached counts without contacting providers. Health-check requests return a durable run ID immediately. The Sources view polls saved run state and keeps registry details visible while checks are pending. Counts remain unresolved in the Overview UI until the local response arrives, and a response from a previous view is ignored after navigation.
+| Operation | Source | Parameters | Effect |
+| --- | --- | --- | --- |
+| `nist_index` | `nist` | `category` | Counts the records NIST publishes for one collection. |
+| `nist_category` | `nist` | `category`, `fraction` | Fetches not-yet-stored records from the leading share of the index, in batches. |
+| `pubchem_resolve` | `pubchem` | `query`, optional `adsorbate_id` | Resolves one compound. With `adsorbate_id`, the CID is attached to that chemical. |
+| `pubchem_enrich` | `pubchem` | — | Resolves stored chemicals without PubChem identity by InChIKey or name, bounded per run. |
+| `cod_import` | `cod` | `cod_id` or `cod_ids` (≤50), optional `adsorbent_id` | Imports CIF records and optionally links them to a material. |
+
+Each run stores only the parameters its operation uses. External provider failures are recorded on the run and do not invalidate unrelated providers or local records.
+
+The Overview endpoint returns aggregate counts and acquisition summaries from local tables in one database read. It counts provider-backed data only: isotherms and structures with a source record, plus chemicals and materials that have a source record or are used by a provider-backed isotherm. The `source` filter on Materials and Chemicals uses the same rule. `GET /sources` returns provider registration, saved health state, freshness, last successful sync time, and cached counts without contacting providers.
+
+## Identity and deduplication
+
+- NIST isotherm payloads carry the adsorbent hashkey, adsorbate InChIKeys, and DOI. These are attached before persistence, so isotherm species and materials resolve to the same rows as the NIST species and material catalogues. The DOI becomes a `references` row linked to the isotherm's source record, and each isotherm source record stores its per-record NIST URL.
+- NIST gives some species a placeholder identifier (`NIST-ISODB-...`) instead of an InChIKey. It identifies the NIST record and the canonical row key, but it is never stored as an InChIKey.
+- NIST catalogue records keep their published formula and InChI. Re-importing never clears a stored value with a missing one.
+- PubChem attaches to an existing chemical only by CID link, exact InChIKey, an explicit `adsorbate_id`, or a PubChem synonym that matches exactly one stored compound. A conflicting InChIKey or a CID already linked elsewhere is rejected.
+- The `20261020_public_data_nav` migration merges NIST rows created by display name into the matching NIST catalogue row. It merges only when the row has no identifier or provenance of its own, is used solely by NIST isotherms, and matches exactly one catalogue row. It also removes placeholder source records from the earlier backfill and adds indexes for the list filters.
 
 ## Durable acquisition runs
 
-`public_data_sync_runs` stores operation parameters, queued/running/terminal status, progress counters, checkpoint, cancellation request, error summary, and timestamps. `public_data_sync_failures` stores per-record failures with an optional retry-eligible time. Source rows retain health status and last successful sync time. The startup migration is additive and preserves all imported records.
+`public_data_sync_runs` stores operation parameters, queued/running/terminal status, progress counters, checkpoint, cancellation request, error summary, and timestamps. `public_data_sync_failures` stores per-record failures with an optional retry-eligible time. Source rows retain health status and last successful sync time.
 
-The in-process coordinator polls and claims queued rows from the local database; it adds no broker or separate service. Its configured concurrency is bounded and defaults to one active run. SQLite write transactions are serialized within the single backend process. NIST fetches are split into batches, write each batch before saving its checkpoint, and use the existing canonical upserts and identifier checks. With startup resume enabled, NIST and COD continue after the last checkpointed external ID. If a record was committed immediately before a crash but its checkpoint was not, the local identifier check skips it instead of importing a duplicate. Interrupted runs remain visible; automatic resume is disabled by default and can be enabled explicitly. Cancellation is checked between NIST batches and selected COD records; a single in-flight PubChem or COD request is allowed to finish before its run becomes terminal.
+The in-process coordinator polls and claims queued rows from the local database; it adds no broker or separate service. Its configured concurrency is bounded and defaults to one active run. NIST fetches are split into batches, write each batch before saving its checkpoint, and use the canonical upserts and identifier checks. With startup resume enabled, NIST and COD continue after the last checkpointed external ID. Interrupted runs remain visible; automatic resume is disabled by default. Cancellation is checked between NIST batches, PubChem enrichment records, and selected COD records.
 
-Acquisition is incremental and bounded. NIST runs fetch at most the configured record cap, retain committed batches, and save explicit reasons for transport failures and records excluded by current schema or unit support. PubChem resolves a requested CID, InChIKey, or name and reuses local CID/InChIKey matches before making remote requests; it does not mirror the catalog. COD imports one selected ID or an explicit selection of up to 50 IDs per run, preserves each returned CIF and provenance, rejects content without a CIF data block, and refuses to reassign a structure already linked to a different material. Partial COD batches retain successful imports and report each failed record.
+Acquisition is incremental and bounded. NIST runs fetch at most the configured record cap and save explicit reasons for transport failures and for records excluded by unit support. PubChem enrichment records a permanent failure for compounds PubChem cannot resolve and skips them in later runs. COD preserves each returned CIF and provenance, rejects content without a CIF data block, and refuses to reassign a structure already linked to a different material.
 
-Automatic refresh is disabled by default. It can be enabled for an explicit list of NIST collections with a configured interval and fraction; each scheduled refresh is stored as an ordinary durable run. PubChem and COD remain targeted user actions.
+HTTP providers read decoded bodies under `sync_response_size_limit_bytes` (64 MiB by default; the NIST isotherm index is about 18 MB). COD answers short request bursts with HTTP 403, so ADSMOD paces COD to one request per second and retries a 403 after a longer backoff. Exact COD ID lookups skip the count request.
+
+Automatic refresh is disabled by default. It can be enabled for an explicit list of NIST collections with a configured interval and fraction; each scheduled refresh is stored as an ordinary durable run.
 
 ## Frontend workspace
 
-The Angular route `/public-data/:view` is the single public-data workspace. Views are:
+The Angular route `/public-data/:view` is the single public-data workspace. Views are Overview, Acquire, Adsorption Data, Materials, Chemicals, Structures, and Sources.
 
-- Overview
-- Adsorption Data
-- Materials
-- Chemicals
-- Structures
-- Sources
+- **Acquire** holds every fetch control: NIST collections (availability, share, fetch), PubChem (resolve one compound, enrich stored chemicals), and COD (search, multi-select, optional material link, import). One run tracker lists runs with progress, cancel, failed-record reasons, and a link to the imported records.
+- **Domain views** are browse-only and cross-linked. Isotherms link to their material and adsorbates, materials to their structures and isotherms, and chemicals to their isotherms. Details live in a `?id=` query parameter, so every record is deep-linkable. `material_id` and `adsorbate_id` query parameters filter isotherms and structures.
+- Shortcuts carry context into Acquire. "Resolve on PubChem" on a chemical attaches the result to that chemical, and "Find COD structures" on a material preselects it as the link target.
+- **Sources** shows provider registration, saved health, freshness, and stored provenance counts, and queues health checks.
 
-The old split public-materials destination is removed rather than retained as a compatibility route. NIST collection fetches, PubChem resolution, COD single or selected multi-record imports, provider health checks, cancellation, and persisted run history use the same durable coordinator; normalized data exploration lives in domain views. Sources shows provider registration, last known connection state and freshness, local provenance counts, last successful sync, and durable activity. PubChem resolution remains in Chemicals and COD search/import remains in Structures so existing controls are not duplicated.
-
-The central tables use bounded columns, truncation for long identifiers, explicit detail actions, server-side pagination, loading/empty/error states, and horizontally scrollable table frames when the available viewport cannot represent all scientific columns safely.
+The central tables use bounded columns, truncation for long identifiers, explicit detail actions, server-side pagination, loading/empty/error states, and horizontally scrollable table frames when the viewport cannot show all scientific columns.
 
 ## Structural-viewer limitation
 

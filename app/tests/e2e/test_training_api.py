@@ -77,22 +77,9 @@ class TestDatasetBuild:
 
     # -------------------------------------------------------------------------
     def test_build_dataset_request_structure(
-        self,
-        api_context: APIRequestContext,
-        ml_api_context: APIRequestContext,
+        self, ml_api_context: APIRequestContext
     ) -> None:
         """Verify dataset build endpoint accepts valid request without server errors."""
-        nist_status = api_context.get("/api/v1/nist/status")
-        if nist_status.ok:
-            status_payload = nist_status.json()
-            if status_payload.get("data_available"):
-                max_rows = int(os.getenv("TEST_MAX_NIST_ROWS", "1000"))
-                row_count = int(status_payload.get("single_component_rows", 0))
-                if row_count > max_rows:
-                    pytest.skip(
-                        f"NIST dataset has {row_count} rows; skip heavy build in tests."
-                    )
-
         payload = {
             "sample_size": float(os.getenv("TEST_DATASET_SAMPLE_SIZE", "0.02")),
             "validation_size": 0.2,

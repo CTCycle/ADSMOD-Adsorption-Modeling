@@ -8,7 +8,9 @@ import type {
     CODSearchResponse,
     ChemicalPageResponse,
     ChemicalRecordView,
+    MaterialDetailResponse,
     MaterialPageResponse,
+    NISTCollectionListResponse,
     PublicDataOverviewResponse,
     PublicDataSyncFailureListResponse,
     PublicDataSyncRequest,
@@ -60,6 +62,10 @@ export function checkPublicSourceHealth(sourceKey: string): Promise<ApiResult<Pu
     return requestJson(`/public-data/sources/${encodeURIComponent(sourceKey)}/health-check`, { method: 'POST' });
 }
 
+export function fetchNistCollections(): Promise<ApiResult<NISTCollectionListResponse>> {
+    return requestJson('/public-data/sources/nist/collections');
+}
+
 export function startPublicDataSync(request: PublicDataSyncRequest): Promise<ApiResult<PublicDataSyncRun>> {
     return requestJson('/public-data/sync-runs', {
         method: 'POST',
@@ -94,6 +100,8 @@ export function fetchPublicAdsorption(params: {
     source?: string;
     material?: string;
     adsorbate?: string;
+    material_id?: number | null;
+    adsorbate_id?: number | null;
     temperature_min_k?: number | null;
     temperature_max_k?: number | null;
 }): Promise<ApiResult<AdsorptionPageResponse>> {
@@ -115,6 +123,10 @@ export function fetchPublicMaterials(params: {
     return requestJson(`/public-data/materials${queryString(params)}`);
 }
 
+export function fetchPublicMaterialDetail(id: number): Promise<ApiResult<MaterialDetailResponse>> {
+    return requestJson(`/public-data/materials/${id}`);
+}
+
 export function fetchPublicChemicals(params: {
     page?: number;
     page_size?: number;
@@ -131,8 +143,13 @@ export function fetchPublicChemicalDetail(id: number): Promise<ApiResult<Chemica
     return requestJson(`/public-data/chemicals/${id}`);
 }
 
-export function resolvePubChem(query: string): Promise<ApiResult<PublicDataSyncRun>> {
-    return startPublicDataSync({ source_key: 'pubchem', operation: 'pubchem_resolve', query });
+export function resolvePubChem(query: string, adsorbateId?: number | null): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({
+        source_key: 'pubchem',
+        operation: 'pubchem_resolve',
+        query,
+        ...(adsorbateId == null ? {} : { adsorbate_id: adsorbateId }),
+    });
 }
 
 export function searchCOD(params: {
@@ -143,11 +160,11 @@ export function searchCOD(params: {
     return requestJson(`/public-data/structures/search${queryString(params)}`);
 }
 
-export function importCOD(codId: string, adsorbentId?: number | null): Promise<ApiResult<PublicDataSyncRun>> {
+export function importCOD(codIds: string[], adsorbentId?: number | null): Promise<ApiResult<PublicDataSyncRun>> {
     return startPublicDataSync({
         source_key: 'cod',
         operation: 'cod_import',
-        cod_id: codId,
+        ...(codIds.length === 1 ? { cod_id: codIds[0] } : { cod_ids: codIds }),
         ...(adsorbentId == null ? {} : { adsorbent_id: adsorbentId }),
     });
 }
@@ -158,10 +175,23 @@ export function fetchPublicStructures(params: {
     q?: string;
     source?: string;
     linked_only?: boolean | null;
+    material_id?: number | null;
 }): Promise<ApiResult<StructurePageResponse>> {
     return requestJson(`/public-data/structures${queryString(params)}`);
 }
 
 export function fetchPublicStructureDetail(id: number): Promise<ApiResult<StructureRecordView>> {
     return requestJson(`/public-data/structures/${id}`);
+}
+
+export function setStructureMaterial(structureId: number, adsorbentId: number | null): Promise<ApiResult<StructureRecordView>> {
+    return requestJson(`/public-data/structures/${structureId}/material`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adsorbent_id: adsorbentId }),
+    });
+}
+
+export function structureFileUrl(structureId: number): string {
+    return `${API_BASE_URL}/public-data/structures/${structureId}/file`;
 }

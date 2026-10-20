@@ -1,14 +1,14 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-10-19
+Last updated: 2026-10-20
 
 ## Main Navigation
 
 The application uses one Angular frontend with these primary routes:
 
 - `datasets` for custom workspace datasets and file import
-- `public-data` for NIST-A adsorption experiments
-- `public-data/:view` for NIST adsorption data, materials, chemicals, structures, sources, and PubChem/COD enrichment
+- `public-data` for the public-data workspace (opens Overview)
+- `public-data/:view` for Overview, Acquire, Adsorption Data, Materials, Chemicals, Structures, and Sources
 - `dashboards` for the current dashboard placeholder
 - `fitting` for adsorption model fitting
 - `training` for processing, training datasets, checkpoints, and the dashboard
@@ -27,22 +27,22 @@ split `public-materials` destination is not a supported route.
 
 ## Use NIST Data For Fitting
 
-1. Open `public-data/sources` and set the fraction to acquire for experiments, guests, or hosts.
-2. Select the collection's Fetch action. ADSMOD queues a durable run and displays progress, saved, skipped, and failed counts.
-3. Cancel between committed batches when needed. Earlier batches remain available.
-4. Confirm the imported measurements in the local Adsorption Data view.
+1. Open `public-data/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use Check availability to see stored versus available records.
+2. Set the share of the index to consider and select Fetch. Each run is bounded; fetch again to continue where the previous run stopped. Records already stored are never downloaded twice.
+3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
+4. Follow "View isotherms →" to the Adsorption Data view, then open a record to reach its material and adsorbates.
 5. Open `fitting`, select the NIST workspace dataset, and start fitting.
 
-The index refresh, NIST ping, and enrichment actions remain available for their existing workflows. The overview, source registry, and local record views do not need an external provider to respond.
+The overview, source registry, and local record views do not need an external provider to respond.
 
 ## Retrieve Public Materials And Adsorbates
 
-1. Open `public-data/overview`.
-2. Open `public-data/sources` to review provider registration, the last saved connection state and its freshness, local provenance counts, and recent acquisition activity.
-3. Use Refresh status to queue independent provider health checks. The source list remains visible while checks run.
-4. Use the Materials, Chemicals, and Structures views to inspect normalized records.
-5. Resolve a CID, InChIKey, or name in Chemicals. Search COD by ID, formula, or a narrow text query in Structures, then import one result or select up to 50 COD results for one bounded run.
-6. Review progress, counts, retries, and per-record errors in Sources. Local records stay available when a provider is unavailable.
+1. Open `public-data/acquire`.
+2. PubChem: resolve a CID, InChIKey, or name, or select Enrich stored chemicals to add PubChem identity, synonyms, and properties to stored chemicals that lack them. From a chemical's detail, Resolve on PubChem attaches the result to that chemical instead of creating a new one.
+3. COD: search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. From a material's detail, Find COD structures opens this panel with the material preselected.
+4. Follow the Run tracker and open the imported records from its links.
+5. Browse Materials, Chemicals, Structures, and Adsorption Data. Records link to each other (isotherm → material and adsorbates, material → structures and isotherms, chemical → isotherms), every detail has a shareable `?id=` URL, and a structure can be linked to or unlinked from a material and its CIF downloaded.
+6. Open `public-data/sources` to review provider registration and saved connection state, and use Refresh status to queue independent health checks. Local records stay available when a provider is unavailable.
 
 Scheduled NIST refresh is disabled by default. To enable it, configure `application.public_data.auto_sync_enabled`, select one or more `auto_sync_categories`, and choose the interval and fraction in the runtime configuration.
 

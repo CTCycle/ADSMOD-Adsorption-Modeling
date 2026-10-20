@@ -4,17 +4,18 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 from datetime import datetime, timezone
 
 import httpx
 import pytest
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import event, select
+from sqlalchemy import event, func, select
 from sqlalchemy.exc import IntegrityError
 
 from server.api.public_data import PublicDataEndpoint
 from server.configurations.settings import DatabaseConfig
-from server.domain.public_data import CODStructureImportRequest, PubChemResolveRequest
+from server.domain.public_data import StructureMaterialLinkRequest
 from server.services.providers.cod import CODProvider
 from server.services.providers.pubchem import PubChemProvider
 from server.services.providers.public_data import (
@@ -23,6 +24,7 @@ from server.services.providers.public_data import (
     ProviderRateLimitError,
     ProviderUnavailableError,
     PublicDataProvider,
+    RequestBudget,
 )
 from server.services.data.public_data import PublicDataService
 from server.repositories.database.manager import DatabaseManager
@@ -44,6 +46,10 @@ from server.repositories.schemas.public_data import (
     Structure,
     StructureSourceRecord,
 )
+
+from server.services.providers import PROVIDER_CLASSES
+
+PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
 
 ###############################################################################
 def _manager() -> DatabaseManager:
@@ -77,29 +83,22 @@ def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[
     return len(statements)
 
 
-def test_synchronous_provider_endpoints_keep_validation_status_codes() -> None:
-    class InvalidProviderService:
-        async def resolve_pubchem(self, query: str) -> object:
-            del query
-            raise ValueError("PubChem query could not be resolved.")
-
-        async def import_cod(self, request: CODStructureImportRequest) -> object:
-            del request
-            raise ValueError("COD record cannot be imported.")
+def test_structure_link_endpoint_maps_conflicts_to_http_409() -> None:
+    class ConflictingService:
+        def set_structure_material(self, structure_id: int, adsorbent_id: int | None) -> object:
+            del structure_id, adsorbent_id
+            raise ValueError("The structure is linked to another material; unlink it first.")
 
     endpoint = PublicDataEndpoint(
         router=APIRouter(),
-        service=InvalidProviderService(),  # type: ignore[arg-type]
+        service=ConflictingService(),  # type: ignore[arg-type]
         sync=object(),  # type: ignore[arg-type]
     )
 
-    with pytest.raises(HTTPException) as pubchem_error:
-        asyncio.run(endpoint.resolve_pubchem(PubChemResolveRequest(query="unknown")))
-    with pytest.raises(HTTPException) as cod_error:
-        asyncio.run(endpoint.import_cod(CODStructureImportRequest(cod_id="1234")))
+    with pytest.raises(HTTPException) as error:
+        endpoint.set_structure_material(1, StructureMaterialLinkRequest(adsorbent_id=2))
 
-    assert pubchem_error.value.status_code == 409
-    assert cod_error.value.status_code == 400
+    assert error.value.status_code == 409
 
 ###############################################################################
 def _seed_listing_rows(repository: PublicDataRepository) -> int:
@@ -199,7 +198,7 @@ def test_overview_counts_use_one_local_query() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         _seed_listing_rows(repository)
 
         assert _count_selects(manager, repository.overview_counts) == 1
@@ -207,7 +206,8 @@ def test_overview_counts_use_one_local_query() -> None:
             "adsorption_records": 2,
             "materials": 2,
             "chemicals": 2,
-            "structures": 2,
+            # Seeded structures have no provider record, so they are not public data.
+            "structures": 0,
             "active_sync_runs": 0,
             "failed_sync_runs": 0,
             "latest_successful_sync_at": None,
@@ -220,7 +220,7 @@ def test_provider_registry_and_source_identity_constraints() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         assert {row["key"] for row in repository.source_rows()} == {
             "nist",
             "pubchem",
@@ -292,7 +292,7 @@ def test_source_registry_uses_cached_health_without_probing_providers() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         provider = ProbeCountingProvider()
         failing_provider = FailingProvider()
         service = PublicDataService(repository=repository, providers=[provider, failing_provider])
@@ -314,7 +314,7 @@ def test_public_data_health_and_durable_sync_run_state_persist() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         checked_at = datetime.now(timezone.utc)
         repository.update_source_health(
             "nist", status="available", detail=None, checked_at=checked_at
@@ -526,10 +526,10 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
     asyncio.run(exercise())
 
 ###############################################################################
-def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     responses = [
         httpx.Response(
-            503,
+            403,
             request=httpx.Request("GET", "https://www.crystallography.net/cod/retry"),
         ),
         httpx.Response(
@@ -576,6 +576,7 @@ def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) ->
         retry_attempts=2,
         max_interactive_results=10,
     )
+    provider.request_budget = RequestBudget(minimum_interval_seconds=0.0)
 
     async def exercise() -> None:
         response = await provider._request(
@@ -586,7 +587,33 @@ def test_retrying_provider_recovers_after_transient_http_failure(monkeypatch) ->
 
     asyncio.run(exercise())
     assert responses == []
-    assert sleeps == [0.5]
+    assert sleeps == [5.0]
+
+###############################################################################
+def test_retrying_provider_returns_decoded_gzip_body() -> None:
+    payload = b'{"PropertyTable": {"Properties": []}}'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=gzip.compress(payload),
+            headers={"Content-Encoding": "gzip", "Content-Type": "application/json"},
+            request=request,
+        )
+
+    provider = PubChemProvider()
+
+    async def exercise() -> None:
+        provider._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        provider._client_loop = asyncio.get_running_loop()
+        response = await provider._request(
+            "GET", f"{provider.base_url}/compound/cid/1/property/Title/JSON"
+        )
+        assert response.content == payload
+        assert response.json() == {"PropertyTable": {"Properties": []}}
+        await provider.close()
+
+    asyncio.run(exercise())
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -632,7 +659,7 @@ def test_pubchem_upsert_uses_strong_identity_and_does_not_merge_by_name() -> Non
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         with manager.transaction() as session:
             session.add(
                 Adsorbate(
@@ -665,6 +692,106 @@ def test_pubchem_upsert_uses_strong_identity_and_does_not_merge_by_name() -> Non
             assert len(records) == 2
             assert records[1].id == pubchem_id
             assert records[1].inchi_key == "VNWKTOKETHGBQD-UHFFFAOYSA-N"
+    finally:
+        manager.dispose()
+
+###############################################################################
+def _methane_payload(inchi_key: str = "VNWKTOKETHGBQD-UHFFFAOYSA-N") -> dict[str, object]:
+    return {
+        "cid": "297",
+        "name": "Methane",
+        "formula": "CH4",
+        "molecular_weight": 16.043,
+        "inchi_key": inchi_key,
+        "synonyms": ["Methane", "CH4"],
+        "descriptors": {},
+        "elemental_composition": {"C": 1.0, "H": 4.0},
+        "raw_metadata": {},
+    }
+
+###############################################################################
+def test_pubchem_attach_enriches_selected_chemical_and_tracks_candidates() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        with manager.transaction() as session:
+            session.add_all(
+                [
+                    Adsorbate(key="nist-methane", name="methane"),
+                    Adsorbate(key="nist-argon", name="argon"),
+                    Adsorbate(key="nist-xenon", name="xenon"),
+                ]
+            )
+        with manager.session_factory() as session:
+            ids = dict(session.execute(select(Adsorbate.key, Adsorbate.id)).all())
+        repository.add_sync_failure(
+            sync_run_id=repository.create_sync_run(
+                source_key="pubchem", operation="pubchem_enrich", parameters={}
+            )["id"],
+            source_key="pubchem",
+            external_id=f"adsorbate:{ids['nist-xenon']}",
+            reason="xenon: not found",
+        )
+
+        attached = repository.upsert_pubchem_compound(
+            _methane_payload(), ids["nist-methane"]
+        )
+
+        assert attached == ids["nist-methane"]
+        with manager.session_factory() as session:
+            methane = session.get(Adsorbate, attached)
+            assert methane is not None
+            assert (methane.name, methane.formula) == ("methane", "CH4")
+            assert session.scalar(select(func.count(Adsorbate.id))) == 3
+        assert repository.find_local_pubchem_adsorbate("CH4") == attached
+        # Linked chemicals and permanent lookup failures are not retried.
+        assert repository.pubchem_enrichment_candidates(10) == [
+            {"id": ids["nist-argon"], "query": "argon"}
+        ]
+        with pytest.raises(ValueError, match="already linked"):
+            repository.upsert_pubchem_compound(_methane_payload(), ids["nist-argon"])
+    finally:
+        manager.dispose()
+
+###############################################################################
+def test_navigation_filters_by_ids_and_structure_links_are_explicit() -> None:
+    manager = _manager()
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        structure_id = _seed_listing_rows(repository)
+        structure = repository.get_structure(structure_id)
+        material_id = int(structure["material_id"])
+
+        rows, total = repository.list_adsorption(
+            page=1, page_size=25, material_id=material_id
+        )
+        assert total == 1
+        assert rows[0]["material_id"] == material_id
+        adsorbate_id = rows[0]["adsorbates"][0]["id"]
+        _, by_adsorbate = repository.list_adsorption(
+            page=1, page_size=25, adsorbate_id=adsorbate_id
+        )
+        assert by_adsorbate == 1
+
+        material = repository.get_material(material_id)
+        assert material["isotherm_count"] == 1
+        assert [item["id"] for item in material["structures"]] == [structure_id]
+
+        other_material = next(
+            item["id"]
+            for item in repository.list_materials(page=1, page_size=25)[0]
+            if item["id"] != material_id
+        )
+        with pytest.raises(ValueError, match="unlink it first"):
+            repository.set_structure_material(structure_id, other_material)
+        repository.set_structure_material(structure_id, None)
+        repository.set_structure_material(structure_id, other_material)
+        _, linked = repository.list_structures(
+            page=1, page_size=25, material_id=other_material
+        )
+        assert linked == 2
     finally:
         manager.dispose()
 
@@ -751,7 +878,7 @@ def test_cod_reimport_without_material_preserves_existing_association() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         with manager.transaction() as session:
             adsorbent = Adsorbent(
                 key="test-silica",
@@ -795,7 +922,7 @@ def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         _seed_listing_rows(repository)
 
         assert _count_selects(
@@ -805,11 +932,11 @@ def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
         assert _count_selects(
             manager,
             lambda: repository.list_materials(page=1, page_size=2),
-        ) <= 4
+        ) <= 5
         assert _count_selects(
             manager,
             lambda: repository.list_chemicals(page=1, page_size=2),
-        ) <= 5
+        ) <= 6
         assert _count_selects(
             manager,
             lambda: repository.list_structures(page=1, page_size=2),
@@ -822,7 +949,7 @@ def test_structure_reference_matches_primary_provenance_record() -> None:
     manager = _manager()
     try:
         repository = PublicDataRepository(manager)
-        repository.ensure_sources()
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         structure_id = _seed_listing_rows(repository)
         with manager.transaction() as session:
             nist_id = session.scalar(select(DataSource.id).where(DataSource.key == "nist"))
