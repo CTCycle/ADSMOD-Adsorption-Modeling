@@ -38,12 +38,31 @@ class DatasetService:
         repository: DatasetRepository,
         importer: AdsorptionImportEngine | None = None,
         allowed_extensions: Collection[str] = DEFAULT_DATASET_ALLOWED_EXTENSIONS,
+        column_detection_cutoff: float = 0.6,
+        preview_row_limit: int = 20,
     ) -> None:
         self.repository = repository
-        self.importer = importer or AdsorptionImportEngine(allowed_extensions)
+        self.importer = importer or AdsorptionImportEngine(
+            allowed_extensions,
+            column_detection_cutoff=column_detection_cutoff,
+            preview_row_limit=preview_row_limit,
+        )
         self.allowed_extensions = list(
             getattr(self.importer, "allowed_extensions", allowed_extensions)
         )
+
+    # -------------------------------------------------------------------------
+    def apply_settings(
+        self,
+        *,
+        allowed_extensions: Collection[str],
+        column_detection_cutoff: float,
+        preview_row_limit: int,
+    ) -> None:
+        self.allowed_extensions = list(allowed_extensions)
+        self.importer.allowed_extensions = tuple(allowed_extensions)
+        self.importer.column_detection_cutoff = float(column_detection_cutoff)
+        self.importer.preview_row_limit = int(preview_row_limit)
 
     # -------------------------------------------------------------------------
     @staticmethod

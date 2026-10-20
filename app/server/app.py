@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from importlib import import_module
-from pathlib import Path
 from typing import Any, get_args
 
 from fastapi import APIRouter, FastAPI, Request
@@ -16,7 +16,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from server.common.units import UnitRegistry
 from server.common.utils.logger import close_file_logging, configure_logging, logger
 from server.common.version import __version__
-from server.configurations.settings import AdsmodConfig, load_config
+from server.configurations.bootstrap import resolve_settings_database_path
+from server.configurations.settings import AdsmodConfig, RuntimeConfig, UserSettings
+from server.configurations.store import ApplicationSettingsStore
 from server.domain.capabilities import CapabilitiesResponse, FeatureCapabilities
 from server.domain.configuration import (
     DisplayUnitCapabilities,
@@ -32,6 +34,7 @@ from server.common.path import resolve_storage_root
 from server.repositories.database.initializer import prepare_database_for_startup
 from server.services.container import CoreServiceContainer
 from server.services.training_data import TrainingDataService
+from server.api.settings import create_settings_router
 
 ###############################################################################
 @dataclass
@@ -39,6 +42,9 @@ class ApplicationRuntime:
     config: AdsmodConfig
     container: CoreServiceContainer
     training_data: TrainingDataService
+    settings_store: ApplicationSettingsStore
+    startup_runtime: RuntimeConfig
+    startup_settings: UserSettings
     machine_learning_available: bool = False
     machine_learning_reason: str | None = None
     ml_container: Any | None = None
@@ -161,6 +167,17 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         config.application.database,
         storage_root=storage_root,
     )
+    settings = application.state.settings_store.initialize(config.user_settings())
+    config = AdsmodConfig.assemble(
+        database=config.application.database,
+        storage_root=storage_root,
+        settings=settings,
+    )
+    application.state.config = config
+    application.state.runtime.config = config
+    application.state.runtime.startup_runtime = config.runtime
+    application.state.runtime.startup_settings = settings
+    application.state.core_container.apply_settings(config)
     application.state.core_container.public_data_service.ensure_sources()
     await application.state.core_container.public_data_sync.start()
     application.state.ready = True
@@ -173,15 +190,26 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
             ml_container.shutdown()
         await application.state.core_container.shutdown_async()
         application.state.core_container.database.dispose()
+        application.state.settings_store.dispose()
         close_file_logging()
 
 ###############################################################################
-def create_app(config: AdsmodConfig) -> FastAPI:
+def create_app(
+    config: AdsmodConfig,
+    *,
+    settings_store: ApplicationSettingsStore | None = None,
+) -> FastAPI:
+    store = settings_store or ApplicationSettingsStore(
+        resolve_settings_database_path(config.application.database, config.storage.root)
+    )
     container = CoreServiceContainer(config)
     runtime = ApplicationRuntime(
         config=config,
         container=container,
         training_data=TrainingDataService(container),
+        settings_store=store,
+        startup_runtime=config.runtime,
+        startup_settings=config.user_settings(),
     )
     application = FastAPI(
         title=FASTAPI_TITLE,
@@ -193,6 +221,9 @@ def create_app(config: AdsmodConfig) -> FastAPI:
     application.state.ready = False
     application.state.core_container = container
     application.state.runtime = runtime
+    application.state.settings_store = store
+    application.state.settings_update_lock = asyncio.Lock()
+    application.state.startup_runtime = config.runtime
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -206,14 +237,11 @@ def create_app(config: AdsmodConfig) -> FastAPI:
     )
     application.include_router(health_router)
     application.include_router(_build_system_router(), prefix="/api/v1")
+    application.include_router(create_settings_router(), prefix="/api/v1")
     register_core_routes(application, container, prefix="/api/v1")
     _register_optional_ml(application, runtime)
     register_root_routes(application)
     return application
 
-###############################################################################
-def create_app_from_path(config_path: str | Path) -> FastAPI:
-    return create_app(load_config(config_path))
 
-
-__all__ = ["app_lifespan", "create_app", "create_app_from_path"]
+__all__ = ["app_lifespan", "create_app"]

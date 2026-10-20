@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 ###############################################################################
@@ -50,6 +50,7 @@ class TrainingConfigRequest(BaseModel):
     # Training settings
     epochs: int = Field(default=50, ge=1, le=500)
     dataloader_workers: int = Field(default=0, ge=0, le=64)
+    persistent_workers: bool = False
     prefetch_factor: int = Field(default=1, ge=1, le=32)
     pin_memory: bool = True
     use_device_GPU: bool = True
@@ -79,6 +80,12 @@ class TrainingConfigRequest(BaseModel):
         max_length=64,
         pattern=REGEX_NAME,
     )
+
+    @model_validator(mode="after")
+    def validate_persistent_workers(self) -> "TrainingConfigRequest":
+        if self.persistent_workers and self.dataloader_workers < 1:
+            raise ValueError("persistent_workers requires dataloader_workers to be greater than zero")
+        return self
 
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):

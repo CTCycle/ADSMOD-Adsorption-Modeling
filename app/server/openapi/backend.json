@@ -90,6 +90,87 @@
         }
       }
     },
+    "/api/v1/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Settings",
+        "operationId": "get_settings_api_v1_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Settings",
+        "operationId": "update_settings_api_v1_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/reset": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Reset Settings",
+        "operationId": "reset_settings_api_v1_settings_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/datasets/supported-units": {
       "get": {
         "tags": [
@@ -3775,6 +3856,37 @@
         "type": "object",
         "title": "DatasetBuildRequest"
       },
+      "DatasetConfig": {
+        "properties": {
+          "allowed_extensions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                ".csv",
+                ".xls",
+                ".xlsx"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Extensions",
+            "default": [
+              ".csv",
+              ".xls",
+              ".xlsx"
+            ]
+          },
+          "column_detection_cutoff": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Column Detection Cutoff",
+            "default": 0.6
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DatasetConfig"
+      },
       "DatasetImportInspectionResponse": {
         "properties": {
           "status": {
@@ -4519,6 +4631,68 @@
         ],
         "title": "FeatureCapabilities"
       },
+      "FittingConfig": {
+        "properties": {
+          "default_max_iterations": {
+            "type": "integer",
+            "maximum": 1000000000.0,
+            "minimum": 10.0,
+            "title": "Default Max Iterations",
+            "default": 1000
+          },
+          "max_iterations_upper_bound": {
+            "type": "integer",
+            "maximum": 1000000000.0,
+            "minimum": 10.0,
+            "title": "Max Iterations Upper Bound",
+            "default": 1000000000
+          },
+          "default_parameter_initial": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Default Parameter Initial",
+            "default": 1.0
+          },
+          "default_parameter_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Default Parameter Min",
+            "default": 0.0
+          },
+          "default_parameter_max": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Default Parameter Max",
+            "default": 100.0
+          },
+          "preview_row_limit": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Preview Row Limit",
+            "default": 20
+          },
+          "best_model_metric": {
+            "type": "string",
+            "enum": [
+              "sse",
+              "rmse",
+              "mae",
+              "r_squared",
+              "adjusted_r_squared",
+              "chi_square",
+              "aic",
+              "aicc",
+              "bic"
+            ],
+            "title": "Best Model Metric",
+            "default": "aicc"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FittingConfig"
+      },
       "FittingConfigurationResponse": {
         "properties": {
           "status": {
@@ -4609,7 +4783,6 @@
           },
           "max_evaluations": {
             "type": "integer",
-            "maximum": 1000000.0,
             "minimum": 10.0,
             "title": "Max Evaluations",
             "default": 10000
@@ -5142,6 +5315,20 @@
         ],
         "title": "JobCancelResponse"
       },
+      "JobConfig": {
+        "properties": {
+          "polling_interval": {
+            "type": "number",
+            "maximum": 60.0,
+            "minimum": 0.1,
+            "title": "Polling Interval",
+            "default": 1.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobConfig"
+      },
       "JobListResponse": {
         "properties": {
           "jobs": {
@@ -5634,6 +5821,20 @@
           "local_count"
         ],
         "title": "NISTCollectionView"
+      },
+      "NISTConfig": {
+        "properties": {
+          "parallel_tasks": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Parallel Tasks",
+            "default": 40
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NISTConfig"
       },
       "NormalizedExperimentPreview": {
         "properties": {
@@ -6317,6 +6518,120 @@
         ],
         "title": "ProcessedDatasetsResponse"
       },
+      "PublicDataConfig": {
+        "properties": {
+          "request_timeout_seconds": {
+            "type": "number",
+            "maximum": 120.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Request Timeout Seconds",
+            "default": 20.0
+          },
+          "retry_attempts": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Retry Attempts",
+            "default": 3
+          },
+          "retry_backoff_max_seconds": {
+            "type": "number",
+            "maximum": 120.0,
+            "minimum": 0.1,
+            "title": "Retry Backoff Max Seconds",
+            "default": 30.0
+          },
+          "pubchem_parallel_requests": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Pubchem Parallel Requests",
+            "default": 2
+          },
+          "cod_max_interactive_results": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Cod Max Interactive Results",
+            "default": 250
+          },
+          "health_cache_ttl_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 30.0,
+            "title": "Health Cache Ttl Seconds",
+            "default": 900
+          },
+          "sync_batch_size": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Sync Batch Size",
+            "default": 50
+          },
+          "sync_max_records_per_run": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Sync Max Records Per Run",
+            "default": 200
+          },
+          "sync_max_concurrent_jobs": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Sync Max Concurrent Jobs",
+            "default": 1
+          },
+          "sync_response_size_limit_bytes": {
+            "type": "integer",
+            "maximum": 268435456.0,
+            "minimum": 1024.0,
+            "title": "Sync Response Size Limit Bytes",
+            "default": 67108864
+          },
+          "sync_resume_on_startup": {
+            "type": "boolean",
+            "title": "Sync Resume On Startup",
+            "default": false
+          },
+          "auto_sync_enabled": {
+            "type": "boolean",
+            "title": "Auto Sync Enabled",
+            "default": false
+          },
+          "auto_sync_categories": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "experiments",
+                "guest",
+                "host"
+              ]
+            },
+            "type": "array",
+            "title": "Auto Sync Categories",
+            "default": []
+          },
+          "auto_sync_interval_hours": {
+            "type": "integer",
+            "maximum": 720.0,
+            "minimum": 1.0,
+            "title": "Auto Sync Interval Hours",
+            "default": 24
+          },
+          "auto_sync_fraction": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Auto Sync Fraction",
+            "default": 1.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PublicDataConfig"
+      },
       "PublicDataOverviewResponse": {
         "properties": {
           "adsorption_records": {
@@ -6899,6 +7214,37 @@
         ],
         "title": "ResumeTrainingRequest"
       },
+      "RuntimeConfig": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "enum": [
+              "127.0.0.1",
+              "localhost",
+              "::1"
+            ],
+            "title": "Host",
+            "default": "127.0.0.1"
+          },
+          "backend_port": {
+            "type": "integer",
+            "maximum": 65535.0,
+            "minimum": 1024.0,
+            "title": "Backend Port",
+            "default": 6045
+          },
+          "frontend_port": {
+            "type": "integer",
+            "maximum": 65535.0,
+            "minimum": 1024.0,
+            "title": "Frontend Port",
+            "default": 5173
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RuntimeConfig"
+      },
       "RuntimeDeviceCapabilities": {
         "properties": {
           "keras_backend": {
@@ -6930,6 +7276,78 @@
           "devices"
         ],
         "title": "RuntimeDeviceCapabilities"
+      },
+      "SettingsResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "success"
+          },
+          "current": {
+            "$ref": "#/components/schemas/UserSettings"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/UserSettings"
+          },
+          "restart_required": {
+            "type": "boolean",
+            "title": "Restart Required"
+          },
+          "restart_required_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Restart Required Fields"
+          },
+          "pending_restart_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pending Restart Fields"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "current",
+          "defaults",
+          "restart_required",
+          "restart_required_fields",
+          "pending_restart_fields"
+        ],
+        "title": "SettingsResponse"
+      },
+      "SettingsUpdateRequest": {
+        "properties": {
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeConfig"
+          },
+          "datasets": {
+            "$ref": "#/components/schemas/DatasetConfig"
+          },
+          "nist": {
+            "$ref": "#/components/schemas/NISTConfig"
+          },
+          "public_data": {
+            "$ref": "#/components/schemas/PublicDataConfig"
+          },
+          "fitting": {
+            "$ref": "#/components/schemas/FittingConfig"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/JobConfig"
+          },
+          "training": {
+            "$ref": "#/components/schemas/TrainingConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SettingsUpdateRequest",
+        "description": "Full settings replacement; partial updates are intentionally rejected."
       },
       "StructureAtomView": {
         "properties": {
@@ -7296,6 +7714,46 @@
         ],
         "title": "SupportedUnitsResponse"
       },
+      "TrainingConfig": {
+        "properties": {
+          "use_jit": {
+            "type": "boolean",
+            "title": "Use Jit",
+            "default": false
+          },
+          "jit_backend": {
+            "type": "string",
+            "enum": [
+              "inductor",
+              "eager",
+              "aot_eager",
+              "cudagraphs"
+            ],
+            "title": "Jit Backend",
+            "default": "inductor"
+          },
+          "use_mixed_precision": {
+            "type": "boolean",
+            "title": "Use Mixed Precision",
+            "default": false
+          },
+          "dataloader_workers": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 0.0,
+            "title": "Dataloader Workers",
+            "default": 0
+          },
+          "persistent_workers": {
+            "type": "boolean",
+            "title": "Persistent Workers",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TrainingConfig"
+      },
       "TrainingConfigRequest": {
         "properties": {
           "sample_size": {
@@ -7403,6 +7861,11 @@
             "minimum": 0.0,
             "title": "Dataloader Workers",
             "default": 0
+          },
+          "persistent_workers": {
+            "type": "boolean",
+            "title": "Persistent Workers",
+            "default": false
           },
           "prefetch_factor": {
             "type": "integer",
@@ -7846,6 +8309,35 @@
           "progress"
         ],
         "title": "TrainingStatusResponse"
+      },
+      "UserSettings": {
+        "properties": {
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeConfig"
+          },
+          "datasets": {
+            "$ref": "#/components/schemas/DatasetConfig"
+          },
+          "nist": {
+            "$ref": "#/components/schemas/NISTConfig"
+          },
+          "public_data": {
+            "$ref": "#/components/schemas/PublicDataConfig"
+          },
+          "fitting": {
+            "$ref": "#/components/schemas/FittingConfig"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/JobConfig"
+          },
+          "training": {
+            "$ref": "#/components/schemas/TrainingConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserSettings",
+        "description": "All application behavior settings editable in the console."
       },
       "ValidationError": {
         "properties": {

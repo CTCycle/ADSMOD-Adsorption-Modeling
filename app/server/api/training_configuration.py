@@ -54,6 +54,7 @@ def configuration(request: Request) -> TrainingConfigurationResponse:
             "jit_backend": config.application.training.jit_backend,
             "use_mixed_precision": config.application.training.use_mixed_precision,
             "dataloader_workers": config.application.training.dataloader_workers,
+            "persistent_workers": config.application.training.persistent_workers,
         }
     )
     dataset_defaults = DatasetBuildRequest.model_construct(datasets=[]).model_dump(

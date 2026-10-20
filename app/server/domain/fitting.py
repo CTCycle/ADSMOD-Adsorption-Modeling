@@ -39,7 +39,7 @@ class FittingRequest(BaseModel):
     isotherm_id: int = Field(ge=1)
     models: list[str] = Field(min_length=1, max_length=9)
     optimizer: Literal["trf", "dogbox"] = "trf"
-    max_evaluations: int = Field(default=10_000, ge=10, le=1_000_000)
+    max_evaluations: int = Field(default=10_000, ge=10)
     weighting: Literal["unweighted", "inverse_sigma"] = "unweighted"
     parameter_configuration: dict[str, dict[str, ParameterConfiguration]] = Field(
         default_factory=dict

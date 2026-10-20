@@ -1,11 +1,13 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 
 ## Backend or UI unreachable
 
-- Check the backend and frontend host/port values in `data/adsmod.json`,
-  or in the selected data directory when an override is active.
+- Check the backend and frontend host/port values on **Settings → Runtime**.
+  A saved host or port change needs an ADSMOD restart.
+- Check `settings/.env` for database selection and bootstrap paths; the running
+  application validates these values before connecting.
 - Confirm the backend responds at `/health/ready`.
 - Confirm `app/client/dist/browser/index.html` exists and the frontend preview
   serves the built Angular application.

@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from server.configurations.settings import AdsmodConfig
+from server.configurations.settings import AdsmodConfig, MINIMIZE_MODEL_METRICS
 from server.domain.fitting import (
     FittingRequest,
     FittingResponse,
@@ -61,6 +61,7 @@ class FittingService:
         self._start_lock = threading.Lock()
         self._run_lifecycle_lock = threading.RLock()
         self._run_ids_by_job_id: dict[str, int] = {}
+        self._poll_intervals_by_job_id: dict[str, float] = {}
 
     # -------------------------------------------------------------------------
     def model_catalog(
@@ -177,6 +178,7 @@ class FittingService:
         self,
         payload_dict: dict[str, Any],
         run_id: int,
+        best_model_metric: str = "aicc",
         stop_event: Any | None = None,
     ) -> dict[str, Any]:
         payload = FittingRequest.model_validate(payload_dict)
@@ -187,6 +189,21 @@ class FittingService:
             )
             computations = self.pipeline.run(series, payload, stop_event=stop_event)
             raise_if_cancelled(stop_event)
+            for item in computations:
+                item.rank = None
+            ranked = [
+                item
+                for item in computations
+                if item.status != "failed"
+                and item.metrics.values.get(best_model_metric) is not None
+                and np.isfinite(float(item.metrics.values[best_model_metric]))
+            ]
+            ranked.sort(
+                key=lambda item: float(item.metrics.values[best_model_metric]),
+                reverse=best_model_metric not in MINIMIZE_MODEL_METRICS,
+            )
+            for rank, item in enumerate(ranked, start=1):
+                item.rank = rank
             pressure = np.asarray(series["pressure"], dtype=np.float64)
             uptake = np.asarray(series["uptake"], dtype=np.float64)
             response_results = [
@@ -269,6 +286,12 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     def start_fitting_job(self, payload: FittingRequest) -> JobStartResponse:
+        job_config = self.config
+        fitting_config = job_config.application.fitting
+        if payload.max_evaluations > fitting_config.max_iterations_upper_bound:
+            raise ValueError(
+                "max_evaluations exceeds the configured maximum iteration ceiling."
+            )
         with self._start_lock:
             if self.job_manager.is_job_running(self.JOB_TYPE):
                 raise ValueError("A fitting job is already running.")
@@ -282,24 +305,33 @@ class FittingService:
                 max_evaluations=payload.max_evaluations,
                 pressure_display_unit=payload.display_units.pressure,
                 uptake_display_unit=payload.display_units.uptake,
-                configuration=payload.model_dump(mode="json"),
+                configuration={
+                    **payload.model_dump(mode="json"),
+                    "best_model_metric": fitting_config.best_model_metric,
+                    "polling_interval": job_config.application.jobs.polling_interval,
+                },
             )
             try:
                 job_id = self.job_manager.start_job(
                     job_type=self.JOB_TYPE,
                     runner=self._run_fitting_sync,
-                    args=(payload.model_dump(mode="json"), run_id),
+                    args=(
+                        payload.model_dump(mode="json"),
+                        run_id,
+                        fitting_config.best_model_metric,
+                    ),
                 )
             except Exception as exc:
                 self.results.fail_run(run_id, str(exc))
                 raise
             with self._run_lifecycle_lock:
                 self._run_ids_by_job_id[job_id] = run_id
+                self._poll_intervals_by_job_id[job_id] = job_config.application.jobs.polling_interval
             return JobResponseFactory.start(
                 job_id=job_id,
                 job_type=self.JOB_TYPE,
                 message=f"Fitting run {run_id} started.",
-                poll_interval=self.config.application.jobs.polling_interval,
+                poll_interval=job_config.application.jobs.polling_interval,
             )
 
     # -------------------------------------------------------------------------
@@ -307,19 +339,33 @@ class FittingService:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise LookupError(f"Job {job_id} not found.")
+        poll_interval = self._poll_intervals_by_job_id.get(
+            job_id, self.config.application.jobs.polling_interval
+        )
         if job_status["status"] in {"completed", "failed", "cancelled"}:
             with self._run_lifecycle_lock:
                 self._run_ids_by_job_id.pop(job_id, None)
+                self._poll_intervals_by_job_id.pop(job_id, None)
         return JobResponseFactory.status(
             job_status=job_status,
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=poll_interval,
         )
 
     # -------------------------------------------------------------------------
     def list_jobs(self) -> JobListResponse:
+        job_statuses = self.job_manager.list_jobs(self.JOB_TYPE)
+        active_job = next(
+            (job for job in job_statuses if job.get("status") not in {"completed", "failed", "cancelled"}),
+            None,
+        )
         return JobResponseFactory.list(
-            job_statuses=self.job_manager.list_jobs(self.JOB_TYPE),
-            poll_interval=self.config.application.jobs.polling_interval,
+            job_statuses=job_statuses,
+            poll_interval=(
+                self._poll_intervals_by_job_id.get(str(active_job["job_id"]))
+                if active_job is not None
+                else None
+            )
+            or self.config.application.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -337,6 +383,7 @@ class FittingService:
             if run_id is not None:
                 self.results.cancel_run(run_id)
                 self._run_ids_by_job_id.pop(job_id, None)
+                self._poll_intervals_by_job_id.pop(job_id, None)
             return JobResponseFactory.cancelled(job_id)
 
     # -------------------------------------------------------------------------

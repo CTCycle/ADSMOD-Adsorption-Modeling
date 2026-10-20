@@ -1,6 +1,6 @@
 # ADSMOD validation campaign
 
-Last updated: 2026-09-30
+Last updated: 2026-10-20
 
 ## Purpose
 
@@ -11,8 +11,9 @@ validated guarantees, limitations, and evidence anchors. Do not copy execution
 narratives or historical run logs into this roadmap.
 
 The campaign describes the current `develop` application line: one Angular
-client, one FastAPI backend, the canonical `data/adsmod.json` configuration,
-and optional ML capabilities loaded in-process.
+client, one FastAPI backend, SQLite-backed application settings with database
+bootstrap values in `settings/.env`, and optional ML capabilities loaded
+in-process.
 
 ## Evidence contract
 

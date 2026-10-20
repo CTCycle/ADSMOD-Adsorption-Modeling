@@ -28,15 +28,16 @@ set "TMP=%CACHE_DIR%\temp"
 set "TMPDIR=%CACHE_DIR%\temp"
 set "PLAYWRIGHT_BROWSERS_PATH=%CACHE_DIR%\playwright"
 cd /d "%PROJECT_ROOT%"
-set "DATA_DIR=!ADSMOD_DATA_DIR!"
-if "!DATA_DIR!"=="" set "DATA_DIR=%PROJECT_ROOT%\data"
-for %%I in ("!DATA_DIR!") do set "DATA_DIR=%%~fI"
-set "CANONICAL_CONFIG=!DATA_DIR!\adsmod.json"
 set "VENV_PYTHON=%BACKEND_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.host"`) do set "BACKEND_HOST=%%A"& set "UI_HOST=%%A"
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.backend_port"`) do set "BACKEND_PORT=%%A"
-for /f "usebackq tokens=*" %%A in (`powershell -NoProfile -Command "(Get-Content -Raw '%CANONICAL_CONFIG%' | ConvertFrom-Json).runtime.frontend_port"`) do set "UI_PORT=%%A"
+if not exist "%VENV_PYTHON%" (echo [ERROR] Missing backend venv: "%VENV_PYTHON%"& exit /b 1)
+for /f "usebackq tokens=1-3 delims=|" %%A in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%APP_DIR%\scripts\read_runtime_endpoint.ps1" -PythonPath "%VENV_PYTHON%" -RepositoryRoot "%PROJECT_ROOT%"`) do (
+  set "BACKEND_HOST=%%A"
+  set "BACKEND_PORT=%%B"
+  set "UI_PORT=%%C"
+)
+if "!BACKEND_PORT!"=="" (echo [ERROR] Could not load runtime ports from the SQLite settings store.& exit /b 1)
+set "UI_HOST=%BACKEND_HOST%"
 set "TEST_BACKEND_HOST=%BACKEND_HOST%"
 set "TEST_UI_HOST=%UI_HOST%"
 if /i "%TEST_BACKEND_HOST%"=="0.0.0.0" set "TEST_BACKEND_HOST=127.0.0.1"
@@ -88,7 +89,7 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="false" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/health/ready" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting unified backend server...
-    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m server.cli --config "%CANONICAL_CONFIG%"
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m server.cli
     set "STARTED_BACKEND=1"
   )
   curl -s --max-time 2 "%APP_TEST_FRONTEND_URL%" >nul 2>&1

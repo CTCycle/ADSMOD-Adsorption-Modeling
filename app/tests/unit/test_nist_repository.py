@@ -27,7 +27,6 @@ def build_nist_repository(path: Path) -> NISTRepository:
     settings = DatabaseConfig(
         embedded_database=True,
         connect_timeout=30,
-        insert_batch_size=100,
         sqlite_path=str(path),
     )
     database = DatabaseManager(settings)

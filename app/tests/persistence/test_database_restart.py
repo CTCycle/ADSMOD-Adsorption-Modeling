@@ -9,26 +9,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from server.app import create_app
-from server.configurations.settings import StorageConfig, load_config
+from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.repositories.schemas.models import Dataset
-
-
-CONFIG_PATH = Path("data/adsmod.json")
 
 ###############################################################################
 def _temporary_config(storage_root: Path):
-    base = load_config(CONFIG_PATH)
-    return base.model_copy(
-        update={
-            "storage": StorageConfig(root=storage_root),
-            "application": base.application.model_copy(
-                update={
-                    "database": base.application.database.model_copy(
-                        update={"sqlite_path": "data/test.db"}
-                    )
-                }
-            ),
-        }
+    return AdsmodConfig.assemble(
+        database=DatabaseConfig(embedded_database=True, sqlite_path="data/test.db"),
+        storage_root=storage_root,
+        settings=UserSettings(),
     )
 
 ###############################################################################

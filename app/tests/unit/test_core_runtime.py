@@ -8,11 +8,9 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from fastapi.testclient import TestClient
-from server.configurations.settings import StorageConfig, load_config
+from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 import server.app as app_module
-from server.app import create_app, create_app_from_path
-
-CONFIG_PATH = Path("data/adsmod.json")
+from server.app import create_app
 
 ###############################################################################
 def _shutdown_process_runner(stop_event: Any) -> dict[str, str]:
@@ -22,13 +20,11 @@ def _shutdown_process_runner(stop_event: Any) -> dict[str, str]:
 
 ###############################################################################
 def _temporary_config(directory: str):
-    base = load_config(CONFIG_PATH)
-    return base.model_copy(update={
-        "storage": StorageConfig(root=Path(directory)),
-        "application": base.application.model_copy(update={
-            "database": base.application.database.model_copy(update={"sqlite_path": "core.db"})
-        }),
-    })
+    return AdsmodConfig.assemble(
+        database=DatabaseConfig(embedded_database=True, sqlite_path="core.db"),
+        storage_root=Path(directory),
+        settings=UserSettings(),
+    )
 
 ###############################################################################
 def test_unified_runtime_contracts(tmp_path: Path) -> None:
@@ -43,21 +39,21 @@ def test_unified_runtime_contracts(tmp_path: Path) -> None:
             assert client.get("/api/v1/training/configuration").status_code == 200
 
 ###############################################################################
-def test_factory_uses_single_backend_port() -> None:
-    application = create_app_from_path(CONFIG_PATH)
+def test_factory_uses_single_backend_port(tmp_path: Path) -> None:
+    application = create_app(_temporary_config(str(tmp_path)))
     assert application.state.config.runtime.backend_port > 0
     assert not hasattr(application.state.config.runtime, "ml_port")
 
 ###############################################################################
 def test_optional_ml_missing_package_is_reported_as_unavailable(
-    monkeypatch, caplog  # type: ignore[no-untyped-def]
+    monkeypatch, caplog, tmp_path: Path  # type: ignore[no-untyped-def]
 ) -> None:
     def missing_package(name: str):
         raise ModuleNotFoundError(f"No module named {name!r}", name="server.services.ml_container")
 
     monkeypatch.setattr(app_module, "import_module", missing_package)
     runtime = SimpleNamespace(
-        config=load_config(CONFIG_PATH),
+        config=_temporary_config(str(tmp_path)),
         training_data=None,
         machine_learning_available=True,
         machine_learning_reason=None,
@@ -70,14 +66,14 @@ def test_optional_ml_missing_package_is_reported_as_unavailable(
 
 ###############################################################################
 def test_optional_ml_bootstrap_failure_is_logged_as_initialization_error(
-    monkeypatch, caplog  # type: ignore[no-untyped-def]
+    monkeypatch, caplog, tmp_path: Path  # type: ignore[no-untyped-def]
 ) -> None:
     def broken_package(name: str):
         raise RuntimeError(f"broken optional package at {name}")
 
     monkeypatch.setattr(app_module, "import_module", broken_package)
     runtime = SimpleNamespace(
-        config=load_config(CONFIG_PATH),
+        config=_temporary_config(str(tmp_path)),
         training_data=None,
         machine_learning_available=True,
         machine_learning_reason=None,

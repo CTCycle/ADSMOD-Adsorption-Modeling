@@ -7,25 +7,15 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from server.configurations.settings import StorageConfig, load_config
+from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.app import create_app
-
-CONFIG_PATH = Path("data/adsmod.json")
 
 ###############################################################################
 def _config(tmp_path: Path):  # type: ignore[no-untyped-def]
-    base = load_config(CONFIG_PATH)
-    return base.model_copy(
-        update={
-            "storage": StorageConfig(root=tmp_path),
-            "application": base.application.model_copy(
-                update={
-                    "database": base.application.database.model_copy(
-                        update={"sqlite_path": "data/test.db"}
-                    )
-                }
-            ),
-        }
+    return AdsmodConfig.assemble(
+        database=DatabaseConfig(embedded_database=True, sqlite_path="data/test.db"),
+        storage_root=tmp_path,
+        settings=UserSettings(),
     )
 
 ###############################################################################

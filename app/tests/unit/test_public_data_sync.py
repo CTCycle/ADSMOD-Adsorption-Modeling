@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from server.configurations.settings import DatabaseConfig, PublicDataConfig, load_config
+from server.configurations.settings import AdsmodConfig, DatabaseConfig, PublicDataConfig, UserSettings
 from server.domain.public_data import PublicDataSyncCreateRequest
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.public_data import PublicDataRepository
@@ -41,7 +41,6 @@ def _database(path: Path) -> DatabaseManager:
         DatabaseConfig(
             embedded_database=True,
             connect_timeout=5,
-            insert_batch_size=100,
             sqlite_path=str(path / "public-data-sync.db"),
         )
     )
@@ -767,7 +766,11 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
 
     monkeypatch.setattr(httpx, "AsyncClient", _Client)
     service = NISTDataService(
-        config=load_config(Path("data/adsmod.json")),
+        config=AdsmodConfig.assemble(
+            database=DatabaseConfig(),
+            storage_root=Path("/tmp/adsmod"),
+            settings=UserSettings(),
+        ),
         repository=object(),  # type: ignore[arg-type]
         mapper=object(),  # type: ignore[arg-type]
     )
