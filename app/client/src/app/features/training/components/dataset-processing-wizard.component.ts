@@ -1,7 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { Component, OnInit, computed, input, output, signal } from '@angular/core';
+import { Component, OnInit, input, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { DatasetBuildConfig, DatasetSelection } from '../../../models/dataset-build.model';
 import type { DatasetSourceInfo, NumericConstraint } from '../../../models/training.model';
@@ -138,13 +138,13 @@ export class DatasetProcessingWizardComponent implements OnInit {
         dataset_label: this.datasetNameControl,
     });
 
-    protected readonly sampleSize = computed(() => this.sampleSizeControl.value);
-    protected readonly validationSize = computed(() => this.validationSizeControl.value);
-    protected readonly minMeasurements = computed(() => this.minMeasurementsControl.value);
-    protected readonly maxMeasurements = computed(() => this.maxMeasurementsControl.value);
-    protected readonly smileSequenceSize = computed(() => this.smileSequenceSizeControl.value);
-    protected readonly maxPressure = computed(() => this.maxPressureControl.value);
-    protected readonly maxUptake = computed(() => this.maxUptakeControl.value);
+    protected readonly sampleSize = () => this.sampleSizeControl.value;
+    protected readonly validationSize = () => this.validationSizeControl.value;
+    protected readonly minMeasurements = () => this.minMeasurementsControl.value;
+    protected readonly maxMeasurements = () => this.maxMeasurementsControl.value;
+    protected readonly smileSequenceSize = () => this.smileSequenceSizeControl.value;
+    protected readonly maxPressure = () => this.maxPressureControl.value;
+    protected readonly maxUptake = () => this.maxUptakeControl.value;
 
     protected minimum(field: string): number | undefined {
         return this.numericConstraints()[field]?.minimum;
