@@ -83,8 +83,13 @@ def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[
     return len(statements)
 
 
+###############################################################################
 def test_structure_link_endpoint_maps_conflicts_to_http_409() -> None:
+
+    ###############################################################################
     class ConflictingService:
+
+        # -------------------------------------------------------------------------
         def set_structure_material(self, structure_id: int, adsorbent_id: int | None) -> object:
             del structure_id, adsorbent_id
             raise ValueError("The structure is linked to another material; unlink it first.")
@@ -260,6 +265,8 @@ def test_provider_registry_and_source_identity_constraints() -> None:
 
 ###############################################################################
 def test_source_registry_uses_cached_health_without_probing_providers() -> None:
+
+    ###############################################################################
     class ProbeCountingProvider(PublicDataProvider):
         key = "nist"
         name = "NIST test provider"
@@ -270,9 +277,11 @@ def test_source_registry_uses_cached_health_without_probing_providers() -> None:
         terms_url = None
         capabilities = (ProviderCapability.ADSORPTION,)
 
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.health_checks = 0
 
+        # -------------------------------------------------------------------------
         async def health(self) -> ProviderHealth:
             self.health_checks += 1
             return ProviderHealth(
@@ -281,10 +290,12 @@ def test_source_registry_uses_cached_health_without_probing_providers() -> None:
                 checked_at=datetime.now(timezone.utc),
             )
 
+    ###############################################################################
     class FailingProvider(ProbeCountingProvider):
         key = "cod"
         name = "COD test provider"
 
+        # -------------------------------------------------------------------------
         async def health(self) -> ProviderHealth:
             self.health_checks += 1
             raise RuntimeError("provider timeout")
@@ -477,13 +488,18 @@ def test_pubchem_resolution_keeps_primary_record_when_secondary_endpoint_fails(
 def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     created: list[object] = []
 
+    ###############################################################################
     class FakeStream:
+
+        # -------------------------------------------------------------------------
         def __init__(self, response: httpx.Response) -> None:
             self.response = response
 
+        # -------------------------------------------------------------------------
         async def __aenter__(self):  # type: ignore[no-untyped-def]
             return self.response
 
+        # -------------------------------------------------------------------------
         async def __aexit__(self, *_args):  # type: ignore[no-untyped-def]
             return None
 
@@ -540,13 +556,18 @@ def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> N
     ]
     sleeps: list[float] = []
 
+    ###############################################################################
     class FakeStream:
+
+        # -------------------------------------------------------------------------
         def __init__(self, response: httpx.Response) -> None:
             self.response = response
 
+        # -------------------------------------------------------------------------
         async def __aenter__(self):  # type: ignore[no-untyped-def]
             return self.response
 
+        # -------------------------------------------------------------------------
         async def __aexit__(self, *_args):  # type: ignore[no-untyped-def]
             return None
 

@@ -15,7 +15,6 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CSV_FIXTURE = REPOSITORY_ROOT / "assets" / "QA" / "adsmod-dataset-csv-20260916.csv"
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
-
 ###############################################################################
 def _browser_errors(page: Page) -> tuple[list[str], list[str], list[str]]:
     console_errors: list[str] = []
@@ -37,7 +36,6 @@ def _browser_errors(page: Page) -> tuple[list[str], list[str], list[str]]:
         else None,
     )
     return console_errors, page_errors, api_errors
-
 
 ###############################################################################
 def _import_inspect_reload_and_delete(
@@ -106,7 +104,6 @@ def _import_inspect_reload_and_delete(
         page.locator(".dataset-record").filter(has_text=dataset_name)
     ).to_have_count(0)
 
-
 ###############################################################################
 def test_csv_import_persists_inspection_experiment_switch_and_deletion(
     page_context: Page,
@@ -124,7 +121,6 @@ def test_csv_import_persists_inspection_experiment_switch_and_deletion(
     assert not console_errors, "\n".join(console_errors)
     assert not page_errors, "\n".join(page_errors)
     assert not api_errors, "\n".join(api_errors)
-
 
 ###############################################################################
 @pytest.mark.parametrize("extension", [".xls", ".xlsx"])

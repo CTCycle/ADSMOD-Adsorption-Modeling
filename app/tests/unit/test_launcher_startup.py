@@ -7,11 +7,9 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 LAUNCHER = REPOSITORY_ROOT / "start_on_windows.ps1"
 
-
 ###############################################################################
 def launcher_text() -> str:
     return LAUNCHER.read_text(encoding="utf-8-sig")
-
 
 ###############################################################################
 def start_application_body() -> str:
@@ -19,7 +17,6 @@ def start_application_body() -> str:
     start = text.index("function Start-Application")
     end = text.index("function Install-UpdateDependencies", start)
     return text[start:end]
-
 
 ###############################################################################
 def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
@@ -31,7 +28,6 @@ def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     assert "function Build-Frontend" in text
     assert "function Sync-BackendDependencies" in text
     assert "function Sync-FrontendDependencies" not in text
-
 
 ###############################################################################
 def test_launcher_uses_repository_data_by_default_and_supports_override() -> None:
@@ -45,7 +41,6 @@ def test_launcher_uses_repository_data_by_default_and_supports_override() -> Non
     assert "-DataPath" in (REPOSITORY_ROOT / "assets/docs/operations/commands.md").read_text(
         encoding="utf-8"
     )
-
 
 ###############################################################################
 def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
@@ -72,7 +67,6 @@ def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
     assert "playwright.config.ts" not in fingerprint
     assert "eslint.config.js" not in fingerprint
 
-
 ###############################################################################
 def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     body = start_application_body()
@@ -82,7 +76,6 @@ def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     assert "@($settings.BackendPort, $settings.FrontendPort)" in body
     assert "Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process" in body
     assert "Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process" in body
-
 
 ###############################################################################
 def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None:
@@ -98,7 +91,6 @@ def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None
     assert "non-interactive" in conflict_code
     assert "ownership of port" in conflict_code
     assert "remaining" in conflict_code
-
 
 ###############################################################################
 def test_port_conflict_termination_rechecks_process_identity() -> None:

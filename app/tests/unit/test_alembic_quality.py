@@ -44,6 +44,7 @@ def test_packaged_history_has_one_head_and_no_pending_operations(tmp_path) -> No
         manager.dispose()
 
 
+###############################################################################
 def test_public_data_migration_preserves_existing_source_records(tmp_path) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "populated-before-public-sync.db"
     settings = _sqlite_settings(str(path))
@@ -109,6 +110,7 @@ def test_public_data_migration_preserves_existing_source_records(tmp_path) -> No
     assert result.after == (result.head,)
 
 
+###############################################################################
 def test_public_data_navigation_migration_merges_nist_identities(tmp_path) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "populated-before-public-navigation.db"
     settings = _sqlite_settings(str(path))

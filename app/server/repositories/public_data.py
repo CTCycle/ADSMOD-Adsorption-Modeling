@@ -39,7 +39,6 @@ from server.repositories.schemas.public_data import (
 )
 from server.repositories.schemas.types import normalize_identity
 
-
 ###############################################################################
 class PublicDataRepository:
 
