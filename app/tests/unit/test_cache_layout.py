@@ -37,11 +37,6 @@ def test_tool_configuration_resolves_to_the_canonical_cache_root() -> None:
         backend_config["tool"]["ruff"]["cache-dir"], REPO_ROOT / "app" / "server"
     ) == CANONICAL_CACHE_ROOT / "ruff"
 
-    ruff_config = tomllib.loads((REPO_ROOT / "ruff.toml").read_text(encoding="utf-8"))
-    assert _resolve_configured_path(
-        ruff_config["cache-dir"], REPO_ROOT
-    ) == CANONICAL_CACHE_ROOT / "ruff"
-
     angular_config = json.loads(
         (REPO_ROOT / "app" / "client" / "angular.json").read_text(encoding="utf-8")
     )
@@ -56,7 +51,6 @@ def test_supported_tooling_has_no_legacy_cache_destination() -> None:
         REPO_ROOT / "app" / "tests" / "run_tests.bat",
         REPO_ROOT / "app" / "server" / "pyproject.toml",
         REPO_ROOT / "app" / "client" / "angular.json",
-        REPO_ROOT / "ruff.toml",
         REPO_ROOT / ".github" / "workflows" / "ci.yml",
         REPO_ROOT / "assets" / "docs" / "operations" / "commands.md",
         REPO_ROOT / "assets" / "docs" / "runtime" / "deployment.md",
