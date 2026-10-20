@@ -24,7 +24,6 @@ def sqlite_config(path: Path, *, timeout: int = 5) -> DatabaseConfig:
     return DatabaseConfig(
         embedded_database=True,
         connect_timeout=timeout,
-        insert_batch_size=100,
         sqlite_path=str(path),
     )
 
@@ -220,8 +219,6 @@ def test_postgres_creation_permission_error_is_actionable(
         password="secret",
         ssl=False,
         connect_timeout=1,
-        insert_batch_size=100,
-        sqlite_path=None,
     )
 
     def fail_to_connect(_database: DatabaseConfig) -> DatabaseManager:

@@ -7,7 +7,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { fetchApplicationCapabilities, fetchBackendReadiness } from '../services/system.service';
 
-type HelpPage = 'datasets' | 'public-data' | 'dashboards' | 'fitting' | 'training';
+type HelpPage = 'datasets' | 'public-data' | 'dashboards' | 'fitting' | 'training' | 'settings';
 
 interface HelpStep {
     title: string;
@@ -71,6 +71,16 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
         ],
         tips: ['Training requires the optional machine learning dependencies.', 'Keep the status and metric panels visible while a run is active.'],
     },
+    settings: {
+        title: 'Settings help',
+        intro: 'Manage application defaults that affect future requests and jobs.',
+        steps: [
+            { title: 'Choose a category', description: 'Use the tabs to move between runtime, import, public-data, fitting, and training settings.' },
+            { title: 'Save or discard edits', description: 'Save applies validated changes; Cancel restores the last saved values.' },
+            { title: 'Restart when prompted', description: 'Host and port changes are stored immediately and take effect after ADSMOD restarts.' },
+        ],
+        tips: ['Database connection values and storage paths remain bootstrap settings in settings/.env.', 'A running job keeps the settings snapshot it started with.'],
+    },
 };
 
 @Component({
@@ -118,10 +128,10 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <span aria-hidden="true">?</span>
                         <span>Docs</span>
                     </button>
-                    <button class="console-footer-link" type="button" aria-label="Settings, not available yet" title="Settings are not available yet." disabled>
+                    <a class="console-footer-link" routerLink="/settings" routerLinkActive="active" ariaCurrentWhenActive="page" aria-label="Settings" title="Application settings">
                         <span aria-hidden="true">⚙</span>
                         <span>Settings</span>
-                    </button>
+                    </a>
                 </div>
             </aside>
 
@@ -202,6 +212,9 @@ export class CoreShellComponent {
         if (url.startsWith('/training')) {
             return 'training';
         }
+        if (url.startsWith('/settings')) {
+            return 'settings';
+        }
         return 'datasets';
     });
     protected readonly helpContent = computed(() => HELP_CONTENT[this.currentPage()]);
@@ -219,6 +232,9 @@ export class CoreShellComponent {
         if (url.startsWith('/training')) {
             return 'Training';
         }
+        if (url.startsWith('/settings')) {
+            return 'Settings';
+        }
         return 'Custom Datasets';
     });
     protected readonly pageDescription = computed(() => {
@@ -234,6 +250,9 @@ export class CoreShellComponent {
         }
         if (url.startsWith('/training')) {
             return 'Prepare datasets, checkpoints, and model training workflows.';
+        }
+        if (url.startsWith('/settings')) {
+            return 'Configure application defaults and provider behavior.';
         }
         return 'Manage datasets uploaded directly into the workspace.';
     });

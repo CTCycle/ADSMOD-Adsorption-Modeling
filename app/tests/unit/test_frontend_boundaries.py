@@ -18,8 +18,9 @@ def test_training_routes_are_capability_guarded() -> None:
 ###############################################################################
 def test_frontend_uses_one_backend_proxy() -> None:
     text = Path("app/client/proxy.conf.cjs").read_text(encoding="utf-8")
-    assert "ADSMOD_DATA_DIR" in text
-    assert "path.join(repositoryRoot, 'data')" in text
+    assert "loadRuntimeSettings" in text
+    assert "ADSMOD_DATA_DIR" not in text
+    assert "adsmod.json" not in text
     assert "'/api/v1'" in text
     assert "'/health'" in text
     assert "'/api/v1/training'" not in text

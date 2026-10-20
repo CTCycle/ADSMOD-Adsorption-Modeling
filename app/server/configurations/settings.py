@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,20 +14,32 @@ class StrictModel(BaseModel):
 
 
 DEFAULT_DATASET_ALLOWED_EXTENSIONS: tuple[str, ...] = (".csv", ".xls", ".xlsx")
+MODEL_SELECTION_METRICS = (
+    "sse",
+    "rmse",
+    "mae",
+    "r_squared",
+    "adjusted_r_squared",
+    "chi_square",
+    "aic",
+    "aicc",
+    "bic",
+)
+MINIMIZE_MODEL_METRICS = frozenset(
+    {"sse", "rmse", "mae", "chi_square", "aic", "aicc", "bic"}
+)
 
 ###############################################################################
 class RuntimeConfig(StrictModel):
-    host: str
-    backend_port: int = Field(ge=1024, le=65535)
-    frontend_port: int = Field(ge=1024, le=65535)
+    host: Literal["127.0.0.1", "localhost", "::1"] = "127.0.0.1"
+    backend_port: int = Field(default=6045, ge=1024, le=65535)
+    frontend_port: int = Field(default=5173, ge=1024, le=65535)
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_runtime(self) -> "RuntimeConfig":
         if self.backend_port == self.frontend_port:
             raise ValueError("runtime.backend_port and runtime.frontend_port must be distinct")
-        if self.host not in {"127.0.0.1", "localhost", "::1"}:
-            raise ValueError("runtime.host must be a loopback address")
         return self
 
 ###############################################################################
@@ -37,8 +48,10 @@ class StorageConfig(StrictModel):
 
 ###############################################################################
 class DatabaseConfig(StrictModel):
-    embedded_database: bool
-    engine: str = "postgres"
+    """Database bootstrap values, loaded from process environment or settings/.env."""
+
+    embedded_database: bool = True
+    engine: Literal["postgres", "postgresql", "postgresql+psycopg"] = "postgres"
     host: str | None = None
     port: int = Field(default=5432, ge=1, le=65535)
     database_name: str | None = None
@@ -46,20 +59,11 @@ class DatabaseConfig(StrictModel):
     password: str | None = None
     ssl: bool = False
     ssl_ca: str | None = None
-    connect_timeout: int = Field(default=30, ge=1)
-    insert_batch_size: int = Field(default=5000, ge=1)
-    sqlite_path: str | None
+    connect_timeout: int = Field(default=30, ge=1, le=300)
+    sqlite_path: str = "data/database.db"
 
     # -------------------------------------------------------------------------
-    @field_validator(
-        "host",
-        "database_name",
-        "username",
-        "password",
-        "ssl_ca",
-        "sqlite_path",
-        mode="before",
-    )
+    @field_validator("host", "database_name", "username", "password", "ssl_ca", mode="before")
     @classmethod
     def normalize_optional_strings(cls, value: Any) -> str | None:
         if value is None:
@@ -68,16 +72,29 @@ class DatabaseConfig(StrictModel):
         return text or None
 
     # -------------------------------------------------------------------------
-    @field_validator("engine", mode="before")
+    @field_validator("sqlite_path", mode="before")
     @classmethod
-    def normalize_engine(cls, value: Any) -> str:
+    def normalize_sqlite_path(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
-        return text or "postgres"
+        if not text:
+            raise ValueError("DATABASE_SQLITE_PATH must not be empty")
+        return text
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_selected_database(self) -> "DatabaseConfig":
+        if not self.embedded_database and not all(
+            (self.host, self.database_name, self.username)
+        ):
+            raise ValueError(
+                "DATABASE_HOST, DATABASE_NAME, and DATABASE_USERNAME are required when EMBEDDED_DATABASE is false"
+            )
+        return self
 
 ###############################################################################
 class DatasetConfig(StrictModel):
-    allowed_extensions: tuple[str, ...]
-    column_detection_cutoff: float = Field(ge=0.0, le=1.0)
+    allowed_extensions: tuple[Literal[".csv", ".xls", ".xlsx"], ...] = DEFAULT_DATASET_ALLOWED_EXTENSIONS
+    column_detection_cutoff: float = Field(default=0.6, ge=0.0, le=1.0)
 
     # -------------------------------------------------------------------------
     @field_validator("allowed_extensions", mode="before")
@@ -91,15 +108,20 @@ class DatasetConfig(StrictModel):
             values = [str(item) for item in value]
         else:
             raise ValueError("datasets.allowed_extensions must be a sequence or string")
-
-        cleaned = tuple(part.strip().casefold() for part in values if str(part).strip())
+        cleaned = tuple(
+            (part.strip().casefold() if part.strip().startswith(".") else f".{part.strip().casefold()}")
+            for part in values
+            if str(part).strip()
+        )
         if not cleaned:
             raise ValueError("datasets.allowed_extensions must not be empty")
-        return cleaned
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("datasets.allowed_extensions cannot contain duplicates")
+        return cleaned  # type: ignore[return-value]
 
 ###############################################################################
 class NISTConfig(StrictModel):
-    parallel_tasks: int = Field(ge=1)
+    parallel_tasks: int = Field(default=40, ge=1, le=100)
 
 ###############################################################################
 class PublicDataConfig(StrictModel):
@@ -112,9 +134,7 @@ class PublicDataConfig(StrictModel):
     sync_batch_size: int = Field(default=50, ge=1, le=500)
     sync_max_records_per_run: int = Field(default=200, ge=1, le=10000)
     sync_max_concurrent_jobs: int = Field(default=1, ge=1, le=4)
-    sync_response_size_limit_bytes: int = Field(
-        default=67108864, ge=1024, le=268435456
-    )
+    sync_response_size_limit_bytes: int = Field(default=67108864, ge=1024, le=268435456)
     sync_resume_on_startup: bool = False
     auto_sync_enabled: bool = False
     auto_sync_categories: tuple[Literal["experiments", "guest", "host"], ...] = ()
@@ -134,20 +154,13 @@ class PublicDataConfig(StrictModel):
 
 ###############################################################################
 class FittingConfig(StrictModel):
-    default_max_iterations: int = Field(ge=1)
-    max_iterations_upper_bound: int = Field(ge=1)
-    default_parameter_initial: float = Field(ge=0.0)
-    default_parameter_min: float = Field(ge=0.0)
-    default_parameter_max: float = Field(ge=0.0)
-    preview_row_limit: int = Field(ge=1)
-    best_model_metric: str
-
-    # -------------------------------------------------------------------------
-    @field_validator("best_model_metric", mode="before")
-    @classmethod
-    def normalize_metric(cls, value: Any) -> str:
-        text = str(value).strip() if value is not None else ""
-        return text or "AICc"
+    default_max_iterations: int = Field(default=1000, ge=10, le=1000000000)
+    max_iterations_upper_bound: int = Field(default=1000000000, ge=10, le=1000000000)
+    default_parameter_initial: float = Field(default=1.0, ge=0.0)
+    default_parameter_min: float = Field(default=0.0, ge=0.0)
+    default_parameter_max: float = Field(default=100.0, ge=0.0)
+    preview_row_limit: int = Field(default=20, ge=1, le=500)
+    best_model_metric: Literal["sse", "rmse", "mae", "r_squared", "adjusted_r_squared", "chi_square", "aic", "aicc", "bic"] = "aicc"
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
@@ -156,30 +169,46 @@ class FittingConfig(StrictModel):
             raise ValueError(
                 "fitting.max_iterations_upper_bound must be >= fitting.default_max_iterations"
             )
-        if self.default_parameter_max < self.default_parameter_min:
+        if self.default_parameter_max <= self.default_parameter_min:
             raise ValueError(
-                "fitting.default_parameter_max must be >= fitting.default_parameter_min"
+                "fitting.default_parameter_max must be greater than fitting.default_parameter_min"
+            )
+        if not self.default_parameter_min <= self.default_parameter_initial <= self.default_parameter_max:
+            raise ValueError(
+                "fitting.default_parameter_initial must be between the minimum and maximum"
             )
         return self
 
 ###############################################################################
 class JobConfig(StrictModel):
-    polling_interval: float = Field(gt=0.0)
+    polling_interval: float = Field(default=1.0, ge=0.1, le=60.0)
 
 ###############################################################################
 class TrainingConfig(StrictModel):
     use_jit: bool = False
-    jit_backend: str = "inductor"
+    jit_backend: Literal["inductor", "eager", "aot_eager", "cudagraphs"] = "inductor"
     use_mixed_precision: bool = False
-    dataloader_workers: int = Field(default=0, ge=0)
-    persistent_workers: bool
+    dataloader_workers: int = Field(default=0, ge=0, le=64)
+    persistent_workers: bool = False
 
     # -------------------------------------------------------------------------
-    @field_validator("jit_backend", mode="before")
-    @classmethod
-    def normalize_backend(cls, value: Any) -> str:
-        text = str(value).strip() if value is not None else ""
-        return text or "inductor"
+    @model_validator(mode="after")
+    def validate_worker_settings(self) -> "TrainingConfig":
+        if self.persistent_workers and self.dataloader_workers < 1:
+            raise ValueError("persistent_workers requires dataloader_workers to be greater than zero")
+        return self
+
+###############################################################################
+class UserSettings(StrictModel):
+    """All application behavior settings editable in the console."""
+
+    runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
+    datasets: DatasetConfig = Field(default_factory=DatasetConfig)
+    nist: NISTConfig = Field(default_factory=NISTConfig)
+    public_data: PublicDataConfig = Field(default_factory=PublicDataConfig)
+    fitting: FittingConfig = Field(default_factory=FittingConfig)
+    jobs: JobConfig = Field(default_factory=JobConfig)
+    training: TrainingConfig = Field(default_factory=TrainingConfig)
 
 ###############################################################################
 class ApplicationConfig(StrictModel):
@@ -193,23 +222,45 @@ class ApplicationConfig(StrictModel):
 
 ###############################################################################
 class AdsmodConfig(StrictModel):
-    version: Literal["3.0.0"]
-    runtime: RuntimeConfig
+    version: Literal["3.0.0"] = "3.0.0"
+    runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     storage: StorageConfig
     application: ApplicationConfig
 
-###############################################################################
-def load_config(path: str | Path) -> AdsmodConfig:
-    config_path = Path(path)
-    try:
-        payload: Any = json.loads(config_path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise ValueError(f"configuration file not found: {config_path}") from exc
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"configuration is not valid JSON: {config_path}") from exc
-    if not isinstance(payload, dict):
-        raise ValueError("configuration root must be a JSON object")
-    return AdsmodConfig.model_validate(payload)
+    # -------------------------------------------------------------------------
+    @classmethod
+    def assemble(
+        cls,
+        *,
+        database: DatabaseConfig,
+        storage_root: Path,
+        settings: UserSettings,
+    ) -> "AdsmodConfig":
+        return cls(
+            runtime=settings.runtime,
+            storage=StorageConfig(root=storage_root),
+            application=ApplicationConfig(
+                database=database,
+                datasets=settings.datasets,
+                nist=settings.nist,
+                public_data=settings.public_data,
+                fitting=settings.fitting,
+                jobs=settings.jobs,
+                training=settings.training,
+            ),
+        )
+
+    # -------------------------------------------------------------------------
+    def user_settings(self) -> UserSettings:
+        return UserSettings(
+            runtime=self.runtime,
+            datasets=self.application.datasets,
+            nist=self.application.nist,
+            public_data=self.application.public_data,
+            fitting=self.application.fitting,
+            jobs=self.application.jobs,
+            training=self.application.training,
+        )
 
 
 __all__ = [
@@ -219,10 +270,12 @@ __all__ = [
     "DatasetConfig",
     "FittingConfig",
     "JobConfig",
+    "MINIMIZE_MODEL_METRICS",
+    "MODEL_SELECTION_METRICS",
     "NISTConfig",
     "PublicDataConfig",
     "RuntimeConfig",
     "StorageConfig",
     "TrainingConfig",
-    "load_config",
+    "UserSettings",
 ]

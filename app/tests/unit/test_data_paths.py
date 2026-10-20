@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from server.configurations.settings import DatabaseConfig, StorageConfig, load_config
+from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.repositories.database.manager import resolve_sqlite_path
 from server.common.path import resolve_database_path
 
@@ -18,8 +18,10 @@ def test_relative_database_path_follows_the_canonical_storage_root(
         == (tmp_path / "data" / "database.db").resolve()
     )
 
-    config = load_config(Path("data/adsmod.json")).model_copy(
-        update={"storage": StorageConfig(root=tmp_path)}
+    config = AdsmodConfig.assemble(
+        database=database,
+        storage_root=tmp_path,
+        settings=UserSettings(),
     )
     assert (
         resolve_database_path(config) == (tmp_path / "data" / "database.db").resolve()

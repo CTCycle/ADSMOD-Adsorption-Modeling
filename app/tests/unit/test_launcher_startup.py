@@ -30,17 +30,13 @@ def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     assert "function Sync-FrontendDependencies" not in text
 
 ###############################################################################
-def test_launcher_uses_repository_data_by_default_and_supports_override() -> None:
+def test_launcher_loads_settings_and_endpoints_from_sqlite() -> None:
     text = launcher_text()
 
-    assert '[string]$DataPath = ""' in text
-    assert '$DefaultDataDir = Join-Path $RepoRoot "data"' in text
-    assert "function Get-ConfiguredDataPath" in text
-    assert "function Set-ConfiguredDataPaths" in text
-    assert "ADSMOD_DATA_DIR" in text
-    assert "-DataPath" in (REPOSITORY_ROOT / "assets/docs/operations/commands.md").read_text(
-        encoding="utf-8"
-    )
+    assert "python -m server.runtime_config --json" in text
+    assert "SQLite runtime settings" in text
+    assert "ADSMOD_DATA_DIR" not in text
+    assert "adsmod.json" not in text
 
 ###############################################################################
 def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:

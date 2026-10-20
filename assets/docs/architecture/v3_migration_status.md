@@ -1,10 +1,11 @@
 # Canonical architecture status
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 
 The architecture cutover is complete for the current runtime:
 
-- one validated `AdsmodConfig` loaded from `data/adsmod.json` by default;
+- one validated `UserSettings` record stored in local SQLite and edited through
+  the Settings page, assembled with database bootstrap values at startup;
 - one Hatch backend package and lockfile;
 - repository-owned migrations, operational persistence, and training snapshots;
 - ML isolated behind a lazy optional dependency profile and in-process snapshot

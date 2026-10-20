@@ -96,23 +96,23 @@ describe('CoreShellComponent', () => {
         expect(root.querySelector('a[routerLink="/training"]')).not.toBeNull();
     });
 
-    it('keeps Docs and Settings visible but disabled with accessible unavailable labels', () => {
+    it('keeps Docs disabled and exposes the Settings route', () => {
         const fixture = TestBed.createComponent(CoreShellComponent);
         fixtures.push(fixture);
         fixture.detectChanges();
 
         const root = fixture.nativeElement as HTMLElement;
         const docs = root.querySelector<HTMLButtonElement>('.console-footer-link[aria-label^="Docs"]');
-        const settings = root.querySelector<HTMLButtonElement>('.console-footer-link[aria-label^="Settings"]');
+        const settings = root.querySelector<HTMLAnchorElement>('.console-footer-link[routerLink="/settings"]');
 
         expect(docs?.textContent).toContain('Docs');
         expect(docs?.disabled).toBe(true);
         expect(docs?.getAttribute('aria-label')).toContain('not available yet');
         expect(docs?.title).toContain('not available yet');
         expect(settings?.textContent).toContain('Settings');
-        expect(settings?.disabled).toBe(true);
-        expect(settings?.getAttribute('aria-label')).toContain('not available yet');
-        expect(settings?.title).toContain('not available yet');
+        expect(settings?.getAttribute('href')).toBe('/settings');
+        expect(settings?.getAttribute('aria-label')).toBe('Settings');
+        expect(settings?.title).toBe('Application settings');
     });
 
     it('moves Help focus into the dialog, contains keyboard focus, and restores it after each close path', async () => {

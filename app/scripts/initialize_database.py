@@ -3,45 +3,20 @@
 
 from __future__ import annotations
 
-import argparse
-from pathlib import Path
 import time
 
-from server.configurations.settings import load_config
-from server.common.path import resolve_storage_root
+from server.configurations.runtime import load_runtime_configuration
 from server.common.utils.logger import logger
-from server.repositories.database.initializer import prepare_database_for_startup
 
-###############################################################################
+
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Initialize the canonical ADSMOD database."
-    )
-    parser.add_argument(
-        "--config",
-        required=True,
-        type=Path,
-        help="Path to the canonical adsmod.json configuration.",
-    )
-    args = parser.parse_args()
-
     started_at = time.perf_counter()
-    config = load_config(args.config)
-    storage_root = resolve_storage_root(config)
-    result = prepare_database_for_startup(
-        config.application.database,
-        storage_root=storage_root,
-    )
-    elapsed = time.perf_counter() - started_at
+    runtime = load_runtime_configuration()
+    runtime.settings_store.dispose()
     logger.info(
-        "Database initialization completed in %.2f seconds "
-        "(backend=%s, before=%s, after=%s, head=%s, applied_migrations=%s).",
-        elapsed,
-        result.backend,
-        ",".join(result.before) or "base",
-        ",".join(result.after) or "base",
-        result.head,
-        result.applied_migrations,
+        "Database initialization completed in %.2f seconds (backend=%s).",
+        time.perf_counter() - started_at,
+        "sqlite" if runtime.config.application.database.embedded_database else "postgres",
     )
     return 0
 

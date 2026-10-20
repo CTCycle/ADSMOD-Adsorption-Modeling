@@ -222,6 +222,12 @@ class TrainingJobRunner:
     ) -> dict[str, Any]:
         worker = ProcessWorker()
         self.session.worker = worker
+        stop_timeout_seconds = float(
+            process_kwargs.pop(
+                "stop_timeout_seconds",
+                get_training_process_stop_timeout_seconds(self.config),
+            )
+        )
         try:
             worker.start(
                 target=run_training_process,
@@ -231,9 +237,7 @@ class TrainingJobRunner:
             result = self.monitor_training_process(
                 job_id,
                 worker,
-                stop_timeout_seconds=get_training_process_stop_timeout_seconds(
-                    self.config
-                ),
+                stop_timeout_seconds=stop_timeout_seconds,
             )
 
             if self.job_manager.should_stop(job_id):
@@ -289,6 +293,7 @@ class TrainingService:
         self.training_manager = training_manager
         self.training_session = training_session
         self.training_job_runner = training_job_runner
+        self._poll_intervals_by_job_id: dict[str, float] = {}
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
@@ -407,16 +412,18 @@ class TrainingService:
         if self.job_manager.is_job_running(self.DATASET_JOB_TYPE):
             raise ValueError("A dataset build job is already running.")
 
+        poll_interval = self.config.application.jobs.polling_interval
         job_id = self.job_manager.start_job(
             job_type=self.DATASET_JOB_TYPE,
             runner=self.run_dataset_build,
             args=(request.model_dump(),),
         )
+        self._poll_intervals_by_job_id[job_id] = poll_interval
         return JobResponseFactory.start(
             job_id=job_id,
             job_type=self.DATASET_JOB_TYPE,
             message="Dataset build job started.",
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=poll_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -424,17 +431,31 @@ class TrainingService:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise LookupError(f"Job {job_id} not found.")
+        poll_interval = self._poll_intervals_by_job_id.get(
+            job_id, self.config.application.jobs.polling_interval
+        )
+        if job_status["status"] in {"completed", "failed", "cancelled"}:
+            self._poll_intervals_by_job_id.pop(job_id, None)
         return JobResponseFactory.status(
             job_status=job_status,
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=poll_interval,
         )
 
     # -------------------------------------------------------------------------
     def list_dataset_jobs(self) -> JobListResponse:
         all_jobs = self.job_manager.list_jobs(self.DATASET_JOB_TYPE)
+        active_job = next(
+            (job for job in all_jobs if job.get("status") not in {"completed", "failed", "cancelled"}),
+            None,
+        )
         return JobResponseFactory.list(
             job_statuses=all_jobs,
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=(
+                self._poll_intervals_by_job_id.get(str(active_job["job_id"]))
+                if active_job is not None
+                else None
+            )
+            or self.config.application.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -628,6 +649,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def start_training(self, config: TrainingConfigRequest) -> TrainingStartResponse:
+        job_config = self.config
         state = self.training_manager.state.snapshot()
         if state["is_training"] or self.job_manager.is_job_running(
             self.TRAINING_JOB_TYPE
@@ -638,10 +660,19 @@ class TrainingService:
             config.dataset_label
         )
         configuration = config.model_dump()
+        configured_defaults = job_config.application.training
+        for field in (
+            "use_jit",
+            "jit_backend",
+            "use_mixed_precision",
+            "dataloader_workers",
+            "persistent_workers",
+        ):
+            if field not in config.model_fields_set:
+                configuration[field] = getattr(configured_defaults, field)
         configuration["dataset_label"] = resolved_label
-        configuration["polling_interval"] = (
-            self.config.application.jobs.polling_interval
-        )
+        poll_interval = job_config.application.jobs.polling_interval
+        configuration["polling_interval"] = poll_interval
 
         logger.info("Starting training with config: %s", configuration)
         metadata = self.training_manager.data_serializer.load_training_metadata(
@@ -667,9 +698,14 @@ class TrainingService:
             job_type=self.TRAINING_JOB_TYPE,
             runner=self.training_job_runner.run_process_job,
             kwargs={
-                "process_kwargs": {"configuration": configuration},
+                "process_kwargs": {
+                    "configuration": configuration,
+                    "config_payload": job_config.model_dump(mode="json"),
+                    "stop_timeout_seconds": max(5.0, poll_interval),
+                },
             },
         )
+        self._poll_intervals_by_job_id[job_id] = poll_interval
 
         total_epochs = int(configuration.get("epochs", 0))
         self.training_session.reset_for_new_session(
@@ -693,11 +729,12 @@ class TrainingService:
             status="started",
             session_id=job_id,
             message=f"Training started with {config.epochs} epochs. Session: {job_id}",
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=poll_interval,
         )
 
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> TrainingStartResponse:
+        poll_interval = self.config.application.jobs.polling_interval
         state = self.training_manager.state.snapshot()
         if state["is_training"] or self.job_manager.is_job_running(
             self.TRAINING_JOB_TYPE
@@ -744,9 +781,12 @@ class TrainingService:
                     "configuration": None,
                     "checkpoint": request.checkpoint_name,
                     "additional_epochs": request.additional_epochs,
+                    "config_payload": self.config.model_dump(mode="json"),
+                    "stop_timeout_seconds": max(5.0, poll_interval),
                 },
             },
         )
+        self._poll_intervals_by_job_id[job_id] = poll_interval
 
         total_epochs = from_epoch + request.additional_epochs
         self.training_session.reset_for_new_session(
@@ -777,7 +817,7 @@ class TrainingService:
                 f"Resuming training from {request.checkpoint_name} "
                 f"with {request.additional_epochs} epochs. Session: {job_id}"
             ),
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=poll_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -805,6 +845,10 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
         state = self.training_manager.state.snapshot()
+        session_job_id = self.training_session.current_job_id
+        poll_interval = self._poll_intervals_by_job_id.get(
+            session_job_id or "", self.config.application.jobs.polling_interval
+        )
         progress = state.get("progress", 0.0)
         if not isinstance(progress, (int, float)):
             progress = 0.0
@@ -819,5 +863,5 @@ class TrainingService:
             metrics=state["metrics"],
             history=state["history"],
             log=state["log"],
-            poll_interval=self.config.application.jobs.polling_interval,
+            poll_interval=poll_interval,
         )

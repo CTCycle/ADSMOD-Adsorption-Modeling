@@ -1,6 +1,6 @@
 # ADSMOD quality gates
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 
 ## Python
 
@@ -11,9 +11,8 @@ Last updated: 2026-09-28
   optional-extension import direction.
 - Validate both dependency profiles: base backend without ML and backend with
   the `ml` extra installed.
-- Regenerate `data/adsmod.schema.json` and
-  `app/server/openapi/backend.json`; require no unexpected diff after
-  generation. The canonical OpenAPI snapshot must be generated from the
+- Regenerate `app/server/openapi/backend.json`; require no unexpected diff
+  after generation. The canonical OpenAPI snapshot must be generated from the
   ML-enabled profile because it includes training and checkpoint routes; the
   generator fails closed under the Base profile.
 
@@ -32,3 +31,6 @@ optional feature that the backend cannot provide.
 Validate the smallest relevant scope first, then expand when a change crosses
 backend, optional-extension, or frontend boundaries. Distinguish automated
 checks from live browser, hardware-specific, and long-running ML validation.
+For settings changes, verify SQLite persistence, full-model validation, runtime
+application, restart indicators, and the actual Settings page at desktop and
+narrow widths.

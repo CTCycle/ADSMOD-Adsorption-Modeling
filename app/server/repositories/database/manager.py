@@ -7,7 +7,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 import os
 from pathlib import Path
-from threading import RLock
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -18,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from server.configurations.settings import DatabaseConfig
 from server.common.utils.logger import logger
 from server.repositories.database.utils import normalize_postgres_engine
+from server.repositories.database.sqlite_lock import sqlite_write_lock
 
 ###############################################################################
 def _expand_path(value: str) -> Path:
@@ -61,7 +61,11 @@ class DatabaseManager:
             if database.embedded_database
             else self._normalize_backend(database.engine)
         )
-        self._transaction_lock = RLock() if self.backend == "sqlite" else nullcontext()
+        self._transaction_lock = (
+            sqlite_write_lock(resolve_sqlite_path(database, storage_root=storage_root))
+            if self.backend == "sqlite"
+            else nullcontext()
+        )
         self.engine = self._create_engine()
         self.session_factory = sessionmaker(
             bind=self.engine,

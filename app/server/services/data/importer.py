@@ -35,7 +35,8 @@ from server.common.units import (
 )
 
 PARSER_VERSION = "2.0"
-PREVIEW_ROWS = 12
+DEFAULT_COLUMN_DETECTION_CUTOFF = 0.6
+DEFAULT_PREVIEW_ROW_LIMIT = 20
 EXPERIMENT_PREVIEW_POINTS = 8
 
 ###############################################################################
@@ -51,6 +52,9 @@ class AdsorptionImportEngine:
     def __init__(
         self,
         allowed_extensions: Collection[str] = DEFAULT_DATASET_ALLOWED_EXTENSIONS,
+        *,
+        column_detection_cutoff: float = DEFAULT_COLUMN_DETECTION_CUTOFF,
+        preview_row_limit: int = DEFAULT_PREVIEW_ROW_LIMIT,
     ) -> None:
         self.allowed_extensions = tuple(
             extension.strip().casefold()
@@ -61,6 +65,8 @@ class AdsorptionImportEngine:
         )
         if not self.allowed_extensions:
             raise ValueError("At least one dataset file extension is required.")
+        self.column_detection_cutoff = float(column_detection_cutoff)
+        self.preview_row_limit = max(1, int(preview_row_limit))
 
     # -------------------------------------------------------------------------
     def preview(self, payload: bytes, filename: str | None) -> ImportPreviewResponse:
@@ -74,7 +80,8 @@ class AdsorptionImportEngine:
         grouping = [
             column.name
             for column in columns
-            if column.proposed_role == "experiment_id" and column.confidence >= 0.65
+            if column.proposed_role == "experiment_id"
+            and column.confidence >= self.column_detection_cutoff
         ][:1]
         issues: list[ImportIssue] = []
         if structure == "ambiguous":
@@ -90,7 +97,8 @@ class AdsorptionImportEngine:
             matches = [
                 column
                 for column in columns
-                if column.proposed_role == role and column.confidence >= 0.55
+                if column.proposed_role == role
+                and column.confidence >= self.column_detection_cutoff
             ]
             if not matches:
                 issues.append(
@@ -111,7 +119,7 @@ class AdsorptionImportEngine:
             columns=columns,
             preview_rows=[
                 {key: safe_cell(value) for key, value in row.items()}
-                for row in frame.head(PREVIEW_ROWS).to_dict(orient="records")
+                for row in frame.head(self.preview_row_limit).to_dict(orient="records")
             ],
             proposed_grouping_columns=grouping,
             proposed_pressure_basis=infer_pressure_basis(columns),  # type: ignore[arg-type]

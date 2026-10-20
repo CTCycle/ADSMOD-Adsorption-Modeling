@@ -57,7 +57,6 @@ def _manager() -> DatabaseManager:
         DatabaseConfig(
             embedded_database=True,
             connect_timeout=5,
-            insert_batch_size=100,
             sqlite_path=":memory:",
         )
     )

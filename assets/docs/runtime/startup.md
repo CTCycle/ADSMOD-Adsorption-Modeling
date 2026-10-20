@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 
 ## Recommended startup
 
@@ -8,10 +8,11 @@ Last updated: 2026-09-28
 & .\start_on_windows.ps1
 ```
 
-The launcher reads `data/adsmod.json` by default, or the selected
-data directory's `adsmod.json`, inspects every configured
-application port before doing runtime, dependency, or build work, then starts
-one FastAPI backend and a static production preview server. If configured ports
+The launcher reads runtime host, ports, and storage location through
+`server.runtime_config` from the local SQLite settings store and database
+bootstrap values. It inspects every configured application port before doing
+runtime, dependency, or build work, then starts one FastAPI backend and a static
+production preview server. If configured ports
 are occupied by resolvable processes, it presents the complete conflict set
 and asks once whether to terminate the deduplicated process list. A decline,
 non-interactive console, unresolved owner, ownership race, failed termination,
@@ -67,10 +68,12 @@ branches or modify local changes.
 From the repository root after `app/server/.venv` is ready:
 
 ```powershell
-& .\app\server\.venv\Scripts\python.exe -m server.cli --config .\data\adsmod.json
+& .\app\server\.venv\Scripts\python.exe -m server.cli
 ```
 
-This is the only backend process. If the environment was synchronized with the
+This is the only backend process. Database bootstrap values in
+`settings/.env` are validated before startup; application behavior settings
+load from SQLite. If the environment was synchronized with the
 `ml` extra, the process discovers and registers the optional ML extension at
 startup. The Angular development server can be started from `app/client` with
 `npm run dev`; this is separate from the launcher’s production preview path.
@@ -82,7 +85,9 @@ A missing or empty SQLite file is initialized to the packaged head. A non-empty
 unversioned file, an empty version table beside application tables, an unknown
 revision, or a stamped-but-incomplete schema fails explicitly without schema
 inference. PostgreSQL uses the same migration history and a bounded advisory
-lock.
+lock. The local SQLite database always contains `application_settings`; when
+PostgreSQL is selected, `DATABASE_SQLITE_PATH` still locates settings while
+PostgreSQL stores operational data.
 
 ## Tests
 

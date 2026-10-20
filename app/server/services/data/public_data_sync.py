@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable
 
@@ -45,18 +46,66 @@ class PublicDataSyncCoordinator:
         self._workers: list[asyncio.Task[None]] = []
         self._executing: set[asyncio.Task[None]] = set()
         self._scheduler: asyncio.Task[None] | None = None
+        self._started = False
+        self._target_worker_count = config.sync_max_concurrent_jobs
+        self._next_worker_index = 0
+        self._run_settings: ContextVar[
+            tuple[PublicDataConfig, PublicDataService, NISTDataService] | None
+        ] = ContextVar("public_data_sync_settings", default=None)
+
+    def _active_settings(
+        self,
+    ) -> tuple[PublicDataConfig, PublicDataService, NISTDataService]:
+        return self._run_settings.get() or (self.config, self.public_data, self.nist)
+
+    def apply_settings(
+        self,
+        *,
+        config: PublicDataConfig,
+        public_data: PublicDataService,
+        nist: NISTDataService,
+    ) -> None:
+        self.config = config
+        self.public_data = public_data
+        self.nist = nist
+        self._target_worker_count = config.sync_max_concurrent_jobs
+        self._wake.set()
+        if not self._started:
+            return
+        while self._next_worker_index < self._target_worker_count:
+            index = self._next_worker_index
+            self._next_worker_index += 1
+            self._workers.append(
+                asyncio.create_task(
+                    self._worker_loop(index), name=f"public-data-sync-{index}"
+                )
+            )
+        if self._scheduler is not None:
+            self._scheduler.cancel()
+            self._scheduler = None
+        if config.auto_sync_enabled and config.auto_sync_categories:
+            self._scheduler = asyncio.create_task(
+                self._schedule_nist_refreshes(), name="public-data-auto-sync"
+            )
 
     # -------------------------------------------------------------------------
     async def start(self) -> None:
+        self._started = True
         await asyncio.to_thread(
             self.repository.mark_unfinished_sync_runs,
             resume=self.config.sync_resume_on_startup,
         )
         self._closing = False
-        self._workers = [
-            asyncio.create_task(self._worker_loop(), name=f"public-data-sync-{index}")
-            for index in range(self.config.sync_max_concurrent_jobs)
-        ]
+        self._workers = []
+        self._next_worker_index = 0
+        while self._next_worker_index < self._target_worker_count:
+            index = self._next_worker_index
+            self._next_worker_index += 1
+            self._workers.append(
+                asyncio.create_task(
+                    self._worker_loop(index), name=f"public-data-sync-{index}"
+                )
+            )
         if self.config.auto_sync_enabled and self.config.auto_sync_categories:
             self._scheduler = asyncio.create_task(
                 self._schedule_nist_refreshes(), name="public-data-auto-sync"
@@ -83,18 +132,19 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     async def _schedule_nist_refreshes(self) -> None:
-        interval = self.config.auto_sync_interval_hours * 60 * 60
+        config, _, _ = self._active_settings()
+        interval = config.auto_sync_interval_hours * 60 * 60
         while not self._closing:
             await asyncio.sleep(interval)
             if self._closing:
                 return
-            for category in self.config.auto_sync_categories:
+            for category in config.auto_sync_categories:
                 await self.enqueue(
                     source_key="nist",
                     operation="nist_category",
                     parameters={
                         "category": category,
-                        "fraction": self.config.auto_sync_fraction,
+                        "fraction": config.auto_sync_fraction,
                         "trigger": "scheduled",
                     },
                 )
@@ -168,9 +218,9 @@ class PublicDataSyncCoordinator:
         ]
 
     # -------------------------------------------------------------------------
-    async def _worker_loop(self) -> None:
+    async def _worker_loop(self, worker_index: int) -> None:
         worker = asyncio.current_task()
-        while not self._closing:
+        while not self._closing and worker_index < self._target_worker_count:
             run = await asyncio.to_thread(self.repository.claim_next_sync_run)
             if run is not None and self._closing:
                 await asyncio.to_thread(
@@ -202,6 +252,13 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     async def _execute(self, run: dict[str, Any]) -> None:
+        token = self._run_settings.set((self.config, self.public_data, self.nist))
+        try:
+            await self._execute_with_settings(run)
+        finally:
+            self._run_settings.reset(token)
+
+    async def _execute_with_settings(self, run: dict[str, Any]) -> None:
         run_id = str(run["id"])
         source_key = str(run["source_key"])
         operation = str(run["operation"])
@@ -214,7 +271,8 @@ class PublicDataSyncCoordinator:
             "checkpoint": dict(run.get("checkpoint", {})),
             "progress": float(run.get("progress", 0.0)),
         }
-        provider = self.public_data.providers.get(source_key)
+        _, public_data, _ = self._active_settings()
+        provider = public_data.providers.get(source_key)
         state["statistics_reader"] = getattr(provider, "request_statistics", None)
         state["statistics_before"] = (
             state["statistics_reader"]()
@@ -370,7 +428,8 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     async def _run_health_check(self, source_key: str) -> dict[str, Any]:
-        provider = self.public_data.providers[source_key]
+        _, public_data, _ = self._active_settings()
+        provider = public_data.providers[source_key]
         try:
             health = await provider.health()
         except Exception as exc:  # noqa: BLE001
@@ -390,7 +449,8 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     async def _run_nist_index(self, run: dict[str, Any]) -> dict[str, Any]:
-        result = await self.nist.index_category(str(run["parameters"]["category"]))
+        _, _, nist = self._active_settings()
+        result = await nist.index_category(str(run["parameters"]["category"]))
         return {
             "processed_count": 1,
             "checkpoint": {
@@ -413,21 +473,22 @@ class PublicDataSyncCoordinator:
         source_key = str(run["source_key"])
         parameters = dict(run["parameters"])
         run_checkpoint = dict(run.get("checkpoint", {}))
+        config, _, nist = self._active_settings()
 
         async def on_failure(external_id: str, reason: str) -> None:
             retry_at = datetime.now(timezone.utc) + timedelta(
-                seconds=min(30.0, self.config.retry_backoff_max_seconds)
+                seconds=min(30.0, config.retry_backoff_max_seconds)
             )
             await self._store_failure(run_id, source_key, external_id, reason, retry_at)
 
         async def on_skip(external_id: str, reason: str) -> None:
             await self._store_failure(run_id, source_key, external_id, reason, None)
 
-        result = await self.nist.sync_category_records(
+        result = await nist.sync_category_records(
             category=str(parameters["category"]),
             fraction=float(parameters.get("fraction", 1.0)),
-            batch_size=self.config.sync_batch_size,
-            max_records=self.config.sync_max_records_per_run,
+            batch_size=config.sync_batch_size,
+            max_records=config.sync_max_records_per_run,
             processed_before=int(run.get("processed_count", 0)),
             resume_after_external_id=(
                 str(run_checkpoint["last_external_id"])
@@ -455,7 +516,8 @@ class PublicDataSyncCoordinator:
     async def _run_pubchem_resolve(self, run: dict[str, Any]) -> dict[str, Any]:
         parameters = dict(run["parameters"])
         adsorbate_id = parameters.get("adsorbate_id")
-        entity_id, imported = await self.public_data.resolve_pubchem(
+        _, public_data, _ = self._active_settings()
+        entity_id, imported = await public_data.resolve_pubchem(
             str(parameters["query"]),
             int(adsorbate_id) if adsorbate_id is not None else None,
         )
@@ -475,9 +537,10 @@ class PublicDataSyncCoordinator:
     ) -> dict[str, Any]:
         """Resolve stored chemicals that have no PubChem identity yet."""
         run_id = str(run["id"])
+        config, public_data, _ = self._active_settings()
         candidates = await asyncio.to_thread(
             self.repository.pubchem_enrichment_candidates,
-            self.config.sync_max_records_per_run,
+            config.sync_max_records_per_run,
         )
         counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
         entity_ids: list[int] = []
@@ -485,7 +548,7 @@ class PublicDataSyncCoordinator:
             if await should_cancel():
                 break
             try:
-                entity_id, imported = await self.public_data.resolve_pubchem(
+                entity_id, imported = await public_data.resolve_pubchem(
                     str(candidate["query"]), int(candidate["id"])
                 )
                 entity_ids.append(entity_id)
@@ -522,7 +585,7 @@ class PublicDataSyncCoordinator:
         if not isinstance(error, ProviderUnavailableError):
             return None
         return datetime.now(timezone.utc) + timedelta(
-            seconds=min(30.0, self.config.retry_backoff_max_seconds)
+            seconds=min(30.0, self._active_settings()[0].retry_backoff_max_seconds)
         )
 
     # -------------------------------------------------------------------------
@@ -535,9 +598,10 @@ class PublicDataSyncCoordinator:
     ) -> dict[str, Any]:
         parameters = dict(run["parameters"])
         requested_ids = parameters.get("cod_ids") or [parameters["cod_id"]]
+        config, public_data, _ = self._active_settings()
         selected_ids = [
             str(cod_id)
-            for cod_id in requested_ids[: self.config.sync_max_records_per_run]
+            for cod_id in requested_ids[: config.sync_max_records_per_run]
         ]
         run_id = str(run["id"])
         checkpoint = dict(run.get("checkpoint", {}))
@@ -558,7 +622,7 @@ class PublicDataSyncCoordinator:
                 break
             last_external_id = cod_id
             try:
-                entity_id, imported = await self.public_data.import_cod(
+                entity_id, imported = await public_data.import_cod(
                     cod_id, parameters.get("adsorbent_id")
                 )
                 entity_ids.append(entity_id)

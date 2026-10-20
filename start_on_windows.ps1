@@ -2,10 +2,7 @@
 # Licensed under the MIT License.
 
 [CmdletBinding()]
-param(
-    [Alias("DataDir", "DataDirectory")]
-    [string]$DataPath = ""
-)
+param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -15,12 +12,12 @@ $AppDir = Join-Path $RepoRoot "app"
 $BackendDir = Join-Path $AppDir "server"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
-$DefaultDataDir = Join-Path $RepoRoot "data"
+$DefaultDataDir = if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { Join-Path $env:LOCALAPPDATA "ADSMOD" } else { Join-Path $RepoRoot "data" }
 $DataDir = $DefaultDataDir
 $LogDir = Join-Path $DataDir "logs"
 $CheckpointsDir = Join-Path $DataDir "checkpoints"
-$ConfigFile = Join-Path $DataDir "adsmod.json"
-$ConfigSchemaFile = Join-Path $DataDir "adsmod.schema.json"
+$script:SettingsDatabasePath = ""
+$script:EmbeddedDatabase = $true
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
 $PythonDir = Join-Path $RuntimesDir "python"
 $UvDir = Join-Path $RuntimesDir "uv"
@@ -163,78 +160,6 @@ function Assert-LastExitCode([string]$Operation) {
     if ($LASTEXITCODE -ne 0) {
         throw "$Operation failed with exit code $LASTEXITCODE."
     }
-}
-
-function Resolve-CanonicalPath([string]$ConfiguredPath) {
-    if ([string]::IsNullOrWhiteSpace($ConfiguredPath)) {
-        throw "The canonical configuration contains an empty path."
-    }
-
-    $expandedPath = [Environment]::ExpandEnvironmentVariables($ConfiguredPath.Trim())
-    if (-not [System.IO.Path]::IsPathRooted($expandedPath)) {
-        $expandedPath = Join-Path $RepoRoot $expandedPath
-    }
-    return [System.IO.Path]::GetFullPath($expandedPath)
-}
-
-function Resolve-DataDirectory([string]$ConfiguredPath) {
-    if ([string]::IsNullOrWhiteSpace($ConfiguredPath)) {
-        return [System.IO.Path]::GetFullPath($DefaultDataDir)
-    }
-
-    $expandedPath = [Environment]::ExpandEnvironmentVariables($ConfiguredPath.Trim())
-    if (-not [System.IO.Path]::IsPathRooted($expandedPath)) {
-        $expandedPath = Join-Path $RepoRoot $expandedPath
-    }
-    return [System.IO.Path]::GetFullPath($expandedPath)
-}
-
-function Set-ConfiguredDataPaths([string]$ConfiguredPath) {
-    $script:DataDir = Resolve-DataDirectory $ConfiguredPath
-    $script:LogDir = Join-Path $script:DataDir "logs"
-    $script:CheckpointsDir = Join-Path $script:DataDir "checkpoints"
-    $script:ConfigFile = Join-Path $script:DataDir "adsmod.json"
-    $script:ConfigSchemaFile = Join-Path $script:DataDir "adsmod.schema.json"
-    [Environment]::SetEnvironmentVariable(
-        'ADSMOD_DATA_DIR',
-        $script:DataDir,
-        'Process'
-    )
-}
-
-function Get-ConfiguredDataPath {
-    if (-not [string]::IsNullOrWhiteSpace($DataPath)) {
-        return $DataPath
-    }
-
-    $configuredPath = [Environment]::GetEnvironmentVariable('ADSMOD_DATA_DIR', 'Process')
-    if (-not [string]::IsNullOrWhiteSpace($configuredPath)) {
-        return $configuredPath
-    }
-
-    $envFile = Join-Path $RepoRoot "settings\.env"
-    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
-        return $null
-    }
-
-    foreach ($line in Get-Content -LiteralPath $envFile) {
-        $trimmed = $line.Trim()
-        if (-not $trimmed -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';')) {
-            continue
-        }
-        $separator = $trimmed.IndexOf('=')
-        if ($separator -lt 1 -or $trimmed.Substring(0, $separator).Trim() -ne 'ADSMOD_DATA_DIR') {
-            continue
-        }
-        $configuredPath = $trimmed.Substring($separator + 1).Trim()
-        if (($configuredPath.StartsWith('"') -and $configuredPath.EndsWith('"')) -or
-            ($configuredPath.StartsWith("'") -and $configuredPath.EndsWith("'"))) {
-            $configuredPath = $configuredPath.Substring(1, $configuredPath.Length - 2)
-        }
-        return $configuredPath
-    }
-
-    return $null
 }
 
 function Remove-LauncherPath {
@@ -545,16 +470,31 @@ function Wait-ForHealth {
 }
 
 function Import-Settings {
-    Set-ConfiguredDataPaths (Get-ConfiguredDataPath)
-    if (-not (Test-Path -LiteralPath $ConfigFile)) { throw "Missing canonical configuration: $ConfigFile" }
-    $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
-    if (-not $canonical.runtime -or -not $canonical.storage) { throw "Canonical configuration is missing runtime or storage settings: $ConfigFile" }
-    $runtimeHost = [string]$canonical.runtime.host
-    if ([string]::IsNullOrWhiteSpace($runtimeHost)) { throw "runtime.host must be configured." }
-    $script:DataDir = Resolve-CanonicalPath ([string]$canonical.storage.root)
+    if (-not (Test-PortableRuntimeFilesReady)) { Initialize-Runtimes }
+    Set-RuntimeEnvironment
+    Push-Location $RepoRoot
+    try {
+        $runtimeOutput = @(& $UvExe run --project $BackendDir --python $PythonExe python -m server.runtime_config --json 2>&1)
+        Assert-LastExitCode "loading SQLite runtime settings"
+    } finally {
+        Pop-Location
+    }
+    $runtimeLine = @($runtimeOutput | ForEach-Object { [string]$_ } | Where-Object { $_.StartsWith('ADSMOD_RUNTIME:') } | Select-Object -Last 1)
+    if ($runtimeLine.Count -ne 1) { throw "SQLite runtime settings did not return a valid local endpoint." }
+    try { $runtime = $runtimeLine[0].Substring('ADSMOD_RUNTIME:'.Length) | ConvertFrom-Json } catch { throw "SQLite runtime settings returned invalid data." }
+    $runtimeHost = [string]$runtime.host
+    $backendPort = [int]$runtime.backend_port
+    $frontendPort = [int]$runtime.frontend_port
+    if ($runtimeHost -notin @('127.0.0.1', 'localhost', '::1') -or $backendPort -lt 1024 -or $backendPort -gt 65535 -or $frontendPort -lt 1024 -or $frontendPort -gt 65535 -or $backendPort -eq $frontendPort) {
+        throw "SQLite runtime settings contain an invalid local endpoint."
+    }
+    $script:DataDir = [System.IO.Path]::GetFullPath([string]$runtime.storage_root)
     $script:LogDir = Join-Path $script:DataDir "logs"
     $script:CheckpointsDir = Join-Path $script:DataDir "checkpoints"
-    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = [int]$canonical.runtime.backend_port; FrontendPort = [int]$canonical.runtime.frontend_port }
+    $script:SettingsDatabasePath = [System.IO.Path]::GetFullPath([string]$runtime.settings_database_path)
+    $script:EmbeddedDatabase = [bool]$runtime.embedded_database
+    [Environment]::SetEnvironmentVariable('ADSMOD_PYTHON', $VenvPython, 'Process')
+    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = $backendPort; FrontendPort = $frontendPort; StorageRoot = $script:DataDir; SettingsDatabasePath = $script:SettingsDatabasePath; EmbeddedDatabase = $script:EmbeddedDatabase }
 }
 
 function Set-RuntimeEnvironment {
@@ -1228,7 +1168,6 @@ function Get-ApplicationProcessRecords {
         return @()
     }
 
-    $configMarker = [System.IO.Path]::GetFullPath($ConfigFile).TrimEnd('\').ToLowerInvariant()
     $backendMarker = [System.IO.Path]::GetFullPath($BackendDir).TrimEnd('\').ToLowerInvariant()
     $clientMarker = [System.IO.Path]::GetFullPath($ClientDir).TrimEnd('\').ToLowerInvariant()
     $backendPortToken = "--port $($Settings.BackendPort)".ToLowerInvariant()
@@ -1239,8 +1178,7 @@ function Get-ApplicationProcessRecords {
 
     foreach ($record in $records) {
         $commandLine = ([string]$record.CommandLine).Replace('/', '\').ToLowerInvariant()
-        $isBackend = $commandLine.Contains($configMarker) -or
-            ($commandLine.Contains('server.cli') -and
+        $isBackend = ($commandLine.Contains('server.cli') -and
                 ($commandLine.Contains($backendMarker) -or
                     $commandLine.Contains($backendPortToken) -or
                     $commandLine.Contains($backendPortEqualsToken)))
@@ -1422,7 +1360,7 @@ function Start-Application {
 
     $backendPort = $settings.BackendPort
     $uiPort = $settings.FrontendPort
-    $backendArguments = @('-m', 'server.cli', '--config', ('"{0}"' -f $ConfigFile))
+    $backendArguments = @('-m', 'server.cli')
     Write-Step "Starting ADSMOD backend"
     $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
     $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
@@ -1483,7 +1421,7 @@ function Initialize-Database {
     Write-Step "Initializing database"
     Push-Location $RepoRoot
     try {
-        & $UvExe run --project $BackendDir --python $PythonExe python app/scripts/initialize_database.py --config $ConfigFile
+        & $UvExe run --project $BackendDir --python $PythonExe python app/scripts/initialize_database.py
         Assert-LastExitCode "database initialization"
     } finally {
         Pop-Location
@@ -1673,22 +1611,13 @@ function Uninstall-Application {
 }
 
 function Get-ConfiguredDatabasePath {
-    $canonical = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
-    $database = $canonical.application.database
-    if (-not $database.embedded_database) {
+    if (-not $script:EmbeddedDatabase) {
         return $null
     }
-
-    $configuredPath = [string]$database.sqlite_path
-    if ([string]::IsNullOrWhiteSpace($configuredPath)) {
-        throw "Embedded database configuration is missing application.database.sqlite_path."
+    if ([string]::IsNullOrWhiteSpace($script:SettingsDatabasePath)) {
+        throw "The local SQLite database path has not been loaded from bootstrap settings."
     }
-
-    $expandedPath = [Environment]::ExpandEnvironmentVariables($configuredPath.Trim())
-    if ([System.IO.Path]::IsPathRooted($expandedPath)) {
-        return [System.IO.Path]::GetFullPath($expandedPath)
-    }
-    return [System.IO.Path]::GetFullPath((Join-Path $DataDir $expandedPath))
+    return $script:SettingsDatabasePath
 }
 
 function Remove-DatabaseFiles {
@@ -1698,15 +1627,8 @@ function Remove-DatabaseFiles {
         return
     }
 
-    $protectedPaths = @(
-        [System.IO.Path]::GetFullPath($ConfigFile),
-        [System.IO.Path]::GetFullPath($ConfigSchemaFile)
-    )
     foreach ($path in @($databasePath, "$databasePath-wal", "$databasePath-shm")) {
         $fullPath = [System.IO.Path]::GetFullPath($path)
-        if ($fullPath -in $protectedPaths) {
-            throw "Refusing to remove an application configuration file: $fullPath"
-        }
         try {
             if (Test-Path -LiteralPath $fullPath) {
                 Remove-Item -LiteralPath $fullPath -Force -ErrorAction Stop
@@ -1737,7 +1659,11 @@ function Remove-All-Data {
     Remove-DatabaseFiles
     Clear-CheckpointFiles
     Remove-DataDirectoryContents -Path $LogDir
-    Write-Ok "All local user-generated data was removed; application files and settings were preserved."
+    if ($script:EmbeddedDatabase) {
+        Write-Ok "All local user-generated data and embedded application settings were removed; settings return to defaults on the next launch."
+    } else {
+        Write-Ok "All local user-generated data was removed; PostgreSQL data and local SQLite application settings were preserved."
+    }
 }
 
 # -----------------------------------------------------------------------------

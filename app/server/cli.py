@@ -3,28 +3,20 @@
 
 from __future__ import annotations
 
-import argparse
-from pathlib import Path
-
 import uvicorn
 
-from .app import create_app_from_path
+from .app import create_app
+from .configurations.runtime import load_runtime_configuration
 
-###############################################################################
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="adsmod")
-    parser.add_argument("--config", required=True, type=Path)
-    return parser
 
-###############################################################################
 def main() -> None:
-    args = build_parser().parse_args()
-    application = create_app_from_path(args.config)
-    runtime = application.state.config.runtime
+    runtime = load_runtime_configuration()
+    application = create_app(runtime.config, settings_store=runtime.settings_store)
+    configuration = runtime.config.runtime
     uvicorn.run(
         application,
-        host=runtime.host,
-        port=runtime.backend_port,
+        host=configuration.host,
+        port=configuration.backend_port,
     )
 
 

@@ -318,7 +318,7 @@ describe('ModelsPageComponent', () => {
 
         const submittedConfiguration = submittedPayload?.['parameter_configuration'] as unknown as Record<string, Record<string, { lower: number; upper: number; initial: number }>>;
         expect(submittedConfiguration['langmuir']['k']).toEqual({ lower: 1.5, upper: 3, initial: 1.5 });
-        expect(submittedConfiguration['langmuir']['qsat']).toEqual({ lower: 10, upper: 30, initial: 20 });
+        expect(submittedConfiguration['langmuir']['qsat']).toEqual({ lower: 10, upper: 30, initial: 10 });
         expect(store.fittingStatus()).toBe('[INFO] Job was cancelled.');
         expect(store.fittingJobId()).toBeNull();
     });

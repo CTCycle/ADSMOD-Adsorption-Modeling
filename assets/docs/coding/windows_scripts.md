@@ -1,6 +1,6 @@
 # ADSMOD Windows Script Rules
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 
 ## Operational Script Expectations
 
@@ -10,8 +10,10 @@ Last updated: 2026-09-28
 - Keep disposable application and test-tool caches below `runtimes/cache`.
 - Avoid destructive operations outside intended directories.
 - Keep script behavior compatible with the existing launcher and runtime flow.
-- Keep the launcher’s canonical paths aligned with `data/adsmod.json`;
-  dependency readiness is checked before reinstalling runtimes or packages.
+- Load runtime endpoints and storage paths through `server.runtime_config`;
+  application settings remain in SQLite and database bootstrap values in
+  `settings/.env`.
+- Check dependency readiness before reinstalling runtimes or packages.
 
 ## Documentation Expectation
 

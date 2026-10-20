@@ -96,7 +96,6 @@ export class CoreWorkspaceStore {
 
     constructor() {
         void this.refreshDatasets();
-        void this.loadConfiguration();
         void this.loadCatalog();
         void this.restoreLastFittingRun();
     }
@@ -118,6 +117,7 @@ export class CoreWorkspaceStore {
     }
 
     async loadCatalog(): Promise<void> {
+        await this.loadConfiguration();
         const result = await fetchModelCatalog();
         this.modelCatalogError.set(result.error);
         if (!result.data) {
@@ -126,14 +126,18 @@ export class CoreWorkspaceStore {
             return;
         }
         this.modelCatalog.set(result.data);
+        const configuredBounds = this.fittingConfiguration()?.parameter_defaults;
         this.modelStates.set(Object.fromEntries(result.data.models.map((model) => [
             model.key,
             {
                 enabled: true,
-                config: Object.fromEntries(model.parameters.map((parameter) => [
-                    parameter.name,
-                    { min: parameter.lower, max: parameter.upper },
-                ])),
+                config: Object.fromEntries(model.parameters.map((parameter) => {
+                    const lower = Math.max(parameter.lower, configuredBounds?.lower ?? parameter.lower);
+                    const upper = Math.min(parameter.upper, configuredBounds?.upper ?? parameter.upper);
+                    return [parameter.name, lower < upper
+                        ? { min: lower, max: upper }
+                        : { min: parameter.lower, max: parameter.upper }];
+                })),
             },
         ])));
     }
@@ -330,10 +334,11 @@ export class CoreWorkspaceStore {
                         );
                         const parameters = Object.fromEntries(
                             Object.entries(state.config).map(([name, bounds]) => {
+                                const configuredInitial = configuration.parameter_defaults.initial;
                                 const catalogInitial = model?.parameters.find(
                                     (parameter) => parameter.name === name,
                                 )?.initial;
-                                const initial = catalogInitial ?? (bounds.min + bounds.max) / 2;
+                                const initial = configuredInitial ?? catalogInitial ?? (bounds.min + bounds.max) / 2;
                                 return [name, {
                                     lower: bounds.min,
                                     upper: bounds.max,

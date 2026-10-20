@@ -78,7 +78,6 @@ def test_manager_enables_sqlite_integrity_and_rolls_back() -> None:
     settings = DatabaseConfig(
         embedded_database=True,
         connect_timeout=30,
-        insert_batch_size=100,
         sqlite_path=":memory:",
     )
     manager = DatabaseManager(settings)
@@ -106,7 +105,6 @@ def test_explicit_bulk_upsert_uses_declared_conflict_key() -> None:
     settings = DatabaseConfig(
         embedded_database=True,
         connect_timeout=30,
-        insert_batch_size=100,
         sqlite_path=":memory:",
     )
     manager = DatabaseManager(settings)
