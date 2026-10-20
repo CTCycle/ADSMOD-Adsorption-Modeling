@@ -40,7 +40,6 @@ class PublicSourceListResponse(BaseModel):
     sources: list[PublicSourceSummary]
 
 ###############################################################################
-###############################################################################
 class PublicDataOverviewResponse(BaseModel):
     adsorption_records: int = Field(ge=0)
     materials: int = Field(ge=0)
@@ -84,6 +83,7 @@ class PublicDataSyncCreateRequest(BaseModel):
     cod_ids: list[str] | None = Field(default=None, min_length=1, max_length=50)
     adsorbent_id: int | None = Field(default=None, ge=1)
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_operation_parameters(self) -> "PublicDataSyncCreateRequest":
         required = {

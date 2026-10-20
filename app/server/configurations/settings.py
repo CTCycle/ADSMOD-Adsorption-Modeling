@@ -121,6 +121,7 @@ class PublicDataConfig(StrictModel):
     auto_sync_interval_hours: int = Field(default=24, ge=1, le=720)
     auto_sync_fraction: float = Field(default=1.0, gt=0.0, le=1.0)
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_auto_sync_scope(self) -> "PublicDataConfig":
         if self.auto_sync_enabled and not self.auto_sync_categories:

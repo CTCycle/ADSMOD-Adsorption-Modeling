@@ -35,6 +35,7 @@ from server.services.providers import PROVIDER_CLASSES
 PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
 
 
+###############################################################################
 def _database(path: Path) -> DatabaseManager:
     manager = DatabaseManager(
         DatabaseConfig(
@@ -48,6 +49,7 @@ def _database(path: Path) -> DatabaseManager:
     return manager
 
 
+###############################################################################
 class _Provider(PublicDataProvider):
     key = "nist"
     name = "NIST test provider"
@@ -58,18 +60,23 @@ class _Provider(PublicDataProvider):
     terms_url = None
     capabilities = (ProviderCapability.ADSORPTION,)
 
+    # -------------------------------------------------------------------------
     async def health(self) -> ProviderHealth:
         return ProviderHealth(
             status="available", detail=None, checked_at=datetime.now(timezone.utc)
         )
 
 
+###############################################################################
 class _Nist:
+
+    # -------------------------------------------------------------------------
     async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
         del kwargs
         raise NotImplementedError
 
 
+###############################################################################
 async def _wait_for_terminal(
     coordinator: PublicDataSyncCoordinator, run_id: str
 ) -> dict[str, Any]:
@@ -81,10 +88,15 @@ async def _wait_for_terminal(
     raise AssertionError(f"Sync run {run_id} did not reach a terminal state.")
 
 
+###############################################################################
 def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
     tmp_path: Path,
 ) -> None:
+
+    ###############################################################################
     class PartialNist:
+
+        # -------------------------------------------------------------------------
         async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
             await kwargs["on_failure"]("upstream-404", "NIST record request failed.")
             await kwargs["on_skip"]("unsupported-1", "Unsupported uptake unit: foo.")
@@ -159,11 +171,15 @@ def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
     asyncio.run(scenario())
 
 
+###############################################################################
 def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
     async def scenario() -> None:
         started = asyncio.Event()
 
+        ###############################################################################
         class BlockingNist:
+
+            # -------------------------------------------------------------------------
             async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
                 started.set()
                 while not await kwargs["should_cancel"]():
@@ -205,6 +221,7 @@ def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
     asyncio.run(scenario())
 
 
+###############################################################################
 def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
     monkeypatch, tmp_path: Path
 ) -> None:  # type: ignore[no-untyped-def]
@@ -258,6 +275,7 @@ def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
     asyncio.run(scenario())
 
 
+###############################################################################
 def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -> None:
     async def scenario() -> None:
         manager = _database(tmp_path)
@@ -316,6 +334,7 @@ def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -
     asyncio.run(scenario())
 
 
+###############################################################################
 def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
     valid = PublicDataSyncCreateRequest.model_validate(
         {
@@ -340,6 +359,7 @@ def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
         raise AssertionError("Invalid COD batch request was accepted.")
 
 
+###############################################################################
 def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -> None:
     manager = _database(tmp_path)
     try:
@@ -368,6 +388,7 @@ def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -
         manager.dispose()
 
 
+###############################################################################
 def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
     tmp_path: Path,
 ) -> None:
@@ -394,7 +415,10 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
         public_data = PublicDataService(repository=repository, providers=[_Provider()])
         observed: dict[str, Any] = {}
 
+        ###############################################################################
         class ResumingNist:
+
+            # -------------------------------------------------------------------------
             async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
                 observed.update(
                     processed_before=kwargs["processed_before"],
@@ -452,6 +476,7 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
     asyncio.run(scenario())
 
 
+###############################################################################
 def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
     tmp_path: Path,
 ) -> None:
@@ -518,6 +543,7 @@ def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
             manager.dispose()
 
 
+###############################################################################
 def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path) -> None:
     manager = _database(tmp_path)
     try:
@@ -547,6 +573,7 @@ def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path)
         manager.dispose()
 
 
+###############################################################################
 def test_pubchem_request_budget_is_shared_across_provider_instances(
     monkeypatch,
 ) -> None:  # type: ignore[no-untyped-def]
@@ -571,6 +598,7 @@ def test_pubchem_request_budget_is_shared_across_provider_instances(
     assert delays == [0.22]
 
 
+###############################################################################
 def test_optional_scheduler_enqueues_only_configured_nist_collections(
     monkeypatch,
 ) -> None:  # type: ignore[no-untyped-def]
@@ -605,6 +633,7 @@ def test_optional_scheduler_enqueues_only_configured_nist_collections(
     assert all(run["parameters"]["trigger"] == "scheduled" for run in scheduled)
 
 
+###############################################################################
 def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
     monkeypatch,
 ) -> None:  # type: ignore[no-untyped-def]
@@ -615,17 +644,25 @@ def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
     ]
     delays: list[float] = []
 
+    ###############################################################################
     class _Stream:
+
+        # -------------------------------------------------------------------------
         def __init__(self, response: Any) -> None:
             self.response = response
 
+        # -------------------------------------------------------------------------
         async def __aenter__(self) -> Any:
             return self.response
 
+        # -------------------------------------------------------------------------
         async def __aexit__(self, *_args: Any) -> None:
             return None
 
+    ###############################################################################
     class _Client:
+
+        # -------------------------------------------------------------------------
         def stream(self, *_args: Any, **_kwargs: Any) -> _Stream:
             return _Stream(responses.pop(0))
 
@@ -646,8 +683,13 @@ def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
     }
 
 
+###############################################################################
 def test_nist_streaming_client_rejects_oversized_response() -> None:
+
+    ###############################################################################
     class _Stream:
+
+        # -------------------------------------------------------------------------
         async def __aenter__(self) -> httpx.Response:
             return httpx.Response(
                 200,
@@ -657,10 +699,14 @@ def test_nist_streaming_client_rejects_oversized_response() -> None:
                 ),
             )
 
+        # -------------------------------------------------------------------------
         async def __aexit__(self, *_args: Any) -> None:
             return None
 
+    ###############################################################################
     class _Client:
+
+        # -------------------------------------------------------------------------
         def stream(self, *_args: Any, **_kwargs: Any) -> _Stream:
             return _Stream()
 
@@ -676,10 +722,14 @@ def test_nist_streaming_client_rejects_oversized_response() -> None:
     assert client.request_statistics()["failures"] == 1
 
 
+###############################################################################
 def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     calls: list[tuple[str, str, dict[str, str]]] = []
 
+    ###############################################################################
     class _Stream:
+
+        # -------------------------------------------------------------------------
         async def __aenter__(self) -> httpx.Response:
             return httpx.Response(
                 206,
@@ -689,22 +739,29 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
                 ),
             )
 
+        # -------------------------------------------------------------------------
         async def __aexit__(self, *_args: Any) -> None:
             return None
 
+    ###############################################################################
     class _Client:
+
+        # -------------------------------------------------------------------------
         def __init__(self, **_kwargs: Any) -> None:
             pass
 
+        # -------------------------------------------------------------------------
         def stream(
             self, method: str, url: str, *, headers: dict[str, str]
         ) -> _Stream:
             calls.append((method, url, headers))
             return _Stream()
 
+        # -------------------------------------------------------------------------
         async def __aenter__(self) -> "_Client":
             return self
 
+        # -------------------------------------------------------------------------
         async def __aexit__(self, *_args: Any) -> None:
             return None
 
@@ -726,21 +783,27 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
     ]
 
 
+###############################################################################
 def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
     claim_started = threading.Event()
     release_claim = threading.Event()
     updates: list[tuple[str, dict[str, Any]]] = []
 
+    ###############################################################################
     class _BlockingRepository:
+
+        # -------------------------------------------------------------------------
         def mark_unfinished_sync_runs(self, *, resume: bool) -> int:
             del resume
             return 0
 
+        # -------------------------------------------------------------------------
         def claim_next_sync_run(self) -> dict[str, Any]:
             claim_started.set()
             release_claim.wait(timeout=5)
             return {"id": "run-claimed-at-shutdown"}
 
+        # -------------------------------------------------------------------------
         def update_sync_run(self, run_id: str, **values: Any) -> None:
             updates.append((run_id, values))
 
