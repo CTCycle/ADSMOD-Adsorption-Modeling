@@ -10,12 +10,14 @@ from server.common.utils.logger import logger
 from server.common.path import resolve_storage_root
 from server.services.providers import CODProvider, NISTPublicDataProvider, PubChemProvider
 from server.services.providers.public_data import RequestBudget
+from server.repositories.analytics import AnalyticsRepository
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
 from server.repositories.fitting import FittingRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
 from server.repositories.public_data import PublicDataRepository
+from server.services.data.analytics import AnalyticsService
 from server.services.data.datasets import DatasetService
 from server.services.data.nist_mapper import NISTCanonicalMapper
 from server.services.data.nist_service import NISTDataService
@@ -44,6 +46,7 @@ class CoreServiceContainer:
         self.materials = MaterialRepository(self.database)
         self.fitting = FittingRepository(self.database)
         self.public_data_repository = PublicDataRepository(self.database)
+        self.analytics_service = AnalyticsService(AnalyticsRepository(self.database))
         self.pubchem_request_budget = RequestBudget()
         self.dataset_service = DatasetService(
             repository=self.datasets,

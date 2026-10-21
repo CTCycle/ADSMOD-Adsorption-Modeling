@@ -2354,6 +2354,191 @@
         }
       }
     },
+    "/api/v1/analytics/overview": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Get Overview",
+        "operationId": "get_overview_api_v1_analytics_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsOverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/selection": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Query Selection",
+        "operationId": "query_selection_api_v1_analytics_selection_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/series": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Query Series",
+        "operationId": "query_series_api_v1_analytics_series_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/uptake-at-pressure": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Query Uptake At Pressure",
+        "operationId": "query_uptake_at_pressure_api_v1_analytics_uptake_at_pressure_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UptakeAtPressureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UptakeAtPressureResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/distribution": {
+      "post": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Query Distribution",
+        "operationId": "query_distribution_api_v1_analytics_distribution_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DistributionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DistributionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/training/configuration": {
       "get": {
         "tags": [
@@ -3266,6 +3451,291 @@
           "temperature_k"
         ],
         "title": "AdsorptionRecordView"
+      },
+      "AnalyticsFilter": {
+        "properties": {
+          "dataset_sources": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "uploaded",
+                "nist"
+              ]
+            },
+            "type": "array",
+            "title": "Dataset Sources"
+          },
+          "dataset_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Dataset Ids"
+          },
+          "adsorbent_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Adsorbent Ids"
+          },
+          "adsorbate_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Adsorbate Ids"
+          },
+          "isotherm_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Isotherm Ids"
+          },
+          "temperature_min_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Min K"
+          },
+          "temperature_max_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Max K"
+          },
+          "pressure_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "absolute",
+                  "partial",
+                  "relative"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Basis"
+          },
+          "include_mixtures": {
+            "type": "boolean",
+            "title": "Include Mixtures",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AnalyticsFilter",
+        "description": "Isotherm selection shared by every analytics query; identity is by id."
+      },
+      "AnalyticsOverviewResponse": {
+        "properties": {
+          "datasets": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Datasets"
+          },
+          "isotherms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Isotherms"
+          },
+          "observations": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Observations"
+          },
+          "materials": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Materials"
+          },
+          "adsorbates": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Adsorbates"
+          },
+          "mixture_isotherms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Mixture Isotherms"
+          },
+          "isotherms_by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Isotherms By Source"
+          },
+          "pressure_bases": {
+            "items": {
+              "$ref": "#/components/schemas/BasisSpan"
+            },
+            "type": "array",
+            "title": "Pressure Bases"
+          },
+          "top_materials": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Top Materials"
+          },
+          "top_adsorbates": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Top Adsorbates"
+          },
+          "temperature_histogram": {
+            "items": {
+              "$ref": "#/components/schemas/HistogramBin"
+            },
+            "type": "array",
+            "title": "Temperature Histogram"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasets",
+          "isotherms",
+          "observations",
+          "materials",
+          "adsorbates",
+          "mixture_isotherms",
+          "isotherms_by_source",
+          "pressure_bases",
+          "top_materials",
+          "top_adsorbates",
+          "temperature_histogram"
+        ],
+        "title": "AnalyticsOverviewResponse"
+      },
+      "BasisSpan": {
+        "properties": {
+          "pressure_basis": {
+            "type": "string",
+            "enum": [
+              "absolute",
+              "partial",
+              "relative"
+            ],
+            "title": "Pressure Basis"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "enum": [
+              "Pa",
+              "1"
+            ],
+            "title": "Pressure Unit"
+          },
+          "isotherms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Isotherms"
+          },
+          "observations": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Observations"
+          },
+          "pressure_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Min"
+          },
+          "pressure_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Max"
+          },
+          "uptake_min_mol_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Min Mol Kg"
+          },
+          "uptake_max_mol_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Max Mol Kg"
+          },
+          "temperature_min_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Min K"
+          },
+          "temperature_max_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Max K"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pressure_basis",
+          "pressure_unit",
+          "isotherms",
+          "observations"
+        ],
+        "title": "BasisSpan"
       },
       "Body_commit_import_api_v1_datasets_import_commit_post": {
         "properties": {
@@ -4859,6 +5329,160 @@
         "type": "object",
         "title": "DisplayUnits"
       },
+      "DistributionRequest": {
+        "properties": {
+          "filter": {
+            "$ref": "#/components/schemas/AnalyticsFilter"
+          },
+          "variable": {
+            "type": "string",
+            "enum": [
+              "temperature_k",
+              "pressure",
+              "uptake_mol_kg",
+              "points_per_isotherm"
+            ],
+            "title": "Variable"
+          },
+          "bins": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Bins",
+            "default": 20
+          },
+          "scale": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "log"
+            ],
+            "title": "Scale",
+            "default": "linear"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Pressure Unit",
+            "default": "bar"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variable"
+        ],
+        "title": "DistributionRequest"
+      },
+      "DistributionResponse": {
+        "properties": {
+          "variable": {
+            "type": "string",
+            "enum": [
+              "temperature_k",
+              "pressure",
+              "uptake_mol_kg",
+              "points_per_isotherm"
+            ],
+            "title": "Variable"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "scale": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "log"
+            ],
+            "title": "Scale"
+          },
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/HistogramBin"
+            },
+            "type": "array",
+            "title": "Bins"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/DistributionStats"
+          },
+          "excluded": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Excluded",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable",
+          "unit",
+          "scale",
+          "bins",
+          "stats"
+        ],
+        "title": "DistributionResponse"
+      },
+      "DistributionStats": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "DistributionStats"
+      },
       "EntityReference": {
         "properties": {
           "id": {
@@ -5024,6 +5648,30 @@
           "external_id"
         ],
         "title": "ExternalIdentifierView"
+      },
+      "FacetCount": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "count"
+        ],
+        "title": "FacetCount"
       },
       "FeatureCapabilities": {
         "properties": {
@@ -5302,6 +5950,30 @@
           "state"
         ],
         "title": "HealthResponse"
+      },
+      "HistogramBin": {
+        "properties": {
+          "lower": {
+            "type": "number",
+            "title": "Lower"
+          },
+          "upper": {
+            "type": "number",
+            "title": "Upper"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lower",
+          "upper",
+          "count"
+        ],
+        "title": "HistogramBin"
       },
       "ImportIssue": {
         "properties": {
@@ -5728,6 +6400,173 @@
           "issues"
         ],
         "title": "ImportValidationResponse"
+      },
+      "IsothermSeries": {
+        "properties": {
+          "isotherm_id": {
+            "type": "integer",
+            "title": "Isotherm Id"
+          },
+          "component_id": {
+            "type": "integer",
+            "title": "Component Id"
+          },
+          "isotherm": {
+            "type": "string",
+            "title": "Isotherm"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "dataset_source": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "nist"
+            ],
+            "title": "Dataset Source"
+          },
+          "material_id": {
+            "type": "integer",
+            "title": "Material Id"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "adsorbate_id": {
+            "type": "integer",
+            "title": "Adsorbate Id"
+          },
+          "adsorbate": {
+            "type": "string",
+            "title": "Adsorbate"
+          },
+          "mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mole Fraction"
+          },
+          "temperature_k": {
+            "type": "number",
+            "title": "Temperature K"
+          },
+          "uptake_unit": {
+            "type": "string",
+            "title": "Uptake Unit"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "isotherm_id",
+          "component_id",
+          "isotherm",
+          "dataset_id",
+          "dataset",
+          "dataset_source",
+          "material_id",
+          "material",
+          "adsorbate_id",
+          "adsorbate",
+          "temperature_k",
+          "uptake_unit",
+          "points"
+        ],
+        "title": "IsothermSeries"
+      },
+      "IsothermSummaryView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "dataset_source": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "nist"
+            ],
+            "title": "Dataset Source"
+          },
+          "material_id": {
+            "type": "integer",
+            "title": "Material Id"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "adsorbates": {
+            "items": {
+              "$ref": "#/components/schemas/EntityReference"
+            },
+            "type": "array",
+            "title": "Adsorbates"
+          },
+          "temperature_k": {
+            "type": "number",
+            "title": "Temperature K"
+          },
+          "pressure_basis": {
+            "type": "string",
+            "enum": [
+              "absolute",
+              "partial",
+              "relative"
+            ],
+            "title": "Pressure Basis"
+          },
+          "point_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Point Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dataset_id",
+          "dataset",
+          "dataset_source",
+          "material_id",
+          "material",
+          "adsorbates",
+          "temperature_k",
+          "pressure_basis",
+          "point_count"
+        ],
+        "title": "IsothermSummaryView"
       },
       "JobCancelResponse": {
         "properties": {
@@ -7678,6 +8517,258 @@
         ],
         "title": "RuntimeDeviceCapabilities"
       },
+      "SelectionFacets": {
+        "properties": {
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Materials"
+          },
+          "adsorbates": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Adsorbates"
+          },
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/FacetCount"
+            },
+            "type": "array",
+            "title": "Datasets"
+          },
+          "sources": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Sources"
+          },
+          "pressure_bases": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Pressure Bases"
+          },
+          "temperature_min_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Min K"
+          },
+          "temperature_max_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Max K"
+          }
+        },
+        "type": "object",
+        "required": [
+          "materials",
+          "adsorbates",
+          "datasets",
+          "sources",
+          "pressure_bases"
+        ],
+        "title": "SelectionFacets"
+      },
+      "SelectionRequest": {
+        "properties": {
+          "filter": {
+            "$ref": "#/components/schemas/AnalyticsFilter"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page",
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "default": 25
+          },
+          "material_search": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Search"
+          },
+          "adsorbate_search": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbate Search"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SelectionRequest"
+      },
+      "SelectionResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IsothermSummaryView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          },
+          "facets": {
+            "$ref": "#/components/schemas/SelectionFacets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "pagination",
+          "facets"
+        ],
+        "title": "SelectionResponse"
+      },
+      "SeriesPoint": {
+        "properties": {
+          "observation_id": {
+            "type": "integer",
+            "title": "Observation Id"
+          },
+          "pressure": {
+            "type": "number",
+            "title": "Pressure"
+          },
+          "uptake": {
+            "type": "number",
+            "title": "Uptake"
+          },
+          "uptake_stddev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Stddev"
+          }
+        },
+        "type": "object",
+        "required": [
+          "observation_id",
+          "pressure",
+          "uptake"
+        ],
+        "title": "SeriesPoint"
+      },
+      "SeriesRequest": {
+        "properties": {
+          "filter": {
+            "$ref": "#/components/schemas/AnalyticsFilter"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Pressure Unit",
+            "default": "bar"
+          },
+          "uptake_unit": {
+            "type": "string",
+            "maxLength": 24,
+            "title": "Uptake Unit",
+            "default": "mol/kg"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SeriesRequest"
+      },
+      "SeriesResponse": {
+        "properties": {
+          "pressure_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "absolute",
+                  "partial",
+                  "relative"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Basis"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "title": "Pressure Unit"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/IsothermSeries"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "total_series": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Series"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pressure_unit",
+          "series",
+          "total_series"
+        ],
+        "title": "SeriesResponse"
+      },
       "SettingsResponse": {
         "properties": {
           "status": {
@@ -8707,6 +9798,248 @@
           "progress"
         ],
         "title": "TrainingStatusResponse"
+      },
+      "UptakeAtPressureRequest": {
+        "properties": {
+          "filter": {
+            "$ref": "#/components/schemas/AnalyticsFilter"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Pressure Unit",
+            "default": "bar"
+          },
+          "uptake_unit": {
+            "type": "string",
+            "maxLength": 24,
+            "title": "Uptake Unit",
+            "default": "mol/kg"
+          },
+          "pressure": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "nearest"
+            ],
+            "title": "Method",
+            "default": "linear"
+          },
+          "tolerance": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tolerance",
+            "default": 0.05
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pressure"
+        ],
+        "title": "UptakeAtPressureRequest"
+      },
+      "UptakeAtPressureResponse": {
+        "properties": {
+          "pressure": {
+            "type": "number",
+            "title": "Pressure"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "title": "Pressure Unit"
+          },
+          "pressure_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "absolute",
+                  "partial",
+                  "relative"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Basis"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "nearest"
+            ],
+            "title": "Method"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/UptakeAtPressureRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "total_series": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Series"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pressure",
+          "pressure_unit",
+          "method",
+          "rows",
+          "total_series"
+        ],
+        "title": "UptakeAtPressureResponse"
+      },
+      "UptakeAtPressureRow": {
+        "properties": {
+          "isotherm_id": {
+            "type": "integer",
+            "title": "Isotherm Id"
+          },
+          "component_id": {
+            "type": "integer",
+            "title": "Component Id"
+          },
+          "isotherm": {
+            "type": "string",
+            "title": "Isotherm"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "dataset": {
+            "type": "string",
+            "title": "Dataset"
+          },
+          "dataset_source": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "nist"
+            ],
+            "title": "Dataset Source"
+          },
+          "material_id": {
+            "type": "integer",
+            "title": "Material Id"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material"
+          },
+          "adsorbate_id": {
+            "type": "integer",
+            "title": "Adsorbate Id"
+          },
+          "adsorbate": {
+            "type": "string",
+            "title": "Adsorbate"
+          },
+          "mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mole Fraction"
+          },
+          "temperature_k": {
+            "type": "number",
+            "title": "Temperature K"
+          },
+          "uptake_unit": {
+            "type": "string",
+            "title": "Uptake Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "measured",
+                  "nearest",
+                  "interpolated"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "out_of_range",
+              "no_point_in_tolerance"
+            ],
+            "title": "Status"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "isotherm_id",
+          "component_id",
+          "isotherm",
+          "dataset_id",
+          "dataset",
+          "dataset_source",
+          "material_id",
+          "material",
+          "adsorbate_id",
+          "adsorbate",
+          "temperature_k",
+          "uptake_unit",
+          "status"
+        ],
+        "title": "UptakeAtPressureRow"
       },
       "UserSettings": {
         "properties": {

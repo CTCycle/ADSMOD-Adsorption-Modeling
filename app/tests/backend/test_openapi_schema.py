@@ -15,6 +15,7 @@ def test_unified_openapi_snapshot_covers_complete_surface() -> None:
     paths = schema["paths"]
     assert "/api/v1/datasets" in paths
     assert "/api/v1/fitting/models" in paths
+    assert "/api/v1/analytics/series" in paths
     assert "/api/v1/training/datasets" in paths
     assert "/api/v1/training/configuration" in paths
     components = schema["components"]["schemas"]
