@@ -16,7 +16,7 @@ $DefaultDataDir = if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { Jo
 $DataDir = $DefaultDataDir
 $LogDir = Join-Path $DataDir "logs"
 $CheckpointsDir = Join-Path $DataDir "checkpoints"
-$script:SettingsDatabasePath = ""
+$script:DatabasePath = $null
 $script:EmbeddedDatabase = $true
 $RuntimesDir = Join-Path $RepoRoot "runtimes"
 $PythonDir = Join-Path $RuntimesDir "python"
@@ -475,26 +475,26 @@ function Import-Settings {
     Push-Location $RepoRoot
     try {
         $runtimeOutput = @(& $UvExe run --project $BackendDir --python $PythonExe python -m server.runtime_config --json 2>&1)
-        Assert-LastExitCode "loading SQLite runtime settings"
+        Assert-LastExitCode "loading database runtime settings"
     } finally {
         Pop-Location
     }
     $runtimeLine = @($runtimeOutput | ForEach-Object { [string]$_ } | Where-Object { $_.StartsWith('ADSMOD_RUNTIME:') } | Select-Object -Last 1)
-    if ($runtimeLine.Count -ne 1) { throw "SQLite runtime settings did not return a valid local endpoint." }
-    try { $runtime = $runtimeLine[0].Substring('ADSMOD_RUNTIME:'.Length) | ConvertFrom-Json } catch { throw "SQLite runtime settings returned invalid data." }
+    if ($runtimeLine.Count -ne 1) { throw "Database runtime settings did not return a valid local endpoint." }
+    try { $runtime = $runtimeLine[0].Substring('ADSMOD_RUNTIME:'.Length) | ConvertFrom-Json } catch { throw "Database runtime settings returned invalid data." }
     $runtimeHost = [string]$runtime.host
     $backendPort = [int]$runtime.backend_port
     $frontendPort = [int]$runtime.frontend_port
     if ($runtimeHost -notin @('127.0.0.1', 'localhost', '::1') -or $backendPort -lt 1024 -or $backendPort -gt 65535 -or $frontendPort -lt 1024 -or $frontendPort -gt 65535 -or $backendPort -eq $frontendPort) {
-        throw "SQLite runtime settings contain an invalid local endpoint."
+        throw "Database runtime settings contain an invalid local endpoint."
     }
     $script:DataDir = [System.IO.Path]::GetFullPath([string]$runtime.storage_root)
     $script:LogDir = Join-Path $script:DataDir "logs"
     $script:CheckpointsDir = Join-Path $script:DataDir "checkpoints"
-    $script:SettingsDatabasePath = [System.IO.Path]::GetFullPath([string]$runtime.settings_database_path)
-    $script:EmbeddedDatabase = [bool]$runtime.embedded_database
+    $script:DatabasePath = if ($runtime.database_path) { [System.IO.Path]::GetFullPath([string]$runtime.database_path) } else { $null }
+    $script:EmbeddedDatabase = ([string]$runtime.database_backend -eq 'sqlite')
     [Environment]::SetEnvironmentVariable('ADSMOD_PYTHON', $VenvPython, 'Process')
-    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = $backendPort; FrontendPort = $frontendPort; StorageRoot = $script:DataDir; SettingsDatabasePath = $script:SettingsDatabasePath; EmbeddedDatabase = $script:EmbeddedDatabase }
+    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = $backendPort; FrontendPort = $frontendPort; StorageRoot = $script:DataDir; DatabasePath = $script:DatabasePath; EmbeddedDatabase = $script:EmbeddedDatabase }
 }
 
 function Set-RuntimeEnvironment {
@@ -1614,10 +1614,10 @@ function Get-ConfiguredDatabasePath {
     if (-not $script:EmbeddedDatabase) {
         return $null
     }
-    if ([string]::IsNullOrWhiteSpace($script:SettingsDatabasePath)) {
-        throw "The local SQLite database path has not been loaded from bootstrap settings."
+    if ([string]::IsNullOrWhiteSpace($script:DatabasePath)) {
+        throw "The local SQLite database path has not been loaded from database settings."
     }
-    return $script:SettingsDatabasePath
+    return $script:DatabasePath
 }
 
 function Remove-DatabaseFiles {
@@ -1662,7 +1662,7 @@ function Remove-All-Data {
     if ($script:EmbeddedDatabase) {
         Write-Ok "All local user-generated data and embedded application settings were removed; settings return to defaults on the next launch."
     } else {
-        Write-Ok "All local user-generated data was removed; PostgreSQL data and local SQLite application settings were preserved."
+        Write-Ok "All local user-generated data was removed; PostgreSQL data and its application settings were preserved."
     }
 }
 

@@ -53,10 +53,9 @@
 }
 
 .settings-dialog-actions button {
-    min-height: 42px;
+    min-height: var(--control-height);
 }
 
-.settings-intro,
 .settings-workspace,
 .settings-actions,
 .settings-callout,
@@ -68,34 +67,18 @@
     box-shadow: var(--shadow-sm);
 }
 
-.settings-intro {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 22px 26px;
-}
-
-.settings-intro h2,
 .settings-section-heading h3 {
     margin: 0;
     color: var(--slate-900);
-    font-size: clamp(1.2rem, 2vw, 1.55rem);
+    font-size: 1.125rem;
     line-height: 1.25;
 }
 
-.settings-intro p,
 .settings-section-heading p,
 .settings-help,
 .settings-callout span {
     color: var(--slate-600);
     line-height: 1.5;
-}
-
-.settings-lede {
-    max-width: 760px;
-    margin-top: 7px;
-    font-size: 0.9rem;
 }
 
 .settings-eyebrow {
@@ -107,15 +90,6 @@
     text-transform: uppercase;
 }
 
-.settings-intro-meta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
-.settings-scope-pill,
-.settings-dirty-pill,
 .restart-tag {
     display: inline-flex;
     align-items: center;
@@ -130,10 +104,21 @@
     white-space: nowrap;
 }
 
-.settings-dirty-pill {
-    border-color: #f5d28b;
-    color: #8a5a06;
-    background: #fff8e8;
+.connected-tag {
+    border-color: #a7f3d0;
+    color: #047857;
+    background: #ecfdf5;
+}
+
+.database-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--slate-200);
 }
 
 .settings-workspace {
@@ -273,7 +258,7 @@
 }
 
 .settings-field input[type="number"] {
-    min-height: 42px;
+    min-height: var(--control-height);
 }
 
 .settings-field input[type="range"] {
@@ -399,7 +384,7 @@
 }
 
 .settings-action-buttons button {
-    min-height: 42px;
+    min-height: var(--control-height);
 }
 
 .settings-action-buttons .quiet {
@@ -415,16 +400,6 @@
 }
 
 @media (max-width: 760px) {
-    .settings-intro {
-        align-items: flex-start;
-        flex-direction: column;
-        padding: 18px;
-    }
-
-    .settings-intro-meta {
-        justify-content: flex-start;
-    }
-
     .settings-workspace {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -439,7 +414,7 @@
 
     .settings-tab {
         flex: 0 0 auto;
-        min-height: 42px;
+        min-height: var(--control-height);
     }
 
     .settings-panel {
@@ -498,4 +473,10 @@
     .settings-dialog-actions button {
         width: 100%;
     }
+}
+
+.restart-tag.connected-tag {
+    border-color: #a7f3d0;
+    color: #047857;
+    background: #ecfdf5;
 }

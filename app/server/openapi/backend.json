@@ -171,6 +171,109 @@
         }
       }
     },
+    "/api/v1/database": {
+      "get": {
+        "tags": [
+          "database"
+        ],
+        "summary": "Get Database Settings",
+        "operationId": "get_database_settings_api_v1_database_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/database/test": {
+      "post": {
+        "tags": [
+          "database"
+        ],
+        "summary": "Test Database Connection",
+        "operationId": "test_database_connection_api_v1_database_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatabaseSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseTestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/database/switch": {
+      "post": {
+        "tags": [
+          "database"
+        ],
+        "summary": "Switch Database",
+        "operationId": "switch_database_api_v1_database_switch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatabaseSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/datasets/supported-units": {
       "get": {
         "tags": [
@@ -3769,6 +3872,258 @@
           "confidence"
         ],
         "title": "ColumnDetection"
+      },
+      "DatabaseSettingsRequest": {
+        "properties": {
+          "backend": {
+            "type": "string",
+            "enum": [
+              "sqlite",
+              "postgres"
+            ],
+            "title": "Backend"
+          },
+          "sqlite_path": {
+            "type": "string",
+            "title": "Sqlite Path",
+            "default": "data/database.db"
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "postgres",
+              "postgresql",
+              "postgresql+psycopg"
+            ],
+            "title": "Engine",
+            "default": "postgresql+psycopg"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "port": {
+            "type": "integer",
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Port",
+            "default": 5432
+          },
+          "database_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database Name"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "clear_password": {
+            "type": "boolean",
+            "title": "Clear Password",
+            "default": false
+          },
+          "ssl": {
+            "type": "boolean",
+            "title": "Ssl",
+            "default": false
+          },
+          "ssl_ca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ssl Ca"
+          },
+          "connect_timeout": {
+            "type": "integer",
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Connect Timeout",
+            "default": 30
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "backend"
+        ],
+        "title": "DatabaseSettingsRequest"
+      },
+      "DatabaseSettingsResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "backend": {
+            "type": "string",
+            "enum": [
+              "sqlite",
+              "postgres"
+            ],
+            "title": "Backend"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "sqlite_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sqlite Path"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "database_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database Name"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "ssl": {
+            "type": "boolean",
+            "title": "Ssl",
+            "default": false
+          },
+          "ssl_ca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ssl Ca"
+          },
+          "connect_timeout": {
+            "type": "integer",
+            "title": "Connect Timeout"
+          },
+          "password_configured": {
+            "type": "boolean",
+            "title": "Password Configured"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "backend",
+          "connected",
+          "connect_timeout",
+          "password_configured"
+        ],
+        "title": "DatabaseSettingsResponse"
+      },
+      "DatabaseTestResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true,
+            "title": "Success",
+            "default": true
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "DatabaseTestResponse"
       },
       "DatasetBuildRequest": {
         "properties": {

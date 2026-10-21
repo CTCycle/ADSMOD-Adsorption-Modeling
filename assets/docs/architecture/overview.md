@@ -1,8 +1,8 @@
 # Architecture documentation
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
-The canonical runtime consists of one Angular client and one FastAPI backend process. Optional machine-learning capabilities are loaded into that backend only when the ML extra is installed. Application behavior settings are stored in SQLite and managed through the console; `settings/.env` contains only database and path bootstrap values.
+The canonical runtime consists of one Angular client and one FastAPI backend process. Optional machine-learning capabilities are loaded into that backend only when the ML extra is installed. Application behavior settings live in the active SQLite or PostgreSQL database and are managed through the console. The selected backend's connection settings live separately in `database.json`; `settings/.env` retains only the storage-root bootstrap value for database location.
 
 - [`system_overview.md`](system_overview.md): repository layout and runtime flow.
 - [`service_boundaries.md`](service_boundaries.md): dependency direction and import restrictions.

@@ -1,16 +1,16 @@
 # System overview
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Repository layout
 
 ```text
-settings/   database and path bootstrap template
+settings/   storage-root bootstrap template (no database connection values)
 app/
   server/
     api/                      FastAPI routers and HTTP entrypoints
     common/                   framework-neutral shared helpers
-    configurations/           typed settings, SQLite persistence, bootstrap
+    configurations/           typed app settings, database file, bootstrap
     domain/                   transport and workflow contracts
     models/                   optional ML model and training primitives
     repositories/             operational persistence and snapshots
@@ -28,9 +28,10 @@ app/
 
 ## Runtime flow
 
-The Windows launcher reads runtime endpoints and the settings database path
-through `server.runtime_config`, which loads bootstrap values and the SQLite
-settings row. It synchronizes the backend workspace, starts one FastAPI backend on the configured backend port,
+The Windows launcher reads runtime endpoints through `server.runtime_config`.
+The data root is resolved before connection settings are loaded from its
+independent `database.json`; runtime endpoints then load from the active
+database's settings row. It synchronizes the backend workspace, starts one FastAPI backend on the configured backend port,
 and serves the Angular bundle on the configured frontend port. The browser
 uses the same backend for datasets, NIST data, fitting, capability discovery,
 and optional machine learning operations.
@@ -53,7 +54,7 @@ access.
 ## Configuration flow
 
 `UserSettings` validates the complete application settings model. The console
-stores it in the local SQLite `application_settings` table. `AdsmodConfig`
-assembles those values with the database bootstrap model. PostgreSQL selection
-affects operational data only; settings remain in local SQLite. Normal startup,
-the launcher, and the frontend proxy do not read a runtime JSON settings file.
+stores it in the selected SQLite or PostgreSQL `application_settings` table.
+`AdsmodConfig` assembles those values with connection settings from
+`database.json`. Normal startup, the launcher, and the frontend proxy do not
+read or maintain a JSON file for application settings.

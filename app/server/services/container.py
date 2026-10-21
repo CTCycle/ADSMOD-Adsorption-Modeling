@@ -26,12 +26,16 @@ from server.services.jobs import JobManager
 
 
 class CoreServiceContainer:
-    def __init__(self, config: AdsmodConfig) -> None:
+    def __init__(
+        self,
+        config: AdsmodConfig,
+        *,
+        database_manager: DatabaseManager | None = None,
+    ) -> None:
         self.config = config
         self.job_manager = JobManager(logger=logger)
-        self.database = DatabaseManager(
-            config.application.database,
-            storage_root=resolve_storage_root(config),
+        self.database = database_manager or DatabaseManager(
+            config.application.database, storage_root=resolve_storage_root(config)
         )
         self.datasets = DatasetRepository(self.database)
         self.materials = MaterialRepository(self.database)
@@ -106,7 +110,10 @@ class CoreServiceContainer:
         """Refresh configuration used by future API requests and jobs."""
 
         previous = self.config
-        if previous.user_settings() == config.user_settings():
+        if (
+            previous.user_settings() == config.user_settings()
+            and previous.application.database == config.application.database
+        ):
             return
         self.config = config
         self.dataset_service.apply_settings(

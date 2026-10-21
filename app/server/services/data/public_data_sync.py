@@ -47,6 +47,8 @@ class PublicDataSyncCoordinator:
         self._executing: set[asyncio.Task[None]] = set()
         self._scheduler: asyncio.Task[None] | None = None
         self._started = False
+        self._switch_paused = False
+        self._switch_lock = asyncio.Lock()
         self._target_worker_count = config.sync_max_concurrent_jobs
         self._next_worker_index = 0
         self._run_settings: ContextVar[
@@ -57,6 +59,21 @@ class PublicDataSyncCoordinator:
         self,
     ) -> tuple[PublicDataConfig, PublicDataService, NISTDataService]:
         return self._run_settings.get() or (self.config, self.public_data, self.nist)
+
+    @property
+    def has_active_work(self) -> bool:
+        return any(not task.done() for task in self._executing)
+
+    async def pause_for_database_switch(self) -> bool:
+        async with self._switch_lock:
+            if self.has_active_work:
+                return False
+            self._switch_paused = True
+            return True
+
+    def resume_after_database_switch(self) -> None:
+        self._switch_paused = False
+        self._wake.set()
 
     def apply_settings(
         self,
@@ -138,6 +155,8 @@ class PublicDataSyncCoordinator:
             await asyncio.sleep(interval)
             if self._closing:
                 return
+            if self._switch_paused:
+                continue
             for category in config.auto_sync_categories:
                 await self.enqueue(
                     source_key="nist",
@@ -153,6 +172,8 @@ class PublicDataSyncCoordinator:
     async def enqueue(
         self, *, source_key: str, operation: str, parameters: dict[str, Any]
     ) -> dict[str, Any]:
+        if self._switch_paused:
+            raise RuntimeError("Database switching is in progress; retry the sync request shortly.")
         run = await asyncio.to_thread(
             self.repository.create_sync_run,
             source_key=source_key,
@@ -221,34 +242,62 @@ class PublicDataSyncCoordinator:
     async def _worker_loop(self, worker_index: int) -> None:
         worker = asyncio.current_task()
         while not self._closing and worker_index < self._target_worker_count:
-            run = await asyncio.to_thread(self.repository.claim_next_sync_run)
-            if run is not None and self._closing:
-                await asyncio.to_thread(
-                    self.repository.update_sync_run,
-                    str(run["id"]),
-                    status="queued",
-                    started_at=None,
-                )
-                return
+            if self._switch_paused:
+                await self._wait_for_worker_wake()
+                continue
+            run, paused = await self._claim_worker_run(worker)
+            if paused:
+                continue
             if run is None:
                 if self._closing:
                     return
-                self._wake.clear()
-                try:
-                    await asyncio.wait_for(self._wake.wait(), timeout=1.0)
-                except TimeoutError:
-                    pass
+                await self._wait_for_worker_wake()
                 continue
-            if worker is not None:
+            if self._closing:
+                await self._requeue_worker_run(run, worker)
+                return
+            await self._execute_worker_run(run, worker)
+
+    async def _claim_worker_run(
+        self, worker: asyncio.Task[None] | None
+    ) -> tuple[dict[str, Any] | None, bool]:
+        async with self._switch_lock:
+            if self._switch_paused:
+                return None, True
+            run = await asyncio.to_thread(self.repository.claim_next_sync_run)
+            if run is not None and worker is not None:
                 self._executing.add(worker)
-            try:
-                await self._execute(run)
-            except asyncio.CancelledError:
-                raise
-            except Exception:  # noqa: BLE001
-                continue
-            finally:
-                self._executing.discard(worker)
+            return run, False
+
+    async def _wait_for_worker_wake(self) -> None:
+        self._wake.clear()
+        try:
+            await asyncio.wait_for(self._wake.wait(), timeout=1.0)
+        except TimeoutError:
+            pass
+
+    async def _requeue_worker_run(
+        self, run: dict[str, Any], worker: asyncio.Task[None] | None
+    ) -> None:
+        await asyncio.to_thread(
+            self.repository.update_sync_run,
+            str(run["id"]),
+            status="queued",
+            started_at=None,
+        )
+        self._executing.discard(worker)
+
+    async def _execute_worker_run(
+        self, run: dict[str, Any], worker: asyncio.Task[None] | None
+    ) -> None:
+        try:
+            await self._execute(run)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            self._executing.discard(worker)
 
     # -------------------------------------------------------------------------
     async def _execute(self, run: dict[str, Any]) -> None:

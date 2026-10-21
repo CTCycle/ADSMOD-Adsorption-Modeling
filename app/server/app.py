@@ -11,12 +11,12 @@ from importlib import import_module
 from typing import Any, get_args
 
 from fastapi import APIRouter, FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.common.units import UnitRegistry
 from server.common.utils.logger import close_file_logging, configure_logging, logger
 from server.common.version import __version__
-from server.configurations.bootstrap import resolve_settings_database_path
 from server.configurations.settings import AdsmodConfig, RuntimeConfig, UserSettings
 from server.configurations.store import ApplicationSettingsStore
 from server.domain.capabilities import CapabilitiesResponse, FeatureCapabilities
@@ -28,6 +28,7 @@ from server.domain.configuration import (
 )
 from server.domain.fitting import FittingRequest
 from server.api.entrypoint import health_router, register_root_routes
+from server.api.database import create_database_router
 from server.api.routes import register_core_routes
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
 from server.common.path import resolve_storage_root
@@ -35,6 +36,46 @@ from server.repositories.database.initializer import prepare_database_for_startu
 from server.services.container import CoreServiceContainer
 from server.services.training_data import TrainingDataService
 from server.api.settings import create_settings_router
+
+###############################################################################
+class DatabaseRequestGate:
+    """Drain ordinary HTTP work before a live database connection swap."""
+
+    def __init__(self) -> None:
+        self._condition = asyncio.Condition()
+        self._accepting = True
+        self._active = 0
+
+    async def enter(self) -> bool:
+        async with self._condition:
+            if not self._accepting:
+                return False
+            self._active += 1
+            return True
+
+    async def leave(self) -> None:
+        async with self._condition:
+            self._active -= 1
+            self._condition.notify_all()
+
+    async def close(self, timeout: float) -> bool:
+        async with self._condition:
+            self._accepting = False
+            try:
+                await asyncio.wait_for(
+                    self._condition.wait_for(lambda: self._active == 0), timeout=timeout
+                )
+                return True
+            except TimeoutError:
+                self._accepting = True
+                self._condition.notify_all()
+                return False
+
+    async def open(self) -> None:
+        async with self._condition:
+            self._accepting = True
+            self._condition.notify_all()
+
 
 ###############################################################################
 @dataclass
@@ -45,6 +86,7 @@ class ApplicationRuntime:
     settings_store: ApplicationSettingsStore
     startup_runtime: RuntimeConfig
     startup_settings: UserSettings
+    database_ready: bool = False
     machine_learning_available: bool = False
     machine_learning_reason: str | None = None
     ml_container: Any | None = None
@@ -163,23 +205,31 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     storage_root = resolve_storage_root(config)
     storage_root.mkdir(parents=True, exist_ok=True)
     configure_logging(storage_root / "logs")
-    prepare_database_for_startup(
-        config.application.database,
-        storage_root=storage_root,
-    )
-    settings = application.state.settings_store.initialize(config.user_settings())
-    config = AdsmodConfig.assemble(
-        database=config.application.database,
-        storage_root=storage_root,
-        settings=settings,
-    )
-    application.state.config = config
-    application.state.runtime.config = config
-    application.state.runtime.startup_runtime = config.runtime
-    application.state.runtime.startup_settings = settings
-    application.state.core_container.apply_settings(config)
-    application.state.core_container.public_data_service.ensure_sources()
-    await application.state.core_container.public_data_sync.start()
+    try:
+        prepare_database_for_startup(
+            config.application.database,
+            storage_root=storage_root,
+        )
+        settings = application.state.settings_store.initialize(config.user_settings())
+        config = AdsmodConfig.assemble(
+            database=config.application.database,
+            storage_root=storage_root,
+            settings=settings,
+        )
+        application.state.config = config
+        application.state.runtime.config = config
+        application.state.runtime.startup_runtime = config.runtime
+        application.state.runtime.startup_settings = settings
+        application.state.core_container.apply_settings(config)
+        application.state.core_container.public_data_service.ensure_sources()
+        await application.state.core_container.public_data_sync.start()
+        application.state.runtime.database_ready = True
+    except Exception as exc:  # noqa: BLE001
+        application.state.runtime.database_ready = False
+        logger.warning(
+            "Configured database is unavailable during startup (%s); database-dependent services are paused.",
+            type(exc).__name__,
+        )
     application.state.ready = True
     try:
         yield
@@ -199,10 +249,9 @@ def create_app(
     *,
     settings_store: ApplicationSettingsStore | None = None,
 ) -> FastAPI:
-    store = settings_store or ApplicationSettingsStore(
-        resolve_settings_database_path(config.application.database, config.storage.root)
-    )
-    container = CoreServiceContainer(config)
+    database_manager = settings_store.database if settings_store is not None else None
+    container = CoreServiceContainer(config, database_manager=database_manager)
+    store = settings_store or ApplicationSettingsStore(container.database)
     runtime = ApplicationRuntime(
         config=config,
         container=container,
@@ -223,6 +272,23 @@ def create_app(
     application.state.runtime = runtime
     application.state.settings_store = store
     application.state.settings_update_lock = asyncio.Lock()
+    application.state.database_switch_lock = asyncio.Lock()
+    application.state.database_request_gate = DatabaseRequestGate()
+
+    @application.middleware("http")
+    async def database_switch_admission(request: Request, call_next):
+        if request.url.path.startswith("/api/v1/database"):
+            return await call_next(request)
+        gate: DatabaseRequestGate = request.app.state.database_request_gate
+        if not await gate.enter():
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Database is switching; retry the request shortly."},
+            )
+        try:
+            return await call_next(request)
+        finally:
+            await gate.leave()
     application.state.startup_runtime = config.runtime
     application.add_middleware(
         CORSMiddleware,
@@ -238,6 +304,7 @@ def create_app(
     application.include_router(health_router)
     application.include_router(_build_system_router(), prefix="/api/v1")
     application.include_router(create_settings_router(), prefix="/api/v1")
+    application.include_router(create_database_router(), prefix="/api/v1")
     register_core_routes(application, container, prefix="/api/v1")
     _register_optional_ml(application, runtime)
     register_root_routes(application)

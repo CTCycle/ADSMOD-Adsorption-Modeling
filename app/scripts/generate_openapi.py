@@ -7,25 +7,23 @@ import argparse
 import json
 from pathlib import Path
 
-from server.configurations.bootstrap import load_database_config, load_storage_root
-from server.configurations.settings import AdsmodConfig, UserSettings
 from server.app import create_app
+from server.configurations.runtime import load_runtime_configuration
 
 ###############################################################################
 def build_openapi_schema() -> dict[str, object]:
     """Build the canonical contract from the ML-enabled application surface."""
-    config = AdsmodConfig.assemble(
-        database=load_database_config(),
-        storage_root=load_storage_root(),
-        settings=UserSettings(),
-    )
-    application = create_app(config)
-    if not application.state.runtime.machine_learning_available:
-        raise RuntimeError(
-            "Canonical OpenAPI generation requires the ML-enabled backend profile; "
-            "the Base profile omits the training and checkpoint routes."
-        )
-    return application.openapi()
+    runtime = load_runtime_configuration(initialize_database=False)
+    application = create_app(runtime.config, settings_store=runtime.settings_store)
+    try:
+        if not application.state.runtime.machine_learning_available:
+            raise RuntimeError(
+                "Canonical OpenAPI generation requires the ML-enabled backend profile; "
+                "the Base profile omits the training and checkpoint routes."
+            )
+        return application.openapi()
+    finally:
+        runtime.settings_store.database.dispose()
 
 ###############################################################################
 def main() -> int:

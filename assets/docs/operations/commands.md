@@ -1,6 +1,6 @@
 # ADSMOD operational commands
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Launch and maintenance
 
@@ -10,9 +10,10 @@ Last updated: 2026-10-20
 
 Use the menu for dependency synchronization, frontend rebuild, database
 initialization, log removal, cache cleanup, checkpoint removal, and uninstall.
-Runtime host and port values are loaded from SQLite. Database selection,
-credentials, and the settings database path are bootstrap values in
-`settings/.env`; see [runtime configuration](../runtime/configuration.md).
+Runtime host and port values are loaded from the active database. Database
+selection and connection values are loaded from `database.json` under the
+configured data root. `settings/.env` may set `ADSMOD_STORAGE_ROOT`; see
+[runtime configuration](../runtime/configuration.md).
 
 ## Backend workspace
 

@@ -4,14 +4,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
 from server.app import create_app
-from server.configurations.runtime import load_runtime_configuration
+from server.configurations.database_config import read_database_config, write_database_config
 from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.configurations.store import ApplicationSettingsRecord
+from server.configurations.store import ApplicationSettingsStore
+from server.repositories.database.initializer import prepare_database_for_startup
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.schemas.models import Dataset
 
 
 def _config(root: Path) -> AdsmodConfig:
@@ -149,27 +154,141 @@ def test_settings_persist_across_app_restart_and_missing_row_recovers(tmp_path: 
         assert recovered.json()["current"]["public_data"]["cod_max_interactive_results"] == 321
 
 
-def test_postgresql_selection_keeps_application_settings_in_local_sqlite(
+def _database_payload(path: str) -> dict[str, object]:
+    return {
+        "backend": "sqlite",
+        "sqlite_path": path,
+        "engine": "postgresql+psycopg",
+        "host": "",
+        "port": 5432,
+        "database_name": "",
+        "username": "",
+        "password": "",
+        "clear_password": False,
+        "ssl": False,
+        "ssl_ca": "",
+        "connect_timeout": 30,
+    }
+
+
+def test_runtime_database_switch_reloads_settings_and_keeps_stores_independent(
     tmp_path: Path,
 ) -> None:
-    database = DatabaseConfig(
-        embedded_database=False,
-        engine="postgres",
-        host="db.example.test",
-        database_name="adsmod",
-        username="adsmod",
-        sqlite_path="local/settings.sqlite3",
+    config = _config(tmp_path)
+    target_database = DatabaseConfig(
+        embedded_database=True, sqlite_path="data/second.db"
     )
-    runtime = load_runtime_configuration(
-        database=database,
-        storage_root=tmp_path,
-        initialize_database=False,
+    prepare_database_for_startup(target_database, storage_root=tmp_path)
+    target_manager = DatabaseManager(target_database, storage_root=tmp_path)
+    target_store = ApplicationSettingsStore(target_manager)
+    defaults = UserSettings()
+    target_settings = UserSettings.model_validate(
+        {
+            **defaults.model_dump(),
+            "runtime": {
+                **defaults.runtime.model_dump(),
+                "frontend_port": 6200,
+            },
+            "public_data": {
+                **defaults.public_data.model_dump(),
+                "cod_max_interactive_results": 111,
+            },
+        }
     )
-    try:
-        assert runtime.config.application.database.embedded_database is False
-        assert runtime.settings_store.database_path == (
-            tmp_path / "local" / "settings.sqlite3"
-        ).resolve()
-        assert runtime.settings_store.get() == UserSettings()
-    finally:
-        runtime.settings_store.dispose()
+    target_store.initialize(target_settings)
+    target_manager.dispose()
+
+    with TestClient(create_app(config)) as client:
+        source_settings = client.get("/api/v1/settings").json()["current"]
+        source_settings["public_data"]["cod_max_interactive_results"] = 321
+        assert client.put("/api/v1/settings", json=source_settings).status_code == 200
+        with client.app.state.core_container.database.transaction() as session:
+            session.add(Dataset(name="Source only", source="uploaded"))
+
+        candidate = _database_payload("data/second.db")
+        tested = client.post("/api/v1/database/test", json=candidate)
+        assert tested.status_code == 200
+        assert tested.json()["success"] is True
+
+        switched = client.post("/api/v1/database/switch", json=candidate)
+        assert switched.status_code == 200
+        assert switched.json()["backend"] == "sqlite"
+        assert switched.json()["sqlite_path"] == "data/second.db"
+        assert switched.json()["connected"] is True
+        settings_after_switch = client.get("/api/v1/settings").json()
+        assert settings_after_switch["current"]["public_data"]["cod_max_interactive_results"] == 111
+        assert settings_after_switch["current"]["runtime"]["frontend_port"] == 6200
+        assert settings_after_switch["pending_restart_fields"] == ["runtime.frontend_port"]
+        assert client.get("/api/v1/datasets").json()["datasets"] == []
+
+        back = client.post(
+            "/api/v1/database/switch", json=_database_payload("data/settings.db")
+        )
+        assert back.status_code == 200
+        settings_after_switchback = client.get("/api/v1/settings").json()
+        assert settings_after_switchback["current"]["public_data"]["cod_max_interactive_results"] == 321
+        assert settings_after_switchback["pending_restart_fields"] == []
+        assert len(client.get("/api/v1/datasets").json()["datasets"]) == 1
+
+
+def test_failed_runtime_database_switch_rolls_back_and_active_work_blocks_switch(
+    tmp_path: Path,
+) -> None:
+    with TestClient(create_app(_config(tmp_path))) as client:
+        runtime = client.app.state.runtime
+        original_database = runtime.config.application.database
+        blocker = tmp_path / "not-a-directory"
+        blocker.write_text("file", encoding="utf-8")
+        failed = client.post(
+            "/api/v1/database/switch",
+            json=_database_payload(str(blocker / "target.db")),
+        )
+        assert failed.status_code == 503
+        assert runtime.config.application.database == original_database
+        assert client.get("/api/v1/database").json()["sqlite_path"] == "data/settings.db"
+
+        runtime.container.job_manager.is_job_running = lambda job_type=None: True
+        blocked = client.post(
+            "/api/v1/database/switch", json=_database_payload("data/blocked.db")
+        )
+        assert blocked.status_code == 409
+        assert runtime.config.application.database == original_database
+
+        runtime.container.job_manager.is_job_running = lambda job_type=None: False
+        runtime.container.public_data_sync.pause_for_database_switch = AsyncMock(
+            return_value=False
+        )
+        blocked_sync = client.post(
+            "/api/v1/database/switch", json=_database_payload("data/sync-blocked.db")
+        )
+        assert blocked_sync.status_code == 409
+        assert "sync runs" in blocked_sync.json()["detail"]
+        assert runtime.config.application.database == original_database
+
+
+def test_activation_failure_restores_runtime_services_and_database_file(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    original_database = config.application.database
+    write_database_config(original_database, tmp_path)
+
+    with TestClient(create_app(config)) as client:
+        container = client.app.state.core_container
+        apply_settings = container.apply_settings
+
+        def fail_after_candidate_is_applied(next_config: AdsmodConfig) -> None:
+            apply_settings(next_config)
+            if next_config.application.database != original_database:
+                raise RuntimeError("injected activation failure")
+
+        container.apply_settings = fail_after_candidate_is_applied
+        failed = client.post(
+            "/api/v1/database/switch",
+            json=_database_payload("data/activation-failure.db"),
+        )
+
+        assert failed.status_code == 503
+        assert client.app.state.runtime.config.application.database == original_database
+        assert container.config.application.database == original_database
+        assert container.database.database == original_database
+        assert client.get("/api/v1/database").json()["sqlite_path"] == "data/settings.db"
+        assert read_database_config(tmp_path) == original_database

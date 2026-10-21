@@ -7,11 +7,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
     Index,
     Integer,
+    JSON,
     String,
     UniqueConstraint,
 )
@@ -31,6 +33,49 @@ def utc_now() -> datetime:
 ###############################################################################
 class Base(DeclarativeBase):
     pass
+
+###############################################################################
+class ApplicationSettingsRecord(Base):
+    """Singleton user settings stored with the active application database."""
+
+    __tablename__ = "application_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    runtime_host: Mapped[str] = mapped_column(String(16), nullable=False)
+    runtime_backend_port: Mapped[int] = mapped_column(Integer, nullable=False)
+    runtime_frontend_port: Mapped[int] = mapped_column(Integer, nullable=False)
+    datasets_allowed_extensions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    datasets_column_detection_cutoff: Mapped[float] = mapped_column(Float, nullable=False)
+    nist_parallel_tasks: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_request_timeout_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+    public_data_retry_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_retry_backoff_max_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+    public_data_pubchem_parallel_requests: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_cod_max_interactive_results: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_health_cache_ttl_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_sync_batch_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_sync_max_records_per_run: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_sync_max_concurrent_jobs: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_sync_response_size_limit_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_sync_resume_on_startup: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    public_data_auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    public_data_auto_sync_categories: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    public_data_auto_sync_interval_hours: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_auto_sync_fraction: Mapped[float] = mapped_column(Float, nullable=False)
+    fitting_default_max_iterations: Mapped[int] = mapped_column(Integer, nullable=False)
+    fitting_max_iterations_upper_bound: Mapped[int] = mapped_column(Integer, nullable=False)
+    fitting_default_parameter_initial: Mapped[float] = mapped_column(Float, nullable=False)
+    fitting_default_parameter_min: Mapped[float] = mapped_column(Float, nullable=False)
+    fitting_default_parameter_max: Mapped[float] = mapped_column(Float, nullable=False)
+    fitting_preview_row_limit: Mapped[int] = mapped_column(Integer, nullable=False)
+    fitting_best_model_metric: Mapped[str] = mapped_column(String(32), nullable=False)
+    jobs_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
+    training_use_jit: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    training_jit_backend: Mapped[str] = mapped_column(String(32), nullable=False)
+    training_use_mixed_precision: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    training_dataloader_workers: Mapped[int] = mapped_column(Integer, nullable=False)
+    training_persistent_workers: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_at: Mapped[str] = mapped_column(String(40), nullable=False)
 
 ###############################################################################
 class Dataset(Base):

@@ -1,11 +1,14 @@
 # Canonical architecture status
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 The architecture cutover is complete for the current runtime:
 
-- one validated `UserSettings` record stored in local SQLite and edited through
-  the Settings page, assembled with database bootstrap values at startup;
+- one validated `UserSettings` record stored in the active database and edited
+  through the Settings page, assembled with connection values from the
+  independent data-root `database.json`;
+- one Database Settings tab for SQLite/PostgreSQL connection testing and safe
+  runtime switching, with no automatic cross-database data copying;
 - one Hatch backend package and lockfile;
 - repository-owned migrations, operational persistence, and training snapshots;
 - ML isolated behind a lazy optional dependency profile and in-process snapshot
