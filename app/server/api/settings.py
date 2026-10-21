@@ -113,6 +113,29 @@ def _apply(request: Request, settings: UserSettings) -> None:
         ml_container.apply_settings(config)
 
 
+async def _save_and_apply(request: Request, settings: UserSettings) -> UserSettings:
+    store = _store(request)
+    runtime = request.app.state.runtime
+    previous = await asyncio.to_thread(store.initialize, runtime.config.user_settings())
+    saved = await asyncio.to_thread(store.save, settings)
+    try:
+        _apply(request, saved)
+    except Exception as apply_error:  # noqa: BLE001
+        try:
+            restored = await asyncio.to_thread(store.save, previous)
+            _apply(request, restored)
+        except Exception as rollback_error:  # noqa: BLE001
+            raise HTTPException(
+                status_code=503,
+                detail="Settings could not be applied or restored. Restart ADSMOD and verify the saved settings.",
+            ) from rollback_error
+        raise HTTPException(
+            status_code=503,
+            detail="Settings could not be applied. The previous settings were restored.",
+        ) from apply_error
+    return saved
+
+
 def create_settings_router() -> APIRouter:
     router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -129,18 +152,17 @@ def create_settings_router() -> APIRouter:
     ) -> dict[str, Any]:
         try:
             async with request.app.state.settings_update_lock:
-                saved = await asyncio.to_thread(
-                    _store(request).save,
+                saved = await _save_and_apply(
+                    request,
                     UserSettings.model_validate(payload.model_dump()),
                 )
-                _apply(request, saved)
                 return _response(request, saved)
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(
                 status_code=503,
-                detail="Settings could not be saved. Retry the save operation.",
+                detail="Settings could not be saved. Check the database and retry.",
             ) from exc
 
     @router.post("/reset", response_model=SettingsResponse)
@@ -148,13 +170,14 @@ def create_settings_router() -> APIRouter:
         defaults = UserSettings()
         try:
             async with request.app.state.settings_update_lock:
-                saved = await asyncio.to_thread(_store(request).save, defaults)
-                _apply(request, saved)
+                saved = await _save_and_apply(request, defaults)
                 return _response(request, saved)
         except Exception as exc:  # noqa: BLE001
+            if isinstance(exc, HTTPException):
+                raise
             raise HTTPException(
                 status_code=503,
-                detail="Settings could not be reset. Retry the reset operation.",
+                detail="Settings could not be reset. Check the database and retry.",
             ) from exc
 
     return router

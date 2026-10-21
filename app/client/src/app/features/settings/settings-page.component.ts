@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, HostListener, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatabaseSettings, DatabaseSettingsRequest, SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
-import { fetchDatabaseSettings, fetchSettings, resetSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
+import { fetchDatabaseSettings, fetchSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
 
 type SettingsTab = 'runtime' | 'import' | 'public-data' | 'fitting' | 'training' | 'database';
 type SettingExtension = '.csv' | '.xls' | '.xlsx';
@@ -18,28 +18,6 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
     imports: [CommonModule, FormsModule],
     template: `
         <section class="settings-page" aria-label="Application settings">
-            @if (dialogMode; as mode) {
-                <div class="settings-dialog-backdrop">
-                    <section
-                        class="settings-confirm-dialog"
-                        role="alertdialog"
-                        aria-modal="true"
-                        aria-labelledby="settings-confirm-title"
-                        aria-describedby="settings-confirm-description"
-                        (keydown)="handleDialogKeydown($event)"
-                    >
-                        <p class="settings-eyebrow">Confirm action</p>
-                        <h2 id="settings-confirm-title">{{ mode === 'reset' ? 'Reset application settings?' : 'Discard unsaved changes?' }}</h2>
-                        <p id="settings-confirm-description">
-                            {{ mode === 'reset' ? 'All application settings will be restored to their defaults and saved immediately.' : 'Your edits will be lost if you leave this page.' }}
-                        </p>
-                        <div class="settings-dialog-actions">
-                            <button class="button secondary" type="button" (click)="dismissDialog()">{{ mode === 'reset' ? 'Cancel' : 'Keep editing' }}</button>
-                            <button class="button primary" id="settings-confirm-primary" type="button" (click)="confirmDialog()">{{ mode === 'reset' ? 'Reset settings' : 'Discard changes' }}</button>
-                        </div>
-                    </section>
-                </div>
-            }
             @if (activeTab === 'database') {
                 <div class="settings-workspace">
                     <div class="settings-tabs" role="tablist" aria-label="Settings categories" (keydown)="handleTabKeydown($event)">
@@ -105,15 +83,15 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                 }
                 @if (validationErrors.length) {
                     <div class="settings-message error" role="alert">
-                        <strong>Review these settings before saving:</strong>
+                        <strong>Correct these settings to save automatically:</strong>
                         <ul>@for (message of validationErrors; track message) { <li>{{ message }}</li> }</ul>
                     </div>
                 }
                 @if (errorMessage) {
-                    <div class="settings-message error" role="alert">{{ errorMessage }}</div>
-                }
-                @if (statusMessage) {
-                    <div class="settings-message success" role="status">{{ statusMessage }}</div>
+                    <div class="settings-message error" role="alert">
+                        <span>{{ errorMessage }}</span>
+                        @if (dirty) { <button class="button secondary" type="button" (click)="retryAutosave()">Retry</button> }
+                    </div>
                 }
 
                 <div class="settings-workspace">
@@ -203,11 +181,11 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                 </div>
 
                 <footer class="settings-actions">
-                    <div class="settings-actions-note" aria-live="polite">{{ dirty ? 'Unsaved changes' : 'All changes saved' }}</div>
+                    <div class="settings-actions-note" role="status" aria-live="polite">
+                        {{ saving ? 'Saving changes…' : validationErrors.length ? 'Correct the highlighted values to save.' : dirty ? 'Changes save automatically.' : statusMessage || 'All changes saved.' }}
+                    </div>
                     <div class="settings-action-buttons">
-                        <button class="button quiet" type="button" [disabled]="saving" (click)="cancel()">Cancel</button>
-                        <button class="button secondary" type="button" [disabled]="saving" (click)="reset()">Reset to defaults</button>
-                        <button class="button primary" type="button" [disabled]="!dirty || saving || validationErrors.length > 0" (click)="save()">{{ saving ? 'Saving…' : 'Save settings' }}</button>
+                        <button class="button secondary" type="button" (click)="reset()">Reset to defaults</button>
                     </div>
                 </footer>
             }
@@ -247,6 +225,7 @@ export class SettingsPageComponent {
 
     protected draft: (UserSettings & { pending_restart_fields: string[] }) | null = null;
     protected saved: UserSettings | null = null;
+    protected defaults: UserSettings | null = null;
     protected activeTab: SettingsTab = 'runtime';
     protected loading = true;
     protected saving = false;
@@ -261,9 +240,10 @@ export class SettingsPageComponent {
     protected databaseError = '';
     protected databaseMessage = '';
     protected databaseMessageKind: 'success' | 'error' = 'success';
-    protected dialogMode: 'reset' | 'leave' | null = null;
-    private dialogResolver: ((confirmed: boolean) => void) | null = null;
-    private dialogOpener: HTMLElement | null = null;
+    private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+    private flushPromise: Promise<boolean> | null = null;
+    private readonly destroyRef = inject(DestroyRef);
+    private static readonly AUTOSAVE_DEBOUNCE_MS = 400;
 
     protected get dirty(): boolean {
         return this.draft !== null && this.saved !== null && JSON.stringify(this.settingsOnly(this.draft)) !== JSON.stringify(this.saved);
@@ -340,6 +320,7 @@ export class SettingsPageComponent {
     }
 
     constructor() {
+        this.destroyRef.onDestroy(() => this.clearAutosaveTimer());
         void this.load();
         void this.loadDatabase();
     }
@@ -404,6 +385,13 @@ export class SettingsPageComponent {
         this.databaseSwitching = true;
         this.databaseMessage = '';
         try {
+            if (!await this.flushPendingChanges()) {
+                this.databaseMessage = this.validationErrors.length
+                    ? 'Correct application settings before switching databases.'
+                    : 'Application settings could not be saved. Retry before switching databases.';
+                this.databaseMessageKind = 'error';
+                return;
+            }
             this.databaseSettings = await switchDatabase(this.databaseRequest(this.databaseForm));
             window.location.reload();
         } catch (error) {
@@ -434,52 +422,25 @@ export class SettingsPageComponent {
         }
     }
 
-    protected async save(): Promise<void> {
-        if (!this.draft || !this.dirty || this.validationErrors.length) return;
-        this.saving = true;
+    protected reset(): void {
+        if (!this.defaults || !this.draft) return;
+        this.draft = {
+            ...structuredClone(this.defaults),
+            pending_restart_fields: [...this.draft.pending_restart_fields],
+        };
         this.errorMessage = '';
-        this.statusMessage = '';
-        try {
-            this.applyResponse(await saveSettings(this.settingsOnly(this.draft)));
-            await this.workspace.loadCatalog();
-            this.statusMessage = this.draft?.pending_restart_fields.length
-                ? 'Settings saved. Restart ADSMOD to apply the pending startup settings.'
-                : 'Settings saved and applied to future requests and jobs.';
-        } catch (error) {
-            this.errorMessage = error instanceof Error ? error.message : 'Settings could not be saved.';
-        } finally {
-            this.saving = false;
-            this.changeDetector.detectChanges();
-        }
+        this.markChanged();
     }
 
-    protected cancel(): void {
-        if (!this.saved || !this.draft) return;
-        this.draft = { ...structuredClone(this.saved), pending_restart_fields: [...(this.draft.pending_restart_fields ?? [])] };
+    protected retryAutosave(): void {
         this.errorMessage = '';
-        this.statusMessage = 'Unsaved changes discarded.';
-    }
-
-    protected async reset(): Promise<void> {
-        if (!await this.confirmAction('reset')) return;
-        this.saving = true;
-        this.errorMessage = '';
-        this.statusMessage = '';
-        try {
-            this.applyResponse(await resetSettings());
-            await this.workspace.loadCatalog();
-            this.statusMessage = 'All application settings were reset to defaults.';
-        } catch (error) {
-            this.errorMessage = error instanceof Error ? error.message : 'Settings could not be reset.';
-        } finally {
-            this.saving = false;
-            this.changeDetector.detectChanges();
-        }
+        void this.flushPendingChanges();
     }
 
     protected markChanged(): void {
         this.errorMessage = '';
         this.statusMessage = '';
+        this.scheduleAutosave();
     }
 
     protected toggleExtension(settings: UserSettings, extension: SettingExtension, event: Event): void {
@@ -518,30 +479,6 @@ export class SettingsPageComponent {
         queueMicrotask(() => document.getElementById(`settings-tab-${this.activeTab}`)?.focus());
     }
 
-    protected handleDialogKeydown(event: KeyboardEvent): void {
-        if (event.key !== 'Tab') return;
-        const dialog = event.currentTarget as HTMLElement;
-        const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'));
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-        }
-    }
-
-    protected dismissDialog(): void {
-        this.finishDialog(false);
-    }
-
-    protected confirmDialog(): void {
-        this.finishDialog(true);
-    }
-
     protected percent(value: number): string {
         return `${Math.round(Number(value) * 100)}%`;
     }
@@ -553,31 +490,114 @@ export class SettingsPageComponent {
         return 'Runtime host or port changes take effect after ADSMOD restarts.';
     }
 
-    canLeave(): boolean | Promise<boolean> {
-        return !this.dirty || this.confirmAction('leave');
+    flushPendingChanges(): Promise<boolean> {
+        this.clearAutosaveTimer();
+        if (!this.draft || !this.saved || !this.dirty) return Promise.resolve(true);
+        if (this.validationErrors.length) {
+            this.changeDetector.detectChanges();
+            return Promise.resolve(false);
+        }
+        if (this.flushPromise) {
+            return this.flushPromise.then((saved) => {
+                if (!saved) return false;
+                return this.dirty ? this.flushPendingChanges() : true;
+            });
+        }
+
+        const operation = this.saveLatestChanges();
+        this.flushPromise = operation;
+        return operation.finally(() => {
+            if (this.flushPromise === operation) this.flushPromise = null;
+        });
     }
 
-    @HostListener('document:keydown', ['$event'])
-    protected dismissDialogOnEscape(event: Event): void {
-        if ((event as KeyboardEvent).key !== 'Escape') return;
-        if (!this.dialogMode) return;
-        event.preventDefault();
-        this.dismissDialog();
+    canLeave(): Promise<boolean> {
+        return this.flushPendingChanges();
     }
 
-    @HostListener('window:beforeunload', ['$event'])
-    protected warnBeforeUnload(event: BeforeUnloadEvent): void {
-        if (!this.dirty) return;
-        event.preventDefault();
-        event.returnValue = '';
+    @HostListener('window:pagehide')
+    protected persistOnPageHide(): void {
+        if (!this.draft || !this.dirty || this.validationErrors.length) return;
+        this.clearAutosaveTimer();
+        void saveSettings(this.settingsOnly(this.draft), { keepalive: true }).catch(() => undefined);
     }
 
     private applyResponse(response: SettingsResponse): void {
         this.saved = structuredClone(response.current);
+        this.defaults = structuredClone(response.defaults);
         this.draft = {
             ...structuredClone(response.current),
             pending_restart_fields: [...response.pending_restart_fields],
         };
+    }
+
+    private scheduleAutosave(): void {
+        this.clearAutosaveTimer();
+        if (!this.draft || !this.saved || this.validationErrors.length) return;
+        this.autosaveTimer = setTimeout(() => {
+            this.autosaveTimer = null;
+            void this.flushPendingChanges();
+        }, SettingsPageComponent.AUTOSAVE_DEBOUNCE_MS);
+    }
+
+    private clearAutosaveTimer(): void {
+        if (this.autosaveTimer === null) return;
+        clearTimeout(this.autosaveTimer);
+        this.autosaveTimer = null;
+    }
+
+    private async saveLatestChanges(): Promise<boolean> {
+        while (this.dirty) {
+            if (!this.draft || this.validationErrors.length) {
+                this.changeDetector.detectChanges();
+                return false;
+            }
+            const snapshot = structuredClone(this.settingsOnly(this.draft));
+            const refreshCatalog = JSON.stringify(this.saved?.datasets.allowed_extensions)
+                !== JSON.stringify(snapshot.datasets.allowed_extensions);
+            this.saving = true;
+            this.errorMessage = '';
+            this.statusMessage = '';
+            try {
+                const response = await saveSettings(snapshot);
+                const draftMatchesSnapshot = this.draft !== null
+                    && JSON.stringify(this.settingsOnly(this.draft))
+                    === JSON.stringify(snapshot);
+                this.saved = structuredClone(response.current);
+                if (draftMatchesSnapshot) {
+                    this.draft = {
+                        ...structuredClone(response.current),
+                        pending_restart_fields: [...response.pending_restart_fields],
+                    };
+                    this.statusMessage = response.pending_restart_fields.length
+                        ? 'Saved. Other changes are applied; runtime startup settings still need a restart.'
+                        : 'Saved and applied.';
+                    if (refreshCatalog) {
+                        try {
+                            await this.workspace.loadCatalog();
+                        } catch {
+                            this.errorMessage = 'Settings were saved, but the workspace catalog could not refresh. Reload ADSMOD to update available file formats.';
+                        }
+                    }
+                } else if (this.draft) {
+                    this.draft.pending_restart_fields = [...response.pending_restart_fields];
+                }
+            } catch (error) {
+                if (this.draft
+                    && JSON.stringify(this.settingsOnly(this.draft)) !== JSON.stringify(snapshot)) {
+                    continue;
+                }
+                this.errorMessage = error instanceof Error
+                    ? 'Changes could not be saved: ' + error.message
+                    : 'Changes could not be saved. Check the connection and retry.';
+                this.statusMessage = '';
+                return false;
+            } finally {
+                this.saving = false;
+                this.changeDetector.detectChanges();
+            }
+        }
+        return true;
     }
 
     private settingsOnly(value: UserSettings & { pending_restart_fields: string[] }): UserSettings {
@@ -585,28 +605,4 @@ export class SettingsPageComponent {
         return settings;
     }
 
-    private confirmAction(mode: 'reset' | 'leave'): Promise<boolean> {
-        if (this.dialogResolver) return Promise.resolve(false);
-        this.dialogOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        this.dialogMode = mode;
-        this.changeDetector.detectChanges();
-        queueMicrotask(() => document.getElementById('settings-confirm-primary')?.focus());
-        return new Promise((resolve) => {
-            this.dialogResolver = resolve;
-        });
-    }
-
-    private finishDialog(confirmed: boolean): void {
-        const mode = this.dialogMode;
-        const resolve = this.dialogResolver;
-        if (!mode || !resolve) return;
-        this.dialogMode = null;
-        this.dialogResolver = null;
-        this.changeDetector.detectChanges();
-        resolve(confirmed);
-        if (mode === 'reset' || !confirmed) {
-            queueMicrotask(() => this.dialogOpener?.focus());
-        }
-        this.dialogOpener = null;
-    }
 }

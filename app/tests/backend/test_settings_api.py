@@ -137,6 +137,32 @@ def test_settings_validation_is_atomic_and_reset_returns_defaults(tmp_path: Path
         assert reset.json()["pending_restart_fields"] == []
 
 
+def test_settings_apply_failure_restores_database_and_runtime_state(tmp_path: Path) -> None:
+    with TestClient(create_app(_config(tmp_path))) as client:
+        original = client.get("/api/v1/settings").json()["current"]
+        runtime = client.app.state.runtime
+        apply_settings = runtime.container.apply_settings
+
+        def fail_after_applying_candidate(config: AdsmodConfig) -> None:
+            apply_settings(config)
+            if config.application.datasets.column_detection_cutoff == 0.91:
+                raise RuntimeError("injected settings apply failure")
+
+        runtime.container.apply_settings = fail_after_applying_candidate
+        candidate = {
+            **original,
+            "datasets": {**original["datasets"], "column_detection_cutoff": 0.91},
+        }
+
+        response = client.put("/api/v1/settings", json=candidate)
+
+        assert response.status_code == 503
+        assert "previous settings were restored" in response.json()["detail"]
+        assert client.get("/api/v1/settings").json()["current"] == original
+        assert runtime.config.user_settings().model_dump(mode="json") == original
+        assert runtime.container.dataset_service.importer.column_detection_cutoff == original["datasets"]["column_detection_cutoff"]
+
+
 def test_settings_persist_across_app_restart_and_missing_row_recovers(tmp_path: Path) -> None:
     config = _config(tmp_path)
     with TestClient(create_app(config)) as client:
