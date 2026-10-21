@@ -195,8 +195,9 @@ class AdsorptionRecordView(BaseModel):
     material: str
     adsorbates: list[EntityReference]
     temperature_k: float
-    pressure_min_pa: float | None = None
-    pressure_max_pa: float | None = None
+    pressure_min: float | None = None
+    pressure_max: float | None = None
+    pressure_unit: Literal["Pa", "1"] = "Pa"
     uptake_min_mol_kg: float | None = None
     uptake_max_mol_kg: float | None = None
     point_count: int = 0

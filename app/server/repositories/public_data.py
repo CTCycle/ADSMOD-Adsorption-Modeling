@@ -1335,8 +1335,10 @@ class PublicDataRepository:
                     "material": row.material,
                     "adsorbates": adsorbates_by_isotherm.get(isotherm_id, []),
                     "temperature_k": row.temperature_k,
-                    "pressure_min_pa": stats.pressure_min if stats else None,
-                    "pressure_max_pa": stats.pressure_max if stats else None,
+                    "pressure_min": stats.pressure_min if stats else None,
+                    "pressure_max": stats.pressure_max if stats else None,
+                    # Relative-basis pressures are canonical p/p0, not Pa.
+                    "pressure_unit": "1" if row.pressure_basis == "relative" else "Pa",
                     "uptake_min_mol_kg": stats.uptake_min if stats else None,
                     "uptake_max_mol_kg": stats.uptake_max if stats else None,
                     "point_count": int(stats.point_count if stats else 0),

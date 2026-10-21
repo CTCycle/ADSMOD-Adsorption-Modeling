@@ -179,7 +179,7 @@ const positiveId = (value: string | null): number | null => {
                                                 }
                                             </td>
                                             <td class="num">{{ formatNumber(item.temperature_k) }} K</td>
-                                            <td class="num">{{ range(item.pressure_min_pa, item.pressure_max_pa, 'Pa') }}</td>
+                                            <td class="num">{{ range(item.pressure_min, item.pressure_max, item.pressure_unit === '1' ? 'p/p₀' : 'Pa') }}</td>
                                             <td class="num">{{ range(item.uptake_min_mol_kg, item.uptake_max_mol_kg, 'mol/kg') }}</td>
                                             <td class="num">{{ item.point_count }}</td>
                                             <td class="col-actions">
