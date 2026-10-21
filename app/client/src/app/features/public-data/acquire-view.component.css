@@ -184,3 +184,16 @@
         justify-content: flex-start;
     }
 }
+
+.collection-row .filter-actions {
+    align-self: end;
+}
+
+.collection-fraction input {
+    min-height: var(--control-height);
+    height: var(--control-height);
+}
+
+.section-heading p {
+    font-size: 0.875rem;
+}

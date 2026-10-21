@@ -30,7 +30,6 @@ interface ColumnMappingRow {
         >
             <div class="card-title-row">
                 <div>
-                    <p class="eyebrow">Dataset inspection</p>
                     <h2 id="dataset-inspector-title">{{ dataset.name }}</h2>
                     <p>
                         Review the saved import mapping and canonical observations.

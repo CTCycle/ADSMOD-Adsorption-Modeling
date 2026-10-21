@@ -95,9 +95,8 @@ const positiveId = (value: string | null): number | null => {
                 @case ('overview') {
                     <section class="public-intro">
                         <div>
-                            <p class="eyebrow">Normalized public workspace</p>
-                            <h2>Adsorption, chemistry, and structures in one provenance-aware model</h2>
-                            <p>Fetch records from NIST, PubChem, and COD into the local database, then browse them with source identifiers, retrieval times, original units, and links between materials, chemicals, isotherms, and structures.</p>
+                            <h2>Local public data</h2>
+                            <p>Records fetched from NIST, PubChem, and COD, with source identifiers, retrieval times, original units, and links between materials, chemicals, isotherms, and structures.</p>
                             <a class="button primary overview-cta" routerLink="/public-data/acquire">Acquire public data</a>
                         </div>
                         <div class="overview-totals" aria-label="Local public data counts">
@@ -110,7 +109,7 @@ const positiveId = (value: string | null): number | null => {
                     </section>
                     <section class="public-section">
                         <div class="section-heading">
-                            <div><p class="eyebrow">Provider coverage</p><h3>Integrated sources</h3></div>
+                            <h3>Integrated sources</h3>
                             <a class="text-link" routerLink="/public-data/sources">Inspect sources</a>
                         </div>
                         <div class="source-summary-grid">
@@ -135,7 +134,7 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('adsorption') {
                     <section class="public-section">
-                        <div class="section-heading"><div><p class="eyebrow">Normalized measurements</p><h3>Adsorption data</h3><p>Filter locally stored isotherms; follow a material or adsorbate to its own record.</p></div></div>
+                        <div class="section-heading"><div><h3>Adsorption data</h3><p>Filter locally stored isotherms; follow a material or adsorbate to its own record.</p></div></div>
                         @if (materialIdFilter() || adsorbateIdFilter()) {
                             <p class="filter-chip">Showing isotherms for {{ materialIdFilter() ? 'material' : 'adsorbate' }} <strong>{{ idFilterLabel() }}</strong><a class="text-link" [routerLink]="[]" [queryParams]="{ material_id: null, adsorbate_id: null, id: null }" queryParamsHandling="merge">Clear</a></p>
                         }
@@ -199,7 +198,7 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('materials') {
                     <section class="public-section">
-                        <div class="section-heading"><div><p class="eyebrow">Canonical adsorbents</p><h3>Materials</h3><p>One row per material identity; each lists its source records, isotherms, and linked crystal structures.</p></div></div>
+                        <div class="section-heading"><div><h3>Materials</h3><p>One row per material identity; each lists its source records, isotherms, and linked crystal structures.</p></div></div>
                         <div class="filter-bar compact">
                             <label>Search<input [(ngModel)]="materialQuery" placeholder="Material name" /></label><label>Formula<input [(ngModel)]="materialFormula" placeholder="Formula" /></label><label>Source<select [(ngModel)]="materialSource"><option value="">All sources</option>@for (source of sources(); track source.key) {<option [value]="source.key">{{ source.name }}</option>}</select></label><label>Structure<select [(ngModel)]="materialStructure"><option value="">Any</option><option value="yes">Available</option><option value="no">Not available</option></select></label><div class="filter-actions"><button class="button primary" type="button" (click)="applyMaterialFilters()">Apply</button><button class="button secondary" type="button" (click)="resetMaterialFilters()">Reset</button></div>
                         </div>
@@ -225,7 +224,7 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('chemicals') {
                     <section class="public-section">
-                        <div class="section-heading"><div><p class="eyebrow">Chemical identity</p><h3>Chemicals & adsorbates</h3><p>Search stored chemicals by name or any PubChem synonym. Exact identifiers decide identity; names never merge records.</p></div><a class="button secondary" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'pubchem' }">Resolve on PubChem</a></div>
+                        <div class="section-heading"><div><h3>Chemicals & adsorbates</h3><p>Search stored chemicals by name or any PubChem synonym. Exact identifiers decide identity; names never merge records.</p></div><a class="button secondary" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'pubchem' }">Resolve on PubChem</a></div>
                         <div class="filter-bar"><label>Search<input [(ngModel)]="chemicalQuery" placeholder="Name or synonym" /></label><label>Formula<input [(ngModel)]="chemicalFormula" placeholder="Formula" /></label><label>Source<select [(ngModel)]="chemicalSource"><option value="">All sources</option>@for (source of sources(); track source.key) {<option [value]="source.key">{{ source.name }}</option>}</select></label><label>Min mass<input [(ngModel)]="chemicalMassMin" type="number" min="0" /></label><label>Max mass<input [(ngModel)]="chemicalMassMax" type="number" min="0" /></label><div class="filter-actions"><button class="button primary" type="button" (click)="applyChemicalFilters()">Apply</button><button class="button secondary" type="button" (click)="resetChemicalFilters()">Reset</button></div></div>
                         <div class="table-frame"><table><thead><tr><th>Name</th><th>Formula</th><th>Molecular weight</th><th>InChIKey</th><th>PubChem CID</th><th>Sources</th><th></th></tr></thead><tbody>@for (item of chemicals()?.items ?? []; track item.id) {<tr><td class="truncate-cell" [title]="item.name">{{ item.name }}</td><td>{{ item.formula || '—' }}</td><td>{{ item.molecular_weight === null ? '—' : formatNumber(item.molecular_weight) + ' g/mol' }}</td><td class="mono truncate-cell" [title]="item.inchi_key || ''">{{ item.inchi_key || '—' }}</td><td>{{ item.pubchem_cid || '—' }}</td><td>{{ sourceKeys(item.external_identifiers) }}</td><td><button class="row-action" type="button" (click)="openDetail(item.id)">Inspect</button></td></tr>} @empty {<tr><td colspan="7" class="empty-table">No chemicals match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'pubchem' }">Resolve a compound</a></td></tr>}</tbody></table></div>
                         <div class="pagination-row">{{ pageSummary(chemicals()?.pagination) }}<div><button class="button secondary" type="button" [disabled]="page() <= 1" (click)="previousPage()">Previous</button><button class="button secondary" type="button" [disabled]="!hasNextPage(chemicals()?.pagination)" (click)="nextPage()">Next</button></div></div>
@@ -246,7 +245,7 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('structures') {
                     <section class="public-section">
-                        <div class="section-heading"><div><p class="eyebrow">Crystallographic records</p><h3>Structures</h3><p>Imported COD structures with their original CIF, unit cell, and atom sites. Link a structure to the material it describes.</p></div><a class="button secondary" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'cod' }">Search COD</a></div>
+                        <div class="section-heading"><div><h3>Structures</h3><p>Imported COD structures with their original CIF, unit cell, and atom sites. Link a structure to the material it describes.</p></div><a class="button secondary" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'cod' }">Search COD</a></div>
                         @if (structureMaterialFilter()) {
                             <p class="filter-chip">Showing structures linked to material #{{ structureMaterialFilter() }}<a class="text-link" [routerLink]="[]" [queryParams]="{ material_id: null, id: null }" queryParamsHandling="merge">Clear</a></p>
                         }
@@ -274,7 +273,7 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('sources') {
                     <section class="public-section">
-                        <div class="section-heading"><div><p class="eyebrow">Provider registry</p><h3>Sources</h3><p>Provider availability is independent. The status shown here is the last saved check; refreshing queues a bounded background check. Fetch data from the Acquire view.</p></div><div class="filter-actions"><a class="button secondary" routerLink="/public-data/acquire">Open Acquire</a><button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button></div></div>
+                        <div class="section-heading"><div><h3>Sources</h3><p>Provider availability is independent. The status shown here is the last saved check; refreshing queues a bounded background check. Fetch data from the Acquire view.</p></div><div class="filter-actions"><a class="button secondary" routerLink="/public-data/acquire">Open Acquire</a><button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button></div></div>
                         <div class="source-table">
                             @for (source of sources(); track source.key) {
                                 <article class="source-row"><div class="source-health"><span class="health-dot" [class.available]="source.health_status === 'available'" [class.degraded]="source.health_status === 'degraded'" [class.unavailable]="source.health_status === 'unavailable'"></span><div><strong>{{ source.name }}</strong><code>{{ source.key }}</code></div><span>{{ source.health_status === 'unknown' ? 'Not checked' : source.health_status }}</span></div><p>{{ source.description }}</p><div class="capability-list">@for (capability of source.capabilities; track capability) {<span>{{ capability }}</span>}</div><div class="source-meta"><span>{{ source.record_count }} stored source records</span><span>Checked {{ formatDate(source.last_health_checked_at) }}{{ source.health_fresh ? '' : source.last_health_checked_at ? ' · stale' : '' }}</span><span>Last sync {{ formatDate(source.last_successful_sync_at) }}</span>@if (source.license_name) {<span>{{ source.license_name }}</span>}</div><div class="source-actions"><a [href]="source.homepage_url" target="_blank" rel="noopener noreferrer">Source</a>@if (source.license_url) {<a [href]="source.license_url" target="_blank" rel="noopener noreferrer">License</a>}</div>@if (source.health_detail) {<p class="source-detail">{{ source.health_detail }}</p>}</article>

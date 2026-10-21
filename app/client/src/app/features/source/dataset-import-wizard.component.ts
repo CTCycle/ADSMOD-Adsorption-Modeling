@@ -61,7 +61,6 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
             >
                 <header class="import-wizard-header">
                     <div>
-                        <p class="eyebrow">Dataset import</p>
                         <h2 id="import-wizard-title">
                             Understand {{ file.name }}
                         </h2>

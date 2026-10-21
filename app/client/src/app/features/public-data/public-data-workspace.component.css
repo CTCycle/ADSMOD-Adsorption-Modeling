@@ -331,7 +331,7 @@
 
 .public-workspace .section-heading > button.secondary {
     flex: 0 0 auto;
-    min-height: 42px;
+    min-height: var(--control-height);
     padding-inline: var(--spacing-md);
     white-space: nowrap;
 }
@@ -391,6 +391,7 @@
 .filter-bar label,
 .provider-query label {
     display: grid;
+    margin: 0;
     gap: 5px;
     min-width: 0;
     color: var(--text-secondary, #667085);
@@ -404,16 +405,16 @@
 .provider-query select {
     min-width: 0;
     width: 100%;
-    min-height: 42px;
-    height: 42px;
+    min-height: var(--control-height);
+    height: var(--control-height);
     padding: 0 0.75rem;
     box-sizing: border-box;
     border: 1px solid #dbe4f4;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     background: #ffffff;
     color: var(--text-primary, #18202c);
     font: inherit;
-    font-size: 0.87rem;
+    font-size: 0.8125rem;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
@@ -427,8 +428,9 @@
 
 .filter-actions {
     display: flex;
-    gap: 7px;
+    gap: 8px;
     align-items: center;
+    align-self: end;
 }
 
 .provider-query {
@@ -719,7 +721,7 @@
 
 .source-row {
     display: grid;
-    grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1.4fr) minmax(180px, 0.8fr) minmax(200px, 1fr) auto;
+    grid-template-columns: minmax(240px, 1fr) minmax(240px, 1.3fr) minmax(160px, 0.8fr) minmax(200px, 1fr) auto;
     gap: 14px;
     align-items: center;
     min-width: 0;
@@ -870,4 +872,32 @@
     .identifier-list dt {
         margin-top: 5px;
     }
+}
+
+.section-heading p {
+    font-size: 0.875rem;
+}
+
+.source-health strong {
+    font-size: 0.875rem;
+}
+
+.source-health > span:last-child {
+    margin-left: auto;
+    color: var(--text-secondary, #667085);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.source-row p {
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+.source-actions {
+    display: flex;
+    gap: 12px;
+    font-size: 0.8125rem;
 }
