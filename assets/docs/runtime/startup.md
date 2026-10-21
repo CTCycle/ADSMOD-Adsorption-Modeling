@@ -8,9 +8,10 @@ Last updated: 2026-10-21
 & .\start_on_windows.ps1
 ```
 
-The launcher reads runtime host and ports through `server.runtime_config`
-from the active database. The storage root is resolved first; database
-connection settings come from `database.json` inside that root. It inspects every configured application port before doing
+The launcher reads runtime host, ports, and CORS configuration through
+`server.runtime_config` from `settings/.env` or the process environment; process
+values take precedence. The storage root is resolved first; database connection
+settings come from `database.json` inside that root. It inspects every configured application port before doing
 runtime, dependency, or build work, then starts one FastAPI backend and a static
 production preview server. If configured ports
 are occupied by resolvable processes, it presents the complete conflict set
@@ -74,7 +75,9 @@ From the repository root after `app/server/.venv` is ready:
 This is the only backend process. The storage root and dedicated database
 configuration are resolved before connecting; application behavior settings
 load from the selected database. If a `database.json` file does not yet exist,
-startup performs the one-time legacy configuration cutover. If the environment was synchronized with the
+startup selects the current default SQLite configuration and writes the file after
+the fresh database and settings row initialize. Retired environment variables
+and old configuration files are not imported. If the environment was synchronized with the
 `ml` extra, the process discovers and registers the optional ML extension at
 startup. The Angular development server can be started from `app/client` with
 `npm run dev`; this is separate from the launcher’s production preview path.
@@ -82,10 +85,11 @@ startup. The Angular development server can be started from `app/client` with
 ## Database startup rules
 
 The backend runs the synchronous Alembic coordinator before serving requests.
-A missing or empty SQLite file is initialized to the packaged head. A non-empty
-unversioned file, an empty version table beside application tables, an unknown
-revision, or a stamped-but-incomplete schema fails explicitly without schema
-inference. PostgreSQL uses the same migration history and a bounded advisory
+A missing or empty SQLite file is initialized by the single current-schema root
+revision. A non-empty unversioned file, an empty version table beside application
+tables, a historical or unknown revision, or a stamped-but-incomplete schema
+fails explicitly without schema inference. Databases with historical revisions
+must be recreated; startup does not drop them. PostgreSQL uses the same baseline and a bounded advisory
 lock. The active database contains both operational data and the
 `application_settings` row. The separate `database.json` file contains only
 the selected backend and connection parameters, so it remains readable before
@@ -95,8 +99,8 @@ The Database tab can switch the active connection without restarting when the
 target connection and schema are ready. A switch waits for ordinary requests
 and database sessions to drain, and is rejected while a job or public-data
 sync run is active. Each database retains its own settings and operational
-data; switching does not copy either. Host and listener port changes still
-require a restart because they change process bindings.
+data; switching does not copy either. Changes to runtime environment values
+require a restart because they change process bindings and middleware configuration.
 
 ## Tests
 

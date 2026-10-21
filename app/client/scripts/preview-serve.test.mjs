@@ -5,12 +5,17 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import { createServer, request as requestHttp } from 'node:http';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
 import test from 'node:test';
 
 import { createPreviewServer, startPreviewServer } from './preview-serve.mjs';
+
+const require = createRequire(import.meta.url);
+const { loadRuntimeSettings } = require('./runtime-settings.cjs');
+const proxyRules = require('../proxy.conf.cjs');
 
 async function listen(server) {
     server.listen(0, '127.0.0.1');
@@ -50,6 +55,13 @@ function request(port, options = {}, body = '') {
         outgoing.end();
     });
 }
+
+test('development and packaged proxy rules share the environment backend endpoint', () => {
+    const runtime = loadRuntimeSettings();
+
+    assert.equal(proxyRules['/api/v1'].target, runtime.backend_url);
+    assert.equal(proxyRules['/health'].target, runtime.backend_url);
+});
 
 test('static preview serves files, SPA routes, HEAD, and rejects unsafe paths', async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'adsmod-preview-static-'));

@@ -5,7 +5,6 @@ import type { DatabaseSettings, SettingsResponse, UserSettings } from '../../mod
 import { SettingsPageComponent } from './settings-page.component';
 
 const defaults: UserSettings = {
-    runtime: { host: '127.0.0.1', backend_port: 6045, frontend_port: 5173 },
     datasets: { allowed_extensions: ['.csv', '.xls', '.xlsx'], column_detection_cutoff: 0.6 },
     nist: { parallel_tasks: 40 },
     public_data: {
@@ -52,7 +51,7 @@ function apiResponse(current: UserSettings = defaults, pendingRestartFields: str
         current: structuredClone(current),
         defaults: structuredClone(defaults),
         restart_required: pendingRestartFields.length > 0,
-        restart_required_fields: ['runtime.frontend_port'],
+        restart_required_fields: ['public_data.sync_resume_on_startup'],
         pending_restart_fields: pendingRestartFields,
     };
     return { ok: true, status: 200, json: async () => body } as Response;
@@ -90,9 +89,9 @@ describe('SettingsPageComponent automatic persistence', () => {
             if (url.includes('/database')) return databaseResponse();
             if (init?.method === 'PUT') {
                 persistedSettings = JSON.parse(String(init.body)) as UserSettings;
-                const restartFields = persistedSettings.runtime.backend_port === defaults.runtime.backend_port
-                    ? []
-                    : ['runtime.backend_port'];
+                const restartFields = persistedSettings.public_data.sync_resume_on_startup
+                    ? ['public_data.sync_resume_on_startup']
+                    : [];
                 return apiResponse(persistedSettings, restartFields);
             }
             return apiResponse(persistedSettings);
@@ -118,15 +117,33 @@ describe('SettingsPageComponent automatic persistence', () => {
     async function createPage() {
         const fixture = TestBed.createComponent(SettingsPageComponent);
         fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            const appSettingsLoaded = fixture.nativeElement.querySelector('#setting-detection-cutoff');
+            const appSettingsFailed = fixture.nativeElement.querySelector('[role="alert"]');
+            expect(Boolean(appSettingsLoaded || appSettingsFailed)).toBe(true);
+        });
         return fixture;
     }
 
-    async function advanceAutosave(fixture: Awaited<ReturnType<typeof createPage>>, milliseconds = 400) {
+    async function openDatabaseTab(fixture: Awaited<ReturnType<typeof createPage>>) {
+        const databaseTab = fixture.nativeElement.querySelector('#settings-tab-database') as HTMLButtonElement | null;
+        const databaseButton = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
+        ).find((button) => button.textContent?.includes('Database settings')) as HTMLButtonElement | undefined;
+        const opener = databaseTab ?? databaseButton;
+        expect(opener).not.toBeNull();
+        opener?.click();
+        fixture.detectChanges();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelector('#database-backend')).not.toBeNull();
+        });
+    }
+
+    async function advanceAutosave(milliseconds = 400) {
         await vi.advanceTimersByTimeAsync(milliseconds);
         for (let attempt = 0; attempt < 12; attempt += 1) await Promise.resolve();
-        fixture.detectChanges();
     }
 
     function settingsWrites() {
@@ -136,18 +153,19 @@ describe('SettingsPageComponent automatic persistence', () => {
     it('debounces edits and saves automatically without save, apply, cancel, or discard controls', async () => {
         const fixture = await createPage();
         vi.useFakeTimers();
-        const port = fixture.nativeElement.querySelector('#setting-backend-port') as HTMLInputElement;
-        port.value = '6046';
-        port.dispatchEvent(new Event('input', { bubbles: true }));
+        const cutoff = fixture.nativeElement.querySelector('#setting-detection-cutoff') as HTMLInputElement;
+        cutoff.value = '0.75';
+        cutoff.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
 
         expect(settingsWrites()).toHaveLength(0);
-        await advanceAutosave(fixture, 399);
+        await advanceAutosave(399);
         expect(settingsWrites()).toHaveLength(0);
-        await advanceAutosave(fixture, 1);
+        await advanceAutosave(1);
         expect(settingsWrites()).toHaveLength(1);
-        expect(JSON.parse(String(settingsWrites()[0][1]?.body)).runtime.backend_port).toBe(6046);
-        expect(fixture.nativeElement.textContent).toContain('runtime startup settings still need a restart');
+        const saved = JSON.parse(String(settingsWrites()[0][1]?.body)) as UserSettings;
+        expect(saved.datasets.column_detection_cutoff).toBe(0.75);
+        expect('runtime' in saved).toBe(false);
         const ordinaryButtons = Array.from(
             fixture.nativeElement.querySelectorAll('.settings-actions button'),
         ) as HTMLButtonElement[];
@@ -155,7 +173,7 @@ describe('SettingsPageComponent automatic persistence', () => {
         expect(fixture.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
     });
 
-    it('autosaves controls across all five application-settings tabs', async () => {
+    it('autosaves controls across all four application-settings tabs', async () => {
         const fixture = await createPage();
         vi.useFakeTimers();
 
@@ -167,14 +185,6 @@ describe('SettingsPageComponent automatic persistence', () => {
             verify: (settings: UserSettings) => unknown;
             expected: unknown;
         }> = [
-            {
-                tab: 'runtime',
-                selector: '#setting-host',
-                value: 'localhost',
-                event: 'change',
-                verify: (settings) => settings.runtime.host,
-                expected: 'localhost',
-            },
             {
                 tab: 'import',
                 selector: '#setting-detection-cutoff',
@@ -218,11 +228,28 @@ describe('SettingsPageComponent automatic persistence', () => {
             input.dispatchEvent(new Event(edit.event, { bubbles: true }));
             fixture.detectChanges();
             const before = settingsWrites().length;
-            await advanceAutosave(fixture);
+            await advanceAutosave();
             expect(settingsWrites()).toHaveLength(before + 1);
             const written = JSON.parse(String(settingsWrites().at(-1)?.[1]?.body)) as UserSettings;
             expect(edit.verify(written)).toBe(edit.expected);
         }
+    });
+
+    it('removes runtime controls from the UI and runtime fields from saved settings', async () => {
+        const fixture = await createPage();
+        expect(fixture.nativeElement.querySelector('#settings-tab-runtime')).toBeNull();
+        expect(fixture.nativeElement.querySelector('#setting-backend-port')).toBeNull();
+        expect(fixture.nativeElement.querySelector('#setting-frontend-port')).toBeNull();
+        expect(fixture.nativeElement.querySelector('#setting-host')).toBeNull();
+
+        vi.useFakeTimers();
+        const cutoff = fixture.nativeElement.querySelector('#setting-detection-cutoff') as HTMLInputElement;
+        cutoff.value = '0.7';
+        cutoff.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        await advanceAutosave();
+        const payload = JSON.parse(String(settingsWrites()[0]?.[1]?.body || '{}')) as Record<string, unknown>;
+        expect(payload).not.toHaveProperty('runtime');
     });
 
     it('serializes rapid edits and writes the newest complete settings snapshot last', async () => {
@@ -247,28 +274,26 @@ describe('SettingsPageComponent automatic persistence', () => {
         const fixture = await createPage();
         vi.useFakeTimers();
 
-        const backendPort = fixture.nativeElement.querySelector('#setting-backend-port') as HTMLInputElement;
-        backendPort.value = '6046';
-        backendPort.dispatchEvent(new Event('input', { bubbles: true }));
+        const cutoff = fixture.nativeElement.querySelector('#setting-detection-cutoff') as HTMLInputElement;
+        cutoff.value = '0.65';
+        cutoff.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
-        await advanceAutosave(fixture);
+        await advanceAutosave();
         await firstRequestStarted;
 
-        const frontendPort = fixture.nativeElement.querySelector('#setting-frontend-port') as HTMLInputElement;
-        frontendPort.value = '5174';
-        frontendPort.dispatchEvent(new Event('input', { bubbles: true }));
+        const previewRows = fixture.nativeElement.querySelector('#setting-preview-rows') as HTMLInputElement;
+        previewRows.value = '35';
+        previewRows.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
-        await advanceAutosave(fixture);
+        await advanceAutosave();
 
         deferred.releaseFirst?.();
-        for (let attempt = 0; attempt < 24; attempt += 1) await Promise.resolve();
-        fixture.detectChanges();
-        expect(settingsWrites()).toHaveLength(2);
+        await vi.waitFor(() => expect(settingsWrites()).toHaveLength(2));
         const writes = settingsWrites().map(([, init]) => JSON.parse(String(init?.body)) as UserSettings);
-        expect(writes[0].runtime.backend_port).toBe(6046);
-        expect(writes[1].runtime.backend_port).toBe(6046);
-        expect(writes[1].runtime.frontend_port).toBe(5174);
-        expect(persistedSettings.runtime.frontend_port).toBe(5174);
+        expect(writes[0].datasets.column_detection_cutoff).toBe(0.65);
+        expect(writes[1].datasets.column_detection_cutoff).toBe(0.65);
+        expect(writes[1].fitting.preview_row_limit).toBe(35);
+        expect(persistedSettings.fitting.preview_row_limit).toBe(35);
     });
 
     it('keeps failed edits visible and retries them through autosave or route navigation', async () => {
@@ -288,26 +313,24 @@ describe('SettingsPageComponent automatic persistence', () => {
         });
         const fixture = await createPage();
         vi.useFakeTimers();
-        const port = fixture.nativeElement.querySelector('#setting-backend-port') as HTMLInputElement;
-        port.value = '6046';
-        port.dispatchEvent(new Event('input', { bubbles: true }));
+        const cutoff = fixture.nativeElement.querySelector('#setting-detection-cutoff') as HTMLInputElement;
+        cutoff.value = '0.75';
+        cutoff.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
-        await advanceAutosave(fixture);
+        await advanceAutosave();
 
         expect(fixture.nativeElement.textContent).toContain('Changes could not be saved');
-        expect(port.value).toBe('6046');
+        expect(cutoff.value).toBe('0.75');
         expect(fixture.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
 
         expect(await fixture.componentInstance.canLeave()).toBe(true);
-        expect(persistedSettings.runtime.backend_port).toBe(6046);
+        expect(persistedSettings.datasets.column_detection_cutoff).toBe(0.75);
         expect(fixture.nativeElement.textContent).toContain('Saved and applied.');
     });
 
     it('keeps database edits unapplied until the explicit switch action', async () => {
         const fixture = await createPage();
-        const databaseTab = fixture.nativeElement.querySelector('#settings-tab-database') as HTMLButtonElement;
-        databaseTab.click();
-        fixture.detectChanges();
+        await openDatabaseTab(fixture);
         const path = fixture.nativeElement.querySelector('#database-sqlite-path') as HTMLInputElement;
         path.value = 'data/another.db';
         path.dispatchEvent(new Event('input', { bubbles: true }));
@@ -320,7 +343,11 @@ describe('SettingsPageComponent automatic persistence', () => {
             .find((button) => button.textContent?.includes('Switch database')) as HTMLButtonElement;
         switchButton.click();
         fixture.detectChanges();
-        await fixture.whenStable();
+        await vi.waitFor(() => {
+            expect(fetchMock.mock.calls.some(([url, init]) =>
+                String(url).endsWith('/database/switch') && init?.method === 'POST',
+            )).toBe(true);
+        });
         expect(fetchMock.mock.calls.some(([url, init]) =>
             String(url).endsWith('/database/switch') && init?.method === 'POST',
         )).toBe(true);
@@ -330,20 +357,20 @@ describe('SettingsPageComponent automatic persistence', () => {
     it('autosaves reset-to-defaults without a confirmation dialog', async () => {
         const fixture = await createPage();
         vi.useFakeTimers();
-        const port = fixture.nativeElement.querySelector('#setting-backend-port') as HTMLInputElement;
-        port.value = '6046';
-        port.dispatchEvent(new Event('input', { bubbles: true }));
+        const cutoff = fixture.nativeElement.querySelector('#setting-detection-cutoff') as HTMLInputElement;
+        cutoff.value = '0.75';
+        cutoff.dispatchEvent(new Event('input', { bubbles: true }));
         fixture.detectChanges();
-        await advanceAutosave(fixture);
+        await advanceAutosave();
         expect(settingsWrites()).toHaveLength(1);
         const reset = Array.from(fixture.nativeElement.querySelectorAll('.settings-actions button') as NodeListOf<HTMLButtonElement>)
             .find((button) => button.textContent?.includes('Reset to defaults')) as HTMLButtonElement;
         reset.click();
         fixture.detectChanges();
-        await advanceAutosave(fixture);
+        await advanceAutosave();
 
         expect(settingsWrites()).toHaveLength(2);
-        expect(JSON.parse(String(settingsWrites()[1][1]?.body)).runtime.backend_port).toBe(defaults.runtime.backend_port);
+        expect(JSON.parse(String(settingsWrites()[1][1]?.body)).datasets.column_detection_cutoff).toBe(defaults.datasets.column_detection_cutoff);
         expect(fixture.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
     });
 
@@ -358,6 +385,10 @@ describe('SettingsPageComponent automatic persistence', () => {
             .find((button) => button.textContent?.includes('Database settings')) as HTMLButtonElement;
         databaseButton.click();
         fixture.detectChanges();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelector('#database-backend')).not.toBeNull();
+        });
 
         expect(fixture.nativeElement.textContent).toContain('Database');
         expect(fixture.nativeElement.querySelector('#database-backend')).not.toBeNull();
@@ -366,16 +397,16 @@ describe('SettingsPageComponent automatic persistence', () => {
 
     it('shows the restart marker only when the active database has pending startup settings', async () => {
         const current = await createPage();
-        expect(current.nativeElement.querySelector('.restart-tag')).toBeNull();
+        expect(current.nativeElement.querySelector('.settings-message.restart')).toBeNull();
         current.destroy();
 
         fetchMock.mockImplementation(async (input) =>
             String(input).includes('/database')
                 ? databaseResponse()
-                : apiResponse(defaults, ['runtime.frontend_port']),
+                : apiResponse(defaults, ['public_data.sync_resume_on_startup']),
         );
         const pending = await createPage();
-        expect(pending.nativeElement.querySelector('.restart-tag')?.textContent).toContain('Restart required');
+        expect(pending.nativeElement.querySelector('.settings-message.restart strong')?.textContent).toContain('Restart required');
         expect(pending.nativeElement.querySelector('.settings-message.restart')).not.toBeNull();
     });
 });

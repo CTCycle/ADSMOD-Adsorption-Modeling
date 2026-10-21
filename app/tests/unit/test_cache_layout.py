@@ -12,17 +12,22 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CANONICAL_CACHE_ROOT = (REPO_ROOT / "runtimes" / "cache").resolve()
 
+
 ###############################################################################
 def _resolve_configured_path(value: str, base: Path) -> Path:
     return (base / value).resolve()
+
 
 ###############################################################################
 def test_tool_configuration_resolves_to_the_canonical_cache_root() -> None:
     pytest_config = configparser.ConfigParser()
     pytest_config.read(REPO_ROOT / "app" / "tests" / "pytest.ini", encoding="utf-8")
-    assert _resolve_configured_path(
-        pytest_config["pytest"]["cache_dir"], REPO_ROOT / "app" / "tests"
-    ) == CANONICAL_CACHE_ROOT / "pytest"
+    assert (
+        _resolve_configured_path(
+            pytest_config["pytest"]["cache_dir"], REPO_ROOT / "app" / "tests"
+        )
+        == CANONICAL_CACHE_ROOT / "pytest"
+    )
     assert "cache" in pytest_config["pytest"]["norecursedirs"].split()
 
     backend_config = tomllib.loads(
@@ -30,19 +35,29 @@ def test_tool_configuration_resolves_to_the_canonical_cache_root() -> None:
     )
     pytest_options = backend_config["tool"]["pytest"]["ini_options"]
     assert "cache" in pytest_options["norecursedirs"]
-    assert _resolve_configured_path(
-        pytest_options["cache_dir"], REPO_ROOT / "app" / "server"
-    ) == CANONICAL_CACHE_ROOT / "pytest"
-    assert _resolve_configured_path(
-        backend_config["tool"]["ruff"]["cache-dir"], REPO_ROOT / "app" / "server"
-    ) == CANONICAL_CACHE_ROOT / "ruff"
+    assert (
+        _resolve_configured_path(
+            pytest_options["cache_dir"], REPO_ROOT / "app" / "server"
+        )
+        == CANONICAL_CACHE_ROOT / "pytest"
+    )
+    assert (
+        _resolve_configured_path(
+            backend_config["tool"]["ruff"]["cache-dir"], REPO_ROOT / "app" / "server"
+        )
+        == CANONICAL_CACHE_ROOT / "ruff"
+    )
 
     angular_config = json.loads(
         (REPO_ROOT / "app" / "client" / "angular.json").read_text(encoding="utf-8")
     )
-    assert _resolve_configured_path(
-        angular_config["cli"]["cache"]["path"], REPO_ROOT / "app" / "client"
-    ) == CANONICAL_CACHE_ROOT / "angular"
+    assert (
+        _resolve_configured_path(
+            angular_config["cli"]["cache"]["path"], REPO_ROOT / "app" / "client"
+        )
+        == CANONICAL_CACHE_ROOT / "angular"
+    )
+
 
 ###############################################################################
 def test_supported_tooling_has_no_legacy_cache_destination() -> None:
@@ -65,6 +80,7 @@ def test_supported_tooling_has_no_legacy_cache_destination() -> None:
         text = path.read_text(encoding="utf-8")
         assert not any(fragment in text for fragment in forbidden_fragments), path
 
+
 ###############################################################################
 def test_launcher_and_batch_runner_export_canonical_cache_environment() -> None:
     launcher = (REPO_ROOT / "start_on_windows.ps1").read_text(encoding="utf-8")
@@ -72,7 +88,9 @@ def test_launcher_and_batch_runner_export_canonical_cache_environment() -> None:
 
     assert '$RuntimeCacheDir = Join-Path $RuntimesDir "cache"' in launcher
     assert "$TestCacheDir" not in launcher
-    assert "$LegacyUvCachePaths" not in launcher
+    assert "function Get-LegacyCachePaths" not in launcher
+    assert "function Get-LegacyCacheFiles" not in launcher
+    assert "function Get-RepositoryDirectories" not in launcher
     for variable in (
         "$env:UV_CACHE_DIR",
         "$env:PIP_CACHE_DIR",
@@ -86,10 +104,10 @@ def test_launcher_and_batch_runner_export_canonical_cache_environment() -> None:
     ):
         assert variable in launcher
 
-    assert "set \"CACHE_DIR=%PROJECT_ROOT%\\runtimes\\cache\"" in runner
-    assert "set \"PYTHONPYCACHEPREFIX=%CACHE_DIR%\\python\"" in runner
-    assert "--basetemp \"%PYTEST_TEMP_DIR%\"" in runner
-    assert "set \"STARTED_FRONTEND=0\"" in runner
+    assert 'set "CACHE_DIR=%PROJECT_ROOT%\\runtimes\\cache"' in runner
+    assert 'set "PYTHONPYCACHEPREFIX=%CACHE_DIR%\\python"' in runner
+    assert '--basetemp "%PYTEST_TEMP_DIR%"' in runner
+    assert 'set "STARTED_FRONTEND=0"' in runner
     assert '--ignore "%TESTS_DIR%\\e2e"' in runner
     assert '"%TESTS_DIR%\\e2e" -k "not performance"' in runner
     assert "STANDARD_TEST_PROFILE" in runner

@@ -17,3 +17,7 @@ def test_unified_openapi_snapshot_covers_complete_surface() -> None:
     assert "/api/v1/fitting/models" in paths
     assert "/api/v1/training/datasets" in paths
     assert "/api/v1/training/configuration" in paths
+    components = schema["components"]["schemas"]
+    assert "runtime" not in components["UserSettings"]["properties"]
+    assert "runtime" not in components["SettingsUpdateRequest"]["properties"]
+    assert "RuntimeConfig" not in components

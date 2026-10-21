@@ -10,9 +10,10 @@ Last updated: 2026-10-21
 
 Use the menu for dependency synchronization, frontend rebuild, database
 initialization, log removal, cache cleanup, checkpoint removal, and uninstall.
-Runtime host and port values are loaded from the active database. Database
-selection and connection values are loaded from `database.json` under the
-configured data root. `settings/.env` may set `ADSMOD_STORAGE_ROOT`; see
+Runtime host, ports, and CORS values are loaded from `settings/.env` or the
+process environment, with process values taking precedence. Database selection
+and connection values are loaded from `database.json` under the configured data
+root. `settings/.env` may also set `ADSMOD_STORAGE_ROOT`; see
 [runtime configuration](../runtime/configuration.md).
 
 ## Backend workspace
@@ -39,13 +40,10 @@ app\tests\run_tests.bat
 & .\app\server\.venv\Scripts\python.exe -m pytest -c app\tests\pytest.ini app\tests -v --basetemp .\runtimes\cache\pytest-tmp
 ```
 
-Import settings from a legacy installation once, before removing its old file:
-
-```powershell
-Push-Location .\app
-& .\server\.venv\Scripts\python.exe -m scripts.import_legacy_configuration --legacy-config ..\data\adsmod.json
-Pop-Location
-```
+The current schema is created on first launch when the selected database is
+empty. Database files stamped with historical revisions are not upgraded; create
+a fresh database and select it through the Database settings page. Startup does
+not remove or recreate existing database files.
 
 The canonical OpenAPI snapshot includes the optional training and checkpoint
 routes, so generate it from the ML-enabled development profile:

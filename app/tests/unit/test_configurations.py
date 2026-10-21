@@ -22,11 +22,15 @@ from server.configurations.settings import (
 
 
 ###############################################################################
-def test_application_settings_defaults_cover_runtime_behaviors() -> None:
+def test_application_settings_defaults_and_runtime_defaults_are_separate() -> None:
     settings = UserSettings()
+    runtime = RuntimeConfig()
 
-    assert settings.runtime.backend_port == 6045
-    assert settings.runtime.frontend_port == 5173
+    assert runtime.host == "127.0.0.1"
+    assert runtime.backend_port == 6045
+    assert runtime.frontend_port == 5173
+    assert runtime.cors_origins == ("http://127.0.0.1:5173", "http://localhost:5173")
+    assert not hasattr(settings, "runtime")
     assert settings.datasets.allowed_extensions == (".csv", ".xls", ".xlsx")
     assert settings.datasets.column_detection_cutoff == 0.6
     assert settings.public_data.pubchem_parallel_requests == 2

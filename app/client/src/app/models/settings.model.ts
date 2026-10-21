@@ -1,9 +1,3 @@
-export type RuntimeSettings = {
-    host: '127.0.0.1' | 'localhost' | '::1';
-    backend_port: number;
-    frontend_port: number;
-};
-
 export type SettingsModelMetric =
     | 'sse'
     | 'rmse'
@@ -16,7 +10,6 @@ export type SettingsModelMetric =
     | 'bic';
 
 export interface UserSettings {
-    runtime: RuntimeSettings;
     datasets: {
         allowed_extensions: Array<'.csv' | '.xls' | '.xlsx'>;
         column_detection_cutoff: number;

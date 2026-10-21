@@ -74,8 +74,11 @@ describe('AcquireViewComponent', () => {
     async function render(): Promise<HTMLElement> {
         const fixture = TestBed.createComponent(AcquireViewComponent);
         fixture.detectChanges();
-        await vi.runOnlyPendingTimersAsync();
-        await fixture.whenStable();
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(collectionRequests).toBeGreaterThan(0);
+        });
         fixture.detectChanges();
         return fixture.nativeElement as HTMLElement;
     }
@@ -94,13 +97,12 @@ describe('AcquireViewComponent', () => {
         runs = [run({ source_key: 'nist', operation: 'nist_category', parameters: { category: 'guest', fraction: 0.1 }, status: 'running', progress: 40 })];
         const fixture = TestBed.createComponent(AcquireViewComponent);
         fixture.detectChanges();
-        await vi.runOnlyPendingTimersAsync();
-        await fixture.whenStable();
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.waitFor(() => expect(collectionRequests).toBe(1));
         expect(collectionRequests).toBe(1);
 
         runs = [run({ source_key: 'nist', operation: 'nist_category', parameters: { category: 'guest', fraction: 0.1 }, imported_count: 3 })];
         await vi.advanceTimersByTimeAsync(1600);
-        await fixture.whenStable();
         fixture.detectChanges();
 
         expect(collectionRequests).toBe(2);

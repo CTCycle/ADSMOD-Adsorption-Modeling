@@ -39,8 +39,12 @@ describe('MachineLearningPageComponent', () => {
     it('keeps every training view visible when the ML service is unavailable', async () => {
         const fixture = TestBed.createComponent(MachineLearningPageComponent);
         fixture.detectChanges();
-        await fixture.whenStable();
-        fixture.detectChanges();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.textContent).toContain(
+                'Training requires the optional ML service.',
+            );
+        });
 
         const root = fixture.nativeElement as HTMLElement;
         const tabs = Array.from(

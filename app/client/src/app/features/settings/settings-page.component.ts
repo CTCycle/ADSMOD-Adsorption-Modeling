@@ -5,12 +5,12 @@ import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatabaseSettings, DatabaseSettingsRequest, SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
 import { fetchDatabaseSettings, fetchSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
 
-type SettingsTab = 'runtime' | 'import' | 'public-data' | 'fitting' | 'training' | 'database';
+type SettingsTab = 'import' | 'public-data' | 'fitting' | 'training' | 'database';
 type SettingExtension = '.csv' | '.xls' | '.xlsx';
 type SyncCategory = 'experiments' | 'guest' | 'host';
 type DatabaseForm = DatabaseSettingsRequest & { password_configured: boolean };
 
-const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', 'fitting', 'training', 'database'];
+const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', 'training', 'database'];
 
 @Component({
     selector: 'adsmod-settings-page',
@@ -114,18 +114,7 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                     </div>
 
                     <div class="settings-panel" role="tabpanel" id="settings-panel" [attr.aria-labelledby]="'settings-tab-' + activeTab" tabindex="0">
-                        @if (activeTab === 'runtime') {
-                            <div class="settings-section-heading">
-                                <div><h3>Runtime</h3><p>Host and port changes need a restart. Other saved preferences apply to new requests and jobs.</p></div>
-                                @if (settings.pending_restart_fields.length) { <span class="restart-tag">Restart required</span> }
-                            </div>
-                            <div class="settings-callout"><strong>Database configuration</strong><span>Database selection and connection credentials are stored in the protected <code>database.json</code> file in the ADSMOD data directory. ADSMOD never returns database passwords.</span></div>
-                            <div class="settings-grid">
-                                <label class="settings-field" for="setting-host"><span class="settings-label">Backend host</span><select id="setting-host" class="select-input" [(ngModel)]="settings.runtime.host" (ngModelChange)="markChanged()"><option value="127.0.0.1">127.0.0.1</option><option value="localhost">localhost</option><option value="::1">::1</option></select><span class="settings-help">ADSMOD accepts loopback addresses only.</span></label>
-                                <label class="settings-field" for="setting-backend-port"><span class="settings-label">Backend port</span><input id="setting-backend-port" type="number" min="1024" max="65535" step="1" [(ngModel)]="settings.runtime.backend_port" (ngModelChange)="markChanged()" /><span class="settings-help">API listener port · 1024–65535.</span></label>
-                                <label class="settings-field" for="setting-frontend-port"><span class="settings-label">Frontend port</span><input id="setting-frontend-port" type="number" min="1024" max="65535" step="1" [(ngModel)]="settings.runtime.frontend_port" (ngModelChange)="markChanged()" /><span class="settings-help">Console listener port · must differ from the backend port.</span></label>
-                            </div>
-                        } @else if (activeTab === 'import') {
+                        @if (activeTab === 'import') {
                             <div class="settings-section-heading"><div><h3>Data import</h3><p>Choose accepted spreadsheet formats and how confidently ADSMOD suggests column roles.</p></div></div>
                             <div class="settings-grid">
                                 <fieldset class="settings-field settings-field-wide"><legend class="settings-label">Allowed file extensions</legend><span class="settings-help">Only formats supported by the import parser are available.</span><div class="settings-choice-row">@for (extension of extensions; track extension) { <label class="settings-choice"><input type="checkbox" [checked]="settings.datasets.allowed_extensions.includes(extension)" (change)="toggleExtension(settings, extension, $event)" /><span>{{ extension }}</span></label> }</div></fieldset>
@@ -197,7 +186,6 @@ export class SettingsPageComponent {
     private readonly workspace = inject(CoreWorkspaceStore);
     private readonly changeDetector = inject(ChangeDetectorRef);
     protected readonly tabs = [
-        { id: 'runtime' as const, label: 'Runtime', mark: '◉' },
         { id: 'import' as const, label: 'Data import', mark: '↥' },
         { id: 'public-data' as const, label: 'Public data', mark: '⇩' },
         { id: 'fitting' as const, label: 'Fitting & jobs', mark: '⌁' },
@@ -226,7 +214,7 @@ export class SettingsPageComponent {
     protected draft: (UserSettings & { pending_restart_fields: string[] }) | null = null;
     protected saved: UserSettings | null = null;
     protected defaults: UserSettings | null = null;
-    protected activeTab: SettingsTab = 'runtime';
+    protected activeTab: SettingsTab = 'import';
     protected loading = true;
     protected saving = false;
     protected loadError = '';
@@ -261,8 +249,6 @@ export class SettingsPageComponent {
             integer?: boolean;
             exclusiveMinimum?: boolean;
         }> = [
-            { label: 'Backend port', value: value.runtime.backend_port, minimum: 1024, maximum: 65535, integer: true },
-            { label: 'Frontend port', value: value.runtime.frontend_port, minimum: 1024, maximum: 65535, integer: true },
             { label: 'Detection confidence cutoff', value: value.datasets.column_detection_cutoff, minimum: 0, maximum: 1 },
             { label: 'Preview row limit', value: value.fitting.preview_row_limit, minimum: 1, maximum: 500, integer: true },
             { label: 'NIST parallel requests', value: value.nist.parallel_tasks, minimum: 1, maximum: 100, integer: true },
@@ -294,7 +280,6 @@ export class SettingsPageComponent {
                 errors.push(`${rule.label} must be ${rule.integer ? 'a whole number' : 'a number'} ${rule.exclusiveMinimum ? 'greater than' : 'at least'} ${rule.minimum}${rule.maximum !== undefined ? ` and at most ${rule.maximum}` : ''}.`);
             }
         }
-        if (value.runtime.backend_port === value.runtime.frontend_port) errors.push('Backend and frontend ports must be different.');
         if (value.datasets.allowed_extensions.length === 0) errors.push('Select at least one allowed file extension.');
         if (value.public_data.auto_sync_enabled && value.public_data.auto_sync_categories.length === 0) errors.push('Select at least one NIST collection before enabling automatic refresh.');
         if (value.fitting.max_iterations_upper_bound < value.fitting.default_max_iterations) errors.push('The maximum iteration ceiling must be at least the default maximum iterations.');
@@ -485,9 +470,9 @@ export class SettingsPageComponent {
 
     protected restartDescription(fields: string[]): string {
         if (fields.includes('public_data.sync_resume_on_startup')) {
-            return 'Runtime endpoint changes and recovery behavior take effect after ADSMOD restarts.';
+            return 'Interrupted public-data sync recovery changes take effect after ADSMOD restarts.';
         }
-        return 'Runtime host or port changes take effect after ADSMOD restarts.';
+        return 'Restart ADSMOD to apply the pending startup change.';
     }
 
     flushPendingChanges(): Promise<boolean> {
@@ -570,7 +555,7 @@ export class SettingsPageComponent {
                         pending_restart_fields: [...response.pending_restart_fields],
                     };
                     this.statusMessage = response.pending_restart_fields.length
-                        ? 'Saved. Other changes are applied; runtime startup settings still need a restart.'
+                        ? 'Saved. Restart ADSMOD to apply the pending startup change.'
                         : 'Saved and applied.';
                     if (refreshCatalog) {
                         try {

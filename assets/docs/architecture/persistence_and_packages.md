@@ -11,10 +11,13 @@ CI install this package and use its lockfile.
 
 ## Core persistence
 
-Core owns the active database and Alembic history under
-`app/server/migrations`. SQLite and PostgreSQL share the same schema. Startup
-accepts only an empty unversioned SQLite file or a known Alembic state; it
-never infers or silently adopts an unknown schema. The current schema includes
+Core owns the active database and its Alembic baseline under
+`app/server/migrations`. SQLite and PostgreSQL share the same schema. The
+history contains one root revision that creates the current schema for a fresh
+database. Startup accepts only an empty unversioned database or the current
+revision; it never infers or silently adopts an unknown schema. Databases stamped
+with removed historical revisions fail closed and must be recreated. Startup
+does not drop or recreate them. The current schema includes
 the `application_settings` singleton and immutable `training_snapshots` and
 `training_snapshot_rows` tables.
 
@@ -31,14 +34,13 @@ application data root, independent of either backend. The versioned file is
 validated before the database is opened and replaced atomically. Passwords
 use Windows DPAPI on Windows; elsewhere the file is restricted to mode 0600.
 Application settings and operational records have one authority: the active
-database. Switching databases never copies settings or operational data.
-Initial legacy cutover may seed the selected target once when it has no
-settings row; that migration is not repeated during runtime switching.
+database. Switching databases never copies settings or operational data. A
+missing `database.json` selects the current default SQLite configuration;
+successful fresh initialization seeds typed settings before persisting the file.
+Retired environment variables and older JSON settings files are not imported.
 
-SQLite migrations run with foreign-key enforcement disabled and must pass
-`PRAGMA foreign_key_check` before commit. Alembic batch operations rebuild a
-SQLite table by dropping the original, and with enforcement on that drop would
-cascade into child rows.
+SQLite keeps foreign-key enforcement enabled during schema initialization and
+must pass `PRAGMA foreign_key_check` before commit.
 
 SQLite transactions serialize writes within the single backend process to
 avoid lock-upgrade collisions when independent public-data runs are queued or

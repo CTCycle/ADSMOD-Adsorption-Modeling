@@ -41,9 +41,6 @@ class ApplicationSettingsRecord(Base):
     __tablename__ = "application_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    runtime_host: Mapped[str] = mapped_column(String(16), nullable=False)
-    runtime_backend_port: Mapped[int] = mapped_column(Integer, nullable=False)
-    runtime_frontend_port: Mapped[int] = mapped_column(Integer, nullable=False)
     datasets_allowed_extensions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     datasets_column_detection_cutoff: Mapped[float] = mapped_column(Float, nullable=False)
     nist_parallel_tasks: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -34,13 +35,60 @@ class RuntimeConfig(StrictModel):
     host: Literal["127.0.0.1", "localhost", "::1"] = "127.0.0.1"
     backend_port: int = Field(default=6045, ge=1024, le=65535)
     frontend_port: int = Field(default=5173, ge=1024, le=65535)
+    cors_origins: tuple[str, ...] = (
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    )
+    cors_allow_credentials: bool = True
+    cors_allow_methods: tuple[str, ...] = ("*",)
+    cors_allow_headers: tuple[str, ...] = ("*",)
+
+    @field_validator("cors_origins", "cors_allow_methods", "cors_allow_headers", mode="before")
+    @classmethod
+    def normalize_csv_values(cls, value: Any) -> tuple[str, ...]:
+        if isinstance(value, str):
+            values = value.split(",")
+        elif isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            raise ValueError("CORS settings must be a comma-separated string or a sequence")
+        return tuple(dict.fromkeys(str(item).strip() for item in values if str(item).strip()))
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_runtime(self) -> "RuntimeConfig":
         if self.backend_port == self.frontend_port:
             raise ValueError("runtime.backend_port and runtime.frontend_port must be distinct")
+        for origin in self.cors_origins:
+            try:
+                parsed = urlsplit(origin)
+                port = parsed.port
+                valid = (
+                    parsed.scheme in {"http", "https"}
+                    and bool(parsed.netloc)
+                    and parsed.hostname is not None
+                    and parsed.path == ""
+                    and not parsed.query
+                    and not parsed.fragment
+                    and parsed.username is None
+                    and parsed.password is None
+                    and (port is None or 1 <= port <= 65535)
+                )
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError(f"Invalid CORS origin: {origin}")
         return self
+
+    @property
+    def backend_url(self) -> str:
+        host = f"[{self.host}]" if ":" in self.host else self.host
+        return f"http://{host}:{self.backend_port}"
+
+    @property
+    def frontend_url(self) -> str:
+        host = f"[{self.host}]" if ":" in self.host else self.host
+        return f"http://{host}:{self.frontend_port}"
 
 ###############################################################################
 class StorageConfig(StrictModel):
@@ -202,7 +250,6 @@ class TrainingConfig(StrictModel):
 class UserSettings(StrictModel):
     """All application behavior settings editable in the console."""
 
-    runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     datasets: DatasetConfig = Field(default_factory=DatasetConfig)
     nist: NISTConfig = Field(default_factory=NISTConfig)
     public_data: PublicDataConfig = Field(default_factory=PublicDataConfig)
@@ -235,9 +282,10 @@ class AdsmodConfig(StrictModel):
         database: DatabaseConfig,
         storage_root: Path,
         settings: UserSettings,
+        runtime: RuntimeConfig | None = None,
     ) -> "AdsmodConfig":
         return cls(
-            runtime=settings.runtime,
+            runtime=runtime or RuntimeConfig(),
             storage=StorageConfig(root=storage_root),
             application=ApplicationConfig(
                 database=database,
@@ -253,7 +301,6 @@ class AdsmodConfig(StrictModel):
     # -------------------------------------------------------------------------
     def user_settings(self) -> UserSettings:
         return UserSettings(
-            runtime=self.runtime,
             datasets=self.application.datasets,
             nist=self.application.nist,
             public_data=self.application.public_data,

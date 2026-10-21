@@ -4,23 +4,20 @@ Last updated: 2026-10-21
 
 ## Settings ownership
 
-The console **Settings** page at `/settings` is the authority for application behavior. Its full-model `GET /api/v1/settings`, `PUT /api/v1/settings`, and `POST /api/v1/settings/reset` endpoints read and write one typed `application_settings` row in the active database. The API returns current values, defaults, and any pending restart fields. A full `PUT` is validated as one unit and committed atomically. A missing row is seeded from the typed defaults during initialization or the next settings read. Every non-database setting is automatically persisted after a 400 ms debounce for continuous inputs; there are no Save, Apply, or Cancel actions for these settings. Pending saves are serialized so the latest edit wins, and route navigation flushes them before leaving. The **Reset to defaults** action follows the same automatic persistence path.
+The console **Settings** page at `/settings` is the authority for application behavior. Its full-model `GET /api/v1/settings`, `PUT /api/v1/settings`, and `POST /api/v1/settings/reset` endpoints read and write one typed `application_settings` row in the active database. The API returns current values, defaults, and any pending restart fields. A full `PUT` is validated as one unit and committed atomically. A missing row is seeded from the typed defaults during initialization or the next settings read. Every non-database setting is automatically persisted after a 400 ms debounce for continuous inputs; there are no Save, Apply, or Cancel actions for these settings. Pending saves are serialized so the latest edit wins, and route navigation flushes them before leaving. The **Reset to defaults** action follows the same automatic persistence path. Runtime networking values are outside this contract and are read from `.env` or the process environment at startup.
 
-SQLite and PostgreSQL are the supported database backends. With SQLite selected, its configured file stores both application settings and operational data. With PostgreSQL selected, the selected PostgreSQL database stores both. There is no second settings database or JSON fallback after cutover. Database credentials are kept in `database.json`; passwords are never returned by the API.
+SQLite and PostgreSQL are the supported database backends. With SQLite selected, its configured file stores both application settings and operational data. With PostgreSQL selected, the selected PostgreSQL database stores both. There is no second settings database or JSON settings source. Database credentials are kept in `database.json`; passwords are never returned by the API.
 
-Settings take effect for future requests and new jobs as soon as their automatic save succeeds. Long-running fitting, public-data, training, and dataset-build work uses the configuration snapshot captured when it starts. Runtime endpoint values and startup recovery behavior are shown as restart-required when saved values differ from the running process. A failed save leaves the edited value visible with an error and retry action; invalid values are not submitted. The UI shows a quiet saved status after successful persistence.
+Settings take effect for future requests and new jobs as soon as their automatic save succeeds. Long-running fitting, public-data, training, and dataset-build work uses the configuration snapshot captured when it starts. Only startup recovery behavior is reported as restart-required when it differs from the running process. A failed save leaves the edited value visible with an error and retry action; invalid values are not submitted. The UI shows a quiet saved status after successful persistence.
 
 The **Database** tab stores only the selected backend and connection parameters in `database.json` in the ADSMOD data directory. Editing the form does not persist or switch databases. The explicit **Test connection** and **Switch database** actions validate the candidate before applying it; a failed switch restores the prior database configuration and runtime services. The file is read before the application database is opened, schema-validated, and written with an atomic replacement. Windows protects the password with DPAPI; other platforms store it in a mode-`0600` file. The API omits the password and reports only whether one is configured.
 
-Database switching is performed in the running backend after the candidate connection and Alembic schema are checked. Switching is rejected while a job or public-data sync is active, and ordinary requests and database sessions are drained before the engine is replaced. If validation or activation fails, the old runtime services and `database.json` selection are restored. The selected database's own settings row is loaded immediately; settings and operational data are not copied. Host and listener port changes still require a restart because they bind the backend and frontend processes.
+Database switching is performed in the running backend after the candidate connection and Alembic schema are checked. Switching is rejected while a job or public-data sync is active, and ordinary requests and database sessions are drained before the engine is replaced. If validation or activation fails, the old runtime services and `database.json` selection are restored. The selected database's own settings row is loaded immediately; settings and operational data are not copied.
 
 ## Complete UI mapping
 
 | Settings page | Stored field | Control and default | Effect and restart requirement |
 | --- | --- | --- | --- |
-| Runtime | `runtime.host` | Loopback selector; `127.0.0.1` | Backend listener, frontend launch, and proxy target after restart. Loopback values only. **Restart.** |
-| Runtime | `runtime.backend_port` | Integer input; `6045` | Backend API port after restart; valid range 1024–65535. Must differ from the frontend port. **Restart.** |
-| Runtime | `runtime.frontend_port` | Integer input; `5173` | Console port after restart; valid range 1024–65535. Must differ from the backend port. **Restart.** |
 | Data import | `datasets.allowed_extensions` | Checkbox group; `.csv`, `.xls`, `.xlsx` | Controls parser acceptance, upload capabilities, and the file picker immediately. At least one supported extension must remain selected. |
 | Data import | `datasets.column_detection_cutoff` | Slider, 0–1; `0.6` | Low-confidence column suggestions are left for manual mapping; experiment grouping suggestions use the same threshold. Immediate. |
 | Data import | `fitting.preview_row_limit` | Integer input, 1–500; `20` | Caps raw source rows returned by import preview. Immediate. |
@@ -55,26 +52,34 @@ Database switching is performed in the running backend after the candidate conne
 
 Fitting defaults are also projected through `/api/v1/system/configuration`; training defaults, including `persistent_workers`, are projected through `/api/v1/training/configuration` when the optional ML profile is available. These endpoints are read-only views of the same saved settings. The unused `insert_batch_size` control was removed because no application behavior consumed it.
 
-## Database and path bootstrap exception
+## Runtime networking environment
 
-The only database-related value read from `settings/.env` or the process environment during normal startup is `ADSMOD_STORAGE_ROOT`, which locates the data directory before `database.json` can be read. Process environment values take precedence over `.env`. No database backend or connection value is loaded from the environment after the one-time legacy migration.
+Runtime networking is configured in `settings/.env` or the process environment. Process environment values take precedence over `.env`. Browser code continues to call the same-origin `/api/v1`; the development proxy and packaged preview proxy use the backend URL derived from the configured host and backend port. The launcher uses the same typed runtime configuration for its backend readiness check and frontend URL.
+
+| Key | Default | Purpose and validation |
+| --- | --- | --- |
+| `ADSMOD_HOST` | `127.0.0.1` | Shared backend/frontend loopback bind host. Allowed values: `127.0.0.1`, `localhost`, or `::1`. |
+| `ADSMOD_BACKEND_PORT` | `6045` | Backend listener and proxy target port; integer from 1024 to 65535 and distinct from the frontend port. |
+| `ADSMOD_FRONTEND_PORT` | `5173` | Frontend listener port used by the development server and Windows launcher preview; integer from 1024 to 65535 and distinct from the backend port. |
+| `ADSMOD_CORS_ORIGINS` | Derived from host and frontend port | Optional comma-separated list of HTTP(S) origins. When omitted, includes the configured host, `127.0.0.1`, and `localhost` at the frontend port. |
+| `ADSMOD_CORS_ALLOW_CREDENTIALS` | `true` | Whether cross-origin requests may include credentials. |
+| `ADSMOD_CORS_ALLOW_METHODS` | `*` | Comma-separated methods allowed by backend CORS middleware. |
+| `ADSMOD_CORS_ALLOW_HEADERS` | `*` | Comma-separated headers allowed by backend CORS middleware. |
+
+Runtime values are not shown in Settings, accepted by the settings API, or stored in `application_settings`. The fresh database schema contains no runtime host or port columns; configure non-default endpoints in `.env` or the process environment.
+
+## Data path bootstrap
+
+`ADSMOD_STORAGE_ROOT` locates the data directory before `database.json` can be read. It can be set in `settings/.env` or the process environment; process environment takes precedence. Database backend and connection values are read only from `database.json`; retired database environment keys are ignored and removed from `.env` and the process environment.
 
 | Key | Default | Purpose and validation |
 | --- | --- | --- |
 | `ADSMOD_STORAGE_ROOT` | `%LOCALAPPDATA%/ADSMOD` (or the user local-data directory fallback) | Root containing `database.json`, the selected SQLite file when SQLite is active, logs, and training artifacts. Relative database paths resolve below this root. |
 
-All connection fields are in `database.json`: backend; SQLite file path and connection timeout; or PostgreSQL engine, host, port, database name, username, password, TLS/CA, and connection timeout. `settings/.env.example` contains no database connection variables. Database settings can be changed in the running UI; only the storage root itself is a startup setting.
+All connection fields are in `database.json`: backend; SQLite file path and connection timeout; or PostgreSQL engine, host, port, database name, username, password, TLS/CA, and connection timeout. `settings/.env.example` contains no database connection variables. Database settings can be changed in the running UI; storage root and runtime networking are startup configuration.
 
-## One-time migration from legacy installations
+## Fresh database setup
 
-When `database.json` is absent, first startup makes one cutover attempt. It reads legacy database values from the old environment variables or `data/adsmod.json`, writes the dedicated database file, and removes the old database keys from `.env` and the process environment after the file is saved. It then preserves an existing `application_settings` row in the selected database. If the selected target has no settings row, a legacy SQLite settings row or `data/adsmod.json` application settings are imported once; otherwise typed defaults seed the target. A later database switch never repeats this import or copies settings between stores.
+When `database.json` is absent, ADSMOD selects the current default SQLite configuration. Startup initializes an empty database with the current schema, seeds typed application settings, and then writes `database.json`. Retired database environment values and old `data/adsmod.json` files are not imported. Per-training checkpoint `configuration.json` files remain run artifacts and are unrelated to global settings.
 
-The explicit importer remains available for a controlled migration:
-
-```powershell
-Push-Location .\app
-& .\server\.venv\Scripts\python.exe -m scripts.import_legacy_configuration --legacy-config ..\data\adsmod.json
-Pop-Location
-```
-
-This is a migration command only. Once `database.json` exists, normal startup and runtime services do not load database configuration or application settings from legacy environment variables or `data/adsmod.json`. Per-training checkpoint `configuration.json` files remain run artifacts and are unrelated to global settings.
+The migration package contains one root revision for the current schema. Existing databases stamped with a historical revision are rejected and must be recreated for use with this version. Startup never drops or recreates an existing database automatically, so it does not delete user data.

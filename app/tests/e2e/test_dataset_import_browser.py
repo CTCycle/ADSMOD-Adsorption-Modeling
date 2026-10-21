@@ -15,6 +15,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CSV_FIXTURE = REPOSITORY_ROOT / "assets" / "QA" / "adsmod-dataset-csv-20260916.csv"
 FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
 
+
 ###############################################################################
 def _browser_errors(page: Page) -> tuple[list[str], list[str], list[str]]:
     console_errors: list[str] = []
@@ -22,20 +23,21 @@ def _browser_errors(page: Page) -> tuple[list[str], list[str], list[str]]:
     api_errors: list[str] = []
     page.on(
         "console",
-        lambda message: console_errors.append(message.text)
-        if message.type == "error"
-        else None,
+        lambda message: (
+            console_errors.append(message.text) if message.type == "error" else None
+        ),
     )
     page.on("pageerror", lambda error: page_errors.append(str(error)))
     page.on(
         "response",
-        lambda response: api_errors.append(
-            f"{response.status} {response.url}"
-        )
-        if "/api/v1/datasets" in response.url and response.status >= 400
-        else None,
+        lambda response: (
+            api_errors.append(f"{response.status} {response.url}")
+            if "/api/v1/datasets" in response.url and response.status >= 400
+            else None
+        ),
     )
     return console_errors, page_errors, api_errors
+
 
 ###############################################################################
 def _import_inspect_reload_and_delete(
@@ -68,41 +70,55 @@ def _import_inspect_reload_and_delete(
     expect(wizard).to_be_hidden()
 
     page.reload()
-    dataset_card = page.locator(".dataset-record").filter(has_text=dataset_name)
-    expect(dataset_card).to_be_visible()
-    expect(dataset_card).to_contain_text("2 experiments")
-    expect(dataset_card).to_contain_text("6 observations")
-    dataset_card.get_by_role("button", name="Select").click()
+    dataset_row = (
+        page.get_by_role("table", name="Workspace datasets")
+        .get_by_role("row")
+        .filter(has_text=dataset_name)
+    )
+    expect(dataset_row).to_be_visible()
+    expect(dataset_row.locator("td").nth(2)).to_have_text("2")
+    expect(dataset_row.locator("td").nth(3)).to_have_text("6")
+    dataset_row.get_by_role("button", name=f"Open {dataset_name}").click()
     expect(page.get_by_text("Detected columns", exact=True)).to_be_visible()
-    expect(page.locator(".dataset-experiment")).to_have_count(2)
+    experiments = page.locator(".dataset-experiments-table tbody tr")
+    expect(experiments).to_have_count(2)
 
-    page.locator(".dataset-experiment").nth(1).click()
+    experiments.nth(1).get_by_role("button", name="Inspect").click()
     expect(page.get_by_text("3 rows", exact=True)).to_be_visible()
     expect(
-        page.get_by_role("table", name="Persisted observations").locator(
-            "tbody tr"
-        )
+        page.get_by_role("table", name="Persisted observations").locator("tbody tr")
     ).to_have_count(3)
 
     page.reload()
-    dataset_card = page.locator(".dataset-record").filter(has_text=dataset_name)
-    expect(dataset_card).to_be_visible()
-    dataset_card.get_by_role("button", name="Select").click()
+    dataset_row = (
+        page.get_by_role("table", name="Workspace datasets")
+        .get_by_role("row")
+        .filter(has_text=dataset_name)
+    )
+    expect(dataset_row).to_be_visible()
+    dataset_row.get_by_role("button", name=f"Open {dataset_name}").click()
     expect(page.get_by_text("Detected columns", exact=True)).to_be_visible()
-    expect(page.locator(".dataset-experiment")).to_have_count(2)
+    expect(page.locator(".dataset-experiments-table tbody tr")).to_have_count(2)
 
     with page.expect_response(
-        lambda response: response.request.method == "DELETE"
-        and "/api/v1/datasets/" in response.url
+        lambda response: (
+            response.request.method == "DELETE" and "/api/v1/datasets/" in response.url
+        )
     ) as delete_response:
-        dataset_card.get_by_role("button", name="Delete").click()
+        dataset_row.get_by_role("button", name=f"Delete {dataset_name}").click()
+        dialog = page.get_by_role("alertdialog", name="Delete dataset?")
+        expect(dialog).to_be_visible()
+        dialog.get_by_role("button", name="Delete dataset").click()
     assert delete_response.value.status == 204
-    expect(dataset_card).to_be_hidden()
+    expect(dataset_row).to_be_hidden()
 
     page.reload()
     expect(
-        page.locator(".dataset-record").filter(has_text=dataset_name)
+        page.get_by_role("table", name="Workspace datasets")
+        .get_by_role("row")
+        .filter(has_text=dataset_name)
     ).to_have_count(0)
+
 
 ###############################################################################
 def test_csv_import_persists_inspection_experiment_switch_and_deletion(
@@ -121,6 +137,7 @@ def test_csv_import_persists_inspection_experiment_switch_and_deletion(
     assert not console_errors, "\n".join(console_errors)
     assert not page_errors, "\n".join(page_errors)
     assert not api_errors, "\n".join(api_errors)
+
 
 ###############################################################################
 @pytest.mark.parametrize("extension", [".xls", ".xlsx"])

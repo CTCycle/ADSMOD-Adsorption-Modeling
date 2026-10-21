@@ -189,7 +189,6 @@ The Overview endpoint returns aggregate counts and acquisition summaries from lo
 - NIST gives some species a placeholder identifier (`NIST-ISODB-...`) instead of an InChIKey. It identifies the NIST record and the canonical row key, but it is never stored as an InChIKey.
 - NIST catalogue records keep their published formula and InChI. Re-importing never clears a stored value with a missing one.
 - PubChem attaches to an existing chemical only by CID link, exact InChIKey, an explicit `adsorbate_id`, or a PubChem synonym that matches exactly one stored compound. A conflicting InChIKey or a CID already linked elsewhere is rejected.
-- The `20261020_public_data_nav` migration merges NIST rows created by display name into the matching NIST catalogue row. It merges only when the row has no identifier or provenance of its own, is used solely by NIST isotherms, and matches exactly one catalogue row. It also removes placeholder source records from the earlier backfill and adds indexes for the list filters.
 
 ## Durable acquisition runs
 

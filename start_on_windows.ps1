@@ -37,7 +37,6 @@ $PlaywrightCacheDir = Join-Path $RuntimeCacheDir "playwright"
 $CoverageDir = Join-Path $RuntimeCacheDir "coverage"
 $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
-$script:CacheScanErrors = [Collections.Generic.List[string]]::new()
 $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:BackendProcess = $null
 $script:FrontendProcess = $null
@@ -475,26 +474,29 @@ function Import-Settings {
     Push-Location $RepoRoot
     try {
         $runtimeOutput = @(& $UvExe run --project $BackendDir --python $PythonExe python -m server.runtime_config --json 2>&1)
-        Assert-LastExitCode "loading database runtime settings"
+        Assert-LastExitCode "loading environment runtime settings"
     } finally {
         Pop-Location
     }
     $runtimeLine = @($runtimeOutput | ForEach-Object { [string]$_ } | Where-Object { $_.StartsWith('ADSMOD_RUNTIME:') } | Select-Object -Last 1)
-    if ($runtimeLine.Count -ne 1) { throw "Database runtime settings did not return a valid local endpoint." }
-    try { $runtime = $runtimeLine[0].Substring('ADSMOD_RUNTIME:'.Length) | ConvertFrom-Json } catch { throw "Database runtime settings returned invalid data." }
+    if ($runtimeLine.Count -ne 1) { throw "Environment runtime settings did not return a valid local endpoint." }
+    try { $runtime = $runtimeLine[0].Substring('ADSMOD_RUNTIME:'.Length) | ConvertFrom-Json } catch { throw "Environment runtime settings returned invalid data." }
     $runtimeHost = [string]$runtime.host
     $backendPort = [int]$runtime.backend_port
     $frontendPort = [int]$runtime.frontend_port
     if ($runtimeHost -notin @('127.0.0.1', 'localhost', '::1') -or $backendPort -lt 1024 -or $backendPort -gt 65535 -or $frontendPort -lt 1024 -or $frontendPort -gt 65535 -or $backendPort -eq $frontendPort) {
-        throw "Database runtime settings contain an invalid local endpoint."
+        throw "Environment runtime settings contain an invalid local endpoint."
     }
+    $backendUrl = [string]$runtime.backend_url
+    $frontendUrl = [string]$runtime.frontend_url
+    if (-not $backendUrl -or -not $frontendUrl) { throw "Environment runtime settings returned incomplete endpoint URLs." }
     $script:DataDir = [System.IO.Path]::GetFullPath([string]$runtime.storage_root)
     $script:LogDir = Join-Path $script:DataDir "logs"
     $script:CheckpointsDir = Join-Path $script:DataDir "checkpoints"
     $script:DatabasePath = if ($runtime.database_path) { [System.IO.Path]::GetFullPath([string]$runtime.database_path) } else { $null }
     $script:EmbeddedDatabase = ([string]$runtime.database_backend -eq 'sqlite')
     [Environment]::SetEnvironmentVariable('ADSMOD_PYTHON', $VenvPython, 'Process')
-    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = $backendPort; FrontendPort = $frontendPort; StorageRoot = $script:DataDir; DatabasePath = $script:DatabasePath; EmbeddedDatabase = $script:EmbeddedDatabase }
+    return [pscustomobject]@{ Host = $runtimeHost; BackendPort = $backendPort; FrontendPort = $frontendPort; BackendUrl = $backendUrl; FrontendUrl = $frontendUrl; StorageRoot = $script:DataDir; DatabasePath = $script:DatabasePath; EmbeddedDatabase = $script:EmbeddedDatabase }
 }
 
 function Set-RuntimeEnvironment {
@@ -1363,13 +1365,13 @@ function Start-Application {
     $backendArguments = @('-m', 'server.cli')
     Write-Step "Starting ADSMOD backend"
     $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
-    $healthUrl = "http://$($settings.Host):$($settings.BackendPort)/health/ready"
+    $healthUrl = "$($settings.BackendUrl)/health/ready"
     Write-Step "Waiting for backend readiness at $healthUrl"
     try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process $script:BackendProcess } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
     Write-Step "Starting frontend preview"
     $previewScript = Join-Path $ClientDir 'scripts\preview-serve.mjs'
     $script:FrontendProcess = Start-Process -FilePath $NodeExe -ArgumentList @((('"{0}"' -f $previewScript)), '--host', $settings.Host, '--port', $settings.FrontendPort) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
-    $frontendUrl = "http://$($settings.Host):$($settings.FrontendPort)"
+    $frontendUrl = $settings.FrontendUrl
     try { Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process $script:FrontendProcess } catch { Stop-OwnedProcess -Process $script:FrontendProcess -Name 'frontend'; $script:FrontendProcess = $null; Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
     Start-Process -FilePath 'explorer.exe' -ArgumentList $frontendUrl
     Write-Host ""
@@ -1475,104 +1477,14 @@ function Remove-Logs {
     Write-Ok "Log files removed."
 }
 
-function Get-RepositoryDirectories {
-    param([Parameter(Mandatory)][string]$Root)
-    $pending = [Collections.Generic.Stack[string]]::new()
-    [void]$pending.Push($Root)
-    while ($pending.Count -gt 0) {
-        $current = $pending.Pop()
-        $enumerationErrors = @()
-        $children = @(Get-ChildItem -LiteralPath $current -Directory -Force -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors)
-        foreach ($errorRecord in $enumerationErrors) {
-            $message = "$current ($($errorRecord.Exception.Message))"
-            [void]$script:CacheScanErrors.Add($message)
-            Write-Warn "Unable to inspect repository directory '$current': $($errorRecord.Exception.Message)"
-        }
-        foreach ($child in $children) {
-            $fullPath = [System.IO.Path]::GetFullPath($child.FullName)
-            if ($child.Name -in @('.git', 'node_modules', '.venv', 'runtimes')) { continue }
-            if (($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { continue }
-            $fullPath
-            [void]$pending.Push($fullPath)
-        }
-    }
-}
-
-function Get-LegacyCachePaths {
-    $canonicalPrefix = [System.IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\') + '\'
-    $appPrefix = [System.IO.Path]::GetFullPath($AppDir).TrimEnd('\') + '\'
-    $legacyNames = @(
-        '__pycache__',
-        '.pytest_cache',
-        '.ruff_cache',
-        '.mypy_cache',
-        '.uv-cache',
-        '.angular',
-        '.startup-temp',
-        '.cache'
-    )
-    $candidates = [Collections.Generic.List[string]]::new()
-    $searchRoots = @($RepoRoot, $AppDir)
-    foreach ($searchRoot in $searchRoots) {
-        if (-not (Test-Path -LiteralPath $searchRoot -PathType Container)) { continue }
-        foreach ($fullPath in @(Get-RepositoryDirectories -Root $searchRoot)) {
-            if ($fullPath.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
-            $name = [System.IO.Path]::GetFileName($fullPath)
-            $isLegacyName = $name -in $legacyNames -or $name -like '.pytest-*'
-            $isApplicationPath = $fullPath.StartsWith($appPrefix, [StringComparison]::OrdinalIgnoreCase)
-            $isLegacyCacheRoot = $name -eq 'cache' -and $isApplicationPath
-            $isLegacyCoverageRoot = $name -in @('coverage', 'htmlcov') -and $isApplicationPath
-            if ($isLegacyName -or $isLegacyCacheRoot -or $isLegacyCoverageRoot) {
-                [void]$candidates.Add($fullPath)
-            }
-        }
-    }
-    return @($candidates | Sort-Object @{ Expression = { $_.Length }; Descending = $true }, @{ Expression = { $_.ToUpperInvariant() }; Descending = $false } -Unique)
-}
-
-function Get-LegacyCacheFiles {
-    $canonicalPrefix = [System.IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\') + '\'
-    $files = [Collections.Generic.List[string]]::new()
-    if (-not (Test-Path -LiteralPath $RepoRoot -PathType Container)) { return @() }
-    foreach ($directory in @($RepoRoot) + @(Get-RepositoryDirectories -Root $RepoRoot)) {
-        $fullDirectory = [System.IO.Path]::GetFullPath($directory)
-        if ($fullDirectory.StartsWith($canonicalPrefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
-        $entries = @(Get-ChildItem -LiteralPath $fullDirectory -File -Force -ErrorAction SilentlyContinue)
-        foreach ($entry in $entries) {
-            if ($entry.Name -eq '.coverage' -or $entry.Name -like '.coverage.*' -or $entry.Extension -in @('.pyc', '.pyo')) {
-                [void]$files.Add([System.IO.Path]::GetFullPath($entry.FullName))
-            }
-        }
-    }
-    return @($files | Sort-Object -Unique)
-}
-
 function Clear-Cache {
     if (-not (Confirm-DestructiveAction 'clear runtime and test-tool caches')) { return }
     Write-Step "Clearing runtime and test-tool caches"
-    $script:CacheScanErrors.Clear()
     $failures = [Collections.Generic.List[string]]::new()
     try {
         [void](Remove-LauncherPath -Path $RuntimeCacheDir -KeepRoot -PreserveNames @('.gitkeep', 'CACHEDIR.TAG') -Strict -Activity 'ADSMOD: clear canonical cache')
     } catch {
         [void]$failures.Add("${RuntimeCacheDir}: $($_.Exception.Message)")
-    }
-    foreach ($legacyPath in @(Get-LegacyCachePaths)) {
-        try {
-            [void](Remove-LauncherPath -Path $legacyPath -Strict -Activity "ADSMOD: remove legacy cache $([IO.Path]::GetFileName($legacyPath))")
-        } catch {
-            [void]$failures.Add("${legacyPath}: $($_.Exception.Message)")
-        }
-    }
-    foreach ($legacyFile in @(Get-LegacyCacheFiles)) {
-        try {
-            [void](Remove-LauncherPath -Path $legacyFile -Strict -Activity "ADSMOD: remove legacy cache artifact $([IO.Path]::GetFileName($legacyFile))")
-        } catch {
-            [void]$failures.Add("${legacyFile}: $($_.Exception.Message)")
-        }
-    }
-    foreach ($scanError in @($script:CacheScanErrors | Sort-Object -Unique)) {
-        [void]$failures.Add("Cache discovery: $scanError")
     }
     Ensure-CacheLayout
     if ($failures.Count -gt 0) {
@@ -1600,12 +1512,6 @@ function Uninstall-Application {
     )
     foreach ($path in $paths) {
         Remove-RepoPath $path
-    }
-    foreach ($legacyPath in @(Get-LegacyCachePaths)) {
-        Remove-RepoPath $legacyPath
-    }
-    foreach ($legacyFile in @(Get-LegacyCacheFiles)) {
-        Remove-RepoPath $legacyFile
     }
     Write-Ok "Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved."
 }

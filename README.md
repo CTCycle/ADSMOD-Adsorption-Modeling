@@ -46,7 +46,7 @@ Choose **Launch Application**. On first use, the launcher may download runtimes 
 
 ## Configuration
 
-Application behavior settings are managed on the console's **Settings** page and stored in the active SQLite or PostgreSQL database. The Database tab stores backend connection details separately in `database.json` under the ADSMOD data directory. `settings/.env` may set the storage root; it contains no database connection values. Host and port changes require an ADSMOD restart. See [runtime configuration](assets/docs/runtime/configuration.md) for the complete field mapping, switching limits, and legacy migration details.
+Application behavior settings are managed on the console's **Settings** page and stored in the active SQLite or PostgreSQL database. The Database tab stores backend connection details separately in `database.json` under the ADSMOD data directory. `settings/.env` may set the storage root and runtime networking; it contains no database connection values. Host and port changes require an ADSMOD restart. A missing `database.json` selects the default SQLite configuration, and first startup creates the current schema and seeds default settings. Historical database revisions are rejected and must be recreated; startup does not delete existing databases. See [runtime configuration](assets/docs/runtime/configuration.md) for field mapping and switching limits.
 
 ## Documentation
 
