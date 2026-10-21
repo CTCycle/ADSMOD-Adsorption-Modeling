@@ -9,6 +9,7 @@ from server.configurations.runtime import load_runtime_configuration
 from server.common.utils.logger import logger
 
 
+###############################################################################
 def main() -> int:
     started_at = time.perf_counter()
     runtime = load_runtime_configuration()

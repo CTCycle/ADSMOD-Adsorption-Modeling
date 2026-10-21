@@ -81,6 +81,7 @@ class TrainingConfigRequest(BaseModel):
         pattern=REGEX_NAME,
     )
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_persistent_workers(self) -> "TrainingConfigRequest":
         if self.persistent_workers and self.dataloader_workers < 1:

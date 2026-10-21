@@ -34,7 +34,6 @@ from server.services.providers import PROVIDER_CLASSES
 
 PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
 
-
 ###############################################################################
 def _database(path: Path) -> DatabaseManager:
     manager = DatabaseManager(
@@ -46,7 +45,6 @@ def _database(path: Path) -> DatabaseManager:
     )
     Base.metadata.create_all(manager.engine)
     return manager
-
 
 ###############################################################################
 class _Provider(PublicDataProvider):
@@ -65,7 +63,6 @@ class _Provider(PublicDataProvider):
             status="available", detail=None, checked_at=datetime.now(timezone.utc)
         )
 
-
 ###############################################################################
 class _Nist:
 
@@ -73,7 +70,6 @@ class _Nist:
     async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
         del kwargs
         raise NotImplementedError
-
 
 ###############################################################################
 async def _wait_for_terminal(
@@ -85,7 +81,6 @@ async def _wait_for_terminal(
             return run
         await asyncio.sleep(0.01)
     raise AssertionError(f"Sync run {run_id} did not reach a terminal state.")
-
 
 ###############################################################################
 def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
@@ -169,7 +164,6 @@ def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
 
     asyncio.run(scenario())
 
-
 ###############################################################################
 def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
     async def scenario() -> None:
@@ -218,7 +212,6 @@ def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
             manager.dispose()
 
     asyncio.run(scenario())
-
 
 ###############################################################################
 def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
@@ -272,7 +265,6 @@ def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
             manager.dispose()
 
     asyncio.run(scenario())
-
 
 ###############################################################################
 def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -> None:
@@ -332,7 +324,6 @@ def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -
 
     asyncio.run(scenario())
 
-
 ###############################################################################
 def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
     valid = PublicDataSyncCreateRequest.model_validate(
@@ -356,7 +347,6 @@ def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
         except ValueError:
             continue
         raise AssertionError("Invalid COD batch request was accepted.")
-
 
 ###############################################################################
 def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -> None:
@@ -385,7 +375,6 @@ def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -
         assert all(run["status"] == "queued" for run in runs)
     finally:
         manager.dispose()
-
 
 ###############################################################################
 def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
@@ -474,7 +463,6 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
 
     asyncio.run(scenario())
 
-
 ###############################################################################
 def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
     tmp_path: Path,
@@ -541,7 +529,6 @@ def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
             await public_data.close()
             manager.dispose()
 
-
 ###############################################################################
 def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path) -> None:
     manager = _database(tmp_path)
@@ -571,7 +558,6 @@ def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path)
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def test_pubchem_request_budget_is_shared_across_provider_instances(
     monkeypatch,
@@ -595,7 +581,6 @@ def test_pubchem_request_budget_is_shared_across_provider_instances(
 
     asyncio.run(scenario())
     assert delays == [0.22]
-
 
 ###############################################################################
 def test_optional_scheduler_enqueues_only_configured_nist_collections(
@@ -630,7 +615,6 @@ def test_optional_scheduler_enqueues_only_configured_nist_collections(
     assert [run["parameters"]["category"] for run in scheduled] == ["guest", "host"]
     assert all(run["parameters"]["fraction"] == 0.5 for run in scheduled)
     assert all(run["parameters"]["trigger"] == "scheduled" for run in scheduled)
-
 
 ###############################################################################
 def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
@@ -681,7 +665,6 @@ def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
         "failures": 0,
     }
 
-
 ###############################################################################
 def test_nist_streaming_client_rejects_oversized_response() -> None:
 
@@ -719,7 +702,6 @@ def test_nist_streaming_client_rejects_oversized_response() -> None:
         is None
     )
     assert client.request_statistics()["failures"] == 1
-
 
 ###############################################################################
 def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -784,7 +766,6 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
             {"Range": "bytes=0-0"},
         )
     ]
-
 
 ###############################################################################
 def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:

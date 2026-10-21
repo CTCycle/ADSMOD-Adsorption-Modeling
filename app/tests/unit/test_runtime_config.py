@@ -13,6 +13,7 @@ from server.runtime_config import build_runtime_record
 import server.runtime_config as runtime_config
 
 
+###############################################################################
 def test_runtime_endpoint_record_uses_settings_loaded_from_the_database_config(
     tmp_path: Path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]

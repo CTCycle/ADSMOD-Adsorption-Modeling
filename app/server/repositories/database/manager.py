@@ -50,6 +50,7 @@ def resolve_sqlite_path(
 class _LeasedSession(Session):
     _release_lease: Any | None = None
 
+    # -------------------------------------------------------------------------
     def close(self) -> None:
         try:
             super().close()
@@ -60,10 +61,14 @@ class _LeasedSession(Session):
                 release()
 
 
+###############################################################################
 class _SessionFactory:
+
+    # -------------------------------------------------------------------------
     def __init__(self, manager: "DatabaseManager") -> None:
         self.manager = manager
 
+    # -------------------------------------------------------------------------
     def __call__(self) -> Session:
         manager = self.manager
         with manager._lease_condition:
@@ -79,13 +84,13 @@ class _SessionFactory:
             raise
 
 
+###############################################################################
 @dataclass
 class DatabaseSnapshot:
     database: DatabaseConfig
     backend: str
     transaction_lock: Any
     engine: Engine
-
 
 ###############################################################################
 class DatabaseManager:
@@ -118,6 +123,7 @@ class DatabaseManager:
         self._session_maker = self._create_session_maker()
         self.session_factory = _SessionFactory(self)
 
+    # -------------------------------------------------------------------------
     def _create_session_maker(self):
         return sessionmaker(
             bind=self.engine,
@@ -126,20 +132,24 @@ class DatabaseManager:
             class_=_LeasedSession,
         )
 
+    # -------------------------------------------------------------------------
     def _release_session(self) -> None:
         with self._lease_condition:
             self._active_sessions -= 1
             self._lease_condition.notify_all()
 
+    # -------------------------------------------------------------------------
     def close_admission(self) -> None:
         with self._lease_condition:
             self._accepting_sessions = False
 
+    # -------------------------------------------------------------------------
     def open_admission(self) -> None:
         with self._lease_condition:
             self._accepting_sessions = True
             self._lease_condition.notify_all()
 
+    # -------------------------------------------------------------------------
     def wait_until_idle(self, timeout: float) -> bool:
         deadline = time.monotonic() + timeout
         with self._lease_condition:
@@ -150,6 +160,7 @@ class DatabaseManager:
                 self._lease_condition.wait(remaining)
             return True
 
+    # -------------------------------------------------------------------------
     def adopt(self, candidate: "DatabaseManager") -> DatabaseSnapshot:
         """Atomically replace this stable manager's engine after admission closes."""
         if not self.wait_until_idle(0):
@@ -172,6 +183,7 @@ class DatabaseManager:
             self._session_maker = self._create_session_maker()
         return previous
 
+    # -------------------------------------------------------------------------
     def restore(self, snapshot: DatabaseSnapshot) -> Engine:
         """Restore the old connection after a failed runtime activation."""
         with self._lease_condition:

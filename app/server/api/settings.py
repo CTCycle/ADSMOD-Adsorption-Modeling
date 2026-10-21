@@ -30,9 +30,11 @@ RESTART_REQUIRED_FIELDS = (
 )
 
 
+###############################################################################
 class SettingsUpdateRequest(UserSettings):
     """Full settings replacement; partial updates are intentionally rejected."""
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="before")
     @classmethod
     def require_full_settings_payload(cls, value: Any) -> Any:
@@ -57,6 +59,7 @@ class SettingsUpdateRequest(UserSettings):
         return value
 
 
+###############################################################################
 class SettingsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -68,15 +71,18 @@ class SettingsResponse(BaseModel):
     pending_restart_fields: tuple[str, ...]
 
 
+###############################################################################
 def _store(request: Request) -> ApplicationSettingsStore:
     return request.app.state.settings_store
 
 
+###############################################################################
 def _current_settings(request: Request) -> UserSettings:
     runtime = request.app.state.runtime
     return _store(request).initialize(runtime.config.user_settings())
 
 
+###############################################################################
 def _response(request: Request, current: UserSettings) -> dict[str, Any]:
     runtime = request.app.state.runtime
     startup_runtime = runtime.startup_runtime
@@ -98,6 +104,7 @@ def _response(request: Request, current: UserSettings) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def _apply(request: Request, settings: UserSettings) -> None:
     runtime = request.app.state.runtime
     config = AdsmodConfig.assemble(
@@ -113,6 +120,7 @@ def _apply(request: Request, settings: UserSettings) -> None:
         ml_container.apply_settings(config)
 
 
+###############################################################################
 async def _save_and_apply(request: Request, settings: UserSettings) -> UserSettings:
     store = _store(request)
     runtime = request.app.state.runtime
@@ -136,6 +144,7 @@ async def _save_and_apply(request: Request, settings: UserSettings) -> UserSetti
     return saved
 
 
+###############################################################################
 def create_settings_router() -> APIRouter:
     router = APIRouter(prefix="/settings", tags=["settings"])
 

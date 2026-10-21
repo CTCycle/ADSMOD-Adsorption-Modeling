@@ -12,6 +12,7 @@ _registry_lock = Lock()
 _write_locks: dict[str, RLock] = {}
 
 
+###############################################################################
 def sqlite_write_lock(path: Path | str) -> RLock:
     if str(path) == ":memory:":
         key = f":memory:{id(path)}"

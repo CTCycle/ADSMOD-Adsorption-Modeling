@@ -12,6 +12,7 @@ from server.repositories.database.manager import resolve_sqlite_path
 OUTPUT_MARKER = "ADSMOD_RUNTIME:"
 
 
+###############################################################################
 def build_runtime_record() -> dict[str, object]:
     runtime = load_runtime_configuration(initialize_database=False)
     database = runtime.config.application.database
@@ -33,6 +34,7 @@ def build_runtime_record() -> dict[str, object]:
         runtime.settings_store.database.dispose()
 
 
+###############################################################################
 def main() -> int:
     parser = argparse.ArgumentParser(description="Read ADSMOD runtime settings from the active database.")
     parser.add_argument("--json", action="store_true", help="Write a machine-readable runtime record.")

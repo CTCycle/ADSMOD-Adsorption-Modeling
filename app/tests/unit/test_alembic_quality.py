@@ -42,7 +42,6 @@ def test_packaged_history_has_one_head_and_no_pending_operations(tmp_path) -> No
     finally:
         manager.dispose()
 
-
 ###############################################################################
 def test_public_data_migration_preserves_existing_source_records(tmp_path) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "populated-before-public-sync.db"
@@ -107,7 +106,6 @@ def test_public_data_migration_preserves_existing_source_records(tmp_path) -> No
             "SELECT last_successful_sync_at FROM data_sources WHERE key = 'legacy-test-source'"
         ).fetchone()[0] is None
     assert result.after == (result.head,)
-
 
 ###############################################################################
 def test_public_data_navigation_migration_merges_nist_identities(tmp_path) -> None:  # type: ignore[no-untyped-def]
