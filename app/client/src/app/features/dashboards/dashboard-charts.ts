@@ -5,7 +5,6 @@ import type { EChartsCoreOption } from 'echarts/core';
 import type { FacetCount, HistogramBin, IsothermSeries, UptakeAtPressureRow } from '../../models/analytics.model';
 
 export type ColorBy = 'temperature' | 'material' | 'adsorbate' | 'dataset';
-export type GroupBy = 'material' | 'adsorbate';
 
 // Distinguishable categorical hues and a cold-to-hot ramp for temperature.
 export const CATEGORICAL_PALETTE = ['#2563eb', '#d97706', '#059669', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#475569', '#ea580c'];
@@ -95,14 +94,17 @@ export function buildIsothermOption(series: IsothermSeries[], options: IsothermC
         dataZoom: [{ type: 'inside', xAxisIndex: 0, filterMode: 'none' }, { type: 'inside', yAxisIndex: 0, filterMode: 'none' }],
         xAxis: valueAxis(`Pressure (${pressureLabel(options.pressureUnit)})`, options.logPressure),
         yAxis: valueAxis(uptakeUnits.length === 1 ? `Uptake (${uptakeUnits[0]})` : 'Uptake (mixed units, see warnings)', false),
-        series: series.map((item) => {
+        series: series.map((item, index) => {
+            // A single shared temperature carries no information, so series get distinct hues instead.
             const color = options.colorBy === 'temperature'
-                ? temperatureColor(item.temperature_k, minT, maxT)
+                ? (maxT > minT ? temperatureColor(item.temperature_k, minT, maxT) : CATEGORICAL_PALETTE[index % CATEGORICAL_PALETTE.length])
                 : CATEGORICAL_PALETTE[categories.indexOf(categoryKey(item, options.colorBy)) % CATEGORICAL_PALETTE.length];
             return {
                 type: 'line',
                 name: seriesLabel(item),
                 color,
+                // Filled markers are measurements; hollow markers are reserved for calculated values.
+                symbol: 'circle',
                 showSymbol: true,
                 symbolSize: 6,
                 lineStyle: { width: 1.25, opacity: 0.6 },
@@ -114,20 +116,17 @@ export function buildIsothermOption(series: IsothermSeries[], options: IsothermC
     };
 }
 
-/** Valid rows grouped into chart series, each ordered by temperature. */
-export function groupUptakeRows(rows: UptakeAtPressureRow[], groupBy: GroupBy): { groups: string[]; grouped: UptakeAtPressureRow[][] } {
+/** Valid rows grouped per material/adsorbate pair, each ordered by temperature. */
+export function groupUptakeRows(rows: UptakeAtPressureRow[]): { groups: string[]; grouped: UptakeAtPressureRow[][] } {
+    const key = (row: UptakeAtPressureRow) => `${row.material} / ${row.adsorbate}`;
     const valid = rows.filter((row) => row.status === 'ok' && row.value !== null);
-    const groups = [...new Set(valid.map((row) => (groupBy === 'material' ? row.material : row.adsorbate)))];
-    const grouped = groups.map((group) =>
-        valid
-            .filter((row) => (groupBy === 'material' ? row.material : row.adsorbate) === group)
-            .sort((a, b) => a.temperature_k - b.temperature_k),
-    );
+    const groups = [...new Set(valid.map(key))];
+    const grouped = groups.map((group) => valid.filter((row) => key(row) === group).sort((a, b) => a.temperature_k - b.temperature_k));
     return { groups, grouped };
 }
 
-export function buildUptakeOption(rows: UptakeAtPressureRow[], groupBy: GroupBy, uptakeUnit: string): EChartsCoreOption {
-    const { groups, grouped } = groupUptakeRows(rows, groupBy);
+export function buildUptakeOption(rows: UptakeAtPressureRow[], uptakeUnit: string): EChartsCoreOption {
+    const { groups, grouped } = groupUptakeRows(rows);
     return {
         ...BASE_OPTION,
         grid: { left: 64, right: 24, top: 48, bottom: 88 },

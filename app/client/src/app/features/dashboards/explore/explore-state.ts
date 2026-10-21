@@ -10,7 +10,7 @@ import type {
     PressureBasis,
     UptakeMethod,
 } from '../../../models/analytics.model';
-import type { ColorBy, GroupBy } from '../dashboard-charts';
+import type { ColorBy } from '../dashboard-charts';
 
 export type ExploreMode = 'isotherms' | 'uptake' | 'distribution';
 
@@ -27,7 +27,6 @@ export interface ExploreState {
     targetPressure: number;
     method: UptakeMethod;
     tolerance: number;
-    groupBy: GroupBy;
     variable: DistributionVariable;
     bins: number;
     scale: HistogramScale;
@@ -59,7 +58,6 @@ export const DEFAULT_EXPLORE_STATE: ExploreState = {
     targetPressure: 1,
     method: 'linear',
     tolerance: 0.05,
-    groupBy: 'material',
     variable: 'temperature_k',
     bins: 20,
     scale: 'linear',
@@ -106,7 +104,6 @@ export function stateFromQueryParams(params: Params): ExploreState {
         targetPressure: positive(params['p'], defaults.targetPressure) ?? defaults.targetPressure,
         method: oneOf<UptakeMethod>(params['method'], ['linear', 'nearest'], defaults.method),
         tolerance: Math.min(1, positive(params['tol'], defaults.tolerance) ?? defaults.tolerance),
-        groupBy: oneOf<GroupBy>(params['group'], ['material', 'adsorbate'], defaults.groupBy),
         variable: oneOf<DistributionVariable>(params['var'], ['temperature_k', 'pressure', 'uptake_mol_kg', 'points_per_isotherm'], defaults.variable),
         bins: Math.min(100, Math.round(positive(params['bins'], defaults.bins) ?? defaults.bins)),
         scale: oneOf<HistogramScale>(params['scale'], ['linear', 'log'], defaults.scale),
@@ -135,7 +132,6 @@ export function stateToQueryParams(state: ExploreState): Params {
         p: unlessDefault(state.targetPressure, defaults.targetPressure),
         method: unlessDefault(state.method, defaults.method),
         tol: unlessDefault(state.tolerance, defaults.tolerance),
-        group: unlessDefault(state.groupBy, defaults.groupBy),
         var: unlessDefault(state.variable, defaults.variable),
         bins: unlessDefault(state.bins, defaults.bins),
         scale: unlessDefault(state.scale, defaults.scale),

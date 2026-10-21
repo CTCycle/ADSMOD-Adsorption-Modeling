@@ -20,6 +20,7 @@
     padding: 10px 12px;
     border: 0;
     border-bottom: 2px solid transparent;
+    border-radius: 0;
     background: none;
     color: var(--slate-500);
     font: inherit;
@@ -62,11 +63,21 @@
     text-decoration: underline;
 }
 
+/* Buttons centre overflowing text, so the inner span does the truncation. */
 .link-button {
+    display: block;
     max-width: 100%;
+}
+
+.link-button > span {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.explore-chart .data-table td.truncate-cell {
+    max-width: 280px;
 }
 
 .source-key {
@@ -116,10 +127,6 @@
     grid-template-columns: 280px minmax(0, 1fr);
     gap: var(--spacing-md);
     align-items: start;
-}
-
-.explore-layout.with-inspector {
-    grid-template-columns: 280px minmax(0, 1fr) 340px;
 }
 
 .explore-sidebar {
@@ -223,7 +230,7 @@
 
 .range-row input,
 .facet-search,
-.chart-controls input {
+.chart-controls input:not([type='checkbox']) {
     width: 100%;
     min-width: 0;
     min-height: var(--control-height, 36px);
@@ -238,7 +245,7 @@
 
 .range-row input:focus-visible,
 .facet-search:focus-visible,
-.chart-controls input:focus-visible {
+.chart-controls input:not([type='checkbox']):focus-visible {
     outline: 2px solid var(--primary-500);
     outline-offset: 1px;
 }
@@ -249,6 +256,7 @@
     max-height: 220px;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
     overflow-y: auto;
     list-style: none;
 }
@@ -258,6 +266,7 @@
 }
 
 .facet-list li {
+    min-width: 0;
     padding: 3px 2px;
     border-radius: 4px;
 }
@@ -414,20 +423,24 @@
     white-space: nowrap;
 }
 
-/* Inspector */
+/* Inspector drawer: fixed so it stays beside the chart that opened it. */
 
 .detail-panel {
-    position: sticky;
-    top: var(--spacing-md);
+    position: fixed;
+    top: 88px;
+    right: var(--spacing-md);
+    bottom: calc(var(--console-status-height, 34px) + var(--spacing-md));
+    z-index: 30;
     display: grid;
+    align-content: start;
     gap: var(--spacing-md);
-    max-height: calc(100vh - 160px);
-    min-width: 0;
+    width: min(380px, calc(100vw - 2 * var(--spacing-md)));
     overflow-y: auto;
     padding: var(--spacing-md);
     border: 1px solid var(--slate-200);
     border-radius: var(--radius-md);
     background: #fff;
+    box-shadow: var(--shadow-lg);
 }
 
 .detail-header {
@@ -569,11 +582,7 @@
     padding: var(--spacing-md);
 }
 
-.overview-panel.wide {
-    grid-column: span 2;
-}
-
-.overview-grid > .overview-panel.wide:last-child {
+.overview-panel.full {
     grid-column: 1 / -1;
 }
 
@@ -615,21 +624,8 @@
     border-radius: inherit;
 }
 
-@media (max-width: 1480px) {
-    .explore-layout.with-inspector {
-        grid-template-columns: 260px minmax(0, 1fr);
-    }
-
-    .explore-layout.with-inspector .explore-inspector {
-        grid-column: 1 / -1;
-        position: static;
-        max-height: none;
-    }
-}
-
 @media (max-width: 1180px) {
-    .explore-layout,
-    .explore-layout.with-inspector {
+    .explore-layout {
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -648,13 +644,12 @@
 }
 
 @media (max-width: 760px) {
-    .overview-grid,
-    .overview-metrics {
+    .overview-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .overview-panel.wide {
-        grid-column: auto;
+    .overview-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .chart-frame {
