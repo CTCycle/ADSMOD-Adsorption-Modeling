@@ -60,6 +60,7 @@ async function readShellGeometry(page: Page) {
         return {
             viewportWidth: document.documentElement.clientWidth,
             documentWidth: document.documentElement.scrollWidth,
+            headerHeightToken: Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--console-header-height')),
             sidebar: rect('.console-sidebar'),
             header: rect('.console-header'),
             main: rect('.console-main'),
@@ -90,7 +91,7 @@ test('primary routes share one stable shell at each supported viewport', async (
         await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveCount(1);
         const geometry = await readShellGeometry(page);
         expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
-        expect(geometry.header.height).toBe(112);
+        expect(geometry.header.height).toBe(geometry.headerHeightToken);
         expect(geometry.help.y).toBeGreaterThanOrEqual(geometry.header.y);
         expect(geometry.help.bottom).toBeLessThanOrEqual(geometry.header.bottom);
         expect(geometry.main.x).toBe(geometry.header.x);
@@ -148,7 +149,7 @@ test('training routes remain gated when the optional service is unavailable', as
     await expect(page.getByRole('heading', { name: 'Custom Datasets', exact: true })).toBeVisible();
 });
 
-test('dataset rename stays in-page and deletion requires an explicit confirmation', async ({ page }) => {
+test('dataset tables stay contained and deletion requires an explicit confirmation', async ({ page }, testInfo: TestInfo) => {
     await installShellApiMocks(page, false);
     let dataset: typeof datasetRecord | null = { ...datasetRecord };
     let deleteRequests = 0;
@@ -160,6 +161,45 @@ test('dataset rename stays in-page and deletion requires an explicit confirmatio
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({ datasets: dataset ? [dataset] : [] }),
+            });
+            return;
+        }
+        if (request.method() === 'GET' && pathname.endsWith('/17/experiments')) {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ experiments: [{
+                    id: 31,
+                    dataset_id: 17,
+                    external_key: 'experiment-with-a-long-stable-key-31',
+                    name: 'Carbon dioxide adsorption experiment',
+                    adsorbent: 'Hierarchical activated carbon framework',
+                    adsorbates: ['carbon dioxide'],
+                    temperature_k: 298.15,
+                    pressure_basis: 'absolute',
+                    observation_count: 2,
+                    fitting_eligible: true,
+                    ineligibility_reason: null,
+                }] }),
+            });
+            return;
+        }
+        if (request.method() === 'GET' && pathname.endsWith('/17/experiments/31/observations')) {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    status: 'success',
+                    dataset_id: 17,
+                    isotherm_id: 31,
+                    offset: 0,
+                    limit: 10,
+                    total: 2,
+                    rows: [
+                        { id: 1, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: 0.1, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.1 },
+                        { id: 2, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
+                    ],
+                }),
             });
             return;
         }
@@ -179,13 +219,73 @@ test('dataset rename stays in-page and deletion requires an explicit confirmatio
     });
 
     await page.goto('/datasets');
-    await expect(page.getByRole('heading', { name: datasetRecord.name, exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Rename', exact: true }).click();
+    await expect(page.getByRole('button', { name: datasetRecord.name, exact: true })).toBeVisible();
+    const datasetTableGeometry = await page.locator('.dataset-table-frame').evaluate((frame) => {
+        const card = frame.closest<HTMLElement>('.workspace-datasets-card');
+        const table = frame.querySelector('table');
+        if (!card || !table) throw new Error('Dataset table geometry is unavailable');
+        return {
+            frameLeft: frame.getBoundingClientRect().left,
+            frameRight: frame.getBoundingClientRect().right,
+            cardLeft: card.getBoundingClientRect().left,
+            cardRight: card.getBoundingClientRect().right,
+            frameWidth: frame.clientWidth,
+            frameScrollWidth: frame.scrollWidth,
+            tableWidth: table.getBoundingClientRect().width,
+            viewportWidth: document.documentElement.clientWidth,
+            documentWidth: document.documentElement.scrollWidth,
+        };
+    });
+    expect(datasetTableGeometry.frameLeft).toBeGreaterThanOrEqual(datasetTableGeometry.cardLeft);
+    expect(datasetTableGeometry.frameRight).toBeLessThanOrEqual(datasetTableGeometry.cardRight + 1);
+    expect(datasetTableGeometry.documentWidth).toBeLessThanOrEqual(datasetTableGeometry.viewportWidth + 1);
+    if (datasetTableGeometry.frameWidth >= 900) {
+        expect(datasetTableGeometry.tableWidth).toBeGreaterThanOrEqual(datasetTableGeometry.frameWidth - 1);
+    } else {
+        expect(datasetTableGeometry.frameScrollWidth).toBeGreaterThan(datasetTableGeometry.frameWidth);
+    }
+    if (testInfo.project.name === 'viewport-1440x920') {
+        await page.screenshot({ path: testInfo.outputPath('datasets-populated-desktop.png') });
+    }
+    await page.getByRole('button', { name: `Rename ${datasetRecord.name}`, exact: true }).click();
     await page.getByLabel('Dataset name').fill('Renamed workspace dataset');
     await page.getByRole('button', { name: 'Save name' }).click();
-    await expect(page.getByRole('heading', { name: 'Renamed workspace dataset', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Renamed workspace dataset', exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Renamed workspace dataset', exact: true }).click();
+    await expect(page.locator('.dataset-experiments-frame')).toBeVisible();
+    await expect(page.locator('.dataset-observations-frame')).toBeVisible();
+    const inspectorTableGeometry = await page.locator('.dataset-inspector').evaluate((inspector) => {
+        const frames = Array.from(inspector.querySelectorAll<HTMLElement>('.data-table-frame'));
+        const inspectorRect = inspector.getBoundingClientRect();
+        return {
+            viewportWidth: document.documentElement.clientWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            frames: frames.map((frame) => ({
+                left: frame.getBoundingClientRect().left,
+                right: frame.getBoundingClientRect().right,
+                clientWidth: frame.clientWidth,
+                scrollWidth: frame.scrollWidth,
+                tableWidth: frame.querySelector('table')?.getBoundingClientRect().width ?? 0,
+            })),
+            inspectorLeft: inspectorRect.left,
+            inspectorRight: inspectorRect.right,
+        };
+    });
+    expect(inspectorTableGeometry.documentWidth).toBeLessThanOrEqual(inspectorTableGeometry.viewportWidth + 1);
+    expect(inspectorTableGeometry.frames).toHaveLength(2);
+    for (const frame of inspectorTableGeometry.frames) {
+        expect(frame.left).toBeGreaterThanOrEqual(inspectorTableGeometry.inspectorLeft);
+        expect(frame.right).toBeLessThanOrEqual(inspectorTableGeometry.inspectorRight + 1);
+        if (frame.clientWidth < frame.tableWidth) {
+            expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth);
+        }
+    }
+    if (testInfo.project.name === 'viewport-1440x920') {
+        await page.screenshot({ path: testInfo.outputPath('dataset-inspector-populated-desktop.png') });
+    }
+
+    await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
     const confirmation = page.getByRole('alertdialog');
     await expect(confirmation).toContainText('Renamed workspace dataset');
     await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
@@ -197,14 +297,14 @@ test('dataset rename stays in-page and deletion requires an explicit confirmatio
     await expect(confirmation).toHaveCount(0);
     expect(deleteRequests).toBe(0);
 
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
     await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(confirmation).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeFocused();
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true })).toBeFocused();
+    await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
     await page.getByRole('button', { name: 'Delete dataset', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Renamed workspace dataset', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Renamed workspace dataset', exact: true })).toHaveCount(0);
     expect(deleteRequests).toBe(1);
 });
 
@@ -258,6 +358,23 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
 
     const dialog = page.getByRole('dialog', { name: 'Understand sample.csv' });
     await expect(dialog).toBeVisible();
+    await expect(dialog.locator('.import-preview-table')).toBeVisible();
+    const previewGeometry = await dialog.locator('.import-preview-table').evaluate((table) => {
+        const frame = table.parentElement;
+        const body = table.closest('.import-wizard-body');
+        if (!frame || !body) throw new Error('Import preview geometry is unavailable');
+        return {
+            frameLeft: frame.getBoundingClientRect().left,
+            frameRight: frame.getBoundingClientRect().right,
+            bodyLeft: body.getBoundingClientRect().left,
+            bodyRight: body.getBoundingClientRect().right,
+            viewportWidth: document.documentElement.clientWidth,
+            documentWidth: document.documentElement.scrollWidth,
+        };
+    });
+    expect(previewGeometry.frameLeft).toBeGreaterThanOrEqual(previewGeometry.bodyLeft);
+    expect(previewGeometry.frameRight).toBeLessThanOrEqual(previewGeometry.bodyRight + 1);
+    expect(previewGeometry.documentWidth).toBeLessThanOrEqual(previewGeometry.viewportWidth + 1);
     const closeButton = dialog.getByRole('button', { name: 'Close import wizard', exact: true });
     await expect(closeButton).toBeFocused();
     await page.keyboard.press('Tab');

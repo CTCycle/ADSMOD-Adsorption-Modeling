@@ -59,7 +59,11 @@ const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
                     [observations]="observations()"
                     [observationsLoading]="observationsLoading()"
                     [observationsError]="observationsError()"
+                    [observationsPage]="observationsPage()"
+                    [observationsPageSize]="observationsPageSize()"
                     (experimentSelected)="inspectExperiment($event)"
+                    (observationsPageChange)="changeObservationsPage($event)"
+                    (observationsPageSizeChange)="changeObservationsPageSize($event)"
                 />
             }
             @if (pendingFile(); as file) {
@@ -78,7 +82,10 @@ export class CustomDatasetsPageComponent {
     protected readonly observations = signal<ObservationPage | null>(null);
     protected readonly observationsLoading = signal(false);
     protected readonly observationsError = signal('');
+    protected readonly observationsPage = signal(1);
+    protected readonly observationsPageSize = signal(10);
     private inspectionRevision = 0;
+    private observationsRevision = 0;
 
     constructor() {
         void this.loadDatasetConfiguration();
@@ -106,6 +113,7 @@ export class CustomDatasetsPageComponent {
         this.observations.set(null);
         this.observationsLoading.set(false);
         this.observationsError.set('');
+        this.observationsPage.set(1);
 
         const importRequest = fetchDatasetImport(datasetId);
         await this.store.selectDataset(datasetId);
@@ -137,19 +145,66 @@ export class CustomDatasetsPageComponent {
             return;
         }
         this.store.setSelectedExperiment(experimentId);
+        this.observationsPage.set(1);
         await this.loadObservations(datasetId, experimentId, this.inspectionRevision);
+    }
+
+    protected async changeObservationsPage(page: number): Promise<void> {
+        const datasetId = this.store.selectedDatasetId();
+        const experimentId = this.store.selectedExperimentId();
+        if (datasetId === null || experimentId === null || page === this.observationsPage()) {
+            return;
+        }
+        this.observationsPage.set(page);
+        await this.loadObservations(
+            datasetId,
+            experimentId,
+            this.inspectionRevision,
+            false,
+        );
+    }
+
+    protected async changeObservationsPageSize(size: number): Promise<void> {
+        if (size === this.observationsPageSize()) {
+            return;
+        }
+        this.observationsPageSize.set(size);
+        this.observationsPage.set(1);
+        const datasetId = this.store.selectedDatasetId();
+        const experimentId = this.store.selectedExperimentId();
+        if (datasetId === null || experimentId === null) {
+            return;
+        }
+        await this.loadObservations(
+            datasetId,
+            experimentId,
+            this.inspectionRevision,
+            false,
+        );
     }
 
     private async loadObservations(
         datasetId: number,
         experimentId: number,
         revision: number,
+        clear = true,
     ): Promise<void> {
-        this.observations.set(null);
+        const requestId = ++this.observationsRevision;
+        if (clear) {
+            this.observations.set(null);
+        }
         this.observationsLoading.set(true);
         this.observationsError.set('');
-        const result = await fetchObservations(datasetId, experimentId);
+        const page = this.observationsPage();
+        const pageSize = this.observationsPageSize();
+        const result = await fetchObservations(
+            datasetId,
+            experimentId,
+            (page - 1) * pageSize,
+            pageSize,
+        );
         if (
+            requestId !== this.observationsRevision ||
             revision !== this.inspectionRevision ||
             this.store.selectedDatasetId() !== datasetId ||
             this.store.selectedExperimentId() !== experimentId
@@ -161,6 +216,13 @@ export class CustomDatasetsPageComponent {
             this.observationsError.set(
                 result.error || 'Failed to load observations.',
             );
+            return;
+        }
+        if (result.data.rows.length === 0 && result.data.total > 0 && page > 1) {
+            this.observationsPage.set(
+                Math.max(1, Math.ceil(result.data.total / pageSize)),
+            );
+            await this.loadObservations(datasetId, experimentId, revision, false);
             return;
         }
         this.observations.set(result.data);

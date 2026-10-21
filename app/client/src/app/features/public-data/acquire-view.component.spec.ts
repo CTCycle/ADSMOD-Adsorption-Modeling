@@ -47,7 +47,14 @@ describe('AcquireViewComponent', () => {
                 };
             }
             if (url.includes('/sync-runs')) {
-                return { ok: true, json: async () => ({ runs, total: runs.length }) };
+                const scope = new URL(url, 'http://localhost').searchParams.get('scope');
+                const scopedRuns = runs.filter((item) => {
+                    const status = String(item['status']);
+                    if (scope === 'active') return ['queued', 'running'].includes(status);
+                    if (scope === 'history') return !['queued', 'running'].includes(status);
+                    return true;
+                });
+                return { ok: true, json: async () => ({ runs: scopedRuns, total: scopedRuns.length }) };
             }
             return { ok: false, status: 404, json: async () => ({}) };
         });
@@ -78,7 +85,7 @@ describe('AcquireViewComponent', () => {
 
         const element = await render();
 
-        const link = element.querySelector('#acquire-runs a.text-link') as HTMLAnchorElement;
+        const link = element.querySelector('#acquire-runs a.table-action') as HTMLAnchorElement;
         expect(link.textContent).toContain('Open structure');
         expect(link.getAttribute('href')).toBe('/public-data/structures?id=9');
     });
@@ -99,6 +106,6 @@ describe('AcquireViewComponent', () => {
         expect(collectionRequests).toBe(2);
         const element = fixture.nativeElement as HTMLElement;
         expect(element.querySelector('.collection-count strong')?.textContent).toContain('6 / 12');
-        expect(element.querySelector('#acquire-runs a.text-link')?.getAttribute('href')).toBe('/public-data/chemicals?source=nist');
+        expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/public-data/chemicals?source=nist');
     });
 });

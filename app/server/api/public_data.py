@@ -104,12 +104,16 @@ class PublicDataEndpoint:
             alias="status",
             pattern="^(queued|running|completed|partially_completed|failed|cancelled|interrupted)$",
         ),
+        scope: str | None = Query(
+            default=None, pattern="^(active|history)$"
+        ),
     ) -> PublicDataSyncRunListResponse:
         runs, total = await self.sync.list(
             limit=limit,
             offset=offset,
             source_key=source_key,
             status_filter=run_status,
+            status_scope=scope,
         )
         return PublicDataSyncRunListResponse(
             runs=[PublicDataSyncRunView.model_validate(run) for run in runs],
@@ -122,6 +126,22 @@ class PublicDataEndpoint:
             run = await self.sync.get(run_id)
         except LookupError as exc:
             raise self._lookup_error(exc) from exc
+        return PublicDataSyncRunView.model_validate(run)
+
+    # -------------------------------------------------------------------------
+    async def resume_sync_run(self, run_id: str) -> PublicDataSyncRunView:
+        try:
+            run = await self.sync.resume(run_id)
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
         return PublicDataSyncRunView.model_validate(run)
 
     # -------------------------------------------------------------------------
@@ -386,6 +406,13 @@ class PublicDataEndpoint:
             self.cancel_sync_run,
             methods=["POST"],
             response_model=PublicDataSyncRunView,
+        )
+        self.router.add_api_route(
+            "/sync-runs/{run_id}/resume",
+            self.resume_sync_run,
+            methods=["POST"],
+            response_model=PublicDataSyncRunView,
+            status_code=status.HTTP_202_ACCEPTED,
         )
         self.router.add_api_route(
             "/sync-runs/{run_id}/failures",

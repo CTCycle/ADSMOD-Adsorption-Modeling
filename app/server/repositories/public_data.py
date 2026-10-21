@@ -39,6 +39,26 @@ from server.repositories.schemas.public_data import (
 )
 from server.repositories.schemas.types import normalize_identity
 
+ACTIVE_SYNC_STATUSES = ("queued", "running")
+TERMINAL_SYNC_STATUSES = (
+    "completed",
+    "partially_completed",
+    "failed",
+    "cancelled",
+    "interrupted",
+)
+
+###############################################################################
+def normalized_sync_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
+    """Return the request identity used to detect duplicate active sync runs."""
+    normalized = {
+        key: value for key, value in parameters.items() if key != "trigger"
+    }
+    cod_ids = normalized.get("cod_ids")
+    if isinstance(cod_ids, (list, tuple)):
+        normalized["cod_ids"] = sorted(str(item) for item in cod_ids)
+    return normalized
+
 ###############################################################################
 class PublicDataRepository:
 
@@ -243,16 +263,67 @@ class PublicDataRepository:
         operation: str,
         parameters: dict[str, Any],
     ) -> dict[str, Any]:
-        run = PublicDataSyncRun(
-            id=str(uuid4()),
-            source_key=source_key,
-            operation=operation,
-            parameters=parameters,
-            status="queued",
-        )
+        normalized = normalized_sync_parameters(parameters)
         with self.database.transaction() as session:
             self._source(session, source_key)
+            active_runs = session.scalars(
+                select(PublicDataSyncRun).where(
+                    PublicDataSyncRun.source_key == source_key,
+                    PublicDataSyncRun.operation == operation,
+                    PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES),
+                )
+            ).all()
+            for active_run in active_runs:
+                if (
+                    normalized_sync_parameters(dict(active_run.parameters))
+                    == normalized
+                ):
+                    return self._sync_run_payload(active_run)
+            run = PublicDataSyncRun(
+                id=str(uuid4()),
+                source_key=source_key,
+                operation=operation,
+                parameters=parameters,
+                status="queued",
+            )
             session.add(run)
+            session.flush()
+            return self._sync_run_payload(run)
+
+    # -------------------------------------------------------------------------
+    def resume_sync_run(self, run_id: str) -> dict[str, Any]:
+        with self.database.transaction() as session:
+            run = session.get(PublicDataSyncRun, run_id)
+            if run is None:
+                raise LookupError(
+                    f"Public-data sync run {run_id!r} was not found."
+                )
+            if run.status != "interrupted":
+                raise ValueError("Only interrupted sync runs can be resumed.")
+            normalized = normalized_sync_parameters(dict(run.parameters))
+            active_runs = session.scalars(
+                select(PublicDataSyncRun).where(
+                    PublicDataSyncRun.source_key == run.source_key,
+                    PublicDataSyncRun.operation == run.operation,
+                    PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES),
+                    PublicDataSyncRun.id != run_id,
+                )
+            ).all()
+            if any(
+                normalized_sync_parameters(dict(active_run.parameters))
+                == normalized
+                for active_run in active_runs
+            ):
+                raise ValueError(
+                    "An identical acquisition is already queued or running."
+                )
+            now = datetime.now(timezone.utc)
+            run.status = "queued"
+            run.started_at = None
+            run.finished_at = None
+            run.cancel_requested = False
+            run.error_detail = None
+            run.updated_at = now
             session.flush()
             return self._sync_run_payload(run)
 
@@ -319,6 +390,7 @@ class PublicDataRepository:
         offset: int = 0,
         source_key: str | None = None,
         status_filter: str | None = None,
+        status_scope: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         with self.database.session_factory() as session:
             query = select(PublicDataSyncRun)
@@ -326,6 +398,17 @@ class PublicDataRepository:
                 query = query.where(PublicDataSyncRun.source_key == source_key)
             if status_filter:
                 query = query.where(PublicDataSyncRun.status == status_filter)
+            if status_scope == "active":
+                query = query.where(
+                    PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES)
+                )
+            elif status_scope == "history":
+                query = query.where(
+                    PublicDataSyncRun.status.in_(TERMINAL_SYNC_STATUSES),
+                    PublicDataSyncRun.operation != "health_check",
+                )
+            elif status_scope is not None:
+                raise ValueError(f"Unsupported sync-run scope: {status_scope!r}")
             total = int(
                 session.scalar(select(func.count()).select_from(query.subquery())) or 0
             )

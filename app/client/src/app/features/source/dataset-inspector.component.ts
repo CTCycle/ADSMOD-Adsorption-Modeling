@@ -2,7 +2,15 @@
 // Licensed under the MIT License.
 
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    Input,
+    OnChanges,
+    Output,
+    SimpleChanges,
+    signal,
+} from '@angular/core';
 import type {
     ColumnRole,
     DatasetImportInspection,
@@ -11,6 +19,7 @@ import type {
     ImportMapping,
     ObservationPage,
 } from '../../models/dataset.model';
+import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 
 interface ColumnMappingRow {
     name: string;
@@ -22,7 +31,7 @@ interface ColumnMappingRow {
 @Component({
     selector: 'adsmod-dataset-inspector',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, DataPaginationComponent],
     template: `
         <section
             class="console-card dataset-inspector"
@@ -31,9 +40,10 @@ interface ColumnMappingRow {
             <div class="card-title-row">
                 <div>
                     <h2 id="dataset-inspector-title">{{ dataset.name }}</h2>
-                    <p>
-                        Review the saved import mapping and canonical observations.
+                    <p class="dataset-inspector-description" [title]="dataset.description || 'No description added yet.'">
+                        {{ dataset.description || 'No description added yet.' }}
                     </p>
+                    <p class="dataset-inspector-tags">{{ dataset.tags.join(', ') || 'No tags' }}</p>
                 </div>
             </div>
 
@@ -133,30 +143,58 @@ interface ColumnMappingRow {
                 } @else if (!experiments.length) {
                     <p class="dataset-inspector-empty">No experiments were persisted.</p>
                 } @else {
-                    <div class="dataset-experiment-list" role="list" aria-label="Dataset experiments">
-                        @for (experiment of experiments; track experiment.id) {
-                            <div role="listitem">
-                                <button
-                                    class="dataset-experiment"
-                                    [class.selected]="experiment.id === selectedExperimentId"
-                                    type="button"
-                                    [attr.aria-pressed]="experiment.id === selectedExperimentId"
-                                    (click)="experimentSelected.emit(experiment.id)"
-                                >
-                                    <span>
-                                        <strong>{{ experiment.name }}</strong>
-                                        <small>{{ experiment.external_key }}</small>
-                                    </span>
-                                    <span>
-                                        {{ experiment.adsorbates.join(', ') }} on
-                                        {{ experiment.adsorbent }} ·
-                                        {{ experiment.temperature_k }} K ·
-                                        {{ experiment.observation_count }} points
-                                    </span>
-                                </button>
-                            </div>
-                        }
+                    <div class="data-table-frame data-table-frame--compact dataset-experiments-frame">
+                        <table class="data-table dataset-experiments-table">
+                            <caption class="sr-only">Dataset experiments</caption>
+                            <thead>
+                                <tr>
+                                    <th class="col-experiment" scope="col">Experiment</th>
+                                    <th class="col-material" scope="col">Material</th>
+                                    <th class="col-adsorbate" scope="col">Adsorbate</th>
+                                    <th class="col-temperature num" scope="col">Temperature</th>
+                                    <th class="col-points num" scope="col">Observations</th>
+                                    <th class="col-actions" scope="col"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (experiment of visibleExperiments; track experiment.id) {
+                                    <tr [class.selected]="experiment.id === selectedExperimentId">
+                                        <td class="col-experiment">
+                                            <strong class="experiment-name" [title]="experiment.name">{{ experiment.name }}</strong>
+                                            <span class="experiment-key" [title]="experiment.external_key">{{ experiment.external_key }}</span>
+                                        </td>
+                                        <td class="col-material truncate-cell" [title]="experiment.adsorbent">{{ experiment.adsorbent }}</td>
+                                        <td class="col-adsorbate truncate-cell" [title]="adsorbateLabel(experiment)">
+                                            {{ adsorbateLabel(experiment) }}
+                                        </td>
+                                        <td class="col-temperature num">{{ formatTemperature(experiment.temperature_k) }}</td>
+                                        <td class="col-points num">{{ experiment.observation_count }}</td>
+                                        <td class="col-actions">
+                                            <div class="table-actions">
+                                                <button
+                                                    class="table-action"
+                                                    type="button"
+                                                    [attr.aria-pressed]="experiment.id === selectedExperimentId"
+                                                    (click)="experimentSelected.emit(experiment.id)"
+                                                >
+                                                    Inspect
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
                     </div>
+                    <adsmod-data-pagination
+                        class="dataset-inspector-pagination"
+                        [page]="experimentPage()"
+                        [pageSize]="experimentPageSize()"
+                        [total]="experiments.length"
+                        itemLabel="experiment"
+                        (pageChange)="setExperimentPage($event)"
+                        (pageSizeChange)="setExperimentPageSize($event)"
+                    />
                 }
             </section>
 
@@ -180,31 +218,47 @@ interface ColumnMappingRow {
                         <p class="dataset-status error" role="alert">{{ observationsError }}</p>
                     }
                     @if (observations; as page) {
-                        <div class="dataset-inspector-table-wrap">
-                            <table class="dataset-inspector-table">
-                                <caption class="sr-only">Persisted observations</caption>
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Source row</th>
-                                        <th scope="col">Pressure</th>
-                                        <th scope="col">Canonical pressure</th>
-                                        <th scope="col">Uptake</th>
-                                        <th scope="col">Canonical uptake</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @for (row of page.rows; track row['id']) {
+                        @if (page.rows.length) {
+                            <div class="data-table-frame data-table-frame--compact dataset-observations-frame">
+                                <table class="data-table dataset-observations-table">
+                                    <caption class="sr-only">Persisted observations</caption>
+                                    <thead>
                                         <tr>
-                                            <td>{{ displayValue(row['source_row']) }}</td>
-                                            <td>{{ displayValue(row['pressure_original']) }} {{ displayValue(row['pressure_original_unit']) }}</td>
-                                            <td>{{ displayValue(row['pressure_canonical']) }} {{ displayValue(row['pressure_canonical_unit']) }}</td>
-                                            <td>{{ displayValue(row['uptake_original']) }} {{ displayValue(row['uptake_original_unit']) }}</td>
-                                            <td>{{ displayValue(row['uptake_mol_kg']) }} mol/kg</td>
+                                            <th class="col-row num" scope="col">Source row</th>
+                                            <th class="col-value" scope="col">Pressure</th>
+                                            <th class="col-value" scope="col">Canonical pressure</th>
+                                            <th class="col-value" scope="col">Uptake</th>
+                                            <th class="col-value" scope="col">Canonical uptake</th>
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        @for (row of page.rows; track row['id']) {
+                                            <tr>
+                                                <td class="col-row num">{{ displayValue(row['source_row']) }}</td>
+                                                <td class="col-value">{{ displayValue(row['pressure_original']) }} {{ displayValue(row['pressure_original_unit']) }}</td>
+                                                <td class="col-value">{{ displayValue(row['pressure_canonical']) }} {{ displayValue(row['pressure_canonical_unit']) }}</td>
+                                                <td class="col-value">{{ displayValue(row['uptake_original']) }} {{ displayValue(row['uptake_original_unit']) }}</td>
+                                                <td class="col-value">{{ displayValue(row['uptake_mol_kg']) }} mol/kg</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        } @else if (!observationsLoading) {
+                            <p class="dataset-inspector-empty">No observation rows were persisted for this experiment.</p>
+                        }
+                        @if (page.total) {
+                            <adsmod-data-pagination
+                                class="dataset-inspector-pagination"
+                                [page]="observationsPage"
+                                [pageSize]="observationsPageSize"
+                                [total]="page.total"
+                                itemLabel="observation"
+                                [disabled]="observationsLoading"
+                                (pageChange)="observationsPageChange.emit($event)"
+                                (pageSizeChange)="observationsPageSizeChange.emit($event)"
+                            />
+                        }
                     }
                 </section>
             }
@@ -232,6 +286,17 @@ interface ColumnMappingRow {
                 color: var(--console-text-muted, #657386);
                 font-size: 0.78rem;
             }
+            .dataset-inspector-description,
+            .dataset-inspector-tags {
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .dataset-inspector-tags {
+                margin-top: 0.15rem !important;
+                font-size: 0.72rem !important;
+            }
             .dataset-inspector-summary {
                 display: grid;
                 grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -247,7 +312,7 @@ interface ColumnMappingRow {
                 background: #f8fafc;
             }
             .dataset-inspector-summary span,
-            .dataset-experiment small {
+            .dataset-inspector-heading p {
                 color: var(--console-text-muted, #657386);
                 font-size: 0.72rem;
             }
@@ -300,39 +365,51 @@ interface ColumnMappingRow {
             .dataset-inspector-table tbody tr:last-child td {
                 border-bottom: 0;
             }
-            .dataset-experiment-list {
-                display: grid;
-                gap: 0.55rem;
+            .dataset-experiments-frame {
+                --data-table-min-width: 820px;
+                max-height: min(32vh, 20rem);
             }
-            .dataset-experiment {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 1rem;
-                width: 100%;
-                padding: 0.7rem 0.8rem;
-                border: 1px solid #dfe5ed;
-                border-radius: 10px;
+            .dataset-observations-frame {
+                --data-table-min-width: 680px;
+                max-height: min(34vh, 22rem);
+            }
+            .dataset-experiments-table .col-experiment {
+                width: auto;
+            }
+            .dataset-experiments-table .col-material,
+            .dataset-experiments-table .col-adsorbate {
+                width: 22%;
+            }
+            .dataset-experiments-table .col-temperature {
+                width: 110px;
+            }
+            .dataset-experiments-table .col-points {
+                width: 112px;
+            }
+            .dataset-experiments-table .col-actions {
+                width: 88px;
+            }
+            .dataset-observations-table .col-row {
+                width: 92px;
+            }
+            .experiment-name,
+            .experiment-key {
+                display: block;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .experiment-name {
                 color: var(--console-text, #1c2a45);
-                background: #fff;
-                text-align: left;
-                cursor: pointer;
+                font-size: 0.8rem;
             }
-            .dataset-experiment:hover,
-            .dataset-experiment.selected {
-                border-color: #9bbcf0;
-                box-shadow: 0 8px 20px -18px rgba(7, 91, 213, 0.75);
-            }
-            .dataset-experiment > span:first-child {
-                display: grid;
-                gap: 0.15rem;
-                min-width: 0;
-            }
-            .dataset-experiment > span:last-child {
-                flex: 0 0 auto;
+            .experiment-key {
                 color: var(--console-text-muted, #657386);
-                font-size: 0.74rem;
-                text-align: right;
+                font-size: 0.7rem;
+            }
+            .dataset-inspector-pagination {
+                display: block;
             }
             .dataset-inspector-status,
             .dataset-inspector-empty {
@@ -353,18 +430,11 @@ interface ColumnMappingRow {
                 .dataset-inspector-summary {
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                 }
-                .dataset-experiment {
-                    align-items: flex-start;
-                    flex-direction: column;
-                }
-                .dataset-experiment > span:last-child {
-                    text-align: left;
-                }
             }
         `,
     ],
 })
-export class DatasetInspectorComponent {
+export class DatasetInspectorComponent implements OnChanges {
     @Input({ required: true }) dataset!: DatasetSummary;
     @Input() inspection: DatasetImportInspection | null = null;
     @Input() importLoading = false;
@@ -375,7 +445,51 @@ export class DatasetInspectorComponent {
     @Input() observations: ObservationPage | null = null;
     @Input() observationsLoading = false;
     @Input() observationsError = '';
+    @Input() observationsPage = 1;
+    @Input() observationsPageSize = 10;
     @Output() readonly experimentSelected = new EventEmitter<number>();
+    @Output() readonly observationsPageChange = new EventEmitter<number>();
+    @Output() readonly observationsPageSizeChange = new EventEmitter<number>();
+    readonly experimentPage = signal(1);
+    readonly experimentPageSize = signal(10);
+    private datasetId: number | null = null;
+
+    protected get visibleExperiments(): ExperimentSummary[] {
+        const start = (this.experimentPage() - 1) * this.experimentPageSize();
+        return this.experiments.slice(start, start + this.experimentPageSize());
+    }
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (this.dataset && this.dataset.id !== this.datasetId) {
+            this.datasetId = this.dataset.id;
+            this.experimentPage.set(1);
+        }
+        if (changes['experiments']) {
+            this.clampExperimentPage();
+        }
+    }
+
+    protected setExperimentPage(page: number): void {
+        const max = Math.max(
+            1,
+            Math.ceil(this.experiments.length / this.experimentPageSize()),
+        );
+        this.experimentPage.set(Math.min(Math.max(1, page), max));
+    }
+
+    protected setExperimentPageSize(size: number): void {
+        if (size === this.experimentPageSize()) return;
+        this.experimentPageSize.set(size);
+        this.experimentPage.set(1);
+    }
+
+    protected adsorbateLabel(experiment: ExperimentSummary): string {
+        return experiment.adsorbates.join(', ') || '—';
+    }
+
+    protected formatTemperature(value: number): string {
+        return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 }).format(value)} K`;
+    }
 
     protected columnMappings(mapping: ImportMapping): ColumnMappingRow[] {
         return Object.entries(mapping.column_roles).map(([name, role]) => ({
@@ -398,5 +512,13 @@ export class DatasetInspectorComponent {
             return '—';
         }
         return String(value);
+    }
+
+    private clampExperimentPage(): void {
+        const max = Math.max(
+            1,
+            Math.ceil(this.experiments.length / this.experimentPageSize()),
+        );
+        if (this.experimentPage() > max) this.experimentPage.set(max);
     }
 }

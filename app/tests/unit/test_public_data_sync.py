@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 
 from server.configurations.settings import AdsmodConfig, DatabaseConfig, PublicDataConfig, UserSettings
 from server.domain.public_data import PublicDataSyncCreateRequest
@@ -362,9 +363,9 @@ def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -
                         repository.create_sync_run,
                         source_key="nist",
                         operation="health_check",
-                        parameters={},
+                        parameters={"probe": index},
                     )
-                    for _ in range(12)
+                    for index in range(12)
                 )
             )
 
@@ -373,6 +374,174 @@ def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -
         assert len(runs) == 12
         assert len({run["id"] for run in runs}) == 12
         assert all(run["status"] == "queued" for run in runs)
+    finally:
+        manager.dispose()
+
+###############################################################################
+def test_identical_active_requests_reuse_the_existing_sync_run(
+    tmp_path: Path,
+) -> None:
+    manager = _database(tmp_path)
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+
+        first = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={
+                "category": "experiments",
+                "fraction": 0.25,
+                "trigger": "manual",
+            },
+        )
+        duplicate = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={
+                "category": "experiments",
+                "fraction": 0.25,
+                "trigger": "scheduled",
+            },
+        )
+        different_scope = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "experiments", "fraction": 1.0},
+        )
+        assert duplicate["id"] == first["id"]
+        assert different_scope["id"] != first["id"]
+
+        repository.update_sync_run(first["id"], status="completed")
+        after_completion = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "experiments", "fraction": 0.25},
+        )
+        assert after_completion["id"] != first["id"]
+
+        first_cod = repository.create_sync_run(
+            source_key="cod",
+            operation="cod_import",
+            parameters={"cod_ids": ["1000002", "1000001"]},
+        )
+        reordered_cod = repository.create_sync_run(
+            source_key="cod",
+            operation="cod_import",
+            parameters={"cod_ids": ["1000001", "1000002"]},
+        )
+        assert reordered_cod["id"] == first_cod["id"]
+    finally:
+        manager.dispose()
+
+###############################################################################
+def test_sync_run_scopes_exclude_health_checks_from_history(
+    tmp_path: Path,
+) -> None:
+    manager = _database(tmp_path)
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        active = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "guest"},
+        )
+        completed = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "host"},
+        )
+        failed = repository.create_sync_run(
+            source_key="pubchem",
+            operation="pubchem_resolve",
+            parameters={"query": "methane"},
+        )
+        health = repository.create_sync_run(
+            source_key="cod",
+            operation="health_check",
+            parameters={},
+        )
+        repository.update_sync_run(completed["id"], status="completed")
+        repository.update_sync_run(failed["id"], status="failed")
+        repository.update_sync_run(health["id"], status="completed")
+
+        active_runs, active_total = repository.list_sync_runs(
+            status_scope="active"
+        )
+        history_runs, history_total = repository.list_sync_runs(
+            status_scope="history"
+        )
+
+        assert active_total == 1
+        assert [run["id"] for run in active_runs] == [active["id"]]
+        assert history_total == 2
+        assert {run["id"] for run in history_runs} == {
+            completed["id"],
+            failed["id"],
+        }
+        assert all(
+            run["operation"] != "health_check" for run in history_runs
+        )
+    finally:
+        manager.dispose()
+
+###############################################################################
+def test_resume_interrupted_sync_run_preserves_checkpoint_and_counters(
+    tmp_path: Path,
+) -> None:
+    manager = _database(tmp_path)
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        run = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "experiments", "fraction": 1.0},
+        )
+        repository.update_sync_run(
+            run["id"],
+            status="running",
+            progress=42.0,
+            processed_count=100,
+            imported_count=90,
+            skipped_count=6,
+            failed_count=4,
+            checkpoint={
+                "last_external_id": "record-100",
+                "pending_count": 50,
+            },
+        )
+        assert repository.mark_unfinished_sync_runs(resume=False) == 1
+
+        resumed = repository.resume_sync_run(run["id"])
+        assert resumed["status"] == "queued"
+        assert resumed["progress"] == 42.0
+        assert resumed["processed_count"] == 100
+        assert resumed["imported_count"] == 90
+        assert resumed["skipped_count"] == 6
+        assert resumed["failed_count"] == 4
+        assert resumed["checkpoint"] == {
+            "last_external_id": "record-100",
+            "pending_count": 50,
+        }
+        assert resumed["started_at"] is None
+        assert resumed["finished_at"] is None
+        assert resumed["error_detail"] is None
+
+        with pytest.raises(ValueError):
+            repository.resume_sync_run(run["id"])
+
+        repository.update_sync_run(
+            run["id"], status="interrupted", error_detail="stopped"
+        )
+        repository.create_sync_run(
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "experiments", "fraction": 1.0},
+        )
+        with pytest.raises(ValueError):
+            repository.resume_sync_run(run["id"])
     finally:
         manager.dispose()
 
