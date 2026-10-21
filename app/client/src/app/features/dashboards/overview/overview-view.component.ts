@@ -43,9 +43,17 @@ import { buildHistogramOption, buildRankingOption, CATEGORICAL_PALETTE, formatVa
                 </div>
 
                 <div class="overview-grid">
-                    <section class="console-card overview-panel wide" aria-labelledby="overview-temperature">
+                    <section class="console-card overview-panel full" aria-labelledby="overview-temperature">
                         <div class="panel-head"><h3 id="overview-temperature">Temperature coverage</h3><span>isotherms per temperature bin</span></div>
                         <div class="overview-chart"><adsmod-chart [option]="temperatureOption()" ariaLabel="Histogram of isotherm temperatures" /></div>
+                    </section>
+                    <section class="console-card overview-panel" aria-labelledby="overview-materials">
+                        <div class="panel-head"><h3 id="overview-materials">Most measured materials</h3><span>select to explore</span></div>
+                        <div class="overview-chart ranking"><adsmod-chart [option]="materialsOption()" ariaLabel="Materials ranked by isotherm count" (pointClick)="explore('materials', data.top_materials, $event)" /></div>
+                    </section>
+                    <section class="console-card overview-panel" aria-labelledby="overview-adsorbates">
+                        <div class="panel-head"><h3 id="overview-adsorbates">Most measured adsorbates</h3><span>select to explore</span></div>
+                        <div class="overview-chart ranking"><adsmod-chart [option]="adsorbatesOption()" ariaLabel="Adsorbates ranked by isotherm count" (pointClick)="explore('adsorbates', data.top_adsorbates, $event)" /></div>
                     </section>
                     <section class="console-card overview-panel" aria-labelledby="overview-sources">
                         <div class="panel-head"><h3 id="overview-sources">Isotherms by source</h3></div>
@@ -58,15 +66,7 @@ import { buildHistogramOption, buildRankingOption, CATEGORICAL_PALETTE, formatVa
                             }
                         </ul>
                     </section>
-                    <section class="console-card overview-panel" aria-labelledby="overview-materials">
-                        <div class="panel-head"><h3 id="overview-materials">Most measured materials</h3><span>select to explore</span></div>
-                        <div class="overview-chart ranking"><adsmod-chart [option]="materialsOption()" ariaLabel="Materials ranked by isotherm count" (pointClick)="explore('materials', data.top_materials, $event)" /></div>
-                    </section>
-                    <section class="console-card overview-panel" aria-labelledby="overview-adsorbates">
-                        <div class="panel-head"><h3 id="overview-adsorbates">Most measured adsorbates</h3><span>select to explore</span></div>
-                        <div class="overview-chart ranking"><adsmod-chart [option]="adsorbatesOption()" ariaLabel="Adsorbates ranked by isotherm count" (pointClick)="explore('adsorbates', data.top_adsorbates, $event)" /></div>
-                    </section>
-                    <section class="console-card overview-panel wide" aria-labelledby="overview-spans">
+                    <section class="console-card overview-panel full" aria-labelledby="overview-spans">
                         <div class="panel-head"><h3 id="overview-spans">Measured spans by pressure basis</h3><span>canonical units; bases are never mixed</span></div>
                         <div class="data-table-frame">
                             <table class="data-table">

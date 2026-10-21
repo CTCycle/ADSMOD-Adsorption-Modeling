@@ -57,7 +57,6 @@ describe('dashboard chart options', () => {
         });
         const option = buildUptakeOption(
             [row(1, 'measured', 'ok'), row(2, 'interpolated', 'ok'), row(3, null, 'out_of_range')],
-            'material',
             'mol/kg',
         ) as { series: { data: { itemStyle: { color: string; borderWidth?: number } }[] }[] };
 

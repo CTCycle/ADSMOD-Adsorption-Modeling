@@ -12,6 +12,7 @@ import { formatValue, pressureLabel } from '../dashboard-charts';
     standalone: true,
     imports: [RouterLink],
     styleUrl: '../dashboards.css',
+    host: { '(document:keydown.escape)': 'closed.emit()' },
     template: `
         <aside class="detail-panel explore-inspector" aria-label="Isotherm details" aria-live="polite">
             <div class="detail-header">

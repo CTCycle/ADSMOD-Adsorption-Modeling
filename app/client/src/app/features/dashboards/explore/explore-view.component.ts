@@ -1,6 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
+import { Location } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -55,7 +56,7 @@ const SEARCH_DELAY_MS = 300;
     imports: [FormsModule, ChartComponent, DataPaginationComponent, ExploreInspectorComponent],
     styleUrl: '../dashboards.css',
     template: `
-        <div class="explore-layout" [class.with-inspector]="inspectedId() !== null">
+        <div class="explore-layout">
             <aside class="console-card explore-sidebar" aria-label="Query builder">
                 <div class="sidebar-head">
                     <h3>Query</h3>
@@ -255,12 +256,6 @@ const SEARCH_DELAY_MS = 300;
                                         <input type="number" min="0.1" max="100" step="any" [value]="state().tolerance * 100" (change)="setTolerance($event)" />
                                     </label>
                                 }
-                                <label>Group by
-                                    <select class="select-input" [ngModel]="state().groupBy" (ngModelChange)="patch({ groupBy: $event })">
-                                        <option value="material">Material</option>
-                                        <option value="adsorbate">Adsorbate</option>
-                                    </select>
-                                </label>
                             }
                             @case ('distribution') {
                                 <label>Variable
@@ -333,7 +328,7 @@ const SEARCH_DELAY_MS = 300;
                                 <tbody>
                                     @for (row of result.rows; track row.component_id) {
                                         <tr>
-                                            <td class="truncate-cell" [title]="label(row)"><button type="button" class="link-button" (click)="inspect(row.isotherm_id)">{{ label(row) }}</button></td>
+                                            <td class="truncate-cell" [title]="label(row)"><button type="button" class="link-button" (click)="inspect(row.isotherm_id)"><span>{{ label(row) }}</span></button></td>
                                             <td class="truncate-cell">{{ row.dataset }}</td>
                                             <td class="num">{{ row.value === null ? '—' : format(row.value) + ' ' + row.uptake_unit }}</td>
                                             <td>{{ row.method ?? statusLabel(row.status) }}</td>
@@ -354,7 +349,7 @@ const SEARCH_DELAY_MS = 300;
                                         <tbody>
                                             @for (item of result.series; track item.component_id) {
                                                 <tr>
-                                                    <td class="truncate-cell" [title]="label(item)"><button type="button" class="link-button" (click)="inspect(item.isotherm_id)">{{ label(item) }}</button></td>
+                                                    <td class="truncate-cell" [title]="label(item)"><button type="button" class="link-button" (click)="inspect(item.isotherm_id)"><span>{{ label(item) }}</span></button></td>
                                                     <td class="truncate-cell">{{ item.dataset }}</td>
                                                     <td class="num">{{ item.points.length }}</td>
                                                     <td class="num">{{ range(item.points, 'pressure') }}</td>
@@ -388,6 +383,7 @@ const SEARCH_DELAY_MS = 300;
 export class ExploreViewComponent {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
+    private readonly location = inject(Location);
 
     protected readonly sourceOptions: { key: DatasetSource; label: string }[] = [
         { key: 'nist', label: 'NIST' },
@@ -402,7 +398,8 @@ export class ExploreViewComponent {
     protected readonly pressureUnits = PRESSURE_UNITS;
     protected readonly uptakeUnits = UPTAKE_UNITS;
 
-    protected readonly state = signal<ExploreState>(stateFromQueryParams(this.route.snapshot.queryParams));
+    // Read the live address: syncUrl() bypasses the router, so its snapshot can be stale.
+    protected readonly state = signal<ExploreState>(stateFromQueryParams(this.router.parseUrl(this.location.path()).queryParams));
     protected readonly page = signal(1);
     protected readonly pageSize = signal(25);
     protected readonly materialSearch = signal('');
@@ -431,7 +428,7 @@ export class ExploreViewComponent {
         }
         if (state.mode === 'uptake') {
             const result = this.uptake();
-            return result?.rows.some((row) => row.status === 'ok') ? buildUptakeOption(result.rows, state.groupBy, state.uptakeUnit) : null;
+            return result?.rows.some((row) => row.status === 'ok') ? buildUptakeOption(result.rows, state.uptakeUnit) : null;
         }
         const result = this.distribution();
         return result?.bins.length ? buildHistogramOption(result.bins, this.distributionAxis(result)) : null;
@@ -602,7 +599,7 @@ export class ExploreViewComponent {
             const item = this.series()?.series[event.seriesIndex];
             if (item) this.inspect(item.isotherm_id);
         } else if (state.mode === 'uptake' && this.uptake()) {
-            const row = groupUptakeRows(this.uptake()!.rows, state.groupBy).grouped[event.seriesIndex]?.[event.dataIndex];
+            const row = groupUptakeRows(this.uptake()!.rows).grouped[event.seriesIndex]?.[event.dataIndex];
             if (row) this.inspect(row.isotherm_id);
         }
     }
@@ -675,7 +672,9 @@ export class ExploreViewComponent {
     }
 
     private syncUrl(): void {
-        void this.router.navigate([], { relativeTo: this.route, queryParams: stateToQueryParams(this.state()), replaceUrl: true });
+        // Replace the address without a router navigation, which would reset the scroll position.
+        const tree = this.router.createUrlTree([], { relativeTo: this.route, queryParams: stateToQueryParams(this.state()) });
+        this.location.replaceState(this.router.serializeUrl(tree));
     }
 }
 
