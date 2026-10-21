@@ -1,6 +1,6 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Backend or UI unreachable
 
@@ -36,10 +36,11 @@ processes.
 - A process that exits during the confirmation/termination race is treated as
   already resolved.
 
-Use **Stop application** for processes started by the current launcher session.
-A process left by an earlier session can be handled with **Kill all
-application processes** when its command line is recognized as an ADSMOD
-backend or frontend process. Unrelated processes remain untouched.
+After a successful launch, the launcher closes automatically; the backend
+terminal and hidden frontend preview remain running. Start the launcher again
+and use **Kill all application processes** to stop both. **Stop application**
+only affects processes still owned by the current launcher session. Unrelated
+processes remain untouched.
 
 ## Missing dependencies
 

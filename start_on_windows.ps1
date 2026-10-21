@@ -1876,9 +1876,7 @@ while (-not $exitMenu) {
     try {
         Invoke-TrackedLauncherAction -Name $entry.Label -Action {
             switch ($entry.Key) {
-                'Launch' {
-                    Start-Application
-                }
+                'Launch' { if (Start-Application) { exit 0 } }
                 'Stop' { Stop-Application }
                 'KillAll' { Stop-AllApplicationProcesses }
                 'Install' { Install-UpdateDependencies }

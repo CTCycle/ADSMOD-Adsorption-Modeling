@@ -40,13 +40,13 @@ for `/health/ready` and the frontend root while monitoring each started
 process; an early exit is reported immediately instead of waiting for the full
 timeout.
 
-After a successful launch, use **Stop application** in the same launcher
-session to stop only the backend and frontend processes started by that
-session. The backend runs in a visible terminal when launched from the
-PowerShell script. If an earlier session left ADSMOD processes running, use
-**Kill all application processes**; it stops recognized ADSMOD
-backend/frontend process trees after confirmation. That menu action remains
-separate from arbitrary port-conflict resolution.
+After a successful launch, the launcher closes automatically and hands off
+ownership. The backend continues in its visible terminal and the frontend
+preview continues in the background. To stop both services later, start the
+launcher again and use **Kill all application processes**; it stops recognized
+ADSMOD backend/frontend process trees after confirmation. **Stop application**
+only applies to processes still owned by the current launcher session. That
+menu action remains separate from arbitrary port-conflict resolution.
 
 The interactive menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
