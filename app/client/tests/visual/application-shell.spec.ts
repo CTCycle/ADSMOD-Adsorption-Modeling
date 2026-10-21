@@ -108,7 +108,7 @@ test('primary routes share one stable shell at each supported viewport', async (
             const tabRows = await page.locator('.training-view-tab').evaluateAll((tabs) =>
                 Array.from(new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().y))))
             );
-            expect(tabRows).toHaveLength(page.viewportSize()!.width <= 760 ? 2 : 1);
+            expect(tabRows).toHaveLength(1);
         }
 
         if (route.key === 'datasets') {

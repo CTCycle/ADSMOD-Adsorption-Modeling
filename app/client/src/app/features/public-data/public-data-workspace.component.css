@@ -230,16 +230,16 @@
 
 .source-status.available,
 .health-dot.available {
-    color: #16794a;
+    color: var(--success-text);
 }
 
 .source-status.unavailable,
 .health-dot.unavailable {
-    color: #b42318;
+    color: var(--danger-text);
 }
 
 .health-dot.degraded {
-    color: #b54708;
+    color: var(--warning-text);
 }
 
 .capability-list {
@@ -420,9 +420,9 @@
     height: var(--control-height);
     padding: 0 0.75rem;
     box-sizing: border-box;
-    border: 1px solid #dbe4f4;
+    border: 1px solid var(--primary-100);
     border-radius: var(--radius-sm);
-    background: #ffffff;
+    background: var(--surface);
     color: var(--text-primary, #18202c);
     font: inherit;
     font-size: 0.8125rem;
@@ -434,7 +434,7 @@
 .provider-query input:focus-visible,
 .provider-query select:focus-visible {
     outline: 3px solid rgba(50, 112, 218, 0.14);
-    border-color: #6f9ee8;
+    border-color: var(--primary-300);
 }
 
 .filter-actions {
@@ -644,12 +644,12 @@
 
 .source-detail {
     margin-top: 2px;
-    color: #8a5a12;
+    color: var(--warning-text);
 }
 
 .source-stale {
     margin-left: 6px;
-    color: #b54708;
+    color: var(--warning-text);
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -786,7 +786,7 @@
     place-items: center;
     min-height: 160px;
     border: 1px solid var(--border-color, #d8dee8);
-    background: #fff;
+    background: var(--surface);
 }
 
 .molecule-preview img {
@@ -863,7 +863,7 @@
     flex: 0 0 auto;
     border-radius: 50%;
     background: currentColor;
-    color: #98a2b3;
+    color: var(--slate-400);
 }
 
 .public-alert {
@@ -872,9 +872,9 @@
     gap: 10px;
     align-items: center;
     padding: 10px 12px;
-    border: 1px solid #f0b4ae;
-    background: #fff6f5;
-    color: #7a271a;
+    border: 1px solid var(--danger-border);
+    background: var(--danger-bg);
+    color: var(--danger-text);
     font-size: 0.76rem;
 }
 

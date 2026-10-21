@@ -63,6 +63,6 @@ describe('dashboard chart options', () => {
         const points = option.series[0].data;
         expect(points).toHaveLength(2);
         expect(points[0].itemStyle.borderWidth).toBeUndefined();
-        expect(points[1].itemStyle).toMatchObject({ color: '#ffffff', borderWidth: 2 });
+        expect(points[1].itemStyle).toMatchObject({ color: 'transparent', borderWidth: 2 });
     });
 });

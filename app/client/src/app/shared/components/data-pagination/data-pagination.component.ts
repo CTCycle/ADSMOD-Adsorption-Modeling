@@ -82,7 +82,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                 padding: 0 8px;
                 border: 1px solid var(--border-color, #d8dee8);
                 border-radius: 6px;
-                background: #fff;
+                background: var(--surface);
                 color: var(--text-primary, #18202c);
                 font: inherit;
                 font-size: 0.75rem;
@@ -102,7 +102,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                 padding: 0 10px;
                 border: 1px solid var(--border-color, #d8dee8);
                 border-radius: 6px;
-                background: #fff;
+                background: var(--surface);
                 color: var(--text-primary, #18202c);
                 font: inherit;
                 font-size: 0.75rem;
@@ -116,7 +116,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
             .pagination-size select:focus-visible {
                 outline: 3px solid rgba(50, 112, 218, 0.14);
                 outline-offset: 1px;
-                border-color: #6f9ee8;
+                border-color: var(--primary-300);
             }
             .pagination-button:disabled {
                 opacity: 0.5;

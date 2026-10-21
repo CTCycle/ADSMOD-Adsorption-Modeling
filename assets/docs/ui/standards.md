@@ -1,6 +1,6 @@
 # ADSMOD UI standards
 
-Last updated: 2026-08-02
+Last updated: 2026-10-21
 
 These standards refine the current console UI without changing its information architecture.
 
@@ -24,6 +24,10 @@ Use the existing Space Grotesk stack for interface text and a monospace stack on
 - Primary blue tokens are reserved for navigation, primary actions, focus, and progress.
 - Green, amber, and red are semantic status colors and must not be the only indication of state.
 - Body text should use `--slate-700` or darker on light surfaces; muted text should remain readable at normal size.
+
+## Themes
+
+Light, dark, and system themes are selected from the header switch and stored in `localStorage` (`adsmod-theme`); `ThemeService` sets `data-theme` on `<html>`, and `index.html` applies it before first paint. Dark values live in the `:root[data-theme='dark']` block of `styles.css`. Style with the slate/primary scales and the semantic tokens (`--surface`, `--page-bg`, `--link`, `--danger-*`, `--warning-*`, `--success-*`) instead of hex literals so both themes stay correct. Canvas charts take their colors from the ECharts themes in `chart-theme.ts`.
 
 ## Component usage rules
 

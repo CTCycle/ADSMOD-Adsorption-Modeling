@@ -82,9 +82,9 @@
     min-height: var(--control-height);
     height: var(--control-height);
     padding: 0 0.6rem;
-    border: 1px solid #dbe4f4;
+    border: 1px solid var(--primary-100);
     border-radius: var(--radius-sm);
-    background: #fff;
+    background: var(--surface);
     color: var(--text-primary, #18202c);
     font: inherit;
     font-size: 0.84rem;
@@ -166,9 +166,9 @@
 .run-poll-note {
     margin: 0 0 10px;
     padding: 8px 10px;
-    border: 1px solid #f0d5a8;
-    background: #fffaf0;
-    color: #8a5a12;
+    border: 1px solid var(--warning-border);
+    background: var(--warning-bg);
+    color: var(--warning-text);
     font-size: 0.74rem;
 }
 
@@ -207,7 +207,7 @@
     padding: 8px 10px;
     border: 1px solid var(--border-color, #e3e7ee);
     border-left: 3px solid var(--primary-600, #2563eb);
-    background: #f8fbff;
+    background: var(--slate-50);
     font-size: 0.74rem;
 }
 
@@ -257,8 +257,8 @@
     width: fit-content;
     padding: 2px 7px;
     border-radius: 999px;
-    background: #f2f4f7;
-    color: #475467;
+    background: var(--slate-100);
+    color: var(--slate-700);
     font-size: 0.64rem;
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -268,34 +268,34 @@
 
 .run-status[data-status="queued"],
 .run-status[data-status="running"] {
-    background: #eaf2ff;
-    color: #1d4ed8;
+    background: var(--primary-50);
+    color: var(--link);
 }
 
 .run-status[data-status="completed"] {
-    background: #e8f7ef;
-    color: #16794a;
+    background: var(--success-bg);
+    color: var(--success-text);
 }
 
 .run-status[data-status="partially_completed"],
 .run-status[data-status="interrupted"] {
-    background: #fff4e5;
-    color: #b54708;
+    background: var(--warning-bg);
+    color: var(--warning-text);
 }
 
 .run-status[data-status="failed"] {
-    background: #fef3f2;
-    color: #b42318;
+    background: var(--danger-bg);
+    color: var(--danger-text);
 }
 
 .run-status[data-status="cancelled"] {
-    background: #f2f4f7;
-    color: #475467;
+    background: var(--slate-100);
+    color: var(--slate-700);
 }
 
 .run-pending {
     align-self: center;
-    color: #b54708;
+    color: var(--warning-text);
     font-size: 0.7rem;
     font-weight: 600;
     white-space: nowrap;
@@ -314,7 +314,7 @@
 }
 
 .acquisition-history-table .col-status {
-    width: 112px;
+    width: 150px;
 }
 
 .acquisition-history-table .col-progress {
@@ -371,7 +371,7 @@
     gap: 2px;
     min-width: 0;
     padding: 8px 10px;
-    background: #fff;
+    background: var(--surface);
 }
 
 .run-details-grid span {
@@ -388,8 +388,8 @@
     margin: 0;
     padding: 8px 10px;
     border-left: 3px solid #b42318;
-    background: #fff5f5;
-    color: #7a271a;
+    background: var(--danger-bg);
+    color: var(--danger-text);
     font-size: 0.76rem;
 }
 

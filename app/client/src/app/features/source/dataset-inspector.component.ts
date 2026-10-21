@@ -307,9 +307,9 @@ interface ColumnMappingRow {
                 gap: 0.2rem;
                 min-width: 0;
                 padding: 0.75rem;
-                border: 1px solid #e1e7ef;
+                border: 1px solid var(--slate-200);
                 border-radius: 10px;
-                background: #f8fafc;
+                background: var(--slate-50);
             }
             .dataset-inspector-summary span,
             .dataset-inspector-heading p {
@@ -343,7 +343,7 @@ interface ColumnMappingRow {
             .dataset-inspector-table-wrap {
                 max-width: 100%;
                 overflow: auto;
-                border: 1px solid #dfe5ed;
+                border: 1px solid var(--slate-200);
                 border-radius: 10px;
             }
             .dataset-inspector-table {
@@ -354,12 +354,12 @@ interface ColumnMappingRow {
             .dataset-inspector-table th,
             .dataset-inspector-table td {
                 padding: 0.6rem 0.7rem;
-                border-bottom: 1px solid #e7ebf1;
+                border-bottom: 1px solid var(--slate-200);
                 text-align: left;
                 white-space: nowrap;
             }
             .dataset-inspector-table thead th {
-                background: #f3f6fa;
+                background: var(--slate-50);
             }
             .dataset-inspector-table tbody tr:last-child th,
             .dataset-inspector-table tbody tr:last-child td {
@@ -420,7 +420,7 @@ interface ColumnMappingRow {
             .dataset-inspector-warnings {
                 padding: 0.7rem 0.85rem;
                 border-left: 3px solid #ca8a04;
-                background: #fffbeb;
+                background: var(--warning-bg);
                 font-size: 0.78rem;
             }
             .dataset-inspector-warnings p {

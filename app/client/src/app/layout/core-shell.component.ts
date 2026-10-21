@@ -5,6 +5,7 @@ import { Component, DestroyRef, ElementRef, HostListener, ViewChild, computed, i
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { ThemeSwitchComponent } from '../shared/components/theme-switch/theme-switch.component';
 import { fetchApplicationCapabilities, fetchBackendReadiness } from '../services/system.service';
 
 type HelpPage = 'datasets' | 'public-data' | 'dashboards' | 'fitting' | 'training' | 'settings';
@@ -94,7 +95,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
 @Component({
     selector: 'adsmod-core-shell',
     standalone: true,
-    imports: [RouterLink, RouterLinkActive, RouterOutlet],
+    imports: [RouterLink, RouterLinkActive, RouterOutlet, ThemeSwitchComponent],
     template: `
         <div class="console-shell">
             <aside #sidebar class="console-sidebar" aria-label="Primary navigation">
@@ -150,6 +151,7 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
                         <p>{{ pageDescription() }}</p>
                     </div>
                     <div class="service-status-row">
+                        <adsmod-theme-switch />
                         <button #helpTrigger class="header-icon-button" type="button" aria-label="Help" (click)="openHelp()">?</button>
                     </div>
                 </header>
