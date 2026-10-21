@@ -31,6 +31,8 @@ optional feature that the backend cannot provide.
 Validate the smallest relevant scope first, then expand when a change crosses
 backend, optional-extension, or frontend boundaries. Distinguish automated
 checks from live browser, hardware-specific, and long-running ML validation.
-For settings changes, verify SQLite persistence, full-model validation, runtime
-application, restart indicators, and the actual Settings page at desktop and
-narrow widths.
+For application settings, verify persistence in the active database,
+full-model validation, runtime application, restart indicators, and the actual
+Settings page at desktop and narrow widths. For database configuration,
+verify protected file persistence, connection testing, and switching or
+rollback behavior for the available backend profile.

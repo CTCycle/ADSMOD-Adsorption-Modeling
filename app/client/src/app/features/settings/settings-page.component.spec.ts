@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
-import type { SettingsResponse, UserSettings } from '../../models/settings.model';
+import type { DatabaseSettings, SettingsResponse, UserSettings } from '../../models/settings.model';
 import { SettingsPageComponent } from './settings-page.component';
 
 const defaults: UserSettings = {
@@ -46,21 +46,42 @@ const defaults: UserSettings = {
 
 const fetchMock = vi.fn<typeof fetch>();
 
-function apiResponse(current: UserSettings = defaults): Response {
+function apiResponse(current: UserSettings = defaults, pendingRestartFields: string[] = []): Response {
     const body: SettingsResponse = {
         status: 'success',
         current: structuredClone(current),
         defaults: structuredClone(defaults),
-        restart_required: false,
-        restart_required_fields: [],
-        pending_restart_fields: [],
+        restart_required: pendingRestartFields.length > 0,
+        restart_required_fields: ['runtime.frontend_port'],
+        pending_restart_fields: pendingRestartFields,
+    };
+    return { ok: true, status: 200, json: async () => body } as Response;
+}
+
+function databaseResponse(): Response {
+    const body: DatabaseSettings = {
+        status: 'success',
+        backend: 'sqlite',
+        connected: true,
+        sqlite_path: 'data/database.db',
+        engine: null,
+        host: null,
+        port: null,
+        database_name: null,
+        username: null,
+        ssl: false,
+        ssl_ca: null,
+        connect_timeout: 30,
+        password_configured: false,
     };
     return { ok: true, status: 200, json: async () => body } as Response;
 }
 
 describe('SettingsPageComponent confirmations', () => {
     beforeEach(async () => {
-        fetchMock.mockReset().mockResolvedValue(apiResponse());
+        fetchMock.mockReset().mockImplementation(async (input) =>
+            String(input).includes('/database') ? databaseResponse() : apiResponse(),
+        );
         vi.stubGlobal('fetch', fetchMock);
         await TestBed.configureTestingModule({
             imports: [SettingsPageComponent],
@@ -99,7 +120,7 @@ describe('SettingsPageComponent confirmations', () => {
         await fixture.whenStable();
 
         expect(fixture.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     it('keeps or discards an unsaved draft through the route guard dialog', async () => {
@@ -125,5 +146,37 @@ describe('SettingsPageComponent confirmations', () => {
         discardButton?.click();
         fixture.detectChanges();
         expect(await discardPromise).toBe(true);
+    });
+
+    it('keeps database settings available when application settings cannot load', async () => {
+        fetchMock.mockImplementation(async (input) => {
+            if (String(input).includes('/database')) return databaseResponse();
+            return { ok: false, status: 503, json: async () => ({ detail: 'Settings unavailable.' }) } as Response;
+        });
+        const fixture = await createPage();
+        const buttons = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
+        const databaseButton = Array.from(buttons)
+            .find((button) => button.textContent?.includes('Database settings')) as HTMLButtonElement;
+        databaseButton.click();
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('Database');
+        expect(fixture.nativeElement.querySelector('#database-backend')).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain('SQLite');
+    });
+
+    it('shows the restart marker only when the active database has pending startup settings', async () => {
+        const current = await createPage();
+        expect(current.nativeElement.querySelector('.restart-tag')).toBeNull();
+        current.destroy();
+
+        fetchMock.mockImplementation(async (input) =>
+            String(input).includes('/database')
+                ? databaseResponse()
+                : apiResponse(defaults, ['runtime.frontend_port']),
+        );
+        const pending = await createPage();
+        expect(pending.nativeElement.querySelector('.restart-tag')?.textContent).toContain('Restart required');
+        expect(pending.nativeElement.querySelector('.settings-message.restart')).not.toBeNull();
     });
 });

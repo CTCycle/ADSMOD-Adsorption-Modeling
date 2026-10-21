@@ -2,21 +2,22 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
-import type { SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
-import { fetchSettings, resetSettings, saveSettings } from '../../services/settings.service';
+import type { DatabaseSettings, DatabaseSettingsRequest, SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
+import { fetchDatabaseSettings, fetchSettings, resetSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
 
-type SettingsTab = 'runtime' | 'import' | 'public-data' | 'fitting' | 'training';
+type SettingsTab = 'runtime' | 'import' | 'public-data' | 'fitting' | 'training' | 'database';
 type SettingExtension = '.csv' | '.xls' | '.xlsx';
 type SyncCategory = 'experiments' | 'guest' | 'host';
+type DatabaseForm = DatabaseSettingsRequest & { password_configured: boolean };
 
-const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', 'fitting', 'training'];
+const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', 'fitting', 'training', 'database'];
 
 @Component({
     selector: 'adsmod-settings-page',
     standalone: true,
     imports: [CommonModule, FormsModule],
     template: `
-        <section class="settings-page" aria-labelledby="settings-heading">
+        <section class="settings-page" aria-label="Application settings">
             @if (dialogMode; as mode) {
                 <div class="settings-dialog-backdrop">
                     <section
@@ -39,26 +40,62 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                     </section>
                 </div>
             }
-            <div class="settings-intro">
-                <div>
-                    <p class="settings-eyebrow">Workspace preferences</p>
-                    <h2 id="settings-heading">Application settings</h2>
-                    <p class="settings-lede">Tune runtime behavior, data acquisition, fitting and training defaults for future work.</p>
+            @if (activeTab === 'database') {
+                <div class="settings-workspace">
+                    <div class="settings-tabs" role="tablist" aria-label="Settings categories" (keydown)="handleTabKeydown($event)">
+                        @for (tab of tabs; track tab.id) {
+                            <button class="settings-tab" type="button" role="tab" [id]="'settings-tab-' + tab.id" [attr.aria-selected]="activeTab === tab.id" [attr.aria-controls]="'settings-panel'" [attr.tabindex]="activeTab === tab.id ? 0 : -1" (click)="selectTab(tab.id)">
+                                <span class="settings-tab-mark" aria-hidden="true">{{ tab.mark }}</span><span>{{ tab.label }}</span>
+                            </button>
+                        }
+                    </div>
+                    <div class="settings-panel" role="tabpanel" id="settings-panel" aria-labelledby="settings-tab-database" tabindex="0">
+                        <div class="settings-section-heading">
+                            <div><h3>Database</h3><p>Choose where ADSMOD stores operational data and application settings.</p></div>
+                            @if (databaseSettings) { <span class="restart-tag" [class.connected-tag]="databaseSettings.connected">{{ databaseSettings.connected ? 'Connected' : 'Unavailable' }}</span> }
+                        </div>
+                        @if (databaseError) { <div class="settings-message error" role="alert">{{ databaseError }} <button class="button secondary" type="button" (click)="loadDatabase()">Retry</button></div> }
+                        @if (databaseMessage) { <div class="settings-message" [class.success]="databaseMessageKind === 'success'" [class.error]="databaseMessageKind === 'error'" role="status">{{ databaseMessage }}</div> }
+                        @if (databaseLoading && !databaseForm) {
+                            <div class="settings-state-card" role="status">Loading database configuration…</div>
+                        } @else if (databaseForm; as database) {
+                            <div class="settings-callout"><strong>Independent data stores</strong><span>Switching reloads application settings from the selected database. ADSMOD does not copy settings or operational data between databases. Active jobs and public-data sync runs must finish before switching.</span></div>
+                            <div class="settings-grid">
+                                <label class="settings-field" for="database-backend"><span class="settings-label">Database backend</span><select id="database-backend" class="select-input" [(ngModel)]="database.backend" (ngModelChange)="clearDatabaseMessage()"><option value="sqlite">SQLite</option><option value="postgres">PostgreSQL</option></select><span class="settings-help">SQLite stores data in a local file. PostgreSQL uses an independent server database.</span></label>
+                                @if (database.backend === 'sqlite') {
+                                    <label class="settings-field settings-field-wide" for="database-sqlite-path"><span class="settings-label">Database file path</span><input id="database-sqlite-path" type="text" autocomplete="off" [(ngModel)]="database.sqlite_path" (ngModelChange)="clearDatabaseMessage()" /><span class="settings-help">Absolute path or path relative to the ADSMOD data directory.</span></label>
+                                    <label class="settings-field" for="database-sqlite-timeout"><span class="settings-label">Connection timeout (seconds)</span><input id="database-sqlite-timeout" type="number" min="1" max="300" step="1" [(ngModel)]="database.connect_timeout" (ngModelChange)="clearDatabaseMessage()" /><span class="settings-help">Maximum wait for SQLite to open the database.</span></label>
+                                } @else {
+                                    <label class="settings-field" for="database-host"><span class="settings-label">Host</span><input id="database-host" type="text" autocomplete="off" [(ngModel)]="database.host" (ngModelChange)="clearDatabaseMessage()" /></label>
+                                    <label class="settings-field" for="database-port"><span class="settings-label">Port</span><input id="database-port" type="number" min="1" max="65535" step="1" [(ngModel)]="database.port" (ngModelChange)="clearDatabaseMessage()" /></label>
+                                    <label class="settings-field" for="database-name"><span class="settings-label">Database name</span><input id="database-name" type="text" autocomplete="off" [(ngModel)]="database.database_name" (ngModelChange)="clearDatabaseMessage()" /></label>
+                                    <label class="settings-field" for="database-username"><span class="settings-label">Username</span><input id="database-username" type="text" autocomplete="username" [(ngModel)]="database.username" (ngModelChange)="clearDatabaseMessage()" /></label>
+                                    <label class="settings-field" for="database-password"><span class="settings-label">Password</span><input id="database-password" type="password" autocomplete="new-password" [(ngModel)]="database.password" (ngModelChange)="clearDatabaseMessage()" [placeholder]="database.password_configured ? 'Configured — leave blank to keep current' : 'Enter password'" /><span class="settings-help">Passwords are never displayed. Leave blank to keep the current password.</span></label>
+                                    @if (database.password_configured) { <label class="settings-field settings-toggle-field"><span><span class="settings-label">Clear saved password</span><span class="settings-help">Use only when the PostgreSQL account does not require a password.</span></span><input type="checkbox" [(ngModel)]="database.clear_password" (ngModelChange)="clearDatabaseMessage()" /></label> }
+                                    <label class="settings-field settings-toggle-field"><span><span class="settings-label">Require TLS</span><span class="settings-help">Require an encrypted PostgreSQL connection.</span></span><input type="checkbox" [(ngModel)]="database.ssl" (ngModelChange)="clearDatabaseMessage()" /></label>
+                                    @if (database.ssl) { <label class="settings-field settings-field-wide" for="database-ssl-ca"><span class="settings-label">TLS certificate authority file</span><input id="database-ssl-ca" type="text" autocomplete="off" [(ngModel)]="database.ssl_ca" (ngModelChange)="clearDatabaseMessage()" /><span class="settings-help">Optional path to a custom CA certificate.</span></label> }
+                                    <label class="settings-field" for="database-timeout"><span class="settings-label">Connection timeout (seconds)</span><input id="database-timeout" type="number" min="1" max="300" step="1" [(ngModel)]="database.connect_timeout" (ngModelChange)="clearDatabaseMessage()" /></label>
+                                }
+                            </div>
+                            @if (databaseValidationErrors.length) { <div class="settings-message error" role="alert"><strong>Review the database settings:</strong><ul>@for (message of databaseValidationErrors; track message) { <li>{{ message }}</li> }</ul></div> }
+                            <div class="database-actions">
+                                <span class="settings-actions-note">Connection details are stored separately from application settings.</span>
+                                <div class="settings-action-buttons">
+                                    <button class="button secondary" type="button" [disabled]="databaseTesting || databaseSwitching || databaseValidationErrors.length > 0" (click)="testDatabase()">{{ databaseTesting ? 'Testing…' : 'Test connection' }}</button>
+                                    <button class="button primary" type="button" [disabled]="databaseTesting || databaseSwitching || databaseValidationErrors.length > 0" (click)="activateDatabase()">{{ databaseSwitching ? 'Switching…' : 'Switch database' }}</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
-                <div class="settings-intro-meta">
-                    <span class="settings-scope-pill">SQLite-backed</span>
-                    @if (dirty) {
-                        <span class="settings-dirty-pill">Unsaved changes</span>
-                    }
-                </div>
-            </div>
-
-            @if (loading) {
+            } @else if (loading) {
                 <div class="settings-state-card" role="status">Loading saved settings…</div>
+                <button class="button secondary" type="button" (click)="selectTab('database')">Database settings</button>
             } @else if (loadError) {
                 <div class="settings-message error" role="alert">
                     <span>{{ loadError }}</span>
                     <button class="button secondary" type="button" (click)="load()">Retry</button>
+                    <button class="button secondary" type="button" (click)="selectTab('database')">Database settings</button>
                 </div>
             } @else if (draft; as settings) {
                 @if (settings.pending_restart_fields.length) {
@@ -90,7 +127,7 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                                 [attr.aria-selected]="activeTab === tab.id"
                                 [attr.aria-controls]="'settings-panel'"
                                 [attr.tabindex]="activeTab === tab.id ? 0 : -1"
-                                (click)="activeTab = tab.id"
+                                (click)="selectTab(tab.id)"
                             >
                                 <span class="settings-tab-mark" aria-hidden="true">{{ tab.mark }}</span>
                                 <span>{{ tab.label }}</span>
@@ -101,24 +138,24 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                     <div class="settings-panel" role="tabpanel" id="settings-panel" [attr.aria-labelledby]="'settings-tab-' + activeTab" tabindex="0">
                         @if (activeTab === 'runtime') {
                             <div class="settings-section-heading">
-                                <div><p class="settings-eyebrow">Connection</p><h3>Runtime</h3><p>Host and port changes need a restart. Other saved preferences apply to new requests and jobs.</p></div>
-                                <span class="restart-tag">Restart required</span>
+                                <div><h3>Runtime</h3><p>Host and port changes need a restart. Other saved preferences apply to new requests and jobs.</p></div>
+                                @if (settings.pending_restart_fields.length) { <span class="restart-tag">Restart required</span> }
                             </div>
-                            <div class="settings-callout"><strong>Database bootstrap</strong><span>Database selection, credentials, storage root and the local settings database path remain in <code>settings/.env</code>. ADSMOD never returns database passwords.</span></div>
+                            <div class="settings-callout"><strong>Database configuration</strong><span>Database selection and connection credentials are stored in the protected <code>database.json</code> file in the ADSMOD data directory. ADSMOD never returns database passwords.</span></div>
                             <div class="settings-grid">
                                 <label class="settings-field" for="setting-host"><span class="settings-label">Backend host</span><select id="setting-host" class="select-input" [(ngModel)]="settings.runtime.host" (ngModelChange)="markChanged()"><option value="127.0.0.1">127.0.0.1</option><option value="localhost">localhost</option><option value="::1">::1</option></select><span class="settings-help">ADSMOD accepts loopback addresses only.</span></label>
                                 <label class="settings-field" for="setting-backend-port"><span class="settings-label">Backend port</span><input id="setting-backend-port" type="number" min="1024" max="65535" step="1" [(ngModel)]="settings.runtime.backend_port" (ngModelChange)="markChanged()" /><span class="settings-help">API listener port · 1024–65535.</span></label>
                                 <label class="settings-field" for="setting-frontend-port"><span class="settings-label">Frontend port</span><input id="setting-frontend-port" type="number" min="1024" max="65535" step="1" [(ngModel)]="settings.runtime.frontend_port" (ngModelChange)="markChanged()" /><span class="settings-help">Console listener port · must differ from the backend port.</span></label>
                             </div>
                         } @else if (activeTab === 'import') {
-                            <div class="settings-section-heading"><div><p class="settings-eyebrow">Files and previews</p><h3>Data import</h3><p>Choose accepted spreadsheet formats and how confidently ADSMOD suggests column roles.</p></div></div>
+                            <div class="settings-section-heading"><div><h3>Data import</h3><p>Choose accepted spreadsheet formats and how confidently ADSMOD suggests column roles.</p></div></div>
                             <div class="settings-grid">
                                 <fieldset class="settings-field settings-field-wide"><legend class="settings-label">Allowed file extensions</legend><span class="settings-help">Only formats supported by the import parser are available.</span><div class="settings-choice-row">@for (extension of extensions; track extension) { <label class="settings-choice"><input type="checkbox" [checked]="settings.datasets.allowed_extensions.includes(extension)" (change)="toggleExtension(settings, extension, $event)" /><span>{{ extension }}</span></label> }</div></fieldset>
                                 <label class="settings-field" for="setting-detection-cutoff"><span class="settings-label">Detection confidence cutoff <strong>{{ percent(settings.datasets.column_detection_cutoff) }}</strong></span><input id="setting-detection-cutoff" type="range" min="0" max="1" step="0.01" [(ngModel)]="settings.datasets.column_detection_cutoff" (ngModelChange)="markChanged()" /><span class="settings-help">Column suggestions below this score are marked for manual mapping.</span></label>
                                 <label class="settings-field" for="setting-preview-rows"><span class="settings-label">Preview row limit</span><input id="setting-preview-rows" type="number" min="1" max="500" step="1" [(ngModel)]="settings.fitting.preview_row_limit" (ngModelChange)="markChanged()" /><span class="settings-help">Maximum source rows shown in the import preview.</span></label>
                             </div>
                         } @else if (activeTab === 'public-data') {
-                            <div class="settings-section-heading"><div><p class="settings-eyebrow">Providers and acquisition</p><h3>Public data</h3><p>Set request pacing, safe response limits and scheduled NIST refresh behavior.</p></div></div>
+                            <div class="settings-section-heading"><div><h3>Public data</h3><p>Set request pacing, safe response limits and scheduled NIST refresh behavior.</p></div></div>
                             <div class="settings-subsection"><h4>Provider requests</h4><div class="settings-grid">
                                 <label class="settings-field" for="setting-nist-concurrency"><span class="settings-label">NIST parallel requests</span><input id="setting-nist-concurrency" type="number" min="1" max="100" [(ngModel)]="settings.nist.parallel_tasks" (ngModelChange)="markChanged()" /><span class="settings-help">Concurrent NIST index and record requests.</span></label>
                                 <label class="settings-field" for="setting-timeout"><span class="settings-label">Request timeout (seconds)</span><input id="setting-timeout" type="number" min="0.1" max="120" step="0.5" [(ngModel)]="settings.public_data.request_timeout_seconds" (ngModelChange)="markChanged()" /><span class="settings-help">Maximum time for each provider request.</span></label>
@@ -142,7 +179,7 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                                 <label class="settings-field" for="setting-sync-fraction"><span class="settings-label">Records per refresh <strong>{{ percent(settings.public_data.auto_sync_fraction) }}</strong></span><input id="setting-sync-fraction" type="range" min="0.01" max="1" step="0.01" [(ngModel)]="settings.public_data.auto_sync_fraction" (ngModelChange)="markChanged()" /><span class="settings-help">Fraction of each remote collection to request.</span></label>
                             </div></div>
                         } @else if (activeTab === 'fitting') {
-                            <div class="settings-section-heading"><div><p class="settings-eyebrow">Scientific workflows</p><h3>Fitting &amp; jobs</h3><p>Set defaults used by new fitting runs, result ranking and job status updates.</p></div></div>
+                            <div class="settings-section-heading"><div><h3>Fitting &amp; jobs</h3><p>Set defaults used by new fitting runs, result ranking and job status updates.</p></div></div>
                             <div class="settings-grid">
                                 <label class="settings-field" for="setting-fit-iterations"><span class="settings-label">Default maximum iterations</span><input id="setting-fit-iterations" type="number" min="10" max="1000000000" [(ngModel)]="settings.fitting.default_max_iterations" (ngModelChange)="markChanged()" /><span class="settings-help">Starting value for the fitting workflow.</span></label>
                                 <label class="settings-field" for="setting-fit-ceiling"><span class="settings-label">Maximum iteration ceiling</span><input id="setting-fit-ceiling" type="number" min="10" max="1000000000" [(ngModel)]="settings.fitting.max_iterations_upper_bound" (ngModelChange)="markChanged()" /><span class="settings-help">Upper bound enforced when a fit is submitted.</span></label>
@@ -153,7 +190,7 @@ const TAB_ORDER: readonly SettingsTab[] = ['runtime', 'import', 'public-data', '
                                 <label class="settings-field" for="setting-polling"><span class="settings-label">Job polling interval (seconds)</span><input id="setting-polling" type="number" min="0.1" max="60" step="0.1" [(ngModel)]="settings.jobs.polling_interval" (ngModelChange)="markChanged()" /><span class="settings-help">Default client polling cadence for new job requests.</span></label>
                             </div>
                         } @else {
-                            <div class="settings-section-heading"><div><p class="settings-eyebrow">Machine learning profile</p><h3>Training</h3><p>Defaults are applied to future training jobs. Active training runs keep their captured configuration.</p></div></div>
+                            <div class="settings-section-heading"><div><h3>Training</h3><p>Defaults are applied to future training jobs. Active training runs keep their captured configuration.</p></div></div>
                             <div class="settings-grid">
                                 <label class="settings-field settings-toggle-field"><span><span class="settings-label">Enable JIT compilation</span><span class="settings-help">Compile the model during training when supported by the selected backend.</span></span><input type="checkbox" [(ngModel)]="settings.training.use_jit" (ngModelChange)="markChanged()" /></label>
                                 <label class="settings-field" for="setting-jit-backend"><span class="settings-label">JIT backend</span><select id="setting-jit-backend" class="select-input" [(ngModel)]="settings.training.jit_backend" (ngModelChange)="markChanged()"><option value="inductor">Inductor</option><option value="eager">Eager</option><option value="aot_eager">AOT Eager</option><option value="cudagraphs">CUDA Graphs</option></select><span class="settings-help">Torch compile backend used when JIT is enabled.</span></label>
@@ -187,6 +224,7 @@ export class SettingsPageComponent {
         { id: 'public-data' as const, label: 'Public data', mark: '⇩' },
         { id: 'fitting' as const, label: 'Fitting & jobs', mark: '⌁' },
         { id: 'training' as const, label: 'Training', mark: '✺' },
+        { id: 'database' as const, label: 'Database', mark: '▤' },
     ];
     protected readonly extensions: SettingExtension[] = ['.csv', '.xls', '.xlsx'];
     protected readonly syncCategories: SyncCategory[] = ['experiments', 'guest', 'host'];
@@ -215,6 +253,14 @@ export class SettingsPageComponent {
     protected loadError = '';
     protected errorMessage = '';
     protected statusMessage = '';
+    protected databaseSettings: DatabaseSettings | null = null;
+    protected databaseForm: DatabaseForm | null = null;
+    protected databaseLoading = true;
+    protected databaseTesting = false;
+    protected databaseSwitching = false;
+    protected databaseError = '';
+    protected databaseMessage = '';
+    protected databaseMessageKind: 'success' | 'error' = 'success';
     protected dialogMode: 'reset' | 'leave' | null = null;
     private dialogResolver: ((confirmed: boolean) => void) | null = null;
     private dialogOpener: HTMLElement | null = null;
@@ -278,8 +324,100 @@ export class SettingsPageComponent {
         return errors;
     }
 
+    protected get databaseValidationErrors(): string[] {
+        const form = this.databaseForm;
+        if (!form) return [];
+        const errors: string[] = [];
+        if (form.backend === 'sqlite' && (!form.sqlite_path.trim() || form.sqlite_path.trim() === ':memory:')) errors.push('Enter a persistent SQLite file path. In-memory databases are reserved for tests.');
+        if (!Number.isInteger(form.connect_timeout) || form.connect_timeout < 1 || form.connect_timeout > 300) errors.push('Connection timeout must be a whole number from 1 to 300 seconds.');
+        if (form.backend === 'postgres') {
+            if (!form.host.trim()) errors.push('Enter a PostgreSQL host.');
+            if (!form.database_name.trim()) errors.push('Enter a PostgreSQL database name.');
+            if (!form.username.trim()) errors.push('Enter a PostgreSQL username.');
+            if (!Number.isInteger(form.port) || form.port < 1 || form.port > 65535) errors.push('PostgreSQL port must be a whole number from 1 to 65535.');
+        }
+        return errors;
+    }
+
     constructor() {
         void this.load();
+        void this.loadDatabase();
+    }
+
+    protected selectTab(tab: SettingsTab): void {
+        this.activeTab = tab;
+        if (tab === 'database' && !this.databaseForm && !this.databaseLoading) void this.loadDatabase();
+    }
+
+    protected async loadDatabase(): Promise<void> {
+        this.databaseLoading = true;
+        this.databaseError = '';
+        try {
+            const current = await fetchDatabaseSettings();
+            this.databaseSettings = current;
+            this.databaseForm = {
+                backend: current.backend,
+                sqlite_path: current.sqlite_path ?? 'data/database.db',
+                engine: 'postgresql+psycopg',
+                host: current.host ?? '',
+                port: current.port ?? 5432,
+                database_name: current.database_name ?? '',
+                username: current.username ?? '',
+                password: '',
+                clear_password: false,
+                ssl: current.ssl,
+                ssl_ca: current.ssl_ca ?? '',
+                connect_timeout: current.connect_timeout,
+                password_configured: current.password_configured,
+            };
+        } catch (error) {
+            this.databaseError = error instanceof Error ? error.message : 'Database configuration could not be loaded.';
+        } finally {
+            this.databaseLoading = false;
+            this.changeDetector.detectChanges();
+        }
+    }
+
+    protected clearDatabaseMessage(): void {
+        this.databaseMessage = '';
+    }
+
+    protected async testDatabase(): Promise<void> {
+        if (!this.databaseForm || this.databaseValidationErrors.length) return;
+        this.databaseTesting = true;
+        this.databaseMessage = '';
+        try {
+            const result = await testDatabaseConnection(this.databaseRequest(this.databaseForm));
+            this.databaseMessage = result.message;
+            this.databaseMessageKind = 'success';
+        } catch (error) {
+            this.databaseMessage = error instanceof Error ? error.message : 'Connection test failed.';
+            this.databaseMessageKind = 'error';
+        } finally {
+            this.databaseTesting = false;
+            this.changeDetector.detectChanges();
+        }
+    }
+
+    protected async activateDatabase(): Promise<void> {
+        if (!this.databaseForm || this.databaseValidationErrors.length) return;
+        this.databaseSwitching = true;
+        this.databaseMessage = '';
+        try {
+            this.databaseSettings = await switchDatabase(this.databaseRequest(this.databaseForm));
+            window.location.reload();
+        } catch (error) {
+            this.databaseMessage = error instanceof Error ? error.message : 'Database switch failed.';
+            this.databaseMessageKind = 'error';
+        } finally {
+            this.databaseSwitching = false;
+            this.changeDetector.detectChanges();
+        }
+    }
+
+    private databaseRequest(form: DatabaseForm): DatabaseSettingsRequest {
+        const { password_configured: _passwordConfigured, ...request } = form;
+        return request;
     }
 
     protected async load(): Promise<void> {

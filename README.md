@@ -46,7 +46,7 @@ Choose **Launch Application**. On first use, the launcher may download runtimes 
 
 ## Configuration
 
-Application behavior settings are managed on the console's **Settings** page and stored in the local SQLite database. Runtime endpoints are loaded from this store; host and port changes require an ADSMOD restart. `settings/.env` is reserved for database selection, credentials, and bootstrap paths needed to locate the settings database. See [runtime configuration](assets/docs/runtime/configuration.md) for the complete field mapping and migration command.
+Application behavior settings are managed on the console's **Settings** page and stored in the active SQLite or PostgreSQL database. The Database tab stores backend connection details separately in `database.json` under the ADSMOD data directory. `settings/.env` may set the storage root; it contains no database connection values. Host and port changes require an ADSMOD restart. See [runtime configuration](assets/docs/runtime/configuration.md) for the complete field mapping, switching limits, and legacy migration details.
 
 ## Documentation
 

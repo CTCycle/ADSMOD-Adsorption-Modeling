@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Backend package
 
@@ -11,11 +11,29 @@ CI install this package and use its lockfile.
 
 ## Core persistence
 
-Core owns the operational database and Alembic history under
-`app/server/migrations`. Startup accepts only an empty unversioned SQLite
-file or a known Alembic state; it never infers or silently adopts an unknown
-schema. The current schema includes immutable `training_snapshots` and
+Core owns the active database and Alembic history under
+`app/server/migrations`. SQLite and PostgreSQL share the same schema. Startup
+accepts only an empty unversioned SQLite file or a known Alembic state; it
+never infers or silently adopts an unknown schema. The current schema includes
+the `application_settings` singleton and immutable `training_snapshots` and
 `training_snapshot_rows` tables.
+
+`DatabaseManager` is the stable owner of the active engine, session factory,
+and transaction boundary. Repositories and services keep that manager rather
+than retaining independent pools. The Database Settings endpoint verifies and
+migrates a candidate before draining HTTP requests and session leases, then
+adopts its engine and reloads the candidate database's settings. Active jobs
+and public-data sync runs block switching; failed activation restores the
+previous manager and configuration.
+
+Database connection settings are stored in `database.json` under the
+application data root, independent of either backend. The versioned file is
+validated before the database is opened and replaced atomically. Passwords
+use Windows DPAPI on Windows; elsewhere the file is restricted to mode 0600.
+Application settings and operational records have one authority: the active
+database. Switching databases never copies settings or operational data.
+Initial legacy cutover may seed the selected target once when it has no
+settings row; that migration is not repeated during runtime switching.
 
 SQLite migrations run with foreign-key enforcement disabled and must pass
 `PRAGMA foreign_key_check` before commit. Alembic batch operations rebuild a

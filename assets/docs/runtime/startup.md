@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Recommended startup
 
@@ -8,9 +8,9 @@ Last updated: 2026-10-20
 & .\start_on_windows.ps1
 ```
 
-The launcher reads runtime host, ports, and storage location through
-`server.runtime_config` from the local SQLite settings store and database
-bootstrap values. It inspects every configured application port before doing
+The launcher reads runtime host and ports through `server.runtime_config`
+from the active database. The storage root is resolved first; database
+connection settings come from `database.json` inside that root. It inspects every configured application port before doing
 runtime, dependency, or build work, then starts one FastAPI backend and a static
 production preview server. If configured ports
 are occupied by resolvable processes, it presents the complete conflict set
@@ -71,9 +71,10 @@ From the repository root after `app/server/.venv` is ready:
 & .\app\server\.venv\Scripts\python.exe -m server.cli
 ```
 
-This is the only backend process. Database bootstrap values in
-`settings/.env` are validated before startup; application behavior settings
-load from SQLite. If the environment was synchronized with the
+This is the only backend process. The storage root and dedicated database
+configuration are resolved before connecting; application behavior settings
+load from the selected database. If a `database.json` file does not yet exist,
+startup performs the one-time legacy configuration cutover. If the environment was synchronized with the
 `ml` extra, the process discovers and registers the optional ML extension at
 startup. The Angular development server can be started from `app/client` with
 `npm run dev`; this is separate from the launcher’s production preview path.
@@ -85,9 +86,17 @@ A missing or empty SQLite file is initialized to the packaged head. A non-empty
 unversioned file, an empty version table beside application tables, an unknown
 revision, or a stamped-but-incomplete schema fails explicitly without schema
 inference. PostgreSQL uses the same migration history and a bounded advisory
-lock. The local SQLite database always contains `application_settings`; when
-PostgreSQL is selected, `DATABASE_SQLITE_PATH` still locates settings while
-PostgreSQL stores operational data.
+lock. The active database contains both operational data and the
+`application_settings` row. The separate `database.json` file contains only
+the selected backend and connection parameters, so it remains readable before
+any database is available.
+
+The Database tab can switch the active connection without restarting when the
+target connection and schema are ready. A switch waits for ordinary requests
+and database sessions to drain, and is rejected while a job or public-data
+sync run is active. Each database retains its own settings and operational
+data; switching does not copy either. Host and listener port changes still
+require a restart because they change process bindings.
 
 ## Tests
 

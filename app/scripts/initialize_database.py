@@ -12,7 +12,7 @@ from server.common.utils.logger import logger
 def main() -> int:
     started_at = time.perf_counter()
     runtime = load_runtime_configuration()
-    runtime.settings_store.dispose()
+    runtime.settings_store.database.dispose()
     logger.info(
         "Database initialization completed in %.2f seconds (backend=%s).",
         time.perf_counter() - started_at,

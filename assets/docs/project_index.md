@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Purpose
 
@@ -94,7 +94,7 @@ and per-run narratives should not be added there.
 - [`runtime/startup.md`](runtime/startup.md)
   - Launcher and manual startup procedures.
 - [`runtime/configuration.md`](runtime/configuration.md)
-  - SQLite-backed application settings, database/path bootstrap exception, public-data request policy, and migration procedure.
+  - Active-database application settings, independent database connection file, public-data request policy, and legacy migration procedure.
 - [`runtime/deployment.md`](runtime/deployment.md)
   - Local deployment, runtime dependencies, interoperability, and current constraints.
 

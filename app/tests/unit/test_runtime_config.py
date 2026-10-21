@@ -5,13 +5,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from server.configurations.settings import DatabaseConfig, UserSettings
+from server.configurations.runtime import RuntimeConfiguration
+from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.configurations.store import ApplicationSettingsStore
+from server.repositories.database.manager import DatabaseManager
 from server.runtime_config import build_runtime_record
 import server.runtime_config as runtime_config
 
 
-def test_runtime_endpoint_reader_uses_local_settings_without_connecting_to_postgres(
+def test_runtime_endpoint_record_uses_settings_loaded_from_the_database_config(
     tmp_path: Path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]
     database = DatabaseConfig(
@@ -24,20 +26,21 @@ def test_runtime_endpoint_reader_uses_local_settings_without_connecting_to_postg
         password="must-not-be-returned",
         sqlite_path="settings/settings.db",
     )
-    monkeypatch.setattr(runtime_config, "load_database_config", lambda: database)
-    monkeypatch.setattr(runtime_config, "load_storage_root", lambda: tmp_path)
+    manager = DatabaseManager(database, storage_root=tmp_path)
+    store = ApplicationSettingsStore(manager)
+    config = AdsmodConfig.assemble(
+        database=database, storage_root=tmp_path, settings=UserSettings()
+    )
+    runtime = RuntimeConfiguration(config=config, settings_store=store, database_ready=False)
+    monkeypatch.setattr(
+        runtime_config, "load_runtime_configuration", lambda *, initialize_database=False: runtime
+    )
 
     record = build_runtime_record()
 
-    assert record["embedded_database"] is False
+    assert record["database_backend"] == "postgres"
     assert record["backend_port"] == UserSettings().runtime.backend_port
     assert record["frontend_port"] == UserSettings().runtime.frontend_port
-    assert record["settings_database_path"] == str(
-        (tmp_path / "settings" / "settings.db").resolve()
-    )
+    assert record["database_path"] is None
+    assert "settings_database_path" not in record
     assert "must-not-be-returned" not in str(record)
-    store = ApplicationSettingsStore(Path(str(record["settings_database_path"])))
-    try:
-        assert store.get() == UserSettings()
-    finally:
-        store.dispose()

@@ -10,11 +10,11 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import APIRequestContext, Page, Playwright
 from server.configurations.bootstrap import (
-    load_database_config,
     load_storage_root,
-    resolve_settings_database_path,
 )
+from server.configurations.database_config import database_config_path, read_database_config
 from server.configurations.settings import RuntimeConfig
+from server.repositories.database.manager import resolve_sqlite_path
 
 TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
@@ -29,27 +29,31 @@ def normalize_client_host(bind_host: str) -> str:
 
 ###############################################################################
 def resolve_test_urls() -> tuple[str, str]:
-    database = load_database_config()
     storage_root = load_storage_root()
-    settings_path = resolve_settings_database_path(database, storage_root)
     runtime = RuntimeConfig()
-    if settings_path.is_file():
-        try:
-            connection = sqlite3.connect(f"file:{settings_path.as_posix()}?mode=ro", uri=True)
-            try:
-                row = connection.execute(
-                    "SELECT runtime_host, runtime_backend_port, runtime_frontend_port "
-                    "FROM application_settings WHERE id = 1"
-                ).fetchone()
-            finally:
-                connection.close()
-            if row is not None:
-                runtime = RuntimeConfig(
-                    host=row[0], backend_port=row[1], frontend_port=row[2]
-                )
-        except sqlite3.Error:
-            # Test collection must not initialize or mutate the user's settings DB.
-            pass
+    config_path = database_config_path(storage_root)
+    if config_path.is_file():
+        database = read_database_config(storage_root)
+        if database.embedded_database:
+            settings_path = resolve_sqlite_path(database, storage_root=storage_root)
+            if settings_path.is_file():
+                try:
+                    connection = sqlite3.connect(
+                        f"file:{settings_path.as_posix()}?mode=ro", uri=True
+                    )
+                    try:
+                        row = connection.execute(
+                            "SELECT runtime_host, runtime_backend_port, runtime_frontend_port "
+                            "FROM application_settings WHERE id = 1"
+                        ).fetchone()
+                    finally:
+                        connection.close()
+                    if row is not None:
+                        runtime = RuntimeConfig(
+                            host=row[0], backend_port=row[1], frontend_port=row[2]
+                        )
+                except sqlite3.Error:
+                    pass
     host = normalize_client_host(runtime.host)
     return (
         f"http://{host}:{runtime.frontend_port}".rstrip("/"),

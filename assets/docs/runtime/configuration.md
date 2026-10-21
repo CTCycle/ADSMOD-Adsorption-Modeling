@@ -1,14 +1,18 @@
 # ADSMOD runtime and application settings
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Settings ownership
 
-The console **Settings** page at `/settings` is the authority for application behavior. Its full-model `GET /api/v1/settings`, `PUT /api/v1/settings`, and `POST /api/v1/settings/reset` endpoints read and write one typed `application_settings` row in the local SQLite database. The API returns current values, defaults, and any pending restart fields. A full `PUT` is validated as one unit and committed atomically. A missing row is seeded from the typed defaults during initialization or the next settings read.
+The console **Settings** page at `/settings` is the authority for application behavior. Its full-model `GET /api/v1/settings`, `PUT /api/v1/settings`, and `POST /api/v1/settings/reset` endpoints read and write one typed `application_settings` row in the active database. The API returns current values, defaults, and any pending restart fields. A full `PUT` is validated as one unit and committed atomically. A missing row is seeded from the typed defaults during initialization or the next settings read.
 
-When PostgreSQL is selected for application data, the settings row still lives in the local SQLite database selected by `DATABASE_SQLITE_PATH`; PostgreSQL stores operational data only. For embedded SQLite, that same SQLite file stores both settings and operational data. Secrets are not application settings and database passwords are never returned by the API or written to logs.
+SQLite and PostgreSQL are the supported database backends. With SQLite selected, its configured file stores both application settings and operational data. With PostgreSQL selected, the selected PostgreSQL database stores both. There is no second settings database or JSON fallback after cutover. Database credentials are kept in `database.json`; passwords are never returned by the API.
 
 Settings take effect for future requests and new jobs after save. Long-running fitting, public-data, training, and dataset-build work uses the configuration snapshot captured when it starts. Runtime endpoint values and startup recovery behavior are shown as restart-required when saved values differ from the running process.
+
+The **Database** tab stores only the selected backend and connection parameters in `database.json` in the ADSMOD data directory. It is read before the application database is opened. The file is schema-validated and written with an atomic replacement. Windows protects the password with DPAPI; other platforms store it in a mode-`0600` file. The API omits the password and reports only whether one is configured.
+
+Database switching is performed in the running backend after the candidate connection and Alembic schema are checked. Switching is rejected while a job or public-data sync is active, and ordinary requests and database sessions are drained before the engine is replaced. The selected database's own settings row is loaded immediately; settings and operational data are not copied. Host and listener port changes still require a restart because they bind the backend and frontend processes.
 
 ## Complete UI mapping
 
@@ -53,28 +57,19 @@ Fitting defaults are also projected through `/api/v1/system/configuration`; trai
 
 ## Database and path bootstrap exception
 
-Only values needed before the settings database can be located or opened remain in `settings/.env` or matching process environment variables. Process environment values take precedence over `.env`. No application behavior setting is loaded from an environment variable.
+The only database-related value read from `settings/.env` or the process environment during normal startup is `ADSMOD_STORAGE_ROOT`, which locates the data directory before `database.json` can be read. Process environment values take precedence over `.env`. No database backend or connection value is loaded from the environment after the one-time legacy migration.
 
 | Key | Default | Purpose and validation |
 | --- | --- | --- |
-| `ADSMOD_STORAGE_ROOT` | `%LOCALAPPDATA%/ADSMOD` (or the user local-data directory fallback) | Root for the local settings database, operational SQLite data when selected, logs, and training artifacts. Relative database paths resolve below this root. |
-| `EMBEDDED_DATABASE` | `true` | Selects local SQLite operational data (`true`) or PostgreSQL operational data (`false`). Must be a recognized boolean. |
-| `DATABASE_SQLITE_PATH` | `data/database.db` | Local SQLite file that stores `application_settings`; when embedded SQLite is selected it also stores operational application data. Required to locate settings even when PostgreSQL is selected. `:memory:` is supported for isolated runtime use. |
-| `DATABASE_ENGINE` | `postgres` | PostgreSQL engine name when embedded mode is false. Supported values are `postgres`, `postgresql`, and `postgresql+psycopg`. |
-| `DATABASE_HOST` | unset | Required for PostgreSQL. |
-| `DATABASE_PORT` | `5432` | PostgreSQL port, 1–65535. |
-| `DATABASE_NAME` | unset | Required for PostgreSQL. |
-| `DATABASE_USERNAME` | unset | Required for PostgreSQL. |
-| `DATABASE_PASSWORD` | unset | Optional PostgreSQL password. Never returned or logged. |
-| `DATABASE_SSL` | `false` | Enables PostgreSQL TLS. Must be a recognized boolean. |
-| `DATABASE_SSL_CA` | unset | Optional TLS CA file path. |
-| `DATABASE_CONNECT_TIMEOUT` | `30` seconds | PostgreSQL connection timeout, 1–300. |
+| `ADSMOD_STORAGE_ROOT` | `%LOCALAPPDATA%/ADSMOD` (or the user local-data directory fallback) | Root containing `database.json`, the selected SQLite file when SQLite is active, logs, and training artifacts. Relative database paths resolve below this root. |
 
-Bootstrap values are validated before connecting. Invalid bootstrap errors point to `settings/.env` without including secret values. `settings/.env.example` lists supported keys. Database selection, credentials, storage root, and the settings database path are intentionally not editable in the running UI because they are required to start that UI.
+All connection fields are in `database.json`: backend; SQLite file path and connection timeout; or PostgreSQL engine, host, port, database name, username, password, TLS/CA, and connection timeout. `settings/.env.example` contains no database connection variables. Database settings can be changed in the running UI; only the storage root itself is a startup setting.
 
 ## One-time migration from legacy installations
 
-The explicit importer reads the selected legacy `data/adsmod.json` once, seeds the SQLite settings row from its effective application values plus typed defaults, and adds database/path bootstrap values to `.env` only when the key is not already explicit in `.env` or the process environment. Existing storage roots and settings rows are preserved. Run it before removing the old file:
+When `database.json` is absent, first startup makes one cutover attempt. It reads legacy database values from the old environment variables or `data/adsmod.json`, writes the dedicated database file, and removes the old database keys from `.env` and the process environment after the file is saved. It then preserves an existing `application_settings` row in the selected database. If the selected target has no settings row, a legacy SQLite settings row or `data/adsmod.json` application settings are imported once; otherwise typed defaults seed the target. A later database switch never repeats this import or copies settings between stores.
+
+The explicit importer remains available for a controlled migration:
 
 ```powershell
 Push-Location .\app
@@ -82,4 +77,4 @@ Push-Location .\app
 Pop-Location
 ```
 
-This is a migration command only. Normal startup, APIs, launcher, and frontend proxy do not read, generate, or maintain the legacy file. Per-training checkpoint `configuration.json` files remain run artifacts and are unrelated to global settings.
+This is a migration command only. Once `database.json` exists, normal startup and runtime services do not load database configuration or application settings from legacy environment variables or `data/adsmod.json`. Per-training checkpoint `configuration.json` files remain run artifacts and are unrelated to global settings.

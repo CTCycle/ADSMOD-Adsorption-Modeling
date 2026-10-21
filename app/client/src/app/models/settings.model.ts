@@ -66,3 +66,39 @@ export interface SettingsResponse {
     restart_required_fields: string[];
     pending_restart_fields: string[];
 }
+
+export interface DatabaseSettings {
+    status: 'success';
+    backend: 'sqlite' | 'postgres';
+    connected: boolean;
+    sqlite_path: string | null;
+    engine: string | null;
+    host: string | null;
+    port: number | null;
+    database_name: string | null;
+    username: string | null;
+    ssl: boolean;
+    ssl_ca: string | null;
+    connect_timeout: number;
+    password_configured: boolean;
+}
+
+export interface DatabaseSettingsRequest {
+    backend: 'sqlite' | 'postgres';
+    sqlite_path: string;
+    engine: 'postgresql+psycopg';
+    host: string;
+    port: number;
+    database_name: string;
+    username: string;
+    password: string;
+    clear_password: boolean;
+    ssl: boolean;
+    ssl_ca: string;
+    connect_timeout: number;
+}
+
+export interface DatabaseTestResponse {
+    success: true;
+    message: string;
+}

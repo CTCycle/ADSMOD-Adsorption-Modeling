@@ -9,8 +9,6 @@ from pydantic import ValidationError
 from scripts.generate_openapi import build_openapi_schema
 from server.domain.capabilities import CapabilitiesResponse
 from server.configurations.settings import (
-    AdsmodConfig,
-    DatabaseConfig,
     RuntimeConfig,
     UserSettings,
 )
@@ -54,9 +52,11 @@ def test_openapi_generation_fails_closed_without_ml_profile(monkeypatch, tmp_pat
             runtime=SimpleNamespace(machine_learning_available=False)
         )
     )
-    monkeypatch.setattr("scripts.generate_openapi.create_app", lambda config: application)
-    monkeypatch.setattr("scripts.generate_openapi.load_database_config", DatabaseConfig)
-    monkeypatch.setattr("scripts.generate_openapi.load_storage_root", lambda: tmp_path)
+    monkeypatch.setattr("scripts.generate_openapi.create_app", lambda config, **kwargs: application)
+    monkeypatch.setattr(
+        "scripts.generate_openapi.load_runtime_configuration",
+        lambda **kwargs: SimpleNamespace(config=object(), settings_store=None),
+    )
 
     with pytest.raises(RuntimeError, match="requires the ML-enabled backend profile"):
         build_openapi_schema()

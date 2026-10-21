@@ -5,8 +5,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
+from dataclasses import dataclass
 import os
 from pathlib import Path
+import threading
+import time
 from typing import Any
 from urllib.parse import quote_plus
 
@@ -44,6 +47,47 @@ def resolve_sqlite_path(
     return (base / configured_path).resolve()
 
 ###############################################################################
+class _LeasedSession(Session):
+    _release_lease: Any | None = None
+
+    def close(self) -> None:
+        try:
+            super().close()
+        finally:
+            release = self._release_lease
+            self._release_lease = None
+            if release is not None:
+                release()
+
+
+class _SessionFactory:
+    def __init__(self, manager: "DatabaseManager") -> None:
+        self.manager = manager
+
+    def __call__(self) -> Session:
+        manager = self.manager
+        with manager._lease_condition:
+            if not manager._accepting_sessions:
+                raise RuntimeError("Database is switching; retry the request shortly.")
+            manager._active_sessions += 1
+        try:
+            session = manager._session_maker()
+            session._release_lease = manager._release_session
+            return session
+        except Exception:
+            manager._release_session()
+            raise
+
+
+@dataclass
+class DatabaseSnapshot:
+    database: DatabaseConfig
+    backend: str
+    transaction_lock: Any
+    engine: Engine
+
+
+###############################################################################
 class DatabaseManager:
     """Own Core's one engine, session factory, and transaction boundary."""
 
@@ -67,11 +111,80 @@ class DatabaseManager:
             else nullcontext()
         )
         self.engine = self._create_engine()
-        self.session_factory = sessionmaker(
+        self._owns_engine = True
+        self._lease_condition = threading.Condition()
+        self._accepting_sessions = True
+        self._active_sessions = 0
+        self._session_maker = self._create_session_maker()
+        self.session_factory = _SessionFactory(self)
+
+    def _create_session_maker(self):
+        return sessionmaker(
             bind=self.engine,
             future=True,
             expire_on_commit=False,
+            class_=_LeasedSession,
         )
+
+    def _release_session(self) -> None:
+        with self._lease_condition:
+            self._active_sessions -= 1
+            self._lease_condition.notify_all()
+
+    def close_admission(self) -> None:
+        with self._lease_condition:
+            self._accepting_sessions = False
+
+    def open_admission(self) -> None:
+        with self._lease_condition:
+            self._accepting_sessions = True
+            self._lease_condition.notify_all()
+
+    def wait_until_idle(self, timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        with self._lease_condition:
+            while self._active_sessions:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self._lease_condition.wait(remaining)
+            return True
+
+    def adopt(self, candidate: "DatabaseManager") -> DatabaseSnapshot:
+        """Atomically replace this stable manager's engine after admission closes."""
+        if not self.wait_until_idle(0):
+            raise RuntimeError("Cannot switch the database while sessions are active.")
+        previous = DatabaseSnapshot(
+            database=self.database,
+            backend=self.backend,
+            transaction_lock=self._transaction_lock,
+            engine=self.engine,
+        )
+        with self._lease_condition:
+            if self._accepting_sessions:
+                raise RuntimeError("Database session admission must be closed before switching.")
+            self.database = candidate.database
+            self.backend = candidate.backend
+            self._transaction_lock = candidate._transaction_lock
+            self.engine = candidate.engine
+            self._owns_engine = True
+            candidate._owns_engine = False
+            self._session_maker = self._create_session_maker()
+        return previous
+
+    def restore(self, snapshot: DatabaseSnapshot) -> Engine:
+        """Restore the old connection after a failed runtime activation."""
+        with self._lease_condition:
+            if self._accepting_sessions or self._active_sessions:
+                raise RuntimeError("Database session admission must be closed and idle for rollback.")
+            failed_engine = self.engine
+            self.database = snapshot.database
+            self.backend = snapshot.backend
+            self._transaction_lock = snapshot.transaction_lock
+            self.engine = snapshot.engine
+            self._owns_engine = True
+            self._session_maker = self._create_session_maker()
+        return failed_engine
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -170,7 +283,8 @@ class DatabaseManager:
     # -------------------------------------------------------------------------
     def dispose(self) -> None:
         logger.debug("Disposing %s database engine", self.backend)
-        self.engine.dispose()
+        if self._owns_engine:
+            self.engine.dispose()
 
 
 __all__ = ["DatabaseManager", "resolve_sqlite_path"]
