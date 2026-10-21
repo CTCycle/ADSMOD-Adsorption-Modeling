@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from server.common.units import UnitRegistry
 from server.common.utils.logger import close_file_logging, configure_logging, logger
 from server.common.version import __version__
-from server.configurations.settings import AdsmodConfig, RuntimeConfig, UserSettings
+from server.configurations.settings import AdsmodConfig, UserSettings
 from server.configurations.store import ApplicationSettingsStore
 from server.domain.capabilities import CapabilitiesResponse, FeatureCapabilities
 from server.domain.configuration import (
@@ -36,6 +36,7 @@ from server.repositories.database.initializer import prepare_database_for_startu
 from server.services.container import CoreServiceContainer
 from server.services.training_data import TrainingDataService
 from server.api.settings import create_settings_router
+
 
 ###############################################################################
 class DatabaseRequestGate:
@@ -81,6 +82,7 @@ class DatabaseRequestGate:
             self._accepting = True
             self._condition.notify_all()
 
+
 ###############################################################################
 @dataclass
 class ApplicationRuntime:
@@ -88,12 +90,12 @@ class ApplicationRuntime:
     container: CoreServiceContainer
     training_data: TrainingDataService
     settings_store: ApplicationSettingsStore
-    startup_runtime: RuntimeConfig
     startup_settings: UserSettings
     database_ready: bool = False
     machine_learning_available: bool = False
     machine_learning_reason: str | None = None
     ml_container: Any | None = None
+
 
 ###############################################################################
 def capabilities(request: Request) -> CapabilitiesResponse:
@@ -110,6 +112,7 @@ def capabilities(request: Request) -> CapabilitiesResponse:
             checkpoints=available,
         ),
     )
+
 
 ###############################################################################
 def configuration(request: Request) -> FittingConfigurationResponse:
@@ -143,6 +146,7 @@ def configuration(request: Request) -> FittingConfigurationResponse:
         ),
     )
 
+
 ###############################################################################
 def _build_system_router() -> APIRouter:
     router = APIRouter()
@@ -161,6 +165,7 @@ def _build_system_router() -> APIRouter:
         tags=["system"],
     )
     return router
+
 
 ###############################################################################
 def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> None:
@@ -202,6 +207,7 @@ def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> 
     runtime.machine_learning_reason = None
     application.state.ml_container = ml_container
 
+
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -219,10 +225,10 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
             database=config.application.database,
             storage_root=storage_root,
             settings=settings,
+            runtime=config.runtime,
         )
         application.state.config = config
         application.state.runtime.config = config
-        application.state.runtime.startup_runtime = config.runtime
         application.state.runtime.startup_settings = settings
         application.state.core_container.apply_settings(config)
         application.state.core_container.public_data_service.ensure_sources()
@@ -244,8 +250,8 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
             ml_container.shutdown()
         await application.state.core_container.shutdown_async()
         application.state.core_container.database.dispose()
-        application.state.settings_store.dispose()
         close_file_logging()
+
 
 ###############################################################################
 def create_app(
@@ -261,7 +267,6 @@ def create_app(
         container=container,
         training_data=TrainingDataService(container),
         settings_store=store,
-        startup_runtime=config.runtime,
         startup_settings=config.user_settings(),
     )
     application = FastAPI(
@@ -293,17 +298,15 @@ def create_app(
             return await call_next(request)
         finally:
             await gate.leave()
-    application.state.startup_runtime = config.runtime
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            f"http://{config.runtime.host}:{config.runtime.frontend_port}",
-            f"http://127.0.0.1:{config.runtime.frontend_port}",
-            f"http://localhost:{config.runtime.frontend_port}",
+            *config.runtime.cors_origins,
         ],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_credentials=config.runtime.cors_allow_credentials,
+        allow_methods=list(config.runtime.cors_allow_methods),
+        allow_headers=list(config.runtime.cors_allow_headers),
     )
     application.include_router(health_router)
     application.include_router(_build_system_router(), prefix="/api/v1")

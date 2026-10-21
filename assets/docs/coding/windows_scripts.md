@@ -10,10 +10,10 @@ Last updated: 2026-10-21
 - Keep disposable application and test-tool caches below `runtimes/cache`.
 - Avoid destructive operations outside intended directories.
 - Keep script behavior compatible with the existing launcher and runtime flow.
-- Load runtime endpoints through `server.runtime_config` and connection
-  settings from `database.json` below the configured storage root. Application
-  settings remain in the selected database; `.env` may set only the storage
-  root for database bootstrap.
+- Load runtime endpoints through `server.runtime_config`, which reads `.env`
+  and process environment; load database connection settings from
+  `database.json` below the configured storage root. Application behavior
+  settings remain in the selected database.
 - Check dependency readiness before reinstalling runtimes or packages.
 
 ## Documentation Expectation

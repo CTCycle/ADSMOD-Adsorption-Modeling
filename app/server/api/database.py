@@ -183,7 +183,6 @@ class _DatabaseSwitch:
         self.admission_closed = False
         self.config_restore_failed = False
         self.old_database_ready = self.runtime.database_ready
-        self.old_startup_runtime = self.runtime.startup_runtime
         self.old_startup_settings = self.runtime.startup_settings
 
     # -------------------------------------------------------------------------
@@ -259,6 +258,7 @@ class _DatabaseSwitch:
             database=self.candidate_database,
             storage_root=self.storage_root,
             settings=target_settings,
+            runtime=self.current_config.runtime,
         )
         self.runtime.config = next_config
         self.application.state.config = next_config
@@ -304,7 +304,6 @@ class _DatabaseSwitch:
         self.runtime.config = self.current_config
         self.application.state.config = self.current_config
         self.runtime.database_ready = self.old_database_ready
-        self.runtime.startup_runtime = self.old_startup_runtime
         self.runtime.startup_settings = self.old_startup_settings
         services_restore_failed = self._restore_services()
         if self.admission_closed:

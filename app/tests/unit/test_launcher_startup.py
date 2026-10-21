@@ -7,9 +7,11 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 LAUNCHER = REPOSITORY_ROOT / "start_on_windows.ps1"
 
+
 ###############################################################################
 def launcher_text() -> str:
     return LAUNCHER.read_text(encoding="utf-8-sig")
+
 
 ###############################################################################
 def start_application_body() -> str:
@@ -17,6 +19,7 @@ def start_application_body() -> str:
     start = text.index("function Start-Application")
     end = text.index("function Install-UpdateDependencies", start)
     return text[start:end]
+
 
 ###############################################################################
 def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
@@ -29,14 +32,18 @@ def test_launcher_has_no_unconditional_rebuild_or_import_probe() -> None:
     assert "function Sync-BackendDependencies" in text
     assert "function Sync-FrontendDependencies" not in text
 
+
 ###############################################################################
-def test_launcher_loads_settings_and_endpoints_from_sqlite() -> None:
+def test_launcher_loads_endpoints_from_environment_and_database_bootstrap() -> None:
     text = launcher_text()
 
     assert "python -m server.runtime_config --json" in text
-    assert "Database runtime settings" in text
+    assert "Environment runtime settings" in text
+    assert "$runtime.backend_url" in text
+    assert "$runtime.frontend_url" in text
     assert "ADSMOD_DATA_DIR" not in text
     assert "adsmod.json" not in text
+
 
 ###############################################################################
 def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
@@ -63,15 +70,21 @@ def test_frontend_build_fingerprint_covers_only_declared_inputs() -> None:
     assert "playwright.config.ts" not in fingerprint
     assert "eslint.config.js" not in fingerprint
 
+
 ###############################################################################
 def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     body = start_application_body()
 
-    assert body.index("Get-PortConflicts") < body.index("Test-PortableRuntimeFilesReady")
-    assert body.index("Resolve-PortConflicts") < body.index("Test-BackendDependenciesCurrent")
+    assert body.index("Get-PortConflicts") < body.index(
+        "Test-PortableRuntimeFilesReady"
+    )
+    assert body.index("Resolve-PortConflicts") < body.index(
+        "Test-BackendDependenciesCurrent"
+    )
     assert "@($settings.BackendPort, $settings.FrontendPort)" in body
     assert "Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process" in body
     assert "Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process" in body
+
 
 ###############################################################################
 def test_launch_action_exits_launcher_after_successful_handoff() -> None:
@@ -80,6 +93,7 @@ def test_launch_action_exits_launcher_after_successful_handoff() -> None:
 
     assert "'Launch' { if (Start-Application) { exit 0 } }" in text
     assert "-WindowStyle Normal -PassThru" in body
+
 
 ###############################################################################
 def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None:
@@ -95,6 +109,7 @@ def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None
     assert "non-interactive" in conflict_code
     assert "ownership of port" in conflict_code
     assert "remaining" in conflict_code
+
 
 ###############################################################################
 def test_port_conflict_termination_rechecks_process_identity() -> None:

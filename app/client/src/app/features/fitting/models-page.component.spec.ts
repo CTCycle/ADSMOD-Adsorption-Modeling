@@ -87,7 +87,8 @@ describe('ModelsPageComponent', () => {
     it('shows the sole experiment selected after choosing its dataset', async () => {
         const fixture = TestBed.createComponent(ModelsPageComponent);
         fixture.detectChanges();
-        await fixture.whenStable();
+        const store = TestBed.inject(CoreWorkspaceStore);
+        await vi.waitFor(() => expect(store.datasets().some((dataset) => dataset.id === 1)).toBe(true));
         fixture.detectChanges();
 
         const root = fixture.nativeElement as HTMLElement;
@@ -95,7 +96,7 @@ describe('ModelsPageComponent', () => {
         expect(datasetSelect).not.toBeNull();
         datasetSelect!.value = '1';
         datasetSelect!.dispatchEvent(new Event('change'));
-        await fixture.whenStable();
+        await vi.waitFor(() => expect(TestBed.inject(CoreWorkspaceStore).selectedExperimentId()).toBe(42));
         fixture.detectChanges();
 
         const experimentSelect = root.querySelector<HTMLSelectElement>('#fitting-experiment-control');
@@ -288,17 +289,17 @@ describe('ModelsPageComponent', () => {
 
         const fixture = TestBed.createComponent(ModelsPageComponent);
         fixture.detectChanges();
-        await fixture.whenStable();
+        const store = TestBed.inject(CoreWorkspaceStore);
+        await vi.waitFor(() => expect(store.datasets().some((dataset) => dataset.id === 1)).toBe(true));
         fixture.detectChanges();
 
         const root = fixture.nativeElement as HTMLElement;
         const datasetSelect = root.querySelector<HTMLSelectElement>('#fitting-dataset-control');
         datasetSelect!.value = '1';
         datasetSelect!.dispatchEvent(new Event('change'));
-        await fixture.whenStable();
+        await vi.waitFor(() => expect(TestBed.inject(CoreWorkspaceStore).selectedExperimentId()).toBe(42));
         fixture.detectChanges();
 
-        const store = TestBed.inject(CoreWorkspaceStore);
         store.setModelParameters('langmuir', {
             k: { min: 1.5, max: 3 },
             qsat: { min: 10, max: 30 },

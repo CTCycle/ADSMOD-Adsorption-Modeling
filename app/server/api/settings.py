@@ -15,7 +15,6 @@ from server.configurations.settings import (
     JobConfig,
     NISTConfig,
     PublicDataConfig,
-    RuntimeConfig,
     TrainingConfig,
     UserSettings,
 )
@@ -23,9 +22,6 @@ from server.configurations.store import ApplicationSettingsStore
 from server.configurations.settings import AdsmodConfig
 
 RESTART_REQUIRED_FIELDS = (
-    "runtime.host",
-    "runtime.backend_port",
-    "runtime.frontend_port",
     "public_data.sync_resume_on_startup",
 )
 
@@ -44,7 +40,6 @@ class SettingsUpdateRequest(UserSettings):
         if set(value) != expected:
             raise ValueError("A complete settings object is required.")
         section_models = {
-            "runtime": RuntimeConfig,
             "datasets": DatasetConfig,
             "nist": NISTConfig,
             "public_data": PublicDataConfig,
@@ -85,13 +80,8 @@ def _current_settings(request: Request) -> UserSettings:
 ###############################################################################
 def _response(request: Request, current: UserSettings) -> dict[str, Any]:
     runtime = request.app.state.runtime
-    startup_runtime = runtime.startup_runtime
     startup_settings = runtime.startup_settings
-    restart_fields = [
-        f"runtime.{field}"
-        for field in ("host", "backend_port", "frontend_port")
-        if getattr(current.runtime, field) != getattr(startup_runtime, field)
-    ]
+    restart_fields = []
     if current.public_data.sync_resume_on_startup != startup_settings.public_data.sync_resume_on_startup:
         restart_fields.append("public_data.sync_resume_on_startup")
     return {
@@ -111,6 +101,7 @@ def _apply(request: Request, settings: UserSettings) -> None:
         database=runtime.config.application.database,
         storage_root=runtime.config.storage.root,
         settings=settings,
+        runtime=runtime.config.runtime,
     )
     runtime.config = config
     request.app.state.config = config

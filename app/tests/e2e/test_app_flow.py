@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from playwright.sync_api import Page, expect
 
+
 ###############################################################################
 class TestHomepage:
     """Tests for the main application shell and custom datasets page."""
@@ -23,6 +24,7 @@ class TestHomepage:
         expect(page.locator("nav[aria-label='Primary']").first).to_be_visible()
         expect(page.locator(".custom-datasets-page")).to_be_visible()
         expect(page.locator("input[type='file']").first).to_be_attached()
+
 
 ###############################################################################
 class TestHeaderNavigation:
@@ -45,5 +47,7 @@ class TestHeaderNavigation:
         page.goto(base_url)
         page.get_by_role("link", name="Training").click()
 
-        expect(page.locator(".route-workspace-training")).to_be_visible()
-        expect(page.get_by_role("heading", name="Data Processing")).to_be_visible()
+        expect(page.locator(".training-page")).to_be_visible()
+        data_processing = page.get_by_role("link", name="Data Processing")
+        expect(data_processing).to_be_visible()
+        expect(data_processing).to_have_attribute("aria-current", "page")

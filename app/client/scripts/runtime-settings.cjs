@@ -17,7 +17,7 @@ function loadRuntimeSettings(repositoryRoot = path.resolve(__dirname, '../../..'
   });
 
   if (result.error || result.status !== 0) {
-    throw new Error('ADSMOD runtime settings could not be loaded from SQLite. Initialize the application database and verify settings/.env.');
+    throw new Error('ADSMOD runtime settings could not be loaded. Verify the runtime values in settings/.env.');
   }
   const runtimeLine = String(result.stdout || '').split(/\r?\n/).find((line) => line.startsWith('ADSMOD_RUNTIME:'));
   if (!runtimeLine) throw new Error('ADSMOD runtime settings did not return a valid runtime record.');
@@ -34,7 +34,12 @@ function loadRuntimeSettings(repositoryRoot = path.resolve(__dirname, '../../..'
     || !Number.isInteger(backendPort) || backendPort < 1024 || backendPort > 65535
     || !Number.isInteger(frontendPort) || frontendPort < 1024 || frontendPort > 65535
     || backendPort === frontendPort) {
-    throw new Error('ADSMOD runtime settings contain an invalid local endpoint.');
+    throw new Error('ADSMOD runtime settings contain an invalid environment endpoint.');
+  }
+  const urlHost = runtime.host.includes(':') ? `[${runtime.host}]` : runtime.host;
+  const backendUrl = `http://${urlHost}:${backendPort}`;
+  if (runtime.backend_url !== backendUrl) {
+    throw new Error('ADSMOD runtime settings contain an inconsistent backend URL.');
   }
   return { ...runtime, backend_port: backendPort, frontend_port: frontendPort };
 }

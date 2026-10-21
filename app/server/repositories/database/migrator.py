@@ -24,16 +24,19 @@ from server.repositories.schemas.models import Base
 
 MIGRATION_LOCK_KEY = 8_174_209_531
 MIGRATION_CONFIG_PATH = Path(__file__).resolve().parents[2] / "pyproject.toml"
-INITIAL_REVISION = "23f1110c64a9"
+INITIAL_REVISION = "20261021_current_schema"
 CURRENT_TABLES = frozenset(Base.metadata.tables)
+
 
 ###############################################################################
 class DatabaseMigrationError(RuntimeError):
     """Raised when the database cannot be brought to the packaged head."""
 
+
 ###############################################################################
 class MigrationLockTimeoutError(DatabaseMigrationError):
     """Raised when another process holds the migration lock too long."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class MigrationResult:
     after: tuple[str, ...]
     head: str
     applied_migrations: bool
+
 
 ###############################################################################
 def build_alembic_config() -> Config:
@@ -66,6 +70,7 @@ def build_alembic_config() -> Config:
     config.attributes["head_revision"] = heads[0]
     return config
 
+
 ###############################################################################
 def _script_and_head(config: Config) -> tuple[ScriptDirectory, str]:
     script = config.attributes.get("script_directory")
@@ -81,6 +86,7 @@ def _script_and_head(config: Config) -> tuple[ScriptDirectory, str]:
         )
     return script, heads[0]
 
+
 ###############################################################################
 def _current_heads(connection: Connection) -> tuple[str, ...]:
     migration_context = MigrationContext.configure(
@@ -88,6 +94,7 @@ def _current_heads(connection: Connection) -> tuple[str, ...]:
         opts={"version_table": "alembic_version"},
     )
     return tuple(migration_context.get_current_heads())
+
 
 ###############################################################################
 def _run_command(
@@ -102,6 +109,7 @@ def _run_command(
         return
     raise ValueError(f"Unsupported Alembic action: {action}")
 
+
 ###############################################################################
 def _validate_known_heads(current: tuple[str, ...], script: ScriptDirectory) -> None:
     unknown: list[str] = []
@@ -114,17 +122,20 @@ def _validate_known_heads(current: tuple[str, ...], script: ScriptDirectory) -> 
             unknown.append(revision)
     if unknown:
         raise DatabaseMigrationError(
-            "Database references revisions that are not packaged: "
+            "Database revision is not supported by the current schema baseline: "
             + ", ".join(sorted(unknown))
+            + ". Recreate the database to use the current schema."
         )
     if len(current) > 1:
         raise DatabaseMigrationError(
             "Database contains multiple Alembic heads: " + ", ".join(sorted(current))
         )
 
+
 ###############################################################################
 def _missing_current_tables(connection: Connection) -> set[str]:
     return CURRENT_TABLES - set(inspect(connection).get_table_names())
+
 
 ###############################################################################
 def _migrate_locked(
@@ -185,6 +196,7 @@ def _migrate_locked(
         applied_migrations=True,
     )
 
+
 ###############################################################################
 def _acquire_postgres_lock(connection: Connection, timeout_seconds: int) -> None:
     deadline = time.monotonic() + max(1, timeout_seconds)
@@ -201,6 +213,7 @@ def _acquire_postgres_lock(connection: Connection, timeout_seconds: int) -> None
                 f"Timed out after {timeout_seconds}s waiting for the PostgreSQL migration lock."
             )
         time.sleep(min(0.1, remaining))
+
 
 ###############################################################################
 def migrate_engine(
@@ -220,17 +233,12 @@ def migrate_engine(
         with engine.connect() as connection:
             driver_connection = connection.connection.driver_connection
             driver_connection.autocommit = True
-            # Batch migrations rebuild SQLite tables by dropping the original.
-            # With enforcement on, that drop cascades into child rows, so it is
-            # disabled for the migration and integrity is verified before commit.
-            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
             try:
                 connection.exec_driver_sql("BEGIN IMMEDIATE")
             except OperationalError as exc:
                 connection.rollback()
                 driver_connection.autocommit = False
                 driver_connection.rollback()
-                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
                 raise MigrationLockTimeoutError(
                     "Timed out waiting for the SQLite migration write lock."
                 ) from exc
@@ -248,7 +256,6 @@ def migrate_engine(
             except Exception:
                 connection.exec_driver_sql("ROLLBACK")
                 connection.rollback()
-                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
                 driver_connection.autocommit = False
                 driver_connection.rollback()
                 raise
@@ -256,7 +263,6 @@ def migrate_engine(
                 try:
                     connection.exec_driver_sql("COMMIT")
                     connection.commit()
-                    connection.exec_driver_sql("PRAGMA foreign_keys=ON")
                 finally:
                     driver_connection.autocommit = False
                     driver_connection.rollback()
@@ -285,6 +291,7 @@ def migrate_engine(
         elapsed,
     )
     return result
+
 
 ###############################################################################
 def migrate_database(

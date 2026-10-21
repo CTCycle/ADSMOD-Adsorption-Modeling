@@ -7628,37 +7628,6 @@
         ],
         "title": "ResumeTrainingRequest"
       },
-      "RuntimeConfig": {
-        "properties": {
-          "host": {
-            "type": "string",
-            "enum": [
-              "127.0.0.1",
-              "localhost",
-              "::1"
-            ],
-            "title": "Host",
-            "default": "127.0.0.1"
-          },
-          "backend_port": {
-            "type": "integer",
-            "maximum": 65535.0,
-            "minimum": 1024.0,
-            "title": "Backend Port",
-            "default": 6045
-          },
-          "frontend_port": {
-            "type": "integer",
-            "maximum": 65535.0,
-            "minimum": 1024.0,
-            "title": "Frontend Port",
-            "default": 5173
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "RuntimeConfig"
-      },
       "RuntimeDeviceCapabilities": {
         "properties": {
           "keras_backend": {
@@ -7736,9 +7705,6 @@
       },
       "SettingsUpdateRequest": {
         "properties": {
-          "runtime": {
-            "$ref": "#/components/schemas/RuntimeConfig"
-          },
           "datasets": {
             "$ref": "#/components/schemas/DatasetConfig"
           },
@@ -8726,9 +8692,6 @@
       },
       "UserSettings": {
         "properties": {
-          "runtime": {
-            "$ref": "#/components/schemas/RuntimeConfig"
-          },
           "datasets": {
             "$ref": "#/components/schemas/DatasetConfig"
           },

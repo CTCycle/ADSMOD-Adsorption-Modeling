@@ -4,10 +4,12 @@ Last updated: 2026-10-21
 
 ## Backend or UI unreachable
 
-- Check the backend and frontend host/port values on **Settings → Runtime**.
-  A saved host or port change needs an ADSMOD restart.
-- Check `settings/.env` for database selection and bootstrap paths; the running
-  application validates these values before connecting.
+- Check `ADSMOD_HOST`, `ADSMOD_BACKEND_PORT`, and `ADSMOD_FRONTEND_PORT` in
+  `settings/.env` or the process environment. Environment values override
+  `.env`; restart ADSMOD after changing them.
+- Check `settings/.env` for runtime CORS values and `ADSMOD_STORAGE_ROOT`.
+  Database selection and connection values are in `database.json` under that
+  data root.
 - Confirm the backend responds at `/health/ready`.
 - Confirm `app/client/dist/browser/index.html` exists and the frontend preview
   serves the built Angular application.
@@ -70,7 +72,8 @@ stack.
 
 ## Database startup failure
 
-Inspect the backend logs below the configured storage root. Unknown or
-non-empty unversioned schemas are rejected deliberately; export or repair them
-manually instead of stamping a guessed revision. For PostgreSQL, verify
-connectivity, credentials, and the role's database-creation permission.
+Inspect the backend logs below the configured storage root. Historical or
+unknown revisions and non-empty unversioned schemas are rejected deliberately.
+Create a fresh database for the current baseline; startup never drops or
+recreates an existing database. For PostgreSQL, verify connectivity,
+credentials, and the role's database-creation permission.

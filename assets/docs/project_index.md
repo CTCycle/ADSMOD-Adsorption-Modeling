@@ -94,7 +94,7 @@ and per-run narratives should not be added there.
 - [`runtime/startup.md`](runtime/startup.md)
   - Launcher and manual startup procedures.
 - [`runtime/configuration.md`](runtime/configuration.md)
-  - Active-database application settings, independent database connection file, public-data request policy, and legacy migration procedure.
+  - Active-database application settings, independent database connection file, public-data request policy, and fresh-schema setup.
 - [`runtime/deployment.md`](runtime/deployment.md)
   - Local deployment, runtime dependencies, interoperability, and current constraints.
 
