@@ -4,7 +4,7 @@
 import { Routes } from '@angular/router';
 import { machineLearningEntryGuard, machineLearningGuard } from './core/guards/machine-learning.guard';
 import { CoreShellComponent } from './layout/core-shell.component';
-import { settingsUnsavedGuard } from './features/settings/settings-unsaved.guard';
+import { settingsAutosaveGuard } from './features/settings/settings-autosave.guard';
 
 export const routes: Routes = [
     {
@@ -17,7 +17,7 @@ export const routes: Routes = [
             { path: 'public-data/:view', loadComponent: () => import('./features/public-data/public-data-workspace.component').then((m) => m.PublicDataWorkspaceComponent) },
             { path: 'dashboards', loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent) },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
-            { path: 'settings', canDeactivate: [settingsUnsavedGuard], loadComponent: () => import('./features/settings/settings-page.component').then((m) => m.SettingsPageComponent) },
+            { path: 'settings', canDeactivate: [settingsAutosaveGuard], loadComponent: () => import('./features/settings/settings-page.component').then((m) => m.SettingsPageComponent) },
             {
                 path: 'training',
                 pathMatch: 'full',
