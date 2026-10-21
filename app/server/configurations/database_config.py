@@ -19,13 +19,17 @@ SCHEMA_VERSION = 1
 CONFIG_FILENAME = "database.json"
 
 
+###############################################################################
 def database_config_path(storage_root: Path) -> Path:
     return storage_root.resolve() / CONFIG_FILENAME
 
 
+###############################################################################
 def _protect_secret(value: str) -> str:
     raw = value.encode("utf-8")
     if os.name == "nt":
+
+        ###############################################################################
         class DataBlob(ctypes.Structure):
             _fields_ = [("cbData", ctypes.c_uint32), ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
 
@@ -44,10 +48,13 @@ def _protect_secret(value: str) -> str:
     return "plain:" + base64.b64encode(raw).decode("ascii")
 
 
+###############################################################################
 def _unprotect_secret(value: str) -> str:
     prefix, encoded = value.split(":", 1)
     encrypted = base64.b64decode(encoded, validate=True)
     if prefix == "dpapi" and os.name == "nt":
+
+        ###############################################################################
         class DataBlob(ctypes.Structure):
             _fields_ = [("cbData", ctypes.c_uint32), ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
 
@@ -69,6 +76,7 @@ def _unprotect_secret(value: str) -> str:
     return raw.decode("utf-8")
 
 
+###############################################################################
 def _payload(config: DatabaseConfig) -> dict[str, Any]:
     if config.embedded_database and config.sqlite_path == ":memory:":
         raise ValueError("In-memory SQLite is reserved for isolated tests.")
@@ -83,6 +91,7 @@ def _payload(config: DatabaseConfig) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def write_database_config(config: DatabaseConfig, storage_root: Path) -> Path:
     path = database_config_path(storage_root)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,6 +112,7 @@ def write_database_config(config: DatabaseConfig, storage_root: Path) -> Path:
         raise
 
 
+###############################################################################
 def read_database_config(storage_root: Path) -> DatabaseConfig:
     path = database_config_path(storage_root)
     if os.name != "nt" and path.exists() and path.stat().st_mode & 0o077:

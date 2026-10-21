@@ -11,6 +11,7 @@ from server.configurations.legacy_import import import_legacy_configuration
 from server.configurations.settings import UserSettings
 
 
+###############################################################################
 def _legacy_file(path: Path, storage_root: str) -> None:
     settings = UserSettings().model_dump(mode="json")
     settings["datasets"]["column_detection_cutoff"] = 0.77
@@ -35,6 +36,7 @@ def _legacy_file(path: Path, storage_root: str) -> None:
     )
 
 
+###############################################################################
 def test_legacy_import_moves_settings_to_active_database_and_removes_env_database_values(
     tmp_path: Path,
 ) -> None:
@@ -73,6 +75,7 @@ def test_legacy_import_moves_settings_to_active_database_and_removes_env_databas
         store.database.dispose()
 
 
+###############################################################################
 def test_legacy_import_expands_windows_storage_root_tokens(
     tmp_path: Path, monkeypatch
 ) -> None:  # type: ignore[no-untyped-def]

@@ -21,6 +21,7 @@ from server.configurations.settings import (
 )
 
 
+###############################################################################
 def test_application_settings_defaults_cover_runtime_behaviors() -> None:
     settings = UserSettings()
 
@@ -37,6 +38,7 @@ def test_application_settings_defaults_cover_runtime_behaviors() -> None:
     assert settings.training.persistent_workers is False
 
 
+###############################################################################
 def test_settings_validation_checks_dependent_fields_together() -> None:
     with pytest.raises(ValidationError, match="distinct"):
         RuntimeConfig(backend_port=6045, frontend_port=6045)
@@ -52,6 +54,7 @@ def test_settings_validation_checks_dependent_fields_together() -> None:
         FittingConfig.model_validate({"best_model_metric": "unknown"})
 
 
+###############################################################################
 def test_database_bootstrap_is_separate_from_user_settings() -> None:
     database = DatabaseConfig()
     settings = UserSettings()
@@ -67,6 +70,7 @@ def test_database_bootstrap_is_separate_from_user_settings() -> None:
     assert not hasattr(database, "insert_batch_size")
 
 
+###############################################################################
 def test_training_settings_are_typed_and_validated() -> None:
     training = TrainingConfig.model_validate(
         {
@@ -85,6 +89,7 @@ def test_training_settings_are_typed_and_validated() -> None:
     assert training.persistent_workers is True
 
 
+###############################################################################
 def test_public_data_policy_is_bounded_and_categories_are_checked() -> None:
     config = PublicDataConfig()
 
@@ -108,6 +113,7 @@ def test_public_data_policy_is_bounded_and_categories_are_checked() -> None:
     assert scheduled.auto_sync_interval_hours == 12
 
 
+###############################################################################
 def test_supported_extensions_and_job_polling_are_validated() -> None:
     assert DatasetConfig(allowed_extensions=("csv", ".XLSX")).allowed_extensions == (
         ".csv",

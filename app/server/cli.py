@@ -9,6 +9,7 @@ from .app import create_app
 from .configurations.runtime import load_runtime_configuration
 
 
+###############################################################################
 def main() -> None:
     runtime = load_runtime_configuration()
     application = create_app(runtime.config, settings_store=runtime.settings_store)

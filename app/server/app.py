@@ -41,11 +41,13 @@ from server.api.settings import create_settings_router
 class DatabaseRequestGate:
     """Drain ordinary HTTP work before a live database connection swap."""
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self._condition = asyncio.Condition()
         self._accepting = True
         self._active = 0
 
+    # -------------------------------------------------------------------------
     async def enter(self) -> bool:
         async with self._condition:
             if not self._accepting:
@@ -53,11 +55,13 @@ class DatabaseRequestGate:
             self._active += 1
             return True
 
+    # -------------------------------------------------------------------------
     async def leave(self) -> None:
         async with self._condition:
             self._active -= 1
             self._condition.notify_all()
 
+    # -------------------------------------------------------------------------
     async def close(self, timeout: float) -> bool:
         async with self._condition:
             self._accepting = False
@@ -71,11 +75,11 @@ class DatabaseRequestGate:
                 self._condition.notify_all()
                 return False
 
+    # -------------------------------------------------------------------------
     async def open(self) -> None:
         async with self._condition:
             self._accepting = True
             self._condition.notify_all()
-
 
 ###############################################################################
 @dataclass

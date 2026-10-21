@@ -81,7 +81,6 @@ def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[
         event.remove(manager.engine, "before_cursor_execute", capture_selects)
     return len(statements)
 
-
 ###############################################################################
 def test_structure_link_endpoint_maps_conflicts_to_http_409() -> None:
 

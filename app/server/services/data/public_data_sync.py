@@ -55,15 +55,18 @@ class PublicDataSyncCoordinator:
             tuple[PublicDataConfig, PublicDataService, NISTDataService] | None
         ] = ContextVar("public_data_sync_settings", default=None)
 
+    # -------------------------------------------------------------------------
     def _active_settings(
         self,
     ) -> tuple[PublicDataConfig, PublicDataService, NISTDataService]:
         return self._run_settings.get() or (self.config, self.public_data, self.nist)
 
+    # -------------------------------------------------------------------------
     @property
     def has_active_work(self) -> bool:
         return any(not task.done() for task in self._executing)
 
+    # -------------------------------------------------------------------------
     async def pause_for_database_switch(self) -> bool:
         async with self._switch_lock:
             if self.has_active_work:
@@ -71,10 +74,12 @@ class PublicDataSyncCoordinator:
             self._switch_paused = True
             return True
 
+    # -------------------------------------------------------------------------
     def resume_after_database_switch(self) -> None:
         self._switch_paused = False
         self._wake.set()
 
+    # -------------------------------------------------------------------------
     def apply_settings(
         self,
         *,
@@ -258,6 +263,7 @@ class PublicDataSyncCoordinator:
                 return
             await self._execute_worker_run(run, worker)
 
+    # -------------------------------------------------------------------------
     async def _claim_worker_run(
         self, worker: asyncio.Task[None] | None
     ) -> tuple[dict[str, Any] | None, bool]:
@@ -269,6 +275,7 @@ class PublicDataSyncCoordinator:
                 self._executing.add(worker)
             return run, False
 
+    # -------------------------------------------------------------------------
     async def _wait_for_worker_wake(self) -> None:
         self._wake.clear()
         try:
@@ -276,6 +283,7 @@ class PublicDataSyncCoordinator:
         except TimeoutError:
             pass
 
+    # -------------------------------------------------------------------------
     async def _requeue_worker_run(
         self, run: dict[str, Any], worker: asyncio.Task[None] | None
     ) -> None:
@@ -287,6 +295,7 @@ class PublicDataSyncCoordinator:
         )
         self._executing.discard(worker)
 
+    # -------------------------------------------------------------------------
     async def _execute_worker_run(
         self, run: dict[str, Any], worker: asyncio.Task[None] | None
     ) -> None:
@@ -307,6 +316,7 @@ class PublicDataSyncCoordinator:
         finally:
             self._run_settings.reset(token)
 
+    # -------------------------------------------------------------------------
     async def _execute_with_settings(self, run: dict[str, Any]) -> None:
         run_id = str(run["id"])
         source_key = str(run["source_key"])

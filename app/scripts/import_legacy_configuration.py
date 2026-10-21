@@ -9,6 +9,7 @@ from pathlib import Path
 from server.configurations.legacy_import import import_legacy_configuration
 
 
+###############################################################################
 def main() -> int:
     parser = argparse.ArgumentParser(description="One-time import of a legacy ADSMOD configuration.")
     parser.add_argument("--legacy-config", required=True, type=Path)

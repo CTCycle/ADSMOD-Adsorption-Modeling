@@ -19,6 +19,7 @@ from server.repositories.database.manager import DatabaseManager
 from server.repositories.schemas.models import Dataset
 
 
+###############################################################################
 def _config(root: Path) -> AdsmodConfig:
     return AdsmodConfig.assemble(
         database=DatabaseConfig(embedded_database=True, sqlite_path="data/settings.db"),
@@ -27,6 +28,7 @@ def _config(root: Path) -> AdsmodConfig:
     )
 
 
+###############################################################################
 def test_settings_save_applies_to_new_requests_and_requires_restarts_when_needed(
     tmp_path: Path,
 ) -> None:
@@ -118,6 +120,7 @@ def test_settings_save_applies_to_new_requests_and_requires_restarts_when_needed
         assert client.get("/api/v1/settings").json()["current"] == payload
 
 
+###############################################################################
 def test_settings_validation_is_atomic_and_reset_returns_defaults(tmp_path: Path) -> None:
     with TestClient(create_app(_config(tmp_path))) as client:
         original = client.get("/api/v1/settings").json()["current"]
@@ -137,6 +140,7 @@ def test_settings_validation_is_atomic_and_reset_returns_defaults(tmp_path: Path
         assert reset.json()["pending_restart_fields"] == []
 
 
+###############################################################################
 def test_settings_apply_failure_restores_database_and_runtime_state(tmp_path: Path) -> None:
     with TestClient(create_app(_config(tmp_path))) as client:
         original = client.get("/api/v1/settings").json()["current"]
@@ -163,6 +167,7 @@ def test_settings_apply_failure_restores_database_and_runtime_state(tmp_path: Pa
         assert runtime.container.dataset_service.importer.column_detection_cutoff == original["datasets"]["column_detection_cutoff"]
 
 
+###############################################################################
 def test_settings_persist_across_app_restart_and_missing_row_recovers(tmp_path: Path) -> None:
     config = _config(tmp_path)
     with TestClient(create_app(config)) as client:
@@ -180,6 +185,7 @@ def test_settings_persist_across_app_restart_and_missing_row_recovers(tmp_path: 
         assert recovered.json()["current"]["public_data"]["cod_max_interactive_results"] == 321
 
 
+###############################################################################
 def _database_payload(path: str) -> dict[str, object]:
     return {
         "backend": "sqlite",
@@ -197,6 +203,7 @@ def _database_payload(path: str) -> dict[str, object]:
     }
 
 
+###############################################################################
 def test_runtime_database_switch_reloads_settings_and_keeps_stores_independent(
     tmp_path: Path,
 ) -> None:
@@ -257,6 +264,7 @@ def test_runtime_database_switch_reloads_settings_and_keeps_stores_independent(
         assert len(client.get("/api/v1/datasets").json()["datasets"]) == 1
 
 
+###############################################################################
 def test_failed_runtime_database_switch_rolls_back_and_active_work_blocks_switch(
     tmp_path: Path,
 ) -> None:
@@ -292,6 +300,7 @@ def test_failed_runtime_database_switch_rolls_back_and_active_work_blocks_switch
         assert runtime.config.application.database == original_database
 
 
+###############################################################################
 def test_activation_failure_restores_runtime_services_and_database_file(tmp_path: Path) -> None:
     config = _config(tmp_path)
     original_database = config.application.database

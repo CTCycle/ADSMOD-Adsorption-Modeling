@@ -23,6 +23,7 @@ from server.repositories.database.manager import DatabaseManager, resolve_sqlite
 from server.common.utils.logger import logger
 
 
+###############################################################################
 @dataclass(frozen=True)
 class RuntimeConfiguration:
     config: AdsmodConfig
@@ -30,6 +31,7 @@ class RuntimeConfiguration:
     database_ready: bool = False
 
 
+###############################################################################
 def load_runtime_configuration(
     *,
     database: DatabaseConfig | None = None,

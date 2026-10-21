@@ -21,6 +21,7 @@ from server.repositories.database.manager import DatabaseManager
 from server.repositories.database.migrator import CURRENT_TABLES
 
 
+###############################################################################
 class DatabaseSettingsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -37,6 +38,7 @@ class DatabaseSettingsRequest(BaseModel):
     ssl_ca: str | None = None
     connect_timeout: int = Field(default=30, ge=1, le=300)
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_postgres(self) -> "DatabaseSettingsRequest":
         if self.backend == "postgres" and not all(
@@ -48,6 +50,7 @@ class DatabaseSettingsRequest(BaseModel):
         return self
 
 
+###############################################################################
 class DatabaseSettingsResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -66,11 +69,13 @@ class DatabaseSettingsResponse(BaseModel):
     password_configured: bool
 
 
+###############################################################################
 class DatabaseTestResponse(BaseModel):
     success: Literal[True] = True
     message: str
 
 
+###############################################################################
 def _response(request: Request) -> dict[str, Any]:
     runtime = request.app.state.runtime
     database = runtime.config.application.database
@@ -90,6 +95,7 @@ def _response(request: Request) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def _build_config(payload: DatabaseSettingsRequest, current: DatabaseConfig) -> DatabaseConfig:
     same_backend = (payload.backend == "sqlite") == current.embedded_database
     password = None
@@ -117,6 +123,7 @@ def _build_config(payload: DatabaseSettingsRequest, current: DatabaseConfig) -> 
     )
 
 
+###############################################################################
 def _test_connection(database: DatabaseConfig, storage_root) -> None:
     manager = DatabaseManager(database, storage_root=storage_root)
     try:
@@ -128,10 +135,12 @@ def _test_connection(database: DatabaseConfig, storage_root) -> None:
         manager.dispose()
 
 
+###############################################################################
 def get_database_settings(request: Request) -> dict[str, Any]:
     return _response(request)
 
 
+###############################################################################
 async def test_database_connection(
     payload: DatabaseSettingsRequest, request: Request
 ) -> dict[str, Any]:
@@ -151,9 +160,11 @@ async def test_database_connection(
     return {"success": True, "message": "Connection succeeded."}
 
 
+###############################################################################
 class _DatabaseSwitch:
     """Coordinate a guarded database change and restore the old runtime on failure."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, payload: DatabaseSettingsRequest, request: Request) -> None:
         self.request = request
         self.application = request.app
@@ -175,6 +186,7 @@ class _DatabaseSwitch:
         self.old_startup_runtime = self.runtime.startup_runtime
         self.old_startup_settings = self.runtime.startup_settings
 
+    # -------------------------------------------------------------------------
     async def run(self) -> dict[str, Any]:
         if self.container.job_manager.is_job_running():
             raise HTTPException(
@@ -198,6 +210,7 @@ class _DatabaseSwitch:
             detail = await self._rollback()
             raise HTTPException(status_code=503, detail=detail) from exc
 
+    # -------------------------------------------------------------------------
     async def _activate(self) -> dict[str, Any]:
         self.candidate = await asyncio.to_thread(
             _prepare_candidate, self.candidate_database, self.storage_root
@@ -220,6 +233,7 @@ class _DatabaseSwitch:
         self._dispose_previous_engine()
         return _response(self.request)
 
+    # -------------------------------------------------------------------------
     async def _quiesce_requests(self) -> None:
         drained = await self.application.state.database_request_gate.close(30.0)
         if not drained:
@@ -239,6 +253,7 @@ class _DatabaseSwitch:
                 detail="Database operations are still in progress. Retry the switch shortly.",
             )
 
+    # -------------------------------------------------------------------------
     def _apply_candidate_settings(self, target_settings: UserSettings) -> None:
         next_config = AdsmodConfig.assemble(
             database=self.candidate_database,
@@ -252,16 +267,19 @@ class _DatabaseSwitch:
             self.runtime.ml_container.apply_settings(next_config)
         self.runtime.database_ready = True
 
+    # -------------------------------------------------------------------------
     async def _open_request_gate(self) -> None:
         await self.application.state.database_request_gate.open()
         self.request_gate_closed = False
 
+    # -------------------------------------------------------------------------
     def _dispose_previous_engine(self) -> None:
         try:
             self.snapshot.engine.dispose()
         except Exception:
             logger.exception("Could not dispose the previous database engine after switching.")
 
+    # -------------------------------------------------------------------------
     async def _release_without_switch(self) -> None:
         if self.admission_closed:
             self.manager.open_admission()
@@ -272,6 +290,7 @@ class _DatabaseSwitch:
         if self.candidate is not None:
             self.candidate.dispose()
 
+    # -------------------------------------------------------------------------
     async def _rollback(self) -> str:
         if self.snapshot is not None:
             if not self.admission_closed:
@@ -308,6 +327,7 @@ class _DatabaseSwitch:
             )
         return "The new database could not be activated. The previous database remains selected."
 
+    # -------------------------------------------------------------------------
     def _restore_database_file(self) -> None:
         self.config_restore_failed = False
         if not self.file_written:
@@ -321,6 +341,7 @@ class _DatabaseSwitch:
                 type(exc).__name__,
             )
 
+    # -------------------------------------------------------------------------
     def _restore_services(self) -> bool:
         failed = False
         try:
@@ -343,6 +364,7 @@ class _DatabaseSwitch:
         return failed
 
 
+###############################################################################
 async def switch_database(
     payload: DatabaseSettingsRequest, request: Request
 ) -> dict[str, Any]:
@@ -352,6 +374,7 @@ async def switch_database(
             return await transaction.run()
 
 
+###############################################################################
 def create_database_router() -> APIRouter:
     router = APIRouter(prefix="/database", tags=["database"])
     router.add_api_route(
@@ -372,6 +395,7 @@ def create_database_router() -> APIRouter:
     return router
 
 
+###############################################################################
 def _prepare_candidate(database: DatabaseConfig, storage_root) -> DatabaseManager:
     prepare_database_for_startup(database, storage_root=storage_root)
     candidate = DatabaseManager(database, storage_root=storage_root)

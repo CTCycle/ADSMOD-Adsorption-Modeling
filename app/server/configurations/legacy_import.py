@@ -31,6 +31,7 @@ from server.repositories.database.initializer import prepare_database_for_startu
 from server.repositories.database.manager import DatabaseManager
 
 
+###############################################################################
 def _legacy_settings(path: Path) -> tuple[DatabaseConfig, Path, UserSettings]:
     try:
         payload: Any = json.loads(path.read_text(encoding="utf-8"))
@@ -71,12 +72,14 @@ def _legacy_settings(path: Path) -> tuple[DatabaseConfig, Path, UserSettings]:
     return database, storage_root, settings
 
 
+###############################################################################
 def read_legacy_application_settings(path: Path) -> UserSettings | None:
     if not path.is_file():
         return None
     return _legacy_settings(path)[2]
 
 
+###############################################################################
 def import_legacy_configuration(
     legacy_path: Path,
     *,

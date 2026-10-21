@@ -24,11 +24,13 @@ DATABASE_ENV_KEYS = (
 )
 
 
+###############################################################################
 def _clear_database_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (*DATABASE_ENV_KEYS, "ADSMOD_STORAGE_ROOT"):
         monkeypatch.delenv(key, raising=False)
 
 
+###############################################################################
 def test_database_config_migrates_dotenv_once_and_protects_credentials(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -74,6 +76,7 @@ def test_database_config_migrates_dotenv_once_and_protects_credentials(
     assert "unrelated.setting=kept" in env_text
 
 
+###############################################################################
 def test_database_config_file_is_authoritative_over_stale_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -92,6 +95,7 @@ def test_database_config_file_is_authoritative_over_stale_environment(
     assert "stale-secret" not in database_config_path(root).read_text(encoding="utf-8")
 
 
+###############################################################################
 def test_invalid_legacy_database_values_fail_without_disclosing_password(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -109,6 +113,7 @@ def test_invalid_legacy_database_values_fail_without_disclosing_password(
     assert not database_config_path(root).exists()
 
 
+###############################################################################
 def test_invalid_database_file_fails_closed(tmp_path: Path) -> None:
     root = tmp_path / "application-data"
     root.mkdir()
@@ -121,6 +126,7 @@ def test_invalid_database_file_fails_closed(tmp_path: Path) -> None:
         load_database_config(dotenv_path=tmp_path / "missing.env", storage_root=root)
 
 
+###############################################################################
 def test_storage_root_expands_windows_local_app_data_template(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

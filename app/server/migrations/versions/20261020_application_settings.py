@@ -21,6 +21,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+###############################################################################
 def upgrade() -> None:
     bind = op.get_bind()
     if "application_settings" in sa.inspect(bind).get_table_names():
@@ -66,6 +67,7 @@ def upgrade() -> None:
     )
 
 
+###############################################################################
 def downgrade() -> None:
     # Settings rows may predate this migration and are user data.
     pass

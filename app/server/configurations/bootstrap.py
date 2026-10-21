@@ -37,6 +37,7 @@ LEGACY_DATABASE_KEYS = (
 _WINDOWS_VARIABLE = re.compile(r"%([^%]+)%")
 
 
+###############################################################################
 def _dotenv_values(path: Path = DOTENV_PATH) -> dict[str, str]:
     values: dict[str, str] = {}
     if not path.is_file():
@@ -53,6 +54,7 @@ def _dotenv_values(path: Path = DOTENV_PATH) -> dict[str, str]:
     return values
 
 
+###############################################################################
 def _parse_env_value(raw_value: str) -> str:
     value = raw_value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
@@ -62,6 +64,7 @@ def _parse_env_value(raw_value: str) -> str:
     return value
 
 
+###############################################################################
 def expand_bootstrap_path(value: str) -> Path:
     expanded = _WINDOWS_VARIABLE.sub(
         lambda match: os.environ.get(match.group(1), match.group(0)), value
@@ -69,6 +72,7 @@ def expand_bootstrap_path(value: str) -> Path:
     return Path(os.path.expandvars(expanded)).expanduser().resolve()
 
 
+###############################################################################
 def load_bootstrap_values(*, dotenv_path: Path = DOTENV_PATH) -> dict[str, str]:
     values = _dotenv_values(dotenv_path)
     for key in BOOTSTRAP_KEYS:
@@ -78,6 +82,7 @@ def load_bootstrap_values(*, dotenv_path: Path = DOTENV_PATH) -> dict[str, str]:
     return values
 
 
+###############################################################################
 def load_storage_root(*, dotenv_path: Path = DOTENV_PATH) -> Path:
     configured = load_bootstrap_values(dotenv_path=dotenv_path).get("ADSMOD_STORAGE_ROOT")
     if configured:
@@ -88,6 +93,7 @@ def load_storage_root(*, dotenv_path: Path = DOTENV_PATH) -> Path:
     return (Path.home() / "AppData" / "Local" / "ADSMOD").resolve()
 
 
+###############################################################################
 def _legacy_environment_values(dotenv_path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     if dotenv_path.is_file():
@@ -104,6 +110,7 @@ def _legacy_environment_values(dotenv_path: Path) -> dict[str, str]:
     return values
 
 
+###############################################################################
 def _legacy_json_config() -> dict[str, Any]:
     legacy_file = REPOSITORY_ROOT / "data" / "adsmod.json"
     if not legacy_file.is_file():
@@ -115,6 +122,7 @@ def _legacy_json_config() -> dict[str, Any]:
         raise ValueError("Legacy database configuration is invalid; repair data/adsmod.json.") from exc
 
 
+###############################################################################
 def _legacy_database_payload(
     values: dict[str, str], legacy_json: dict[str, Any]
 ) -> dict[str, Any]:
@@ -134,6 +142,7 @@ def _legacy_database_payload(
     }
 
 
+###############################################################################
 def _legacy_database_config(dotenv_path: Path) -> DatabaseConfig:
     values = _legacy_environment_values(dotenv_path)
     legacy_json = _legacy_json_config()
@@ -147,6 +156,7 @@ def _legacy_database_config(dotenv_path: Path) -> DatabaseConfig:
         raise ValueError("Legacy database settings are invalid; repair settings/.env before startup.") from exc
 
 
+###############################################################################
 def _remove_legacy_database_values(dotenv_path: Path) -> None:
     if not dotenv_path.is_file():
         return
@@ -174,6 +184,7 @@ def _remove_legacy_database_values(dotenv_path: Path) -> None:
         raise
 
 
+###############################################################################
 @dataclass(frozen=True)
 class DatabaseConfigurationLoad:
     config: DatabaseConfig
@@ -181,6 +192,7 @@ class DatabaseConfigurationLoad:
     legacy_sqlite_path: str | None = None
 
 
+###############################################################################
 def load_database_configuration(
     *,
     dotenv_path: Path = DOTENV_PATH,
@@ -203,6 +215,7 @@ def load_database_configuration(
     return DatabaseConfigurationLoad(legacy, migrated=True, legacy_sqlite_path=legacy_path)
 
 
+###############################################################################
 def persist_database_configuration(
     config: DatabaseConfig,
     storage_root: Path,
@@ -216,6 +229,7 @@ def persist_database_configuration(
     return path
 
 
+###############################################################################
 def load_database_config(
     *, dotenv_path: Path = DOTENV_PATH, storage_root: Path | None = None
 ) -> DatabaseConfig:

@@ -25,7 +25,10 @@ from server.services.fitting import FittingService
 from server.services.jobs import JobManager
 
 
+###############################################################################
 class CoreServiceContainer:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         config: AdsmodConfig,
@@ -73,6 +76,7 @@ class CoreServiceContainer:
         )
         self._retired_public_data_services: list[PublicDataService] = []
 
+    # -------------------------------------------------------------------------
     def _build_nist_service(self, config: AdsmodConfig) -> NISTDataService:
         return NISTDataService(
             config=config,
@@ -80,6 +84,7 @@ class CoreServiceContainer:
             mapper=NISTCanonicalMapper(),
         )
 
+    # -------------------------------------------------------------------------
     def _build_public_data_service(
         self, config: PublicDataConfig, nist_service: NISTDataService
     ) -> PublicDataService:
@@ -106,6 +111,7 @@ class CoreServiceContainer:
             ],
         )
 
+    # -------------------------------------------------------------------------
     def apply_settings(self, config: AdsmodConfig) -> None:
         """Refresh configuration used by future API requests and jobs."""
 
@@ -135,9 +141,11 @@ class CoreServiceContainer:
             nist=self.nist_service,
         )
 
+    # -------------------------------------------------------------------------
     def shutdown(self) -> None:
         self.job_manager.shutdown()
 
+    # -------------------------------------------------------------------------
     async def shutdown_async(self) -> None:
         await self.public_data_sync.close()
         await self.public_data_service.close()

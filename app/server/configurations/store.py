@@ -15,6 +15,7 @@ from server.repositories.database.sqlite_lock import sqlite_write_lock
 from server.repositories.schemas.models import ApplicationSettingsRecord, Base
 
 
+###############################################################################
 def _record_values(settings: UserSettings) -> dict[str, Any]:
     return {
         "id": 1,
@@ -41,6 +42,7 @@ def _record_values(settings: UserSettings) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def _settings_from_values(values: dict[str, Any]) -> UserSettings:
     def section(prefix: str) -> dict[str, Any]:
         return {
@@ -69,9 +71,11 @@ def _settings_from_values(values: dict[str, Any]) -> UserSettings:
     )
 
 
+###############################################################################
 class ApplicationSettingsStore:
     """Atomic singleton settings record in the active database."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
         self._write_lock = (
@@ -80,10 +84,12 @@ class ApplicationSettingsStore:
             else None
         )
 
+    # -------------------------------------------------------------------------
     @property
     def engine(self):
         return self.database.engine
 
+    # -------------------------------------------------------------------------
     def initialize(self, defaults: UserSettings | None = None) -> UserSettings:
         lock = self._write_lock if self._write_lock is not None else _null_lock()
         with lock:
@@ -99,6 +105,7 @@ class ApplicationSettingsStore:
                     )
         return self.get()
 
+    # -------------------------------------------------------------------------
     def get(self) -> UserSettings:
         with self.database.session_factory() as session:
             row = session.execute(
@@ -110,12 +117,14 @@ class ApplicationSettingsStore:
             raise RuntimeError("Application settings have not been initialized.")
         return _settings_from_values(dict(row))
 
+    # -------------------------------------------------------------------------
     def has_record(self) -> bool:
         with self.database.session_factory() as session:
             return session.execute(
                 select(ApplicationSettingsRecord.id).where(ApplicationSettingsRecord.id == 1)
             ).first() is not None
 
+    # -------------------------------------------------------------------------
     def save(self, settings: UserSettings) -> UserSettings:
         values = _record_values(settings)
         with self.database.transaction() as session:
@@ -132,10 +141,12 @@ class ApplicationSettingsStore:
                 )
         return self.get()
 
+    # -------------------------------------------------------------------------
     def dispose(self) -> None:
         """The shared DatabaseManager owns the engine lifecycle."""
 
 
+###############################################################################
 def read_legacy_sqlite_settings(database_path: Path) -> UserSettings | None:
     """Read an existing settings row once during the database-config cutover."""
     if not database_path.is_file():
@@ -155,10 +166,14 @@ def read_legacy_sqlite_settings(database_path: Path) -> UserSettings | None:
         engine.dispose()
 
 
+###############################################################################
 class _null_lock:
+
+    # -------------------------------------------------------------------------
     def __enter__(self):
         return self
 
+    # -------------------------------------------------------------------------
     def __exit__(self, exc_type, exc, traceback):
         return False
 
