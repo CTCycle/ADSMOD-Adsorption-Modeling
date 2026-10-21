@@ -732,9 +732,9 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 display: grid;
                 grid-template-rows: auto auto minmax(0, 1fr) auto;
                 overflow: hidden;
-                border: 1px solid #d7dee8;
+                border: 1px solid var(--slate-300);
                 border-radius: 16px;
-                background: #fff;
+                background: var(--surface);
                 box-shadow: 0 28px 70px rgb(3 24 47 / 0.28);
             }
             .import-wizard-header,
@@ -744,7 +744,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 justify-content: space-between;
                 gap: 1rem;
                 padding: 1rem 1.25rem;
-                border-bottom: 1px solid #e3e8ef;
+                border-bottom: 1px solid var(--slate-200);
             }
             .import-wizard-header h2,
             .import-wizard-header p {
@@ -752,10 +752,10 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
             }
             .import-wizard-header p:not(.eyebrow) {
                 margin-top: 0.25rem;
-                color: #657386;
+                color: var(--slate-500);
             }
             .import-wizard-footer {
-                border-top: 1px solid #e3e8ef;
+                border-top: 1px solid var(--slate-200);
                 border-bottom: 0;
             }
             .import-steps {
@@ -764,14 +764,14 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 gap: 0.5rem;
                 margin: 0;
                 padding: 0.75rem 1.25rem;
-                background: #f7f9fc;
+                background: var(--slate-50);
                 list-style: none;
             }
             .import-steps li {
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
-                color: #718096;
+                color: var(--slate-500);
                 font-size: 0.8rem;
                 font-weight: 650;
             }
@@ -781,10 +781,10 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 height: 1.6rem;
                 place-items: center;
                 border-radius: 50%;
-                background: #e4eaf2;
+                background: var(--slate-200);
             }
             .import-steps li.active {
-                color: #075bd5;
+                color: var(--link);
             }
             .import-steps li.active span {
                 color: #fff;
@@ -809,18 +809,18 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 display: grid;
                 gap: 0.2rem;
                 padding: 0.8rem;
-                border: 1px solid #e1e7ef;
+                border: 1px solid var(--slate-200);
                 border-radius: 10px;
-                background: #f8fafc;
+                background: var(--slate-50);
             }
             .import-summary-grid span {
-                color: #657386;
+                color: var(--slate-500);
                 font-size: 0.75rem;
             }
             .import-guidance {
                 padding: 0.7rem 1rem;
                 border-left: 3px solid #3b82f6;
-                background: #eff6ff;
+                background: var(--slate-50);
             }
             .import-guidance p {
                 margin: 0.3rem 0;
@@ -831,7 +831,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 margin-top: 1rem;
                 overflow: auto;
                 overscroll-behavior-x: contain;
-                border: 1px solid #dfe5ed;
+                border: 1px solid var(--slate-200);
                 border-radius: 10px;
             }
             .import-preview-table,
@@ -845,7 +845,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 max-width: 22rem;
                 padding: 0.65rem 0.75rem;
                 overflow: hidden;
-                border-bottom: 1px solid #e7ebf1;
+                border-bottom: 1px solid var(--slate-200);
                 text-align: left;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -854,7 +854,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 position: sticky;
                 top: 0;
                 z-index: 1;
-                background: #f3f6fa;
+                background: var(--slate-50);
             }
             .import-settings-grid {
                 display: grid;
@@ -864,7 +864,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
             .import-settings-grid label {
                 display: grid;
                 gap: 0.35rem;
-                color: #44546a;
+                color: var(--slate-700);
                 font-size: 0.78rem;
                 font-weight: 650;
             }
@@ -872,13 +872,13 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 margin-right: 0.5rem;
                 padding: 0.15rem 0.4rem;
                 border-radius: 999px;
-                color: #075bd5;
-                background: #e8f1ff;
+                color: var(--link);
+                background: var(--primary-50);
             }
             .import-constants {
                 margin-top: 1rem;
                 padding: 0.8rem;
-                border: 1px solid #dfe5ed;
+                border: 1px solid var(--slate-200);
                 border-radius: 10px;
             }
             .import-constants summary {
@@ -903,11 +903,11 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 gap: 0.65rem;
                 padding: 0.7rem;
                 border-left: 4px solid #ca8a04;
-                background: #fffbeb;
+                background: var(--warning-bg);
             }
             .import-issue.error {
                 border-color: #dc2626;
-                background: #fff1f2;
+                background: var(--danger-bg);
             }
             .import-issue p {
                 margin: 0.15rem 0;
@@ -919,7 +919,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
             }
             .experiment-preview-list article {
                 padding: 0.8rem;
-                border: 1px solid #dfe5ed;
+                border: 1px solid var(--slate-200);
                 border-radius: 10px;
             }
             .experiment-preview-list header {
@@ -940,7 +940,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
                 flex: 0 0 auto;
                 padding: 0.25rem 0.45rem;
                 border-radius: 6px;
-                background: #eef2f7;
+                background: var(--slate-100);
                 font-size: 0.72rem;
             }
             .import-complete {

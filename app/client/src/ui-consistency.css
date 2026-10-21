@@ -211,16 +211,14 @@ button {
 
 .section-title,
 .models-title-block h3,
-.models-grid-header h3,
-.training-view-description h2 {
+.models-grid-header h3 {
   font-size: 1.25rem;
   line-height: 1.3;
   font-weight: 600;
 }
 
 .section-caption,
-.models-title-block p,
-.training-view-description p {
+.models-title-block p {
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -324,7 +322,7 @@ button {
   width: 100%;
   min-height: 42px;
   padding: 0.55rem 0.7rem;
-  border: 1px solid #cbd7e8;
+  border: 1px solid var(--slate-300);
   border-radius: var(--radius-sm);
   color: var(--console-text, #1c2a45);
 }
@@ -335,50 +333,6 @@ button {
   margin-bottom: var(--spacing-sm);
 }
 
-.training-view-description {
-  padding: 0 0 var(--spacing-md);
-}
-
-.route-workspace-training .training-view-toolbar {
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-lg);
-}
-
-.training-view-tab {
-  min-height: 44px;
-  padding: 0.65rem var(--spacing-sm);
-  border-radius: var(--radius-sm);
-}
-
-.training-view-tab-label {
-  font-size: 0.875rem;
-  line-height: 1.3;
-  font-weight: 600;
-}
-
-.training-view-description h2 {
-  display: block;
-  margin: 0 0 var(--spacing-xs);
-}
-
-.training-page .training-view-toolbar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--spacing-xs);
-  margin: 0 0 var(--spacing-lg);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  position: static;
-}
-
-.training-page .training-view-tab {
-  width: auto;
-  min-width: 0;
-  text-decoration: none;
-}
-
 .training-row-action {
   min-height: 36px;
   padding: 0.4rem 0.7rem;
@@ -386,7 +340,7 @@ button {
 }
 
 .training-row-action.danger {
-  color: #a3232d;
+  color: var(--danger-text);
 }
 
 .split-table-actions-wrap {
@@ -408,10 +362,10 @@ button {
   gap: var(--spacing-sm) var(--spacing-md);
   margin: 0 0 var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid #e8b5b8;
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
-  background: #fff5f5;
-  color: #8d2730;
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .fitting-config-error p {
@@ -445,7 +399,7 @@ button {
   min-height: 40px;
 }
 
-.dataset-metadata-actions button[aria-label="Close"] {
+.dataset-metadata-header .dataset-metadata-close {
   width: 42px;
   min-width: 42px;
   min-height: 42px;
@@ -470,9 +424,9 @@ button {
 .confirm-dialog {
   width: min(100%, 28rem);
   padding: var(--spacing-lg);
-  border: 1px solid #d4deed;
+  border: 1px solid var(--primary-100);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 24px 70px rgba(3, 29, 51, 0.26);
 }
 
@@ -518,9 +472,9 @@ button {
   gap: var(--spacing-md);
   width: min(100%, 28rem);
   padding: var(--spacing-lg);
-  border: 1px solid #d4deed;
+  border: 1px solid var(--primary-100);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 24px 70px rgba(3, 29, 51, 0.26);
 }
 
@@ -542,7 +496,7 @@ button {
   width: 100%;
   min-height: 42px;
   padding: 0.55rem 0.7rem;
-  border: 1px solid #cbd7e8;
+  border: 1px solid var(--slate-300);
   border-radius: var(--radius-sm);
   color: var(--console-text, #1c2a45);
 }
@@ -653,21 +607,7 @@ button {
   }
 }
 
-@media (max-width: 760px) {
-  .route-workspace-training .training-view-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .training-page .training-view-toolbar {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .training-page .training-view-tab {
-    width: auto;
-    min-width: 0;
-  }
-}
 
 @media (max-width: 600px) {
   :root {
@@ -845,11 +785,11 @@ button.quiet:hover:not(:disabled),
 
 button.quiet.danger,
 .button.quiet.danger {
-  color: #b42318;
+  color: var(--danger-text);
 }
 
 button.quiet.danger:hover:not(:disabled) {
-  background: #fef3f2;
+  background: var(--danger-bg);
 }
 
 .user-dataset-list-card .card-title-row {
@@ -874,7 +814,7 @@ a.button.primary {
 
 a.button.secondary {
   border: 1px solid var(--slate-300);
-  background: #fff;
+  background: var(--surface);
   color: var(--slate-700);
   font-weight: 600;
 }
@@ -888,11 +828,6 @@ a.button.secondary:hover {
 .file-upload-label {
   height: var(--control-height);
   min-height: var(--control-height);
-}
-
-.training-view-description {
-  margin: 0;
-  padding: var(--spacing-xs) 0 var(--spacing-sm);
 }
 
 .public-intro h2 {
@@ -916,7 +851,7 @@ input[type="search"] {
   padding: 0 var(--spacing-md);
   border: 1px solid var(--slate-300);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--surface);
   color: var(--slate-900);
   font-family: inherit;
   font-size: 0.8125rem;
@@ -980,11 +915,11 @@ input[type="search"] {
 }
 
 .data-table tbody tr:hover {
-  background: #fafcff;
+  background: var(--slate-50);
 }
 
 .data-table tbody tr.selected {
-  background: #f3f7ff;
+  background: var(--slate-50);
 }
 
 .data-table tbody tr.selected td:first-child {
@@ -1043,11 +978,11 @@ a.table-action {
 }
 
 .table-action.danger {
-  color: #b42318;
+  color: var(--danger-text);
 }
 
 .table-action.danger:hover:not(:disabled) {
-  background: #fef3f2;
+  background: var(--danger-bg);
 }
 
 .table-action:disabled {
@@ -1065,4 +1000,118 @@ a.table-action {
   .data-table-frame {
     max-height: min(50vh, 26rem);
   }
+}
+
+/* Training view tabs: same underline pattern as the Public Data and Dashboards tabs */
+.training-view-toolbar {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.training-view-tab {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--spacing-xs);
+  padding: 10px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--slate-500);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.training-view-tab:hover,
+.training-view-tab.active {
+  color: var(--slate-900);
+  border-bottom-color: var(--primary-600);
+}
+
+.training-view-tab:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: -2px;
+}
+
+.training-view-tab-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.training-view-tab-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.training-view-description {
+  padding: 0;
+}
+
+.training-view-description p {
+  margin: 0;
+  color: var(--slate-600);
+  font-size: 0.875rem;
+}
+
+.dataset-row .dataset-source {
+  justify-self: start;
+  align-self: center;
+}
+
+.dataset-table-header .dataset-count-header {
+  text-align: right;
+}
+
+.dataset-table.dataset-table-flat {
+  border: 0;
+  border-radius: 0;
+}
+
+.data-page > * {
+  min-width: 0;
+}
+
+/* Theme switch (header) */
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--slate-200);
+  border-radius: 999px;
+  background: var(--slate-50);
+}
+
+.theme-switch-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--slate-500);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.theme-switch-option:hover {
+  color: var(--slate-900);
+}
+
+.theme-switch-option[aria-checked='true'] {
+  background: var(--surface);
+  color: var(--link);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-switch-option:focus-visible {
+  outline: 2px solid var(--primary-500);
+  outline-offset: 1px;
 }

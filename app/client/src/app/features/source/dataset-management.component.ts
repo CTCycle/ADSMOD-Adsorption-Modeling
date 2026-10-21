@@ -128,10 +128,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                         <div>
                             <h2 id="dataset-metadata-title">Edit metadata</h2>
                         </div>
-                        <div class="dataset-metadata-actions">
-                            <button class="button primary" type="button" (click)="saveMetadata()">Save metadata</button>
-                            <button class="button quiet" type="button" aria-label="Close" title="Close" (click)="metadataEditing.set(false)">×</button>
-                        </div>
+                        <button class="button quiet dataset-metadata-close" type="button" aria-label="Close" title="Close" (click)="metadataEditing.set(false)">×</button>
                     </div>
                     <div class="dataset-metadata-body">
                         <label class="metadata-field">
@@ -142,6 +139,10 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                             <span>Description</span>
                             <textarea class="metadata-input metadata-textarea" [value]="description()" (input)="description.set(read($event))"></textarea>
                         </label>
+                    </div>
+                    <div class="dataset-metadata-footer">
+                        <button class="button secondary" type="button" (click)="metadataEditing.set(false)">Cancel</button>
+                        <button class="button primary" type="button" (click)="saveMetadata()">Save metadata</button>
                     </div>
                 </section>
             </div>
@@ -161,11 +162,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                         <div>
                             <h2 id="dataset-rename-title">Rename dataset</h2>
                         </div>
-                        <div class="dataset-metadata-actions">
-                            <button class="button secondary" type="button" (click)="cancelRename()">Cancel</button>
-                            <button class="button primary" type="submit">Save name</button>
-                            <button class="button quiet" type="button" aria-label="Close" title="Close" (click)="cancelRename()">×</button>
-                        </div>
+                        <button class="button quiet dataset-metadata-close" type="button" aria-label="Close" title="Close" (click)="cancelRename()">×</button>
                     </div>
                     <div class="dataset-metadata-body">
                         <label class="metadata-field">
@@ -179,6 +176,10 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                                 (input)="renameName.set(read($event))"
                             />
                         </label>
+                    </div>
+                    <div class="dataset-metadata-footer">
+                        <button class="button secondary" type="button" (click)="cancelRename()">Cancel</button>
+                        <button class="button primary" type="submit">Save name</button>
                     </div>
                 </form>
             </div>
@@ -274,8 +275,8 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                 display: inline-flex;
                 padding: 2px 7px;
                 border-radius: 999px;
-                background: #eef4ff;
-                color: #3768ad;
+                background: var(--slate-50);
+                color: var(--link);
                 font-size: 0.66rem;
                 font-weight: 700;
                 letter-spacing: 0.03em;

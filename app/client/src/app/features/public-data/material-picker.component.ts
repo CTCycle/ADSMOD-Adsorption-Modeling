@@ -57,9 +57,9 @@ import { fetchPublicMaterials } from '../../services/public-data.service';
         .material-picker select {
             min-height: 38px;
             padding: 0 0.6rem;
-            border: 1px solid #dbe4f4;
+            border: 1px solid var(--primary-100);
             border-radius: 10px;
-            background: #fff;
+            background: var(--surface);
             color: var(--text-primary, #18202c);
             font: inherit;
             font-size: 0.82rem;

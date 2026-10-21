@@ -34,20 +34,19 @@ interface ChartPoint {
                                 [attr.y1]="grid.y"
                                 x2="620"
                                 [attr.y2]="grid.y"
-                                stroke="#e2e8f0"
-                                stroke-dasharray="3 3"
+                                class="chart-grid-line"
                             />
-                            <text x="10" [attr.y]="grid.y + 4" font-size="12" fill="#64748b">{{ grid.label }}</text>
+                            <text x="10" [attr.y]="grid.y + 4" font-size="12" class="chart-axis-text">{{ grid.label }}</text>
                         }
 
-                        <line x1="52" y1="210" x2="620" y2="210" stroke="#cbd5e1"></line>
-                        <line x1="52" y1="20" x2="52" y2="210" stroke="#cbd5e1"></line>
+                        <line x1="52" y1="210" x2="620" y2="210" class="chart-axis-line"></line>
+                        <line x1="52" y1="20" x2="52" y2="210" class="chart-axis-line"></line>
 
                         <path [attr.d]="primaryPath()" fill="none" [attr.stroke]="primaryLine().color" stroke-width="2"></path>
                         <path [attr.d]="secondaryPath()" fill="none" [attr.stroke]="secondaryLine().color" stroke-width="2"></path>
 
                         @for (point of chartPoints(); track point.epoch) {
-                            <text [attr.x]="point.x - 6" y="230" font-size="12" fill="#64748b">{{ point.epoch }}</text>
+                            <text [attr.x]="point.x - 6" y="230" font-size="12" class="chart-axis-text">{{ point.epoch }}</text>
                             <circle
                                 [attr.cx]="point.x"
                                 [attr.cy]="point.primaryY"
@@ -68,8 +67,8 @@ interface ChartPoint {
 
                         @if (tooltipPoint()) {
                             <g>
-                                <rect class="chart-tooltip" x="410" y="24" width="190" height="62" rx="6" fill="rgba(255,255,255,0.95)"></rect>
-                                <text x="424" y="45" font-size="12" fill="#0f172a">Epoch {{ tooltipPoint()!.epoch }}</text>
+                                <rect class="chart-tooltip" x="410" y="24" width="190" height="62" rx="6"></rect>
+                                <text x="424" y="45" font-size="12" class="chart-tooltip-title">Epoch {{ tooltipPoint()!.epoch }}</text>
                                 <text x="424" y="62" font-size="12" [attr.fill]="primaryLine().color">
                                     {{ primaryLine().name }}: {{ formatMetric(tooltipPoint()!.primaryValue) }}
                                 </text>

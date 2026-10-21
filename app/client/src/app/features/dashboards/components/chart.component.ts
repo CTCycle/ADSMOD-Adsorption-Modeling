@@ -1,12 +1,14 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { afterNextRender, Component, DestroyRef, effect, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, effect, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import { DataZoomComponent, GridComponent, LegendComponent, ToolboxComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import type { ECharts, EChartsCoreOption } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { ThemeService } from '../../../core/theme/theme.service';
+import { chartThemeName } from '../chart-theme';
 
 echarts.use([LineChart, ScatterChart, BarChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, ToolboxComponent, CanvasRenderer]);
 
@@ -28,15 +30,21 @@ export class ChartComponent {
 
     private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
     private readonly chart = signal<ECharts | null>(null);
+    private readonly rendered = signal(false);
+    private readonly theme = inject(ThemeService);
 
     constructor() {
-        const destroyRef = inject(DestroyRef);
-        afterNextRender(() => {
-            const chart = echarts.init(this.host().nativeElement, undefined, { renderer: 'canvas' });
+        afterNextRender(() => this.rendered.set(true));
+        // ECharts themes apply at init time, so the chart is re-created when the theme changes.
+        effect((onCleanup) => {
+            if (!this.rendered()) {
+                return;
+            }
+            const chart = echarts.init(this.host().nativeElement, chartThemeName(this.theme.resolved()), { renderer: 'canvas' });
             chart.on('click', (event) => this.pointClick.emit({ seriesIndex: event.seriesIndex ?? 0, dataIndex: event.dataIndex }));
             const observer = new ResizeObserver(() => chart.resize());
             observer.observe(this.host().nativeElement);
-            destroyRef.onDestroy(() => {
+            onCleanup(() => {
                 observer.disconnect();
                 chart.dispose();
             });

@@ -30,7 +30,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                         <div class="dataset-table-header dataset-table-header-sticky">
                             <span>Name</span>
                             <span>Source</span>
-                            <span>Rows</span>
+                            <span class="dataset-count-header">Rows</span>
                             <span class="dataset-actions-header">Actions</span>
                         </div>
                         <div class="dataset-table-body dataset-table-body-unbounded">
