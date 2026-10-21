@@ -1,13 +1,13 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-09-03
+Last updated: 2026-10-21
 
 ## Page Structure
 
 - Unified frontend routes
   - `datasets` (custom user dataset upload and management)
   - `public-data/:view` (normalized public adsorption, materials, chemicals, structures, and source management)
-  - `dashboards` (current placeholder workspace view)
+  - `dashboards/overview` and `dashboards/explore` (read-only data exploration over stored isotherms)
   - `fitting`
   - `training` when machine learning capability discovery reports it available
 - Public Data sub-views

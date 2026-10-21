@@ -1,6 +1,6 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-09-30
+Last updated: 2026-10-21
 
 ## Layout Patterns
 
@@ -8,7 +8,8 @@ Last updated: 2026-09-30
 - `datasets` page contains only custom uploaded-dataset management and import
 - `public-data` page contains NIST adsorption-experiment retrieval and activity
 - `public-data/:view` is the single public-data workspace for NIST retrieval, normalized records, PubChem enrichment, and COD structures
-- `dashboards` page currently presents a placeholder workspace view
+- `dashboards` uses Overview and Explore & compare tabs; Explore pairs a faceted query sidebar with a results table, an ECharts analysis panel, and a fixed inspector drawer that closes on Escape
+- Charts render through the shared `adsmod-chart` ECharts wrapper; filled markers are measurements and hollow markers are calculated values, and every chart offers its data as a table
 - `fitting` page uses controls plus status or log columns and model card grids
 - `training` uses a left toolbar with a right active-workspace panel
 

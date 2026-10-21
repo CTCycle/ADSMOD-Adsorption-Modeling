@@ -1,6 +1,6 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Main Navigation
 
@@ -9,7 +9,7 @@ The application uses one Angular frontend with these primary routes:
 - `datasets` for custom workspace datasets and file import
 - `public-data` for the public-data workspace (opens Overview)
 - `public-data/:view` for Overview, Acquire, Adsorption Data, Materials, Chemicals, Structures, and Sources
-- `dashboards` for the current dashboard placeholder
+- `dashboards/overview` and `dashboards/explore` for cross-dataset data exploration
 - `fitting` for adsorption model fitting
 - `training` for processing, training datasets, checkpoints, and the dashboard
 
@@ -24,6 +24,22 @@ split `public-materials` destination is not a supported route.
 4. Open `fitting`.
 5. Select the dataset, model set, optimizer, and iterations.
 6. Start fitting and monitor logs.
+
+## Explore And Compare Stored Data
+
+1. Open `dashboards/overview` to review database composition, temperature
+   coverage, the most measured materials and adsorbates, and spans per pressure
+   basis. Select a ranked material or adsorbate to open Explore filtered to it.
+2. In `dashboards/explore`, filter by source, pressure basis, temperature,
+   material, adsorbate, or dataset. Facet counts update with each filter.
+3. Optionally select isotherms in the results table; otherwise charts use all
+   matching isotherms up to the series limit.
+4. Choose an analysis: isotherm curves (colour by temperature, material,
+   adsorbate, or dataset; linear or log pressure), uptake at one pressure
+   against temperature, or a distribution histogram.
+5. Select a curve or row to inspect provenance, material, and adsorbate
+   details. The address bar keeps the view, so it can be bookmarked; it is
+   recomputed from current data when reopened.
 
 ## Use NIST Data For Fitting
 
