@@ -1,6 +1,6 @@
 # Findings and remediation
 
-Last updated: 2026-09-30
+Last updated: 2026-10-21
 
 The repository previously contained two FastAPI processes with separate
 startup, health, routing, proxy, configuration, and coordination concerns.
@@ -25,7 +25,6 @@ The remediation is complete:
 
 The bounded normal and ML-enabled workflows, provider paths, and launcher
 lifecycle have since been exercised. Remaining limits are recorded in the
-canonical [status ledger](../project_status_ledger.md): the general dashboard
-is still a product placeholder, NIST skips unsupported measurements rather than
+canonical [status ledger](../project_status_ledger.md): NIST skips unsupported measurements rather than
 inferring conversions, and scientific/release claims require broader data and
 longer ML runs.
