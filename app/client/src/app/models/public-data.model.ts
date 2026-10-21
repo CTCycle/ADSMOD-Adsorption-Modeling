@@ -127,8 +127,9 @@ export interface AdsorptionRecordView {
     material: string;
     adsorbates: EntityReference[];
     temperature_k: number;
-    pressure_min_pa: number | null;
-    pressure_max_pa: number | null;
+    pressure_min: number | null;
+    pressure_max: number | null;
+    pressure_unit: 'Pa' | '1';
     uptake_min_mol_kg: number | null;
     uptake_max_mol_kg: number | null;
     point_count: number;

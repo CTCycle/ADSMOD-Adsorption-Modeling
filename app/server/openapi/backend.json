@@ -2960,7 +2960,7 @@
             "type": "number",
             "title": "Temperature K"
           },
-          "pressure_min_pa": {
+          "pressure_min": {
             "anyOf": [
               {
                 "type": "number"
@@ -2969,9 +2969,9 @@
                 "type": "null"
               }
             ],
-            "title": "Pressure Min Pa"
+            "title": "Pressure Min"
           },
-          "pressure_max_pa": {
+          "pressure_max": {
             "anyOf": [
               {
                 "type": "number"
@@ -2980,7 +2980,16 @@
                 "type": "null"
               }
             ],
-            "title": "Pressure Max Pa"
+            "title": "Pressure Max"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "enum": [
+              "Pa",
+              "1"
+            ],
+            "title": "Pressure Unit",
+            "default": "Pa"
           },
           "uptake_min_mol_kg": {
             "anyOf": [
@@ -3153,7 +3162,7 @@
             "type": "number",
             "title": "Temperature K"
           },
-          "pressure_min_pa": {
+          "pressure_min": {
             "anyOf": [
               {
                 "type": "number"
@@ -3162,9 +3171,9 @@
                 "type": "null"
               }
             ],
-            "title": "Pressure Min Pa"
+            "title": "Pressure Min"
           },
-          "pressure_max_pa": {
+          "pressure_max": {
             "anyOf": [
               {
                 "type": "number"
@@ -3173,7 +3182,16 @@
                 "type": "null"
               }
             ],
-            "title": "Pressure Max Pa"
+            "title": "Pressure Max"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "enum": [
+              "Pa",
+              "1"
+            ],
+            "title": "Pressure Unit",
+            "default": "Pa"
           },
           "uptake_min_mol_kg": {
             "anyOf": [
