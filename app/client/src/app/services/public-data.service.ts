@@ -78,8 +78,22 @@ export function fetchPublicDataSyncRun(runId: string): Promise<ApiResult<PublicD
     return requestJson(`/public-data/sync-runs/${encodeURIComponent(runId)}`);
 }
 
-export function fetchPublicDataSyncRuns(): Promise<ApiResult<PublicDataSyncRunListResponse>> {
-    return requestJson('/public-data/sync-runs?limit=20&offset=0');
+export function fetchPublicDataSyncRuns(params: {
+    page?: number;
+    pageSize?: number;
+    scope?: 'active' | 'history';
+} = {}): Promise<ApiResult<PublicDataSyncRunListResponse>> {
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+    return requestJson(`/public-data/sync-runs${queryString({
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        scope: params.scope,
+    })}`);
+}
+
+export function resumePublicDataSyncRun(runId: string): Promise<ApiResult<PublicDataSyncRun>> {
+    return requestJson(`/public-data/sync-runs/${encodeURIComponent(runId)}/resume`, { method: 'POST' });
 }
 
 export function fetchPublicDataSyncFailures(runId: string): Promise<ApiResult<PublicDataSyncFailureListResponse>> {

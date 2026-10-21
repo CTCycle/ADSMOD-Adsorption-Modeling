@@ -39,6 +39,7 @@ import {
 } from '../../services/public-data.service';
 import { AcquireViewComponent } from './acquire-view.component';
 import { MaterialPickerComponent } from './material-picker.component';
+import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 
 const VIEWS: readonly PublicDataView[] = [
     'overview',
@@ -67,7 +68,7 @@ const positiveId = (value: string | null): number | null => {
 @Component({
     selector: 'adsmod-public-data-workspace',
     standalone: true,
-    imports: [FormsModule, RouterLink, RouterLinkActive, AcquireViewComponent, MaterialPickerComponent],
+    imports: [FormsModule, RouterLink, RouterLinkActive, AcquireViewComponent, MaterialPickerComponent, DataPaginationComponent],
     template: `
         <div class="public-workspace">
             <nav class="public-tabs" aria-label="Public data workspace">
@@ -105,7 +106,11 @@ const positiveId = (value: string | null): number | null => {
                             <a routerLink="/public-data/chemicals"><strong>{{ overviewChemicalTotal() ?? '—' }}</strong><span>chemicals</span></a>
                             <a routerLink="/public-data/structures"><strong>{{ overviewStructureTotal() ?? '—' }}</strong><span>structures</span></a>
                         </div>
-                        <p class="acquisition-summary" aria-live="polite">Acquisition activity: {{ activeSyncRuns() }} active · {{ failedSyncRuns() }} failed · latest successful sync {{ formatDate(latestSyncAt()) }}</p>
+                        <p class="acquisition-summary" aria-live="polite">
+                            <a routerLink="/public-data/acquire">{{ activeSyncRuns() }} active</a>
+                            · <a routerLink="/public-data/acquire">{{ failedSyncRuns() }} failed</a>
+                            · latest successful sync {{ formatDate(latestSyncAt()) }}
+                        </p>
                     </section>
                     <section class="public-section">
                         <div class="section-heading">
@@ -146,29 +151,58 @@ const positiveId = (value: string | null): number | null => {
                             <label>Max temperature (K)<input [(ngModel)]="temperatureMax" type="number" min="0" /></label>
                             <div class="filter-actions"><button class="button primary" type="button" (click)="applyAdsorptionFilters()">Apply</button><button class="button secondary" type="button" (click)="resetAdsorptionFilters()">Reset</button></div>
                         </div>
-                        <div class="table-frame">
-                            <table>
-                                <thead><tr><th>Source</th><th>Source ID</th><th>Material</th><th>Adsorbate</th><th>Temperature</th><th>Pressure range</th><th>Uptake range</th><th>Points</th><th></th></tr></thead>
+                        <div class="data-table-frame adsorption-table-frame">
+                            <table class="data-table adsorption-table">
+                                <caption class="sr-only">Adsorption records</caption>
+                                <thead>
+                                    <tr>
+                                        <th class="col-source" scope="col">Source</th>
+                                        <th class="col-external" scope="col">Source ID</th>
+                                        <th class="col-material" scope="col">Material</th>
+                                        <th class="col-adsorbate" scope="col">Adsorbate</th>
+                                        <th class="col-number num" scope="col">Temperature</th>
+                                        <th class="col-range num" scope="col">Pressure range</th>
+                                        <th class="col-range num" scope="col">Uptake range</th>
+                                        <th class="col-points num" scope="col">Points</th>
+                                        <th class="col-actions" scope="col"></th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     @for (item of adsorption()?.items ?? []; track item.id) {
                                         <tr>
                                             <td><span class="source-key">{{ item.source }}</span></td>
                                             <td class="truncate-cell" [title]="item.external_id">{{ item.external_id }}</td>
-                                            <td class="truncate-cell" [title]="item.material"><a class="text-link" [routerLink]="['/public-data', 'materials']" [queryParams]="{ id: item.material_id }">{{ item.material }}</a></td>
-                                            <td class="truncate-cell" [title]="adsorbateNames(item.adsorbates)">@for (adsorbate of item.adsorbates; track adsorbate.id; let last = $last) {<a class="text-link" [routerLink]="['/public-data', 'chemicals']" [queryParams]="{ id: adsorbate.id }">{{ adsorbate.name }}</a>@if (!last) {, }}</td>
-                                            <td>{{ formatNumber(item.temperature_k) }} K</td>
-                                            <td>{{ range(item.pressure_min_pa, item.pressure_max_pa, 'Pa') }}</td>
-                                            <td>{{ range(item.uptake_min_mol_kg, item.uptake_max_mol_kg, 'mol/kg') }}</td>
-                                            <td>{{ item.point_count }}</td>
-                                            <td><button class="row-action" type="button" (click)="openDetail(item.id)">Inspect</button></td>
+                                            <td class="truncate-cell" [title]="item.material"><a class="text-link" [attr.title]="item.material" [routerLink]="['/public-data', 'materials']" [queryParams]="{ id: item.material_id }">{{ item.material }}</a></td>
+                                            <td class="truncate-cell" [title]="adsorbateNames(item.adsorbates)">
+                                                @for (adsorbate of item.adsorbates; track adsorbate.id; let last = $last) {
+                                                    <a class="text-link" [routerLink]="['/public-data', 'chemicals']" [queryParams]="{ id: adsorbate.id }">{{ adsorbate.name }}</a>@if (!last) {, }
+                                                }
+                                            </td>
+                                            <td class="num">{{ formatNumber(item.temperature_k) }} K</td>
+                                            <td class="num">{{ range(item.pressure_min_pa, item.pressure_max_pa, 'Pa') }}</td>
+                                            <td class="num">{{ range(item.uptake_min_mol_kg, item.uptake_max_mol_kg, 'mol/kg') }}</td>
+                                            <td class="num">{{ item.point_count }}</td>
+                                            <td class="col-actions">
+                                                <div class="table-actions">
+                                                    <button class="table-action" type="button" (click)="openDetail(item.id)">Inspect</button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     } @empty {
-                                        <tr><td colspan="9" class="empty-table">No adsorption records match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'nist' }">Fetch NIST isotherms</a></td></tr>
+                                        <tr><td colspan="9" class="data-table-empty">No adsorption records match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'nist' }">Fetch NIST isotherms</a></td></tr>
                                     }
                                 </tbody>
                             </table>
                         </div>
-                        <div class="pagination-row">{{ pageSummary(adsorption()?.pagination) }}<div><button class="button secondary" type="button" [disabled]="page() <= 1" (click)="previousPage()">Previous</button><button class="button secondary" type="button" [disabled]="!hasNextPage(adsorption()?.pagination)" (click)="nextPage()">Next</button></div></div>
+                        <adsmod-data-pagination
+                            [page]="page()"
+                            [pageSize]="pageSize()"
+                            [total]="adsorption()?.pagination?.total ?? 0"
+                            itemLabel="record"
+                            [disabled]="loading()"
+                            (pageChange)="pageChanged($event)"
+                            (pageSizeChange)="pageSizeChanged($event)"
+                        />
                     </section>
                     @if (adsorptionDetail(); as detail) {
                         <aside class="detail-panel" aria-label="Adsorption record details">
@@ -202,8 +236,50 @@ const positiveId = (value: string | null): number | null => {
                         <div class="filter-bar compact">
                             <label>Search<input [(ngModel)]="materialQuery" placeholder="Material name" /></label><label>Formula<input [(ngModel)]="materialFormula" placeholder="Formula" /></label><label>Source<select [(ngModel)]="materialSource"><option value="">All sources</option>@for (source of sources(); track source.key) {<option [value]="source.key">{{ source.name }}</option>}</select></label><label>Structure<select [(ngModel)]="materialStructure"><option value="">Any</option><option value="yes">Available</option><option value="no">Not available</option></select></label><div class="filter-actions"><button class="button primary" type="button" (click)="applyMaterialFilters()">Apply</button><button class="button secondary" type="button" (click)="resetMaterialFilters()">Reset</button></div>
                         </div>
-                        <div class="table-frame"><table><thead><tr><th>Material</th><th>Formula</th><th>Molar mass</th><th>Sources</th><th>Isotherms</th><th>Structures</th><th></th></tr></thead><tbody>@for (item of materials()?.items ?? []; track item.id) {<tr><td class="truncate-cell" [title]="item.name">{{ item.name }}</td><td>{{ item.formula || '—' }}</td><td>{{ item.molar_mass_g_mol === null ? '—' : formatNumber(item.molar_mass_g_mol) + ' g/mol' }}</td><td>{{ sourceKeys(item.external_identifiers) }}</td><td>{{ item.isotherm_count }}</td><td>{{ item.structure_count }}</td><td><button class="row-action" type="button" (click)="openDetail(item.id)">Inspect</button></td></tr>} @empty {<tr><td colspan="7" class="empty-table">No materials match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'nist' }">Fetch NIST materials</a></td></tr>}</tbody></table></div>
-                        <div class="pagination-row">{{ pageSummary(materials()?.pagination) }}<div><button class="button secondary" type="button" [disabled]="page() <= 1" (click)="previousPage()">Previous</button><button class="button secondary" type="button" [disabled]="!hasNextPage(materials()?.pagination)" (click)="nextPage()">Next</button></div></div>
+                        <div class="data-table-frame materials-table-frame">
+                            <table class="data-table materials-table">
+                                <caption class="sr-only">Materials</caption>
+                                <thead>
+                                    <tr>
+                                        <th class="col-material" scope="col">Material</th>
+                                        <th class="col-formula" scope="col">Formula</th>
+                                        <th class="col-number num" scope="col">Molar mass</th>
+                                        <th class="col-sources" scope="col">Sources</th>
+                                        <th class="col-count num" scope="col">Isotherms</th>
+                                        <th class="col-count num" scope="col">Structures</th>
+                                        <th class="col-actions" scope="col"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (item of materials()?.items ?? []; track item.id) {
+                                        <tr>
+                                            <td class="truncate-cell" [title]="item.name">{{ item.name }}</td>
+                                            <td class="truncate-cell" [title]="item.formula || ''">{{ item.formula || '—' }}</td>
+                                            <td class="num">{{ item.molar_mass_g_mol === null ? '—' : formatNumber(item.molar_mass_g_mol) + ' g/mol' }}</td>
+                                            <td class="truncate-cell" [title]="sourceKeys(item.external_identifiers)">{{ sourceKeys(item.external_identifiers) }}</td>
+                                            <td class="num">{{ item.isotherm_count }}</td>
+                                            <td class="num">{{ item.structure_count }}</td>
+                                            <td class="col-actions">
+                                                <div class="table-actions">
+                                                    <button class="table-action" type="button" (click)="openDetail(item.id)">Inspect</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    } @empty {
+                                        <tr><td colspan="7" class="data-table-empty">No materials match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'nist' }">Fetch NIST materials</a></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <adsmod-data-pagination
+                            [page]="page()"
+                            [pageSize]="pageSize()"
+                            [total]="materials()?.pagination?.total ?? 0"
+                            itemLabel="material"
+                            [disabled]="loading()"
+                            (pageChange)="pageChanged($event)"
+                            (pageSizeChange)="pageSizeChanged($event)"
+                        />
                     </section>
                     @if (materialDetail(); as detail) {
                         <aside class="detail-panel" aria-label="Material details">
@@ -226,8 +302,50 @@ const positiveId = (value: string | null): number | null => {
                     <section class="public-section">
                         <div class="section-heading"><div><h3>Chemicals & adsorbates</h3><p>Search stored chemicals by name or any PubChem synonym. Exact identifiers decide identity; names never merge records.</p></div><a class="button secondary" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'pubchem' }">Resolve on PubChem</a></div>
                         <div class="filter-bar"><label>Search<input [(ngModel)]="chemicalQuery" placeholder="Name or synonym" /></label><label>Formula<input [(ngModel)]="chemicalFormula" placeholder="Formula" /></label><label>Source<select [(ngModel)]="chemicalSource"><option value="">All sources</option>@for (source of sources(); track source.key) {<option [value]="source.key">{{ source.name }}</option>}</select></label><label>Min mass<input [(ngModel)]="chemicalMassMin" type="number" min="0" /></label><label>Max mass<input [(ngModel)]="chemicalMassMax" type="number" min="0" /></label><div class="filter-actions"><button class="button primary" type="button" (click)="applyChemicalFilters()">Apply</button><button class="button secondary" type="button" (click)="resetChemicalFilters()">Reset</button></div></div>
-                        <div class="table-frame"><table><thead><tr><th>Name</th><th>Formula</th><th>Molecular weight</th><th>InChIKey</th><th>PubChem CID</th><th>Sources</th><th></th></tr></thead><tbody>@for (item of chemicals()?.items ?? []; track item.id) {<tr><td class="truncate-cell" [title]="item.name">{{ item.name }}</td><td>{{ item.formula || '—' }}</td><td>{{ item.molecular_weight === null ? '—' : formatNumber(item.molecular_weight) + ' g/mol' }}</td><td class="mono truncate-cell" [title]="item.inchi_key || ''">{{ item.inchi_key || '—' }}</td><td>{{ item.pubchem_cid || '—' }}</td><td>{{ sourceKeys(item.external_identifiers) }}</td><td><button class="row-action" type="button" (click)="openDetail(item.id)">Inspect</button></td></tr>} @empty {<tr><td colspan="7" class="empty-table">No chemicals match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'pubchem' }">Resolve a compound</a></td></tr>}</tbody></table></div>
-                        <div class="pagination-row">{{ pageSummary(chemicals()?.pagination) }}<div><button class="button secondary" type="button" [disabled]="page() <= 1" (click)="previousPage()">Previous</button><button class="button secondary" type="button" [disabled]="!hasNextPage(chemicals()?.pagination)" (click)="nextPage()">Next</button></div></div>
+                        <div class="data-table-frame chemicals-table-frame">
+                            <table class="data-table chemicals-table">
+                                <caption class="sr-only">Chemicals and adsorbates</caption>
+                                <thead>
+                                    <tr>
+                                        <th class="col-name" scope="col">Name</th>
+                                        <th class="col-formula" scope="col">Formula</th>
+                                        <th class="col-number num" scope="col">Molecular weight</th>
+                                        <th class="col-inchi" scope="col">InChIKey</th>
+                                        <th class="col-cid num" scope="col">PubChem CID</th>
+                                        <th class="col-sources" scope="col">Sources</th>
+                                        <th class="col-actions" scope="col"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (item of chemicals()?.items ?? []; track item.id) {
+                                        <tr>
+                                            <td class="truncate-cell" [title]="item.name">{{ item.name }}</td>
+                                            <td class="truncate-cell" [title]="item.formula || ''">{{ item.formula || '—' }}</td>
+                                            <td class="num">{{ item.molecular_weight === null ? '—' : formatNumber(item.molecular_weight) + ' g/mol' }}</td>
+                                            <td class="mono truncate-cell" [title]="item.inchi_key || ''">{{ item.inchi_key || '—' }}</td>
+                                            <td class="num">{{ item.pubchem_cid || '—' }}</td>
+                                            <td class="truncate-cell" [title]="sourceKeys(item.external_identifiers)">{{ sourceKeys(item.external_identifiers) }}</td>
+                                            <td class="col-actions">
+                                                <div class="table-actions">
+                                                    <button class="table-action" type="button" (click)="openDetail(item.id)">Inspect</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    } @empty {
+                                        <tr><td colspan="7" class="data-table-empty">No chemicals match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'pubchem' }">Resolve a compound</a></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <adsmod-data-pagination
+                            [page]="page()"
+                            [pageSize]="pageSize()"
+                            [total]="chemicals()?.pagination?.total ?? 0"
+                            itemLabel="chemical"
+                            [disabled]="loading()"
+                            (pageChange)="pageChanged($event)"
+                            (pageSizeChange)="pageSizeChanged($event)"
+                        />
                     </section>
                     @if (chemicalDetail(); as detail) {
                         <aside class="detail-panel" aria-label="Chemical details"><div class="detail-header"><div><p class="eyebrow">Chemical record</p><h3>{{ detail.preferred_name || detail.name }}</h3></div><button class="detail-close" type="button" aria-label="Close details" (click)="closeDetail()">×</button></div>
@@ -250,8 +368,58 @@ const positiveId = (value: string | null): number | null => {
                             <p class="filter-chip">Showing structures linked to material #{{ structureMaterialFilter() }}<a class="text-link" [routerLink]="[]" [queryParams]="{ material_id: null, id: null }" queryParamsHandling="merge">Clear</a></p>
                         }
                         <div class="filter-bar compact"><label>Search<input [(ngModel)]="structureQuery" placeholder="Name or formula" /></label><label>Source<select [(ngModel)]="structureSource"><option value="">All sources</option>@for (source of sources(); track source.key) {<option [value]="source.key">{{ source.name }}</option>}</select></label><label>Link status<select [(ngModel)]="structureLink"><option value="">Any</option><option value="linked">Linked to material</option><option value="unlinked">Unlinked</option></select></label><div></div><div class="filter-actions"><button class="button primary" type="button" (click)="applyStructureFilters()">Apply</button><button class="button secondary" type="button" (click)="resetStructureFilters()">Reset</button></div></div>
-                        <div class="table-frame"><table><thead><tr><th>Source</th><th>Source ID</th><th>Material</th><th>Formula</th><th>Space group</th><th>Atoms</th><th>Retrieved</th><th></th></tr></thead><tbody>@for (item of structures()?.items ?? []; track item.id) {<tr><td><span class="source-key">{{ item.source }}</span></td><td>{{ item.external_id }}</td><td class="truncate-cell">@if (item.material_id) {<a class="text-link" [routerLink]="['/public-data', 'materials']" [queryParams]="{ id: item.material_id }">{{ item.material_name }}</a>} @else {Unlinked}</td><td class="truncate-cell" [title]="item.formula || ''">{{ item.formula || '—' }}</td><td>{{ item.space_group || '—' }}</td><td>{{ item.atom_count }}</td><td>{{ formatDate(item.retrieved_at) }}</td><td><button class="row-action" type="button" (click)="openDetail(item.id)">Inspect</button></td></tr>} @empty {<tr><td colspan="8" class="empty-table">No imported structures match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'cod' }">Search COD</a></td></tr>}</tbody></table></div>
-                        <div class="pagination-row">{{ pageSummary(structures()?.pagination) }}<div><button class="button secondary" type="button" [disabled]="page() <= 1" (click)="previousPage()">Previous</button><button class="button secondary" type="button" [disabled]="!hasNextPage(structures()?.pagination)" (click)="nextPage()">Next</button></div></div>
+                        <div class="data-table-frame structures-table-frame">
+                            <table class="data-table structures-table">
+                                <caption class="sr-only">Crystal structures</caption>
+                                <thead>
+                                    <tr>
+                                        <th class="col-source" scope="col">Source</th>
+                                        <th class="col-external" scope="col">Source ID</th>
+                                        <th class="col-material" scope="col">Material</th>
+                                        <th class="col-formula" scope="col">Formula</th>
+                                        <th class="col-space-group" scope="col">Space group</th>
+                                        <th class="col-count num" scope="col">Atoms</th>
+                                        <th class="col-date" scope="col">Retrieved</th>
+                                        <th class="col-actions" scope="col"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (item of structures()?.items ?? []; track item.id) {
+                                        <tr>
+                                            <td><span class="source-key">{{ item.source }}</span></td>
+                                            <td class="truncate-cell" [title]="item.external_id">{{ item.external_id }}</td>
+                                            <td class="truncate-cell" [title]="item.material_name || 'Unlinked'">
+                                                @if (item.material_id) {
+                                                    <a class="text-link" [attr.title]="item.material_name" [routerLink]="['/public-data', 'materials']" [queryParams]="{ id: item.material_id }">{{ item.material_name }}</a>
+                                                } @else {
+                                                    Unlinked
+                                                }
+                                            </td>
+                                            <td class="truncate-cell" [title]="item.formula || ''">{{ item.formula || '—' }}</td>
+                                            <td class="truncate-cell" [title]="item.space_group || ''">{{ item.space_group || '—' }}</td>
+                                            <td class="num">{{ item.atom_count }}</td>
+                                            <td>{{ formatDate(item.retrieved_at) }}</td>
+                                            <td class="col-actions">
+                                                <div class="table-actions">
+                                                    <button class="table-action" type="button" (click)="openDetail(item.id)">Inspect</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    } @empty {
+                                        <tr><td colspan="8" class="data-table-empty">No imported structures match the current filters. <a class="text-link" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: 'cod' }">Search COD</a></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <adsmod-data-pagination
+                            [page]="page()"
+                            [pageSize]="pageSize()"
+                            [total]="structures()?.pagination?.total ?? 0"
+                            itemLabel="structure"
+                            [disabled]="loading()"
+                            (pageChange)="pageChanged($event)"
+                            (pageSizeChange)="pageSizeChanged($event)"
+                        />
                     </section>
                     @if (structureDetail(); as detail) {
                         <aside class="detail-panel" aria-label="Structure details">
@@ -273,11 +441,71 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('sources') {
                     <section class="public-section">
-                        <div class="section-heading"><div><h3>Sources</h3><p>Provider availability is independent. The status shown here is the last saved check; refreshing queues a bounded background check. Fetch data from the Acquire view.</p></div><div class="filter-actions"><a class="button secondary" routerLink="/public-data/acquire">Open Acquire</a><button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button></div></div>
-                        <div class="source-table">
-                            @for (source of sources(); track source.key) {
-                                <article class="source-row"><div class="source-health"><span class="health-dot" [class.available]="source.health_status === 'available'" [class.degraded]="source.health_status === 'degraded'" [class.unavailable]="source.health_status === 'unavailable'"></span><div><strong>{{ source.name }}</strong><code>{{ source.key }}</code></div><span>{{ source.health_status === 'unknown' ? 'Not checked' : source.health_status }}</span></div><p>{{ source.description }}</p><div class="capability-list">@for (capability of source.capabilities; track capability) {<span>{{ capability }}</span>}</div><div class="source-meta"><span>{{ source.record_count }} stored source records</span><span>Checked {{ formatDate(source.last_health_checked_at) }}{{ source.health_fresh ? '' : source.last_health_checked_at ? ' · stale' : '' }}</span><span>Last sync {{ formatDate(source.last_successful_sync_at) }}</span>@if (source.license_name) {<span>{{ source.license_name }}</span>}</div><div class="source-actions"><a [href]="source.homepage_url" target="_blank" rel="noopener noreferrer">Source</a>@if (source.license_url) {<a [href]="source.license_url" target="_blank" rel="noopener noreferrer">License</a>}</div>@if (source.health_detail) {<p class="source-detail">{{ source.health_detail }}</p>}</article>
-                            }
+                        <div class="section-heading">
+                            <div>
+                                <h3>Sources</h3>
+                                <p>Provider availability is independent. The status shown here is the last saved check; refreshing queues a bounded background check. Fetch data from the Acquire view.</p>
+                            </div>
+                            <div class="filter-actions">
+                                <a class="button secondary" routerLink="/public-data/acquire">Open Acquire</a>
+                                <button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button>
+                            </div>
+                        </div>
+                        <div class="data-table-frame source-table-frame">
+                            <table class="data-table source-table">
+                                <caption class="sr-only">Integrated public data sources</caption>
+                                <thead>
+                                    <tr>
+                                        <th class="col-source" scope="col">Source</th>
+                                        <th class="col-status" scope="col">Status</th>
+                                        <th class="col-capabilities" scope="col">Capabilities</th>
+                                        <th class="col-records num" scope="col">Records</th>
+                                        <th class="col-date" scope="col">Last checked</th>
+                                        <th class="col-date" scope="col">Last sync</th>
+                                        <th class="col-actions" scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (source of sources(); track source.key) {
+                                        <tr>
+                                            <td class="col-source">
+                                                <div class="source-health">
+                                                    <span class="health-dot" [class.available]="source.health_status === 'available'" [class.degraded]="source.health_status === 'degraded'" [class.unavailable]="source.health_status === 'unavailable'"></span>
+                                                    <div>
+                                                        <strong [title]="source.name">{{ source.name }}</strong>
+                                                        <code>{{ source.key }}</code>
+                                                    </div>
+                                                </div>
+                                                <p class="source-description" [title]="source.description">{{ source.description }}</p>
+                                                @if (source.health_detail) {
+                                                    <p class="source-detail" [title]="source.health_detail">{{ source.health_detail }}</p>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="source-status" [class.available]="source.health_status === 'available'" [class.unavailable]="source.health_status === 'unavailable'">{{ source.health_status === 'unknown' ? 'Not checked' : source.health_status }}</span>
+                                            </td>
+                                            <td class="truncate-cell" [title]="source.capabilities.join(', ')">{{ source.capabilities.join(', ') }}</td>
+                                            <td class="num">{{ source.record_count }} stored source records</td>
+                                            <td>
+                                                {{ formatDate(source.last_health_checked_at) }}
+                                                @if (!source.health_fresh && source.last_health_checked_at) {
+                                                    <span class="source-stale">stale</span>
+                                                }
+                                            </td>
+                                            <td>{{ formatDate(source.last_successful_sync_at) }}</td>
+                                            <td class="col-actions">
+                                                <div class="table-actions source-actions">
+                                                    <a class="table-action" [routerLink]="['/public-data', 'acquire']" [queryParams]="{ panel: source.key }">Fetch</a>
+                                                    <a class="table-action" [href]="source.homepage_url" target="_blank" rel="noopener noreferrer">Source</a>
+                                                    @if (source.license_url) {
+                                                        <a class="table-action" [href]="source.license_url" target="_blank" rel="noopener noreferrer">License</a>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                     </section>
                 }
@@ -315,7 +543,7 @@ export class PublicDataWorkspaceComponent {
     protected readonly adsorbateIdFilter = signal<number | null>(null);
     protected readonly structureMaterialFilter = signal<number | null>(null);
     protected readonly page = signal(1);
-    protected readonly pageSize = 25;
+    protected readonly pageSize = signal(25);
 
     protected readonly overviewAdsorptionTotal = signal<number | null>(null);
     protected readonly overviewMaterialTotal = signal<number | null>(null);
@@ -489,7 +717,7 @@ export class PublicDataWorkspaceComponent {
     private async loadAdsorption(requestId = this.loadSequence): Promise<void> {
         const result = await fetchPublicAdsorption({
             page: this.page(),
-            page_size: this.pageSize,
+            page_size: this.pageSize(),
             source: this.adsorptionSource,
             material: this.adsorptionMaterial,
             adsorbate: this.adsorptionAdsorbate,
@@ -505,14 +733,14 @@ export class PublicDataWorkspaceComponent {
 
     private async loadMaterials(requestId = this.loadSequence): Promise<void> {
         const hasStructure = this.materialStructure === 'yes' ? true : this.materialStructure === 'no' ? false : null;
-        const result = await fetchPublicMaterials({ page: this.page(), page_size: this.pageSize, q: this.materialQuery, formula: this.materialFormula, source: this.materialSource, has_structure: hasStructure });
+        const result = await fetchPublicMaterials({ page: this.page(), page_size: this.pageSize(), q: this.materialQuery, formula: this.materialFormula, source: this.materialSource, has_structure: hasStructure });
         if (!this.isCurrentLoad(requestId, 'materials')) return;
         this.materials.set(result.data);
         this.error.set(result.error);
     }
 
     private async loadChemicals(requestId = this.loadSequence): Promise<void> {
-        const result = await fetchPublicChemicals({ page: this.page(), page_size: this.pageSize, q: this.chemicalQuery, formula: this.chemicalFormula, source: this.chemicalSource, molecular_weight_min: this.chemicalMassMin, molecular_weight_max: this.chemicalMassMax });
+        const result = await fetchPublicChemicals({ page: this.page(), page_size: this.pageSize(), q: this.chemicalQuery, formula: this.chemicalFormula, source: this.chemicalSource, molecular_weight_min: this.chemicalMassMin, molecular_weight_max: this.chemicalMassMax });
         if (!this.isCurrentLoad(requestId, 'chemicals')) return;
         this.chemicals.set(result.data);
         this.error.set(result.error);
@@ -520,7 +748,7 @@ export class PublicDataWorkspaceComponent {
 
     private async loadStructures(requestId = this.loadSequence): Promise<void> {
         const linked = this.structureLink === 'linked' ? true : this.structureLink === 'unlinked' ? false : null;
-        const result = await fetchPublicStructures({ page: this.page(), page_size: this.pageSize, q: this.structureQuery, source: this.structureSource, linked_only: linked, material_id: this.structureMaterialFilter() });
+        const result = await fetchPublicStructures({ page: this.page(), page_size: this.pageSize(), q: this.structureQuery, source: this.structureSource, linked_only: linked, material_id: this.structureMaterialFilter() });
         if (!this.isCurrentLoad(requestId, 'structures')) return;
         this.structures.set(result.data);
         this.error.set(result.error);
@@ -549,8 +777,18 @@ export class PublicDataWorkspaceComponent {
         await this.applyStructureFilters();
     }
 
-    protected async previousPage(): Promise<void> { if (this.page() > 1) { this.page.update((value) => value - 1); await this.loadCurrent(); } }
-    protected async nextPage(): Promise<void> { this.page.update((value) => value + 1); await this.loadCurrent(); }
+    protected async pageChanged(page: number): Promise<void> {
+        if (page < 1 || page === this.page()) return;
+        this.page.set(page);
+        await this.loadCurrent();
+    }
+
+    protected async pageSizeChanged(size: number): Promise<void> {
+        if (size === this.pageSize()) return;
+        this.pageSize.set(size);
+        this.page.set(1);
+        await this.loadCurrent();
+    }
 
     protected openDetail(id: number): void {
         void this.router.navigate([], { relativeTo: this.route, queryParams: { id }, queryParamsHandling: 'merge' });
@@ -663,6 +901,4 @@ export class PublicDataWorkspaceComponent {
     protected valueOrDash(value: number | null): string { return value === null ? '—' : this.formatNumber(value); }
     protected formatDate(value: string | null): string { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date); }
     protected range(min: number | null, max: number | null, unit: string): string { return min === null || max === null ? '—' : `${this.formatNumber(min)}–${this.formatNumber(max)} ${unit}`; }
-    protected pageSummary(pagination: { page: number; page_size: number; total: number } | undefined): string { if (!pagination || pagination.total === 0) return '0 records'; const first = (pagination.page - 1) * pagination.page_size + 1; const last = Math.min(pagination.total, pagination.page * pagination.page_size); return `${first}–${last} of ${pagination.total}`; }
-    protected hasNextPage(pagination: { page: number; page_size: number; total: number } | undefined): boolean { return !!pagination && pagination.page * pagination.page_size < pagination.total; }
 }

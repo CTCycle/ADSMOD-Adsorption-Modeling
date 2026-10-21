@@ -70,6 +70,28 @@ async function assertContainedLayout(page: Page): Promise<void> {
     expect(metrics.documentWidth).toBeLessThanOrEqual(metrics.viewport + 1);
     expect(metrics.bodyWidth).toBeLessThanOrEqual(metrics.viewport + 1);
     await expect(page.locator('.public-workspace')).toBeVisible();
+    const frames = await page.locator('.data-table-frame').evaluateAll((elements) => elements.map((frame) => {
+        const parent = frame.closest('.public-section, .detail-panel') ?? frame.parentElement;
+        if (!parent) throw new Error('Public data table has no layout parent');
+        const frameRect = frame.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        return {
+            frameLeft: frameRect.left,
+            frameRight: frameRect.right,
+            parentLeft: parentRect.left,
+            parentRight: parentRect.right,
+            clientWidth: frame.clientWidth,
+            scrollWidth: frame.scrollWidth,
+            overflowX: getComputedStyle(frame).overflowX,
+        };
+    }));
+    for (const frame of frames) {
+        expect(frame.frameLeft).toBeGreaterThanOrEqual(frame.parentLeft - 1);
+        expect(frame.frameRight).toBeLessThanOrEqual(frame.parentRight + 1);
+        if (frame.scrollWidth > frame.clientWidth) {
+            expect(['auto', 'scroll']).toContain(frame.overflowX);
+        }
+    }
 }
 
 test('public data workspace remains contained across dense scientific views', async ({ page }, testInfo: TestInfo) => {
@@ -122,7 +144,8 @@ test('public data workspace remains contained across dense scientific views', as
     }
 
     await page.goto('/public-data/materials');
-    await expect(page.locator('.filter-bar input, .filter-bar select').first()).toHaveCSS('height', '42px');
+    const controlHeight = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--control-height').trim());
+    await expect(page.locator('.filter-bar input, .filter-bar select').first()).toHaveCSS('height', controlHeight);
 
     await page.goto('/public-data/adsorption');
     await page.getByRole('button', { name: 'Inspect' }).click();
@@ -217,7 +240,7 @@ test('Sources shows cached status and refreshes it through a background health r
     await expect(page.getByText('available', { exact: true })).toBeVisible();
 });
 
-test('NIST collection fetching in Acquire tracks durable progress and cooperative cancellation', async ({ page }) => {
+test('NIST collection fetching in Acquire tracks durable progress and cooperative cancellation', async ({ page }, testInfo: TestInfo) => {
     await installApiMocks(page);
 
     let started = false;
@@ -240,15 +263,21 @@ test('NIST collection fetching in Acquire tracks durable progress and cooperativ
         started = true;
         await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify(nistRun('queued')) });
     });
-    await page.route(/\/api\/v1\/public-data\/sync-runs\?limit=20&offset=0$/, async (route) => {
-        const runs = started ? [nistRun(cancelRequested ? 'cancelled' : 'running')] : [];
+    await page.route(/\/api\/v1\/public-data\/sync-runs\?/, async (route) => {
+        const scope = new URL(route.request().url()).searchParams.get('scope');
+        const runs = scope === 'active'
+            ? (started && !cancelRequested ? [nistRun('running')] : [])
+            : (cancelRequested ? [nistRun('cancelled')] : []);
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ runs, total: runs.length }) });
     });
     await page.route('**/api/v1/public-data/sync-runs/nist-run-1/cancel', async (route) => {
         cancelRequested = true;
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(nistRun('cancelled')) });
     });
-    await page.route(/\/api\/v1\/public-data\/sync-runs\/nist-run-1\/failures\?limit=100&offset=0$/, async (route) => {
+    await page.route('**/api/v1/public-data/sync-runs/nist-run-1', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(nistRun(cancelRequested ? 'cancelled' : 'running')) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs/nist-run-1/failures**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
             total: 1,
             failures: [{ id: 1, source_key: 'nist', external_id: 'record-unsupported-1', reason: 'Unsupported uptake unit: foo.', retry_eligible_at: null, created_at: '2026-10-19T10:00:02Z' }],
@@ -260,6 +289,49 @@ test('NIST collection fetching in Acquire tracks durable progress and cooperativ
     const isotherms = page.locator('.collection-row', { hasText: 'Adsorption isotherms' });
     await expect(isotherms).toContainText(/100 \/ 1[,.\s]?000/);
     await assertContainedLayout(page);
+    const assertNistTableGeometry = async () => {
+        const geometry = await page.locator('.collection-table-frame').evaluate((frame) => {
+            const table = frame.querySelector<HTMLTableElement>('.collection-table');
+            if (!table) throw new Error('NIST collection table is unavailable');
+            const headers = Array.from(table.querySelectorAll('thead th'));
+            const cells = Array.from(table.querySelectorAll('tbody tr:first-child td'));
+            return {
+                viewportWidth: document.documentElement.clientWidth,
+                documentWidth: document.documentElement.scrollWidth,
+                frameWidth: frame.clientWidth,
+                frameScrollWidth: frame.scrollWidth,
+                tableWidth: table.getBoundingClientRect().width,
+                columns: headers.map((header, index) => ({
+                    headerLeft: header.getBoundingClientRect().left,
+                    headerWidth: header.getBoundingClientRect().width,
+                    cellLeft: cells[index]?.getBoundingClientRect().left ?? -1,
+                    cellWidth: cells[index]?.getBoundingClientRect().width ?? -1,
+                })),
+            };
+        });
+        expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+        expect(geometry.columns).toHaveLength(4);
+        for (const column of geometry.columns) {
+            expect(Math.abs(column.headerLeft - column.cellLeft)).toBeLessThanOrEqual(1);
+            expect(Math.abs(column.headerWidth - column.cellWidth)).toBeLessThanOrEqual(1);
+        }
+        if (geometry.frameWidth >= 780) {
+            expect(geometry.tableWidth).toBeGreaterThanOrEqual(geometry.frameWidth - 1);
+        } else {
+            expect(geometry.frameScrollWidth).toBeGreaterThan(geometry.frameWidth);
+        }
+        return geometry;
+    };
+    await assertNistTableGeometry();
+    if (testInfo.project.name === 'viewport-1440x920') {
+        await page.screenshot({ path: testInfo.outputPath('nist-collections-populated-desktop.png') });
+    }
+    if (testInfo.project.name === 'mobile-600x900') {
+        await page.setViewportSize({ width: 390, height: 844 });
+        const narrowGeometry = await assertNistTableGeometry();
+        expect(narrowGeometry.frameWidth).toBeLessThan(narrowGeometry.frameScrollWidth);
+        await page.screenshot({ path: testInfo.outputPath('nist-collections-narrow-390.png') });
+    }
     await isotherms.getByRole('button', { name: 'Fetch' }).click();
     await expect.poll(() => requestBody).toEqual({
         source_key: 'nist', operation: 'nist_category', category: 'experiments', fraction: 0.1,
@@ -268,8 +340,8 @@ test('NIST collection fetching in Acquire tracks durable progress and cooperativ
     await expect(cancelButton).toBeVisible();
     await cancelButton.click();
     await expect(page.locator('#acquire-runs')).toContainText('cancelled');
-    await page.getByRole('button', { name: 'Show failed records' }).click();
-    await expect(page.getByText('Unsupported uptake unit: foo.')).toBeVisible();
+    await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Acquisition details' })).toContainText('Unsupported uptake unit: foo.');
 });
 
 test('COD search in Acquire imports a bounded selection and links to the stored structures', async ({ page }) => {
@@ -301,6 +373,7 @@ test('COD search in Acquire imports a bounded selection and links to the stored 
     await page.locator('#acquire-cod-query').fill('carbon dioxide');
     await page.locator('#acquire-cod').getByRole('button', { name: 'Search' }).click();
     await expect(page.getByText('Carbon dioxide phase A')).toBeVisible();
+    await assertContainedLayout(page);
     await page.getByRole('checkbox', { name: 'Select all results' }).check();
     await page.getByRole('button', { name: 'Import selected (2)' }).click();
 

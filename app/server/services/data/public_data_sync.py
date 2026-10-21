@@ -49,6 +49,7 @@ class PublicDataSyncCoordinator:
         self._started = False
         self._switch_paused = False
         self._switch_lock = asyncio.Lock()
+        self._enqueue_lock = asyncio.Lock()
         self._target_worker_count = config.sync_max_concurrent_jobs
         self._next_worker_index = 0
         self._run_settings: ContextVar[
@@ -177,16 +178,32 @@ class PublicDataSyncCoordinator:
     async def enqueue(
         self, *, source_key: str, operation: str, parameters: dict[str, Any]
     ) -> dict[str, Any]:
-        if self._switch_paused:
-            raise RuntimeError("Database switching is in progress; retry the sync request shortly.")
-        run = await asyncio.to_thread(
-            self.repository.create_sync_run,
-            source_key=source_key,
-            operation=operation,
-            parameters=parameters,
-        )
-        self._wake.set()
-        return run
+        async with self._enqueue_lock:
+            if self._switch_paused:
+                raise RuntimeError(
+                    "Database switching is in progress; retry the sync request shortly."
+                )
+            run = await asyncio.to_thread(
+                self.repository.create_sync_run,
+                source_key=source_key,
+                operation=operation,
+                parameters=parameters,
+            )
+            self._wake.set()
+            return run
+
+    # -------------------------------------------------------------------------
+    async def resume(self, run_id: str) -> dict[str, Any]:
+        async with self._enqueue_lock:
+            if self._switch_paused:
+                raise RuntimeError(
+                    "Database switching is in progress; retry the sync request shortly."
+                )
+            run = await asyncio.to_thread(
+                self.repository.resume_sync_run, run_id
+            )
+            self._wake.set()
+            return run
 
     # -------------------------------------------------------------------------
     async def get(self, run_id: str) -> dict[str, Any]:
@@ -200,6 +217,7 @@ class PublicDataSyncCoordinator:
         offset: int,
         source_key: str | None,
         status_filter: str | None,
+        status_scope: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         return await asyncio.to_thread(
             self.repository.list_sync_runs,
@@ -207,6 +225,7 @@ class PublicDataSyncCoordinator:
             offset=offset,
             source_key=source_key,
             status_filter=status_filter,
+            status_scope=status_scope,
         )
 
     # -------------------------------------------------------------------------

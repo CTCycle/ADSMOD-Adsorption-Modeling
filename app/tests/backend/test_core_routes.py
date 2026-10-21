@@ -59,6 +59,7 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "/api/v1/public-data/sync-runs" in paths
         assert "/api/v1/public-data/sync-runs/{run_id}" in paths
         assert "/api/v1/public-data/sync-runs/{run_id}/cancel" in paths
+        assert "/api/v1/public-data/sync-runs/{run_id}/resume" in paths
         assert "/api/v1/public-data/adsorption" in paths
         assert "/api/v1/public-data/structures/search" in paths
         assert "/api/v1/public-data/sources/nist/collections" in paths
@@ -66,6 +67,7 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "put" in paths["/api/v1/public-data/structures/{structure_id}/material"]
         assert "/api/v1/public-data/structures/{structure_id}/file" in paths
         assert "post" in paths["/api/v1/public-data/sync-runs/{run_id}/cancel"]
+        assert "post" in paths["/api/v1/public-data/sync-runs/{run_id}/resume"]
         # Acquisition runs only through durable sync runs.
         assert "/api/v1/public-data/chemicals/resolve" not in paths
         assert "/api/v1/public-data/structures/import" not in paths
