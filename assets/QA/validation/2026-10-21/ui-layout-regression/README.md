@@ -19,7 +19,8 @@ Compared the current working tree with the d312e2e console geometry changes and 
 
 ## Screenshots
 
-- [Workspace datasets — desktop](visual-matrix-verified/application-shell-dataset--d0a24-es-an-explicit-confirmation-viewport-1440x920/datasets-populated-desktop.png)
-- [Dataset inspector — desktop](visual-matrix-verified/application-shell-dataset--d0a24-es-an-explicit-confirmation-viewport-1440x920/dataset-inspector-populated-desktop.png)
-- [NIST collections — desktop](visual-matrix-verified/public-data-layout-NIST-co-7241e-nd-cooperative-cancellation-viewport-1440x920/nist-collections-populated-desktop.png)
-- [NIST collections — narrow 390×844](visual-matrix-verified/public-data-layout-NIST-co-7241e-nd-cooperative-cancellation-mobile-600x900/nist-collections-narrow-390.png)
+- [Workspace datasets — desktop](captures/datasets-desktop.png)
+- [Dataset inspector — desktop](captures/dataset-inspector-desktop.png)
+- [NIST collections — desktop](captures/nist-desktop.png)
+- [NIST collections — narrow 390×844](captures/nist-390.png)
+- Capture files use short paths to remain accessible on Windows systems.
