@@ -34,7 +34,7 @@ def test_launcher_loads_settings_and_endpoints_from_sqlite() -> None:
     text = launcher_text()
 
     assert "python -m server.runtime_config --json" in text
-    assert "SQLite runtime settings" in text
+    assert "Database runtime settings" in text
     assert "ADSMOD_DATA_DIR" not in text
     assert "adsmod.json" not in text
 
@@ -72,6 +72,14 @@ def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     assert "@($settings.BackendPort, $settings.FrontendPort)" in body
     assert "Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process" in body
     assert "Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process" in body
+
+###############################################################################
+def test_launch_action_exits_launcher_after_successful_handoff() -> None:
+    text = launcher_text()
+    body = start_application_body()
+
+    assert "'Launch' { if (Start-Application) { exit 0 } }" in text
+    assert "-WindowStyle Normal -PassThru" in body
 
 ###############################################################################
 def test_port_conflict_resolution_is_fail_closed_and_deduplicates_pids() -> None:
