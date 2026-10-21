@@ -64,7 +64,6 @@ const persistFraction = (category: NISTCategory, value: number): void => {
         <section class="public-section acquire-intro">
             <div class="section-heading">
                 <div>
-                    <p class="eyebrow">Acquire public data</p>
                     <h3>Fetch records from NIST, PubChem, and COD</h3>
                     <p>Every request runs in the background and is saved to the local database. Records already stored are reused, never downloaded twice. Follow progress below, then open the imported records.</p>
                 </div>
@@ -77,7 +76,6 @@ const persistFraction = (category: NISTCategory, value: number): void => {
         <section class="public-section source-panel" id="acquire-nist">
             <div class="section-heading">
                 <div>
-                    <p class="eyebrow">NIST/ARPA-E adsorption database</p>
                     <h4>Adsorption collections</h4>
                     <p>Check how many records NIST publishes, choose the share to consider, and fetch. Each run is bounded; fetch again to continue where the previous run stopped.</p>
                 </div>
@@ -119,7 +117,6 @@ const persistFraction = (category: NISTCategory, value: number): void => {
             <section class="public-section source-panel" id="acquire-pubchem">
                 <div class="section-heading">
                     <div>
-                        <p class="eyebrow">PubChem</p>
                         <h4>Chemical identity and properties</h4>
                         <p>Resolve one compound by CID, InChIKey, or name, or fill in PubChem identity for stored chemicals that do not have it yet.</p>
                     </div>
@@ -141,7 +138,6 @@ const persistFraction = (category: NISTCategory, value: number): void => {
             <section class="public-section source-panel" id="acquire-cod">
                 <div class="section-heading">
                     <div>
-                        <p class="eyebrow">Crystallography Open Database</p>
                         <h4>Crystal structures</h4>
                         <p>Search with a bounded query, select results, and import the original CIF with unit cell and atom sites.</p>
                     </div>
@@ -186,7 +182,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
 
         <section class="public-section" id="acquire-runs">
             <div class="section-heading">
-                <div><p class="eyebrow">Run tracker</p><h4>Recent acquisitions</h4></div>
+                <div><h4>Recent acquisitions</h4></div>
                 <button class="button secondary" type="button" (click)="refreshRuns()">Refresh</button>
             </div>
             @if (trackedRuns().length) {

@@ -16,15 +16,9 @@ export interface DatasetRenameEvent { id: number; newName: string; }
             <div class="card-title-row">
                 <div>
                     <h2 id="workspace-datasets-title">Workspace datasets</h2>
-                    <p>Select a dataset to inspect its experiments.</p>
+                    <p>Import CSV or Excel observations, one per row, then select a dataset to inspect its experiments.</p>
                 </div>
-            </div>
-            <div class="dataset-add-row">
                 <button #addDatasetButton class="button primary add-dataset-button" type="button" (click)="addRequested.emit()">Add dataset</button>
-                <div>
-                    <h3>{{ datasets.length ? 'Add another dataset' : 'Add your first dataset' }}</h3>
-                    <p>Import CSV or Excel observations. One observation per row is recommended.</p>
-                </div>
             </div>
             @if (datasets.length) {
                 <div class="dataset-record-list" role="list" aria-label="Workspace datasets">
@@ -80,7 +74,6 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                 <section class="dataset-metadata-editor" role="dialog" aria-modal="true" aria-labelledby="dataset-metadata-title" (click)="$event.stopPropagation()">
                     <div class="dataset-metadata-header">
                         <div>
-                            <p class="eyebrow">Dataset actions</p>
                             <h2 id="dataset-metadata-title">Edit metadata</h2>
                         </div>
                         <div class="dataset-metadata-actions">

@@ -108,7 +108,6 @@ interface PendingTrainingDelete {
             </nav>
 
             <div class="training-view-description">
-                <h2>{{ activeView().label }}</h2>
                 <p>{{ activeView().description }}</p>
             </div>
 

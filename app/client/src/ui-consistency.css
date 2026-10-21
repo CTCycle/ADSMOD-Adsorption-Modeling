@@ -12,7 +12,8 @@
 :root {
   --console-sidebar-width: 224px;
   --console-content-inline: var(--spacing-xl);
-  --console-header-height: 112px;
+  --console-header-height: 80px;
+  --control-height: 36px;
 }
 
 /* Shell geometry and primary navigation */
@@ -126,22 +127,23 @@ button {
 }
 
 .console-header h1 {
-  font-size: 2rem;
-  line-height: 1.15;
-  letter-spacing: -0.015em;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .console-header p {
   max-width: 72ch;
-  margin-top: 0.375rem;
-  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
   line-height: 1.4;
 }
 
 .header-icon-button {
-  width: 42px;
-  height: 42px;
-  font-size: 1.1rem;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 0.95rem;
 }
 
 .console-main {
@@ -278,7 +280,7 @@ button {
 .dataset-add-row .add-dataset-button {
   width: auto;
   min-width: 7.5rem;
-  height: 42px;
+  height: var(--control-height);
   padding: 0 var(--spacing-md);
   border-radius: var(--radius-sm);
   background: var(--primary-600);
@@ -288,10 +290,7 @@ button {
 }
 
 .dataset-record-actions .button {
-  min-height: 40px;
-  padding: 0.4rem 0.7rem;
-  font-size: 0.78rem;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .dataset-record.renaming {
@@ -790,4 +789,179 @@ button {
   .console-sidebar-footer {
     display: none;
   }
+}
+
+/*
+ * Control geometry: one compact size, radius and emphasis scale for every
+ * button, so action groups align regardless of where they are rendered.
+ */
+button.primary,
+button.secondary,
+.button,
+.add-dataset-button {
+  min-height: var(--control-height);
+  height: auto;
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  gap: 0.375rem;
+  box-shadow: none;
+  transform: none;
+  white-space: nowrap;
+}
+
+button.primary,
+.button.primary {
+  background: var(--primary-600);
+}
+
+button.primary:hover:not(:disabled),
+.button.primary:hover:not(:disabled) {
+  background: var(--primary-700);
+  box-shadow: none;
+  transform: none;
+}
+
+button.secondary:hover:not(:disabled),
+.button.secondary:hover:not(:disabled) {
+  box-shadow: none;
+  transform: none;
+}
+
+.dataset-add-row .add-dataset-button {
+  min-width: 0;
+  height: var(--control-height);
+}
+
+select,
+input[type="text"],
+input[type="number"],
+input[type="search"] {
+  min-height: var(--control-height);
+}
+
+/* Component-specific controls aligned to the shared control height. */
+.select-input,
+input[type="number"] {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+}
+
+.dataset-upload-button,
+.split-selection-card-action-button,
+.fitting-action-primary,
+.file-upload-label,
+.dashboard-placeholder-actions .button,
+.dataset-status .button,
+.help-modal-footer .button,
+.confirm-dialog .confirm-destructive,
+.dataset-record-actions .button {
+  min-height: var(--control-height);
+  height: auto;
+  font-size: 0.8125rem;
+}
+
+.help-modal-close {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 1rem;
+}
+
+/* Low-emphasis action: no fill or border until hovered. */
+button.quiet,
+.button.quiet {
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--slate-700);
+}
+
+button.quiet:hover:not(:disabled),
+.button.quiet:hover:not(:disabled) {
+  background: var(--slate-100);
+  transform: none;
+}
+
+button.quiet.danger,
+.button.quiet.danger {
+  color: #b42318;
+}
+
+button.quiet.danger:hover:not(:disabled) {
+  background: #fef3f2;
+}
+
+.user-dataset-list-card .card-title-row {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+/* Anchors styled as buttons follow the same geometry as <button>. */
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+a.button.primary {
+  background: var(--primary-600);
+  color: #fff;
+}
+
+a.button.secondary {
+  border: 1px solid var(--slate-300);
+  background: #fff;
+  color: var(--slate-700);
+  font-weight: 600;
+}
+
+a.button.secondary:hover {
+  border-color: var(--slate-400);
+  background: var(--slate-50);
+}
+
+.select-input,
+.file-upload-label {
+  height: var(--control-height);
+  min-height: var(--control-height);
+}
+
+.training-view-description {
+  margin: 0;
+  padding: var(--spacing-xs) 0 var(--spacing-sm);
+}
+
+.public-intro h2 {
+  font-size: 1.125rem;
+}
+
+/* Inspector content sits inside the card padding instead of touching its edges. */
+.dataset-inspector {
+  padding: var(--spacing-lg);
+  gap: var(--spacing-lg);
+}
+
+.dataset-inspector .card-title-row {
+  min-height: 0;
+  padding: 0;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="search"] {
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--slate-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--slate-900);
+  font-family: inherit;
+  font-size: 0.8125rem;
 }
