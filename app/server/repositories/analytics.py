@@ -172,18 +172,22 @@ class AnalyticsRepository:
             .group_by(Dataset.id, Dataset.name)
         )
         with self.database.session_factory() as session:
+            # Selected entries sort first so the client can always label them.
             facet_rows = {
                 key: [
                     {"id": int(row.id), "name": str(row.name), "count": int(row.count)}
                     for row in session.execute(
-                        query.order_by(func.count().desc(), query.selected_columns[1])
-                        .limit(FACET_LIMIT)
+                        query.order_by(
+                            query.selected_columns[0].in_(filters.get(selected) or [-1]).desc(),
+                            func.count().desc(),
+                            query.selected_columns[1],
+                        ).limit(FACET_LIMIT)
                     )
                 ]
-                for key, query in (
-                    ("materials", materials),
-                    ("adsorbates", adsorbates),
-                    ("datasets", datasets),
+                for key, selected, query in (
+                    ("materials", "adsorbent_ids", materials),
+                    ("adsorbates", "adsorbate_ids", adsorbates),
+                    ("datasets", "dataset_ids", datasets),
                 )
             }
             sources = dict(

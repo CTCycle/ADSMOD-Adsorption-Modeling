@@ -15,7 +15,15 @@ export const routes: Routes = [
             { path: 'datasets', loadComponent: () => import('./features/datasets/custom-datasets-page.component').then((m) => m.CustomDatasetsPageComponent) },
             { path: 'public-data', pathMatch: 'full', redirectTo: 'public-data/overview' },
             { path: 'public-data/:view', loadComponent: () => import('./features/public-data/public-data-workspace.component').then((m) => m.PublicDataWorkspaceComponent) },
-            { path: 'dashboards', loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent) },
+            {
+                path: 'dashboards',
+                loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent),
+                children: [
+                    { path: '', pathMatch: 'full', redirectTo: 'overview' },
+                    { path: 'overview', loadComponent: () => import('./features/dashboards/overview/overview-view.component').then((m) => m.OverviewViewComponent) },
+                    { path: 'explore', loadComponent: () => import('./features/dashboards/explore/explore-view.component').then((m) => m.ExploreViewComponent) },
+                ],
+            },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
             { path: 'settings', canDeactivate: [settingsAutosaveGuard], loadComponent: () => import('./features/settings/settings-page.component').then((m) => m.SettingsPageComponent) },
             {
