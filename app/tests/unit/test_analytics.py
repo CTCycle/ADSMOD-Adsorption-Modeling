@@ -145,8 +145,14 @@ def test_selection_facets_keep_sibling_options_visible() -> None:
     # Mixtures are excluded by default, so only the two pure CO2 isotherms match.
     assert response.pagination.total == 2
     assert {item.name for item in response.items} == {"a-co2-273", "a-co2-298"}
-    materials = {facet.name: facet.count for facet in response.facets.materials}
-    assert materials == {"Material A": 2, "Material B": 1}
+    assert [(facet.name, facet.count) for facet in response.facets.materials] == [
+        ("Material A", 2),
+        ("Material B", 1),
+    ]
+    selected_b = service.selection(
+        SelectionRequest(filter=AnalyticsFilter(adsorbent_ids=[ids["material_b"]]))
+    )
+    assert selected_b.facets.materials[0].name == "Material B"
     assert {facet.name: facet.count for facet in response.facets.adsorbates} == {
         "carbon dioxide": 2
     }

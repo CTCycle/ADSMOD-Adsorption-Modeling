@@ -45,9 +45,17 @@ const HELP_CONTENT: Record<HelpPage, HelpContent> = {
     },
     dashboards: {
         title: 'Dashboards help',
-        intro: 'Dashboards will provide a consolidated view of workspace activity and results.',
-        steps: [{ title: 'Coming next', description: 'Dashboard views are not available yet.' }],
-        tips: ['Use Custom Datasets for uploads and Public Data for externally sourced scientific records.'],
+        intro: 'Explore every stored isotherm across datasets. Charts are computed from the database on demand; no aggregated copy is created.',
+        steps: [
+            { title: 'Review the overview', description: 'See how measurements are distributed across temperatures, sources, materials, adsorbates, and pressure bases.' },
+            { title: 'Build a query', description: 'In Explore & compare, filter by source, pressure basis, temperature, material, adsorbate, or dataset, and optionally select individual isotherms.' },
+            { title: 'Choose an analysis', description: 'Plot isotherms coloured by temperature or category, compare uptake at one pressure, or inspect a distribution.' },
+            { title: 'Inspect a series', description: 'Select a curve or row to see its provenance, material, and adsorbate details.' },
+        ],
+        tips: [
+            'Uptake at a fixed pressure uses a measurement when one matches, otherwise interpolates in log pressure between bracketing points of the adsorption branch; it never extrapolates.',
+            'The page address stores the query, so a view can be bookmarked and is always recomputed from current data.',
+        ],
     },
     fitting: {
         title: 'Fitting help',
@@ -240,7 +248,7 @@ export class CoreShellComponent {
     protected readonly pageDescription = computed(() => {
         const url = this.currentUrl();
         if (url.startsWith('/dashboards')) {
-            return 'Monitor workspace activity and results.';
+            return 'Query, compare, and visualise stored adsorption data without copying it.';
         }
         if (url.startsWith('/public-data')) {
             return 'Discover, normalize, inspect, and trace scientific records from integrated public sources.';

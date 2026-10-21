@@ -25,7 +25,10 @@ describe('application routes', () => {
         expect(paths).not.toContain('public-materials');
         expect(childRoutes.find((route) => route.path === 'datasets')?.loadComponent).toBeTypeOf('function');
         expect(childRoutes.find((route) => route.path === 'public-data/:view')?.loadComponent).toBeTypeOf('function');
-        expect(childRoutes.find((route) => route.path === 'dashboards')?.loadComponent).toBeTypeOf('function');
+        const dashboards = childRoutes.find((route) => route.path === 'dashboards');
+        expect(dashboards?.loadComponent).toBeTypeOf('function');
+        expect(dashboards?.children?.find((route) => route.path === '')?.redirectTo).toBe('overview');
+        expect(dashboards?.children?.map((route) => route.path)).toEqual(['', 'overview', 'explore']);
         expect(childRoutes.find((route) => route.path === 'fitting')?.loadComponent).toBeTypeOf('function');
         expect(childRoutes.find((route) => route.path === 'public-data')?.redirectTo).toBe('public-data/overview');
         expect(childRoutes.find((route) => route.path === '')?.redirectTo).toBe('datasets');

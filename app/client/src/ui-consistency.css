@@ -400,45 +400,6 @@ button {
   font-size: 0.74rem;
 }
 
-.dashboards-placeholder {
-  min-height: 0;
-  display: block;
-}
-
-.dashboards-placeholder-content {
-  max-width: 48rem;
-  padding: var(--spacing-lg);
-  text-align: left;
-}
-
-.dashboard-placeholder-actions .button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0.5rem 0.8rem;
-  border: 1px solid var(--slate-300);
-  border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--slate-700);
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.dashboard-placeholder-actions .button:hover {
-  border-color: var(--primary-400);
-  background: var(--primary-50);
-  color: var(--primary-700);
-}
-
-.dashboard-placeholder-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
-}
-
 .fitting-config-error {
   display: flex;
   flex-wrap: wrap;
@@ -762,10 +723,6 @@ button {
   .dataset-rename-inline {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .dashboard-placeholder-actions > * {
-    flex: 1 1 auto;
-  }
 }
 
 @media (max-width: 1180px) {
@@ -854,7 +811,6 @@ input[type="number"] {
 .split-selection-card-action-button,
 .fitting-action-primary,
 .file-upload-label,
-.dashboard-placeholder-actions .button,
 .dataset-status .button,
 .help-modal-footer .button,
 .confirm-dialog .confirm-destructive,
