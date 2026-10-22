@@ -125,7 +125,7 @@ def test_csv_import_persists_inspection_experiment_switch_and_deletion(
     page_context: Page,
 ) -> None:
     page = page_context
-    page.goto("http://127.0.0.1:5173/datasets")
+    page.goto("/datasets")
     console_errors, page_errors, api_errors = _browser_errors(page)
     expect(page.get_by_text("Online", exact=True)).to_be_visible()
 
@@ -146,7 +146,7 @@ def test_excel_import_persists_inspection_and_reload(
     extension: str,
 ) -> None:
     page = page_context
-    page.goto("http://127.0.0.1:5173/datasets")
+    page.goto("/datasets")
     console_errors, page_errors, api_errors = _browser_errors(page)
     expect(page.get_by_text("Online", exact=True)).to_be_visible()
 

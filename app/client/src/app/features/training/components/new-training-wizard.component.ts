@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 import { Component, computed, input, output, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { NumericConstraint, TorchCompileBackend, TrainingConfig } from '../../../models/training.model';
 import { CheckboxComponent } from '../../../shared/components/checkbox/checkbox.component';
@@ -335,29 +336,29 @@ export class NewTrainingWizardComponent {
         queueMicrotask(() => this.patchInitialConfig());
     }
 
-    protected readonly shuffleDataset = computed(() => this.shuffleDatasetControl.value);
-    protected readonly maxBufferSize = computed(() => this.maxBufferSizeControl.value);
-    protected readonly selectedModel = computed(() => this.selectedModelControl.value);
-    protected readonly dropoutRate = computed(() => this.dropoutRateControl.value);
-    protected readonly numAttentionHeads = computed(() => this.numAttentionHeadsControl.value);
-    protected readonly numEncoders = computed(() => this.numEncodersControl.value);
-    protected readonly molecularEmbeddingSize = computed(() => this.molecularEmbeddingSizeControl.value);
-    protected readonly epochs = computed(() => this.epochsControl.value);
-    protected readonly batchSize = computed(() => this.batchSizeControl.value);
-    protected readonly saveCheckpoints = computed(() => this.saveCheckpointsControl.value);
-    protected readonly useLrScheduler = computed(() => this.useLrSchedulerControl.value);
-    protected readonly initialLr = computed(() => this.initialLrControl.value);
-    protected readonly targetLr = computed(() => this.targetLrControl.value);
-    protected readonly constantSteps = computed(() => this.constantStepsControl.value);
-    protected readonly decaySteps = computed(() => this.decayStepsControl.value);
-    protected readonly pinMemory = computed(() => this.pinMemoryControl.value);
-    protected readonly useMixedPrecision = computed(() => this.useMixedPrecisionControl.value);
-    protected readonly dataloaderWorkers = computed(() => this.dataloaderWorkersControl.value);
-    protected readonly prefetchFactor = computed(() => this.prefetchFactorControl.value);
-    protected readonly useJit = computed(() => this.useJitControl.value);
-    protected readonly jitBackend = computed(() => this.jitBackendControl.value);
-    protected readonly useDeviceGpu = computed(() => this.useDeviceGpuControl.value);
-    protected readonly deviceId = computed(() => this.deviceIdControl.value);
+    protected readonly shuffleDataset = toSignal(this.shuffleDatasetControl.valueChanges, { initialValue: this.shuffleDatasetControl.value });
+    protected readonly maxBufferSize = toSignal(this.maxBufferSizeControl.valueChanges, { initialValue: this.maxBufferSizeControl.value });
+    protected readonly selectedModel = toSignal(this.selectedModelControl.valueChanges, { initialValue: this.selectedModelControl.value });
+    protected readonly dropoutRate = toSignal(this.dropoutRateControl.valueChanges, { initialValue: this.dropoutRateControl.value });
+    protected readonly numAttentionHeads = toSignal(this.numAttentionHeadsControl.valueChanges, { initialValue: this.numAttentionHeadsControl.value });
+    protected readonly numEncoders = toSignal(this.numEncodersControl.valueChanges, { initialValue: this.numEncodersControl.value });
+    protected readonly molecularEmbeddingSize = toSignal(this.molecularEmbeddingSizeControl.valueChanges, { initialValue: this.molecularEmbeddingSizeControl.value });
+    protected readonly epochs = toSignal(this.epochsControl.valueChanges, { initialValue: this.epochsControl.value });
+    protected readonly batchSize = toSignal(this.batchSizeControl.valueChanges, { initialValue: this.batchSizeControl.value });
+    protected readonly saveCheckpoints = toSignal(this.saveCheckpointsControl.valueChanges, { initialValue: this.saveCheckpointsControl.value });
+    protected readonly useLrScheduler = toSignal(this.useLrSchedulerControl.valueChanges, { initialValue: this.useLrSchedulerControl.value });
+    protected readonly initialLr = toSignal(this.initialLrControl.valueChanges, { initialValue: this.initialLrControl.value });
+    protected readonly targetLr = toSignal(this.targetLrControl.valueChanges, { initialValue: this.targetLrControl.value });
+    protected readonly constantSteps = toSignal(this.constantStepsControl.valueChanges, { initialValue: this.constantStepsControl.value });
+    protected readonly decaySteps = toSignal(this.decayStepsControl.valueChanges, { initialValue: this.decayStepsControl.value });
+    protected readonly pinMemory = toSignal(this.pinMemoryControl.valueChanges, { initialValue: this.pinMemoryControl.value });
+    protected readonly useMixedPrecision = toSignal(this.useMixedPrecisionControl.valueChanges, { initialValue: this.useMixedPrecisionControl.value });
+    protected readonly dataloaderWorkers = toSignal(this.dataloaderWorkersControl.valueChanges, { initialValue: this.dataloaderWorkersControl.value });
+    protected readonly prefetchFactor = toSignal(this.prefetchFactorControl.valueChanges, { initialValue: this.prefetchFactorControl.value });
+    protected readonly useJit = toSignal(this.useJitControl.valueChanges, { initialValue: this.useJitControl.value });
+    protected readonly jitBackend = toSignal(this.jitBackendControl.valueChanges, { initialValue: this.jitBackendControl.value });
+    protected readonly useDeviceGpu = toSignal(this.useDeviceGpuControl.valueChanges, { initialValue: this.useDeviceGpuControl.value });
+    protected readonly deviceId = toSignal(this.deviceIdControl.valueChanges, { initialValue: this.deviceIdControl.value });
 
     protected minimum(field: string): number | undefined {
         return this.numericConstraints()[field]?.minimum;
@@ -376,7 +377,8 @@ export class NewTrainingWizardComponent {
     }
 
     protected confirm(): void {
-        if (this.form.invalid || Object.values(this.form.getRawValue()).some((value) => value === null || value === undefined)) {
+        const { custom_name: _customName, ...required } = this.form.getRawValue();
+        if (this.form.invalid || Object.values(required).some((value) => value === null || value === undefined)) {
             this.form.markAllAsTouched();
             return;
         }

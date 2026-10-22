@@ -16,18 +16,18 @@ FIXTURES_DIR = TESTS_DIR / "fixtures"
 
 
 ###############################################################################
-def resolve_test_urls() -> tuple[str, str]:
-    runtime = load_runtime_settings()
-    return runtime.frontend_url, runtime.backend_url
+def resolve_backend_url() -> str:
+    return load_runtime_settings().backend_url
 
 
-FRONTEND_URL, BACKEND_URL = resolve_test_urls()
+BACKEND_URL = resolve_backend_url()
 
 
 ###############################################################################
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    return FRONTEND_URL
+    # The backend serves the built Angular bundle on its own origin.
+    return BACKEND_URL
 
 
 ###############################################################################

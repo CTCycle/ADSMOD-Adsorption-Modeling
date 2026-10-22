@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 import { Component, computed, input, output, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { CheckpointInfo, NumericConstraint, ResumeTrainingConfig } from '../../../models/training.model';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
@@ -83,7 +84,7 @@ export class ResumeTrainingWizardComponent {
     readonly confirmed = output<ResumeTrainingConfig>();
     protected readonly currentPage = signal(0);
     protected readonly additionalEpochsControl = new FormControl<number | null>(null, { validators: [Validators.required] });
-    protected readonly additionalEpochs = computed(() => this.additionalEpochsControl.value);
+    protected readonly additionalEpochs = toSignal(this.additionalEpochsControl.valueChanges, { initialValue: this.additionalEpochsControl.value });
     protected readonly selectedCheckpoint = computed(() => this.checkpoints().find((checkpoint) => checkpoint.name === this.selectedCheckpointName()) ?? null);
     protected readonly compatibilityLabel = computed(() => this.selectedCheckpoint()?.is_compatible ? 'Compatible' : this.selectedCheckpoint() ? 'Incompatible' : 'Unknown');
 
