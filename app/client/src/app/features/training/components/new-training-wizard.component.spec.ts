@@ -65,6 +65,46 @@ describe('NewTrainingWizardComponent', () => {
         });
     });
 
+    it('shows edited values in the confirmation summary', async () => {
+        const fixture = TestBed.createComponent(NewTrainingWizardComponent);
+        fixture.componentRef.setInput('selectedDatasetLabel', 'dataset-alpha');
+        fixture.componentRef.setInput('initialConfig', TRAINING_CONFIG);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const root = fixture.nativeElement as HTMLElement;
+        const next = (): void => {
+            root.querySelectorAll<HTMLButtonElement>('.wizard-footer button').item(root.querySelectorAll('.wizard-footer button').length - 1)?.click();
+            fixture.detectChanges();
+        };
+        next();
+        next();
+        (fixture.componentInstance as unknown as { epochsControl: { setValue(value: number): void } }).epochsControl.setValue(7);
+        fixture.detectChanges();
+        next();
+        next();
+
+        expect(root.textContent).toMatch(/Epochs\s*7/);
+    });
+
+    it('confirms when the optional custom name is left unset', async () => {
+        const fixture = TestBed.createComponent(NewTrainingWizardComponent);
+        const confirmSpy = vi.spyOn(fixture.componentInstance.confirmed, 'emit');
+        fixture.componentRef.setInput('selectedDatasetLabel', 'dataset-alpha');
+        fixture.componentRef.setInput('initialConfig', { ...TRAINING_CONFIG, custom_name: null });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        for (let index = 0; index < 5; index += 1) {
+            root.querySelectorAll<HTMLButtonElement>('.wizard-footer button').item(root.querySelectorAll('.wizard-footer button').length - 1)?.click();
+            fixture.detectChanges();
+        }
+
+        expect(confirmSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('disables wizard footer actions while loading', async () => {
         const fixture = TestBed.createComponent(NewTrainingWizardComponent);
         fixture.componentRef.setInput('selectedDatasetLabel', 'dataset-alpha');
