@@ -1,0 +1,6 @@
+# GitGuardian configuration
+# Ignore test files that contain dummy credentials used as test fixtures
+paths-ignore:
+  - "app/tests/**"
+  - "**/test_*.py"
+  - "**/*_test.py"
