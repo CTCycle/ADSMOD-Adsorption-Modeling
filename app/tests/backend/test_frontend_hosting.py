@@ -31,6 +31,7 @@ def test_frontend_bundle_is_served_on_api_origin(tmp_path: Path) -> None:
     assert client.get("/missing.js").status_code == 404
     assert client.get("/api/v1/unknown").status_code == 404
     assert client.get("/health/unknown").status_code == 404
+    assert client.delete("/api/v1/unknown").status_code == 404
 
 
 ###############################################################################

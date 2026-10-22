@@ -33,7 +33,16 @@ def register_frontend_routes(app: FastAPI, dist_root: Path = FRONTEND_DIST) -> b
         return FileResponse(index_path, headers={"Cache-Control": "no-cache"})
 
     app.add_api_route("/", lambda: serve(""), methods=["GET"], include_in_schema=False)
+    def not_found(path: str) -> Response:
+        raise HTTPException(status_code=404)
+
     app.add_api_route("/{path:path}", serve, methods=["GET"], include_in_schema=False)
+    app.add_api_route(
+        "/{path:path}",
+        not_found,
+        methods=["POST", "PUT", "PATCH", "DELETE"],
+        include_in_schema=False,
+    )
     return True
 
 
