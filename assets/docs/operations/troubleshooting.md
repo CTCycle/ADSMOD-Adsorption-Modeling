@@ -1,6 +1,6 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## Backend or UI unreachable
 
@@ -11,9 +11,9 @@ Last updated: 2026-10-21
   Database selection and connection values are in `database.json` under that
   data root.
 - Confirm the backend responds at `/health/ready`.
-- Confirm `app/client/dist/browser/index.html` exists and the frontend preview
-  serves the built Angular application.
-- Check backend and frontend launcher logs under the configured storage root.
+- Confirm `app/client/dist/browser/index.html` exists; the backend serves it at
+  its own URL, and without it `/` redirects to `/docs`.
+- Check the launcher console and backend logs under the configured storage root.
 
 The launcher uses dependency-state manifests and a content fingerprint for the
 frontend build. Source, Angular configuration, package manifests, public
@@ -38,11 +38,10 @@ processes.
 - A process that exits during the confirmation/termination race is treated as
   already resolved.
 
-After a successful launch, the launcher closes automatically; the backend
-terminal and hidden frontend preview remain running. Start the launcher again
-and use **Kill all application processes** to stop both. **Stop application**
-only affects processes still owned by the current launcher session. Unrelated
-processes remain untouched.
+While ADSMOD runs, the launcher console shows the backend log; press Ctrl+C there
+to stop it. If the launcher was force-killed and the backend survived, start the
+launcher again and use **Kill all application processes**. Unrelated processes
+remain untouched.
 
 ## Missing dependencies
 

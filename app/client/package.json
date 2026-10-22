@@ -6,11 +6,9 @@
     "scripts": {
         "dev": "node scripts/dev-serve.mjs",
         "build": "node scripts/verify-angular-migration.mjs && node node_modules/@angular/cli/bin/ng.js build --progress=false",
-        "preview": "node scripts/preview-serve.mjs",
         "lint": "npm run verify:angular-migration && eslint . --max-warnings 0",
         "test": "ng test --watch=false",
         "test:unit": "ng test --watch=false",
-        "test:preview": "node --test scripts/preview-serve.test.mjs",
         "visual:baseline": "playwright test -c playwright.config.ts --update-snapshots",
         "visual:compare": "playwright test -c playwright.config.ts",
         "verify:angular-migration": "node scripts/verify-angular-migration.mjs"

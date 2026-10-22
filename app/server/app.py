@@ -28,6 +28,7 @@ from server.domain.configuration import (
 )
 from server.domain.fitting import FittingRequest
 from server.api.entrypoint import health_router, register_root_routes
+from server.api.frontend import register_frontend_routes
 from server.api.database import create_database_router
 from server.api.routes import register_core_routes
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
@@ -314,7 +315,8 @@ def create_app(
     application.include_router(create_database_router(), prefix="/api/v1")
     register_core_routes(application, container, prefix="/api/v1")
     _register_optional_ml(application, runtime)
-    register_root_routes(application)
+    if not register_frontend_routes(application):
+        register_root_routes(application)
     return application
 
 

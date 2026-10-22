@@ -1,6 +1,6 @@
 # System overview
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## Repository layout
 
@@ -32,7 +32,7 @@ The Windows launcher reads runtime endpoints through `server.runtime_config`.
 The data root is resolved before connection settings are loaded from its
 independent `database.json`; runtime endpoints then load from the active
 database's settings row. It synchronizes the backend workspace, starts one FastAPI backend on the configured backend port,
-and serves the Angular bundle on the configured frontend port. The browser
+which also serves the built Angular bundle on the same origin. The browser
 uses the same backend for datasets, NIST data, fitting, capability discovery,
 and optional machine learning operations.
 

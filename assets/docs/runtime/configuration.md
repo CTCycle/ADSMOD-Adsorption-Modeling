@@ -1,6 +1,6 @@
 # ADSMOD runtime and application settings
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## Settings ownership
 
@@ -54,13 +54,13 @@ Fitting defaults are also projected through `/api/v1/system/configuration`; trai
 
 ## Runtime networking environment
 
-Runtime networking is configured in `settings/.env` or the process environment. Process environment values take precedence over `.env`. Browser code continues to call the same-origin `/api/v1`; the development proxy and packaged preview proxy use the backend URL derived from the configured host and backend port. The launcher uses the same typed runtime configuration for its backend readiness check and frontend URL.
+Runtime networking is configured in `settings/.env` or the process environment. Process environment values take precedence over `.env`. Browser code continues to call the same-origin `/api/v1`; the backend serves the built frontend on its own origin, and the development proxy uses the backend URL derived from the configured host and backend port. The launcher uses the same typed runtime configuration for its backend readiness check and the URL it opens.
 
 | Key | Default | Purpose and validation |
 | --- | --- | --- |
 | `ADSMOD_HOST` | `127.0.0.1` | Shared backend/frontend loopback bind host. Allowed values: `127.0.0.1`, `localhost`, or `::1`. |
 | `ADSMOD_BACKEND_PORT` | `6045` | Backend listener and proxy target port; integer from 1024 to 65535 and distinct from the frontend port. |
-| `ADSMOD_FRONTEND_PORT` | `5173` | Frontend listener port used by the development server and Windows launcher preview; integer from 1024 to 65535 and distinct from the backend port. |
+| `ADSMOD_FRONTEND_PORT` | `5173` | Frontend listener port used by the Angular development server only; integer from 1024 to 65535 and distinct from the backend port. |
 | `ADSMOD_CORS_ORIGINS` | Derived from host and frontend port | Optional comma-separated list of HTTP(S) origins. When omitted, includes the configured host, `127.0.0.1`, and `localhost` at the frontend port. |
 | `ADSMOD_CORS_ALLOW_CREDENTIALS` | `true` | Whether cross-origin requests may include credentials. |
 | `ADSMOD_CORS_ALLOW_METHODS` | `*` | Comma-separated methods allowed by backend CORS middleware. |

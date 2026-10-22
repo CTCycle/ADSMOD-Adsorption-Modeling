@@ -89,7 +89,7 @@ Then start the backend and client following [Runtime startup](assets/docs/runtim
 | `ADSMOD_STORAGE_ROOT` | `%LOCALAPPDATA%/ADSMOD` | Application data directory |
 | `ADSMOD_HOST` | `127.0.0.1` | Backend host |
 | `ADSMOD_BACKEND_PORT` | `6045` | Backend port |
-| `ADSMOD_FRONTEND_PORT` | `5173` | Frontend port |
+| `ADSMOD_FRONTEND_PORT` | `5173` | Angular development server port |
 | `ADSMOD_CORS_ORIGINS` | derived | Comma-separated CORS overrides |
 | `ADSMOD_CORS_ALLOW_CREDENTIALS` | `true` | Allow credentials for CORS |
 | `ADSMOD_CORS_ALLOW_METHODS` | `*` | Allowed CORS methods |
