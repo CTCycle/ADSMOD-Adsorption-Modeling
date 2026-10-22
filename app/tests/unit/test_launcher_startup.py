@@ -81,18 +81,21 @@ def test_startup_preflights_all_ports_before_dependency_or_build_work() -> None:
     assert body.index("Resolve-PortConflicts") < body.index(
         "Test-BackendDependenciesCurrent"
     )
-    assert "@($settings.BackendPort, $settings.FrontendPort)" in body
+    assert "@($settings.BackendPort)" in body
     assert "Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process" in body
-    assert "Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process" in body
+    assert "preview" not in body.lower()
 
 
 ###############################################################################
-def test_launch_action_exits_launcher_after_successful_handoff() -> None:
+def test_launcher_owns_single_backend_process_in_its_console() -> None:
     text = launcher_text()
     body = start_application_body()
 
-    assert "'Launch' { if (Start-Application) { exit 0 } }" in text
-    assert "-WindowStyle Normal -PassThru" in body
+    assert "'Launch' { [void](Start-Application) }" in text
+    assert "-NoNewWindow -PassThru" in body
+    assert "$settings.BackendUrl" in body
+    assert "finally" in body
+    assert "Stop-OwnedProcess -Process $script:BackendProcess" in body
 
 
 ###############################################################################

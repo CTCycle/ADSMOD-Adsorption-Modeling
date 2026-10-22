@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 ## Recommended startup
 
@@ -11,15 +11,15 @@ Last updated: 2026-10-21
 The launcher reads runtime host, ports, and CORS configuration through
 `server.runtime_config` from `settings/.env` or the process environment; process
 values take precedence. The storage root is resolved first; database connection
-settings come from `database.json` inside that root. It inspects every configured application port before doing
-runtime, dependency, or build work, then starts one FastAPI backend and a static
-production preview server. If configured ports
-are occupied by resolvable processes, it presents the complete conflict set
-and asks once whether to terminate the deduplicated process list. A decline,
-non-interactive console, unresolved owner, ownership race, failed termination,
-or final occupied-port check cancels startup without launching ADSMOD. The
-launcher never terminates an unresolved listener or a process that no longer
-matches the preflight identity.
+settings come from `database.json` inside that root. It inspects the backend
+port before doing runtime, dependency, or build work, then starts one FastAPI
+process that serves both the API and the built Angular bundle on the same
+origin. If the backend port is occupied by a resolvable process, it presents the
+conflict and asks once whether to terminate the deduplicated process list. A
+decline, non-interactive console, unresolved owner, ownership race, failed
+termination, or final occupied-port check cancels startup without launching
+ADSMOD. The launcher never terminates an unresolved listener or a process that
+no longer matches the preflight identity.
 
 The backend and frontend installations carry generated dependency-state
 manifests inside `.venv` and `node_modules`. They fingerprint the locked
@@ -32,22 +32,28 @@ Angular/package/source/public inputs and the pinned Node version. A matching
 build is reused; a missing or stale state is rebuilt once. There is no
 unconditional rebuild flag.
 
-`app/client/scripts/preview-serve.mjs` serves `dist/browser` directly, falls
-back to `index.html` for extensionless Angular routes, rejects traversal, and
-proxies `/api/v1` and `/health` through the existing `proxy.conf.cjs` target.
-It fails immediately when the generated `index.html` is missing, so normal
-launches do not invoke Angular compilation a second time. The launcher waits
-for `/health/ready` and the frontend root while monitoring each started
-process; an early exit is reported immediately instead of waiting for the full
-timeout.
+The backend serves `app/client/dist/browser` itself
+(`server/api/frontend.py`): files that exist are returned directly, extensionless
+paths fall back to `index.html` for Angular client-side routes, and unknown
+`/api/`, `/health/` and missing-asset paths return 404. When no bundle exists the
+root redirects to `/docs`. Browser code calls the relative `/api/v1`, so no
+proxy or CORS is involved in production. The launcher waits for `/health/ready`
+while monitoring the backend process; an early exit is reported immediately
+instead of waiting for the full timeout, then opens the backend URL.
 
-After a successful launch, the launcher closes automatically and hands off
-ownership. The backend continues in its visible terminal and the frontend
-preview continues in the background. To stop both services later, start the
-launcher again and use **Kill all application processes**; it stops recognized
-ADSMOD backend/frontend process trees after confirmation. **Stop application**
-only applies to processes still owned by the current launcher session. That
-menu action remains separate from arbitrary port-conflict resolution.
+The launcher is the lifecycle owner. The backend runs in the launcher's own
+console, so its logs stay visible and the file logs under the storage root are
+unchanged. Press **Ctrl+C** in that console to stop: the backend runs its normal
+uvicorn/lifespan shutdown, the launcher waits up to ten seconds, then stops the
+launcher-owned process tree and returns to the menu. If the backend exits on its
+own, the launcher reports its exit code and returns to the menu. Closing the
+console window ends the backend with it. **Kill all application processes**
+remains available for recognized ADSMOD backend trees left by a force-killed
+launcher; it stops only those after confirmation and is separate from arbitrary
+port-conflict resolution.
+
+The launcher requires PowerShell 7 (`pwsh`); Windows PowerShell 5.1 lacks APIs
+used by the build fingerprint.
 
 The interactive menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
@@ -80,7 +86,9 @@ the fresh database and settings row initialize. Retired environment variables
 and old configuration files are not imported. If the environment was synchronized with the
 `ml` extra, the process discovers and registers the optional ML extension at
 startup. The Angular development server can be started from `app/client` with
-`npm run dev`; this is separate from the launcher’s production preview path.
+`npm run dev` on the configured frontend port, proxying `/api/v1` and `/health`
+to the backend; it is a development workflow only. The backend serves the
+built bundle from `app/client/dist/browser` when it exists.
 
 ## Database startup rules
 
@@ -124,6 +132,5 @@ The frontend checks can also be run directly from `app/client`:
 ```cmd
 npm run lint
 npm run test:unit
-npm run test:preview
 npm run build
 ```

@@ -1,6 +1,6 @@
 # ADSMOD local deployment
 
-Last updated: 2026-09-18
+Last updated: 2026-10-22
 
 The supported deployment is the Windows local web launcher:
 
@@ -10,8 +10,8 @@ The supported deployment is the Windows local web launcher:
 
 The launcher provisions portable Python, uv, and Node.js under `runtimes/`,
 synchronizes `app/server` into `app/server/.venv`, builds the Angular client,
-starts one FastAPI backend, and serves the production frontend on the
-configured frontend port.
+starts one FastAPI backend that also serves the production frontend on the
+backend port, and supervises that process until Ctrl+C.
 
 During installation the user can choose the base backend or include the
 optional machine learning dependency extra. Both profiles run the same backend

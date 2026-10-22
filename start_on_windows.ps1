@@ -39,7 +39,6 @@ $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
 $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:BackendProcess = $null
-$script:FrontendProcess = $null
 
 $PythonVersion = "3.14.7"
 $PythonExe = Join-Path $PythonDir "python.exe"
@@ -1171,11 +1170,8 @@ function Get-ApplicationProcessRecords {
     }
 
     $backendMarker = [System.IO.Path]::GetFullPath($BackendDir).TrimEnd('\').ToLowerInvariant()
-    $clientMarker = [System.IO.Path]::GetFullPath($ClientDir).TrimEnd('\').ToLowerInvariant()
     $backendPortToken = "--port $($Settings.BackendPort)".ToLowerInvariant()
     $backendPortEqualsToken = "--port=$($Settings.BackendPort)".ToLowerInvariant()
-    $frontendPortToken = "--port $($Settings.FrontendPort)".ToLowerInvariant()
-    $frontendPortEqualsToken = "--port=$($Settings.FrontendPort)".ToLowerInvariant()
     $matchedIds = [System.Collections.Generic.HashSet[int]]::new()
 
     foreach ($record in $records) {
@@ -1184,15 +1180,7 @@ function Get-ApplicationProcessRecords {
                 ($commandLine.Contains($backendMarker) -or
                     $commandLine.Contains($backendPortToken) -or
                     $commandLine.Contains($backendPortEqualsToken)))
-        $hasPreviewCommand = $commandLine.Contains('vite preview') -or
-            ($commandLine.Contains('npm') -and $commandLine.Contains('run preview')) -or
-            $commandLine.Contains('preview-serve.mjs')
-        $isFrontend = $hasPreviewCommand -and
-            ($commandLine.Contains($clientMarker) -or
-                $commandLine.Contains($frontendPortToken) -or
-                $commandLine.Contains($frontendPortEqualsToken))
-
-        if ($isBackend -or $isFrontend) {
+        if ($isBackend) {
             [void]$matchedIds.Add([int]$record.ProcessId)
         }
     }
@@ -1258,7 +1246,7 @@ function Stop-AllApplicationProcesses {
     foreach ($record in $records) {
         [void]$processIds.Add([int]$record.ProcessId)
     }
-    foreach ($ownedProcess in @($script:FrontendProcess, $script:BackendProcess)) {
+    foreach ($ownedProcess in @($script:BackendProcess)) {
         if ($null -eq $ownedProcess) {
             continue
         }
@@ -1302,7 +1290,6 @@ function Stop-AllApplicationProcesses {
         }
     }
 
-    $script:FrontendProcess = $null
     $script:BackendProcess = $null
     if ($stopped -gt 0) {
         Write-Ok "Stopped $stopped recognized ADSMOD application process(es)."
@@ -1312,29 +1299,9 @@ function Stop-AllApplicationProcesses {
     }
 }
 
-function Stop-Application {
-    $stopped = $false
-    if ($null -ne $script:FrontendProcess) {
-        Stop-OwnedProcess -Process $script:FrontendProcess -Name 'frontend'
-        $script:FrontendProcess = $null
-        $stopped = $true
-    }
-    if ($null -ne $script:BackendProcess) {
-        Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'
-        $script:BackendProcess = $null
-        $stopped = $true
-    }
-    if ($stopped) {
-        Write-Ok "ADSMOD processes started by this launcher session have stopped."
-    }
-    else {
-        Write-Warn "This launcher session does not own any ADSMOD processes."
-    }
-}
-
 function Start-Application {
     $settings = Import-Settings
-    $configuredPorts = @($settings.BackendPort, $settings.FrontendPort)
+    $configuredPorts = @($settings.BackendPort)
     $portConflicts = @(Get-PortConflicts -Ports $configuredPorts)
     if (-not (Resolve-PortConflicts -Conflicts $portConflicts)) {
         return $false
@@ -1360,24 +1327,27 @@ function Start-Application {
         Write-Ok "Application environments and frontend build are ready; skipped dependency installation and Angular build."
     }
 
-    $backendPort = $settings.BackendPort
-    $uiPort = $settings.FrontendPort
-    $backendArguments = @('-m', 'server.cli')
-    Write-Step "Starting ADSMOD backend"
-    $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList $backendArguments -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
     $healthUrl = "$($settings.BackendUrl)/health/ready"
-    Write-Step "Waiting for backend readiness at $healthUrl"
-    try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process $script:BackendProcess } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
-    Write-Step "Starting frontend preview"
-    $previewScript = Join-Path $ClientDir 'scripts\preview-serve.mjs'
-    $script:FrontendProcess = Start-Process -FilePath $NodeExe -ArgumentList @((('"{0}"' -f $previewScript)), '--host', $settings.Host, '--port', $settings.FrontendPort) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
-    $frontendUrl = $settings.FrontendUrl
-    try { Wait-ForHealth -Url $frontendUrl -TimeoutSeconds 60 -Process $script:FrontendProcess } catch { Stop-OwnedProcess -Process $script:FrontendProcess -Name 'frontend'; $script:FrontendProcess = $null; Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; $script:BackendProcess = $null; throw }
-    Start-Process -FilePath 'explorer.exe' -ArgumentList $frontendUrl
-    Write-Host ""
-    Write-Ok "ADSMOD started successfully."
-    Write-Host "Backend: $healthUrl (PID $($script:BackendProcess.Id))" -ForegroundColor Green
-    Write-Host "Frontend: $frontendUrl (PID $($script:FrontendProcess.Id))" -ForegroundColor Green
+    Write-Step "Starting ADSMOD (backend and built frontend on $($settings.BackendUrl))"
+    $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList @('-m', 'server.cli') -WorkingDirectory $RepoRoot -NoNewWindow -PassThru
+    try {
+        try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process $script:BackendProcess } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; throw }
+        Start-Process -FilePath 'explorer.exe' -ArgumentList $settings.BackendUrl
+        Write-Host ""
+        Write-Ok "ADSMOD is running at $($settings.BackendUrl) (backend PID $($script:BackendProcess.Id))."
+        Write-Host "Press Ctrl+C in this console to stop ADSMOD." -ForegroundColor Cyan
+        while (-not $script:BackendProcess.WaitForExit(500)) { }
+        Write-Warn "ADSMOD backend exited with code $($script:BackendProcess.ExitCode)."
+    }
+    finally {
+        # Ctrl+C reaches the backend through the shared console, so give it time
+        # to run its normal shutdown before the process tree is forced down.
+        if ($null -ne $script:BackendProcess -and -not $script:BackendProcess.HasExited) {
+            [void]$script:BackendProcess.WaitForExit(10000)
+        }
+        Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'
+        $script:BackendProcess = $null
+    }
     return $true
 }
 
@@ -1690,8 +1660,7 @@ function Wait-ForMenu {
 
 function Get-MainMenuEntries {
     return @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Launch application'; Hint = 'Start the local web workspace'; Key = 'Launch'; Destructive = $false }
-        [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Stop application'; Hint = 'Stop ADSMOD processes started by this session'; Key = 'Stop'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Launch application'; Hint = 'Run ADSMOD here; Ctrl+C stops it'; Key = 'Launch'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Kill all application processes'; Hint = 'Stop every recognized ADSMOD process, including previous sessions'; Key = 'KillAll'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Install / update dependencies'; Hint = 'Refresh local runtimes and packages'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Rebuild frontend'; Hint = 'Rebuild the generated frontend bundle'; Key = 'Rebuild'; Destructive = $false }
@@ -1782,8 +1751,7 @@ while (-not $exitMenu) {
     try {
         Invoke-TrackedLauncherAction -Name $entry.Label -Action {
             switch ($entry.Key) {
-                'Launch' { if (Start-Application) { exit 0 } }
-                'Stop' { Stop-Application }
+                'Launch' { [void](Start-Application) }
                 'KillAll' { Stop-AllApplicationProcesses }
                 'Install' { Install-UpdateDependencies }
                 'Rebuild' { Rebuild-Frontend }
