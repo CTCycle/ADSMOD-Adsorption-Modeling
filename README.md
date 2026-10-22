@@ -19,15 +19,15 @@
 
 ## Overview
 
-ADSMOD is a Windows-first web application for organizing adsorption data and building an inspectable analysis workflow. It combines local dataset import, public reference data, adsorption-model fitting, and an optional machine-learning workspace. The application runs locally and uses SQLite by default; PostgreSQL is also supported.
-
-Public-data retrieval depends on the availability of external sources such as NIST, PubChem, and COD. Numerical fitting helps compare candidate models but does not establish a physical mechanism.
+ADSMOD is a Windows-first local web workspace for preparing adsorption datasets, retrieving public reference data, fitting adsorption models, and exploring optional machine-learning workflows. It combines local CSV, XLS, and XLSX dataset import with normalized public data from NIST, PubChem, and the Crystallography Open Database, including provenance and source health information. The application runs locally with SQLite by default and also supports PostgreSQL for advanced setups. Adsorption models can be compared through asynchronous fitting runs with metrics, logs, cancellation, and saved results, while an optional ML profile supports data preparation, training datasets, checkpoints, and training dashboards. Public-data retrieval depends on the availability of external sources, and numerical fitting compares candidate models without establishing a physical mechanism.
 
 ## Key Features
 
 - Import CSV, XLS, and XLSX adsorption datasets, map their columns, validate units and experiment groups, and retain saved datasets.
 - Retrieve and organize public adsorption, material, chemical, and structure data with source provenance.
+- Manage provider health checks and durable acquisition runs with progress, cancellation, and per-record failure details.
 - Compare enabled adsorption models through asynchronous fitting runs, with metrics, logs, cancellation, and saved results.
+- Explore stored isotherms through read-only overview and explore dashboards.
 - Use the optional ML profile for data preparation, training datasets, checkpoints, and training dashboards.
 - Keep the local data and analysis workflow in one browser-based workspace.
 
