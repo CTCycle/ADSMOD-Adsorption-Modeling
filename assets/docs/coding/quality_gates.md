@@ -1,6 +1,6 @@
 # ADSMOD quality gates
 
-Last updated: 2026-10-20
+Last updated: 2026-10-22
 
 ## Python
 
@@ -18,9 +18,11 @@ Last updated: 2026-10-20
 
 ## Frontend
 
-For client changes, run `npm run lint`, `npm run test:unit`, and
-`npm run build` from `app/client`. Run visual comparison tests when layout,
-responsive behavior, or visual states change.
+For client changes, run `npm run lint`, `npm test`, and `npm run build` from
+`app/client`. Run `npm run browser:validate` when layout, responsive behavior,
+or browser interactions change. The browser suite checks four representative
+viewports: 1440px, 1280px, 900px, and 600px; tests can set narrower widths for
+specific boundary assertions.
 
 Capability-sensitive tests must cover both `features.machine_learning = false`
 and `features.machine_learning = true` so the frontend does not expose an

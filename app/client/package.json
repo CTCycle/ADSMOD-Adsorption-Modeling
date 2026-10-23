@@ -8,9 +8,7 @@
         "build": "node scripts/verify-angular-migration.mjs && node node_modules/@angular/cli/bin/ng.js build --progress=false",
         "lint": "npm run verify:angular-migration && eslint . --max-warnings 0",
         "test": "ng test --watch=false",
-        "test:unit": "ng test --watch=false",
-        "visual:baseline": "playwright test -c playwright.config.ts --update-snapshots",
-        "visual:compare": "playwright test -c playwright.config.ts",
+        "browser:validate": "playwright test -c playwright.config.ts",
         "verify:angular-migration": "node scripts/verify-angular-migration.mjs"
     },
     "dependencies": {

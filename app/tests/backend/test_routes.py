@@ -2,13 +2,14 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
-
 from pathlib import Path
-
 from fastapi.testclient import TestClient
-
 from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.app import create_app
+
+
+# Core routes
+
 
 ###############################################################################
 def _config(tmp_path: Path):  # type: ignore[no-untyped-def]
@@ -17,6 +18,7 @@ def _config(tmp_path: Path):  # type: ignore[no-untyped-def]
         storage_root=tmp_path,
         settings=UserSettings(),
     )
+
 
 ###############################################################################
 def test_unified_routes_expose_core_optional_ml_and_public_data_surface(
@@ -27,7 +29,9 @@ def test_unified_routes_expose_core_optional_ml_and_public_data_surface(
         assert client.get("/health/ready").json()["state"] == "ready"
         capabilities = client.get("/api/v1/system/capabilities").json()
         assert capabilities["features"]["datasets"] is True
-        assert capabilities["features"]["machine_learning"] is True, client.app.state.runtime.machine_learning_reason
+        assert capabilities["features"]["machine_learning"] is True, (
+            client.app.state.runtime.machine_learning_reason
+        )
         assert client.get("/api/v1/datasets").status_code == 200
         dataset_configuration = client.get("/api/v1/datasets/supported-units")
         assert dataset_configuration.status_code == 200
@@ -44,8 +48,11 @@ def test_unified_routes_expose_core_optional_ml_and_public_data_surface(
             "pubchem",
             "cod",
         }
-        assert all(item["health_status"] == "unknown" for item in sources.json()["sources"])
+        assert all(
+            item["health_status"] == "unknown" for item in sources.json()["sources"]
+        )
         assert client.get("/api/health").status_code == 404
+
 
 ###############################################################################
 def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> None:
@@ -73,3 +80,33 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "/api/v1/public-data/structures/import" not in paths
         assert "delete" not in paths["/api/v1/public-data/sync-runs/{run_id}"]
         assert not any(path.startswith("/api/v1/nist") for path in paths)
+
+
+# Ml routes
+
+
+###############################################################################
+def _config(tmp_path: Path):
+    return AdsmodConfig.assemble(
+        database=DatabaseConfig(embedded_database=True, sqlite_path="data/test.db"),
+        storage_root=tmp_path,
+        settings=UserSettings(),
+    )
+
+
+###############################################################################
+def test_ml_routes_are_mounted_on_the_single_backend(tmp_path: Path) -> None:
+    with TestClient(create_app(_config(tmp_path))) as client:
+        assert client.get("/health/live").json()["service"] == "backend"
+        assert client.get("/api/v1/training/configuration").status_code == 200
+        assert client.get("/api/v1/training/status").status_code == 200
+        assert client.get("/api/v1/system/configuration").status_code == 200
+
+
+###############################################################################
+def test_standalone_ml_server_entrypoints_are_removed() -> None:
+    root = Path(__file__).resolve().parents[2] / "server"
+    assert (root / "app.py").exists()
+    assert (root / "cli.py").exists()
+    assert not (root / "http" / "entrypoint.py").exists()
+    assert not (root / "clients" / "core_client.py").exists()

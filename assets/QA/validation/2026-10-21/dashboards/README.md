@@ -23,4 +23,4 @@ SQLite database (29 isotherms, 537 measurements, 7 materials, 9 adsorbates,
 Not verified: the PubChem 2D structure image in the inspector, because no
 stored chemical has PubChem enrichment in this database. Mixed-basis rejection,
 interpolation, truncation and histogram binning are covered by
-`app/tests/unit/test_analytics.py`.
+`app/tests/unit/test_analysis.py`.

@@ -40,7 +40,7 @@ user changed it because Angular `computed()` had cached plain
 A focused test checks the changed value in the summary, and the rendered wizard
 showed `0.1` after the same edit.
 
-- `npm run test:unit -- --include='src/app/features/training/components/dataset-processing-wizard.component.spec.ts'` — 1 file and 2 tests passed.
+- `npm test -- --include='src/app/features/training/components/dataset-processing-wizard.component.spec.ts'` — 1 file and 2 tests passed.
 - `npm run build` — passed.
 - Inspected browser console — no warning or error entries in the checked tab.
 

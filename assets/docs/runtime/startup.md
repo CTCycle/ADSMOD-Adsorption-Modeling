@@ -131,6 +131,6 @@ The frontend checks can also be run directly from `app/client`:
 
 ```cmd
 npm run lint
-npm run test:unit
+npm test
 npm run build
 ```

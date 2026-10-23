@@ -2,33 +2,52 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
-
 import multiprocessing
+import threading
 import time
-from typing import Any
-
 import pytest
-
+import importlib
+import os
+from typing import Any
 from server.services.jobs import JobManager
+
+
+# Core jobs
+
 
 ###############################################################################
 def _successful_thread_job() -> dict[str, str]:
     return {"value": "thread"}
 
+
 ###############################################################################
 def _failing_thread_job() -> dict[str, str]:
     raise RuntimeError("thread failed")
+
+
+###############################################################################
+def _cancellable_thread_job(
+    finished_event: threading.Event, stop_event: threading.Event
+) -> dict[str, str]:
+    try:
+        stop_event.wait(timeout=10)
+        raise RuntimeError("runner interrupted")
+    finally:
+        finished_event.set()
+
 
 ###############################################################################
 def _successful_process_job(stop_event: Any) -> dict[str, str]:
     del stop_event
     return {"value": "process"}
 
+
 ###############################################################################
 def _cancellable_process_job(stop_event: Any) -> dict[str, str]:
     while not stop_event.is_set():
         time.sleep(0.01)
     return {"value": "cancelled"}
+
 
 ###############################################################################
 def _wait_for_terminal(manager: JobManager, job_id: str) -> dict[str, Any]:
@@ -40,6 +59,7 @@ def _wait_for_terminal(manager: JobManager, job_id: str) -> dict[str, Any]:
         time.sleep(0.02)
     raise AssertionError(f"Job {job_id} did not reach a terminal state.")
 
+
 ###############################################################################
 def _wait_for_cleanup(manager: JobManager, job_id: str) -> None:
     deadline = time.monotonic() + 15.0
@@ -47,6 +67,7 @@ def _wait_for_cleanup(manager: JobManager, job_id: str) -> None:
         with manager.lock:
             clean = (
                 job_id not in manager.threads
+                and job_id not in manager.thread_stop_events
                 and job_id not in manager.processes
                 and job_id not in manager.job_configs
             )
@@ -54,6 +75,7 @@ def _wait_for_cleanup(manager: JobManager, job_id: str) -> None:
             return
         time.sleep(0.02)
     raise AssertionError(f"Execution bookkeeping for {job_id} was not released.")
+
 
 ###############################################################################
 def test_thread_success_releases_execution_bookkeeping() -> None:
@@ -67,6 +89,26 @@ def test_thread_success_releases_execution_bookkeeping() -> None:
     assert status["result"] == {"value": "thread"}
     assert job_id in manager.jobs
 
+
+###############################################################################
+def test_repeated_terminal_jobs_do_not_leave_stale_execution_bookkeeping() -> None:
+    manager = JobManager()
+
+    for runner in (_successful_thread_job, _failing_thread_job, _successful_thread_job):
+        job_id = manager.start_job("repeated-test", runner)
+        status = _wait_for_terminal(manager, job_id)
+        _wait_for_cleanup(manager, job_id)
+        assert status["status"] in {"completed", "failed"}
+
+    with manager.lock:
+        assert manager.threads == {}
+        assert manager.thread_stop_events == {}
+        assert manager.processes == {}
+        assert manager.job_configs == {}
+    assert not manager.is_job_running("repeated-test")
+    assert len(manager.list_jobs("repeated-test")) == 3
+
+
 ###############################################################################
 def test_thread_exception_releases_execution_bookkeeping() -> None:
     manager = JobManager()
@@ -79,8 +121,27 @@ def test_thread_exception_releases_execution_bookkeeping() -> None:
     assert status["error"] == "thread failed"
     assert job_id in manager.jobs
 
+
 ###############################################################################
-def test_process_start_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_thread_cancellation_signals_runner_and_preserves_cancelled_status() -> None:
+    manager = JobManager()
+    finished_event = threading.Event()
+    job_id = manager.start_job("test", _cancellable_thread_job, args=(finished_event,))
+
+    assert manager.cancel_job(job_id) is True
+
+    status = _wait_for_terminal(manager, job_id)
+    _wait_for_cleanup(manager, job_id)
+
+    assert status["status"] == "cancelled"
+    assert finished_event.is_set()
+    assert not manager.is_job_running("test")
+
+
+###############################################################################
+def test_process_start_failure_is_failed_and_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     context = multiprocessing.get_context("spawn")
     process_type = type(context.Process(target=_successful_process_job, args=(None,)))
 
@@ -100,8 +161,11 @@ def test_process_start_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyPat
     assert manager.processes == {}
     assert job_id in manager.jobs
 
+
 ###############################################################################
-def test_process_monitor_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_process_monitor_failure_is_failed_and_clean(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def fail_monitor(*args: Any, **kwargs: Any) -> None:
         del args, kwargs
         raise RuntimeError("process monitor failed")
@@ -116,6 +180,7 @@ def test_process_monitor_failure_is_failed_and_clean(monkeypatch: pytest.MonkeyP
     assert status["status"] == "failed"
     assert status["error"] == "process monitor failed"
     assert manager.processes == {}
+
 
 ###############################################################################
 def test_process_cancellation_preserves_cancelled_status() -> None:
@@ -135,3 +200,16 @@ def test_process_cancellation_preserves_cancelled_status() -> None:
 
     assert status["status"] == "cancelled"
     assert manager.processes == {}
+
+
+# Ml runtime backend
+
+
+###############################################################################
+def test_ml_bootstrap_configures_torch_backend_before_keras_import(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.delenv("KERAS_BACKEND", raising=False)
+    bootstrap = importlib.import_module("server.services.ml_bootstrap")
+    importlib.reload(bootstrap)
+    bootstrap.configure_environment()
+    assert os.environ["KERAS_BACKEND"] == "torch"
+    assert os.environ["MPLBACKEND"] == "Agg"

@@ -107,7 +107,7 @@ jobs:
       - working-directory: app/client
         run: npm run lint
       - working-directory: app/client
-        run: npm run test:unit --if-present
+        run: npm test --if-present
       - working-directory: app/client
         run: npm run build
       - name: Install Edge for browser layout validation
@@ -117,4 +117,4 @@ jobs:
         working-directory: app/client
         env:
           TMPDIR: /tmp
-        run: npx playwright test -c playwright.config.ts tests/visual/public-data-layout.spec.ts
+        run: npm run browser:validate -- tests/visual/public-data-layout.spec.ts
