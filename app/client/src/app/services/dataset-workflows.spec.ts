@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-    fetchProcessedDatasets,
-    getTrainingDatasetInfo,
-} from './dataset-builder.service';
+import { fetchProcessedDatasets, getTrainingDatasetInfo } from './dataset-builder.service';
+import { deleteDataset } from './dataset.service';
+
+// Dataset creation workflow
 
 describe('dataset-builder.service', () => {
     const fetchMock = vi.fn();
@@ -70,4 +70,29 @@ describe('dataset-builder.service', () => {
         );
     });
 
+});
+
+// Dataset deletion service
+
+describe('dataset.service', () => {
+    const fetchMock = vi.fn();
+
+    beforeEach(() => {
+        fetchMock.mockReset();
+        vi.stubGlobal('fetch', fetchMock);
+    });
+
+    it('deletes a dataset through the canonical dataset ID route', async () => {
+        fetchMock.mockResolvedValue({
+            ok: true,
+            status: 204,
+            json: async () => null,
+        });
+
+        await expect(deleteDataset(17)).resolves.toEqual({ data: null, error: null });
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/api/v1/datasets/17',
+            expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+        );
+    });
 });

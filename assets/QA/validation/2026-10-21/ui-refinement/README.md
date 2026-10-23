@@ -4,8 +4,8 @@
 
 - `npm run build` — passed.
 - `npm run lint` — passed.
-- `npm run test:unit` — 27 files and 87 tests passed. Vitest used a temporary workspace-local `TEMP`/`TMP` folder after the default Windows temp path returned `EPERM` before test execution.
-- `app/server/.venv/Scripts/python.exe -m pytest -q app/tests/unit/test_public_data_sync.py app/tests/backend/test_core_routes.py` — 20 passed.
+- `npm test` — 27 files and 87 tests passed. Vitest used a temporary workspace-local `TEMP`/`TMP` folder after the default Windows temp path returned `EPERM` before test execution.
+- Public-data sync and route checks: 20 passed at the time of the run. Route integration checks are now consolidated in `app/tests/backend/test_routes.py`; public-data sync remains in `app/tests/unit/test_public_data_sync.py`.
 - `git diff --check` — passed; Git reported only the repository's LF-to-CRLF working-copy notices.
 
 ## Browser validation

@@ -1,9 +1,14 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildCheckpointDetailsModalData, buildDatasetMetadataModalData } from './training-modal-data';
-import type { CheckpointFullDetails, DatasetFullInfo } from '../../../models/training.model';
+import { type CheckpointFullDetails, type DatasetFullInfo } from '../../../models/training.model';
+import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { TrainingViewNavigationService } from './training-view-navigation.service';
+
+// Training detail modal mapping
 
 describe('training modal data mappers', () => {
     it('maps dataset metadata to stable modal labels', () => {
@@ -65,5 +70,27 @@ describe('training modal data mappers', () => {
             'Is Compatible': 'Yes',
             'Created At': 'Unknown',
         });
+    });
+});
+
+// Training view navigation
+
+describe('TrainingViewNavigationService', () => {
+    it('navigates to the requested training view route', async () => {
+        const router = {
+            navigate: vi.fn().mockResolvedValue(true),
+        };
+
+        TestBed.configureTestingModule({
+            providers: [
+                TrainingViewNavigationService,
+                { provide: Router, useValue: router },
+            ],
+        });
+
+        const service = TestBed.inject(TrainingViewNavigationService);
+
+        await expect(service.navigateTo('dashboard')).resolves.toBe(true);
+        expect(router.navigate).toHaveBeenCalledWith(['/training', 'dashboard']);
     });
 });

@@ -57,6 +57,6 @@ canonical snapshot with a reduced contract.
 
 ## Frontend
 
-From `app/client`, run `npm ci`, `npm run dev`, `npm run lint`, `npm run test`,
-or `npm run build` as appropriate. The proxy sends training requests before
-the general `/api/v1` route.
+From `app/client`, run `npm ci`, `npm run dev`, `npm run lint`, `npm test`,
+`npm run build`, and `npm run browser:validate` as appropriate. The proxy sends
+training requests before the general `/api/v1` route.

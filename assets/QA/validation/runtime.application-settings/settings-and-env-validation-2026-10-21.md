@@ -4,8 +4,8 @@ Scope: HEAD `8e75f04`; isolated ADSMOD storage root `runtimes/cache/settings-val
 
 ## Automated checks
 
-- Focused backend settings/runtime/bootstrap slice: `pytest app/tests/unit/test_database_bootstrap.py app/tests/unit/test_runtime_config.py app/tests/backend/test_settings_api.py` — 25 passed.
-- Frontend `npm run test:unit -- --watch=false` — 27 files, 88 tests passed.
+- Focused backend settings/runtime/bootstrap slice: 25 passed. The bootstrap and runtime-configuration cases are now consolidated in `app/tests/unit/test_runtime_contracts.py`; settings API cases remain in `app/tests/backend/test_settings_api.py`.
+- Frontend `npm test` — 27 files, 88 tests passed.
 - Frontend `npm run test:preview` — 4/4 passed with loopback permission.
 - `npm run lint` — passed; `npm run build` — passed.
 - The backend slice includes temporary `.env` parsing, process-environment precedence, invalid endpoint rejection, runtime endpoint sourcing, application settings, database switch isolation, active-work switch blocking, and activation rollback coverage.

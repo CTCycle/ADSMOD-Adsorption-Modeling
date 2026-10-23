@@ -2,14 +2,12 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
-
 import math
-
 import pytest
+import numpy as np
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import event
-
 from server.api.analytics import AnalyticsEndpoint
 from server.configurations.settings import DatabaseConfig
 from server.domain.analytics import (
@@ -37,11 +35,18 @@ from server.services.data.analytics import (
     histogram,
     uptake_at_pressure,
 )
+from server.services.modeling.fitting import compute_metrics
+
+
+# Analytics
+
 
 ###############################################################################
 def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str, int]]:
     manager = DatabaseManager(
-        DatabaseConfig(embedded_database=True, connect_timeout=5, sqlite_path=sqlite_path)
+        DatabaseConfig(
+            embedded_database=True, connect_timeout=5, sqlite_path=sqlite_path
+        )
     )
     Base.metadata.create_all(manager.engine)
     ids: dict[str, int] = {}
@@ -54,7 +59,9 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
         n2 = Adsorbate(key="n2", name="nitrogen")
         session.add_all([nist, uploaded, material_a, material_b, co2, n2])
         session.flush()
-        ids.update(material_a=material_a.id, material_b=material_b.id, co2=co2.id, n2=n2.id)
+        ids.update(
+            material_a=material_a.id, material_b=material_b.id, co2=co2.id, n2=n2.id
+        )
 
         def add_isotherm(
             key: str,
@@ -79,7 +86,9 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
             ids[key] = isotherm.id
             for position, (adsorbate, points) in enumerate(components, start=1):
                 component = IsothermComponent(
-                    isotherm_id=isotherm.id, position=position, adsorbate_id=adsorbate.id
+                    isotherm_id=isotherm.id,
+                    position=position,
+                    adsorbate_id=adsorbate.id,
                 )
                 session.add(component)
                 session.flush()
@@ -92,7 +101,9 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
                             pressure_original=pressure,
                             pressure_original_unit="Pa" if basis != "relative" else "1",
                             pressure_canonical=pressure,
-                            pressure_canonical_unit="Pa" if basis != "relative" else "1",
+                            pressure_canonical_unit="Pa"
+                            if basis != "relative"
+                            else "1",
                             uptake_original=uptake,
                             uptake_original_unit="mol/kg",
                             uptake_mol_kg=uptake,
@@ -100,22 +111,39 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
                     )
 
         add_isotherm(
-            "a-co2-273", nist, material_a, 273.15, "absolute",
+            "a-co2-273",
+            nist,
+            material_a,
+            273.15,
+            "absolute",
             [(co2, [(1e4, 1.0), (5e4, 2.0), (1e5, 3.0), (2e5, 4.0), (1e5, 3.5)])],
         )
         add_isotherm(
-            "a-co2-298", uploaded, material_a, 298.15, "absolute",
+            "a-co2-298",
+            uploaded,
+            material_a,
+            298.15,
+            "absolute",
             [(co2, [(2e4, 1.0), (3e5, 2.0)])],
         )
         add_isotherm(
-            "b-n2-77", uploaded, material_b, 77.0, "relative",
+            "b-n2-77",
+            uploaded,
+            material_b,
+            77.0,
+            "relative",
             [(n2, [(0.1, 5.0), (0.5, 8.0)])],
         )
         add_isotherm(
-            "a-mix-298", nist, material_a, 298.15, "absolute",
+            "a-mix-298",
+            nist,
+            material_a,
+            298.15,
+            "absolute",
             [(co2, [(1e5, 1.0)]), (n2, [(1e5, 0.2)])],
         )
     return AnalyticsService(AnalyticsRepository(manager)), ids
+
 
 ###############################################################################
 def _count_selects(service: AnalyticsService, operation) -> int:  # type: ignore[no-untyped-def]
@@ -133,6 +161,7 @@ def _count_selects(service: AnalyticsService, operation) -> int:  # type: ignore
     finally:
         event.remove(engine, "before_cursor_execute", capture)
     return len(statements)
+
 
 ###############################################################################
 def test_selection_facets_keep_sibling_options_visible() -> None:
@@ -159,6 +188,7 @@ def test_selection_facets_keep_sibling_options_visible() -> None:
     assert response.facets.sources == {"nist": 1, "uploaded": 1}
     assert response.facets.temperature_min_k == pytest.approx(273.15)
 
+
 ###############################################################################
 def test_series_never_mix_pressure_bases_and_convert_display_units() -> None:
     service, ids = _service()
@@ -181,9 +211,12 @@ def test_series_never_mix_pressure_bases_and_convert_display_units() -> None:
     assert first.uptake_unit == "mg/g"
     assert first.points[0].pressure == pytest.approx(0.1)
     assert first.points[0].uptake == pytest.approx(44.01)
-    nitrogen = next(series for series in response.series if series.adsorbate == "nitrogen")
+    nitrogen = next(
+        series for series in response.series if series.adsorbate == "nitrogen"
+    )
     assert nitrogen.uptake_unit == "mol/kg"
     assert any("nitrogen" in warning for warning in response.warnings)
+
 
 ###############################################################################
 def test_series_respect_point_cap_and_report_truncation(
@@ -201,8 +234,11 @@ def test_series_respect_point_cap_and_report_truncation(
     # Count, metadata page and one observation batch, independent of series count.
     assert _count_selects(service, lambda: service.series(request)) == 3
 
+
 ###############################################################################
-def test_uptake_at_pressure_interpolates_in_log_pressure_without_extrapolating() -> None:
+def test_uptake_at_pressure_interpolates_in_log_pressure_without_extrapolating() -> (
+    None
+):
     points = [
         {"observation_id": 1, "pressure": 1e4, "uptake": 1.0},
         {"observation_id": 2, "pressure": 1e5, "uptake": 2.0},
@@ -218,7 +254,9 @@ def test_uptake_at_pressure_interpolates_in_log_pressure_without_extrapolating()
     assert midpoint["method"] == "interpolated"
     assert midpoint["value"] == pytest.approx(1.5)
     assert [point["observation_id"] for point in midpoint["sources"]] == [1, 2]
-    desorption_ignored = uptake_at_pressure(branch, 5e5, method="linear", tolerance=0.05)
+    desorption_ignored = uptake_at_pressure(
+        branch, 5e5, method="linear", tolerance=0.05
+    )
     assert desorption_ignored["value"] == pytest.approx(2.0 + math.log10(5))
     assert uptake_at_pressure(branch, 2e6, method="linear", tolerance=0.05) == {
         "status": "out_of_range"
@@ -228,13 +266,16 @@ def test_uptake_at_pressure_interpolates_in_log_pressure_without_extrapolating()
     far = uptake_at_pressure(branch, 1.2e5, method="nearest", tolerance=0.05)
     assert far["status"] == "no_point_in_tolerance"
 
+
 ###############################################################################
 def test_uptake_at_pressure_rows_report_method_and_status() -> None:
     service, _ = _service()
 
     response = service.uptake_at_pressure(
         UptakeAtPressureRequest(
-            filter=AnalyticsFilter(pressure_basis="absolute"), pressure=2.5, pressure_unit="bar"
+            filter=AnalyticsFilter(pressure_basis="absolute"),
+            pressure=2.5,
+            pressure_unit="bar",
         )
     )
 
@@ -245,6 +286,7 @@ def test_uptake_at_pressure_rows_report_method_and_status() -> None:
     assert [point.pressure for point in by_name["a-co2-298"].sources] == pytest.approx(
         [0.2, 3.0]
     )
+
 
 ###############################################################################
 def test_histogram_bins_linear_and_log_scales() -> None:
@@ -257,6 +299,7 @@ def test_histogram_bins_linear_and_log_scales() -> None:
     assert [bin_.lower for bin_ in logarithmic["bins"]] == pytest.approx([1.0, 10.0])
     assert [bin_.count for bin_ in logarithmic["bins"]] == [1, 2]
 
+
 ###############################################################################
 def test_distribution_and_overview_keep_pressure_bases_apart() -> None:
     service, _ = _service()
@@ -265,14 +308,20 @@ def test_distribution_and_overview_keep_pressure_bases_apart() -> None:
         service.distribution(DistributionRequest(variable="pressure"))
     relative = service.distribution(
         DistributionRequest(
-            variable="pressure", filter=AnalyticsFilter(pressure_basis="relative"), bins=2
+            variable="pressure",
+            filter=AnalyticsFilter(pressure_basis="relative"),
+            bins=2,
         )
     )
     assert relative.unit == "1"
     assert relative.stats.max == pytest.approx(0.5)
 
     overview = service.overview()
-    assert (overview.isotherms, overview.observations, overview.mixture_isotherms) == (4, 11, 1)
+    assert (overview.isotherms, overview.observations, overview.mixture_isotherms) == (
+        4,
+        11,
+        1,
+    )
     assert overview.isotherms_by_source == {"nist": 2, "uploaded": 2}
     spans = {span.pressure_basis: span for span in overview.pressure_bases}
     assert spans["relative"].pressure_unit == "1"
@@ -280,6 +329,7 @@ def test_distribution_and_overview_keep_pressure_bases_apart() -> None:
     assert spans["absolute"].pressure_max == pytest.approx(3e5)
     assert overview.top_materials[0].name == "Material A"
     assert sum(bin_.count for bin_ in overview.temperature_histogram) == 4
+
 
 ###############################################################################
 def test_analytics_routes_map_invalid_queries_to_client_errors(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -311,3 +361,30 @@ def test_analytics_routes_map_invalid_queries_to_client_errors(tmp_path) -> None
         ).status_code
         == 422
     )
+
+
+# Fitting metrics
+
+
+###############################################################################
+def test_metrics_use_observed_minus_predicted_and_conditional_information_criteria() -> (
+    None
+):
+    metrics = compute_metrics(np.array([1.0, 2.0, 3.0]), np.array([1.0, 2.0, 2.0]), 1)
+    assert metrics.values["sse"] == 1.0
+    assert metrics.values["rmse"] == (1.0 / 3.0) ** 0.5
+    assert "mse" not in metrics.values
+    assert metrics.values["aic"] is not None
+
+
+###############################################################################
+def test_known_sigma_chi_square_and_weighted_likelihood() -> None:
+    metrics = compute_metrics(
+        np.array([1.0, 2.0]),
+        np.array([0.5, 2.5]),
+        1,
+        np.array([0.5, 0.5]),
+        "inverse_sigma",
+    )
+    assert metrics.values["chi_square"] == 2.0
+    assert metrics.values["aic"] is not None

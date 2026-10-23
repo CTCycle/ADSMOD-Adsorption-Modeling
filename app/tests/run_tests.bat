@@ -113,7 +113,7 @@ echo [STEP] Running Python tests...
 if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" (
   if /i "!STANDARD_TEST_PROFILE!"=="base" (
     echo [INFO] Base scope excludes ML-only tests and positive capability assertions.
-    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\backend\test_core_routes.py" --ignore "%TESTS_DIR%\backend\test_ml_routes.py" --ignore "%TESTS_DIR%\unit\test_data_processing.py" --ignore "%TESTS_DIR%\unit\test_ml_boundary.py" --ignore "%TESTS_DIR%\unit\test_resume_validation.py" --ignore "%TESTS_DIR%\unit\test_serializer.py" -k "not performance and not test_unified_runtime_contracts" -v --tb=short --basetemp "%PYTEST_TEMP_DIR%" %*
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\backend\test_routes.py" --ignore "%TESTS_DIR%\unit\test_data_processing.py" --ignore "%TESTS_DIR%\unit\test_ml_contracts.py" --ignore "%TESTS_DIR%\unit\test_serializer.py" -k "not performance and not test_unified_runtime_contracts" -v --tb=short --basetemp "%PYTEST_TEMP_DIR%" %*
   ) else (
     "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_TEMP_DIR%" %*
   )
@@ -121,7 +121,7 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" (
 ) else (
   if /i "!STANDARD_TEST_PROFILE!"=="base" (
     echo [INFO] Base scope excludes ML-only tests and positive capability assertions.
-    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\backend\test_core_routes.py" --ignore "%TESTS_DIR%\backend\test_ml_routes.py" --ignore "%TESTS_DIR%\unit\test_data_processing.py" --ignore "%TESTS_DIR%\unit\test_ml_boundary.py" --ignore "%TESTS_DIR%\unit\test_resume_validation.py" --ignore "%TESTS_DIR%\unit\test_serializer.py" -k "not performance and not test_unified_runtime_contracts" -v --tb=short --basetemp "%PYTEST_BACKEND_TEMP_DIR%" %*
+    "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" --ignore "%TESTS_DIR%\backend\test_routes.py" --ignore "%TESTS_DIR%\unit\test_data_processing.py" --ignore "%TESTS_DIR%\unit\test_ml_contracts.py" --ignore "%TESTS_DIR%\unit\test_serializer.py" -k "not performance and not test_unified_runtime_contracts" -v --tb=short --basetemp "%PYTEST_BACKEND_TEMP_DIR%" %*
   ) else (
     "%PYTHON_CMD%" -m pytest -c "%PYTEST_CONFIG%" "%TESTS_DIR%" --ignore "%TESTS_DIR%\e2e" -k "not performance" -v --tb=short --basetemp "%PYTEST_BACKEND_TEMP_DIR%" %*
   )
@@ -137,7 +137,7 @@ if /i "!STANDARD_TEST_SKIP_LIVE_SERVERS!"=="true" (
 )
 if /i "!STANDARD_TEST_SKIP_FRONTEND!"=="false" if exist "%CLIENT_DIR%\package.json" (
   echo [STEP] Running frontend validation...
-  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:unit --if-present
+  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" test --if-present
   if errorlevel 1 set "TEST_RESULT=1"
   call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build
   if errorlevel 1 set "TEST_RESULT=1"

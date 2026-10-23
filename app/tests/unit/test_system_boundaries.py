@@ -2,12 +2,13 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
-
 import configparser
 import json
 import tomllib
 from pathlib import Path
 
+
+# Cache layout
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CANONICAL_CACHE_ROOT = (REPO_ROOT / "runtimes" / "cache").resolve()
@@ -110,9 +111,51 @@ def test_launcher_and_batch_runner_export_canonical_cache_environment() -> None:
     assert 'set "STARTED_FRONTEND=0"' in runner
     assert '--ignore "%TESTS_DIR%\\e2e"' in runner
     assert '"%TESTS_DIR%\\e2e" -k "not performance"' in runner
+    assert "unit\\test_ml_contracts.py" in runner
     assert "STANDARD_TEST_PROFILE" in runner
     assert "STANDARD_TEST_INSTALLATION" in runner
     assert "requires a Development backend installation" in runner
     assert "test_data_processing.py" in runner
     assert "test_navigate_to_training_page" in runner
     assert "playwright install chromium" in launcher
+
+
+# Frontend boundaries
+
+
+###############################################################################
+def test_training_routes_are_capability_guarded() -> None:
+    text = Path("app/client/src/app/app.routes.ts").read_text(encoding="utf-8")
+    assert "machineLearningGuard" in text
+    assert "machineLearningEntryGuard" in text
+    assert "path: 'training'" in text
+    assert "path: 'training/:view'" in text
+    assert text.count("canActivate: [machineLearningEntryGuard]") == 1
+    assert text.count("canActivate: [machineLearningGuard]") == 1
+
+
+###############################################################################
+def test_frontend_uses_one_backend_proxy() -> None:
+    text = Path("app/client/proxy.conf.cjs").read_text(encoding="utf-8")
+    assert "loadRuntimeSettings" in text
+    assert "ADSMOD_DATA_DIR" not in text
+    assert "adsmod.json" not in text
+    assert "'/api/v1'" in text
+    assert "'/health'" in text
+    assert "'/api/v1/training'" not in text
+    assert "ml-health" not in text
+    assert "ml_port" not in text
+
+
+###############################################################################
+def test_capabilities_are_centralized() -> None:
+    service = Path("app/client/src/app/services/system.service.ts").read_text(
+        encoding="utf-8"
+    )
+    shell = Path("app/client/src/app/layout/core-shell.component.ts").read_text(
+        encoding="utf-8"
+    )
+    assert "fetchApplicationCapabilities" in service
+    assert "features.machine_learning" in service
+    assert "fetchMlReadiness" not in service
+    assert "ML Service" not in shell

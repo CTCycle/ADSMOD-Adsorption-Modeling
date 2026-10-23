@@ -2,19 +2,42 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
-
+from pathlib import Path
+import pandas as pd
 import asyncio
 import gzip
-from datetime import datetime, timezone
-
 import httpx
 import pytest
-from fastapi import APIRouter, HTTPException
-from sqlalchemy import event, func, select
-from sqlalchemy.exc import IntegrityError
-
-from server.api.public_data import PublicDataEndpoint
 from server.configurations.settings import DatabaseConfig
+from server.repositories.public_data import PublicDataRepository
+from server.services.data.nist_mapper import NISTCanonicalMapper
+from server.repositories.database.manager import DatabaseManager
+from server.repositories.datasets import DatasetRepository
+from server.repositories.materials import MaterialRepository
+from server.repositories.nist import NISTRepository
+from server.repositories.schemas.models import (
+    Adsorbate,
+    Adsorbent,
+    Base,
+    Dataset,
+    Isotherm,
+    IsothermComponent,
+    Observation,
+)
+from server.repositories.schemas.public_data import (
+    Reference,
+    DataSource,
+    SourceRecord,
+    SourceRecordReference,
+    Structure,
+    StructureSourceRecord,
+)
+from sqlalchemy import func, select, event
+from server.services.providers import PROVIDER_CLASSES
+from datetime import datetime, timezone
+from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
+from server.api.public_data import PublicDataEndpoint
 from server.domain.public_data import StructureMaterialLinkRequest
 from server.services.providers.cod import CODProvider
 from server.services.providers.pubchem import PubChemProvider
@@ -27,29 +50,292 @@ from server.services.providers.public_data import (
     RequestBudget,
 )
 from server.services.data.public_data import PublicDataService
-from server.repositories.database.manager import DatabaseManager
-from server.repositories.public_data import PublicDataRepository
-from server.repositories.schemas import Base
-from server.repositories.schemas.models import (
-    Adsorbate,
-    Adsorbent,
-    Dataset,
-    Isotherm,
-    IsothermComponent,
-    Observation,
-)
-from server.repositories.schemas.public_data import (
-    DataSource,
-    Reference,
-    SourceRecord,
-    SourceRecordReference,
-    Structure,
-    StructureSourceRecord,
-)
 
-from server.services.providers import PROVIDER_CLASSES
 
-PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
+# Nist repository
+
+PUBLIC_SOURCE_DEFINITIONS = [
+    provider.source_definition() for provider in PROVIDER_CLASSES
+]
+
+
+###############################################################################
+def build_nist_repository(path: Path) -> NISTRepository:
+    settings = DatabaseConfig(
+        embedded_database=True,
+        connect_timeout=30,
+        sqlite_path=str(path),
+    )
+    database = DatabaseManager(settings)
+    Base.metadata.create_all(database.engine)
+    datasets = DatasetRepository(database)
+    public_data = PublicDataRepository(database)
+    public_data.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+    return NISTRepository(
+        database=database,
+        datasets=datasets,
+        materials=MaterialRepository(database),
+        public_data=public_data,
+    )
+
+
+###############################################################################
+def test_nist_repository_counts_and_loader_frame_are_canonical(
+    tmp_path: Path,
+) -> None:
+    repository = build_nist_repository(tmp_path / "nist.db")
+    mapper = NISTCanonicalMapper()
+
+    repository.save_materials(
+        mapper.material_records(
+            pd.DataFrame(
+                [
+                    {"name": "methane", "InChIKey": "A" * 27},
+                    {"name": "nitrogen", "InChIKey": "B" * 27},
+                    {"name": "argon", "InChIKey": "C" * 27},
+                ]
+            ),
+            "adsorbate",
+        ),
+        mapper.material_records(
+            pd.DataFrame(
+                [
+                    {"name": "silica", "hashkey": "host-1"},
+                    {"name": "carbon", "hashkey": "host-2"},
+                ]
+            ),
+            "adsorbent",
+        ),
+    )
+
+    single_component = pd.DataFrame(
+        [
+            {
+                "name": "single-1",
+                "pressure_units": "kPa",
+                "adsorption_units": "mol/kg",
+                "temperature": 298.15,
+                "adsorbent": "silica",
+                "adsorbate": "methane",
+                "adsorbate_molecular_weight": 16.04,
+                "pressure": 1.0,
+                "adsorbed_amount": 0.1,
+            },
+            {
+                "name": "single-1",
+                "pressure_units": "kPa",
+                "adsorption_units": "mol/kg",
+                "temperature": 298.15,
+                "adsorbent": "silica",
+                "adsorbate": "methane",
+                "adsorbate_molecular_weight": 16.04,
+                "pressure": 2.0,
+                "adsorbed_amount": 0.2,
+            },
+        ]
+    )
+    binary_mixture = pd.DataFrame(
+        [
+            {
+                "name": "binary-1",
+                "pressure_units": "kPa",
+                "adsorption_units": "mol/kg",
+                "temperature": 300.0,
+                "adsorbent_name": "carbon",
+                "compound_1": "nitrogen",
+                "compound_2": "argon",
+                "compound_1_pressure": 1.0,
+                "compound_1_adsorption": 0.3,
+                "compound_2_pressure": 2.0,
+                "compound_2_adsorption": 0.4,
+            },
+            {
+                "name": "binary-1",
+                "pressure_units": "kPa",
+                "adsorption_units": "mol/kg",
+                "temperature": 300.0,
+                "adsorbent_name": "carbon",
+                "compound_1": "nitrogen",
+                "compound_2": "argon",
+                "compound_1_pressure": 2.0,
+                "compound_1_adsorption": 0.5,
+                "compound_2_pressure": 3.0,
+                "compound_2_adsorption": 0.6,
+            },
+        ]
+    )
+
+    experiments = mapper.experiment_records(single_component, binary_mixture)
+    mapper.attach_source_identities(
+        experiments,
+        [
+            {
+                "filename": "single-1",
+                "DOI": "10.1000/single",
+                "adsorbent": {"hashkey": "host-1", "name": "Silica"},
+                "adsorbates": [{"name": "Methane", "InChIKey": "A" * 27}],
+            },
+            {
+                "filename": "binary-1",
+                "adsorbent": {"hashkey": "host-2", "name": "Carbon"},
+                "adsorbates": [
+                    {"name": "Nitrogen", "InChIKey": "B" * 27},
+                    {"name": "Argon", "InChIKey": "C" * 27},
+                ],
+            },
+        ],
+    )
+    repository.save_experiments(experiments)
+
+    counts = repository.count_nist_rows()
+    assert counts == {
+        "experiments_count": 2,
+        "single_component_rows": 6,
+        "binary_mixture_rows": 1,
+        "guest_rows": 3,
+        "host_rows": 2,
+    }
+
+    adsorption, guests, hosts = repository.load_adsorption_datasets()
+    assert len(adsorption) == 6
+    assert {"pressure", "adsorbed_amount"}.issubset(adsorption.columns)
+    assert set(guests["name"]) == {"methane", "nitrogen", "argon"}
+    assert set(hosts["name"]) == {"silica", "carbon"}
+    # Experiment species and materials reuse the NIST catalogue identities.
+    with repository.database.session_factory() as session:
+        assert session.scalar(select(func.count(Adsorbate.id))) == 3
+        assert session.scalar(select(func.count(Adsorbent.id))) == 2
+        assert session.scalars(select(Reference.doi)).all() == ["10.1000/single"]
+    assert repository.count_local_records_by_category() == {
+        "experiments": 2,
+        "guest": 3,
+        "host": 2,
+    }
+    assert repository.list_adsorbate_inchi_keys() == {
+        "a" * 27,
+        "b" * 27,
+        "c" * 27,
+    }
+    assert repository.list_adsorbent_hash_keys() == {"host-1", "host-2"}
+
+
+###############################################################################
+def test_nist_category_counts_include_standalone_reference_records(
+    tmp_path: Path,
+) -> None:
+    repository = build_nist_repository(tmp_path / "nist.db")
+    mapper = NISTCanonicalMapper()
+    repository.save_materials(
+        mapper.material_records(
+            pd.DataFrame([{"name": "methane", "InChIKey": "A" * 27}]),
+            "adsorbate",
+        ),
+        mapper.material_records(
+            pd.DataFrame([{"name": "silica", "hashkey": "host-1"}]),
+            "adsorbent",
+        ),
+    )
+
+    assert repository.count_local_records_by_category() == {
+        "experiments": 0,
+        "guest": 1,
+        "host": 1,
+    }
+    assert repository.list_adsorbate_inchi_keys() == {"a" * 27}
+    assert repository.list_adsorbent_hash_keys() == {"host-1"}
+
+
+###############################################################################
+def test_nist_placeholder_identifier_keeps_identity_without_fake_inchikey(
+    tmp_path: Path,
+) -> None:
+    repository = build_nist_repository(tmp_path / "nist.db")
+    mapper = NISTCanonicalMapper()
+    placeholder = "NIST-ISODB-95AA5E6F8FA9B6AE19EC"
+    repository.save_materials(
+        mapper.material_records(
+            pd.DataFrame([{"name": "Coal gas", "InChIKey": placeholder}]),
+            "adsorbate",
+        ),
+        [],
+    )
+    experiments = mapper.experiment_records(
+        pd.DataFrame(
+            [
+                {
+                    "name": "placeholder-1",
+                    "pressure_units": "kPa",
+                    "adsorption_units": "mol/kg",
+                    "temperature": 298.15,
+                    "adsorbent": "carbon",
+                    "adsorbate": "coal gas",
+                    "adsorbate_molecular_weight": None,
+                    "pressure": pressure,
+                    "adsorbed_amount": uptake,
+                }
+                for pressure, uptake in ((1.0, 0.1), (2.0, 0.2))
+            ]
+        ),
+        None,
+    )
+    mapper.attach_source_identities(
+        experiments,
+        [
+            {
+                "filename": "placeholder-1",
+                "adsorbent": {"hashkey": "host-9", "name": "Carbon"},
+                "adsorbates": [{"name": "Coal gas", "InChIKey": placeholder}],
+            }
+        ],
+    )
+    repository.save_experiments(experiments)
+
+    with repository.database.session_factory() as session:
+        rows = session.execute(select(Adsorbate.name, Adsorbate.inchi_key)).all()
+    assert rows == [("Coal gas", None)]
+    assert repository.list_adsorbate_inchi_keys() == {placeholder.casefold()}
+
+
+###############################################################################
+def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> None:
+    mapper = NISTCanonicalMapper()
+    single_component = pd.DataFrame(
+        [
+            {
+                "name": "unsupported-volume",
+                "pressure_units": "bar",
+                "adsorption_units": "% Volume Adsorbed",
+                "temperature": 77.0,
+                "adsorbent": "CuBTC",
+                "adsorbate": "nitrogen",
+                "pressure": 0.1,
+                "adsorbed_amount": 1.0,
+            },
+            {
+                "name": "supported-molar",
+                "pressure_units": "bar",
+                "adsorption_units": "mmol/g",
+                "temperature": 77.0,
+                "adsorbent": "CuBTC",
+                "adsorbate": "nitrogen",
+                "pressure": 0.1,
+                "adsorbed_amount": 1.0,
+            },
+        ]
+    )
+
+    records = mapper.experiment_records(single_component, None)
+
+    assert [record["external_key"] for record in records] == ["supported-molar"]
+    assert "unsupported-volume" in caplog.text
+
+
+# Public data
+
+PUBLIC_SOURCE_DEFINITIONS = [
+    provider.source_definition() for provider in PROVIDER_CLASSES
+]
+
 
 ###############################################################################
 def _manager() -> DatabaseManager:
@@ -63,12 +349,18 @@ def _manager() -> DatabaseManager:
     Base.metadata.create_all(manager.engine)
     return manager
 
+
 ###############################################################################
 def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[no-untyped-def]
     statements: list[str] = []
 
     def capture_selects(
-        conn, cursor, statement, parameters, context, executemany  # type: ignore[no-untyped-def]
+        conn,
+        cursor,
+        statement,
+        parameters,
+        context,
+        executemany,  # type: ignore[no-untyped-def]
     ) -> None:
         del conn, cursor, parameters, context, executemany
         if statement.lstrip().upper().startswith("SELECT"):
@@ -81,16 +373,20 @@ def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[
         event.remove(manager.engine, "before_cursor_execute", capture_selects)
     return len(statements)
 
+
 ###############################################################################
 def test_structure_link_endpoint_maps_conflicts_to_http_409() -> None:
 
     ###############################################################################
     class ConflictingService:
-
         # -------------------------------------------------------------------------
-        def set_structure_material(self, structure_id: int, adsorbent_id: int | None) -> object:
+        def set_structure_material(
+            self, structure_id: int, adsorbent_id: int | None
+        ) -> object:
             del structure_id, adsorbent_id
-            raise ValueError("The structure is linked to another material; unlink it first.")
+            raise ValueError(
+                "The structure is linked to another material; unlink it first."
+            )
 
     endpoint = PublicDataEndpoint(
         router=APIRouter(),
@@ -102,6 +398,7 @@ def test_structure_link_endpoint_maps_conflicts_to_http_409() -> None:
         endpoint.set_structure_material(1, StructureMaterialLinkRequest(adsorbent_id=2))
 
     assert error.value.status_code == 409
+
 
 ###############################################################################
 def _seed_listing_rows(repository: PublicDataRepository) -> int:
@@ -175,7 +472,9 @@ def _seed_listing_rows(repository: PublicDataRepository) -> int:
                 select(Adsorbent.id).where(Adsorbent.key == f"listing-material-{index}")
             )
             adsorbate_id = session.scalar(
-                select(Adsorbate.id).where(Adsorbate.key == f"listing-adsorbate-{index}")
+                select(Adsorbate.id).where(
+                    Adsorbate.key == f"listing-adsorbate-{index}"
+                )
             )
         assert material_id is not None
         assert adsorbate_id is not None
@@ -195,6 +494,7 @@ def _seed_listing_rows(repository: PublicDataRepository) -> int:
             external_id=f"listing-isotherm-{index}",
         )
     return first_structure_id
+
 
 ###############################################################################
 def test_overview_counts_use_one_local_query() -> None:
@@ -218,6 +518,7 @@ def test_overview_counts_use_one_local_query() -> None:
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_provider_registry_and_source_identity_constraints() -> None:
     manager = _manager()
@@ -231,7 +532,9 @@ def test_provider_registry_and_source_identity_constraints() -> None:
         }
 
         with manager.transaction() as session:
-            pubchem_id = session.scalar(select(DataSource.id).where(DataSource.key == "pubchem"))
+            pubchem_id = session.scalar(
+                select(DataSource.id).where(DataSource.key == "pubchem")
+            )
             assert pubchem_id is not None
             session.add(
                 SourceRecord(
@@ -243,7 +546,9 @@ def test_provider_registry_and_source_identity_constraints() -> None:
                 )
             )
         with manager.transaction() as session:
-            pubchem_id = session.scalar(select(DataSource.id).where(DataSource.key == "pubchem"))
+            pubchem_id = session.scalar(
+                select(DataSource.id).where(DataSource.key == "pubchem")
+            )
             session.add(
                 SourceRecord(
                     source_id=pubchem_id,
@@ -260,6 +565,7 @@ def test_provider_registry_and_source_identity_constraints() -> None:
                 raise AssertionError("duplicate source identity was accepted")
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_source_registry_uses_cached_health_without_probing_providers() -> None:
@@ -304,7 +610,9 @@ def test_source_registry_uses_cached_health_without_probing_providers() -> None:
         repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         provider = ProbeCountingProvider()
         failing_provider = FailingProvider()
-        service = PublicDataService(repository=repository, providers=[provider, failing_provider])
+        service = PublicDataService(
+            repository=repository, providers=[provider, failing_provider]
+        )
 
         registry = service.list_sources()
 
@@ -317,6 +625,7 @@ def test_source_registry_uses_cached_health_without_probing_providers() -> None:
         assert failing_provider.health_checks == 0
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_public_data_health_and_durable_sync_run_state_persist() -> None:
@@ -378,9 +687,13 @@ def test_public_data_health_and_durable_sync_run_state_persist() -> None:
         cancelled = repository.create_sync_run(
             source_key="cod", operation="cod_import", parameters={"cod_id": "9012345"}
         )
-        assert repository.request_sync_cancel(str(cancelled["id"]))["status"] == "cancelled"
+        assert (
+            repository.request_sync_cancel(str(cancelled["id"]))["status"]
+            == "cancelled"
+        )
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -417,7 +730,9 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
                 200,
                 json={
                     "InformationList": {
-                        "Information": [{"CID": 297, "Synonym": ["Methane", "Marsh gas"]}]
+                        "Information": [
+                            {"CID": 297, "Synonym": ["Methane", "Marsh gas"]}
+                        ]
                     }
                 },
             )
@@ -431,6 +746,7 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
     assert payload["elemental_composition"] == {"C": 1.0, "H": 4.0}
     assert payload["descriptors"]["tpsa_angstrom2"] == 0.0
     assert payload["conformer_3d_url"] is not None
+
 
 ###############################################################################
 @pytest.mark.parametrize("failed_endpoint", ["synonyms", "conformer"])
@@ -482,13 +798,13 @@ def test_pubchem_resolution_keeps_primary_record_when_secondary_endpoint_fails(
     assert payload["synonyms"] == expected_synonyms
     assert (payload["conformer_3d_url"] is None) is (failed_endpoint == "conformer")
 
+
 ###############################################################################
 def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     created: list[object] = []
 
     ###############################################################################
     class FakeStream:
-
         # -------------------------------------------------------------------------
         def __init__(self, response: httpx.Response) -> None:
             self.response = response
@@ -503,7 +819,6 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
 
     ###############################################################################
     class FakeClient:
-
         # -------------------------------------------------------------------------
         def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
             self.closed = False
@@ -539,6 +854,7 @@ def test_retrying_provider_reuses_and_closes_its_http_client(monkeypatch) -> Non
 
     asyncio.run(exercise())
 
+
 ###############################################################################
 def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     responses = [
@@ -556,7 +872,6 @@ def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> N
 
     ###############################################################################
     class FakeStream:
-
         # -------------------------------------------------------------------------
         def __init__(self, response: httpx.Response) -> None:
             self.response = response
@@ -571,7 +886,6 @@ def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> N
 
     ###############################################################################
     class FakeClient:
-
         # -------------------------------------------------------------------------
         def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
             del kwargs
@@ -608,6 +922,7 @@ def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> N
     assert responses == []
     assert sleeps == [5.0]
 
+
 ###############################################################################
 def test_retrying_provider_returns_decoded_gzip_body() -> None:
     payload = b'{"PropertyTable": {"Properties": []}}'
@@ -634,6 +949,7 @@ def test_retrying_provider_returns_decoded_gzip_body() -> None:
 
     asyncio.run(exercise())
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("error", "status_code"),
@@ -651,6 +967,7 @@ def test_public_provider_errors_keep_explicit_http_contract(
     assert mapped.status_code == status_code
     assert mapped.detail == str(error)
 
+
 ###############################################################################
 def test_pubchem_resolution_maps_successful_malformed_json_to_provider_error(
     monkeypatch,
@@ -666,12 +983,14 @@ def test_pubchem_resolution_maps_successful_malformed_json_to_provider_error(
     with pytest.raises(ProviderUnavailableError, match="malformed JSON"):
         asyncio.run(provider.resolve("methane"))
 
+
 ###############################################################################
 def test_pubchem_empty_query_preserves_local_validation_error() -> None:
     provider = PubChemProvider(parallel_requests=1)
 
     with pytest.raises(ValueError, match="must not be empty"):
         asyncio.run(provider.resolve("  "))
+
 
 ###############################################################################
 def test_pubchem_upsert_uses_strong_identity_and_does_not_merge_by_name() -> None:
@@ -714,8 +1033,11 @@ def test_pubchem_upsert_uses_strong_identity_and_does_not_merge_by_name() -> Non
     finally:
         manager.dispose()
 
+
 ###############################################################################
-def _methane_payload(inchi_key: str = "VNWKTOKETHGBQD-UHFFFAOYSA-N") -> dict[str, object]:
+def _methane_payload(
+    inchi_key: str = "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+) -> dict[str, object]:
     return {
         "cid": "297",
         "name": "Methane",
@@ -727,6 +1049,7 @@ def _methane_payload(inchi_key: str = "VNWKTOKETHGBQD-UHFFFAOYSA-N") -> dict[str
         "elemental_composition": {"C": 1.0, "H": 4.0},
         "raw_metadata": {},
     }
+
 
 ###############################################################################
 def test_pubchem_attach_enriches_selected_chemical_and_tracks_candidates() -> None:
@@ -773,6 +1096,7 @@ def test_pubchem_attach_enriches_selected_chemical_and_tracks_candidates() -> No
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_navigation_filters_by_ids_and_structure_links_are_explicit() -> None:
     manager = _manager()
@@ -814,6 +1138,7 @@ def test_navigation_filters_by_ids_and_structure_links_are_explicit() -> None:
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_cod_atom_parser_normalizes_fractional_coordinates() -> None:
     cif = """
@@ -850,6 +1175,7 @@ O1 O 0.500(2) 0.625 0.750 0.5
         },
     ]
 
+
 ###############################################################################
 def test_cod_cif_validation_rejects_malformed_payloads() -> None:
     with pytest.raises(ProviderUnavailableError, match="valid CIF data block"):
@@ -857,6 +1183,7 @@ def test_cod_cif_validation_rejects_malformed_payloads() -> None:
 
     with pytest.raises(ProviderUnavailableError, match="no valid atom-site rows"):
         CODProvider.validate_cif({"has_coordinates": True}, "data_test", [])
+
 
 ###############################################################################
 def test_cod_search_maps_successful_malformed_json_to_provider_error(
@@ -879,6 +1206,7 @@ def test_cod_search_maps_successful_malformed_json_to_provider_error(
     with pytest.raises(ProviderUnavailableError, match="malformed JSON"):
         asyncio.run(provider.search(text="silica"))
 
+
 ###############################################################################
 def test_cod_search_validation_errors_remain_local_value_errors() -> None:
     provider = CODProvider(
@@ -891,6 +1219,7 @@ def test_cod_search_validation_errors_remain_local_value_errors() -> None:
         asyncio.run(provider.search(text="Si"))
     with pytest.raises(ValueError, match="Provide a COD ID"):
         asyncio.run(provider.search())
+
 
 ###############################################################################
 def test_cod_reimport_without_material_preserves_existing_association() -> None:
@@ -936,6 +1265,7 @@ def test_cod_reimport_without_material_preserves_existing_association() -> None:
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
     manager = _manager()
@@ -944,24 +1274,37 @@ def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
         repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         _seed_listing_rows(repository)
 
-        assert _count_selects(
-            manager,
-            lambda: repository.list_adsorption(page=1, page_size=2),
-        ) <= 6
-        assert _count_selects(
-            manager,
-            lambda: repository.list_materials(page=1, page_size=2),
-        ) <= 5
-        assert _count_selects(
-            manager,
-            lambda: repository.list_chemicals(page=1, page_size=2),
-        ) <= 6
-        assert _count_selects(
-            manager,
-            lambda: repository.list_structures(page=1, page_size=2),
-        ) <= 6
+        assert (
+            _count_selects(
+                manager,
+                lambda: repository.list_adsorption(page=1, page_size=2),
+            )
+            <= 6
+        )
+        assert (
+            _count_selects(
+                manager,
+                lambda: repository.list_materials(page=1, page_size=2),
+            )
+            <= 5
+        )
+        assert (
+            _count_selects(
+                manager,
+                lambda: repository.list_chemicals(page=1, page_size=2),
+            )
+            <= 6
+        )
+        assert (
+            _count_selects(
+                manager,
+                lambda: repository.list_structures(page=1, page_size=2),
+            )
+            <= 6
+        )
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_structure_reference_matches_primary_provenance_record() -> None:
@@ -971,8 +1314,12 @@ def test_structure_reference_matches_primary_provenance_record() -> None:
         repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         structure_id = _seed_listing_rows(repository)
         with manager.transaction() as session:
-            nist_id = session.scalar(select(DataSource.id).where(DataSource.key == "nist"))
-            cod_id = session.scalar(select(DataSource.id).where(DataSource.key == "cod"))
+            nist_id = session.scalar(
+                select(DataSource.id).where(DataSource.key == "nist")
+            )
+            cod_id = session.scalar(
+                select(DataSource.id).where(DataSource.key == "cod")
+            )
             assert nist_id is not None
             assert cod_id is not None
             older = SourceRecord(
