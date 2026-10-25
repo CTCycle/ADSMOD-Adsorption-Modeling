@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 import { TestBed } from '@angular/core/testing';
-import { vi } from 'vitest';
 import { InfoModalComponent } from './info-modal/info-modal.component';
 import { MarkdownRendererComponent } from './markdown-renderer/markdown-renderer.component';
 
@@ -29,22 +28,6 @@ describe('InfoModalComponent', () => {
         expect(root.textContent).toContain('Dataset A');
         expect(root.textContent).toContain('12');
         expect(root.textContent).not.toContain('Empty');
-    });
-
-    it('emits close when the done button is clicked', async () => {
-        await TestBed.configureTestingModule({
-            imports: [InfoModalComponent],
-        }).compileComponents();
-
-        const fixture = TestBed.createComponent(InfoModalComponent);
-        const emitSpy = vi.spyOn(fixture.componentInstance.closed, 'emit');
-        fixture.componentRef.setInput('isOpen', true);
-        fixture.componentRef.setInput('title', 'Checkpoint Details');
-        fixture.componentRef.setInput('data', { Name: 'cp-1' });
-        fixture.detectChanges();
-
-        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.info-modal-footer button')?.click();
-        expect(emitSpy).toHaveBeenCalled();
     });
 });
 

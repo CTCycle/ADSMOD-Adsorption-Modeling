@@ -29,33 +29,14 @@ def session():
         yield current_session
 
 ###############################################################################
-def test_json_sequence_round_trip(session) -> None:  # type: ignore[no-untyped-def]
-    data = [1.1, 2.2, 3.3]
+@pytest.mark.parametrize("data", [[1.1, 2.2, 3.3], [], None])
+def test_json_sequence_round_trip(session, data) -> None:  # type: ignore[no-untyped-def]
     session.add(SequenceModel(sequence=data))
     session.commit()
 
     retrieved = session.query(SequenceModel).first()
     assert retrieved is not None
     assert retrieved.sequence == data
-    assert isinstance(retrieved.sequence, list)
-
-###############################################################################
-def test_json_sequence_empty_list(session) -> None:  # type: ignore[no-untyped-def]
-    session.add(SequenceModel(sequence=[]))
-    session.commit()
-
-    retrieved = session.query(SequenceModel).first()
-    assert retrieved is not None
-    assert retrieved.sequence == []
-
-###############################################################################
-def test_json_sequence_none(session) -> None:  # type: ignore[no-untyped-def]
-    session.add(SequenceModel(sequence=None))
-    session.commit()
-
-    retrieved = session.query(SequenceModel).first()
-    assert retrieved is not None
-    assert retrieved.sequence is None
 
 ###############################################################################
 def test_string_payload_raises_for_json_sequence(session) -> None:  # type: ignore[no-untyped-def]

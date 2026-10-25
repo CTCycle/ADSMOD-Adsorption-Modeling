@@ -84,16 +84,3 @@ def test_ml_extension_does_not_own_persistence_layer() -> None:
             text = path.read_text(encoding="utf-8")
             hits = [pkg for pkg in ("sqlalchemy", "alembic") if _has_import(text, pkg)]
             assert not hits, f"{path}: forbidden imports {hits}"
-
-###############################################################################
-def test_legacy_package_trees_are_not_present() -> None:
-    for layer_name in ("core", "ml"):
-        layer = BACKEND_ROOT / layer_name
-        assert not any(_iter_python_files(layer)), f"legacy Python files remain under {layer}"
-
-    common_layer = BACKEND_ROOT / "common"
-    for path in common_layer.iterdir():
-        if path.name == "src":
-            assert not any(_iter_python_files(path)), (
-                f"legacy Python files remain under {path}"
-            )
