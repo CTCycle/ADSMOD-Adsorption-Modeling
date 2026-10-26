@@ -83,6 +83,14 @@ function Write-Warn([string]$Message) {
     Write-Host "[WARN] $Message" -ForegroundColor Yellow
 }
 
+function Write-LaunchTiming {
+    param(
+        [Parameter(Mandatory)][string]$Phase,
+        [Parameter(Mandatory)][long]$ElapsedMilliseconds
+    )
+    Write-Host ('[TIME] {0,-42} {1,8} ms' -f "$($Phase):", $ElapsedMilliseconds) -ForegroundColor Gray
+}
+
 function Write-Fatal([string]$Message) {
     Clear-LauncherProgress
     Write-Host "[FATAL] $Message" -ForegroundColor Red
@@ -1300,38 +1308,78 @@ function Stop-AllApplicationProcesses {
 }
 
 function Start-Application {
-    $settings = Import-Settings
-    $configuredPorts = @($settings.BackendPort)
-    $portConflicts = @(Get-PortConflicts -Ports $configuredPorts)
-    if (-not (Resolve-PortConflicts -Conflicts $portConflicts)) {
-        return $false
+    $launchStopwatch = [Diagnostics.Stopwatch]::StartNew()
+
+    $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        $settings = Import-Settings
+        $configuredPorts = @($settings.BackendPort)
+        $portConflicts = @(Get-PortConflicts -Ports $configuredPorts)
+        $portsReady = Resolve-PortConflicts -Conflicts $portConflicts
+    } finally {
+        Write-LaunchTiming -Phase 'Configuration and port preflight' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+    }
+    if (-not $portsReady) { return $false }
+
+    $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        if (-not (Test-PortableRuntimeFilesReady)) {
+            Initialize-Runtimes
+        }
+        Set-RuntimeEnvironment
+    } finally {
+        Write-LaunchTiming -Phase 'Portable runtime setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
     }
 
-    if (-not (Test-PortableRuntimeFilesReady)) {
-        Initialize-Runtimes
+    $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        if (-not (Test-BackendDependenciesCurrent)) {
+            $profile = Get-RecordedBackendProfile
+            Write-Step "Backend dependency state is missing or stale; repairing the recorded $($profile.InstallationType) / $($profile.FeatureSet) profile."
+            Sync-BackendDependencies -RuntimesReady -InstallationType $profile.InstallationType -FeatureSet $profile.FeatureSet
+        }
+    } finally {
+        Write-LaunchTiming -Phase 'Backend dependency check and setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
     }
-    Set-RuntimeEnvironment
 
-    if (-not (Test-BackendDependenciesCurrent)) {
-        $profile = Get-RecordedBackendProfile
-        Write-Step "Backend dependency state is missing or stale; repairing the recorded $($profile.InstallationType) / $($profile.FeatureSet) profile."
-        Sync-BackendDependencies -RuntimesReady -InstallationType $profile.InstallationType -FeatureSet $profile.FeatureSet
+    $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        if (-not (Test-FrontendDependenciesCurrent)) {
+            Write-Step "Frontend dependency state is missing or stale; installing the locked package set."
+            Install-FrontendDependencies
+        }
+    } finally {
+        Write-LaunchTiming -Phase 'Frontend dependency check and setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
     }
-    if (-not (Test-FrontendDependenciesCurrent)) {
-        Write-Step "Frontend dependency state is missing or stale; installing the locked package set."
-        Install-FrontendDependencies
-    }
-    if (-not (Test-FrontendBuildCurrent)) {
-        Build-Frontend
-    } else {
-        Write-Ok "Application environments and frontend build are ready; skipped dependency installation and Angular build."
+
+    $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        if (-not (Test-FrontendBuildCurrent)) {
+            Build-Frontend
+        } else {
+            Write-Ok "Application environments and frontend build are ready; skipped dependency installation and Angular build."
+        }
+    } finally {
+        Write-LaunchTiming -Phase 'Frontend production build check' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
     }
 
     $healthUrl = "$($settings.BackendUrl)/health/ready"
     Write-Step "Starting ADSMOD (backend and built frontend on $($settings.BackendUrl))"
-    $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList @('-m', 'server.cli') -WorkingDirectory $RepoRoot -NoNewWindow -PassThru
+    $phaseStarted = $launchStopwatch.ElapsedMilliseconds
     try {
-        try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process $script:BackendProcess } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; throw }
+        $script:BackendProcess = Start-Process -FilePath $VenvPython -ArgumentList @('-m', 'server.cli') -WorkingDirectory $RepoRoot -NoNewWindow -PassThru
+    } finally {
+        Write-LaunchTiming -Phase 'Backend process start' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+    }
+    try {
+        $phaseStarted = $launchStopwatch.ElapsedMilliseconds
+        try {
+            try { Wait-ForHealth -Url $healthUrl -TimeoutSeconds 60 -Process $script:BackendProcess } catch { Stop-OwnedProcess -Process $script:BackendProcess -Name 'backend'; throw }
+        } finally {
+            Write-LaunchTiming -Phase 'Backend readiness check' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
+        }
+        $launchStopwatch.Stop()
+        Write-LaunchTiming -Phase 'Total time to application readiness' -ElapsedMilliseconds $launchStopwatch.ElapsedMilliseconds
         Start-Process -FilePath 'explorer.exe' -ArgumentList $settings.BackendUrl
         Write-Host ""
         Write-Ok "ADSMOD is running at $($settings.BackendUrl) (backend PID $($script:BackendProcess.Id))."
