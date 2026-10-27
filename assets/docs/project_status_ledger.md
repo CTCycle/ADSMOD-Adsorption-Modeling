@@ -1,6 +1,6 @@
 # ADSMOD project status ledger
 
-Last updated: 2026-10-22
+Last updated: 2026-10-27
 
 This is the canonical current-state catalog for ADSMOD. It records validated
 scope, meaningful limitations, open product decisions, evidence anchors, and
@@ -25,6 +25,14 @@ The local refs at that implementation commit were not release-equivalent:
 - The launcher update action intentionally targets a clean `main` checkout.
   Branch synchronization and release-baseline selection therefore remain
   follow-up work; this ledger describes `develop`, not `main`.
+
+## Logging
+
+The backend CLI filters successful routine access requests by default while
+retaining failed requests and successful writes; `ADSMOD_LOG_LEVEL=DEBUG`
+restores routine access diagnostics on the console. Focused access-policy tests
+cover the normal and debug cases. The full Windows launcher lifecycle has not
+been rerun for this change.
 
 ## Current campaign
 

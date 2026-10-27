@@ -6,6 +6,7 @@ from __future__ import annotations
 import uvicorn
 
 from .app import create_app
+from .common.utils.logger import uvicorn_logging_config
 from .configurations.runtime import load_runtime_configuration
 
 
@@ -18,6 +19,7 @@ def main() -> None:
         application,
         host=configuration.host,
         port=configuration.backend_port,
+        log_config=uvicorn_logging_config(),
     )
 
 

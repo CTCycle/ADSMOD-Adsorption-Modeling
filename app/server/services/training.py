@@ -297,7 +297,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_training_datasets(self) -> TrainingDatasetResponse:
-        logger.info("Checking training dataset availability")
+        logger.debug("Checking training dataset availability")
         processed = self.training_manager.data_serializer.list_processed_datasets()
         info = (
             self.training_manager.data_serializer.get_training_dataset_info(
@@ -526,7 +526,7 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
-        logger.info("Scanning for available checkpoints")
+        logger.debug("Scanning for available checkpoints")
         checkpoints = self.training_manager.model_serializer.scan_checkpoints_folder()
         dataset_hashes = self.training_manager.data_serializer.collect_dataset_hashes()
         detailed_checkpoints: list[CheckpointDetailInfo] = []

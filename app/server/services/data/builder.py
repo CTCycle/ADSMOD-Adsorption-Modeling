@@ -94,7 +94,7 @@ class DatasetBuilder:
             logger.warning("No adsorption data provided for building dataset")
             return {"success": False, "error": "No adsorption data provided"}
 
-        logger.info(f"{len(adsorption_data)} measurements in the dataset")
+        logger.debug("%s measurements in the dataset", len(adsorption_data))
 
         aggregator = AggregateDatasets(self.configuration)
         processed_data = aggregator.aggregate_adsorption_measurements(adsorption_data)
@@ -105,22 +105,22 @@ class DatasetBuilder:
                 frac=sample_size, random_state=self.config.seed
             ).reset_index(drop=True)
 
-        logger.info(f"Aggregated dataset has {len(processed_data)} experiments")
+        logger.debug("Aggregated dataset has %s experiments", len(processed_data))
 
         if guest_data is not None and host_data is not None:
             processed_data = aggregator.join_materials_properties(
                 processed_data, guest_data, host_data
             )
 
-        logger.info("Converting pressure into Pascal and uptake into mmol/g")
+        logger.debug("Converting pressure into Pascal and uptake into mmol/g")
         processed_data = PQ_units_conversion(processed_data)
 
         sanitizer = DataSanitizer(self.configuration)
-        logger.info("Filtering Out-of-Boundary values")
+        logger.debug("Filtering Out-of-Boundary values")
         processed_data = sanitizer.exclude_OOB_values(processed_data)
 
         sequencer = PressureUptakeSeriesProcess(self.configuration)
-        logger.info("Performing sequence sanitization and filter by size")
+        logger.debug("Performing sequence sanitization and filter by size")
         processed_data = sequencer.remove_leading_zeros(processed_data)
         processed_data = sequencer.filter_by_sequence_size(processed_data)
 
@@ -134,7 +134,7 @@ class DatasetBuilder:
         if error:
             return error
 
-        logger.info(
+        logger.debug(
             "Generate train and validation datasets through stratified splitting"
         )
         splitter = TrainValidationSplit(self.configuration)
@@ -172,8 +172,10 @@ class DatasetBuilder:
         self.save_training_dataset(training_data, metadata.dataset_hash or "")
         self.save_training_metadata(metadata)
 
-        logger.info(f"Saved train dataset with {len(train_samples)} records")
-        logger.info(f"Saved validation dataset with {len(validation_samples)} records")
+        logger.info(
+            "Saved training dataset: %s training and %s validation records",
+            len(train_samples), len(validation_samples),
+        )
 
         return {
             "success": True,
@@ -241,7 +243,7 @@ class DatasetBuilder:
             reference_smile_vocab = reference_metadata.smile_vocabulary or {}
 
         tokenization = SMILETokenization(self.configuration)
-        logger.info("Tokenizing SMILE sequences for adsorbate species")
+        logger.debug("Tokenizing SMILE sequences for adsorbate species")
         processed_data, smile_vocab = tokenization.process_smile_sequences(
             processed_data, reference_vocabulary=reference_smile_vocab
         )
