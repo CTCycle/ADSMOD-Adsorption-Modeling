@@ -72,7 +72,7 @@
 .console-nav-item:focus-visible,
 .console-footer-link:focus-visible,
 .header-icon-button:focus-visible {
-  outline: 2px solid var(--primary-300);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -322,7 +322,7 @@ button {
   width: 100%;
   min-height: 42px;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--slate-300);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--console-text, #1c2a45);
 }
@@ -496,7 +496,7 @@ button {
   width: 100%;
   min-height: 42px;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--slate-300);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--console-text, #1c2a45);
 }
@@ -813,7 +813,7 @@ a.button.primary {
 }
 
 a.button.secondary {
-  border: 1px solid var(--slate-300);
+  border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--slate-700);
   font-weight: 600;
@@ -849,7 +849,7 @@ input[type="text"],
 input[type="password"],
 input[type="search"] {
   padding: 0 var(--spacing-md);
-  border: 1px solid var(--slate-300);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--slate-900);
@@ -1032,7 +1032,7 @@ a.table-action {
 }
 
 .training-view-tab:focus-visible {
-  outline: 2px solid var(--primary-500);
+  outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
@@ -1112,6 +1112,6 @@ a.table-action {
 }
 
 .theme-switch-option:focus-visible {
-  outline: 2px solid var(--primary-500);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }

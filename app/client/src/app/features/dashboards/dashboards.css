@@ -41,7 +41,7 @@
 .dashboard-tabs a:focus-visible,
 .mode-tabs button:focus-visible,
 .link-button:focus-visible {
-    outline: 2px solid var(--primary-500);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
 }
 
@@ -246,7 +246,7 @@
 .range-row input:focus-visible,
 .facet-search:focus-visible,
 .chart-controls input:not([type='checkbox']):focus-visible {
-    outline: 2px solid var(--primary-500);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
 }
 

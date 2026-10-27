@@ -1,6 +1,6 @@
 # ADSMOD Design Tokens
 
-Last updated: 2026-08-02
+Last updated: 2026-10-27
 
 ## Typography
 
@@ -35,10 +35,14 @@ Last updated: 2026-08-02
   - success uses green families
   - error and destructive states use red families
   - warning states use amber families
-  - informational states use blue-tinted surfaces
+  - informational states use `--info-*` blue-tinted surfaces
+- Text roles: `--text-primary`, `--text-secondary` (>= 6:1), `--text-tertiary` (>= 4.5:1) on surfaces in both themes
+- Borders: `--border-color` for decorative dividers; `--border-strong` (>= 3:1) for input and secondary-button boundaries
+- Interaction: `--focus-ring` for every focus outline, `--selected-*` and `--disabled-*` for state surfaces
+- `--accent-color` and `--console-accent` alias `--primary-600`; `--console-border` aliases `--border-color`
 
 ## Surface Usage
 
-- App background uses light slate tints such as `#eef2f7` and `#f6f8fc`
+- App background uses light slate tints such as `#f1f4f9` (`--page-bg`)
 - Primary content surfaces use white or light gradients
 - Logs and code panes use dark slate backgrounds with light text
