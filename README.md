@@ -1,82 +1,90 @@
-<p align="center"><img src="app/client/public/adsmod-logo.png" alt="ADSMOD logo" width="80"></p>
+<p align="center"><img src="app/client/public/adsmod-logo.png" alt="ADSMOD logo" width="72"></p>
 
 <h1 align="center">ADSMOD</h1>
 
-<p align="center">Prepare adsorption datasets, fit isotherm models, and explore results in a local web workspace.</p>
+<p align="center">A local workspace for adsorption data, isotherm fitting, and analysis.</p>
 
 <p align="center">
-  <a href="#workflows">Workflows</a> ·
+  <a href="#capabilities">Capabilities</a> ·
   <a href="#start-adsmod">Start ADSMOD</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#development">Development</a> ·
   <a href="assets/docs/project_index.md">Documentation</a>
 </p>
 
-<p align="center"><img src="assets/figures/fitting-results.jpg" alt="Completed fit comparing Langmuir, Sips, and Freundlich models for one sample isotherm" width="760"></p>
+<p align="center"><img src="assets/figures/fitting-results.jpg" alt="ADSMOD Fitting page with a completed fit for Experiment A and results for Langmuir, Sips, and Freundlich models" width="900"></p>
 
-<p align="center"><em>A completed fit for one 14-point experiment.</em></p>
+<p align="center"><em>A completed fit of the included sample isotherm, with three models selected for this run.</em></p>
 
-## Overview
+ADSMOD is a local web application for organizing adsorption measurements, fitting isotherm models, and exploring stored results. SQLite is the default database; PostgreSQL is also supported.
 
-ADSMOD is a local web application for organizing adsorption measurements and analyzing isotherms. Import your own datasets, retrieve reference records from public providers, compare model fits, and explore stored measurements. SQLite is the default database; PostgreSQL is also supported. Model training is available with the optional ML profile.
+## Capabilities
 
-## Workflows
-
-### Prepare a dataset
-
-Import a CSV, XLS, or XLSX file, map its columns, and review the detected experiment groups and validation result. Saved datasets remain available to fitting and dashboard workflows.
-
-<p align="center"><img src="assets/figures/custom-datasets.jpg" alt="Custom dataset detail showing source file validation and detected column mappings" width="760"></p>
-
-<p align="center"><em>Dataset details include the source file, validation status, and saved column mapping.</em></p>
-
-### Retrieve public data
-
-The Public Data workspace can retrieve adsorption data from NIST, resolve chemical records with PubChem, and search for structures in the Crystallography Open Database (COD). Imported records retain source provenance. Provider requests need network access, and availability depends on the source.
-
-### Fit adsorption models
-
-Choose a dataset and experiment, then select the candidate models, weighting, optimizer, and iteration limit. A run shows each model's status and reports RMSE, R², and corrected Akaike information criterion (AICc), alongside the fitting log.
-
-A numerical fit compares candidate functions against the observations; it does not establish a physical adsorption mechanism.
-
-### Explore stored measurements
-
-Dashboards summarize the stored isotherms and let you filter by source, pressure basis, temperature, material, adsorbate, or dataset. Explore views can plot isotherm curves, uptake against temperature at a selected pressure, or a value distribution.
-
-### Train models (optional)
-
-The optional ML profile adds data processing, training datasets, checkpoints, and a training dashboard. It is separate from the base installation.
+| Workspace | What it does |
+| --- | --- |
+| **Custom datasets** | Import and validate CSV, XLS, and XLSX files. |
+| **Public data** | Work with NIST, PubChem, and COD records. |
+| **Fitting** | Select from nine built-in isotherm models. |
+| **Dashboards** | Filter and visualize stored measurements. |
+| **Training** *(optional ML profile)* | Prepare data and manage training runs and checkpoints. |
 
 ## Start ADSMOD
 
-On Windows, install PowerShell 7 and run the launcher from the repository root:
+The supported local setup is Windows with PowerShell 7. From a PowerShell 7 window:
 
 ```powershell
 git clone https://github.com/CTCycle/ADSMOD-Adsorption-Modeling.git
-cd ADSMOD-Adsorption-Modeling
+Set-Location ADSMOD-Adsorption-Modeling
 .\start_on_windows.ps1
 ```
 
-Choose **Launch Application**. On first use, the launcher provisions the pinned portable runtimes and dependencies, then builds the web client when needed. This can take several minutes if downloads are required. Keep the launcher console open while using ADSMOD; press **Ctrl+C** there to stop it.
+Choose the application launch option in the menu. On first use, the launcher downloads its pinned Python, `uv`, and Node.js runtimes, installs the selected dependency profile, and builds the web client. This setup can take several minutes. Keep the console open while using ADSMOD; press **Ctrl+C** there to stop it.
 
-The launcher supports base and ML dependency profiles. Select the ML profile during setup to use the training workflow.
+The base profile includes the dataset, public data, fitting, and dashboard workspaces. Choose the optional ML profile during setup to enable training and checkpoint workflows. Initial setup and public-provider requests require network access.
+
+## Workflows
+
+### Import and inspect a dataset
+
+Add a CSV, XLS, or XLSX file, review the detected structure, map columns and units, then validate the experiment series before saving. Saved datasets retain their source mapping and can be used in fitting and dashboards.
+
+<p align="center"><img src="assets/figures/custom-datasets.jpg" alt="ADSMOD Custom Datasets page showing a validated sample dataset, detected column mappings, and two experiments" width="900"></p>
+
+<p align="center"><em>The saved sample contains two experiments and 21 observations. Screenshots use the repository's <a href="app/tests/fixtures/sample_adsorption.csv">sample adsorption file</a>.</em></p>
+
+### Fit isotherm models
+
+Choose a dataset and experiment, select models, and set the optimizer, weighting, and iteration limit. The built-in models are Langmuir, Sips, Freundlich, Temkin, Toth, Dubinin-Radushkevich, Dual-Site Langmuir, Redlich-Peterson, and Jovanovic. Results report each model's status and metrics; ADSMOD selects the best fit using the configured metric.
+
+A numerical fit describes how a model follows the observations. It does not establish an adsorption mechanism.
+
+### Explore stored measurements
+
+The overview summarizes the database. Explore filters by source, pressure basis, temperature, material, adsorbate, or dataset, then plots isotherm curves, uptake at a selected pressure against temperature, or a value distribution. Views can be linked with their current filters.
+
+### Retrieve public records
+
+The Public Data workspace can acquire adsorption records from NIST, resolve chemical identities and properties through PubChem, and search the Crystallography Open Database (COD) for structures. Provider availability varies; local records remain available when a provider cannot be reached.
+
+### Train models (optional)
+
+The ML profile adds data processing, training datasets, training jobs, checkpoints, and a training dashboard. Training is not required for dataset import, fitting, or dashboards.
 
 ## Configuration
 
-ADSMOD stores its local database, logs, and training artifacts under `%LOCALAPPDATA%\ADSMOD` by default. Set `ADSMOD_STORAGE_ROOT` in `settings/.env` or in the process environment to use another directory.
+On Windows, ADSMOD stores its database, logs, and training artifacts under `%LOCALAPPDATA%\ADSMOD` by default. Set `ADSMOD_STORAGE_ROOT` in `settings/.env` or the process environment to use another directory. SQLite is selected by default; PostgreSQL connection settings are managed in **Settings → Database**.
 
-SQLite is selected by default. PostgreSQL connection settings are managed on **Settings > Database** and saved in `database.json` under the storage root. Host, port, and CORS settings are documented in [runtime configuration](assets/docs/runtime/configuration.md).
+See [runtime configuration](assets/docs/runtime/configuration.md) for database and networking options, or [troubleshooting](assets/docs/operations/troubleshooting.md) for common startup issues.
 
 ## Development
 
-The backend uses Python 3.14+ and FastAPI; the client uses Angular 21 and TypeScript. In normal use, the FastAPI process also serves the built Angular client. For frontend work, `npm run dev` starts the Angular development server. The [runtime startup guide](assets/docs/runtime/startup.md) covers environment setup and manual startup.
+The backend uses Python 3.14+ and FastAPI; the client uses Angular 21. The launcher provisions the pinned runtimes for normal use. For manual startup and frontend development, see the [startup guide](assets/docs/runtime/startup.md). The [quality guide](assets/docs/coding/quality_gates.md) describes the project checks.
 
-See the [user workflows](assets/docs/operations/workflows.md) for detailed procedures, or start from the [project documentation index](assets/docs/project_index.md).
+The [project documentation index](assets/docs/project_index.md) links to architecture, API, runtime, UI, and workflow documentation.
 
 ## Contributing
 
-Issues and pull requests are welcome. Describe the problem or change and keep contributions focused.
+Issues and focused pull requests are welcome. Please follow the conventions in the [quality guide](assets/docs/coding/quality_gates.md).
 
 ## License
 
