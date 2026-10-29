@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-10-22
+Last updated: 2026-10-29
 
 ## Recommended startup
 
@@ -59,9 +59,15 @@ The interactive menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
 `DATA & MAINTENANCE`, and a final sequential `EXIT` option. The launcher
 computes the numeric-column width from the menu size, so one- and two-digit
-options remain aligned. Recursive cleanup inventories entries, removes them
-deepest-first, preserves required sentinels, and reports locked or inaccessible
-paths without masking the original action error.
+options remain aligned. Cleanup actions use a shared target inventory and
+`-DryRun` previews targets without changing files. Cache cleanup covers the
+launcher cache tree, nested Python and Angular/Vitest caches, test temporaries,
+coverage and compiler output, and the generated frontend build. QA folders are
+excluded. Standard uninstall removes application runtimes, dependencies,
+generated output, and logs while preserving the configured database and training
+data; **Remove all data** separately previews and removes the known local data
+paths. Reparse points are skipped, and locked, inaccessible, or failed paths
+are reported.
 
 ## Source updates
 

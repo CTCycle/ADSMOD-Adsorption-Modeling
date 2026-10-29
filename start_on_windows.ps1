@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 [CmdletBinding()]
-param()
+param([switch]$DryRun)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -12,7 +12,7 @@ $AppDir = Join-Path $RepoRoot "app"
 $BackendDir = Join-Path $AppDir "server"
 $ClientDir = Join-Path $AppDir "client"
 $TestsDir = Join-Path $AppDir "tests"
-$DefaultDataDir = if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { Join-Path $env:LOCALAPPDATA "ADSMOD" } else { Join-Path $RepoRoot "data" }
+$DefaultDataDir = if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) { Join-Path $env:LOCALAPPDATA "ADSMOD" } else { Join-Path $HOME 'AppData\Local\ADSMOD' }
 $DataDir = $DefaultDataDir
 $LogDir = Join-Path $DataDir "logs"
 $CheckpointsDir = Join-Path $DataDir "checkpoints"
@@ -39,6 +39,8 @@ $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
 $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 $script:BackendProcess = $null
+
+Import-Module (Join-Path (Join-Path $RepoRoot 'app') 'scripts\launcher_cleanup.psm1') -Force -ErrorAction Stop
 
 $PythonVersion = "3.14.7"
 $PythonExe = Join-Path $PythonDir "python.exe"
@@ -76,6 +78,11 @@ function Write-Step([string]$Message) {
 function Write-Ok([string]$Message) {
     Clear-LauncherProgress
     Write-Host "[OK] $Message" -ForegroundColor Green
+}
+
+function Write-Info([string]$Message) {
+    Clear-LauncherProgress
+    Write-Host "[INFO] $Message" -ForegroundColor Gray
 }
 
 function Write-Warn([string]$Message) {
@@ -168,156 +175,16 @@ function Assert-LastExitCode([string]$Operation) {
     }
 }
 
-function Remove-LauncherPath {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string]$Path,
-        [switch]$KeepRoot,
-        [string[]]$PreserveNames = @(),
-        [switch]$Strict,
-        [switch]$WhatIf,
-        [string]$Activity = 'ADSMOD: remove files'
-    )
-
-    $fullPath = [System.IO.Path]::GetFullPath($Path)
-    $removed = [Collections.Generic.List[string]]::new()
-    $skipped = [Collections.Generic.List[string]]::new()
-    $preserved = [Collections.Generic.List[string]]::new()
-    $enumerationErrors = [Collections.Generic.List[string]]::new()
-    $result = [ordered]@{
-        Target = $fullPath
-        Path = $fullPath
-        Planned = 0
-        PlannedCount = 0
-        Removed = 0
-        RemovedCount = 0
-        RemovedPaths = $removed
-        Preserved = 0
-        PreservedEntries = $preserved
-        Skipped = 0
-        SkippedPaths = $skipped
-        EnumerationErrors = $enumerationErrors
-        WhatIf = [bool]$WhatIf
-    }
-
-    try {
-        $item = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
-    }
-    catch {
-        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
-            return [pscustomobject]$result
-        }
-        [void]$enumerationErrors.Add("$fullPath ($($_.Exception.Message))")
-        Write-Warn "Skipping inaccessible path '$fullPath': $($_.Exception.Message)"
-        if ($Strict) { throw }
-        return [pscustomobject]$result
-    }
-
-    $entries = if ($item.PSIsContainer) {
-        $errors = @()
-        $found = @(Get-ChildItem -LiteralPath $item.FullName -Force -Recurse -ErrorAction SilentlyContinue -ErrorVariable errors)
-        foreach ($errorRecord in $errors) {
-            [void]$enumerationErrors.Add("$($errorRecord.Exception.Message)")
-            Write-Warn "Skipping inaccessible path below '$fullPath': $($errorRecord.Exception.Message)"
-        }
-        if (-not $KeepRoot) { $found += $item }
-        $found
-    }
-    else { @($item) }
-
-    $protectedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $preservedPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($entry in @($entries)) {
-        if ($entry.Name -in $PreserveNames) {
-            [void]$preservedPaths.Add($entry.FullName)
-            [void]$preserved.Add($entry.FullName)
-            $ancestor = [IO.Path]::GetDirectoryName($entry.FullName)
-            while ($ancestor -and $ancestor.StartsWith($item.FullName.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                [void]$protectedDirectories.Add($ancestor)
-                $ancestor = [IO.Path]::GetDirectoryName($ancestor)
-            }
-        }
-    }
-
-    $candidates = @($entries |
-        Where-Object { -not $preservedPaths.Contains($_.FullName) -and -not $protectedDirectories.Contains($_.FullName) } |
-        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    $result.Planned = $candidates.Count
-    $result.PlannedCount = $candidates.Count
-    $result.Preserved = $preserved.Count
-    $progressId = $null
-    try {
-        if ($candidates.Count -gt 0) {
-            $progressId = Start-LauncherProgress -Activity $Activity -Status "0 of $($candidates.Count) items"
-        }
-        for ($index = 0; $index -lt $candidates.Count; $index++) {
-            $candidate = $candidates[$index]
-            $percent = [int](($index + 1) * 100 / [Math]::Max(1, $candidates.Count))
-            if ($null -ne $progressId) {
-                Update-LauncherProgress -Id $progressId -Activity $Activity -Status "$($index + 1) of $($candidates.Count): $($candidate.Name)" -PercentComplete $percent
-            }
-            if ($WhatIf) { continue }
-            try {
-                Remove-Item -LiteralPath $candidate.FullName -Force -Recurse -Confirm:$false -ErrorAction Stop
-                [void]$removed.Add($candidate.FullName)
-            }
-            catch {
-                [void]$skipped.Add("$($candidate.FullName) ($($_.Exception.Message))")
-                Write-Warn "Skipping locked or inaccessible path '$($candidate.FullName)': $($_.Exception.Message)"
-            }
-        }
-    }
-    finally {
-        if ($null -ne $progressId) { Complete-LauncherProgress -Id $progressId }
-    }
-    $result.Removed = $removed.Count
-    $result.RemovedCount = $removed.Count
-    $result.Skipped = $skipped.Count
-
-    if ($Strict -and ($skipped.Count -gt 0 -or $enumerationErrors.Count -gt 0)) {
-        throw "Removal of '$fullPath' was incomplete. Skipped $($skipped.Count) item(s) and encountered $($enumerationErrors.Count) enumeration error(s)."
-    }
-    return [pscustomobject]$result
-}
-
 function Remove-RepoPath([string]$Path) {
-    $repoPrefix = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\') + '\'
     $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $repoPrefix = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\') + '\'
     if (-not $fullPath.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Refusing to remove a path outside the repository: $fullPath"
     }
-    $result = Remove-LauncherPath -Path $fullPath -Activity "ADSMOD: remove $([IO.Path]::GetFileName($fullPath))"
-    return $result.Skipped -eq 0 -and $result.EnumerationErrors.Count -eq 0
-}
-
-function Remove-RepoDirectoryContents([string]$Path) {
-    $repoPrefix = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\') + '\'
-    $fullPath = [System.IO.Path]::GetFullPath($Path)
-    if (-not $fullPath.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove contents outside the repository: $fullPath"
-    }
-    if (-not (Test-Path -LiteralPath $fullPath -PathType Container)) { return }
-    [void](Remove-LauncherPath -Path $fullPath -KeepRoot -Activity 'ADSMOD: remove repository contents')
-}
-
-function Remove-DataPath([string]$Path) {
-    $dataPrefix = [System.IO.Path]::GetFullPath($DataDir).TrimEnd('\') + '\'
-    $fullPath = [System.IO.Path]::GetFullPath($Path)
-    if (-not $fullPath.StartsWith($dataPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove a path outside the selected data directory: $fullPath"
-    }
-    $result = Remove-LauncherPath -Path $fullPath -PreserveNames @('.gitkeep') -Activity "ADSMOD: remove user data"
-    return $result.Skipped -eq 0 -and $result.EnumerationErrors.Count -eq 0
-}
-
-function Remove-DataDirectoryContents([string]$Path) {
-    $dataPrefix = [System.IO.Path]::GetFullPath($DataDir).TrimEnd('\') + '\'
-    $fullPath = [System.IO.Path]::GetFullPath($Path)
-    if (-not $fullPath.StartsWith($dataPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove data contents outside the selected data directory: $fullPath"
-    }
-    if (-not (Test-Path -LiteralPath $fullPath -PathType Container)) { return }
-    [void](Remove-LauncherPath -Path $fullPath -KeepRoot -PreserveNames @('.gitkeep') -Activity 'ADSMOD: remove data contents')
+    $result = Invoke-AdsmodScopedCleanup -Path $fullPath -ScopeRoot $RepoRoot -Kind Directory -Category "ADSMOD runtime path: $([IO.Path]::GetFileName($fullPath))"
+    foreach ($path in $result.Skipped) { Write-Warn "Skipping '$path'" }
+    foreach ($path in $result.Failed) { Write-Warn "Failed to remove '$path'" }
+    return $result.Failed.Count -eq 0 -and $result.Skipped.Count -eq 0
 }
 
 # -----------------------------------------------------------------------------
@@ -350,7 +217,11 @@ function Remove-UvCache {
     if ($actualCachePath -ne $expectedCachePath) {
         throw "Refusing to remove an unexpected uv cache path: $actualCachePath"
     }
-    Remove-RepoDirectoryContents $actualCachePath
+    $result = Invoke-AdsmodScopedCleanup -Path $actualCachePath -ScopeRoot $RepoRoot -Kind Contents -PreserveNames @('.gitkeep', 'CACHEDIR.TAG') -Category 'ADSMOD uv cache'
+    foreach ($path in $result.Skipped) { Write-Warn "Skipping '$path'" }
+    foreach ($path in $result.Failed) { Write-Warn "Failed to remove '$path'" }
+    $unexpectedSkips = @($result.Skipped | Where-Object { $_ -notmatch '\(preserved sentinel\)$' })
+    if ($result.Failed.Count -gt 0 -or $unexpectedSkips.Count -gt 0) { throw "uv cache cleanup was incomplete ($($result.Failed.Count) failed, $($unexpectedSkips.Count) skipped)." }
 }
 
 function Download-AndExtract {
@@ -1477,116 +1348,239 @@ function Confirm-DestructiveAction([string]$Description) {
     return $true
 }
 
-function Remove-Logs {
-    Import-Settings | Out-Null
-    if (-not (Confirm-DestructiveAction 'remove application log files')) { return }
-    Write-Step "Removing log files"
-    if (Test-Path -LiteralPath $LogDir) {
-        Get-ChildItem -LiteralPath $LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
-            Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
-            ForEach-Object {
-                try {
-                    Remove-Item -LiteralPath $_.FullName -Force -Confirm:$false -ErrorAction Stop
-                } catch {
-                    Write-Warn "Skipping locked or inaccessible log '$($_.FullName)': $($_.Exception.Message)"
+function Read-DotEnvStorageRoot {
+    $dotenvPath = Join-Path (Join-Path $RepoRoot 'settings') '.env'
+    if (-not (Test-Path -LiteralPath $dotenvPath -PathType Leaf)) { return $null }
+    $storageRoot = $null
+    foreach ($line in Get-Content -LiteralPath $dotenvPath -ErrorAction Stop) {
+        $text = ([string]$line).Trim()
+        if (-not $text -or $text.StartsWith('#') -or $text.StartsWith(';') -or -not $text.Contains('=')) { continue }
+        $parts = $text.Split('=', 2)
+        if ($parts[0].Trim() -ne 'ADSMOD_STORAGE_ROOT') { continue }
+        $value = $parts[1].Trim()
+        if ($value.Length -ge 2 -and (($value[0] -eq '"' -and $value[$value.Length - 1] -eq '"') -or ($value[0] -eq "'" -and $value[$value.Length - 1] -eq "'"))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
+        elseif ($value.Contains(' #')) {
+            $value = $value.Split(' #', 2)[0].TrimEnd()
+        }
+        $storageRoot = $value
+    }
+    return $storageRoot
+}
+
+function Resolve-MaintenancePath {
+    param([Parameter(Mandatory)][string]$Value, [Parameter(Mandatory)][string]$BasePath)
+    $expanded = [Environment]::ExpandEnvironmentVariables($Value)
+    $expanded = [regex]::Replace($expanded, '%([^%]+)%', [System.Text.RegularExpressions.MatchEvaluator]{
+        param($match)
+        $replacement = [Environment]::GetEnvironmentVariable($match.Groups[1].Value)
+        if ($null -eq $replacement) { return $match.Value }
+        return $replacement
+    })
+    $expanded = [regex]::Replace($expanded, '\$(?:\{(?<braced>[^}]+)\}|(?<simple>[A-Za-z_][A-Za-z0-9_]*))', [System.Text.RegularExpressions.MatchEvaluator]{
+        param($match)
+        $name = if ($match.Groups['braced'].Success) { $match.Groups['braced'].Value } else { $match.Groups['simple'].Value }
+        $replacement = [Environment]::GetEnvironmentVariable($name)
+        if ($null -eq $replacement) { return $match.Value }
+        return $replacement
+    })
+    if ($expanded -eq '~' -or $expanded.StartsWith('~\') -or $expanded.StartsWith('~/')) {
+        $expanded = Join-Path $HOME $expanded.Substring(1).TrimStart('\', '/')
+    }
+    if (-not [System.IO.Path]::IsPathRooted($expanded)) { $expanded = Join-Path $BasePath $expanded }
+    return [System.IO.Path]::GetFullPath($expanded)
+}
+
+function Resolve-MaintenanceSettings {
+    $processStorageRoot = [Environment]::GetEnvironmentVariable('ADSMOD_STORAGE_ROOT', 'Process')
+    $configuredRoot = if ($null -ne $processStorageRoot) { $processStorageRoot } else { Read-DotEnvStorageRoot }
+    if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
+        if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+            $configuredRoot = Join-Path $env:LOCALAPPDATA 'ADSMOD'
+        }
+        else {
+            $configuredRoot = Join-Path $HOME 'AppData\Local\ADSMOD'
+        }
+    }
+
+    $script:DataDir = Resolve-MaintenancePath -Value $configuredRoot -BasePath $RepoRoot
+    $script:LogDir = Join-Path $script:DataDir 'logs'
+    $script:CheckpointsDir = Join-Path $script:DataDir 'checkpoints'
+    $script:MaintenanceDatabaseBackend = 'sqlite'
+    $script:MaintenanceDatabasePath = Resolve-MaintenancePath -Value 'data\database.db' -BasePath $script:DataDir
+
+    $databaseConfigPath = Join-Path $script:DataDir 'database.json'
+    if (Test-Path -LiteralPath $databaseConfigPath -PathType Leaf) {
+        try {
+            $databaseConfig = Get-Content -LiteralPath $databaseConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $script:MaintenanceDatabaseBackend = [string]$databaseConfig.backend
+            if ($script:MaintenanceDatabaseBackend -eq 'sqlite') {
+                $sqlitePath = [string]$databaseConfig.connection.sqlite_path
+                if ([string]::IsNullOrWhiteSpace($sqlitePath) -or $sqlitePath -eq ':memory:') {
+                    $script:MaintenanceDatabaseBackend = 'unknown'
+                    $script:MaintenanceDatabasePath = $null
+                }
+                else {
+                    $script:MaintenanceDatabasePath = Resolve-MaintenancePath -Value $sqlitePath -BasePath $script:DataDir
                 }
             }
-    }
-    Write-Ok "Log files removed."
-}
-
-function Clear-Cache {
-    if (-not (Confirm-DestructiveAction 'clear runtime and test-tool caches')) { return }
-    Write-Step "Clearing runtime and test-tool caches"
-    $failures = [Collections.Generic.List[string]]::new()
-    try {
-        [void](Remove-LauncherPath -Path $RuntimeCacheDir -KeepRoot -PreserveNames @('.gitkeep', 'CACHEDIR.TAG') -Strict -Activity 'ADSMOD: clear canonical cache')
-    } catch {
-        [void]$failures.Add("${RuntimeCacheDir}: $($_.Exception.Message)")
-    }
-    Ensure-CacheLayout
-    if ($failures.Count -gt 0) {
-        throw "Cache cleanup was incomplete:`n - $($failures -join "`n - ")"
-    }
-    Write-Ok "Cache cleanup completed under $RuntimeCacheDir."
-}
-
-function Uninstall-Application {
-    if (-not (Confirm-DestructiveAction 'remove local application runtimes and build artifacts')) { return }
-    Write-Step "Removing local application runtimes and build artifacts"
-    $runtimeContents = @()
-    if (Test-Path -LiteralPath $RuntimesDir) {
-        $runtimeContents = @(Get-ChildItem -LiteralPath $RuntimesDir -Force |
-            Where-Object { $_.Name -ne '.gitkeep' } |
-            Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false } |
-            Select-Object -ExpandProperty FullName)
-    }
-    $paths = @($runtimeContents) + @(
-        (Join-Path $BackendDir '.venv'),
-        (Join-Path $RepoRoot '.venv'),
-        (Join-Path $ClientDir 'node_modules'),
-        (Join-Path $ClientDir '.angular'),
-        (Join-Path $ClientDir 'dist')
-    )
-    foreach ($path in $paths) {
-        Remove-RepoPath $path
-    }
-    Write-Ok "Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved."
-}
-
-function Get-ConfiguredDatabasePath {
-    if (-not $script:EmbeddedDatabase) {
-        return $null
-    }
-    if ([string]::IsNullOrWhiteSpace($script:DatabasePath)) {
-        throw "The local SQLite database path has not been loaded from database settings."
-    }
-    return $script:DatabasePath
-}
-
-function Remove-DatabaseFiles {
-    $databasePath = Get-ConfiguredDatabasePath
-    if ($null -eq $databasePath) {
-        Write-Warn "An external database is configured; local data was cleared, but the external database was not modified."
-        return
-    }
-
-    foreach ($path in @($databasePath, "$databasePath-wal", "$databasePath-shm")) {
-        $fullPath = [System.IO.Path]::GetFullPath($path)
-        try {
-            if (Test-Path -LiteralPath $fullPath) {
-                Remove-Item -LiteralPath $fullPath -Force -ErrorAction Stop
+            elseif ($script:MaintenanceDatabaseBackend -ne 'postgres') {
+                $script:MaintenanceDatabaseBackend = 'unknown'
+                $script:MaintenanceDatabasePath = $null
             }
-        } catch {
-            Write-Warn "Skipping locked or inaccessible database file '$fullPath': $($_.Exception.Message)"
+            else {
+                $script:MaintenanceDatabasePath = $null
+            }
+        }
+        catch {
+            $script:MaintenanceDatabaseBackend = 'unknown'
+            $script:MaintenanceDatabasePath = $null
+            Write-Warn "Database configuration could not be read; its database file will be preserved: $($_.Exception.Message)"
         }
     }
 }
 
-function Clear-CheckpointFiles {
-    Write-Step "Removing saved checkpoints"
-    Remove-DataDirectoryContents -Path $CheckpointsDir
-    Write-Ok "Saved checkpoints removed."
+function Get-MaintenanceProcessBlockers {
+    try {
+        $processes = @(Get-CimInstance -ClassName Win32_Process -ErrorAction Stop)
+    }
+    catch {
+        throw "Could not verify whether ADSMOD or its tests are running. Cleanup was stopped for safety: $($_.Exception.Message)"
+    }
+
+    $repoMarker = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\').Replace('/', '\').ToLowerInvariant()
+    $knownExecutableRoots = @(
+        [System.IO.Path]::GetFullPath($VenvDir).TrimEnd('\'),
+        [System.IO.Path]::GetFullPath($PythonDir).TrimEnd('\'),
+        [System.IO.Path]::GetFullPath($NodeDir).TrimEnd('\'),
+        [System.IO.Path]::GetFullPath($UvDir).TrimEnd('\'),
+        [System.IO.Path]::GetFullPath($PlaywrightCacheDir).TrimEnd('\')
+    ) | ForEach-Object { $_.Replace('/', '\').ToLowerInvariant() }
+    $markers = @('start_on_windows.ps1', 'server.cli', 'ng.js', 'dev-serve.mjs', 'pytest', 'run_tests.bat', 'playwright', 'vitest', 'npm-cli.js', 'uv.exe')
+    $ownedRuntimeProcessNames = @('python.exe', 'pythonw.exe', 'node.exe', 'uv.exe', 'pytest.exe', 'ng.exe', 'npm.exe', 'chrome.exe', 'chromium.exe')
+    $blockers = [Collections.Generic.List[object]]::new()
+    foreach ($process in $processes) {
+        if ([int]$process.ProcessId -eq $PID) { continue }
+        $commandLine = ([string]$process.CommandLine).Replace('/', '\').ToLowerInvariant()
+        $executablePath = ([string]$process.ExecutablePath).Replace('/', '\').ToLowerInvariant()
+        $mentionsRepository = $commandLine.Contains($repoMarker) -or
+            $commandLine.Contains('app\server') -or
+            $commandLine.Contains('app\client') -or
+            $commandLine.Contains('app\tests')
+        $usesOwnedRuntime = $false
+        foreach ($root in $knownExecutableRoots) {
+            if ($executablePath.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) { $usesOwnedRuntime = $true; break }
+        }
+        $hasLifecycleMarker = $false
+        foreach ($marker in $markers) {
+            if ($commandLine.Contains($marker)) { $hasLifecycleMarker = $true; break }
+        }
+        $ownedRuntimeProcess = $usesOwnedRuntime -and ([string]$process.Name).ToLowerInvariant() -in $ownedRuntimeProcessNames
+        if ($ownedRuntimeProcess -or ($hasLifecycleMarker -and ($mentionsRepository -or $usesOwnedRuntime))) {
+            [void]$blockers.Add([pscustomobject]@{ Id = [int]$process.ProcessId; Name = [string]$process.Name; CommandLine = [string]$process.CommandLine })
+        }
+    }
+    return @($blockers)
+}
+
+function Assert-MaintenanceProcessesStopped {
+    $blockers = @(Get-MaintenanceProcessBlockers)
+    if ($blockers.Count -eq 0) { return }
+    $processSummary = @($blockers | ForEach-Object { "PID $($_.Id) $($_.Name): $($_.CommandLine)" }) -join "`n - "
+    throw "ADSMOD or a repository test process is running. Stop it before cleanup:`n - $processSummary"
+}
+
+function Write-CleanupPreview {
+    param([Parameter(Mandatory)][pscustomobject]$Plan, [Parameter(Mandatory)][pscustomobject]$Preview)
+    Write-Host "Cleanup inventory ($($Plan.Operation))" -ForegroundColor Cyan
+    if ($Plan.Targets.Count -eq 0) { Write-Host '  No recognized targets found.' -ForegroundColor Gray }
+    foreach ($target in $Plan.Targets) {
+        $state = if ($target.Exists) { 'target' } else { 'missing' }
+        Write-Host ("  [{0}] {1}: {2}" -f $state, $target.Category, $target.Path) -ForegroundColor Gray
+    }
+    if ($Plan.Operation -in @('AllData', 'Checkpoints')) {
+        foreach ($path in $Preview.Removed) { Write-Host "    affected: $path" -ForegroundColor DarkGray }
+    }
+    foreach ($message in $Plan.Skipped) { Write-Warn "Skipped: $message" }
+    foreach ($message in $Plan.Errors) { Write-Warn "Invalid target: $message" }
+    foreach ($message in $Preview.Skipped) { Write-Warn "Skipped: $message" }
+    foreach ($message in $Preview.Failed) { Write-Warn "Failed to inventory: $message" }
+}
+
+function Write-CleanupResult {
+    param([Parameter(Mandatory)][pscustomobject]$Result)
+    $verb = if ($Result.DryRun) { 'would clean' } else { 'cleaned' }
+    if (-not $Result.DryRun) {
+        foreach ($location in $Result.Locations) {
+            Write-Host ("  [{0}] {1}: {2} ({3} item(s))" -f $verb, $location.Category, $location.Path, $location.Count) -ForegroundColor Gray
+        }
+    }
+    foreach ($message in $Result.Skipped) { Write-Warn "Skipped: $message" }
+    foreach ($message in $Result.Failed) { Write-Warn "Failed: $message" }
+    Write-Host ("Cleanup summary: {0} {1}, {2} skipped, {3} failed." -f $Result.Removed.Count, $verb, $Result.Skipped.Count, $Result.Failed.Count) -ForegroundColor Cyan
+}
+
+function Invoke-MaintenanceCleanup {
+    param(
+        [Parameter(Mandatory)][ValidateSet('Cache', 'Uninstall', 'Logs', 'Checkpoints', 'AllData')][string]$Operation,
+        [Parameter(Mandatory)][string]$Description
+    )
+
+    Resolve-MaintenanceSettings
+    $plan = Get-AdsmodCleanupPlan -RepoRoot $RepoRoot -DataRoot $script:DataDir -DatabasePath $script:MaintenanceDatabasePath -DatabaseBackend $script:MaintenanceDatabaseBackend -Operation $Operation
+    $preview = Invoke-AdsmodCleanupPlan -Plan $plan -DryRun -DetailedPreview:($Operation -in @('AllData', 'Checkpoints'))
+    Write-CleanupPreview -Plan $plan -Preview $preview
+    if ($plan.Errors.Count -gt 0) { throw "Cleanup was refused because one or more target paths failed validation." }
+    if ($preview.Failed.Count -gt 0) { throw "Cleanup inventory was incomplete; no files were changed." }
+
+    if ($DryRun) {
+        Write-Info "Dry run completed. No files were changed."
+        Write-CleanupResult -Result $preview
+        return $true
+    }
+
+    Assert-MaintenanceProcessesStopped
+    if (-not (Confirm-DestructiveAction $Description)) { return $false }
+
+    Assert-MaintenanceProcessesStopped
+    $result = Invoke-AdsmodCleanupPlan -Plan $plan
+    Write-CleanupResult -Result $result
+    if ($result.Failed.Count -gt 0) { throw "Cleanup was incomplete; see failed paths above." }
+    return $true
+}
+
+function Remove-Logs {
+    Write-Step 'Removing ADSMOD log files'
+    [void](Invoke-MaintenanceCleanup -Operation Logs -Description 'remove ADSMOD log files')
+}
+
+function Clear-Cache {
+    Write-Step 'Clearing ADSMOD runtime, backend, frontend, and test-tool caches'
+    [void](Invoke-MaintenanceCleanup -Operation Cache -Description 'clear ADSMOD caches and generated frontend build output')
+}
+
+function Uninstall-Application {
+    Write-Step 'Removing ADSMOD runtimes, dependencies, build output, caches, and logs'
+    if (-not (Invoke-MaintenanceCleanup -Operation Uninstall -Description 'uninstall ADSMOD runtimes, dependencies, generated output, and logs')) { return }
+    if (-not $DryRun) { Write-Ok 'ADSMOD software and generated logs removed. Database configuration, database, checkpoints, and training artifacts were preserved.' }
 }
 
 function Remove-Checkpoints {
-    Import-Settings | Out-Null
-    if (-not (Confirm-DestructiveAction 'remove all saved training checkpoints')) { return }
-    Clear-CheckpointFiles
+    Write-Step 'Removing saved ADSMOD checkpoints'
+    [void](Invoke-MaintenanceCleanup -Operation Checkpoints -Description 'remove saved ADSMOD checkpoints')
 }
 
 function Remove-All-Data {
-    Import-Settings | Out-Null
-    if (-not (Confirm-DestructiveAction 'remove all local user-generated data')) { return }
-
-    Write-Step "Removing local user-generated data"
-    Remove-DatabaseFiles
-    Clear-CheckpointFiles
-    Remove-DataDirectoryContents -Path $LogDir
-    if ($script:EmbeddedDatabase) {
-        Write-Ok "All local user-generated data and embedded application settings were removed; settings return to defaults on the next launch."
-    } else {
-        Write-Ok "All local user-generated data was removed; PostgreSQL data and its application settings were preserved."
+    Write-Step 'Removing all local ADSMOD application data'
+    if (-not (Invoke-MaintenanceCleanup -Operation AllData -Description 'remove all listed local ADSMOD data')) { return }
+    if (-not $DryRun) {
+        if ($script:MaintenanceDatabaseBackend -eq 'postgres') {
+            Write-Ok 'Local ADSMOD data removed. The configured PostgreSQL database was left untouched.'
+        }
+        else {
+            Write-Ok 'Local ADSMOD data removed. Settings return to defaults when a new database is initialized.'
+        }
     }
 }
 
@@ -1716,11 +1710,11 @@ function Get-MainMenuEntries {
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Run test suite'; Hint = 'Execute the repository checks'; Key = 'Tests'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Label = 'Check for updates'; Hint = 'Report whether origin/main has a newer version'; Key = 'Check'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Label = 'Update application'; Hint = 'Pull origin/main (clean main branch required)'; Key = 'Update'; Destructive = $false }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Remove logs'; Hint = 'Delete generated log files'; Key = 'Logs'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Clear cache'; Hint = 'Remove runtime and test-tool caches'; Key = 'Cache'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Remove checkpoints'; Hint = 'Delete saved training checkpoints'; Key = 'Checkpoints'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Remove all data'; Hint = 'Delete local database and user-generated files'; Key = 'AllData'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Uninstall application'; Hint = 'Remove local runtimes and build artifacts'; Key = 'Uninstall'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Remove logs'; Hint = 'Delete generated ADSMOD logs under the configured data root'; Key = 'Logs'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Clear cache'; Hint = 'Remove backend, frontend, runtime, and test-tool caches'; Key = 'Cache'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Remove checkpoints'; Hint = 'Delete saved training checkpoints after listing their location'; Key = 'Checkpoints'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Remove all data'; Hint = 'List and delete local database and user-generated files'; Key = 'AllData'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Label = 'Uninstall application'; Hint = 'Remove runtimes, dependencies, build output, and logs; preserve data'; Key = 'Uninstall'; Destructive = $true }
         [pscustomobject]@{ Section = 'EXIT'; Label = 'Exit'; Hint = 'Close this console'; Key = 'Exit'; Destructive = $false }
     )
 }
@@ -1795,6 +1789,11 @@ while (-not $exitMenu) {
 
     $entry = $entries[[int]$selection - 1]
     if ($entry.Key -eq 'Exit') { $exitMenu = $true; continue }
+    if ($DryRun -and $entry.Key -notin @('Logs', 'Cache', 'Checkpoints', 'AllData', 'Uninstall')) {
+        Write-Warn '-DryRun previews cleanup actions only. No other launcher action was run.'
+        Wait-ForMenu
+        continue
+    }
 
     try {
         Invoke-TrackedLauncherAction -Name $entry.Label -Action {

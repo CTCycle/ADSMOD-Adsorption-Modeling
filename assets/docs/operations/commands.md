@@ -1,6 +1,6 @@
 # ADSMOD operational commands
 
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 ## Launch and maintenance
 
@@ -15,6 +15,30 @@ process environment, with process values taking precedence. Database selection
 and connection values are loaded from `database.json` under the configured data
 root. `settings/.env` may also set `ADSMOD_STORAGE_ROOT`; see
 [runtime configuration](../runtime/configuration.md).
+
+Preview a cleanup action without deleting files:
+
+```powershell
+& .\start_on_windows.ps1 -DryRun
+```
+
+Choose **Remove logs**, **Clear cache**, **Remove checkpoints**, **Remove all
+data**, or **Uninstall application** in the menu. Dry-run mode previews only
+these cleanup actions; it does not run launch, install, update, or build actions.
+The launcher resolves the same configured storage root as the backend without
+installing runtimes. QA folders are excluded from cleanup.
+
+**Clear cache** removes recognized runtime/tool caches, nested Python and
+frontend caches, known test temporary folders, interrupted launcher downloads,
+backend and frontend coverage output, TypeScript compiler output, and the
+generated frontend build. **Uninstall application**
+also removes portable runtimes, Python environments, frontend dependencies, and
+application logs, while preserving database configuration, the selected local
+database, checkpoints, and training artifacts. **Remove all data** is the
+separate persistent-data action; it lists the configured database, sidecars,
+database configuration, logs, checkpoints, and training artifacts before
+confirmation. A configured PostgreSQL database is reported as external and is
+never modified.
 
 ## Backend workspace
 
