@@ -5,6 +5,23 @@
 <p align="center">A local workspace for adsorption data, isotherm fitting, and analysis.</p>
 
 <p align="center">
+  <a href="https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/CTCycle/ADSMOD-Adsorption-Modeling?style=flat-square"></a>
+  <a href="https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/CTCycle/ADSMOD-Adsorption-Modeling?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CTCycle/ADSMOD-Adsorption-Modeling?display_name=tag&style=flat-square"></a>
+  <a href="https://github.com/CTCycle/ADSMOD-Adsorption-Modeling/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/CTCycle/ADSMOD-Adsorption-Modeling/ci.yml?branch=develop&label=CI&style=flat-square"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/CTCycle/ADSMOD-Adsorption-Modeling?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python 3.14.7" src="https://img.shields.io/badge/Python-3.14.7-3776AB?logo=python&logoColor=white&style=flat-square"></a>
+  <a href="https://angular.dev/"><img alt="Angular 21" src="https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white&style=flat-square"></a>
+  <a href="https://www.microsoft.com/windows"><img alt="Platform: Windows" src="https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square"></a>
+</p>
+
+<p align="center">
   <a href="#capabilities">Capabilities</a> ·
   <a href="#start-adsmod">Start ADSMOD</a> ·
   <a href="#configuration">Configuration</a> ·
