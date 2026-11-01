@@ -142,6 +142,9 @@ function setupFetchMock(
                 results: [{
                     model: 'langmuir',
                     status: 'success',
+                    convergence_message: 'ok',
+                    warnings: [],
+                    parameters: [{ name: 'q_max', value: 2.5, unit: 'mol/kg', standard_error: 0.1 }],
                     metrics: {
                         sse: 0.5,
                         rmse: 0.25,
@@ -378,6 +381,8 @@ describe('CoreWorkspaceStore', () => {
                 name: 'Langmuir',
                 status: 'success',
                 metrics: { rmse: 0.25, r_squared: 0.9 },
+                convergence_message: 'ok',
+                parameters: [{ name: 'q_max', value: 2.5, unit: 'mol/kg', standard_error: 0.1 }],
             }],
         });
         expect(store.fittingStatus()).toBe('[INFO] Restored the last completed fitting run.');

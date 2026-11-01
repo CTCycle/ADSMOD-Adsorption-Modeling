@@ -71,11 +71,21 @@ export interface ModelFitResult {
     rank: number | null;
 }
 
+export interface FittingResultParameter {
+    name: string;
+    value: number;
+    unit: string;
+    standard_error: number | null;
+}
+
 export interface FittingResultModelSummary {
     model: string;
     name: string;
     status: 'success' | 'warning' | 'failed';
     metrics: FitMetrics;
+    convergence_message: string;
+    warnings: string[];
+    parameters: FittingResultParameter[];
 }
 
 export interface FittingResultSummary {
@@ -105,6 +115,9 @@ export interface PersistedFittingRunModel {
     model: string;
     status: 'success' | 'warning' | 'failed';
     metrics: FitMetrics;
+    convergence_message: string;
+    warnings: string[];
+    parameters: FittingResultParameter[];
 }
 
 export interface PersistedFittingRunResponse {

@@ -4123,6 +4123,35 @@ button.secondary {
   color: var(--warning-text);
 }
 
+.fitting-result-status.failed {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.fitting-result-details summary {
+  cursor: pointer;
+}
+
+.fitting-result-details p {
+  margin: 0.35rem 0 0;
+}
+
+.fitting-result-warning {
+  color: var(--warning-text);
+}
+
+.fitting-result-parameters {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.4rem 0 0;
+}
+
+.fitting-result-parameters dd {
+  margin: 0;
+}
+
 .fitting-result-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

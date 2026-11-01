@@ -134,7 +134,7 @@ describe('ModelsPageComponent', () => {
                     function_evaluations: 5,
                     jacobian_rank: 2,
                     condition_number: null,
-                    parameters: [],
+                    parameters: [{ name: 'q_max', label: 'q_max', value: 2.5, standard_error: 0.1, ci95_low: null, ci95_high: null, unit: 'mol/kg' }],
                     metrics: {
                         sse: 1,
                         rmse: 0.5,
@@ -151,6 +151,21 @@ describe('ModelsPageComponent', () => {
                     warnings: [],
                     rank: 1,
                 },
+                {
+                    model: 'temkin',
+                    name: 'Temkin',
+                    status: 'failed',
+                    convergence_message: 'Optimizer did not converge',
+                    function_evaluations: null,
+                    jacobian_rank: null,
+                    condition_number: null,
+                    parameters: [],
+                    metrics: { sse: null, rmse: null, mae: null, r_squared: null, adjusted_r_squared: null, chi_square: null, aic: null, aicc: null, bic: null },
+                    observed_predictions: [],
+                    curve: [],
+                    warnings: [],
+                    rank: null,
+                },
             ],
             summary: 'Langmuir selected.',
         };
@@ -162,6 +177,10 @@ describe('ModelsPageComponent', () => {
         expect(root.querySelector('.fitting-result-panel')?.textContent).toContain('Langmuir');
         expect(root.querySelector('.fitting-result-panel')?.textContent).toContain('0.5');
         expect(root.querySelector('.fitting-result-row-best')).not.toBeNull();
+        expect(root.querySelector('.fitting-result-parameters')?.textContent).toContain('q_max');
+        expect(root.querySelector('.fitting-result-parameters')?.textContent).toContain('mol/kg');
+        expect(root.querySelectorAll('.fitting-result-status.failed')).toHaveLength(1);
+        expect(root.querySelector('.fitting-result-panel')?.textContent).toContain('Optimizer did not converge');
     });
 
     it('sends model parameter bounds and exposes cancellation for a running fit', async () => {

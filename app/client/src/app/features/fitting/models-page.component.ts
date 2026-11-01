@@ -136,7 +136,7 @@ import { ModelCardComponent } from './model-card.component';
                                         <p class="fitting-result-kicker">Completed fit</p>
                                         <h4 id="fitting-result-title">{{ result.dataset_name }} · {{ result.experiment_name }}</h4>
                                     </div>
-                                    <span class="fitting-result-status" [class.warning]="result.status === 'warning'">{{ result.status }}</span>
+                                    <span class="fitting-result-status" [class.warning]="result.status === 'warning'" [class.failed]="result.status === 'error'">{{ result.status }}</span>
                                 </div>
 
                                 <div class="fitting-result-summary">
@@ -164,6 +164,7 @@ import { ModelCardComponent } from './model-card.component';
                                                 <th scope="col">RMSE</th>
                                                 <th scope="col">R²</th>
                                                 <th scope="col">AICc</th>
+                                                <th scope="col">Details</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -175,10 +176,33 @@ import { ModelCardComponent } from './model-card.component';
                                                             <span class="fitting-best-label">Best</span>
                                                         }
                                                     </th>
-                                                    <td><span class="fitting-result-status" [class.warning]="fit.status === 'warning'">{{ fit.status }}</span></td>
+                                                    <td><span class="fitting-result-status" [class.warning]="fit.status === 'warning'" [class.failed]="fit.status === 'failed'">{{ fit.status }}</span></td>
                                                     <td>{{ formatMetric(fit.metrics.rmse) }}</td>
                                                     <td>{{ formatMetric(fit.metrics.r_squared) }}</td>
                                                     <td>{{ formatMetric(fit.metrics.aicc) }}</td>
+                                                    <td class="fitting-result-details">
+                                                        @if (fit.parameters.length || fit.warnings.length || fit.convergence_message) {
+                                                            <details>
+                                                                <summary>{{ fit.status === 'failed' ? 'Why it failed' : 'Parameters' }}</summary>
+                                                                @if (fit.convergence_message) {
+                                                                    <p>{{ fit.convergence_message }}</p>
+                                                                }
+                                                                @for (warning of fit.warnings; track $index) {
+                                                                    @if (warning !== fit.convergence_message) {
+                                                                        <p class="fitting-result-warning">{{ warning }}</p>
+                                                                    }
+                                                                }
+                                                                @if (fit.parameters.length) {
+                                                                    <dl class="fitting-result-parameters">
+                                                                        @for (parameter of fit.parameters; track parameter.name) {
+                                                                            <dt>{{ parameter.name }}</dt>
+                                                                            <dd>{{ formatMetric(parameter.value) }}@if (parameter.standard_error !== null) { ± {{ formatMetric(parameter.standard_error) }}} {{ parameter.unit }}</dd>
+                                                                        }
+                                                                    </dl>
+                                                                }
+                                                            </details>
+                                                        }
+                                                    </td>
                                                 </tr>
                                             }
                                         </tbody>

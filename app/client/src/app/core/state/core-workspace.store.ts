@@ -473,6 +473,9 @@ export class CoreWorkspaceStore {
                 name: context.model_names[result.model] ?? result.model,
                 status: result.status,
                 metrics: result.metrics,
+                convergence_message: result.convergence_message,
+                warnings: result.warnings,
+                parameters: result.parameters,
             })),
             summary: run.message,
         };
