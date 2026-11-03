@@ -21,6 +21,7 @@ import type {
     StructureRecordView,
 } from '../models/public-data.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 export interface ApiResult<T> {
     data: T | null;
@@ -49,7 +50,7 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<Api
     } catch (error) {
         return {
             data: null,
-            error: error instanceof Error ? error.message : 'An unknown public data error occurred.',
+            error: toErrorMessage(error, 'An unknown public data error occurred.'),
         };
     }
 }

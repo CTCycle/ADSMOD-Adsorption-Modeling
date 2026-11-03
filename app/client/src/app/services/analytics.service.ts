@@ -15,6 +15,7 @@ import type {
 } from '../models/analytics.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 import type { ApiResult } from './public-data.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 async function requestJson<T>(path: string, body?: unknown): Promise<ApiResult<T>> {
     const init: RequestInit = body === undefined
@@ -30,7 +31,7 @@ async function requestJson<T>(path: string, body?: unknown): Promise<ApiResult<T
     } catch (error) {
         return {
             data: null,
-            error: error instanceof Error ? error.message : 'An unknown analytics error occurred.',
+            error: toErrorMessage(error, 'An unknown analytics error occurred.'),
         };
     }
 }

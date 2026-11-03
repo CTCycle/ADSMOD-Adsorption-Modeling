@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 import { Injectable } from '@angular/core';
+import { toErrorMessage } from '../../../shared/utils/error-message';
 
 type TrainingActionResult<TSuccessStatus extends string> = {
     status: TSuccessStatus | 'error';
@@ -41,7 +42,7 @@ export class TrainingActionRunnerService {
             console.error(`Failed to ${actionLabel}:`, message);
             appendLog(`[ERROR] Failed to ${actionLabel}: ${message}`);
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+            const message = toErrorMessage(error, 'An unknown error occurred.');
             console.error(`Unexpected error while trying to ${actionLabel}:`, error);
             appendLog(`[ERROR] Failed to ${actionLabel}: ${message}`);
         } finally {

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatabaseSettings, DatabaseSettingsRequest, SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
 import { fetchDatabaseSettings, fetchSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
+import { toErrorMessage } from '../../shared/utils/error-message';
 
 type SettingsTab = 'import' | 'public-data' | 'fitting' | 'training' | 'database';
 type SettingExtension = '.csv' | '.xls' | '.xlsx';
@@ -337,7 +338,7 @@ export class SettingsPageComponent {
                 password_configured: current.password_configured,
             };
         } catch (error) {
-            this.databaseError = error instanceof Error ? error.message : 'Database configuration could not be loaded.';
+            this.databaseError = toErrorMessage(error, 'Database configuration could not be loaded.');
         } finally {
             this.databaseLoading = false;
             this.changeDetector.detectChanges();
@@ -357,7 +358,7 @@ export class SettingsPageComponent {
             this.databaseMessage = result.message;
             this.databaseMessageKind = 'success';
         } catch (error) {
-            this.databaseMessage = error instanceof Error ? error.message : 'Connection test failed.';
+            this.databaseMessage = toErrorMessage(error, 'Connection test failed.');
             this.databaseMessageKind = 'error';
         } finally {
             this.databaseTesting = false;
@@ -380,7 +381,7 @@ export class SettingsPageComponent {
             this.databaseSettings = await switchDatabase(this.databaseRequest(this.databaseForm));
             window.location.reload();
         } catch (error) {
-            this.databaseMessage = error instanceof Error ? error.message : 'Database switch failed.';
+            this.databaseMessage = toErrorMessage(error, 'Database switch failed.');
             this.databaseMessageKind = 'error';
         } finally {
             this.databaseSwitching = false;
@@ -400,7 +401,7 @@ export class SettingsPageComponent {
         try {
             this.applyResponse(await fetchSettings());
         } catch (error) {
-            this.loadError = error instanceof Error ? error.message : 'Settings could not be loaded.';
+            this.loadError = toErrorMessage(error, 'Settings could not be loaded.');
         } finally {
             this.loading = false;
             this.changeDetector.detectChanges();

@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../core/config/api-base-url';
 import type { FittingConfiguration } from '../models/fitting.model';
 import type { TrainingConfiguration } from '../models/training.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 export interface ApplicationCapabilities {
     version: string;
@@ -21,7 +22,7 @@ const readJson = async <T>(url: string): Promise<ServiceResult<T>> => {
         if (!asRecord(body)) return { data: null, error: `Invalid response from ${url}.` };
         return { data: body as T, error: null };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 };
 let cachedCapabilities: ApplicationCapabilities | null = null;

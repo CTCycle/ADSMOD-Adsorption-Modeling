@@ -33,3 +33,7 @@ export function extractErrorMessage(response: Response, data: unknown): string {
 
     return `HTTP error ${response.status}`;
 }
+
+export function toErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback;
+}

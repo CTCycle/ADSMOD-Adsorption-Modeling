@@ -17,6 +17,7 @@ import type {
     TrainingStatus,
 } from '../models/training.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -81,7 +82,7 @@ async function startTrainingSession(
     } catch (error) {
         return {
             sessionId: '',
-            message: error instanceof Error ? error.message : 'An unknown error occurred.',
+            message: toErrorMessage(error, 'An unknown error occurred.'),
             status: 'error',
         };
     }
@@ -166,7 +167,7 @@ export async function fetchTrainingDatasets(): Promise<{ data: TrainingDatasetIn
             error: null,
         };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -210,7 +211,7 @@ export async function fetchDatasetSources(): Promise<{ datasets: DatasetSourceIn
 
         return { datasets, error: null };
     } catch (error) {
-        return { datasets: [], error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { datasets: [], error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -245,7 +246,7 @@ export async function fetchCheckpoints(): Promise<{ checkpoints: CheckpointInfo[
 
         return { checkpoints, error: null };
     } catch (error) {
-        return { checkpoints: [], error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { checkpoints: [], error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -270,7 +271,7 @@ export async function fetchCheckpointDetails(
         return { details: parseCheckpointFullDetails(data), error: null };
     } catch (error) {
         console.error('Error fetching checkpoint details:', error);
-        return { details: null, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { details: null, error: toErrorMessage(error, 'Unknown error') };
     }
 }
 
@@ -291,7 +292,7 @@ export async function deleteCheckpoint(
         return { success: true, error: null };
     } catch (error) {
         console.error('Error deleting checkpoint:', error);
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: toErrorMessage(error, 'Unknown error') };
     }
 }
 
@@ -324,7 +325,7 @@ export async function stopTraining(): Promise<{ message: string; status: 'stoppe
         const result = asRecord(await response.json().catch(() => null));
         return { message: getString(result, 'message') ?? 'Training stopped.', status: 'stopped' };
     } catch (error) {
-        return { message: error instanceof Error ? error.message : 'An unknown error occurred.', status: 'error' };
+        return { message: toErrorMessage(error, 'An unknown error occurred.'), status: 'error' };
     }
 }
 
@@ -361,6 +362,6 @@ export async function getTrainingStatus(): Promise<{ data: TrainingStatus | null
             error: null,
         };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }

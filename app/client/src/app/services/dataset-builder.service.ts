@@ -11,6 +11,7 @@ import type { DatasetFullInfo, ProcessedDatasetInfo } from '../models/training.m
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 import { pollJobUntilTerminal, startJob } from './job.service';
 import type { JobStartResult } from './job.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 export async function startTrainingDatasetJob(
     config: DatasetBuildConfig
@@ -76,7 +77,7 @@ export async function fetchProcessedDatasets(): Promise<{ datasets: ProcessedDat
         }
         return { datasets: result.datasets as ProcessedDatasetInfo[], error: null };
     } catch (error) {
-        return { datasets: [], error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { datasets: [], error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -118,7 +119,7 @@ export async function getTrainingDatasetInfo(datasetLabel?: string): Promise<{ d
             error: null,
         };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -133,7 +134,7 @@ export async function clearTrainingDataset(): Promise<{ success: boolean; messag
         const result = (await response.json()) as { status?: string; message?: string };
         return { success: result.status === 'success', message: result.message || 'Dataset cleared.' };
     } catch (error) {
-        return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { success: false, message: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -152,6 +153,6 @@ export async function deleteDataset(datasetLabel: string): Promise<{ success: bo
         const result = (await response.json()) as { status?: string; message?: string };
         return { success: result.status === 'success', message: result.message || 'Dataset deleted.' };
     } catch (error) {
-        return { success: false, message: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { success: false, message: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }

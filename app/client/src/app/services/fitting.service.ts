@@ -7,6 +7,7 @@ import type { JobStatusResponse } from '../models/job.model';
 import { pollJobUntilTerminal, startJob } from './job.service';
 import type { JobStartResult } from './job.service';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 export async function startFittingJob(
     payload: FittingPayload
@@ -30,7 +31,7 @@ export async function cancelFittingJob(
         return { error: null };
     } catch (error) {
         return {
-            error: error instanceof Error ? error.message : 'An unknown error occurred.',
+            error: toErrorMessage(error, 'An unknown error occurred.'),
         };
     }
 }
@@ -55,7 +56,7 @@ export async function fetchPersistedFittingRun(
     } catch (error) {
         return {
             data: null,
-            error: error instanceof Error ? error.message : 'An unknown error occurred.',
+            error: toErrorMessage(error, 'An unknown error occurred.'),
         };
     }
 }
@@ -118,7 +119,7 @@ export async function fetchModelCatalog(pressure = 'bar', uptake = 'mmol/g'): Pr
         }
         return { data: body as ModelCatalogResponse, error: null };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -134,6 +135,6 @@ export async function fetchFittingConfiguration(): Promise<{ data: FittingConfig
         }
         return { data: body as FittingConfiguration, error: null };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }

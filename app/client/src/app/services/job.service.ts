@@ -4,6 +4,7 @@
 import type { JobStartResponse, JobStatusResponse } from '../models/job.model';
 import { API_BASE_URL } from '../core/config/api-base-url';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
+import { toErrorMessage } from '../shared/utils/error-message';
 
 export type JobStartResult = {
     jobId: string | null;
@@ -42,7 +43,7 @@ export async function pollJobStatus(endpoint: string, jobId: string): Promise<{ 
         }
         return { data: result as JobStatusResponse, error: null };
     } catch (error) {
-        return { data: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
@@ -96,6 +97,6 @@ export async function startJob(
         const result = (await response.json()) as JobStartResponse;
         return { jobId: result.job_id, pollInterval: result.poll_interval, error: null };
     } catch (error) {
-        return { jobId: null, error: error instanceof Error ? error.message : 'An unknown error occurred.' };
+        return { jobId: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }

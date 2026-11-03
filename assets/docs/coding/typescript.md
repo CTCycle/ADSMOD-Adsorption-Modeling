@@ -1,6 +1,6 @@
 # ADSMOD TypeScript Rules
 
-Last updated: 2026-08-02
+Last updated: 2026-11-02
 
 ## Baseline
 
@@ -17,6 +17,7 @@ Last updated: 2026-08-02
 
 - Page-level orchestration belongs in `src/app/features/**/pages` when a feature has multiple subviews; the current training workspace follows this pattern.
 - Reusable UI belongs in `src/app/shared/components`.
+- Shared pure helpers belong in `src/app/shared/utils`; use `toErrorMessage` for `unknown` catch values instead of inline `instanceof Error` checks.
 - Feature-specific logic belongs in `src/app/features`.
 - API and polling logic belongs in `src/app/services` or feature-owned Angular services.
 - Shared UI state belongs in signal-based stores under `src/app/core/state`.
