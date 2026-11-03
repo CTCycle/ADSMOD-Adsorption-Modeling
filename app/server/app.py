@@ -84,6 +84,13 @@ class DatabaseRequestGate:
             self._condition.notify_all()
 
 
+DATABASE_INDEPENDENT_PREFIXES = (
+    "/api/v1/database",
+    "/api/v1/settings",
+    "/api/v1/system",
+)
+
+
 ###############################################################################
 @dataclass
 class ApplicationRuntime:
@@ -287,8 +294,21 @@ def create_app(
 
     @application.middleware("http")
     async def database_switch_admission(request: Request, call_next):
-        if request.url.path.startswith("/api/v1/database"):
+        path = request.url.path
+        if path.startswith("/api/v1/database"):
             return await call_next(request)
+        if (
+            path.startswith("/api/v1/")
+            and not path.startswith(DATABASE_INDEPENDENT_PREFIXES)
+            and not request.app.state.runtime.database_ready
+        ):
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": "The configured database is unavailable; "
+                    "open Database settings to repair or switch it."
+                },
+            )
         gate: DatabaseRequestGate = request.app.state.database_request_gate
         if not await gate.enter():
             return JSONResponse(

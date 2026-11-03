@@ -47,6 +47,20 @@ def test_unified_runtime_contracts(tmp_path: Path) -> None:
 
 
 ###############################################################################
+def test_unavailable_database_returns_503_for_database_routes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    def fail(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("unsupported schema")
+
+    monkeypatch.setattr(app_module, "prepare_database_for_startup", fail)
+    with TestClient(create_app(_temporary_config(str(tmp_path)))) as client:
+        assert client.get("/api/v1/datasets/supported-units").status_code == 503
+        assert client.get("/api/v1/system/capabilities").status_code == 200
+        assert client.get("/api/v1/database/status").status_code != 503
+
+
+###############################################################################
 def test_factory_uses_single_backend_port(tmp_path: Path) -> None:
     application = create_app(_temporary_config(str(tmp_path)))
     assert application.state.config.runtime.backend_port > 0
