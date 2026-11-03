@@ -66,6 +66,8 @@ export class CoreWorkspaceStore {
     readonly fittingCancellationPending = signal(false);
     readonly datasets = signal<DatasetSummary[]>([]);
     readonly customDatasets = computed(() => this.datasets().filter((dataset) => dataset.source === 'uploaded'));
+    /** Custom dataset list paging, kept so the list survives a visit to a dataset page. */
+    readonly datasetListState = signal({ page: 1, pageSize: 10 });
     readonly selectedDatasetId = signal<number | null>(null);
     readonly experiments = signal<ExperimentSummary[]>([]);
     readonly selectedExperimentId = signal<number | null>(null);

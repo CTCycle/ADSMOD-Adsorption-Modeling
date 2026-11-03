@@ -165,3 +165,68 @@ def test_sanitize_dataframe_strings_handles_unicode_without_loss() -> None:
     assert sanitized.loc[1, "name"] == "na y"
     assert sanitized.loc[0, "unit"] == "µmol/g"
     assert sanitized.loc[1, "unit"] == "Å"
+
+
+###############################################################################
+def _atomic_mapping(engine: AdsorptionImportEngine, payload: bytes, **overrides):  # type: ignore[no-untyped-def]
+    preview = engine.preview(payload, "sample.csv")
+    return ImportMapping(
+        dataset_name="sample",
+        structure="atomic",
+        column_roles={column.name: column.proposed_role for column in preview.columns},
+        grouping_columns=["experiment_id"],
+        pressure_basis="absolute",
+        **overrides,
+    )
+
+
+UNIT_PAYLOAD = b"experiment_id,Pressure [bar],Uptake [mmol/g],Temperature [K],Adsorbate,Adsorbent\nEXP-1,0.1,0.42,298.15,CO2,13X\nEXP-1,0.2,0.73,298.15,CO2,13X\n"
+
+
+###############################################################################
+def test_unknown_unit_override_gives_one_upfront_error_not_one_per_row() -> None:
+    engine = AdsorptionImportEngine()
+    mapping = _atomic_mapping(engine, UNIT_PAYLOAD, unit_overrides={"uptake": "furlong"})
+
+    issues = engine.validate(UNIT_PAYLOAD, "sample.csv", mapping).response.issues
+
+    assert [issue.code for issue in issues] == ["unsupported_unit"]
+    assert issues[0].column == "uptake"
+
+
+###############################################################################
+def test_label_only_custom_unit_blocks_import_with_conversion_error() -> None:
+    engine = AdsorptionImportEngine()
+    mapping = _atomic_mapping(
+        engine,
+        UNIT_PAYLOAD,
+        unit_overrides={"uptake": "mmol/cc"},
+        unit_definitions=[{"quantity": "uptake", "symbol": "mmol/cc"}],
+    )
+
+    bundle = engine.validate(UNIT_PAYLOAD, "sample.csv", mapping)
+
+    assert bundle.response.status == "invalid"
+    assert "no conversion definition" in bundle.response.issues[0].message
+    assert bundle.experiments == []
+
+
+###############################################################################
+def test_custom_unit_with_factor_and_override_warning() -> None:
+    engine = AdsorptionImportEngine()
+    mapping = _atomic_mapping(
+        engine,
+        UNIT_PAYLOAD,
+        unit_overrides={"pressure": "cmHg"},
+        unit_definitions=[
+            {"quantity": "pressure", "symbol": "cmHg", "factor_to_canonical": 1333.22387415}
+        ],
+    )
+
+    bundle = engine.validate(UNIT_PAYLOAD, "sample.csv", mapping)
+
+    assert bundle.response.status == "valid"
+    first = bundle.experiments[0]["observations"][0]
+    assert first["pressure_original_unit"] == "cmHg"
+    assert first["pressure_canonical"] == pytest.approx(133.322387415)
+    assert [issue.code for issue in bundle.response.issues] == ["unit_override_applied"]

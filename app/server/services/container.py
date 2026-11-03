@@ -13,6 +13,7 @@ from server.services.providers.public_data import RequestBudget
 from server.repositories.analytics import AnalyticsRepository
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
+from server.repositories.units import UnitRepository
 from server.repositories.fitting import FittingRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
@@ -50,6 +51,7 @@ class CoreServiceContainer:
         self.pubchem_request_budget = RequestBudget()
         self.dataset_service = DatasetService(
             repository=self.datasets,
+            units=UnitRepository(self.database),
             allowed_extensions=config.application.datasets.allowed_extensions,
             column_detection_cutoff=config.application.datasets.column_detection_cutoff,
             preview_row_limit=config.application.fitting.preview_row_limit,

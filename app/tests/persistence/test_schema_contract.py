@@ -21,6 +21,7 @@ from server.repositories.schemas.types import JSONList, UTCDateTime
 
 EXPECTED_TABLES = {
     "application_settings",
+    "custom_units",
     "datasets",
     "adsorbates",
     "adsorbents",

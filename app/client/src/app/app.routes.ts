@@ -13,6 +13,7 @@ export const routes: Routes = [
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'datasets' },
             { path: 'datasets', loadComponent: () => import('./features/datasets/custom-datasets-page.component').then((m) => m.CustomDatasetsPageComponent) },
+            { path: 'datasets/:id', loadComponent: () => import('./features/datasets/dataset-details-page.component').then((m) => m.DatasetDetailsPageComponent) },
             { path: 'public-data', pathMatch: 'full', redirectTo: 'public-data/overview' },
             { path: 'public-data/:view', loadComponent: () => import('./features/public-data/public-data-workspace.component').then((m) => m.PublicDataWorkspaceComponent) },
             {
@@ -25,6 +26,8 @@ export const routes: Routes = [
                 ],
             },
             { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
+            // "/docs" is reserved by the backend (OpenAPI UI), so the in-app docs live at "/help".
+            { path: 'help', loadComponent: () => import('./features/docs/docs-page.component').then((m) => m.DocsPageComponent) },
             { path: 'settings', canDeactivate: [settingsAutosaveGuard], loadComponent: () => import('./features/settings/settings-page.component').then((m) => m.SettingsPageComponent) },
             {
                 path: 'training',

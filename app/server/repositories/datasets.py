@@ -172,25 +172,40 @@ class DatasetRepository:
                 selectinload(Isotherm.components).selectinload(
                     IsothermComponent.adsorbate
                 ),
-                selectinload(Isotherm.observations),
             )
             .order_by(Isotherm.name, Isotherm.id)
         )
+        stats_statement = (
+            select(
+                Observation.isotherm_id,
+                func.count(Observation.id),
+                func.min(Observation.pressure_canonical),
+                func.max(Observation.pressure_canonical),
+                func.min(Observation.pressure_canonical_unit),
+            )
+            .join(Isotherm, Isotherm.id == Observation.isotherm_id)
+            .where(Isotherm.dataset_id == dataset_id)
+            .group_by(Observation.isotherm_id)
+        )
         with self.database.session_factory() as session:
             isotherms = list(session.scalars(statement).unique())
+            stats = {row[0]: row[1:] for row in session.execute(stats_statement)}
             if not isotherms and session.get(Dataset, dataset_id) is None:
                 raise LookupError(f"Dataset {dataset_id} does not exist.")
             output: list[dict[str, Any]] = []
             for isotherm in isotherms:
+                count, pressure_min, pressure_max, pressure_unit = stats.get(
+                    isotherm.id, (0, None, None, None)
+                )
                 components = sorted(isotherm.components, key=lambda item: item.position)
                 component_names = [item.adsorbate.name for item in components]
-                eligible = len(components) == 1 and len(isotherm.observations) >= 2
+                eligible = len(components) == 1 and count >= 2
                 reason = None
                 if len(components) != 1:
                     reason = (
                         "The available theoretical models are single-component models."
                     )
-                elif len(isotherm.observations) < 2:
+                elif count < 2:
                     reason = "At least two observations are required."
                 output.append(
                     {
@@ -201,8 +216,13 @@ class DatasetRepository:
                         "adsorbent": isotherm.adsorbent.name,
                         "adsorbates": component_names,
                         "temperature_k": isotherm.temperature_k,
+                        "temperature_original": isotherm.temperature_original,
+                        "temperature_original_unit": isotherm.temperature_original_unit,
                         "pressure_basis": isotherm.pressure_basis,
-                        "observation_count": len(isotherm.observations),
+                        "observation_count": count,
+                        "pressure_min": pressure_min,
+                        "pressure_max": pressure_max,
+                        "pressure_canonical_unit": pressure_unit,
                         "fitting_eligible": eligible,
                         "ineligibility_reason": reason,
                     }

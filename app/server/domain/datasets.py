@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 DatasetStructure = Literal["atomic", "aggregated", "mixed", "ambiguous"]
 PressureBasis = Literal["absolute", "partial", "relative"]
+UnitQuantity = Literal["pressure", "uptake", "temperature"]
 ColumnRole = Literal[
     "experiment_id",
     "experiment_name",
@@ -61,6 +62,14 @@ class WidePair(BaseModel):
     uptake_column: str
 
 ###############################################################################
+class CustomUnitDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    quantity: UnitQuantity
+    symbol: str = Field(min_length=1, max_length=64)
+    factor_to_canonical: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+
+###############################################################################
 class ImportMapping(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -71,6 +80,7 @@ class ImportMapping(BaseModel):
     whole_file_grouping: bool = False
     constants: dict[str, str | float] = Field(default_factory=dict)
     unit_overrides: dict[str, str] = Field(default_factory=dict)
+    unit_definitions: list[CustomUnitDefinition] = Field(default_factory=list)
     pressure_basis: PressureBasis
     decimal_separator: Literal["auto", ".", ","] = "auto"
     field_delimiter: str | None = None
@@ -143,6 +153,8 @@ class NormalizedExperimentPreview(BaseModel):
     adsorbate: str
     adsorbate_smiles: str | None = None
     temperature_k: float
+    temperature_original: float
+    temperature_original_unit: str
     pressure_basis: PressureBasis
     observation_count: int
     observations: list[NormalizedObservationPreview]
@@ -174,11 +186,34 @@ class DatasetListResponse(BaseModel):
     datasets: list[DatasetSummary] = Field(default_factory=list)
 
 ###############################################################################
+class UnitOption(BaseModel):
+    quantity: UnitQuantity
+    symbol: str
+    label: str
+    name: str
+    group: str
+    note: str = ""
+    aliases: list[str] = Field(default_factory=list)
+    built_in: bool = True
+    has_conversion: bool = True
+    factor_to_canonical: float | None = None
+    id: int | None = None
+
+###############################################################################
 class SupportedUnitsResponse(BaseModel):
-    pressure: list[str]
-    uptake: list[str]
-    temperature: list[str]
+    pressure: list[UnitOption]
+    uptake: list[UnitOption]
+    temperature: list[UnitOption]
     allowed_extensions: list[str]
+
+###############################################################################
+class CustomUnitRequest(CustomUnitDefinition):
+    pass
+
+###############################################################################
+class CustomUnitResponse(BaseModel):
+    status: Literal["success"] = "success"
+    unit: UnitOption
 
 ###############################################################################
 class DatasetImportResponse(BaseModel):
@@ -207,8 +242,13 @@ class ExperimentSummary(BaseModel):
     adsorbent: str
     adsorbates: list[str]
     temperature_k: float
+    temperature_original: float | None = None
+    temperature_original_unit: str | None = None
     pressure_basis: PressureBasis
     observation_count: int
+    pressure_min: float | None = None
+    pressure_max: float | None = None
+    pressure_canonical_unit: str | None = None
     fitting_eligible: bool
     ineligibility_reason: str | None = None
 
@@ -236,6 +276,20 @@ class DatasetMutationResponse(BaseModel):
     dataset: DatasetSummary
 
 ###############################################################################
+class ObservationRow(BaseModel):
+    id: int
+    sequence_index: int
+    source_row: int | None = None
+    pressure_original: float
+    pressure_original_unit: str
+    pressure_canonical: float
+    pressure_canonical_unit: str
+    uptake_original: float
+    uptake_original_unit: str
+    uptake_mol_kg: float
+    uptake_stddev_mol_kg: float | None = None
+
+###############################################################################
 class ObservationPage(BaseModel):
     status: Literal["success"] = "success"
     dataset_id: int
@@ -243,4 +297,4 @@ class ObservationPage(BaseModel):
     offset: int
     limit: int
     total: int
-    rows: list[dict[str, Any]]
+    rows: list[ObservationRow]

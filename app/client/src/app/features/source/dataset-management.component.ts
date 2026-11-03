@@ -1,29 +1,49 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { Component, ElementRef, EventEmitter, Input, OnChanges, Output, ViewChild, signal } from '@angular/core';
+import {
+    Component,
+    ElementRef,
+    EventEmitter,
+    Input,
+    OnChanges,
+    OnInit,
+    Output,
+    ViewChild,
+    signal,
+    viewChild,
+} from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type { DatasetMetadata, DatasetSummary } from '../../models/dataset.model';
-import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
+import {
+    DatasetActionDialogsComponent,
+    type DatasetRenameEvent,
+} from './dataset-action-dialogs.component';
 
-export interface DatasetRenameEvent { id: number; newName: string; }
+export type { DatasetRenameEvent };
+
+export interface DatasetListState {
+    page: number;
+    pageSize: number;
+}
 
 @Component({
     selector: 'adsmod-dataset-management',
     standalone: true,
-    imports: [ConfirmDialogComponent, DataPaginationComponent],
+    imports: [DataPaginationComponent, DatasetActionDialogsComponent, RouterLink],
     template: `
         <section class="console-card workspace-datasets-card" aria-labelledby="workspace-datasets-title">
             <div class="card-title-row workspace-datasets-head">
                 <div>
                     <h2 id="workspace-datasets-title">Workspace datasets</h2>
-                    <p>Select a dataset to inspect its experiments.</p>
+                    <p>Open a dataset to inspect its experiments, observations and data preview.</p>
                 </div>
                 <button #addDatasetButton class="button primary" type="button" (click)="addRequested.emit()">Add dataset</button>
             </div>
 
             @if (datasets.length) {
-                <div class="data-table-frame dataset-table-frame">
+                <div class="dataset-table-frame">
                     <table class="data-table dataset-table">
                         <caption class="sr-only">Workspace datasets</caption>
                         <thead>
@@ -38,16 +58,15 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                         </thead>
                         <tbody>
                             @for (dataset of visibleDatasets; track dataset.id) {
-                                <tr [class.selected]="dataset.id === selected">
+                                <tr>
                                     <td class="col-dataset">
-                                        <button
+                                        <a
                                             class="dataset-name"
-                                            type="button"
+                                            [routerLink]="['/datasets', dataset.id]"
                                             [title]="dataset.name"
-                                            (click)="opened.emit(dataset.id)"
                                         >
                                             {{ dataset.name }}
-                                        </button>
+                                        </a>
                                         <span
                                             class="dataset-description"
                                             [title]="dataset.description || 'No description added yet.'"
@@ -55,30 +74,29 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                                             {{ dataset.description || 'No description added yet.' }}
                                         </span>
                                     </td>
-                                    <td class="col-origin">
+                                    <td class="col-origin" data-label="Origin">
                                         <span class="dataset-origin">{{ originLabel(dataset) }}</span>
                                     </td>
-                                    <td class="col-count num">{{ dataset.experiment_count }}</td>
-                                    <td class="col-count num">{{ dataset.observation_count }}</td>
-                                    <td class="col-tags">
+                                    <td class="col-count num" data-label="Experiments">{{ dataset.experiment_count }}</td>
+                                    <td class="col-count num" data-label="Observations">{{ dataset.observation_count }}</td>
+                                    <td class="col-tags" data-label="Tags">
                                         <span class="dataset-tags" [title]="tagsLabel(dataset)">{{ tagsLabel(dataset) }}</span>
                                     </td>
                                     <td class="col-actions">
                                         <div class="table-actions">
-                                            <button
+                                            <a
                                                 class="table-action"
-                                                type="button"
+                                                [routerLink]="['/datasets', dataset.id]"
                                                 [attr.aria-label]="'Open ' + dataset.name"
-                                                (click)="opened.emit(dataset.id)"
                                             >
                                                 Open
-                                            </button>
+                                            </a>
                                             <button
                                                 class="table-action"
                                                 type="button"
                                                 [title]="'Edit metadata for ' + dataset.name"
                                                 [attr.aria-label]="'Edit metadata for ' + dataset.name"
-                                                (click)="editMetadata(dataset.id)"
+                                                (click)="dialogs().editMetadata(dataset)"
                                             >
                                                 Edit
                                             </button>
@@ -87,7 +105,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                                                 type="button"
                                                 [title]="'Rename ' + dataset.name"
                                                 [attr.aria-label]="'Rename ' + dataset.name"
-                                                (click)="beginRename(dataset)"
+                                                (click)="dialogs().rename(dataset)"
                                             >
                                                 Rename
                                             </button>
@@ -96,7 +114,7 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                                                 type="button"
                                                 [title]="'Delete ' + dataset.name"
                                                 [attr.aria-label]="'Delete ' + dataset.name"
-                                                (click)="requestDelete(dataset)"
+                                                (click)="dialogs().remove(dataset)"
                                             >
                                                 Delete
                                             </button>
@@ -121,77 +139,10 @@ export interface DatasetRenameEvent { id: number; newName: string; }
             }
         </section>
 
-        @if (metadataEditing()) {
-            <div class="dataset-modal-backdrop" (click)="metadataEditing.set(false)">
-                <section class="dataset-metadata-editor" role="dialog" aria-modal="true" aria-labelledby="dataset-metadata-title" (click)="$event.stopPropagation()">
-                    <div class="dataset-metadata-header">
-                        <div>
-                            <h2 id="dataset-metadata-title">Edit metadata</h2>
-                        </div>
-                        <button class="button quiet dataset-metadata-close" type="button" aria-label="Close" title="Close" (click)="metadataEditing.set(false)">×</button>
-                    </div>
-                    <div class="dataset-metadata-body">
-                        <label class="metadata-field">
-                            <span>Tags</span>
-                            <input class="metadata-input" [value]="tags()" (input)="tags.set(read($event))" />
-                        </label>
-                        <label class="metadata-field">
-                            <span>Description</span>
-                            <textarea class="metadata-input metadata-textarea" [value]="description()" (input)="description.set(read($event))"></textarea>
-                        </label>
-                    </div>
-                    <div class="dataset-metadata-footer">
-                        <button class="button secondary" type="button" (click)="metadataEditing.set(false)">Cancel</button>
-                        <button class="button primary" type="button" (click)="saveMetadata()">Save metadata</button>
-                    </div>
-                </section>
-            </div>
-        }
-
-        @if (renameTarget(); as dataset) {
-            <div class="dataset-modal-backdrop" (click)="cancelRename()">
-                <form
-                    class="dataset-metadata-editor"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="dataset-rename-title"
-                    (submit)="saveRename($event)"
-                    (click)="$event.stopPropagation()"
-                >
-                    <div class="dataset-metadata-header">
-                        <div>
-                            <h2 id="dataset-rename-title">Rename dataset</h2>
-                        </div>
-                        <button class="button quiet dataset-metadata-close" type="button" aria-label="Close" title="Close" (click)="cancelRename()">×</button>
-                    </div>
-                    <div class="dataset-metadata-body">
-                        <label class="metadata-field">
-                            <span>Dataset name</span>
-                            <input
-                                class="metadata-input"
-                                type="text"
-                                required
-                                autofocus
-                                [value]="renameName()"
-                                (input)="renameName.set(read($event))"
-                            />
-                        </label>
-                    </div>
-                    <div class="dataset-metadata-footer">
-                        <button class="button secondary" type="button" (click)="cancelRename()">Cancel</button>
-                        <button class="button primary" type="submit">Save name</button>
-                    </div>
-                </form>
-            </div>
-        }
-
-        <adsmod-confirm-dialog
-            [open]="pendingDelete() !== null"
-            title="Delete dataset?"
-            [message]="deleteMessage()"
-            confirmLabel="Delete dataset"
-            (closed)="pendingDelete.set(null)"
-            (confirmed)="confirmDelete()"
+        <adsmod-dataset-action-dialogs
+            (renamed)="renamed.emit($event)"
+            (metadataSaved)="metadataSaved.emit($event)"
+            (deleted)="deleted.emit($event)"
         />
     `,
     styles: [
@@ -217,8 +168,13 @@ export interface DatasetRenameEvent { id: number; newName: string; }
             }
             .dataset-table-frame {
                 margin: var(--spacing-sm) var(--spacing-lg) 0;
-                max-height: min(46vh, 28rem);
-                --data-table-min-width: 900px;
+                border: 1px solid var(--slate-200);
+                border-radius: 10px;
+            }
+            .dataset-table {
+                width: 100%;
+                table-layout: fixed;
+                border-collapse: collapse;
             }
             .dataset-table .col-dataset {
                 width: auto;
@@ -230,29 +186,28 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                 width: 108px;
             }
             .dataset-table .col-tags {
-                width: 200px;
+                width: 180px;
             }
             .dataset-table .col-actions {
-                width: 272px;
+                width: 262px;
             }
             .dataset-name {
                 display: block;
                 max-width: 100%;
                 padding: 0;
                 overflow: hidden;
-                border: 0;
-                background: transparent;
                 color: var(--console-text, #1c2a45);
                 font: inherit;
                 font-size: 0.84rem;
                 font-weight: 700;
                 text-align: left;
+                text-decoration: none;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                cursor: pointer;
             }
             .dataset-name:hover {
                 color: var(--primary-600, #2563eb);
+                text-decoration: underline;
             }
             .dataset-name:focus-visible {
                 outline: 2px solid var(--primary-300, #93b4f5);
@@ -292,6 +247,48 @@ export interface DatasetRenameEvent { id: number; newName: string; }
                 display: block;
                 padding: 0 var(--spacing-lg) var(--spacing-md);
             }
+            @media (max-width: 960px) {
+                .dataset-table thead {
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    overflow: hidden;
+                    clip-path: inset(50%);
+                }
+                .dataset-table,
+                .dataset-table tbody,
+                .dataset-table tr,
+                .dataset-table td {
+                    display: block;
+                    width: auto !important;
+                }
+                .dataset-table tr {
+                    padding: 0.6rem 0.2rem;
+                    border-bottom: 1px solid var(--slate-200);
+                }
+                .dataset-table tr:last-child {
+                    border-bottom: 0;
+                }
+                .dataset-table td {
+                    padding: 0.2rem 0.75rem;
+                    border: 0;
+                    text-align: left;
+                }
+                .dataset-table td[data-label] {
+                    display: grid;
+                    grid-template-columns: 7.5rem minmax(0, 1fr);
+                    gap: 0.5rem;
+                }
+                .dataset-table td[data-label]::before {
+                    content: attr(data-label);
+                    color: var(--slate-500);
+                    font-size: 0.72rem;
+                    font-weight: 700;
+                }
+                .dataset-table td.num {
+                    text-align: left;
+                }
+            }
             @media (max-width: 760px) {
                 .workspace-datasets-head {
                     padding: var(--spacing-md) var(--spacing-md) 0;
@@ -312,34 +309,31 @@ export interface DatasetRenameEvent { id: number; newName: string; }
         `,
     ],
 })
-export class DatasetManagementComponent implements OnChanges {
+export class DatasetManagementComponent implements OnInit, OnChanges {
     @Input() datasets: DatasetSummary[] = [];
-    @Input() selected: number | null = null;
-    @Output() readonly opened = new EventEmitter<number>();
+    @Input() initialState: DatasetListState = { page: 1, pageSize: 10 };
     @Output() readonly addRequested = new EventEmitter<void>();
     @Output() readonly deleted = new EventEmitter<number>();
     @Output() readonly renamed = new EventEmitter<DatasetRenameEvent>();
     @Output() readonly metadataSaved = new EventEmitter<{ id: number; metadata: DatasetMetadata }>();
+    @Output() readonly stateChanged = new EventEmitter<DatasetListState>();
     @ViewChild('addDatasetButton') private addDatasetButton?: ElementRef<HTMLButtonElement>;
-    readonly tags = signal('');
-    readonly description = signal('');
-    readonly metadataEditing = signal(false);
-    readonly renameTarget = signal<DatasetSummary | null>(null);
-    readonly renameName = signal('');
-    readonly pendingDelete = signal<DatasetSummary | null>(null);
+    protected readonly dialogs = viewChild.required(DatasetActionDialogsComponent);
     readonly page = signal(1);
     readonly pageSize = signal(10);
-    private editingId: number | null = null;
 
     protected get visibleDatasets(): DatasetSummary[] {
         const start = (this.page() - 1) * this.pageSize();
         return this.datasets.slice(start, start + this.pageSize());
     }
 
+    ngOnInit(): void {
+        this.pageSize.set(this.initialState.pageSize);
+        this.page.set(this.initialState.page);
+        this.clampPage();
+    }
+
     ngOnChanges(): void {
-        const dataset = this.datasets.find((item) => item.id === this.selected);
-        this.tags.set(dataset?.tags.join(', ') ?? '');
-        this.description.set(dataset?.description ?? '');
         this.clampPage();
     }
 
@@ -358,80 +352,26 @@ export class DatasetManagementComponent implements OnChanges {
     protected setPage(page: number): void {
         const max = Math.max(1, Math.ceil(this.datasets.length / this.pageSize()));
         this.page.set(Math.min(Math.max(1, page), max));
+        this.emitState();
     }
 
     protected setPageSize(size: number): void {
         if (size === this.pageSize()) return;
         this.pageSize.set(size);
         this.page.set(1);
-    }
-
-    protected read(event: Event): string {
-        const target = event.target;
-        return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement ? target.value : '';
-    }
-
-    protected editMetadata(id: number): void {
-        const dataset = this.datasets.find((item) => item.id === id);
-        this.editingId = id;
-        this.tags.set(dataset?.tags.join(', ') ?? '');
-        this.description.set(dataset?.description ?? '');
-        this.metadataEditing.set(true);
-    }
-
-    protected saveMetadata(): void {
-        if (this.editingId !== null) {
-            this.metadataSaved.emit({
-                id: this.editingId,
-                metadata: {
-                    tags: this.tags().split(',').map((tag) => tag.trim()).filter(Boolean),
-                    description: this.description().trim(),
-                },
-            });
-        }
-        this.metadataEditing.set(false);
-    }
-
-    protected beginRename(dataset: DatasetSummary): void {
-        this.renameName.set(dataset.name);
-        this.renameTarget.set(dataset);
-    }
-
-    protected cancelRename(): void {
-        this.renameTarget.set(null);
-    }
-
-    protected saveRename(event: Event): void {
-        event.preventDefault();
-        const dataset = this.renameTarget();
-        const newName = this.renameName().trim();
-        if (dataset && newName && newName !== dataset.name) {
-            this.renamed.emit({ id: dataset.id, newName });
-        }
-        this.renameTarget.set(null);
-    }
-
-    protected requestDelete(dataset: DatasetSummary): void {
-        this.pendingDelete.set(dataset);
-    }
-
-    protected deleteMessage(): string {
-        const name = this.pendingDelete()?.name;
-        return name
-            ? `This will permanently delete “${name}”. This action cannot be undone.`
-            : 'This action cannot be undone.';
-    }
-
-    protected confirmDelete(): void {
-        const datasetId = this.pendingDelete()?.id;
-        this.pendingDelete.set(null);
-        if (datasetId !== undefined) {
-            this.deleted.emit(datasetId);
-        }
+        this.emitState();
     }
 
     private clampPage(): void {
+        if (this.datasets.length === 0) return;
         const max = Math.max(1, Math.ceil(this.datasets.length / this.pageSize()));
-        if (this.page() > max) this.page.set(max);
+        if (this.page() > max) {
+            this.page.set(max);
+            this.emitState();
+        }
+    }
+
+    private emitState(): void {
+        this.stateChanged.emit({ page: this.page(), pageSize: this.pageSize() });
     }
 }

@@ -1,6 +1,6 @@
 # ADSMOD runtime and application settings
 
-Last updated: 2026-10-27
+Last updated: 2026-11-03
 
 ## Settings ownership
 
@@ -82,7 +82,7 @@ All connection fields are in `database.json`: backend; SQLite file path and conn
 
 When `database.json` is absent, ADSMOD selects the current default SQLite configuration. Startup initializes an empty database with the current schema, seeds typed application settings, and then writes `database.json`. Retired database environment values and old `data/adsmod.json` files are not imported. Per-training checkpoint `configuration.json` files remain run artifacts and are unrelated to global settings.
 
-The migration package contains one root revision for the current schema. Existing databases stamped with a historical revision are rejected and must be recreated for use with this version. Startup never drops or recreates an existing database automatically, so it does not delete user data.
+The migration package contains one root revision for the baseline schema followed by a linear chain of revisions up to the head. Existing databases stamped with a historical revision are rejected and must be recreated for use with this version. Startup never drops or recreates an existing database automatically, so it does not delete user data.
 
 ## Logging
 

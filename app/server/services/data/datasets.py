@@ -7,6 +7,7 @@ import json
 import hashlib
 from collections.abc import Collection
 from pathlib import Path
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -18,16 +19,20 @@ from server.domain.datasets import (
     DatasetMetadata,
     DatasetMutationResponse,
     DatasetSummary,
+    CustomUnitRequest,
+    CustomUnitResponse,
     ExperimentListResponse,
     ImportMapping,
     ImportPreviewResponse,
     ImportValidationResponse,
     ObservationPage,
     SupportedUnitsResponse,
+    UnitOption,
 )
 from server.services.data.importer import AdsorptionImportEngine, PARSER_VERSION
-from server.common.units import UnitRegistry
+from server.common.units import BUILT_IN_UNIT_DETAILS, UnitRegistry
 from server.repositories.datasets import DatasetRepository
+from server.repositories.units import UnitRepository
 
 ###############################################################################
 class DatasetService:
@@ -36,12 +41,14 @@ class DatasetService:
     def __init__(
         self,
         repository: DatasetRepository,
+        units: UnitRepository,
         importer: AdsorptionImportEngine | None = None,
         allowed_extensions: Collection[str] = DEFAULT_DATASET_ALLOWED_EXTENSIONS,
         column_detection_cutoff: float = 0.6,
         preview_row_limit: int = 20,
     ) -> None:
         self.repository = repository
+        self.units = units
         self.importer = importer or AdsorptionImportEngine(
             allowed_extensions,
             column_detection_cutoff=column_detection_cutoff,
@@ -85,13 +92,17 @@ class DatasetService:
     def validate(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> ImportValidationResponse:
-        return self.importer.validate(payload, filename, mapping).response
+        return self.importer.validate(
+            payload, filename, mapping, self.units.custom_units()
+        ).response
 
     # -------------------------------------------------------------------------
     def commit(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> DatasetImportResponse:
-        bundle = self.importer.validate(payload, filename, mapping)
+        bundle = self.importer.validate(
+            payload, filename, mapping, self.units.custom_units()
+        )
         if bundle.response.status != "valid":
             raise ValueError(
                 "Dataset validation must succeed and all required confirmations "
@@ -151,12 +162,74 @@ class DatasetService:
 
     # -------------------------------------------------------------------------
     def supported_units(self) -> SupportedUnitsResponse:
+        options: dict[str, list[UnitOption]] = {
+            "pressure": [],
+            "uptake": [],
+            "temperature": [],
+        }
+        for detail in BUILT_IN_UNIT_DETAILS:
+            aliases = [
+                alias
+                for alias, symbol in self.alias_table(detail.quantity).items()
+                if symbol == detail.symbol and alias != detail.label
+            ]
+            options[detail.quantity].append(
+                UnitOption(
+                    quantity=detail.quantity,  # type: ignore[arg-type]
+                    symbol=detail.symbol,
+                    label=detail.label,
+                    name=detail.name,
+                    group=detail.group,
+                    note=detail.note,
+                    aliases=aliases,
+                )
+            )
+        for item in self.units.list_units():
+            options[item["quantity"]].append(self.custom_option(item))
         return SupportedUnitsResponse(
-            pressure=sorted(UnitRegistry.PRESSURE_ALIASES),
-            uptake=sorted(UnitRegistry.UPTAKE_ALIASES),
-            temperature=sorted(UnitRegistry.TEMPERATURE_ALIASES),
-            allowed_extensions=self.allowed_extensions,
+            **options, allowed_extensions=self.allowed_extensions
         )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def alias_table(quantity: str) -> dict[str, str]:
+        return {
+            "pressure": UnitRegistry.PRESSURE_ALIASES,
+            "uptake": UnitRegistry.UPTAKE_ALIASES,
+            "temperature": UnitRegistry.TEMPERATURE_ALIASES,
+        }[quantity]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def custom_option(item: dict[str, Any]) -> UnitOption:
+        factor = item["factor_to_canonical"]
+        return UnitOption(
+            quantity=item["quantity"],
+            symbol=item["symbol"],
+            label=item["symbol"],
+            name="Custom unit",
+            group="Saved custom units",
+            note=(
+                "Saved label without a conversion definition."
+                if factor is None
+                else f"User-defined factor to canonical unit: {factor:g}"
+            ),
+            built_in=False,
+            has_conversion=factor is not None,
+            factor_to_canonical=factor,
+            id=item["id"],
+        )
+
+    # -------------------------------------------------------------------------
+    def save_custom_unit(self, request: CustomUnitRequest) -> CustomUnitResponse:
+        item = self.units.add(
+            request.quantity, request.symbol, request.factor_to_canonical
+        )
+        return CustomUnitResponse(unit=self.custom_option(item))
+
+    # -------------------------------------------------------------------------
+    def delete_custom_unit(self, unit_id: int) -> None:
+        self.units.delete(unit_id)
 
     # -------------------------------------------------------------------------
     def list_experiments(self, dataset_id: int) -> ExperimentListResponse:

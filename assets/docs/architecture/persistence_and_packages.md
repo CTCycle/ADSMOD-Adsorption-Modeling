@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-10-21
+Last updated: 2026-11-03
 
 ## Backend package
 
@@ -13,9 +13,10 @@ CI install this package and use its lockfile.
 
 Core owns the active database and its Alembic baseline under
 `app/server/migrations`. SQLite and PostgreSQL share the same schema. The
-history contains one root revision that creates the current schema for a fresh
-database. Startup accepts only an empty unversioned database or the current
-revision; it never infers or silently adopts an unknown schema. Databases stamped
+history starts from one root revision (`20261021_current_schema`) that creates
+the baseline schema; later revisions chain linearly from it (currently
+`20261103_custom_units`, which adds the `custom_units` table). Startup upgrades
+an empty or baseline-stamped database to the head and accepts only that head; it never infers or silently adopts an unknown schema. Databases stamped
 with removed historical revisions fail closed and must be recreated. Startup
 does not drop or recreate them. The current schema includes
 the `application_settings` singleton and immutable `training_snapshots` and

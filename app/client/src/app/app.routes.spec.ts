@@ -139,90 +139,22 @@ describe('CoreShellComponent', () => {
         expect(root.querySelector('a[routerLink="/training"]')).not.toBeNull();
     });
 
-    it('keeps Docs disabled and exposes the Settings route', () => {
+    it('links Docs to the documentation page, removes the header help button, and exposes the Settings route', () => {
         const fixture = TestBed.createComponent(CoreShellComponent);
         fixtures.push(fixture);
         fixture.detectChanges();
 
         const root = fixture.nativeElement as HTMLElement;
-        const docs = root.querySelector<HTMLButtonElement>('.console-footer-link[aria-label^="Docs"]');
+        const docs = root.querySelector<HTMLAnchorElement>('.console-footer-link[aria-label="Docs"]');
         const settings = root.querySelector<HTMLAnchorElement>('.console-footer-link[routerLink="/settings"]');
 
         expect(docs?.textContent).toContain('Docs');
-        expect(docs?.disabled).toBe(true);
-        expect(docs?.getAttribute('aria-label')).toContain('not available yet');
-        expect(docs?.title).toContain('not available yet');
+        expect(docs?.getAttribute('href')).toBe('/help#dataset-management');
+        expect(docs?.title).toBe('Documentation, tutorials, and tips');
+        expect(root.querySelector('[aria-label="Help"]')).toBeNull();
         expect(settings?.textContent).toContain('Settings');
         expect(settings?.getAttribute('href')).toBe('/settings');
         expect(settings?.getAttribute('aria-label')).toBe('Settings');
         expect(settings?.title).toBe('Application settings');
-    });
-
-    it('moves Help focus into the dialog, contains keyboard focus, and restores it after each close path', async () => {
-        setBackendResponses(false, true);
-        const fixture = TestBed.createComponent(CoreShellComponent);
-        fixtures.push(fixture);
-        fixture.detectChanges();
-
-        const root = fixture.nativeElement as HTMLElement;
-        const trigger = root.querySelector<HTMLButtonElement>('[aria-label="Help"]');
-        expect(trigger).not.toBeNull();
-        if (!trigger) {
-            return;
-        }
-
-        const openHelp = async (): Promise<HTMLElement> => {
-            trigger.click();
-            fixture.detectChanges();
-            await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-            fixture.detectChanges();
-            const dialog = root.querySelector<HTMLElement>('.help-modal');
-            if (!dialog) {
-                throw new Error('Help dialog did not open');
-            }
-            return dialog;
-        };
-        const focusReturnedToTrigger = async (): Promise<void> => {
-            await Promise.resolve();
-            fixture.detectChanges();
-            expect(document.activeElement).toBe(trigger);
-        };
-
-        const dialog = await openHelp();
-        const closeButton = dialog.querySelector<HTMLButtonElement>('[aria-label="Close help"]');
-        const doneButton = dialog.querySelector<HTMLButtonElement>('.help-modal-footer button');
-        expect(closeButton).not.toBeNull();
-        expect(doneButton).not.toBeNull();
-        expect(document.activeElement).toBe(closeButton);
-        if (!closeButton || !doneButton) {
-            return;
-        }
-
-        const shiftTab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
-        closeButton.dispatchEvent(shiftTab);
-        expect(shiftTab.defaultPrevented).toBe(true);
-        expect(document.activeElement).toBe(doneButton);
-
-        const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-        doneButton.dispatchEvent(tab);
-        expect(tab.defaultPrevented).toBe(true);
-        expect(document.activeElement).toBe(closeButton);
-
-        closeButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        fixture.detectChanges();
-        expect(root.querySelector('.help-modal')).toBeNull();
-        await focusReturnedToTrigger();
-
-        const doneDialog = await openHelp();
-        doneDialog.querySelector<HTMLButtonElement>('.help-modal-footer button')?.click();
-        fixture.detectChanges();
-        expect(root.querySelector('.help-modal')).toBeNull();
-        await focusReturnedToTrigger();
-
-        await openHelp();
-        root.querySelector<HTMLElement>('.help-modal-backdrop')?.click();
-        fixture.detectChanges();
-        expect(root.querySelector('.help-modal')).toBeNull();
-        await focusReturnedToTrigger();
     });
 });

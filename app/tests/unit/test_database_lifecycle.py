@@ -496,7 +496,7 @@ def _sqlite_settings(path: str) -> DatabaseConfig:
 
 
 ###############################################################################
-def test_packaged_history_is_one_root_revision_matching_current_models(
+def test_packaged_history_is_linear_from_one_root_and_matches_current_models(
     tmp_path,
 ) -> None:  # type: ignore[no-untyped-def]
     settings = _sqlite_settings(str(tmp_path / "current-schema.db"))
@@ -507,10 +507,12 @@ def test_packaged_history_is_one_root_revision_matching_current_models(
         script = config.attributes["script_directory"]
         revisions = tuple(script.walk_revisions())
 
-        assert len(revisions) == 1
-        assert revisions[0].revision == INITIAL_REVISION == "20261021_current_schema"
-        assert revisions[0].down_revision is None
-        assert result.after == (INITIAL_REVISION,)
+        head, root = revisions
+        assert root.revision == INITIAL_REVISION == "20261021_current_schema"
+        assert root.down_revision is None
+        assert head.revision == "20261103_custom_units"
+        assert head.down_revision == root.revision
+        assert result.after == (head.revision,)
         with manager.engine.connect() as connection:
             table_names = set(inspect(connection).get_table_names())
             application_tables = table_names - {"alembic_version", "sqlite_sequence"}
@@ -523,6 +525,29 @@ def test_packaged_history_is_one_root_revision_matching_current_models(
             assert not RETIRED_SETTINGS_COLUMNS.intersection(settings_columns)
             config.attributes["connection"] = connection
             command.check(config)
+    finally:
+        manager.dispose()
+
+
+###############################################################################
+def test_database_at_baseline_revision_upgrades_to_custom_units_head(
+    tmp_path,
+) -> None:  # type: ignore[no-untyped-def]
+    settings = _sqlite_settings(str(tmp_path / "baseline-schema.db"))
+    manager = DatabaseManager(settings)
+    try:
+        config = build_alembic_config()
+        with manager.engine.begin() as connection:
+            config.attributes["connection"] = connection
+            command.upgrade(config, INITIAL_REVISION)
+            assert "custom_units" not in inspect(connection).get_table_names()
+
+        result = migrate_engine(manager.engine, settings)
+
+        assert result.before == (INITIAL_REVISION,)
+        assert result.after == ("20261103_custom_units",)
+        with manager.engine.connect() as connection:
+            assert "custom_units" in inspect(connection).get_table_names()
     finally:
         manager.dispose()
 

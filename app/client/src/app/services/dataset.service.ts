@@ -3,6 +3,7 @@
 
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type {
+    CustomUnitDefinition,
     DatasetImportResponse,
     DatasetMetadata,
     DatasetImportInspection,
@@ -12,6 +13,8 @@ import type {
     ImportPreview,
     ImportValidation,
     ObservationPage,
+    UnitCatalog,
+    UnitOption,
 } from '../models/dataset.model';
 import {
     extractErrorMessage,
@@ -94,10 +97,22 @@ export function fetchDatasets(): Promise<
     return request('', { method: 'GET' });
 }
 
-export function fetchDatasetConfiguration(): Promise<
-    ApiResult<{ allowed_extensions: string[] }>
-> {
+export function fetchDatasetConfiguration(): Promise<ApiResult<UnitCatalog>> {
     return request('/supported-units', { method: 'GET' });
+}
+
+export function saveCustomUnit(
+    unit: CustomUnitDefinition,
+): Promise<ApiResult<{ unit: UnitOption }>> {
+    return request('/units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(unit),
+    });
+}
+
+export function deleteCustomUnit(unitId: number): Promise<ApiResult<null>> {
+    return request(`/units/${unitId}`, { method: 'DELETE' });
 }
 
 export function fetchDatasetImport(

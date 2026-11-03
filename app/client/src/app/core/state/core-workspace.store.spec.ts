@@ -41,8 +41,13 @@ function experiment(datasetId: number, id: number, name = `experiment-${id}`): E
         adsorbent: 'carbon',
         adsorbates: ['CO2'],
         temperature_k: 298.15,
+        temperature_original: 298.15,
+        temperature_original_unit: 'K',
         pressure_basis: 'absolute',
         observation_count: 2,
+        pressure_min: 1,
+        pressure_max: 100,
+        pressure_canonical_unit: 'Pa',
         fitting_eligible: true,
         ineligibility_reason: null,
     };

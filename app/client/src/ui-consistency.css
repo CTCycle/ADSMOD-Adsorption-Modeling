@@ -70,8 +70,7 @@
 }
 
 .console-nav-item:focus-visible,
-.console-footer-link:focus-visible,
-.header-icon-button:focus-visible {
+.console-footer-link:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -137,13 +136,6 @@ button {
   margin-top: 0.25rem;
   font-size: 0.8125rem;
   line-height: 1.4;
-}
-
-.header-icon-button {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  font-size: 0.95rem;
 }
 
 .console-main {
@@ -406,8 +398,7 @@ button {
   padding: 0;
 }
 
-.dataset-modal-backdrop,
-.help-modal-backdrop {
+.dataset-modal-backdrop {
   padding: var(--spacing-md);
 }
 
@@ -452,8 +443,7 @@ button {
 }
 
 .confirm-dialog-actions .button,
-.dataset-rename-actions .button,
-.help-modal-footer .button {
+.dataset-rename-actions .button {
   min-height: 42px;
 }
 
@@ -752,20 +742,11 @@ input[type="number"] {
 .fitting-action-primary,
 .file-upload-label,
 .dataset-status .button,
-.help-modal-footer .button,
 .confirm-dialog .confirm-destructive,
 .dataset-record-actions .button {
   min-height: var(--control-height);
   height: auto;
   font-size: 0.8125rem;
-}
-
-.help-modal-close {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  font-size: 1rem;
 }
 
 /* Low-emphasis action: no fill or border until hovered. */
@@ -832,17 +813,6 @@ a.button.secondary:hover {
 
 .public-intro h2 {
   font-size: 1.125rem;
-}
-
-/* Inspector content sits inside the card padding instead of touching its edges. */
-.dataset-inspector {
-  padding: var(--spacing-lg);
-  gap: var(--spacing-lg);
-}
-
-.dataset-inspector .card-title-row {
-  min-height: 0;
-  padding: 0;
 }
 
 input[type="text"],

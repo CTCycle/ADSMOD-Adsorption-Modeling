@@ -64,7 +64,7 @@ async function readShellGeometry(page: Page) {
             sidebar: rect('.console-sidebar'),
             header: rect('.console-header'),
             main: rect('.console-main'),
-            help: rect('.console-header .header-icon-button'),
+            themeSwitch: rect('.console-header adsmod-theme-switch'),
             contentOrigin: {
                 x: mainBox.x + Number.parseFloat(style.paddingLeft),
                 y: mainBox.y + Number.parseFloat(style.paddingTop),
@@ -92,8 +92,8 @@ test('primary routes share one stable shell at each supported viewport', async (
         const geometry = await readShellGeometry(page);
         expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
         expect(geometry.header.height).toBe(geometry.headerHeightToken);
-        expect(geometry.help.y).toBeGreaterThanOrEqual(geometry.header.y);
-        expect(geometry.help.bottom).toBeLessThanOrEqual(geometry.header.bottom);
+        expect(geometry.themeSwitch.y).toBeGreaterThanOrEqual(geometry.header.y);
+        expect(geometry.themeSwitch.bottom).toBeLessThanOrEqual(geometry.header.bottom);
         expect(geometry.main.x).toBe(geometry.header.x);
         expect(geometry.status.height).toBe(34);
         expect(geometry.status.bottom).toBe(page.viewportSize()!.height);
@@ -133,7 +133,7 @@ test('primary routes share one stable shell at each supported viewport', async (
             await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
             const geometry = await readShellGeometry(page);
             expect(geometry.documentWidth).toBeLessThanOrEqual(viewport.width + 1);
-            expect(geometry.help.x + geometry.help.width).toBeLessThanOrEqual(viewport.width + 1);
+            expect(geometry.themeSwitch.x + geometry.themeSwitch.width).toBeLessThanOrEqual(viewport.width + 1);
 
             if (viewport.width === 390) {
                 await page.screenshot({ path: testInfo.outputPath('public-materials-mobile-390x844.png') });
@@ -196,8 +196,8 @@ test('dataset tables stay contained and deletion requires an explicit confirmati
                     limit: 10,
                     total: 2,
                     rows: [
-                        { id: 1, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: 0.1, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.1 },
-                        { id: 2, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
+                        { id: 1, sequence_index: 0, uptake_stddev_mol_kg: null, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: 0.1, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.1 },
+                        { id: 2, sequence_index: 1, uptake_stddev_mol_kg: null, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
                     ],
                 }),
             });
@@ -219,7 +219,7 @@ test('dataset tables stay contained and deletion requires an explicit confirmati
     });
 
     await page.goto('/datasets');
-    await expect(page.getByRole('button', { name: datasetRecord.name, exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: datasetRecord.name, exact: true }).first()).toBeVisible();
     const datasetTableGeometry = await page.locator('.dataset-table-frame').evaluate((frame) => {
         const card = frame.closest<HTMLElement>('.workspace-datasets-card');
         const table = frame.querySelector('table');
@@ -239,51 +239,33 @@ test('dataset tables stay contained and deletion requires an explicit confirmati
     expect(datasetTableGeometry.frameLeft).toBeGreaterThanOrEqual(datasetTableGeometry.cardLeft);
     expect(datasetTableGeometry.frameRight).toBeLessThanOrEqual(datasetTableGeometry.cardRight + 1);
     expect(datasetTableGeometry.documentWidth).toBeLessThanOrEqual(datasetTableGeometry.viewportWidth + 1);
-    if (datasetTableGeometry.frameWidth >= 900) {
-        expect(datasetTableGeometry.tableWidth).toBeGreaterThanOrEqual(datasetTableGeometry.frameWidth - 1);
-    } else {
-        expect(datasetTableGeometry.frameScrollWidth).toBeGreaterThan(datasetTableGeometry.frameWidth);
-    }
+    expect(datasetTableGeometry.frameScrollWidth).toBeLessThanOrEqual(datasetTableGeometry.frameWidth + 1);
     if (testInfo.project.name === 'viewport-1440x920') {
         await page.screenshot({ path: testInfo.outputPath('datasets-populated-desktop.png') });
     }
     await page.getByRole('button', { name: `Rename ${datasetRecord.name}`, exact: true }).click();
     await page.getByLabel('Dataset name').fill('Renamed workspace dataset');
     await page.getByRole('button', { name: 'Save name' }).click();
-    await expect(page.getByRole('button', { name: 'Renamed workspace dataset', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Renamed workspace dataset', exact: true }).first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Renamed workspace dataset', exact: true }).click();
-    await expect(page.locator('.dataset-experiments-frame')).toBeVisible();
-    await expect(page.locator('.dataset-observations-frame')).toBeVisible();
-    const inspectorTableGeometry = await page.locator('.dataset-inspector').evaluate((inspector) => {
-        const frames = Array.from(inspector.querySelectorAll<HTMLElement>('.data-table-frame'));
-        const inspectorRect = inspector.getBoundingClientRect();
-        return {
-            viewportWidth: document.documentElement.clientWidth,
-            documentWidth: document.documentElement.scrollWidth,
-            frames: frames.map((frame) => ({
-                left: frame.getBoundingClientRect().left,
-                right: frame.getBoundingClientRect().right,
-                clientWidth: frame.clientWidth,
-                scrollWidth: frame.scrollWidth,
-                tableWidth: frame.querySelector('table')?.getBoundingClientRect().width ?? 0,
-            })),
-            inspectorLeft: inspectorRect.left,
-            inspectorRight: inspectorRect.right,
-        };
-    });
-    expect(inspectorTableGeometry.documentWidth).toBeLessThanOrEqual(inspectorTableGeometry.viewportWidth + 1);
-    expect(inspectorTableGeometry.frames).toHaveLength(2);
-    for (const frame of inspectorTableGeometry.frames) {
-        expect(frame.left).toBeGreaterThanOrEqual(inspectorTableGeometry.inspectorLeft);
-        expect(frame.right).toBeLessThanOrEqual(inspectorTableGeometry.inspectorRight + 1);
-        if (frame.clientWidth < frame.tableWidth) {
-            expect(frame.scrollWidth).toBeGreaterThan(frame.clientWidth);
-        }
-    }
+    await page.getByRole('link', { name: 'Renamed workspace dataset', exact: true }).first().click();
+    await expect(page).toHaveURL(/\/datasets\/17$/);
+    await expect(page.getByRole('heading', { name: 'Renamed workspace dataset', level: 2 })).toBeVisible();
+    await page.getByRole('link', { name: 'Experiments', exact: true }).click();
+    await expect(page).toHaveURL(/tab=experiments/);
+    await expect(page.getByRole('button', { name: /Carbon dioxide adsorption experiment/ })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.explorer-table tbody tr')).toHaveCount(2);
+    const detailsGeometry = await page.evaluate(() => ({
+        viewportWidth: document.documentElement.clientWidth,
+        documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(detailsGeometry.documentWidth).toBeLessThanOrEqual(detailsGeometry.viewportWidth + 1);
     if (testInfo.project.name === 'viewport-1440x920') {
-        await page.screenshot({ path: testInfo.outputPath('dataset-inspector-populated-desktop.png') });
+        await page.screenshot({ path: testInfo.outputPath('dataset-details-experiments-desktop.png') });
     }
+    await page.goBack();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/datasets$/);
 
     await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
     const confirmation = page.getByRole('alertdialog');
@@ -304,7 +286,7 @@ test('dataset tables stay contained and deletion requires an explicit confirmati
     await expect(page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true })).toBeFocused();
     await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
     await page.getByRole('button', { name: 'Delete dataset', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Renamed workspace dataset', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Renamed workspace dataset', exact: true })).toHaveCount(0);
     expect(deleteRequests).toBe(1);
 });
 
@@ -317,7 +299,7 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ allowed_extensions: ['.csv', '.xls', '.xlsx'] }),
+            body: JSON.stringify({ pressure: [], uptake: [], temperature: [], allowed_extensions: ['.csv', '.xls', '.xlsx'] }),
         });
     });
     await page.route('**/api/v1/datasets/import/preview', async (route) => {
@@ -403,8 +385,8 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
     await mobileDialog.getByRole('button', { name: 'Review mapping', exact: true }).click();
 
     const mappingGeometry = await mobileDialog.evaluate((element) => {
-        const settings = element.querySelector<HTMLElement>('.import-settings-grid');
-        const table = element.querySelector<HTMLElement>('.import-mapping-table');
+        const settings = element.querySelector<HTMLElement>('.settings-cards');
+        const table = element.querySelector<HTMLElement>('.mapping-table');
         const tableWrap = table?.parentElement;
         const body = element.querySelector<HTMLElement>('.import-wizard-body');
         return {
@@ -420,7 +402,7 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
     expect(mappingGeometry.settingsColumns).toBe(1);
     expect(mappingGeometry.documentWidth).toBeLessThanOrEqual(mappingGeometry.viewportWidth + 1);
     expect(mappingGeometry.tableWrapWidth).toBeLessThanOrEqual(mappingGeometry.bodyWidth + 1);
-    expect(mappingGeometry.tableWrapScrollWidth).toBeGreaterThan(mappingGeometry.tableWrapClientWidth);
+    expect(mappingGeometry.tableWrapScrollWidth).toBeLessThanOrEqual(mappingGeometry.tableWrapClientWidth + 1);
 
     await page.setViewportSize({ width: 195, height: 422 });
     await expect(mobileDialog.getByRole('button', { name: 'Validate and preview series', exact: true })).toBeVisible();

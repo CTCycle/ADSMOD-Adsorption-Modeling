@@ -1,6 +1,6 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-10-21
+Last updated: 2026-11-03
 
 ## Layout Patterns
 
@@ -36,6 +36,9 @@ Last updated: 2026-10-21
 - Sections use card and panel patterns
 - Long output appears in scrollable log or markdown regions
 - Dialogs use backdrop overlays and centered modal containers
+- Unit fields use `adsmod-unit-combobox` (searchable, free text allowed, with an inline confirmation for unknown units)
+- Experiments use `adsmod-experiment-explorer`: stacked collapsible sections with an observation table; tables collapse to labelled rows on narrow viewports instead of scrolling horizontally
+- Documentation lives on the `help` route, opened from the sidebar Docs link; there is no header help button
 
 ## Workflow Feedback
 

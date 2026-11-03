@@ -15,6 +15,8 @@ from fastapi import (
 )
 
 from server.domain.datasets import (
+    CustomUnitRequest,
+    CustomUnitResponse,
     DatasetImportResponse,
     DatasetImportInspectionResponse,
     DatasetListResponse,
@@ -126,6 +128,20 @@ class DatasetEndpoint:
         return self.service.supported_units()
 
     # -------------------------------------------------------------------------
+    def save_custom_unit(self, request: CustomUnitRequest) -> CustomUnitResponse:
+        try:
+            return self.service.save_custom_unit(request)
+        except ValueError as exc:
+            raise self.bad_request(exc) from exc
+
+    # -------------------------------------------------------------------------
+    def delete_custom_unit(self, unit_id: int = Path(..., ge=1)) -> None:
+        try:
+            self.service.delete_custom_unit(unit_id)
+        except LookupError as exc:
+            raise self.not_found(exc) from exc
+
+    # -------------------------------------------------------------------------
     def list_experiments(
         self, dataset_id: int = Path(..., ge=1)
     ) -> ExperimentListResponse:
@@ -185,6 +201,19 @@ class DatasetEndpoint:
             self.supported_units,
             methods=["GET"],
             response_model=SupportedUnitsResponse,
+        )
+        self.router.add_api_route(
+            "/units",
+            self.save_custom_unit,
+            methods=["POST"],
+            response_model=CustomUnitResponse,
+            status_code=status.HTTP_201_CREATED,
+        )
+        self.router.add_api_route(
+            "/units/{unit_id}",
+            self.delete_custom_unit,
+            methods=["DELETE"],
+            status_code=status.HTTP_204_NO_CONTENT,
         )
         self.router.add_api_route(
             "/import/preview",

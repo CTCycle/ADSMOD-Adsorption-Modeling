@@ -1,12 +1,14 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-10-21
+Last updated: 2026-11-03
 
 ## Main Navigation
 
 The application uses one Angular frontend with these primary routes:
 
 - `datasets` for custom workspace datasets and file import
+- `datasets/:id` for one dataset (`?tab=overview|experiments|preview|visualization`)
+- `help` for the Docs page (tutorials, guides, and tips; `/docs` is reserved by the backend)
 - `public-data` for the public-data workspace (opens Overview)
 - `public-data/:view` for Overview, Acquire, Adsorption Data, Materials, Chemicals, Structures, and Sources
 - `dashboards/overview` and `dashboards/explore` for cross-dataset data exploration
@@ -18,12 +20,19 @@ split `public-materials` destination is not a supported route.
 
 ## Upload And Fit A Local Dataset
 
-1. Open `datasets` and import a local file.
-2. Upload a `.csv`, `.xls`, or `.xlsx` dataset.
-3. Confirm the dataset statistics.
-4. Open `fitting`.
-5. Select the dataset, model set, optimizer, and iterations.
-6. Start fitting and monitor logs.
+1. Open `datasets` and choose Add dataset to import a local file.
+2. Upload a `.csv`, `.xls`, or `.xlsx` dataset. In the wizard, review Preview, then Map columns:
+   dataset information, data interpretation, scientific units, validation settings, and column mapping.
+   Units are searchable; a unit not in the catalog can be saved for future imports or used for the
+   current import only. A unit without a conversion definition blocks the import.
+3. Validate series: experiments appear as collapsible sections with their observations, warnings, and
+   errors. Datasets with blocking errors cannot be saved.
+4. Open a dataset to inspect its overview, experiments, data preview, and isotherm plot. Edit, rename,
+   and delete are available from the list and the dataset page; returning to the list keeps its page and
+   page size.
+5. Open `fitting`.
+6. Select the dataset, model set, optimizer, and iterations.
+7. Start fitting and monitor logs.
 
 ## Explore And Compare Stored Data
 

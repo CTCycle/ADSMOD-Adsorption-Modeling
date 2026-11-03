@@ -22,6 +22,35 @@ export type ColumnRole =
     | 'metadata'
     | 'ignore';
 
+export type UnitQuantity = 'pressure' | 'uptake' | 'temperature';
+
+export interface UnitOption {
+    quantity: UnitQuantity;
+    symbol: string;
+    label: string;
+    name: string;
+    group: string;
+    note: string;
+    aliases: string[];
+    built_in: boolean;
+    has_conversion: boolean;
+    factor_to_canonical: number | null;
+    id: number | null;
+}
+
+export interface CustomUnitDefinition {
+    quantity: UnitQuantity;
+    symbol: string;
+    factor_to_canonical: number | null;
+}
+
+export interface UnitCatalog {
+    pressure: UnitOption[];
+    uptake: UnitOption[];
+    temperature: UnitOption[];
+    allowed_extensions: string[];
+}
+
 export interface DatasetMetadata {
     tags: string[];
     description: string;
@@ -86,6 +115,7 @@ export interface ImportMapping {
     whole_file_grouping?: boolean;
     constants: Record<string, string | number>;
     unit_overrides: Record<string, string>;
+    unit_definitions: CustomUnitDefinition[];
     pressure_basis: PressureBasis;
     decimal_separator: 'auto' | '.' | ',';
     field_delimiter?: string | null;
@@ -118,6 +148,8 @@ export interface NormalizedExperimentPreview {
     adsorbate: string;
     adsorbate_smiles: string | null;
     temperature_k: number;
+    temperature_original: number;
+    temperature_original_unit: string;
     pressure_basis: PressureBasis;
     observation_count: number;
     observations: NormalizedObservationPreview[];
@@ -159,10 +191,29 @@ export interface ExperimentSummary {
     adsorbent: string;
     adsorbates: string[];
     temperature_k: number;
+    temperature_original: number | null;
+    temperature_original_unit: string | null;
     pressure_basis: PressureBasis;
     observation_count: number;
+    pressure_min: number | null;
+    pressure_max: number | null;
+    pressure_canonical_unit: string | null;
     fitting_eligible: boolean;
     ineligibility_reason: string | null;
+}
+
+export interface ObservationRow {
+    id: number;
+    sequence_index: number;
+    source_row: number | null;
+    pressure_original: number;
+    pressure_original_unit: string;
+    pressure_canonical: number;
+    pressure_canonical_unit: string;
+    uptake_original: number;
+    uptake_original_unit: string;
+    uptake_mol_kg: number;
+    uptake_stddev_mol_kg: number | null;
 }
 
 export interface ObservationPage {
@@ -172,5 +223,5 @@ export interface ObservationPage {
     offset: number;
     limit: number;
     total: number;
-    rows: Record<string, unknown>[];
+    rows: ObservationRow[];
 }

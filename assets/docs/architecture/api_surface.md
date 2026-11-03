@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-10-21
+Last updated: 2026-11-03
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -11,7 +11,10 @@ aliases or unversioned API aliases.
 The unified backend serves all versioned routes under `/api/v1`:
 
 - `/system/capabilities` and `/system/configuration`
-- `/datasets/*`
+- `/datasets/*`, including the unit catalog (`GET /supported-units`) and
+  user-defined units (`POST /units`, `DELETE /units/{unit_id}`). Import
+  validation reports an unusable unit once as an `unsupported_unit` error. A
+  unit saved without a conversion factor is a label only and is never converted.
 - `/public-data/*` (NIST, PubChem, and COD acquisition and browsing)
 - `/fitting/*`
 - `/analytics/*` (read-only cross-dataset queries for the dashboards:

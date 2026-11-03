@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,15 +29,18 @@ from server.services.data.import_parser import (
     source_hash,
 )
 from server.common.units import (
+    KNOWN_MOLAR_MASSES_G_MOL,
+    CustomUnit,
+    UnitCatalog,
     UnitConversionError,
-    UnitRegistry,
     parse_number,
 )
 
 PARSER_VERSION = "2.0"
 DEFAULT_COLUMN_DETECTION_CUTOFF = 0.6
 DEFAULT_PREVIEW_ROW_LIMIT = 20
-EXPERIMENT_PREVIEW_POINTS = 8
+EXPERIMENT_PREVIEW_POINTS = 25
+UNIT_QUANTITIES = ("pressure", "uptake", "temperature")
 
 ###############################################################################
 @dataclass
@@ -133,8 +136,21 @@ class AdsorptionImportEngine:
 
     # -------------------------------------------------------------------------
     def validate(
-        self, payload: bytes, filename: str | None, mapping: ImportMapping
+        self,
+        payload: bytes,
+        filename: str | None,
+        mapping: ImportMapping,
+        custom_units: Sequence[CustomUnit] = (),
     ) -> ValidationBundle:
+        catalog = UnitCatalog(
+            [
+                *custom_units,
+                *(
+                    CustomUnit(item.quantity, item.symbol, item.factor_to_canonical)
+                    for item in mapping.unit_definitions
+                ),
+            ]
+        )
         frame = read_tabular(
             payload,
             filename,
@@ -189,6 +205,7 @@ class AdsorptionImportEngine:
                         message=f"Grouping column '{column}' does not exist.",
                     )
                 )
+        issues.extend(self._unit_selection_issues(mapping, roles, catalog))
         if issues:
             return self._bundle(mapping, payload, [], issues)
 
@@ -196,6 +213,7 @@ class AdsorptionImportEngine:
             item.name: item
             for item in [infer_column(name, frame[name]) for name in frame]
         }
+        issues.extend(self._unit_override_warnings(mapping, roles, detected, catalog))
         grouped_records: dict[str, list[dict[str, Any]]] = {}
         metadata_by_group: dict[str, dict[str, Any]] = {}
 
@@ -229,6 +247,7 @@ class AdsorptionImportEngine:
                     roles,
                     mapping,
                     detected,
+                    catalog,
                 )
             except (ValueError, UnitConversionError) as exc:
                 issues.append(
@@ -381,6 +400,7 @@ class AdsorptionImportEngine:
         roles: dict[str, str],
         mapping: ImportMapping,
         detected: dict[str, ColumnDetection],
+        catalog: UnitCatalog,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         adsorbent = str(
             self._mapped_value(row, "adsorbent", roles, mapping) or ""
@@ -408,26 +428,15 @@ class AdsorptionImportEngine:
             mapping.decimal_separator,
         )
         temperature_unit = self._unit_for("temperature", row, roles, mapping, detected)
-        temperature = UnitRegistry.convert_temperature(
+        temperature = catalog.convert_temperature(
             temperature_value, temperature_unit
         )
 
         pressure_unit = self._unit_for("pressure", row, roles, mapping, detected)
         uptake_unit = self._unit_for("uptake", row, roles, mapping, detected)
-        known_molar_masses = {
-            "co2": 44.0095,
-            "carbon dioxide": 44.0095,
-            "n2": 28.0134,
-            "nitrogen": 28.0134,
-            "ch4": 16.0425,
-            "methane": 16.0425,
-            "o2": 31.9988,
-            "h2": 2.01588,
-            "hydrogen": 2.01588,
-        }
         molar_mass = mapping.constants.get("adsorbate_molar_mass_g_mol")
         if molar_mass is None:
-            molar_mass = known_molar_masses.get(adsorbate.casefold())
+            molar_mass = KNOWN_MOLAR_MASSES_G_MOL.get(adsorbate.casefold())
         molar_mass_value = float(molar_mass) if molar_mass not in (None, "") else None
         name = str(
             self._mapped_value(row, "experiment_name", roles, mapping) or ""
@@ -449,7 +458,7 @@ class AdsorptionImportEngine:
             saturation_unit = mapping.unit_overrides.get(
                 "saturation_pressure", pressure_unit
             )
-            saturation_pressure_pa = UnitRegistry.convert_pressure(
+            saturation_pressure_pa = catalog.convert_pressure(
                 saturation_value, saturation_unit, "absolute"
             ).canonical_value
 
@@ -495,10 +504,10 @@ class AdsorptionImportEngine:
         ]
         observations: list[dict[str, Any]] = []
         for pressure_value, uptake_value, sequence_index in pairs:
-            pressure = UnitRegistry.convert_pressure(
+            pressure = catalog.convert_pressure(
                 pressure_value, pressure_unit, mapping.pressure_basis
             )
-            uptake = UnitRegistry.convert_uptake(
+            uptake = catalog.convert_uptake(
                 uptake_value, uptake_unit, molar_mass_value
             )
             stddev = None
@@ -510,7 +519,7 @@ class AdsorptionImportEngine:
                     self._mapped_value(row, "uptake_stddev", roles, mapping),
                     mapping.decimal_separator,
                 )
-                stddev = UnitRegistry.convert_uptake(
+                stddev = catalog.convert_uptake(
                     stddev_value, uptake_unit, molar_mass_value
                 ).canonical_value
                 if stddev <= 0:
@@ -555,6 +564,68 @@ class AdsorptionImportEngine:
             "saturation_pressure_pa": saturation_pressure_pa,
             "source_rows": [source_row],
         }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _unit_selection_issues(
+        mapping: ImportMapping, roles: dict[str, str], catalog: UnitCatalog
+    ) -> list[ImportIssue]:
+        """Reject explicitly selected units once, before any row is converted."""
+        selected: dict[str, str] = {}
+        for quantity in UNIT_QUANTITIES:
+            if mapping.unit_overrides.get(quantity):
+                selected[quantity] = mapping.unit_overrides[quantity]
+            elif f"{quantity}_unit" not in roles and mapping.constants.get(
+                f"{quantity}_unit"
+            ):
+                selected[quantity] = str(mapping.constants[f"{quantity}_unit"])
+        issues: list[ImportIssue] = []
+        for quantity, unit in selected.items():
+            try:
+                catalog.check(quantity, unit)
+            except UnitConversionError as exc:
+                issues.append(
+                    ImportIssue(
+                        code="unsupported_unit",
+                        severity="error",
+                        column=quantity,
+                        message=str(exc),
+                        remediation=(
+                            "Pick a unit from the catalog, define its conversion factor, "
+                            "or convert the source values before importing."
+                        ),
+                    )
+                )
+        return issues
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _unit_override_warnings(
+        mapping: ImportMapping,
+        roles: dict[str, str],
+        detected: dict[str, ColumnDetection],
+        catalog: UnitCatalog,
+    ) -> list[ImportIssue]:
+        warnings: list[ImportIssue] = []
+        for quantity in UNIT_QUANTITIES:
+            override = mapping.unit_overrides.get(quantity)
+            column = roles.get(quantity)
+            found = detected[column].detected_unit if column in detected else None
+            if not override or not found:
+                continue
+            if catalog.check(quantity, override) != catalog.check(quantity, found):
+                warnings.append(
+                    ImportIssue(
+                        code="unit_override_applied",
+                        severity="warning",
+                        column=column,
+                        message=(
+                            f"The detected {quantity} unit '{found}' was replaced by "
+                            f"the manual override '{override}'."
+                        ),
+                    )
+                )
+        return warnings
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -647,6 +718,8 @@ class AdsorptionImportEngine:
                 adsorbate=experiment["adsorbates"][0]["name"],
                 adsorbate_smiles=experiment["adsorbates"][0].get("smiles"),
                 temperature_k=experiment["temperature_k"],
+                temperature_original=experiment["temperature_original"],
+                temperature_original_unit=experiment["temperature_original_unit"],
                 pressure_basis=experiment["pressure_basis"],
                 observation_count=len(experiment["observations"]),
                 observations=[

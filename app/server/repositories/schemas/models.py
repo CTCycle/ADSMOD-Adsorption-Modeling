@@ -155,6 +155,40 @@ class DatasetImport(Base):
     )
 
 ###############################################################################
+class CustomUnitRecord(Base):
+    """User-defined unit label for one physical quantity.
+
+    A NULL factor_to_canonical means the unit is a label only: values in it cannot
+    be converted. Otherwise the factor converts to Pa (pressure) or mol/kg (uptake).
+    """
+
+    __tablename__ = "custom_units"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    quantity: Mapped[str] = mapped_column(String(16), nullable=False)
+    symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    factor_to_canonical: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "quantity", "normalized_symbol", name="uq_custom_units_quantity_symbol"
+        ),
+        CheckConstraint(
+            "quantity IN ('pressure', 'uptake', 'temperature')",
+            name="ck_custom_units_quantity",
+        ),
+        CheckConstraint(
+            "factor_to_canonical IS NULL OR factor_to_canonical > 0",
+            name="ck_custom_units_factor",
+        ),
+        CheckConstraint("length(normalized_symbol) > 0", name="ck_custom_units_symbol"),
+    )
+
+###############################################################################
 class Adsorbate(Base):
     __tablename__ = "adsorbates"
 

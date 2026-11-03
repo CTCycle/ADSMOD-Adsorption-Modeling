@@ -295,6 +295,83 @@
         }
       }
     },
+    "/api/v1/datasets/units": {
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Save Custom Unit",
+        "operationId": "save_custom_unit_api_v1_datasets_units_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomUnitResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/units/{unit_id}": {
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete Custom Unit",
+        "operationId": "delete_custom_unit_api_v1_datasets_units__unit_id__delete",
+        "parameters": [
+          {
+            "name": "unit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Unit Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/datasets/import/preview": {
       "post": {
         "tags": [
@@ -4420,6 +4497,100 @@
         ],
         "title": "ColumnDetection"
       },
+      "CustomUnitDefinition": {
+        "properties": {
+          "quantity": {
+            "type": "string",
+            "enum": [
+              "pressure",
+              "uptake",
+              "temperature"
+            ],
+            "title": "Quantity"
+          },
+          "symbol": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Symbol"
+          },
+          "factor_to_canonical": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor To Canonical"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity",
+          "symbol"
+        ],
+        "title": "CustomUnitDefinition"
+      },
+      "CustomUnitRequest": {
+        "properties": {
+          "quantity": {
+            "type": "string",
+            "enum": [
+              "pressure",
+              "uptake",
+              "temperature"
+            ],
+            "title": "Quantity"
+          },
+          "symbol": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Symbol"
+          },
+          "factor_to_canonical": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor To Canonical"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity",
+          "symbol"
+        ],
+        "title": "CustomUnitRequest"
+      },
+      "CustomUnitResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitOption"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit"
+        ],
+        "title": "CustomUnitResponse"
+      },
       "DatabaseSettingsRequest": {
         "properties": {
           "backend": {
@@ -5553,6 +5724,28 @@
             "type": "number",
             "title": "Temperature K"
           },
+          "temperature_original": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Original"
+          },
+          "temperature_original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Original Unit"
+          },
           "pressure_basis": {
             "type": "string",
             "enum": [
@@ -5565,6 +5758,39 @@
           "observation_count": {
             "type": "integer",
             "title": "Observation Count"
+          },
+          "pressure_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Min"
+          },
+          "pressure_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Max"
+          },
+          "pressure_canonical_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Canonical Unit"
           },
           "fitting_eligible": {
             "type": "boolean",
@@ -6121,6 +6347,13 @@
             },
             "type": "object",
             "title": "Unit Overrides"
+          },
+          "unit_definitions": {
+            "items": {
+              "$ref": "#/components/schemas/CustomUnitDefinition"
+            },
+            "type": "array",
+            "title": "Unit Definitions"
           },
           "pressure_basis": {
             "type": "string",
@@ -7140,6 +7373,14 @@
             "type": "number",
             "title": "Temperature K"
           },
+          "temperature_original": {
+            "type": "number",
+            "title": "Temperature Original"
+          },
+          "temperature_original_unit": {
+            "type": "string",
+            "title": "Temperature Original Unit"
+          },
           "pressure_basis": {
             "type": "string",
             "enum": [
@@ -7168,6 +7409,8 @@
           "adsorbent",
           "adsorbate",
           "temperature_k",
+          "temperature_original",
+          "temperature_original_unit",
           "pressure_basis",
           "observation_count",
           "observations"
@@ -7297,8 +7540,7 @@
           },
           "rows": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ObservationRow"
             },
             "type": "array",
             "title": "Rows"
@@ -7314,6 +7556,81 @@
           "rows"
         ],
         "title": "ObservationPage"
+      },
+      "ObservationRow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sequence_index": {
+            "type": "integer",
+            "title": "Sequence Index"
+          },
+          "source_row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Row"
+          },
+          "pressure_original": {
+            "type": "number",
+            "title": "Pressure Original"
+          },
+          "pressure_original_unit": {
+            "type": "string",
+            "title": "Pressure Original Unit"
+          },
+          "pressure_canonical": {
+            "type": "number",
+            "title": "Pressure Canonical"
+          },
+          "pressure_canonical_unit": {
+            "type": "string",
+            "title": "Pressure Canonical Unit"
+          },
+          "uptake_original": {
+            "type": "number",
+            "title": "Uptake Original"
+          },
+          "uptake_original_unit": {
+            "type": "string",
+            "title": "Uptake Original Unit"
+          },
+          "uptake_mol_kg": {
+            "type": "number",
+            "title": "Uptake Mol Kg"
+          },
+          "uptake_stddev_mol_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Stddev Mol Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sequence_index",
+          "pressure_original",
+          "pressure_original_unit",
+          "pressure_canonical",
+          "pressure_canonical_unit",
+          "uptake_original",
+          "uptake_original_unit",
+          "uptake_mol_kg"
+        ],
+        "title": "ObservationRow"
       },
       "OperationStatusResponse": {
         "properties": {
@@ -9167,21 +9484,21 @@
         "properties": {
           "pressure": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/UnitOption"
             },
             "type": "array",
             "title": "Pressure"
           },
           "uptake": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/UnitOption"
             },
             "type": "array",
             "title": "Uptake"
           },
           "temperature": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/UnitOption"
             },
             "type": "array",
             "title": "Temperature"
@@ -9798,6 +10115,88 @@
           "progress"
         ],
         "title": "TrainingStatusResponse"
+      },
+      "UnitOption": {
+        "properties": {
+          "quantity": {
+            "type": "string",
+            "enum": [
+              "pressure",
+              "uptake",
+              "temperature"
+            ],
+            "title": "Quantity"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "built_in": {
+            "type": "boolean",
+            "title": "Built In",
+            "default": true
+          },
+          "has_conversion": {
+            "type": "boolean",
+            "title": "Has Conversion",
+            "default": true
+          },
+          "factor_to_canonical": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor To Canonical"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quantity",
+          "symbol",
+          "label",
+          "name",
+          "group"
+        ],
+        "title": "UnitOption"
       },
       "UptakeAtPressureRequest": {
         "properties": {
