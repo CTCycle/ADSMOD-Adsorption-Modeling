@@ -532,6 +532,73 @@ class JobManager:
                 )
 
     # -------------------------------------------------------------------------
+    def _supervise_process(
+        self,
+        job_id: str,
+        state: _JobState,
+        process: multiprocessing.Process,
+        stop_event: Any,
+        message_queue: multiprocessing.Queue,
+        config: _JobExecutionConfig,
+    ) -> None:
+        """Pump worker messages until exit, escalating a stop request to termination."""
+        stop_requested_at: float | None = None
+        while True:
+            process.join(timeout=0.2)
+            self.consume_process_messages(
+                job_id, message_queue, config.process_message_handler
+            )
+
+            if not process.is_alive():
+                break
+
+            with state.lock:
+                stop_requested = state.stop_requested
+
+            if stop_requested or stop_event.is_set():
+                if not stop_event.is_set():
+                    stop_event.set()
+                if stop_requested_at is None:
+                    stop_requested_at = monotonic()
+                elif (
+                    monotonic() - stop_requested_at
+                    > config.process_stop_timeout_seconds
+                ):
+                    self._logger.warning(
+                        "Forcing process shutdown for job %s after timeout", job_id
+                    )
+                    self.terminate_process_tree(process.pid)
+                    break
+
+        self.consume_process_messages(
+            job_id, message_queue, config.process_message_handler
+        )
+        process.join(timeout=1.0)
+        if process.is_alive():
+            self.terminate_process_tree(process.pid)
+            process.join(timeout=1.0)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _read_process_outcome(
+        process: multiprocessing.Process, result_queue: multiprocessing.Queue
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        try:
+            payload = result_queue.get_nowait()
+        except queue.Empty:
+            exit_code = process.exitcode
+            if exit_code not in (None, 0):
+                return None, f"Process exited with code {exit_code}"
+            return None, None
+        if not isinstance(payload, dict):
+            return {"result": payload}, None
+        if payload.get("status") == "error":
+            return None, payload.get("error")
+        if payload.get("status") == "success":
+            return payload.get("result"), None
+        return payload, None
+
+    # -------------------------------------------------------------------------
     def run_process_job(
         self,
         job_id: str,
@@ -584,59 +651,10 @@ class JobManager:
 
             process.start()
 
-            stop_requested_at: float | None = None
-            while True:
-                process.join(timeout=0.2)
-                self.consume_process_messages(
-                    job_id, message_queue, config.process_message_handler
-                )
-
-                if not process.is_alive():
-                    break
-
-                with state.lock:
-                    stop_requested = state.stop_requested
-
-                if stop_requested or stop_event.is_set():
-                    if not stop_event.is_set():
-                        stop_event.set()
-                    if stop_requested_at is None:
-                        stop_requested_at = monotonic()
-                    elif (
-                        monotonic() - stop_requested_at
-                        > config.process_stop_timeout_seconds
-                    ):
-                        self._logger.warning(
-                            "Forcing process shutdown for job %s after timeout", job_id
-                        )
-                        self.terminate_process_tree(process.pid)
-                        break
-
-            self.consume_process_messages(
-                job_id, message_queue, config.process_message_handler
+            self._supervise_process(
+                job_id, state, process, stop_event, message_queue, config
             )
-
-            process.join(timeout=1.0)
-            if process.is_alive():
-                self.terminate_process_tree(process.pid)
-                process.join(timeout=1.0)
-
-            result: dict[str, Any] | None = None
-            error: str | None = None
-            try:
-                payload = result_queue.get_nowait()
-                if isinstance(payload, dict) and payload.get("status") == "error":
-                    error = payload.get("error")
-                elif isinstance(payload, dict) and payload.get("status") == "success":
-                    result = payload.get("result")
-                elif isinstance(payload, dict):
-                    result = payload
-                else:
-                    result = {"result": payload}
-            except queue.Empty:
-                exit_code = process.exitcode
-                if exit_code not in (None, 0):
-                    error = f"Process exited with code {exit_code}"
+            result, error = self._read_process_outcome(process, result_queue)
 
             with state.lock:
                 stop_requested = state.stop_requested
