@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -160,24 +161,43 @@ class AdsorptionImportEngine:
             encoding=mapping.encoding,
             worksheet=mapping.worksheet,
         )
-        issues: list[ImportIssue] = []
-        unknown_columns = sorted(set(mapping.column_roles) - set(frame.columns))
-        if unknown_columns:
-            issues.extend(
-                ImportIssue(
-                    code="unknown_mapping_column",
-                    severity="error",
-                    column=column,
-                    message=f"Mapped column '{column}' does not exist in the uploaded file.",
-                )
-                for column in unknown_columns
-            )
-
         roles = {
             role: column
             for column, role in mapping.column_roles.items()
             if role not in {"ignore", "metadata"}
         }
+        issues = self._mapping_issues(mapping, frame, roles)
+        issues.extend(self._unit_selection_issues(mapping, roles, catalog))
+        if issues:
+            return self._bundle(mapping, payload, [], issues)
+
+        detected = {
+            item.name: item
+            for item in [infer_column(name, frame[name]) for name in frame]
+        }
+        issues.extend(self._unit_override_warnings(mapping, roles, detected, catalog))
+        grouped_records, metadata_by_group = self._group_rows(
+            frame, roles, mapping, detected, catalog, issues
+        )
+        experiments = self._build_experiments(
+            grouped_records, metadata_by_group, mapping, issues
+        )
+        return self._bundle(mapping, payload, experiments, issues)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _mapping_issues(
+        mapping: ImportMapping, frame: pd.DataFrame, roles: dict[str, str]
+    ) -> list[ImportIssue]:
+        issues: list[ImportIssue] = [
+            ImportIssue(
+                code="unknown_mapping_column",
+                severity="error",
+                column=column,
+                message=f"Mapped column '{column}' does not exist in the uploaded file.",
+            )
+            for column in sorted(set(mapping.column_roles) - set(frame.columns))
+        ]
         for required in ("pressure", "uptake", "temperature", "adsorbate", "adsorbent"):
             if required not in roles and required not in mapping.constants:
                 issues.append(
@@ -205,15 +225,19 @@ class AdsorptionImportEngine:
                         message=f"Grouping column '{column}' does not exist.",
                     )
                 )
-        issues.extend(self._unit_selection_issues(mapping, roles, catalog))
-        if issues:
-            return self._bundle(mapping, payload, [], issues)
+        return issues
 
-        detected = {
-            item.name: item
-            for item in [infer_column(name, frame[name]) for name in frame]
-        }
-        issues.extend(self._unit_override_warnings(mapping, roles, detected, catalog))
+    # -------------------------------------------------------------------------
+    def _group_rows(
+        self,
+        frame: pd.DataFrame,
+        roles: dict[str, str],
+        mapping: ImportMapping,
+        detected: dict[str, Any],
+        catalog: UnitCatalog,
+        issues: list[ImportIssue],
+    ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
+        """Normalize rows into per-experiment records, appending row issues."""
         grouped_records: dict[str, list[dict[str, Any]]] = {}
         metadata_by_group: dict[str, dict[str, Any]] = {}
 
@@ -285,7 +309,46 @@ class AdsorptionImportEngine:
             else:
                 metadata_by_group[group_key] = row_metadata
             grouped_records.setdefault(group_key, []).extend(row_records)
+        return grouped_records, metadata_by_group
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _duplicate_pressure_issue(
+        group_key: str, duplicate_policy: str
+    ) -> ImportIssue:
+        if duplicate_policy == "reject":
+            return ImportIssue(
+                code="duplicate_pressure",
+                severity="confirmation",
+                experiment=group_key,
+                message=(
+                    f"Experiment '{group_key}' has repeated pressure values. "
+                    "Keeping them weights those pressures as replicate observations."
+                ),
+                remediation="Choose the keep-replicates policy or correct duplicate rows.",
+            )
+        if duplicate_policy == "average":
+            return ImportIssue(
+                code="duplicates_average_on_fit",
+                severity="warning",
+                experiment=group_key,
+                message=f"Repeated pressures in '{group_key}' will be averaged deterministically for fitting; all source observations are retained.",
+            )
+        return ImportIssue(
+            code="duplicates_kept",
+            severity="warning",
+            experiment=group_key,
+            message=f"Repeated pressures in '{group_key}' were retained as replicates.",
+        )
+
+    # -------------------------------------------------------------------------
+    def _build_experiments(
+        self,
+        grouped_records: dict[str, list[dict[str, Any]]],
+        metadata_by_group: dict[str, dict[str, Any]],
+        mapping: ImportMapping,
+        issues: list[ImportIssue],
+    ) -> list[dict[str, Any]]:
         experiments: list[dict[str, Any]] = []
         for group_key, observations in grouped_records.items():
             if group_key not in metadata_by_group:
@@ -298,46 +361,12 @@ class AdsorptionImportEngine:
                     item["sequence_index"],
                 )
             )
-            duplicate_pressures: dict[float, list[dict[str, Any]]] = {}
-            for observation in observations:
-                duplicate_pressures.setdefault(
-                    observation["pressure_canonical"], []
-                ).append(observation)
-            repeated = {
-                pressure: items
-                for pressure, items in duplicate_pressures.items()
-                if len(items) > 1
-            }
-            if repeated and mapping.duplicate_policy == "reject":
+            pressure_counts = Counter(
+                observation["pressure_canonical"] for observation in observations
+            )
+            if any(count > 1 for count in pressure_counts.values()):
                 issues.append(
-                    ImportIssue(
-                        code="duplicate_pressure",
-                        severity="confirmation",
-                        experiment=group_key,
-                        message=(
-                            f"Experiment '{group_key}' has repeated pressure values. "
-                            "Keeping them weights those pressures as replicate observations."
-                        ),
-                        remediation="Choose the keep-replicates policy or correct duplicate rows.",
-                    )
-                )
-            elif repeated and mapping.duplicate_policy == "average":
-                issues.append(
-                    ImportIssue(
-                        code="duplicates_average_on_fit",
-                        severity="warning",
-                        experiment=group_key,
-                        message=f"Repeated pressures in '{group_key}' will be averaged deterministically for fitting; all source observations are retained.",
-                    )
-                )
-            elif repeated:
-                issues.append(
-                    ImportIssue(
-                        code="duplicates_kept",
-                        severity="warning",
-                        experiment=group_key,
-                        message=f"Repeated pressures in '{group_key}' were retained as replicates.",
-                    )
+                    self._duplicate_pressure_issue(group_key, mapping.duplicate_policy)
                 )
 
             if len(observations) < 2:
@@ -376,8 +405,7 @@ class AdsorptionImportEngine:
                     "observations": observations,
                 }
             )
-
-        return self._bundle(mapping, payload, experiments, issues)
+        return experiments
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -391,6 +419,81 @@ class AdsorptionImportEngine:
         if column is not None:
             return row.get(column)
         return mapping.constants.get(role)
+
+    # -------------------------------------------------------------------------
+    def _saturation_pressure_pa(
+        self,
+        row: pd.Series,
+        roles: dict[str, str],
+        mapping: ImportMapping,
+        catalog: UnitCatalog,
+        pressure_unit: str,
+    ) -> float | None:
+        raw = self._mapped_value(row, "saturation_pressure", roles, mapping)
+        if raw in (None, ""):
+            return None
+        saturation_unit = mapping.unit_overrides.get(
+            "saturation_pressure", pressure_unit
+        )
+        return catalog.convert_pressure(
+            parse_number(raw, mapping.decimal_separator), saturation_unit, "absolute"
+        ).canonical_value
+
+    # -------------------------------------------------------------------------
+    def _uptake_stddev(
+        self,
+        row: pd.Series,
+        roles: dict[str, str],
+        mapping: ImportMapping,
+        catalog: UnitCatalog,
+        uptake_unit: str,
+        molar_mass: float | None,
+    ) -> float | None:
+        raw = self._mapped_value(row, "uptake_stddev", roles, mapping)
+        if raw in (None, ""):
+            return None
+        stddev = catalog.convert_uptake(
+            parse_number(raw, mapping.decimal_separator), uptake_unit, molar_mass
+        ).canonical_value
+        if stddev <= 0:
+            raise ValueError("Uptake uncertainty must be positive.")
+        return stddev
+
+    # -------------------------------------------------------------------------
+    def _observation_pairs(
+        self, row: pd.Series, roles: dict[str, str], mapping: ImportMapping
+    ) -> list[tuple[float, float, int]]:
+        """Return (pressure, uptake, sequence_index) from wide columns or series cells."""
+        if mapping.wide_pairs:
+            return [
+                (
+                    parse_number(row.get(pair.pressure_column), mapping.decimal_separator),
+                    parse_number(row.get(pair.uptake_column), mapping.decimal_separator),
+                    pair_index,
+                )
+                for pair_index, pair in enumerate(mapping.wide_pairs)
+            ]
+        pressure_values = parse_series_cell(
+            self._mapped_value(row, "pressure", roles, mapping),
+            delimiter=mapping.series_delimiter,
+            decimal_separator=mapping.decimal_separator,
+        )
+        uptake_values = parse_series_cell(
+            self._mapped_value(row, "uptake", roles, mapping),
+            delimiter=mapping.series_delimiter,
+            decimal_separator=mapping.decimal_separator,
+        )
+        if len(pressure_values) != len(uptake_values):
+            raise ValueError(
+                "Pressure and uptake series have unequal lengths "
+                f"({len(pressure_values)} and {len(uptake_values)})."
+            )
+        return [
+            (pressure, uptake, index)
+            for index, (pressure, uptake) in enumerate(
+                zip(pressure_values, uptake_values, strict=True)
+            )
+        ]
 
     # -------------------------------------------------------------------------
     def _normalize_row(
@@ -446,56 +549,12 @@ class AdsorptionImportEngine:
                 str(row.get(column, "")).strip() for column in mapping.grouping_columns
             )
 
-        saturation_pressure_pa = None
-        if self._mapped_value(row, "saturation_pressure", roles, mapping) not in (
-            None,
-            "",
-        ):
-            saturation_value = parse_number(
-                self._mapped_value(row, "saturation_pressure", roles, mapping),
-                mapping.decimal_separator,
-            )
-            saturation_unit = mapping.unit_overrides.get(
-                "saturation_pressure", pressure_unit
-            )
-            saturation_pressure_pa = catalog.convert_pressure(
-                saturation_value, saturation_unit, "absolute"
-            ).canonical_value
-
-        pairs: list[tuple[float, float, int]] = []
+        saturation_pressure_pa = self._saturation_pressure_pa(
+            row, roles, mapping, catalog, pressure_unit
+        )
+        pairs = self._observation_pairs(row, roles, mapping)
         pressure_raw = self._mapped_value(row, "pressure", roles, mapping)
         uptake_raw = self._mapped_value(row, "uptake", roles, mapping)
-        if mapping.wide_pairs:
-            for pair_index, pair in enumerate(mapping.wide_pairs):
-                pressure = parse_number(
-                    row.get(pair.pressure_column), mapping.decimal_separator
-                )
-                uptake = parse_number(
-                    row.get(pair.uptake_column), mapping.decimal_separator
-                )
-                pairs.append((pressure, uptake, pair_index))
-        else:
-            pressure_values = parse_series_cell(
-                pressure_raw,
-                delimiter=mapping.series_delimiter,
-                decimal_separator=mapping.decimal_separator,
-            )
-            uptake_values = parse_series_cell(
-                uptake_raw,
-                delimiter=mapping.series_delimiter,
-                decimal_separator=mapping.decimal_separator,
-            )
-            if len(pressure_values) != len(uptake_values):
-                raise ValueError(
-                    "Pressure and uptake series have unequal lengths "
-                    f"({len(pressure_values)} and {len(uptake_values)})."
-                )
-            pairs = [
-                (pressure, uptake, index)
-                for index, (pressure, uptake) in enumerate(
-                    zip(pressure_values, uptake_values, strict=True)
-                )
-            ]
 
         metadata_columns = [
             column
@@ -510,20 +569,9 @@ class AdsorptionImportEngine:
             uptake = catalog.convert_uptake(
                 uptake_value, uptake_unit, molar_mass_value
             )
-            stddev = None
-            if self._mapped_value(row, "uptake_stddev", roles, mapping) not in (
-                None,
-                "",
-            ):
-                stddev_value = parse_number(
-                    self._mapped_value(row, "uptake_stddev", roles, mapping),
-                    mapping.decimal_separator,
-                )
-                stddev = catalog.convert_uptake(
-                    stddev_value, uptake_unit, molar_mass_value
-                ).canonical_value
-                if stddev <= 0:
-                    raise ValueError("Uptake uncertainty must be positive.")
+            stddev = self._uptake_stddev(
+                row, roles, mapping, catalog, uptake_unit, molar_mass_value
+            )
             observations.append(
                 {
                     "adsorbate": adsorbate,
