@@ -11,8 +11,9 @@ from importlib import import_module
 from typing import Any, get_args
 
 from fastapi import APIRouter, FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from server.common.units import UnitRegistry
 from server.common.utils.logger import close_file_logging, configure_logging, logger
@@ -262,6 +263,37 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 ###############################################################################
+async def database_switch_admission(
+    request: Request, call_next: RequestResponseEndpoint
+) -> Response:
+    path = request.url.path
+    if path.startswith("/api/v1/database"):
+        return await call_next(request)
+    if (
+        path.startswith("/api/v1/")
+        and not path.startswith(DATABASE_INDEPENDENT_PREFIXES)
+        and not request.app.state.runtime.database_ready
+    ):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "The configured database is unavailable; "
+                "open Database settings to repair or switch it."
+            },
+        )
+    gate: DatabaseRequestGate = request.app.state.database_request_gate
+    if not await gate.enter():
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "Database is switching; retry the request shortly."},
+        )
+    try:
+        return await call_next(request)
+    finally:
+        await gate.leave()
+
+
+###############################################################################
 def create_app(
     config: AdsmodConfig,
     *,
@@ -292,34 +324,7 @@ def create_app(
     application.state.database_switch_lock = asyncio.Lock()
     application.state.database_request_gate = DatabaseRequestGate()
 
-    @application.middleware("http")
-    async def database_switch_admission(request: Request, call_next):
-        path = request.url.path
-        if path.startswith("/api/v1/database"):
-            return await call_next(request)
-        if (
-            path.startswith("/api/v1/")
-            and not path.startswith(DATABASE_INDEPENDENT_PREFIXES)
-            and not request.app.state.runtime.database_ready
-        ):
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "detail": "The configured database is unavailable; "
-                    "open Database settings to repair or switch it."
-                },
-            )
-        gate: DatabaseRequestGate = request.app.state.database_request_gate
-        if not await gate.enter():
-            return JSONResponse(
-                status_code=503,
-                content={"detail": "Database is switching; retry the request shortly."},
-            )
-        try:
-            return await call_next(request)
-        finally:
-            await gate.leave()
-
+    application.add_middleware(BaseHTTPMiddleware, dispatch=database_switch_admission)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[

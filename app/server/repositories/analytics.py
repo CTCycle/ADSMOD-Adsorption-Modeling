@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import Any
 
 from sqlalchemy import Select, func, select
@@ -133,6 +134,10 @@ class AnalyticsRepository:
         return grouped
 
     # -------------------------------------------------------------------------
+    def _isotherm_id_scope(self, filters: dict[str, Any], exclude: str) -> Any:
+        return select(self._matching_isotherms(filters, exclude=exclude).subquery().c.id)
+
+    # -------------------------------------------------------------------------
     def facets(
         self,
         filters: dict[str, Any],
@@ -141,10 +146,7 @@ class AnalyticsRepository:
         adsorbate_search: str | None = None,
     ) -> dict[str, Any]:
         """Facet counts; each facet ignores its own selection so siblings stay visible."""
-
-        def scope(exclude: str) -> Any:
-            return select(self._matching_isotherms(filters, exclude=exclude).subquery().c.id)
-
+        scope = partial(self._isotherm_id_scope, filters)
         materials = (
             select(Adsorbent.id, Adsorbent.name, func.count(Isotherm.id).label("count"))
             .join(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)

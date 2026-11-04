@@ -13,33 +13,49 @@ RESERVED_PREFIXES = ("api/", "health/", "docs", "redoc", "openapi.json")
 
 
 ###############################################################################
-def register_frontend_routes(app: FastAPI, dist_root: Path = FRONTEND_DIST) -> bool:
-    """Serve the built Angular bundle from the API origin when it exists."""
+class FrontendBundle:
+    """Static handlers for the built Angular bundle rooted at ``root``."""
 
-    root = dist_root.resolve()
-    index_path = root / "index.html"
-    if not index_path.is_file():
-        return False
+    # -------------------------------------------------------------------------
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.index_path = root / "index.html"
 
-    def serve(path: str) -> Response:
+    # -------------------------------------------------------------------------
+    def serve(self, path: str) -> Response:
         if path.startswith(RESERVED_PREFIXES):
             raise HTTPException(status_code=404)
-        candidate = (root / path).resolve()
-        if path and candidate.is_relative_to(root) and candidate.is_file():
+        candidate = (self.root / path).resolve()
+        if path and candidate.is_relative_to(self.root) and candidate.is_file():
             immutable = "public, max-age=31536000, immutable"
             return FileResponse(candidate, headers={"Cache-Control": immutable})
         if Path(path).suffix:
             raise HTTPException(status_code=404)
-        return FileResponse(index_path, headers={"Cache-Control": "no-cache"})
+        return FileResponse(self.index_path, headers={"Cache-Control": "no-cache"})
 
-    app.add_api_route("/", lambda: serve(""), methods=["GET"], include_in_schema=False)
+    # -------------------------------------------------------------------------
+    def serve_index(self) -> Response:
+        return self.serve("")
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def not_found(path: str) -> Response:
         raise HTTPException(status_code=404)
 
-    app.add_api_route("/{path:path}", serve, methods=["GET"], include_in_schema=False)
+
+###############################################################################
+def register_frontend_routes(app: FastAPI, dist_root: Path = FRONTEND_DIST) -> bool:
+    """Serve the built Angular bundle from the API origin when it exists."""
+
+    bundle = FrontendBundle(dist_root.resolve())
+    if not bundle.index_path.is_file():
+        return False
+
+    app.add_api_route("/", bundle.serve_index, methods=["GET"], include_in_schema=False)
+    app.add_api_route("/{path:path}", bundle.serve, methods=["GET"], include_in_schema=False)
     app.add_api_route(
         "/{path:path}",
-        not_found,
+        bundle.not_found,
         methods=["POST", "PUT", "PATCH", "DELETE"],
         include_in_schema=False,
     )

@@ -6,8 +6,10 @@ from __future__ import annotations
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from typing import Any, Awaitable, Callable
 
+from server.common.utils.logger import logger
 from server.configurations.settings import PublicDataConfig
 from server.repositories.public_data import PublicDataRepository
 from server.services.data.nist_service import NISTDataService
@@ -323,7 +325,9 @@ class PublicDataSyncCoordinator:
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001
-            pass
+            # Run failures are recorded by _execute_with_settings; this only
+            # catches errors while recording them, so the worker loop survives.
+            logger.exception("Public-data sync run %s failed unexpectedly.", run.get("id"))
         finally:
             self._executing.discard(worker)
 
@@ -358,38 +362,13 @@ class PublicDataSyncCoordinator:
             else {}
         )
 
-        async def update(**values: Any) -> None:
-            await asyncio.to_thread(self.repository.update_sync_run, run_id, **values)
-
-        async def should_cancel() -> bool:
-            return await asyncio.to_thread(
-                self.repository.sync_cancel_requested, run_id
-            ) or self._closing
-
-        async def on_progress(payload: dict[str, Any]) -> None:
-            state["progress"] = max(
-                state["progress"], float(payload.get("progress", 0.0))
-            )
-            state["checkpoint"] = {
-                **state["checkpoint"],
-                **self._checkpoint_values(payload),
-            }
-            counts = state["counts"]
-            await update(
-                progress=state["progress"],
-                processed_count=counts["processed"] + int(payload.get("processed_count", 0)),
-                imported_count=counts["imported"] + int(payload.get("imported_count", 0)),
-                skipped_count=counts["skipped"] + int(payload.get("skipped_count", 0)),
-                failed_count=counts["failed"] + int(payload.get("failed_count", 0)),
-                checkpoint=state["checkpoint"],
-            )
-
+        update = partial(self._update_run, run_id)
         try:
             await self._execute_claimed_run(
                 run=run,
                 state=state,
-                on_progress=on_progress,
-                should_cancel=should_cancel,
+                on_progress=partial(self._record_progress, run_id, state),
+                should_cancel=partial(self._should_cancel, run_id),
                 update=update,
             )
         except asyncio.CancelledError:
@@ -416,6 +395,36 @@ class PublicDataSyncCoordinator:
                 statistics_reader=state["statistics_reader"],
                 statistics_before=state["statistics_before"],
             )
+
+    # -------------------------------------------------------------------------
+    async def _update_run(self, run_id: str, **values: Any) -> None:
+        await asyncio.to_thread(self.repository.update_sync_run, run_id, **values)
+
+    # -------------------------------------------------------------------------
+    async def _should_cancel(self, run_id: str) -> bool:
+        return await asyncio.to_thread(
+            self.repository.sync_cancel_requested, run_id
+        ) or self._closing
+
+    # -------------------------------------------------------------------------
+    async def _record_progress(
+        self, run_id: str, state: dict[str, Any], payload: dict[str, Any]
+    ) -> None:
+        state["progress"] = max(state["progress"], float(payload.get("progress", 0.0)))
+        state["checkpoint"] = {
+            **state["checkpoint"],
+            **self._checkpoint_values(payload),
+        }
+        counts = state["counts"]
+        await self._update_run(
+            run_id,
+            progress=state["progress"],
+            processed_count=counts["processed"] + int(payload.get("processed_count", 0)),
+            imported_count=counts["imported"] + int(payload.get("imported_count", 0)),
+            skipped_count=counts["skipped"] + int(payload.get("skipped_count", 0)),
+            failed_count=counts["failed"] + int(payload.get("failed_count", 0)),
+            checkpoint=state["checkpoint"],
+        )
 
     # -------------------------------------------------------------------------
     async def _execute_claimed_run(
@@ -553,15 +562,6 @@ class PublicDataSyncCoordinator:
         run_checkpoint = dict(run.get("checkpoint", {}))
         config, _, nist = self._active_settings()
 
-        async def on_failure(external_id: str, reason: str) -> None:
-            retry_at = datetime.now(timezone.utc) + timedelta(
-                seconds=min(30.0, config.retry_backoff_max_seconds)
-            )
-            await self._store_failure(run_id, source_key, external_id, reason, retry_at)
-
-        async def on_skip(external_id: str, reason: str) -> None:
-            await self._store_failure(run_id, source_key, external_id, reason, None)
-
         result = await nist.sync_category_records(
             category=str(parameters["category"]),
             fraction=float(parameters.get("fraction", 1.0)),
@@ -575,8 +575,13 @@ class PublicDataSyncCoordinator:
             ),
             on_progress=on_progress,
             should_cancel=should_cancel,
-            on_failure=on_failure,
-            on_skip=on_skip,
+            on_failure=partial(
+                self._store_retryable_failure,
+                run_id,
+                source_key,
+                config.retry_backoff_max_seconds,
+            ),
+            on_skip=partial(self._store_skip, run_id, source_key),
         )
         return {
             f"{key}_count": int(result.get(f"{key}_count", 0))
@@ -737,6 +742,26 @@ class PublicDataSyncCoordinator:
                 ),
             },
         }
+
+    # -------------------------------------------------------------------------
+    async def _store_retryable_failure(
+        self,
+        run_id: str,
+        source_key: str,
+        backoff_max_seconds: float,
+        external_id: str,
+        reason: str,
+    ) -> None:
+        retry_at = datetime.now(timezone.utc) + timedelta(
+            seconds=min(30.0, backoff_max_seconds)
+        )
+        await self._store_failure(run_id, source_key, external_id, reason, retry_at)
+
+    # -------------------------------------------------------------------------
+    async def _store_skip(
+        self, run_id: str, source_key: str, external_id: str, reason: str
+    ) -> None:
+        await self._store_failure(run_id, source_key, external_id, reason, None)
 
     # -------------------------------------------------------------------------
     async def _store_failure(

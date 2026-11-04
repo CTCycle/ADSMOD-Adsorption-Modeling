@@ -103,15 +103,15 @@ class UptakeConversion:
         ):
             return values
 
-        def convert(value: float) -> float:
-            return UnitRegistry.convert_uptake(
-                value,
-                resolved,
-                None if molar_mass is None else float(molar_mass),
-            ).canonical_value
-
         try:
-            return map_values(values, convert)
+            return map_values(
+                values,
+                lambda value: UnitRegistry.convert_uptake(
+                    value,
+                    resolved,
+                    None if molar_mass is None else float(molar_mass),
+                ).canonical_value,
+            )
         except (TypeError, ValueError, UnitConversionError):
             return values
 

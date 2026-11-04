@@ -43,14 +43,16 @@ def _record_values(settings: UserSettings) -> dict[str, Any]:
 
 
 ###############################################################################
-def _settings_from_values(values: dict[str, Any]) -> UserSettings:
-    def section(prefix: str) -> dict[str, Any]:
-        return {
-            key.removeprefix(f"{prefix}_"): value
-            for key, value in values.items()
-            if key.startswith(f"{prefix}_")
-        }
+def _section(values: dict[str, Any], prefix: str) -> dict[str, Any]:
+    return {
+        key.removeprefix(f"{prefix}_"): value
+        for key, value in values.items()
+        if key.startswith(f"{prefix}_")
+    }
 
+
+###############################################################################
+def _settings_from_values(values: dict[str, Any]) -> UserSettings:
     return UserSettings.model_validate(
         {
             "datasets": {
@@ -58,10 +60,10 @@ def _settings_from_values(values: dict[str, Any]) -> UserSettings:
                 "column_detection_cutoff": values["datasets_column_detection_cutoff"],
             },
             "nist": {"parallel_tasks": values["nist_parallel_tasks"]},
-            "public_data": section("public_data"),
-            "fitting": section("fitting"),
-            "jobs": section("jobs"),
-            "training": section("training"),
+            "public_data": _section(values, "public_data"),
+            "fitting": _section(values, "fitting"),
+            "jobs": _section(values, "jobs"),
+            "training": _section(values, "training"),
         }
     )
 

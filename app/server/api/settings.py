@@ -136,50 +136,56 @@ async def _save_and_apply(request: Request, settings: UserSettings) -> UserSetti
 
 
 ###############################################################################
+def get_settings(request: Request) -> dict[str, Any]:
+    try:
+        return _response(request, _current_settings(request))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail="Settings are unavailable.") from exc
+
+
+###############################################################################
+async def update_settings(
+    payload: SettingsUpdateRequest, request: Request
+) -> dict[str, Any]:
+    try:
+        async with request.app.state.settings_update_lock:
+            saved = await _save_and_apply(
+                request,
+                UserSettings.model_validate(payload.model_dump()),
+            )
+            return _response(request, saved)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail="Settings could not be saved. Check the database and retry.",
+        ) from exc
+
+
+###############################################################################
+async def reset_settings(request: Request) -> dict[str, Any]:
+    try:
+        async with request.app.state.settings_update_lock:
+            saved = await _save_and_apply(request, UserSettings())
+            return _response(request, saved)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503,
+            detail="Settings could not be reset. Check the database and retry.",
+        ) from exc
+
+
+###############################################################################
 def create_settings_router() -> APIRouter:
     router = APIRouter(prefix="/settings", tags=["settings"])
-
-    @router.get("", response_model=SettingsResponse)
-    def get_settings(request: Request) -> dict[str, Any]:
-        try:
-            return _response(request, _current_settings(request))
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(status_code=503, detail="Settings are unavailable.") from exc
-
-    @router.put("", response_model=SettingsResponse)
-    async def update_settings(
-        payload: SettingsUpdateRequest, request: Request
-    ) -> dict[str, Any]:
-        try:
-            async with request.app.state.settings_update_lock:
-                saved = await _save_and_apply(
-                    request,
-                    UserSettings.model_validate(payload.model_dump()),
-                )
-                return _response(request, saved)
-        except HTTPException:
-            raise
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(
-                status_code=503,
-                detail="Settings could not be saved. Check the database and retry.",
-            ) from exc
-
-    @router.post("/reset", response_model=SettingsResponse)
-    async def reset_settings(request: Request) -> dict[str, Any]:
-        defaults = UserSettings()
-        try:
-            async with request.app.state.settings_update_lock:
-                saved = await _save_and_apply(request, defaults)
-                return _response(request, saved)
-        except Exception as exc:  # noqa: BLE001
-            if isinstance(exc, HTTPException):
-                raise
-            raise HTTPException(
-                status_code=503,
-                detail="Settings could not be reset. Check the database and retry.",
-            ) from exc
-
+    router.add_api_route("", get_settings, methods=["GET"], response_model=SettingsResponse)
+    router.add_api_route("", update_settings, methods=["PUT"], response_model=SettingsResponse)
+    router.add_api_route(
+        "/reset", reset_settings, methods=["POST"], response_model=SettingsResponse
+    )
     return router
 
 

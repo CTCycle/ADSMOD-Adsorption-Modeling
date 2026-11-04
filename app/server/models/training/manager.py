@@ -334,6 +334,8 @@ def run_training_process(
             return
         if config_payload is None or not artifact_root or not checkpoints_dir:
             raise ValueError("ML process runtime configuration and paths are required.")
+        # Deferred on purpose: server.models must not statically import the
+        # repository-backed services (enforced by the dependency-boundary tests).
         from server.services.training_data import open_training_data_service
         runtime_config = AdsmodConfig.model_validate(config_payload)
         snapshot_access = open_training_data_service(runtime_config)
