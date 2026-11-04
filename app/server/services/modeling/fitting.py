@@ -396,6 +396,91 @@ class ModelSolver:
         return np.asarray(initial), np.asarray(lower), np.asarray(upper)
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _apply_overrides(
+        spec: ModelSpec,
+        overrides: dict[str, Any],
+        initial: np.ndarray,
+        lower: np.ndarray,
+        upper: np.ndarray,
+        p_factor: float,
+        q_factor: float,
+    ) -> None:
+        """Replace default bounds and start values in place with user overrides."""
+        related_override = overrides.get("n") or overrides.get("beta")
+        related_value = (
+            float(related_override.initial) if related_override is not None else 1.0
+        )
+        for index, parameter in enumerate(spec.parameters):
+            override = overrides.get(parameter.name)
+            if override is None:
+                continue
+            for target, display_value in (
+                (lower, override.lower),
+                (upper, override.upper),
+                (initial, override.initial),
+            ):
+                target[index] = parameter_from_display(
+                    parameter,
+                    display_value,
+                    pressure_factor_value=p_factor,
+                    uptake_factor_value=q_factor,
+                    related_value=related_value,
+                )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _parameter_uncertainty(
+        *,
+        optimal: np.ndarray,
+        jacobian: np.ndarray,
+        rank: int,
+        condition: float,
+        sigma: np.ndarray | None,
+        residuals: np.ndarray,
+        observation_count: int,
+    ) -> tuple[list[str], np.ndarray | None, np.ndarray | None, np.ndarray | None]:
+        """Return warnings, standard errors, and 95% CI bounds for the fit."""
+        warnings: list[str] = []
+        parameter_count = optimal.size
+        if rank < parameter_count:
+            warnings.append(
+                "Parameter uncertainty is unavailable because the Jacobian is rank deficient."
+            )
+            return warnings, None, None, None
+        if not math.isfinite(condition) or condition > CONDITION_WARNING:
+            warnings.append(
+                "The fit is poorly conditioned; parameter estimates may not be identifiable."
+            )
+            return warnings, None, None, None
+
+        dof = observation_count - parameter_count
+        covariance = None
+        if sigma is not None:
+            covariance = np.linalg.inv(jacobian.T @ jacobian)
+        elif dof <= 0:
+            warnings.append(
+                "Parameter uncertainty is undefined because residual degrees of freedom are not positive."
+            )
+        else:
+            variance = float(np.sum(residuals**2)) / dof
+            covariance = np.linalg.inv(jacobian.T @ jacobian) * variance
+        diagonal = np.array([-1.0]) if covariance is None else np.diag(covariance)
+        if np.any(diagonal < 0) or not np.all(np.isfinite(diagonal)):
+            warnings.append(
+                "Parameter uncertainty is unavailable because covariance is invalid."
+            )
+            return warnings, None, None, None
+        standard_errors = np.sqrt(diagonal)
+        critical = float(student_t.ppf(0.975, dof))
+        return (
+            warnings,
+            standard_errors,
+            optimal - critical * standard_errors,
+            optimal + critical * standard_errors,
+        )
+
+    # -------------------------------------------------------------------------
     def fit(
         self,
         *,
@@ -433,35 +518,9 @@ class ModelSolver:
             _, q_factor, _ = UnitRegistry.uptake_factor_to_mol_kg(
                 display_uptake_unit, molar_mass_g_mol
             )
-            related_override = overrides.get("n") or overrides.get("beta")
-            related_value = (
-                float(related_override.initial) if related_override is not None else 1.0
+            self._apply_overrides(
+                spec, overrides, initial, lower, upper, p_factor, q_factor
             )
-            for index, parameter in enumerate(spec.parameters):
-                override = overrides.get(parameter.name)
-                if override is None:
-                    continue
-                lower[index] = parameter_from_display(
-                    parameter,
-                    override.lower,
-                    pressure_factor_value=p_factor,
-                    uptake_factor_value=q_factor,
-                    related_value=related_value,
-                )
-                upper[index] = parameter_from_display(
-                    parameter,
-                    override.upper,
-                    pressure_factor_value=p_factor,
-                    uptake_factor_value=q_factor,
-                    related_value=related_value,
-                )
-                initial[index] = parameter_from_display(
-                    parameter,
-                    override.initial,
-                    pressure_factor_value=p_factor,
-                    uptake_factor_value=q_factor,
-                    related_value=related_value,
-                )
             if (
                 np.any(lower >= upper)
                 or np.any(initial < lower)
@@ -549,45 +608,15 @@ class ModelSolver:
                 if jacobian.size and rank > 0
                 else math.inf
             )
-            warnings: list[str] = []
-            covariance = None
-            standard_errors = ci_low = ci_high = None
-            dof = pressure.size - parameter_count
-            if rank < parameter_count:
-                warnings.append(
-                    "Parameter uncertainty is unavailable because the Jacobian is rank deficient."
-                )
-            elif not math.isfinite(condition) or condition > CONDITION_WARNING:
-                warnings.append(
-                    "The fit is poorly conditioned; parameter estimates may not be identifiable."
-                )
-            else:
-                if sigma is not None:
-                    covariance = np.linalg.inv(jacobian.T @ jacobian)
-                else:
-                    residual_physical = uptake - predicted
-                    if dof <= 0:
-                        warnings.append(
-                            "Parameter uncertainty is undefined because residual degrees of freedom are not positive."
-                        )
-                    else:
-                        variance = float(np.sum(residual_physical**2)) / dof
-                        covariance = np.linalg.inv(jacobian.T @ jacobian) * variance
-                if covariance is None:
-                    standard_errors = ci_low = ci_high = None
-                    diagonal = np.array([-1.0])
-                else:
-                    diagonal = np.diag(covariance)
-                if np.any(diagonal < 0) or not np.all(np.isfinite(diagonal)):
-                    warnings.append(
-                        "Parameter uncertainty is unavailable because covariance is invalid."
-                    )
-                    covariance = None
-                else:
-                    standard_errors = np.sqrt(diagonal)
-                    critical = float(student_t.ppf(0.975, dof))
-                    ci_low = optimal - critical * standard_errors
-                    ci_high = optimal + critical * standard_errors
+            warnings, standard_errors, ci_low, ci_high = self._parameter_uncertainty(
+                optimal=optimal,
+                jacobian=jacobian,
+                rank=rank,
+                condition=condition,
+                sigma=sigma,
+                residuals=uptake - predicted,
+                observation_count=pressure.size,
+            )
 
             if spec.key == "dual_site_langmuir" and optimal[0] < optimal[2]:
                 permutation = np.array([2, 3, 0, 1])
