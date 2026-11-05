@@ -114,8 +114,8 @@ const positiveId = (value: string | null): number | null => {
                             <a routerLink="/sources/structures"><strong>{{ overview()?.structures ?? '—' }}</strong><span>structures</span></a>
                         </div>
                         <p class="acquisition-summary" aria-live="polite">
-                            <a routerLink="/sources/acquire">{{ overview()?.active_sync_runs ?? 0 }} active</a>
-                            · <a routerLink="/sources/acquire">{{ overview()?.failed_sync_runs ?? 0 }} failed</a>
+                            <a routerLink="/sources/acquire" [queryParams]="{ panel: 'runs' }">{{ overview()?.active_sync_runs ?? 0 }} active</a>
+                            · <a routerLink="/sources/acquire" [queryParams]="{ panel: 'runs' }">{{ overview()?.failed_sync_runs ?? 0 }} failed</a>
                             · last success {{ formatDate(overview()?.latest_successful_sync_at ?? null) }}
                         </p>
                     </section>

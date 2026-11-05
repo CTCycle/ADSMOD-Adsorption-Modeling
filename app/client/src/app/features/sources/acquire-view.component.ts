@@ -1,7 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import type {
@@ -70,6 +70,13 @@ const persistFraction = (category: NISTCategory, value: number): void => {
     standalone: true,
     imports: [FormsModule, RouterLink, EntityPickerComponent, DataPaginationComponent, ConfirmDialogComponent],
     template: `
+        <div class="acquisition-toolbar">
+            <button class="button secondary" type="button" data-acquisitions-trigger aria-haspopup="dialog"
+                aria-controls="acquire-runs" [attr.aria-expanded]="runsOpen()" (click)="openRuns()">
+                Acquisitions <span aria-live="polite">({{ activeRuns().length }} active)</span>
+            </button>
+            @if (pollError()) { <span class="run-note" role="status">Live updates paused; retrying automatically.</span> }
+        </div>
         @if (error()) {
             <div class="public-alert error" role="alert"><strong>Request failed.</strong><span>{{ error() }}</span><button type="button" class="button secondary" (click)="error.set(null)">Dismiss</button></div>
         }
@@ -141,178 +148,6 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     </tbody>
                 </table>
             </div>
-        </section>
-
-        <section class="public-section" id="acquire-runs">
-            <div class="section-heading">
-                <div>
-                    <h4>Acquisitions</h4>
-                    <p>Progress and results of fetch runs.</p>
-                </div>
-                <button class="button secondary" type="button" (click)="refreshAll()">Refresh</button>
-            </div>
-            @if (pollError()) {
-                <p class="run-poll-note" role="status">Live updates paused; retrying automatically. {{ pollError() }}</p>
-            }
-            @if (activeRuns().length) {
-                <div class="active-runs">
-                    <div class="run-list-head">
-                        <strong>Active</strong>
-                        <span>{{ activeRuns().length }} {{ activeRuns().length === 1 ? 'run' : 'runs' }}</span>
-                    </div>
-                    <div class="active-run-list">
-                        @for (run of visibleActiveRuns(); track run.id) {
-                            <article class="active-run-row">
-                                <div class="active-run-main">
-                                    <strong [title]="operationLabel(run)">{{ operationLabel(run) }}</strong>
-                                    <span>{{ run.source_key }} · {{ formatDate(run.created_at) }}</span>
-                                </div>
-                                <span class="run-status" [attr.data-status]="run.status">{{ statusLabel(run) }}</span>
-                                <div class="active-run-progress">
-                                    <progress max="100" [value]="run.progress" [attr.aria-label]="operationLabel(run) + ' progress'"></progress>
-                                    <span>{{ formatPercent(run.progress) }}</span>
-                                </div>
-                                <span class="active-run-counts">{{ run.imported_count }} saved · {{ run.skipped_count }} skipped · {{ run.failed_count }} failed</span>
-                                <div class="table-actions">
-                                    <button class="table-action" type="button" (click)="showDetails(run.id)">Details</button>
-                                    @if (run.cancel_requested) {
-                                        <span class="run-pending">Cancelling…</span>
-                                    } @else {
-                                        <button class="table-action danger" type="button" (click)="cancelRun(run.id)">Cancel</button>
-                                    }
-                                </div>
-                            </article>
-                        }
-                    </div>
-                    @if (activeRuns().length > visibleActiveRuns.length) {
-                        <p class="run-note">Showing the first {{ visibleActiveRuns().length }} of {{ activeRuns().length }} active runs.</p>
-                    }
-                </div>
-            }
-            <div class="run-list-head history-head">
-                <strong>Recent acquisitions</strong>
-                <span>{{ historyTotal() }} {{ historyTotal() === 1 ? 'run' : 'runs' }}</span>
-            </div>
-            <div class="data-table-frame data-table-frame--history acquisition-history-frame">
-                <table class="data-table acquisition-history-table">
-                    <caption class="sr-only">Recent acquisitions</caption>
-                    <thead>
-                        <tr>
-                            <th class="col-source" scope="col">Source</th>
-                            <th class="col-operation" scope="col">Operation</th>
-                            <th class="col-status" scope="col">Status</th>
-                            <th class="col-progress" scope="col">Progress</th>
-                            <th class="col-count num" scope="col">Saved</th>
-                            <th class="col-count num" scope="col">Skipped</th>
-                            <th class="col-count num" scope="col">Failed</th>
-                            <th class="col-date" scope="col">Created</th>
-                            <th class="col-date" scope="col">Finished</th>
-                            <th class="col-actions" scope="col"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (run of historyRuns(); track run.id) {
-                            <tr [class.selected]="detailsRunId() === run.id">
-                                <td><span class="source-key">{{ run.source_key }}</span></td>
-                                <td class="truncate-cell" [title]="operationLabel(run)">{{ operationLabel(run) }}</td>
-                                <td><span class="run-status" [attr.data-status]="run.status">{{ statusLabel(run) }}</span></td>
-                                <td>
-                                    <div class="table-progress">
-                                        <progress max="100" [value]="run.progress" [attr.aria-label]="operationLabel(run) + ' progress'"></progress>
-                                        <span>{{ formatPercent(run.progress) }}</span>
-                                    </div>
-                                </td>
-                                <td class="num">{{ run.imported_count }}</td>
-                                <td class="num">{{ run.skipped_count }}</td>
-                                <td class="num">{{ run.failed_count }}</td>
-                                <td>{{ formatDate(run.created_at) }}</td>
-                                <td>{{ formatDate(run.finished_at) }}</td>
-                                <td class="col-actions">
-                                    <div class="table-actions">
-                                        @if (importedLink(run); as link) {
-                                            <a class="table-action" [routerLink]="link.path" [queryParams]="link.queryParams">{{ link.label }}</a>
-                                        }
-                                        <button class="table-action" type="button" (click)="showDetails(run.id)">Details</button>
-                                        @if (run.status === 'interrupted') {
-                                            <button class="table-action" type="button" (click)="resumeRun(run.id)">Resume</button>
-                                        }
-                                    </div>
-                                </td>
-                            </tr>
-                        } @empty {
-                            <tr><td colspan="10" class="data-table-empty">No acquisitions yet. Start with a NIST collection, a PubChem compound, or a COD search above.</td></tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            <adsmod-data-pagination
-                [page]="historyPage()"
-                [pageSize]="historyPageSize()"
-                [total]="historyTotal()"
-                itemLabel="acquisition"
-                [disabled]="historyLoading()"
-                (pageChange)="changeHistoryPage($event)"
-                (pageSizeChange)="changeHistoryPageSize($event)"
-            />
-            @if (detailsRun(); as run) {
-                <div class="run-details-panel" role="region" aria-label="Acquisition details">
-                    <div class="run-details-header">
-                        <div>
-                            <p class="eyebrow">{{ run.source_key }} · {{ statusLabel(run) }}</p>
-                            <h5>{{ operationLabel(run) }}</h5>
-                        </div>
-                        <button class="detail-close" type="button" aria-label="Close details" (click)="closeDetails()">×</button>
-                    </div>
-                    <div class="run-details-grid">
-                        <div><span>Progress</span><strong>{{ formatPercent(run.progress) }}</strong></div>
-                        <div><span>Saved</span><strong>{{ run.imported_count }}</strong></div>
-                        <div><span>Skipped</span><strong>{{ run.skipped_count }}</strong></div>
-                        <div><span>Failed</span><strong>{{ run.failed_count }}</strong></div>
-                        <div><span>Processed</span><strong>{{ run.processed_count }}</strong></div>
-                        <div><span>Created</span><strong>{{ formatDate(run.created_at) }}</strong></div>
-                        <div><span>Started</span><strong>{{ formatDate(run.started_at) }}</strong></div>
-                        <div><span>Finished</span><strong>{{ formatDate(run.finished_at) }}</strong></div>
-                    </div>
-                    @if (pendingCount(run); as pending) {
-                        <p class="run-note">{{ pending }} records remain; run the operation again to continue.</p>
-                    }
-                    @if (run.error_detail) {
-                        <p class="run-details-error" role="alert">{{ run.error_detail }}</p>
-                    }
-                    @if (detailsFailuresLoading()) {
-                        <p class="run-note" role="status">Loading failed records…</p>
-                    } @else if (detailsFailures().length) {
-                        <div class="run-failures">
-                            <div class="run-list-head">
-                                <strong>Failed records</strong>
-                                <span>{{ detailsFailuresTotal() }} total</span>
-                            </div>
-                            <ul class="sync-failures">
-                                @for (failure of detailsFailures(); track failure.id) {
-                                    <li><strong>{{ failure.external_id || 'Record' }}</strong><span>{{ failure.reason }}</span></li>
-                                }
-                            </ul>
-                            @if (detailsFailuresTotal() > detailsFailures().length) {
-                                <p class="run-note">Showing the first {{ detailsFailures().length }} of {{ detailsFailuresTotal() }} failed records.</p>
-                            }
-                        </div>
-                    } @else if (run.failed_count) {
-                        <p class="run-note">No record-level failure details were returned for this run.</p>
-                    }
-                    <div class="run-details-actions">
-                        @if (importedLink(run); as link) {
-                            <a class="button secondary" [routerLink]="link.path" [queryParams]="link.queryParams">{{ link.label }}</a>
-                        }
-                        @if (isActive(run)) {
-                            <button class="button secondary" type="button" [disabled]="run.cancel_requested" (click)="cancelRun(run.id)">{{ run.cancel_requested ? 'Cancelling…' : 'Cancel' }}</button>
-                        }
-                        @if (run.status === 'interrupted') {
-                            <button class="button primary" type="button" (click)="resumeRun(run.id)">Resume</button>
-                        }
-                        <button class="button quiet" type="button" (click)="closeDetails()">Close</button>
-                    </div>
-                </div>
-            }
         </section>
 
         <div class="acquire-grid">
@@ -391,6 +226,184 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 }
             </section>
         </div>
+        <dialog #runsDialog class="acquisitions-dialog" id="acquire-runs" aria-labelledby="acquisitions-title"
+            (cancel)="$event.preventDefault(); closeRuns()" (click)="dismissBackdrop($event)" (keydown)="trapRunFocus($event)">
+            <div class="acquisitions-dialog-heading">
+                <div><h2 id="acquisitions-title">Acquisitions</h2><p>Progress and results of fetch runs.</p></div>
+                <div class="table-actions">
+                    <button class="button secondary" type="button" (click)="refreshAll()">Refresh</button>
+                    <button class="button secondary" type="button" autofocus (click)="closeRuns()" aria-label="Close acquisitions">Close</button>
+                </div>
+            </div>
+            <div class="acquisitions-dialog-body">
+                @if (runError()) {
+                    <div class="public-alert error" role="alert"><span>{{ runError() }}</span><button class="button secondary" type="button" (click)="runError.set(null)">Dismiss</button></div>
+                }
+                @if (pollError()) {
+                    <p class="run-poll-note" role="status">Live updates paused; retrying automatically. {{ pollError() }}</p>
+                }
+                @if (activeRuns().length) {
+                    <div class="active-runs">
+                        <div class="run-list-head">
+                            <strong>Active</strong>
+                            <span>{{ activeRuns().length }} {{ activeRuns().length === 1 ? 'run' : 'runs' }}</span>
+                        </div>
+                        <div class="active-run-list">
+                            @for (run of visibleActiveRuns(); track run.id) {
+                                <article class="active-run-row">
+                                    <div class="active-run-main">
+                                        <strong [title]="operationLabel(run)">{{ operationLabel(run) }}</strong>
+                                        <span>{{ run.source_key }} · {{ formatDate(run.created_at) }}</span>
+                                    </div>
+                                    <span class="run-status" [attr.data-status]="run.status">{{ statusLabel(run) }}</span>
+                                    <div class="active-run-progress">
+                                        <progress max="100" [value]="run.progress" [attr.aria-label]="operationLabel(run) + ' progress'"></progress>
+                                        <span>{{ formatPercent(run.progress) }}</span>
+                                    </div>
+                                    <span class="active-run-counts">{{ run.imported_count }} saved · {{ run.skipped_count }} skipped · {{ run.failed_count }} failed</span>
+                                    <div class="table-actions">
+                                        <button class="table-action" type="button" (click)="showDetails(run.id)">Details</button>
+                                        @if (run.cancel_requested) {
+                                            <span class="run-pending">Cancelling…</span>
+                                        } @else {
+                                            <button class="table-action danger" type="button" (click)="cancelRun(run.id)">Cancel</button>
+                                        }
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                        @if (activeRuns().length > visibleActiveRuns().length) {
+                            <p class="run-note">Showing the first {{ visibleActiveRuns().length }} of {{ activeRuns().length }} active runs.</p>
+                        }
+                    </div>
+                }
+                <div class="run-list-head history-head">
+                    <strong>Recent acquisitions</strong>
+                    <span>{{ historyTotal() }} {{ historyTotal() === 1 ? 'run' : 'runs' }}</span>
+                </div>
+                <div class="data-table-frame data-table-frame--history acquisition-history-frame">
+                    <table class="data-table acquisition-history-table">
+                        <caption class="sr-only">Recent acquisitions</caption>
+                        <thead>
+                            <tr>
+                                <th class="col-source" scope="col">Source</th>
+                                <th class="col-operation" scope="col">Operation</th>
+                                <th class="col-status" scope="col">Status</th>
+                                <th class="col-progress" scope="col">Progress</th>
+                                <th class="col-count num" scope="col">Saved</th>
+                                <th class="col-count num" scope="col">Skipped</th>
+                                <th class="col-count num" scope="col">Failed</th>
+                                <th class="col-date" scope="col">Created</th>
+                                <th class="col-date" scope="col">Finished</th>
+                                <th class="col-actions" scope="col"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (run of historyRuns(); track run.id) {
+                                <tr [class.selected]="detailsRunId() === run.id">
+                                    <td><span class="source-key">{{ run.source_key }}</span></td>
+                                    <td class="truncate-cell" [title]="operationLabel(run)">{{ operationLabel(run) }}</td>
+                                    <td><span class="run-status" [attr.data-status]="run.status">{{ statusLabel(run) }}</span></td>
+                                    <td>
+                                        <div class="table-progress">
+                                            <progress max="100" [value]="run.progress" [attr.aria-label]="operationLabel(run) + ' progress'"></progress>
+                                            <span>{{ formatPercent(run.progress) }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="num">{{ run.imported_count }}</td>
+                                    <td class="num">{{ run.skipped_count }}</td>
+                                    <td class="num">{{ run.failed_count }}</td>
+                                    <td>{{ formatDate(run.created_at) }}</td>
+                                    <td>{{ formatDate(run.finished_at) }}</td>
+                                    <td class="col-actions">
+                                        <div class="table-actions">
+                                            @if (importedLink(run); as link) {
+                                                <a class="table-action" [routerLink]="link.path" [queryParams]="link.queryParams">{{ link.label }}</a>
+                                            }
+                                            <button class="table-action" type="button" (click)="showDetails(run.id)">Details</button>
+                                            @if (run.status === 'interrupted') {
+                                                <button class="table-action" type="button" (click)="resumeRun(run.id)">Resume</button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            } @empty {
+                                <tr><td colspan="10" class="data-table-empty">No acquisitions yet. Close this dialog to start a NIST collection fetch, PubChem lookup, or COD search.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <adsmod-data-pagination
+                    [page]="historyPage()"
+                    [pageSize]="historyPageSize()"
+                    [total]="historyTotal()"
+                    itemLabel="acquisition"
+                    [disabled]="historyLoading()"
+                    (pageChange)="changeHistoryPage($event)"
+                    (pageSizeChange)="changeHistoryPageSize($event)"
+                />
+                @if (detailsRun(); as run) {
+                    <div class="run-details-panel" role="region" aria-label="Acquisition details">
+                        <div class="run-details-header">
+                            <div>
+                                <p class="eyebrow">{{ run.source_key }} · {{ statusLabel(run) }}</p>
+                                <h5>{{ operationLabel(run) }}</h5>
+                            </div>
+                            <button class="detail-close" type="button" aria-label="Close details" (click)="closeDetails()">×</button>
+                        </div>
+                        <div class="run-details-grid">
+                            <div><span>Progress</span><strong>{{ formatPercent(run.progress) }}</strong></div>
+                            <div><span>Saved</span><strong>{{ run.imported_count }}</strong></div>
+                            <div><span>Skipped</span><strong>{{ run.skipped_count }}</strong></div>
+                            <div><span>Failed</span><strong>{{ run.failed_count }}</strong></div>
+                            <div><span>Processed</span><strong>{{ run.processed_count }}</strong></div>
+                            <div><span>Created</span><strong>{{ formatDate(run.created_at) }}</strong></div>
+                            <div><span>Started</span><strong>{{ formatDate(run.started_at) }}</strong></div>
+                            <div><span>Finished</span><strong>{{ formatDate(run.finished_at) }}</strong></div>
+                        </div>
+                        @if (pendingCount(run); as pending) {
+                            <p class="run-note">{{ pending }} records remain; run the operation again to continue.</p>
+                        }
+                        @if (run.error_detail) {
+                            <p class="run-details-error" role="alert">{{ run.error_detail }}</p>
+                        }
+                        @if (detailsFailuresLoading()) {
+                            <p class="run-note" role="status">Loading failed records…</p>
+                        } @else if (detailsFailures().length) {
+                            <div class="run-failures">
+                                <div class="run-list-head">
+                                    <strong>Failed records</strong>
+                                    <span>{{ detailsFailuresTotal() }} total</span>
+                                </div>
+                                <ul class="sync-failures">
+                                    @for (failure of detailsFailures(); track failure.id) {
+                                        <li><strong>{{ failure.external_id || 'Record' }}</strong><span>{{ failure.reason }}</span></li>
+                                    }
+                                </ul>
+                                @if (detailsFailuresTotal() > detailsFailures().length) {
+                                    <p class="run-note">Showing the first {{ detailsFailures().length }} of {{ detailsFailuresTotal() }} failed records.</p>
+                                }
+                            </div>
+                        } @else if (run.failed_count) {
+                            <p class="run-note">No record-level failure details were returned for this run.</p>
+                        }
+                        <div class="run-details-actions">
+                            @if (importedLink(run); as link) {
+                                <a class="button secondary" [routerLink]="link.path" [queryParams]="link.queryParams">{{ link.label }}</a>
+                            }
+                            @if (isActive(run)) {
+                                <button class="button secondary" type="button" [disabled]="run.cancel_requested" (click)="cancelRun(run.id)">{{ run.cancel_requested ? 'Cancelling…' : 'Cancel' }}</button>
+                            }
+                            @if (run.status === 'interrupted') {
+                                <button class="button primary" type="button" (click)="resumeRun(run.id)">Resume</button>
+                            }
+                            <button class="button quiet" type="button" (click)="closeDetails()">Close</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </dialog>
+
         <adsmod-confirm-dialog
             [open]="overwriteCount() !== null"
             title="Overwrite local edits?"
@@ -404,8 +417,13 @@ const persistFraction = (category: NISTCategory, value: number): void => {
 })
 export class AcquireViewComponent implements OnInit, AfterViewInit {
     private readonly route = inject(ActivatedRoute);
-    private readonly host = inject(ElementRef<HTMLElement>);
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly runsDialog = viewChild<ElementRef<HTMLDialogElement>>('runsDialog');
+    protected readonly runsOpen = signal(false);
+    protected readonly runError = signal<string | null>(null);
+    private previousOverflow: string | null = null;
+    private mainScrollLock: { element: HTMLElement; overflow: string } | null = null;
     private pollTimer: number | null = null;
     private pollDelay = 0;
     private destroyed = false;
@@ -459,6 +477,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     constructor() {
         this.destroyRef.onDestroy(() => {
             this.destroyed = true;
+            this.restorePageScroll();
             if (this.pollTimer !== null) window.clearTimeout(this.pollTimer);
         });
     }
@@ -486,9 +505,70 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
 
     ngAfterViewInit(): void {
         const panel = this.route.snapshot.queryParamMap.get('panel');
-        if (panel) {
+        if (panel === 'runs') {
+            this.openRuns();
+        } else if (panel) {
             this.host.nativeElement.querySelector(`#acquire-${panel}`)?.scrollIntoView({ block: 'start' });
         }
+    }
+
+    protected openRuns(): void {
+        const dialog = this.runsDialog()?.nativeElement;
+        if (!dialog || dialog.open) return;
+        this.previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        const main = this.host.nativeElement.closest('main');
+        if (main) {
+            this.mainScrollLock = { element: main, overflow: main.style.overflow };
+            main.style.overflow = 'hidden';
+        }
+        dialog.showModal();
+        this.runsOpen.set(true);
+    }
+
+    protected closeRuns(): void {
+        const dialog = this.runsDialog()?.nativeElement;
+        if (dialog?.open) dialog.close();
+        this.runsOpen.set(false);
+        this.closeDetails();
+        this.runError.set(null);
+        this.restorePageScroll();
+        this.host.nativeElement.querySelector<HTMLButtonElement>('[data-acquisitions-trigger]')?.focus();
+    }
+
+    protected trapRunFocus(event: KeyboardEvent): void {
+        if (event.key !== 'Tab') return;
+        const dialog = this.runsDialog()?.nativeElement;
+        if (!dialog) return;
+        const controls = Array.from(dialog.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )).filter((element) => element.getClientRects().length > 0 && element.tabIndex >= 0);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+        }
+    }
+
+    protected dismissBackdrop(event: MouseEvent): void {
+        const dialog = this.runsDialog()?.nativeElement;
+        if (!dialog || event.target !== dialog) return;
+        const bounds = dialog.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) this.closeRuns();
+    }
+
+    private restorePageScroll(): void {
+        if (this.mainScrollLock) {
+            this.mainScrollLock.element.style.overflow = this.mainScrollLock.overflow;
+            this.mainScrollLock = null;
+        }
+        if (this.previousOverflow === null) return;
+        document.body.style.overflow = this.previousOverflow;
+        this.previousOverflow = null;
     }
 
     protected collectionState(category: NISTCategory): NISTCollectionView {
@@ -660,16 +740,18 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     }
 
     protected async cancelRun(runId: string): Promise<void> {
+        this.runError.set(null);
         const result = await cancelPublicDataSyncRun(runId);
-        if (result.error) this.error.set(result.error);
+        if (result.error) this.runError.set(result.error);
         if (result.data) this.upsertRun(result.data);
         await this.refreshRuns();
     }
 
     protected async resumeRun(runId: string): Promise<void> {
+        this.runError.set(null);
         const result = await resumePublicDataSyncRun(runId);
         if (!result.data) {
-            this.error.set(result.error);
+            this.runError.set(result.error);
             return;
         }
         this.upsertRun(result.data);
@@ -678,6 +760,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     }
 
     protected async showDetails(runId: string): Promise<void> {
+        this.runError.set(null);
         this.detailsRunId.set(runId);
         this.detailsRun.set(
             [...this.activeRuns(), ...this.historyRuns()].find((run) => run.id === runId) ?? null,
@@ -691,13 +774,13 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         ]);
         if (this.destroyed || this.detailsRunId() !== runId) return;
         if (runResult.data) this.detailsRun.set(runResult.data);
-        else if (runResult.error) this.error.set(runResult.error);
+        else if (runResult.error) this.runError.set(runResult.error);
         this.detailsFailuresLoading.set(false);
         if (failureResult.data) {
             this.detailsFailures.set(failureResult.data.failures);
             this.detailsFailuresTotal.set(failureResult.data.total);
         } else if (failureResult.error) {
-            this.error.set(failureResult.error);
+            this.runError.set(failureResult.error);
         }
     }
 
@@ -876,7 +959,6 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
             } else if (run.source_key === 'nist') {
                 void this.refreshCollections();
             }
-            this.host.nativeElement.querySelector('#acquire-runs')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } finally {
             this.markSubmitting(key, false);
         }

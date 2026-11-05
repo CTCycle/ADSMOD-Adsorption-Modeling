@@ -37,6 +37,7 @@ Last updated: 2026-11-05
 - Sections use card and panel patterns
 - Long output appears in scrollable log or markdown regions
 - Dialogs use backdrop overlays and centered modal containers
+- Sources Acquire keeps acquisition controls on the page; its Acquisitions button shows the active-run count and opens a modal with active runs, paginated history, and details. Starting a run leaves the modal closed; polling continues in the background. Catalog activity links and `sources/acquire?panel=runs` open the modal. Escape, Close, and backdrop clicks dismiss it and restore focus; closing clears details while preserving history pagination.
 - Unit fields use `adsmod-unit-combobox` (searchable, free text allowed, with an inline confirmation for unknown units)
 - Experiments use `adsmod-experiment-explorer`: stacked collapsible sections with an observation table; tables collapse to labelled rows on narrow viewports instead of scrolling horizontally
 - Documentation lives on the `help` route, opened from the sidebar Docs link; there is no header help button

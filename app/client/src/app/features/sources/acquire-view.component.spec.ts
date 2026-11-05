@@ -141,4 +141,38 @@ describe('AcquireViewComponent', () => {
         expect(cell()).toContain('/ 40 records');
         expect(element.querySelector('.acquisition-history-table .data-table-empty')).not.toBeNull();
     });
+    it('keeps polling while closed and restores page scrolling on close and destruction', async () => {
+        runs = [run({ status: 'running' })];
+        const fixture = TestBed.createComponent(AcquireViewComponent);
+        fixture.detectChanges();
+        await vi.advanceTimersByTimeAsync(0);
+        fixture.detectChanges();
+        const element = fixture.nativeElement as HTMLElement;
+        const dialog = element.querySelector('dialog')!;
+        dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
+        dialog.close = vi.fn(() => dialog.removeAttribute('open'));
+        const trigger = element.querySelector<HTMLButtonElement>('[data-acquisitions-trigger]')!;
+        expect(dialog.open).toBe(false);
+        expect(trigger.textContent).toContain('1 active');
+        runs = [run({})];
+        await vi.advanceTimersByTimeAsync(1600);
+        fixture.detectChanges();
+        expect(dialog.open).toBe(false);
+        expect(trigger.textContent).toContain('0 active');
+        trigger.click();
+        fixture.detectChanges();
+        expect(dialog.open).toBe(true);
+        expect(document.body.style.overflow).toBe('hidden');
+        element.querySelector<HTMLButtonElement>('[aria-label="Close acquisitions"]')!.click();
+        fixture.detectChanges();
+        expect(dialog.open).toBe(false);
+        expect(document.body.style.overflow).not.toBe('hidden');
+        trigger.click();
+        fixture.detectChanges();
+        expect(dialog.open).toBe(true);
+        expect(element.querySelector('a.table-action')?.getAttribute('href')).toBe('/sources/structures?id=9');
+        fixture.destroy();
+        expect(document.body.style.overflow).not.toBe('hidden');
+    });
+
 });

@@ -279,12 +279,43 @@ test('NIST collection fetching in Acquire tracks durable progress and cooperativ
     await expect.poll(() => requestBody).toEqual({
         source_key: 'nist', operation: 'nist_category', category: 'experiments', fraction: 0.1,
     });
+    const trigger = page.getByRole('button', { name: /Acquisitions \(1 active\)/ });
+    await expect(trigger).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Acquisitions' })).not.toBeVisible();
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Acquisitions' });
+    await expect(dialog).toBeVisible();
+    const close = dialog.getByRole('button', { name: 'Close acquisitions' });
+    await expect(close).toBeFocused();
+    await expect(page.locator('main')).toHaveCSS('overflow', 'hidden');
+    for (let index = 0; index < 8; index++) {
+        await page.keyboard.press('Tab');
+        expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    }
+    await page.keyboard.press('Shift+Tab');
+    expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(await page.locator('body').evaluate((body) => body.style.overflow)).toBe('');
+    expect(await page.locator('main').evaluate((main) => main.style.overflow)).toBe('');
+    await trigger.click();
+    const bounds = await dialog.boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+    await page.screenshot({ path: testInfo.outputPath('acquisitions-dialog.png') });
     const cancelButton = page.locator('#acquire-runs').getByRole('button', { name: 'Cancel' });
     await expect(cancelButton).toBeVisible();
     await cancelButton.click();
     await expect(page.locator('#acquire-runs')).toContainText('cancelled');
     await page.getByRole('button', { name: 'Details', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Acquisition details' })).toContainText('Unsupported uptake unit: foo.');
+    await dialog.getByRole('button', { name: 'Close acquisitions' }).click();
+    await page.getByRole('button', { name: /Acquisitions \(/ }).click();
+    await expect(page.getByRole('region', { name: 'Acquisition details' })).toHaveCount(0);
 });
 
 test('COD search in Acquire imports a bounded selection and links to the stored structures', async ({ page }) => {
@@ -325,8 +356,15 @@ test('COD search in Acquire imports a bounded selection and links to the stored 
         operation: 'cod_import',
         cod_ids: ['9012345', '9012346'],
     });
-    await expect(page.locator('#acquire-runs').getByRole('link', { name: /View structures/ })).toHaveAttribute('href', '/sources/structures?source=cod');
+    await expect(page.getByRole('dialog', { name: 'Acquisitions' })).not.toBeVisible();
+    await page.getByRole('button', { name: /Acquisitions \(/ }).click();
+    const imported = page.locator('#acquire-runs').getByRole('link', { name: /View structures/ });
+    await expect(imported).toHaveAttribute('href', '/sources/structures?source=cod');
     await assertContainedLayout(page);
+    await imported.click();
+    await expect(page).toHaveURL(/sources\/structures\?source=cod/);
+    expect(await page.locator('body').evaluate((body) => body.style.overflow)).toBe('');
+    expect(await page.locator('main').evaluate((main) => main.style.overflow)).toBe('');
 });
 
 test('late catalog responses do not overwrite the selected view', async ({ page }) => {
@@ -379,4 +417,60 @@ test('re-downloading NIST isotherms asks before overwriting local edits', async 
     await expect.poll(() => requestBody).toEqual({
         source_key: 'nist', operation: 'nist_category', category: 'experiments', fraction: 0.1, overwrite_local_edits: true,
     });
+});
+
+
+test('acquisition dialog supports direct navigation, backdrop dismissal, and focus restoration', async ({ page }) => {
+    await installApiMocks(page);
+    await page.goto('/sources/acquire?panel=runs');
+    const dialog = page.getByRole('dialog', { name: 'Acquisitions' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('No acquisitions yet.');
+    await page.mouse.click(2, 2);
+    await expect(dialog).not.toBeVisible();
+    const trigger = page.getByRole('button', { name: /Acquisitions \(/ });
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await dialog.getByRole('button', { name: 'Close acquisitions' }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+});
+
+
+test('acquisition history preserves pagination and exposes resume errors inside the dialog', async ({ page }) => {
+    await installApiMocks(page);
+    const run = {
+        id: 'interrupted-1', source_key: 'nist', operation: 'nist_category', parameters: { category: 'guest', fraction: 0.1 },
+        status: 'interrupted', progress: 30, processed_count: 3, imported_count: 3, skipped_count: 0, failed_count: 0,
+        checkpoint: {}, cancel_requested: false, error_detail: null, created_at: '2026-10-19T10:00:00Z', started_at: null, finished_at: null,
+    };
+    let resumed = false;
+    let resumeAttempts = 0;
+    await page.route(/\/api\/v1\/public-data\/sync-runs\?/, async (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        const active = params.get('scope') === 'active';
+        await route.fulfill({ json: { runs: active ? (resumed ? [{ ...run, status: 'running' }] : []) : (resumed ? [] : [run]), total: active ? Number(resumed) : 11 } });
+    });
+    await page.route('**/sync-runs/interrupted-1/resume', async (route) => {
+        if (resumeAttempts++ === 0) {
+            await route.fulfill({ status: 503, json: { detail: 'Resume unavailable' } });
+        } else {
+            resumed = true;
+            await route.fulfill({ json: { ...run, status: 'running' } });
+        }
+    });
+    await page.goto('/sources/acquire');
+    const trigger = page.getByRole('button', { name: /Acquisitions \(/ });
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Acquisitions' });
+    await dialog.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(dialog).toContainText('Page 2 of 2');
+    await dialog.getByRole('button', { name: 'Close acquisitions' }).click();
+    await trigger.click();
+    await expect(dialog).toContainText('Page 2 of 2');
+    await dialog.getByRole('button', { name: 'Resume', exact: true }).click();
+    await expect(dialog.getByRole('alert')).toContainText('Resume unavailable');
+    await dialog.getByRole('button', { name: 'Resume', exact: true }).click();
+    await expect(dialog.locator('.active-run-list')).toContainText('running');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
 });
