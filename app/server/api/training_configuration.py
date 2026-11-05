@@ -32,6 +32,7 @@ def _numeric_constraints(model: type[Any]) -> dict[str, dict[str, int | float]]:
 
 ###############################################################################
 def _device_capabilities() -> RuntimeDeviceCapabilities:
+    # Deferred: torch belongs to the optional ML profile.
     import torch
 
     cuda_available = bool(torch.cuda.is_available())

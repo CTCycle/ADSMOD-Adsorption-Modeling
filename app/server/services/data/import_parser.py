@@ -200,6 +200,52 @@ def source_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 ###############################################################################
+def normalize_extensions(allowed_extensions: Collection[str]) -> set[str]:
+    return {
+        extension.strip().casefold()
+        if extension.strip().startswith(".")
+        else f".{extension.strip().casefold()}"
+        for extension in allowed_extensions
+        if extension.strip()
+    }
+
+###############################################################################
+def decode_frame(
+    payload: bytes,
+    suffix: str,
+    *,
+    header_row: int,
+    field_delimiter: str | None,
+    encoding: str,
+    worksheet: str | int | None,
+) -> pd.DataFrame:
+    if suffix in {".xls", ".xlsx"}:
+        return pd.read_excel(
+            io.BytesIO(payload),
+            sheet_name=worksheet if worksheet is not None else 0,
+            header=header_row,
+            dtype=object,
+        )
+    if suffix == ".json":
+        decoded = json.loads(payload.decode(encoding if encoding else "utf-8-sig"))
+        if isinstance(decoded, dict):
+            decoded = decoded.get("records", decoded.get("data"))
+        if not isinstance(decoded, list) or not all(isinstance(row, dict) for row in decoded):
+            raise ValueError("JSON datasets must contain an array of row objects.")
+        return pd.DataFrame.from_records(decoded)
+    if suffix in {".csv", ".txt", ".tsv", ""}:
+        return pd.read_csv(
+            io.StringIO(payload.decode(encoding)),
+            sep=field_delimiter or None,
+            engine="python",
+            header=header_row,
+            dtype=object,
+            comment="#",
+            keep_default_na=True,
+        )
+    raise ValueError(f"Unsupported file type '{suffix or 'unknown'}'.")
+
+###############################################################################
 def read_tabular(
     payload: bytes,
     filename: str | None,
@@ -213,48 +259,21 @@ def read_tabular(
     if not payload:
         raise ValueError("Uploaded dataset is empty.")
     suffix = Path(filename or "").suffix.casefold()
-    normalized_extensions = {
-        extension.strip().casefold()
-        if extension.strip().startswith(".")
-        else f".{extension.strip().casefold()}"
-        for extension in allowed_extensions
-        if extension.strip()
-    }
+    normalized_extensions = normalize_extensions(allowed_extensions)
     if suffix not in normalized_extensions:
         allowed = ", ".join(sorted(normalized_extensions))
         raise ValueError(
             f"Unsupported file type '{suffix or 'unknown'}'. Allowed file types: {allowed}."
         )
-    buffer = io.BytesIO(payload)
     try:
-        if suffix in {".xls", ".xlsx"}:
-            frame = pd.read_excel(
-                buffer,
-                sheet_name=worksheet if worksheet is not None else 0,
-                header=header_row,
-                dtype=object,
-            )
-        elif suffix == ".json":
-            decoded = json.loads(payload.decode(encoding if encoding else "utf-8-sig"))
-            if isinstance(decoded, dict):
-                decoded = decoded.get("records", decoded.get("data"))
-            if not isinstance(decoded, list) or not all(
-                isinstance(row, dict) for row in decoded
-            ):
-                raise ValueError("JSON datasets must contain an array of row objects.")
-            frame = pd.DataFrame.from_records(decoded)
-        elif suffix in {".csv", ".txt", ".tsv", ""}:
-            frame = pd.read_csv(
-                io.StringIO(payload.decode(encoding)),
-                sep=field_delimiter or None,
-                engine="python",
-                header=header_row,
-                dtype=object,
-                comment="#",
-                keep_default_na=True,
-            )
-        else:
-            raise ValueError(f"Unsupported file type '{suffix or 'unknown'}'.")
+        frame = decode_frame(
+            payload,
+            suffix,
+            header_row=header_row,
+            field_delimiter=field_delimiter,
+            encoding=encoding,
+            worksheet=worksheet,
+        )
     except (UnicodeDecodeError, json.JSONDecodeError, pd.errors.ParserError) as exc:
         raise ValueError(f"Unable to parse '{filename or 'dataset'}': {exc}") from exc
     if frame.empty:
@@ -267,6 +286,30 @@ def read_tabular(
     if len(set(frame.columns)) != len(frame.columns):
         raise ValueError("Uploaded dataset contains duplicate column headers.")
     return frame
+
+###############################################################################
+def parse_serialized_array(text: str) -> list[Any]:
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError:
+        try:
+            raw = ast.literal_eval(text)
+        except (ValueError, SyntaxError) as exc:
+            raise ValueError(f"Malformed serialized array '{text[:80]}'.") from exc
+    if not isinstance(raw, (list, tuple)):
+        raise ValueError("Serialized measurement cells must contain an array.")
+    return list(raw)
+
+###############################################################################
+def resolve_delimiter(text: str, delimiter: str | None) -> str | None:
+    if delimiter is not None:
+        return delimiter
+    candidates = [token for token in (";", "|", "\t") if token in text]
+    if not candidates:
+        return None
+    if len(candidates) != 1:
+        raise ValueError("Delimited series require an explicit, unambiguous delimiter.")
+    return candidates[0]
 
 ###############################################################################
 def parse_series_cell(
@@ -285,31 +328,12 @@ def parse_series_cell(
         text = str(value).strip()
         if not text:
             return []
-        raw: Any = None
         if text.startswith("[") and text.endswith("]"):
-            try:
-                raw = json.loads(text)
-            except json.JSONDecodeError:
-                try:
-                    raw = ast.literal_eval(text)
-                except (ValueError, SyntaxError) as exc:
-                    raise ValueError(
-                        f"Malformed serialized array '{text[:80]}'."
-                    ) from exc
-            if not isinstance(raw, (list, tuple)):
-                raise ValueError("Serialized measurement cells must contain an array.")
-            raw = list(raw)
+            raw = parse_serialized_array(text)
         else:
-            selected = delimiter
+            selected = resolve_delimiter(text, delimiter)
             if selected is None:
-                candidates = [token for token in (";", "|", "\t") if token in text]
-                if not candidates:
-                    return [parse_number(text, decimal_separator)]
-                if len(candidates) != 1:
-                    raise ValueError(
-                        "Delimited series require an explicit, unambiguous delimiter."
-                    )
-                selected = candidates[0]
+                return [parse_number(text, decimal_separator)]
             raw = [item.strip() for item in text.split(selected)]
     return [parse_number(item, decimal_separator) for item in raw]
 
@@ -323,6 +347,48 @@ def is_array_like(value: Any) -> bool:
     return (text.startswith("[") and text.endswith("]")) or sum(
         token in text for token in (";", "|", "\t")
     ) == 1
+
+###############################################################################
+def score_header_aliases(
+    header: str, header_tokens: set[str], aliases: Collection[str]
+) -> tuple[float, list[str]]:
+    best = 0.0
+    evidence: list[str] = []
+    for alias in aliases:
+        normalized_alias = normalize_header(alias)
+        alias_tokens = set(normalized_alias.split())
+        if header == normalized_alias:
+            best = max(best, 0.98)
+            evidence = [f"header exactly matches '{alias}'"]
+        elif alias_tokens and alias_tokens.issubset(header_tokens):
+            score = 0.82 if len(alias_tokens) > 1 else 0.72
+            if score > best:
+                best = score
+                evidence = [f"header contains scientific alias '{alias}'"]
+    return best, evidence
+
+###############################################################################
+def apply_value_evidence(
+    role: str,
+    numeric_ratio: float,
+    array_ratio: float,
+    series: pd.Series,
+    evidence: list[str],
+) -> float:
+    bonus = 0.0
+    if role in {"pressure", "uptake", "temperature", "uptake_stddev"}:
+        if numeric_ratio >= 0.8:
+            bonus += 0.08
+            evidence.append("representative values are numerical")
+        if array_ratio >= 0.5 and role in {"pressure", "uptake"}:
+            bonus += 0.05
+            evidence.append("representative values contain numerical series")
+    if role == "experiment_id":
+        cardinality = series.nunique(dropna=True)
+        if 0 < cardinality < max(2, len(series)):
+            bonus += 0.05
+            evidence.append("values repeat and can define groups")
+    return bonus
 
 ###############################################################################
 def infer_column(column: str, series: pd.Series) -> ColumnDetection:
@@ -345,31 +411,8 @@ def infer_column(column: str, series: pd.Series) -> ColumnDetection:
     scored: list[tuple[float, str, list[str]]] = []
     header_tokens = set(header.split())
     for role, aliases in ROLE_ALIASES.items():
-        best = 0.0
-        evidence: list[str] = []
-        for alias in aliases:
-            normalized_alias = normalize_header(alias)
-            alias_tokens = set(normalized_alias.split())
-            if header == normalized_alias:
-                best = max(best, 0.98)
-                evidence = [f"header exactly matches '{alias}'"]
-            elif alias_tokens and alias_tokens.issubset(header_tokens):
-                score = 0.82 if len(alias_tokens) > 1 else 0.72
-                if score > best:
-                    best = score
-                    evidence = [f"header contains scientific alias '{alias}'"]
-        if role in {"pressure", "uptake", "temperature", "uptake_stddev"}:
-            if numeric_ratio >= 0.8:
-                best += 0.08
-                evidence.append("representative values are numerical")
-            if array_ratio >= 0.5 and role in {"pressure", "uptake"}:
-                best += 0.05
-                evidence.append("representative values contain numerical series")
-        if role == "experiment_id":
-            cardinality = series.nunique(dropna=True)
-            if 0 < cardinality < max(2, len(series)):
-                best += 0.05
-                evidence.append("values repeat and can define groups")
+        best, evidence = score_header_aliases(header, header_tokens, aliases)
+        best += apply_value_evidence(role, numeric_ratio, array_ratio, series, evidence)
         if best:
             scored.append((min(best, 1.0), role, evidence))
     scored.sort(reverse=True)

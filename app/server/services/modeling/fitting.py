@@ -71,6 +71,25 @@ def finite_or_none(value: float) -> float | None:
     return float(value) if math.isfinite(float(value)) else None
 
 ###############################################################################
+def information_criteria(
+    log_likelihood: float | None, likelihood_k: int, n: int, warnings: list[str]
+) -> tuple[float | None, float | None, float | None]:
+    if log_likelihood is None:
+        return None, None, None
+    aic = -2.0 * log_likelihood + 2.0 * likelihood_k
+    bic = -2.0 * log_likelihood + likelihood_k * math.log(n) if n > 0 else None
+    aicc = (
+        aic + (2.0 * likelihood_k * (likelihood_k + 1.0)) / (n - likelihood_k - 1.0)
+        if n > likelihood_k + 1
+        else None
+    )
+    if aicc is None:
+        warnings.append(
+            "AICc is undefined because the sample size is too small for the likelihood parameter count."
+        )
+    return aic, aicc, bic
+
+###############################################################################
 def compute_metrics(
     observed: np.ndarray,
     predicted: np.ndarray,
@@ -141,20 +160,7 @@ def compute_metrics(
         warnings.append(
             "Information criteria are undefined for an empty or exact-zero-residual fit."
         )
-    if log_likelihood is None:
-        aic = aicc = bic = None
-    else:
-        aic = -2.0 * log_likelihood + 2.0 * likelihood_k
-        bic = -2.0 * log_likelihood + likelihood_k * math.log(n) if n > 0 else None
-        aicc = (
-            aic + (2.0 * likelihood_k * (likelihood_k + 1.0)) / (n - likelihood_k - 1.0)
-            if n > likelihood_k + 1
-            else None
-        )
-        if aicc is None:
-            warnings.append(
-                "AICc is undefined because the sample size is too small for the likelihood parameter count."
-            )
+    aic, aicc, bic = information_criteria(log_likelihood, likelihood_k, n, warnings)
 
     return MetricResult(
         values={

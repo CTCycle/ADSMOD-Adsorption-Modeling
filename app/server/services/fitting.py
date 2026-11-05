@@ -7,6 +7,7 @@ import hashlib
 import math
 import threading
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -495,6 +496,15 @@ class FittingService:
             item.rank = rank
 
     # -------------------------------------------------------------------------
+    def _publish_progress(
+        self, job_id: str | None, session_id: int, log: list[str], progress: float
+    ) -> None:
+        if job_id is None:
+            return
+        self.job_manager.update_progress(job_id, progress)
+        self.job_manager.update_result(job_id, {"session_id": session_id, "log": list(log)})
+
+    # -------------------------------------------------------------------------
     def _run_session_sync(
         self,
         session_id: int,
@@ -514,19 +524,16 @@ class FittingService:
             f"[INFO] Fitting {len(request.models)} model(s) to {len(series_list)} experiment(s)."
         ]
 
-        def publish(progress: float) -> None:
-            if job_id is not None:
-                self.job_manager.update_progress(job_id, progress)
-                self.job_manager.update_result(job_id, {"session_id": session_id, "log": list(log)})
-
-        publish(0.0)
+        self._publish_progress(job_id, session_id, log, 0.0)
         records: list[dict[str, Any]] = []
         statuses: list[str] = []
         try:
             for index, series in enumerate(series_list, start=1):
                 raise_if_cancelled(stop_event)
                 log.append(f"[INFO] ({index}/{len(series_list)}) {series['isotherm_name']}")
-                publish(100.0 * (index - 1) / len(series_list))
+                self._publish_progress(
+                    job_id, session_id, log, 100.0 * (index - 1) / len(series_list)
+                )
                 computations = self.pipeline.run(series, request, stop_event=stop_event)
                 self._rank(computations, metric)
                 for item in computations:
@@ -543,7 +550,7 @@ class FittingService:
                 self.results.complete_session(
                     session_id, status=status, message=summary, results=records, log=log
                 )
-            publish(100.0)
+            self._publish_progress(job_id, session_id, log, 100.0)
             return {"session_id": session_id, "status": status, "summary": summary, "log": log}
         except FittingCancelledError as exc:
             log.append(f"[WARN] {exc}")
@@ -691,15 +698,13 @@ class FittingService:
             if item is None:
                 continue
 
-            def shown(value: float | None) -> float | None:
-                return display_parameter_value(
-                    value,
-                    parameter,
-                    pressure_factor_value=p_factor,
-                    uptake_factor_value=q_factor,
-                    related_value=related,
-                )
-
+            shown = partial(
+                display_parameter_value,
+                parameter=parameter,
+                pressure_factor_value=p_factor,
+                uptake_factor_value=q_factor,
+                related_value=related,
+            )
             parameters.append(
                 FittedParameter(
                     name=parameter.name,

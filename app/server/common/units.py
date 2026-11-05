@@ -33,26 +33,7 @@ def normalize_token(value: object) -> str:
     return " ".join(text.split())
 
 ###############################################################################
-def parse_number(value: Any, decimal_separator: str = "auto") -> float:
-    if isinstance(value, bool):
-        raise ValueError("Boolean values are not valid measurements.")
-    if isinstance(value, (int, float)):
-        result = float(value)
-        if not math.isfinite(result):
-            raise ValueError("Measurement must be finite.")
-        return result
-
-    text = normalize_token(value).replace("\u00a0", " ").strip()
-    if not text:
-        raise ValueError("Measurement is empty.")
-    match = re.fullmatch(
-        r"\s*([+-]?(?:\d[\d\s.,']*|\d*[.,]\d+)(?:[eE][+-]?\d+)?)\s*(?:[^\d].*)?",
-        text,
-    )
-    if match is None:
-        raise ValueError(f"'{value}' is not a valid numerical value.")
-    numeric = match.group(1).replace(" ", "").replace("'", "")
-
+def normalize_decimal_separators(numeric: str, decimal_separator: str, value: Any) -> str:
     if decimal_separator not in {"auto", ".", ","}:
         raise ValueError("Decimal separator must be 'auto', '.', or ','.")
     if decimal_separator == ".":
@@ -77,6 +58,30 @@ def parse_number(value: Any, decimal_separator: str = "auto") -> float:
         raise ValueError(
             f"'{value}' is ambiguous; select decimal-point or thousands-point explicitly."
         )
+    return numeric
+
+###############################################################################
+def parse_number(value: Any, decimal_separator: str = "auto") -> float:
+    if isinstance(value, bool):
+        raise ValueError("Boolean values are not valid measurements.")
+    if isinstance(value, (int, float)):
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError("Measurement must be finite.")
+        return result
+
+    text = normalize_token(value).replace("\u00a0", " ").strip()
+    if not text:
+        raise ValueError("Measurement is empty.")
+    match = re.fullmatch(
+        r"\s*([+-]?(?:\d[\d\s.,']*|\d*[.,]\d+)(?:[eE][+-]?\d+)?)\s*(?:[^\d].*)?",
+        text,
+    )
+    if match is None:
+        raise ValueError(f"'{value}' is not a valid numerical value.")
+    numeric = match.group(1).replace(" ", "").replace("'", "")
+
+    numeric = normalize_decimal_separators(numeric, decimal_separator, value)
 
     try:
         result = float(numeric)

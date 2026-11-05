@@ -337,6 +337,16 @@ class SCADSAtomicDataLoader:
         self.smile_length = metadata.get("smile_sequence_size", 20)
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _as_value_list(values: Any, scalar_repeat: int | None) -> list[Any]:
+        """Normalize a cell to a list; scalars repeat `scalar_repeat` times (once if None)."""
+        if isinstance(values, np.ndarray):
+            return values.tolist()
+        if isinstance(values, (list, tuple)):
+            return list(values)
+        return [values] * (1 if scalar_repeat is None else scalar_repeat)
+
+    # -------------------------------------------------------------------------
     def expand_to_single_measurements(self, data: pd.DataFrame) -> pd.DataFrame:
         if data.empty:
             columns = list(data.columns)
@@ -350,19 +360,11 @@ class SCADSAtomicDataLoader:
 
         for _, row in data.iterrows():
             base = {col: row[col] for col in non_sequence_cols}
-            pressure_values = row.get("pressure", [])
-            if isinstance(pressure_values, np.ndarray):
-                pressure_values = pressure_values.tolist()
-            elif not isinstance(pressure_values, (list, tuple)):
-                pressure_values = [pressure_values]
-
-            uptake_values: list[Any]
+            pressure_values = self._as_value_list(row.get("pressure", []), None)
             if has_output:
-                uptake_values = row.get(self.output, [])
-                if isinstance(uptake_values, np.ndarray):
-                    uptake_values = uptake_values.tolist()
-                elif not isinstance(uptake_values, (list, tuple)):
-                    uptake_values = [uptake_values] * len(pressure_values)
+                uptake_values = self._as_value_list(
+                    row.get(self.output, []), len(pressure_values)
+                )
             else:
                 uptake_values = [None] * len(pressure_values)
 
@@ -381,13 +383,19 @@ class SCADSAtomicDataLoader:
                     entry[self.output] = float(uptake_value)
                 expanded_rows.append(entry)
 
-        expanded_df = pd.DataFrame(expanded_rows)
+        return self._finalize_expanded(
+            pd.DataFrame(expanded_rows), non_sequence_cols, has_output
+        )
+
+    # -------------------------------------------------------------------------
+    def _finalize_expanded(
+        self, expanded_df: pd.DataFrame, non_sequence_cols: list[str], has_output: bool
+    ) -> pd.DataFrame:
         if expanded_df.empty:
             columns = non_sequence_cols + ["pressure"]
             if has_output:
                 columns.append(self.output)
-            expanded_df = pd.DataFrame(columns=columns)
-            return expanded_df
+            return pd.DataFrame(columns=columns)
 
         required_cols = [
             "temperature",
@@ -398,9 +406,7 @@ class SCADSAtomicDataLoader:
         if has_output:
             required_cols.append(self.output)
         available_cols = [col for col in required_cols if col in expanded_df.columns]
-        expanded_df = expanded_df.dropna(subset=available_cols).reset_index(drop=True)
-
-        return expanded_df
+        return expanded_df.dropna(subset=available_cols).reset_index(drop=True)
 
     # -------------------------------------------------------------------------
     def separate_inputs_and_output(

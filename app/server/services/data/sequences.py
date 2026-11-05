@@ -14,6 +14,20 @@ from server.common.constants import PAD_VALUE
 from server.common.utils.logger import logger
 
 ###############################################################################
+TWO_CHAR_TOKENS = frozenset({"Cl", "Br", "@@"})
+SINGLE_CHAR_TOKENS = frozenset("BCNOPSFHIbcnops-=#:/$\\()@*")
+
+
+###############################################################################
+def read_charge(SMILE: str, start: int) -> tuple[str, int]:
+    sign = SMILE[start]
+    end = start + 1
+    while end < len(SMILE) and (SMILE[end] == sign or SMILE[end].isdigit()):
+        end += 1
+    return SMILE[start:end], end
+
+
+###############################################################################
 class PressureUptakeSeriesProcess:
 
     # -------------------------------------------------------------------------
@@ -201,83 +215,52 @@ class SMILETokenization:
 
     # -------------------------------------------------------------------------
     def tokenize_smile_string(self, SMILE: str | Any) -> list[Any]:
-        tokens = []
-        if isinstance(SMILE, str):
-            tokens = []
-            i = 0
-            length = len(SMILE)
-            while i < length:
-                c = SMILE[i]
-                if c == "[":
-                    j = i + 1
-                    bracket_content = ""
-                    while j < length and SMILE[j] != "]":
-                        bracket_content += SMILE[j]
-                        j += 1
-                    if j == length:
-                        logger.error(f"Incorrect SMILE sequence: {SMILE}")
-                    m = re.match(r"(\d+)?([A-Z][a-z]?)", bracket_content)
-                    if not m:
-                        raise ValueError(
-                            f"Invalid atom in brackets: [{bracket_content}]"
-                        )
-                    isotope, element = m.groups()
-                    if element not in self.element_symbols:
-                        raise ValueError(f"Unknown element symbol: {element}")
-                    tokens.append("[" + bracket_content + "]")
-                    i = j + 1
-                elif c == "%":
-                    if i + 2 < length and SMILE[i + 1 : i + 3].isdigit():
-                        tokens.append(SMILE[i : i + 3])
-                        i += 3
-                    else:
-                        logger.error(
-                            f"Invalid ring closure with '%' in SMILE string {SMILE}"
-                        )
-                elif c == "C" and i + 1 < length and SMILE[i + 1] == "l":
-                    tokens.append("Cl")
-                    i += 2
-                elif c == "B" and i + 1 < length and SMILE[i + 1] == "r":
-                    tokens.append("Br")
-                    i += 2
-                elif c in "BCNOPSFHI":
-                    tokens.append(c)
-                    i += 1
-                elif c in "bcnops":
-                    tokens.append(c)
-                    i += 1
-                elif c.isdigit():
-                    tokens.append(c)
-                    i += 1
-                elif c in "-=#:/$\\":
-                    tokens.append(c)
-                    i += 1
-                elif c in "()":
-                    tokens.append(c)
-                    i += 1
-                elif c == "@":
-                    if i + 1 < length and SMILE[i + 1] == "@":
-                        tokens.append("@@")
-                        i += 2
-                    else:
-                        tokens.append("@")
-                        i += 1
-                elif c == "+" or c == "-":
-                    charge = c
-                    j = i + 1
-                    while j < length and (SMILE[j] == c or SMILE[j].isdigit()):
-                        charge += SMILE[j]
-                        j += 1
-                    tokens.append(charge)
-                    i = j
-                elif c == "*":
-                    tokens.append(c)
-                    i += 1
+        tokens: list[Any] = []
+        if not isinstance(SMILE, str):
+            return tokens
+        i = 0
+        length = len(SMILE)
+        while i < length:
+            c = SMILE[i]
+            pair = SMILE[i : i + 2]
+            if c == "[":
+                token, i = self._read_bracket_atom(SMILE, i)
+                tokens.append(token)
+            elif c == "%":
+                if i + 2 < length and SMILE[i + 1 : i + 3].isdigit():
+                    tokens.append(SMILE[i : i + 3])
+                    i += 3
                 else:
-                    logger.debug(f"Unrecognized character '{c}' at position {i}")
+                    logger.error(f"Invalid ring closure with '%' in SMILE string {SMILE}")
                     i += 1
-
+            elif pair in TWO_CHAR_TOKENS:
+                tokens.append(pair)
+                i += 2
+            elif c in SINGLE_CHAR_TOKENS or c.isdigit():
+                tokens.append(c)
+                i += 1
+            elif c == "+":
+                token, i = read_charge(SMILE, i)
+                tokens.append(token)
+            else:
+                logger.debug(f"Unrecognized character '{c}' at position {i}")
+                i += 1
         return tokens
+
+    # -------------------------------------------------------------------------
+    def _read_bracket_atom(self, SMILE: str, start: int) -> tuple[str, int]:
+        end = SMILE.find("]", start + 1)
+        if end == -1:
+            logger.error(f"Incorrect SMILE sequence: {SMILE}")
+            end = len(SMILE)
+        bracket_content = SMILE[start + 1 : end]
+        match = re.match(r"(\d+)?([A-Z][a-z]?)", bracket_content)
+        if not match:
+            raise ValueError(f"Invalid atom in brackets: [{bracket_content}]")
+        element = match.group(2)
+        if element not in self.element_symbols:
+            raise ValueError(f"Unknown element symbol: {element}")
+        return "[" + bracket_content + "]", end + 1
 
     # -------------------------------------------------------------------------
     def encode_smile_tokens(

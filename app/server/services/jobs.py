@@ -160,32 +160,14 @@ class JobManager:
             if not threads and not process_states:
                 return
 
-            for process_state in process_states:
-                process_state.stop_event.set()
-                try:
-                    if process_state.process.is_alive():
-                        process_state.process.join(timeout=0.2)
-                    if process_state.process.is_alive() and monotonic() >= deadline:
-                        self.terminate_process_tree(process_state.process.pid)
-                        process_state.process.join(timeout=1.0)
-                except Exception as exc:  # noqa: BLE001
-                    self._logger.warning(
-                        "Failed to stop process during shutdown: %s", exc
-                    )
+            self._stop_processes(process_states, deadline)
 
             remaining = max(0.0, deadline - monotonic())
             for thread in threads:
                 thread.join(timeout=min(0.2, remaining))
 
             if monotonic() >= deadline:
-                for process_state in process_states:
-                    try:
-                        if process_state.process.is_alive():
-                            self.terminate_process_tree(process_state.process.pid)
-                    except Exception as exc:  # noqa: BLE001
-                        self._logger.warning(
-                            "Failed to force process shutdown: %s", exc
-                        )
+                self._force_terminate_processes(process_states)
                 for thread in threads:
                     thread.join(timeout=1.0)
                 with self.lock:
@@ -198,6 +180,30 @@ class JobManager:
                 return
 
             sleep(0.02)
+
+    # -------------------------------------------------------------------------
+    def _stop_processes(
+        self, process_states: list[_ProcessJobState], deadline: float
+    ) -> None:
+        for process_state in process_states:
+            process_state.stop_event.set()
+            try:
+                if process_state.process.is_alive():
+                    process_state.process.join(timeout=0.2)
+                if process_state.process.is_alive() and monotonic() >= deadline:
+                    self.terminate_process_tree(process_state.process.pid)
+                    process_state.process.join(timeout=1.0)
+            except Exception as exc:  # noqa: BLE001
+                self._logger.warning("Failed to stop process during shutdown: %s", exc)
+
+    # -------------------------------------------------------------------------
+    def _force_terminate_processes(self, process_states: list[_ProcessJobState]) -> None:
+        for process_state in process_states:
+            try:
+                if process_state.process.is_alive():
+                    self.terminate_process_tree(process_state.process.pid)
+            except Exception as exc:  # noqa: BLE001
+                self._logger.warning("Failed to force process shutdown: %s", exc)
 
     # -------------------------------------------------------------------------
     def start_job(

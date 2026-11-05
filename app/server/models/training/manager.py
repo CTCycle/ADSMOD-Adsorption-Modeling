@@ -25,6 +25,32 @@ from server.models.training.state import TrainingState
 from server.common.constants import SCADS_ATOMIC_MODEL, SCADS_SERIES_MODEL
 
 
+TRAINING_UPDATE_METRIC_KEYS = (
+    "loss",
+    "val_loss",
+    "accuracy",
+    "val_accuracy",
+    "masked_r2",
+    "val_masked_r2",
+)
+EPOCH_METRIC_ALIASES = {
+    "accuracy": ("accuracy", "MaskedAccuracy", "masked_accuracy"),
+    "val_accuracy": ("val_accuracy", "val_MaskedAccuracy", "val_masked_accuracy"),
+    "masked_r2": ("MaskedR2", "masked_r2", "masked_r_squared"),
+    "val_masked_r2": ("val_MaskedR2", "val_masked_r2", "val_masked_r_squared"),
+}
+
+
+###############################################################################
+def first_numeric(logs: dict[str, Any], keys: tuple[str, ...]) -> float | None:
+    for key in keys:
+        candidate = logs.get(key)
+        if isinstance(candidate, (int, float)):
+            return float(candidate)
+    return None
+
+
+###############################################################################
 MODEL_COMPONENTS = {
     SCADS_SERIES_MODEL: (SCADSModel, SCADSDataLoader),
     SCADS_ATOMIC_MODEL: (SCADSAtomicModel, SCADSAtomicDataLoader),
@@ -425,75 +451,67 @@ class TrainingManager:
 
         message_type = message.get("type")
         if message_type == "epoch_end":
-            epoch = message.get("epoch")
-            total_epochs = message.get("total_epochs")
-            logs = message.get("logs")
-            if (
-                isinstance(epoch, int)
-                and isinstance(total_epochs, int)
-                and isinstance(logs, dict)
-            ):
-                self._on_epoch_end(epoch, total_epochs, logs)
-            return
-
-        if message_type == "state_update":
-            current_epoch = message.get("current_epoch")
-            total_epochs = message.get("total_epochs")
-            update_payload: dict[str, Any] = {}
-            if isinstance(current_epoch, int):
-                update_payload["current_epoch"] = current_epoch
-            if isinstance(total_epochs, int):
-                update_payload["total_epochs"] = total_epochs
-            if update_payload:
-                self.state.update(**update_payload)
-            return
-
-        if message_type == "training_update":
-            current_epoch = message.get("epoch")
-            total_epochs = message.get("total_epochs")
-            progress_percent = message.get("progress_percent")
-            update_payload: dict[str, Any] = {}
-            if isinstance(current_epoch, int):
-                update_payload["current_epoch"] = current_epoch
-            if isinstance(total_epochs, int):
-                update_payload["total_epochs"] = total_epochs
-            if isinstance(progress_percent, (int, float)):
-                update_payload["progress"] = float(progress_percent)
-            metrics_update: dict[str, float] = {}
-            for key in [
-                "loss",
-                "val_loss",
-                "accuracy",
-                "val_accuracy",
-                "masked_r2",
-                "val_masked_r2",
-            ]:
-                value = message.get(key)
-                if isinstance(value, (int, float)):
-                    metrics_update[key] = float(value)
-            if metrics_update:
-                current_metrics = self.state.snapshot().get("metrics", {})
-                if isinstance(current_metrics, dict):
-                    merged = dict(current_metrics)
-                    merged.update(metrics_update)
-                    update_payload["metrics"] = merged
-                else:
-                    update_payload["metrics"] = metrics_update
-            if update_payload:
-                self.state.update(**update_payload)
-            return
-
-        if message_type == "log":
+            self._apply_epoch_end(message)
+        elif message_type == "state_update":
+            self._apply_state_update(message)
+        elif message_type == "training_update":
+            self._apply_training_update(message)
+        elif message_type == "log":
             message_text = message.get("message")
             if message_text:
                 self.state.add_log(str(message_text))
-            return
-
-        if message_type == "error":
+        elif message_type == "error":
             error_text = message.get("error")
             if error_text:
                 self.state.update(last_error=str(error_text))
                 self.state.add_log(f"Training error: {error_text}")
+
+    # -------------------------------------------------------------------------
+    def _apply_epoch_end(self, message: dict[str, Any]) -> None:
+        epoch = message.get("epoch")
+        total_epochs = message.get("total_epochs")
+        logs = message.get("logs")
+        if isinstance(epoch, int) and isinstance(total_epochs, int) and isinstance(logs, dict):
+            self._on_epoch_end(epoch, total_epochs, logs)
+
+    # -------------------------------------------------------------------------
+    def _apply_state_update(self, message: dict[str, Any]) -> None:
+        update_payload = self._extract_epoch_fields(message, epoch_key="current_epoch")
+        if update_payload:
+            self.state.update(**update_payload)
+
+    # -------------------------------------------------------------------------
+    def _extract_epoch_fields(
+        self, message: dict[str, Any], epoch_key: str
+    ) -> dict[str, Any]:
+        update_payload: dict[str, Any] = {}
+        current_epoch = message.get(epoch_key)
+        total_epochs = message.get("total_epochs")
+        if isinstance(current_epoch, int):
+            update_payload["current_epoch"] = current_epoch
+        if isinstance(total_epochs, int):
+            update_payload["total_epochs"] = total_epochs
+        return update_payload
+
+    # -------------------------------------------------------------------------
+    def _apply_training_update(self, message: dict[str, Any]) -> None:
+        update_payload = self._extract_epoch_fields(message, epoch_key="epoch")
+        progress_percent = message.get("progress_percent")
+        if isinstance(progress_percent, (int, float)):
+            update_payload["progress"] = float(progress_percent)
+        metrics_update = {
+            key: float(message[key])
+            for key in TRAINING_UPDATE_METRIC_KEYS
+            if isinstance(message.get(key), (int, float))
+        }
+        if metrics_update:
+            current_metrics = self.state.snapshot().get("metrics", {})
+            if isinstance(current_metrics, dict):
+                update_payload["metrics"] = {**current_metrics, **metrics_update}
+            else:
+                update_payload["metrics"] = metrics_update
+        if update_payload:
+            self.state.update(**update_payload)
 
     # -------------------------------------------------------------------------
     def handle_job_completion(
@@ -533,81 +551,26 @@ class TrainingManager:
             current_epoch=epoch, total_epochs=total_epochs, progress=progress
         )
 
-        # Extract metrics
-        loss_value = logs.get("loss")
-        loss = float(loss_value) if isinstance(loss_value, (int, float)) else 0.0
-        val_loss_value = logs.get("val_loss")
-        val_loss = (
-            float(val_loss_value) if isinstance(val_loss_value, (int, float)) else 0.0
-        )
-
-        accuracy_value = None
-        for key in ["accuracy", "MaskedAccuracy", "masked_accuracy"]:
-            candidate = logs.get(key)
-            if isinstance(candidate, (int, float)):
-                accuracy_value = candidate
-                break
-        accuracy = (
-            float(accuracy_value) if isinstance(accuracy_value, (int, float)) else 0.0
-        )
-
-        val_accuracy_value = None
-        for key in ["val_accuracy", "val_MaskedAccuracy", "val_masked_accuracy"]:
-            candidate = logs.get(key)
-            if isinstance(candidate, (int, float)):
-                val_accuracy_value = candidate
-                break
-        val_accuracy = (
-            float(val_accuracy_value)
-            if isinstance(val_accuracy_value, (int, float))
-            else 0.0
-        )
-
-        masked_r2_value = None
-        for key in ["MaskedR2", "masked_r2", "masked_r_squared"]:
-            candidate = logs.get(key)
-            if isinstance(candidate, (int, float)):
-                masked_r2_value = candidate
-                break
-        masked_r2 = (
-            float(masked_r2_value) if isinstance(masked_r2_value, (int, float)) else 0.0
-        )
-
-        val_masked_r2_value = None
-        for key in ["val_MaskedR2", "val_masked_r2", "val_masked_r_squared"]:
-            candidate = logs.get(key)
-            if isinstance(candidate, (int, float)):
-                val_masked_r2_value = candidate
-                break
-        val_masked_r2 = (
-            float(val_masked_r2_value)
-            if isinstance(val_masked_r2_value, (int, float))
-            else 0.0
-        )
-
-        metrics = {
-            "loss": loss,
-            "val_loss": val_loss,
+        loss = first_numeric(logs, ("loss",)) or 0.0
+        val_loss = first_numeric(logs, ("val_loss",)) or 0.0
+        optional_metrics = {
+            name: first_numeric(logs, aliases)
+            for name, aliases in EPOCH_METRIC_ALIASES.items()
         }
-        if isinstance(accuracy_value, (int, float)):
-            metrics["accuracy"] = accuracy
-        if isinstance(val_accuracy_value, (int, float)):
-            metrics["val_accuracy"] = val_accuracy
-        if isinstance(masked_r2_value, (int, float)):
-            metrics["masked_r2"] = masked_r2
-        if isinstance(val_masked_r2_value, (int, float)):
-            metrics["val_masked_r2"] = val_masked_r2
+        metrics = {"loss": loss, "val_loss": val_loss}
+        metrics.update(
+            {name: value for name, value in optional_metrics.items() if value is not None}
+        )
         self.state.update(metrics=metrics)
 
-        metric_label = "acc" if isinstance(accuracy_value, (int, float)) else "r2"
-        metric_value = (
-            accuracy if isinstance(accuracy_value, (int, float)) else masked_r2
-        )
-        val_metric_value = (
-            val_accuracy
-            if isinstance(val_accuracy_value, (int, float))
-            else val_masked_r2
-        )
+        if optional_metrics["accuracy"] is not None:
+            metric_label, metric_value = "acc", optional_metrics["accuracy"]
+        else:
+            metric_label, metric_value = "r2", optional_metrics["masked_r2"] or 0.0
+        if optional_metrics["val_accuracy"] is not None:
+            val_metric_value = optional_metrics["val_accuracy"]
+        else:
+            val_metric_value = optional_metrics["val_masked_r2"] or 0.0
 
         # Add generic log entry
         log_message = (

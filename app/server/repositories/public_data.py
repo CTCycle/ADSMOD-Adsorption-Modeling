@@ -780,26 +780,7 @@ class PublicDataRepository:
                     ChemicalProperty.source_record_id == record.id
                 )
             )
-            property_rows: list[tuple[str, float | None, str | None, str | None]] = []
-            preferred_name = payload.get("preferred_name")
-            if preferred_name:
-                property_rows.append(("preferred_name", None, str(preferred_name), None))
-            connectivity_smiles = payload.get("connectivity_smiles")
-            if connectivity_smiles:
-                property_rows.append(
-                    ("connectivity_smiles", None, str(connectivity_smiles), None)
-                )
-            if payload.get("conformer_3d_url"):
-                property_rows.append(("pubchem_3d_available", None, "true", None))
-            units = {
-                "tpsa_angstrom2": "Å²",
-                "exact_mass_da": "Da",
-                "monoisotopic_mass_da": "Da",
-            }
-            for key, value in (payload.get("descriptors") or {}).items():
-                property_rows.append((str(key), float(value), None, units.get(str(key))))
-            for element, value in (payload.get("elemental_composition") or {}).items():
-                property_rows.append((f"element:{element}", float(value), None, "atoms"))
+            property_rows = self._pubchem_property_rows(payload)
             for key, value_number, value_text, unit in property_rows:
                 session.add(
                     ChemicalProperty(
@@ -813,6 +794,33 @@ class PublicDataRepository:
                 )
             session.flush()
             return adsorbate.id
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _pubchem_property_rows(
+        payload: dict[str, Any],
+    ) -> list[tuple[str, float | None, str | None, str | None]]:
+        property_rows: list[tuple[str, float | None, str | None, str | None]] = []
+        preferred_name = payload.get("preferred_name")
+        if preferred_name:
+            property_rows.append(("preferred_name", None, str(preferred_name), None))
+        connectivity_smiles = payload.get("connectivity_smiles")
+        if connectivity_smiles:
+            property_rows.append(
+                ("connectivity_smiles", None, str(connectivity_smiles), None)
+            )
+        if payload.get("conformer_3d_url"):
+            property_rows.append(("pubchem_3d_available", None, "true", None))
+        units = {
+            "tpsa_angstrom2": "Å²",
+            "exact_mass_da": "Da",
+            "monoisotopic_mass_da": "Da",
+        }
+        for key, value in (payload.get("descriptors") or {}).items():
+            property_rows.append((str(key), float(value), None, units.get(str(key))))
+        for element, value in (payload.get("elemental_composition") or {}).items():
+            property_rows.append((f"element:{element}", float(value), None, "atoms"))
+        return property_rows
 
     # -------------------------------------------------------------------------
     @staticmethod

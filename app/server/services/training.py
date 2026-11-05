@@ -92,6 +92,51 @@ class TrainingSession:
         self.worker = None
         self.current_job_id = None
 
+CHECKPOINT_ACCURACY_KEYS = (
+    "accuracy",
+    "MaskedR2",
+    "masked_r2",
+    "masked_r_squared",
+    "val_accuracy",
+)
+
+###############################################################################
+def last_number(values: Any) -> float | None:
+    if isinstance(values, list) and values and isinstance(values[-1], (int, float)):
+        return float(values[-1])
+    return None
+
+###############################################################################
+def summarize_checkpoint_session(
+    training_configuration: Any, session: Any
+) -> tuple[int | None, float | None, float | None]:
+    session_history = session.get("history") if isinstance(session, dict) else {}
+    if not isinstance(session_history, dict):
+        session_history = {}
+
+    epochs_trained: int | None = None
+    epochs_value = session.get("epochs") if isinstance(session, dict) else None
+    if isinstance(epochs_value, int):
+        epochs_trained = epochs_value
+
+    loss_values = session_history.get("loss")
+    final_loss = last_number(loss_values)
+    if epochs_trained is None and isinstance(loss_values, list) and loss_values:
+        epochs_trained = len(loss_values)
+
+    if epochs_trained is None and isinstance(training_configuration, dict):
+        configured_epochs = training_configuration.get("epochs")
+        if isinstance(configured_epochs, int):
+            epochs_trained = configured_epochs
+
+    final_accuracy: float | None = None
+    for metric_key in CHECKPOINT_ACCURACY_KEYS:
+        metric_values = session_history.get(metric_key)
+        if isinstance(metric_values, list) and metric_values:
+            final_accuracy = last_number(metric_values)
+            break
+    return epochs_trained, final_loss, final_accuracy
+
 ###############################################################################
 def determine_checkpoint_compatibility(
     checkpoint_name: str,
@@ -199,6 +244,10 @@ class TrainingJobRunner:
         worker.join(timeout=5)
         self.drain_worker_progress(job_id, worker)
 
+        return self._read_worker_result(job_id, worker)
+
+    # -------------------------------------------------------------------------
+    def _read_worker_result(self, job_id: str, worker: ProcessWorker) -> dict[str, Any]:
         result_payload = worker.read_result()
         if result_payload is None:
             if worker.exitcode not in (0, None) and not self.job_manager.should_stop(
@@ -545,44 +594,9 @@ class TrainingService:
                         checkpoint_path
                     )
                 )
-                session_history = (
-                    session.get("history") if isinstance(session, dict) else {}
+                epochs_trained, final_loss, final_accuracy = summarize_checkpoint_session(
+                    training_configuration, session
                 )
-                if not isinstance(session_history, dict):
-                    session_history = {}
-
-                epochs_value = (
-                    session.get("epochs") if isinstance(session, dict) else None
-                )
-                if isinstance(epochs_value, int):
-                    epochs_trained = epochs_value
-
-                loss_values = session_history.get("loss")
-                if isinstance(loss_values, list) and loss_values:
-                    last_loss = loss_values[-1]
-                    if isinstance(last_loss, (int, float)):
-                        final_loss = float(last_loss)
-                    if epochs_trained is None:
-                        epochs_trained = len(loss_values)
-
-                if epochs_trained is None and isinstance(training_configuration, dict):
-                    configured_epochs = training_configuration.get("epochs")
-                    if isinstance(configured_epochs, int):
-                        epochs_trained = configured_epochs
-
-                for metric_key in [
-                    "accuracy",
-                    "MaskedR2",
-                    "masked_r2",
-                    "masked_r_squared",
-                    "val_accuracy",
-                ]:
-                    metric_values = session_history.get(metric_key)
-                    if isinstance(metric_values, list) and metric_values:
-                        last_value = metric_values[-1]
-                        if isinstance(last_value, (int, float)):
-                            final_accuracy = float(last_value)
-                        break
 
             except Exception as exc:  # noqa: BLE001
                 metadata_load_failed = True

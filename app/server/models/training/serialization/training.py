@@ -60,6 +60,21 @@ class TrainingDataSerializer:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _parse_sequence_text(text: str) -> list[Any]:
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return [item.strip() for item in text.split(",") if item.strip()]
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            return list(parsed.values())
+        return [parsed]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def parse_sequence_value(value: Any) -> list[Any]:
         if value is None or (isinstance(value, float) and pd.isna(value)):
             return []
@@ -68,18 +83,7 @@ class TrainingDataSerializer:
         if isinstance(value, tuple):
             return list(value)
         if isinstance(value, str):
-            trimmed = value.strip()
-            if not trimmed:
-                return []
-            try:
-                parsed = json.loads(trimmed)
-            except json.JSONDecodeError:
-                return [item.strip() for item in trimmed.split(",") if item.strip()]
-            if isinstance(parsed, list):
-                return parsed
-            if isinstance(parsed, dict):
-                return list(parsed.values())
-            return [parsed]
+            return TrainingDataSerializer._parse_sequence_text(value.strip())
         if isinstance(value, pd.Series):
             return value.tolist()
         tolist = getattr(value, "tolist", None)

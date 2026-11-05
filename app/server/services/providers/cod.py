@@ -18,6 +18,11 @@ from server.services.providers.public_data import (
 
 _NUMBER_PREFIX = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?")
 _ELEMENT_PREFIX = re.compile(r"^[A-Z][a-z]?")
+_FRACTIONAL_COLUMNS = (
+    "_atom_site_fract_x",
+    "_atom_site_fract_y",
+    "_atom_site_fract_z",
+)
 
 ###############################################################################
 class CODProvider(RetryingHttpProvider):
@@ -242,6 +247,16 @@ class CODProvider(RetryingHttpProvider):
             )
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _is_cif_boundary(line: str) -> bool:
+        current = line.strip()
+        return (
+            current.lower() == "loop_"
+            or current.startswith("_")
+            or current.lower().startswith("data_")
+        )
+
+    # -------------------------------------------------------------------------
     @classmethod
     def parse_atoms(cls, cif_text: str) -> list[dict[str, Any]]:
         """Parse the standard atom-site fractional-coordinate loop from a CIF.
@@ -263,96 +278,68 @@ class CODProvider(RetryingHttpProvider):
                 headers.append(lines[index].strip().split()[0])
                 index += 1
             lowered = [header.lower() for header in headers]
-            required = (
-                "_atom_site_fract_x",
-                "_atom_site_fract_y",
-                "_atom_site_fract_z",
-            )
-            if not all(name in lowered for name in required):
-                while index < len(lines):
-                    current = lines[index].strip()
-                    if (
-                        current.lower() == "loop_"
-                        or current.startswith("_")
-                        or current.lower().startswith("data_")
-                    ):
-                        break
+            if not all(name in lowered for name in _FRACTIONAL_COLUMNS):
+                while index < len(lines) and not cls._is_cif_boundary(lines[index]):
                     index += 1
                 continue
-
-            positions = {name: lowered.index(name) for name in required}
-            label_position = (
-                lowered.index("_atom_site_label")
-                if "_atom_site_label" in lowered
-                else None
-            )
-            type_position = (
-                lowered.index("_atom_site_type_symbol")
-                if "_atom_site_type_symbol" in lowered
-                else None
-            )
-            occupancy_position = (
-                lowered.index("_atom_site_occupancy")
-                if "_atom_site_occupancy" in lowered
-                else None
-            )
-            while index < len(lines):
-                current = lines[index].strip()
-                if not current or current.startswith("#"):
-                    index += 1
-                    continue
-                if (
-                    current.lower() == "loop_"
-                    or current.startswith("_")
-                    or current.lower().startswith("data_")
-                ):
-                    break
-                try:
-                    values = shlex.split(current, comments=False, posix=True)
-                except ValueError:
-                    index += 1
-                    continue
-                if len(values) < len(headers):
-                    index += 1
-                    continue
-                x = cls._float(values[positions["_atom_site_fract_x"]])
-                y = cls._float(values[positions["_atom_site_fract_y"]])
-                z = cls._float(values[positions["_atom_site_fract_z"]])
-                if x is None or y is None or z is None:
-                    index += 1
-                    continue
-                label = (
-                    values[label_position]
-                    if label_position is not None
-                    else f"A{len(atoms) + 1}"
-                )
-                element = values[type_position] if type_position is not None else label
-                element_match = _ELEMENT_PREFIX.match(str(element)) or _ELEMENT_PREFIX.match(
-                    str(label)
-                )
-                element_symbol = (
-                    element_match.group(0) if element_match else str(element)[:8]
-                )
-                occupancy = (
-                    cls._float(values[occupancy_position])
-                    if occupancy_position is not None
-                    else None
-                )
-                atoms.append(
-                    {
-                        "sequence_index": len(atoms),
-                        "label": str(label),
-                        "element": element_symbol,
-                        "fractional_x": x,
-                        "fractional_y": y,
-                        "fractional_z": z,
-                        "occupancy": occupancy,
-                    }
-                )
-                index += 1
+            index = cls._read_atom_rows(lines, index, lowered, atoms)
             if atoms:
                 return atoms
         return atoms
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _read_atom_rows(
+        cls,
+        lines: list[str],
+        index: int,
+        lowered_headers: list[str],
+        atoms: list[dict[str, Any]],
+    ) -> int:
+        positions = [lowered_headers.index(name) for name in _FRACTIONAL_COLUMNS]
+        label_position = cls._header_position(lowered_headers, "_atom_site_label")
+        type_position = cls._header_position(lowered_headers, "_atom_site_type_symbol")
+        occupancy_position = cls._header_position(lowered_headers, "_atom_site_occupancy")
+        while index < len(lines):
+            current = lines[index].strip()
+            if not current or current.startswith("#"):
+                index += 1
+                continue
+            if cls._is_cif_boundary(current):
+                break
+            index += 1
+            try:
+                values = shlex.split(current, comments=False, posix=True)
+            except ValueError:
+                continue
+            if len(values) < len(lowered_headers):
+                continue
+            x, y, z = (cls._float(values[position]) for position in positions)
+            if x is None or y is None or z is None:
+                continue
+            label = values[label_position] if label_position is not None else f"A{len(atoms) + 1}"
+            element = values[type_position] if type_position is not None else label
+            element_match = _ELEMENT_PREFIX.match(str(element)) or _ELEMENT_PREFIX.match(str(label))
+            occupancy = (
+                cls._float(values[occupancy_position]) if occupancy_position is not None else None
+            )
+            atoms.append(
+                {
+                    "sequence_index": len(atoms),
+                    "label": str(label),
+                    "element": element_match.group(0) if element_match else str(element)[:8],
+                    "fractional_x": x,
+                    "fractional_y": y,
+                    "fractional_z": z,
+                    "occupancy": occupancy,
+                }
+            )
+        return index
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _header_position(lowered_headers: list[str], name: str) -> int | None:
+        return lowered_headers.index(name) if name in lowered_headers else None
 
 
 __all__ = ["CODProvider"]
