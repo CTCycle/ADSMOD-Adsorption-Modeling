@@ -76,7 +76,7 @@ export class CoreWorkspaceStore {
     /** Dataset list state, kept so the list survives a visit to a dataset page. */
     readonly datasetListState = signal<DatasetListState>({
         page: 1,
-        pageSize: 10,
+        pageSize: 12,
         query: '',
         source: 'all',
         sort: 'last_update',

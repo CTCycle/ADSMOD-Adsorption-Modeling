@@ -341,7 +341,7 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
 
     await page.goto('/datasets');
     const chooserPromise = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Add dataset', exact: true }).click();
+    await page.getByRole('button', { name: 'Upload dataset', exact: true }).click();
     const chooser = await chooserPromise;
     await chooser.setFiles({
         name: 'sample.csv',
@@ -376,7 +376,7 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
     await expect(closeButton).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Add dataset', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Upload dataset', exact: true })).toBeFocused();
 
     if (testInfo.project.name !== 'mobile-600x900') {
         return;
@@ -384,7 +384,7 @@ test('dataset import keeps keyboard focus inside the wizard and restores the tri
 
     await page.setViewportSize({ width: 390, height: 844 });
     const mobileChooserPromise = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Add dataset', exact: true }).click();
+    await page.getByRole('button', { name: 'Upload dataset', exact: true }).click();
     const mobileChooser = await mobileChooserPromise;
     await mobileChooser.setFiles({
         name: 'sample.csv',

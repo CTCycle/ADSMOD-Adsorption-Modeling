@@ -41,7 +41,7 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
                 title: 'Getting started',
                 intro: 'ADSMOD turns measured adsorption data into validated, unit-consistent isotherms that can be explored, fitted, and used for training.',
                 steps: [
-                    { title: 'Add data', description: 'Open Datasets and choose Add dataset to import a CSV or Excel file with the import wizard.' },
+                    { title: 'Add data', description: 'Open Datasets and choose the upload button to import a CSV or Excel file with the import wizard.' },
                     { title: 'Inspect it', description: 'Open a dataset to review its experiments, observations, saved column mapping, and a plot of each isotherm.' },
                     { title: 'Analyse it', description: 'Use Dashboards to compare stored isotherms, Fitting to compare model equations, and Training to prepare machine learning workflows.' },
                 ],
@@ -119,7 +119,7 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
                 title: 'Datasets',
                 intro: 'Manage local adsorption datasets together with the adsorbent materials and chemical species they reference.',
                 steps: [
-                    { title: 'Add a dataset', description: 'Choose Add dataset to upload a CSV or Excel file. The import wizard previews the file, maps columns and units, groups measurements into experiments, and validates everything before saving.' },
+                    { title: 'Add a dataset', description: 'Choose the upload button to upload a CSV or Excel file. The import wizard previews the file, maps columns and units, groups measurements into experiments, and validates everything before saving.' },
                     { title: 'Explore a dataset', description: 'A dataset groups one or more experiments; each experiment has one material, one or more species, one temperature, and its measurements. Explore opens the worksheet view of every experiment.' },
                     { title: 'Edit values', description: 'Choose Edit dataset to change metadata, experiment conditions, materials, species, units, or individual measurements. Changes stay local until Save changes; Cancel discards them.' },
                     { title: 'Inspect materials and species', description: 'Use the Materials and Species tabs to search registered entities, see which datasets use them, and delete entities that are no longer referenced.' },

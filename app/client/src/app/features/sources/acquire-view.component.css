@@ -7,14 +7,6 @@
     min-width: 0;
 }
 
-.acquire-intro .section-heading {
-    margin-bottom: 0;
-}
-
-.acquire-intro .public-alert {
-    margin-top: 12px;
-}
-
 .source-panel h4,
 #acquire-runs h4 {
     margin: 0;
@@ -48,19 +40,28 @@
     width: 286px;
 }
 
-.collection-name,
 .collection-count {
     display: grid;
     gap: 3px;
     min-width: 0;
 }
 
-.collection-name strong,
+.collection-name,
 .collection-count strong {
-    font-size: 0.82rem;
+    font-size: 0.85rem;
 }
 
-.collection-name span,
+.coverage-meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.coverage-meter progress {
+    flex: 1;
+    height: 6px;
+}
+
 .collection-count span {
     overflow: hidden;
     color: var(--text-secondary, #667085);

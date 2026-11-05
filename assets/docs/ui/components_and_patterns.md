@@ -1,6 +1,6 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 
 ## Layout Patterns
 
@@ -19,6 +19,7 @@ Last updated: 2026-11-03
   - `button.primary` for primary actions
   - `button.secondary` for bordered neutral actions
   - `ghost-button` for low-emphasis utilities
+  - `.icon-button` (with `adsmod-icon`) for icon-only actions; always set `title` and `aria-label`. Dataset origins use the single map in `shared/utils/dataset-source.ts`
   - disabled states use opacity and non-interactive cursors
 - Forms
   - `.select-input` and text or numeric inputs use consistent rounded corners

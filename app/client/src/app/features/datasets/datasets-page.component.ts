@@ -75,19 +75,17 @@ const HIGHLIGHT_MS = 4000;
                 display: grid;
                 grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr);
                 gap: var(--spacing-lg);
-                align-items: start;
+                align-items: stretch;
+                min-height: calc(100vh - var(--console-header-height, 5rem) - 7rem);
             }
             .datasets-primary,
             .datasets-secondary {
+                display: flex;
+                flex-direction: column;
                 padding: var(--spacing-md) var(--spacing-lg);
             }
-            .datasets-secondary {
-                position: sticky;
-                top: var(--spacing-md);
-            }
             @media (max-width: 1200px) {
-                .datasets-layout { grid-template-columns: minmax(0, 1fr); }
-                .datasets-secondary { position: static; }
+                .datasets-layout { grid-template-columns: minmax(0, 1fr); min-height: 0; }
             }
             @media (max-width: 640px) {
                 .datasets-primary,

@@ -4,6 +4,7 @@
 import { Component, computed, effect, input, output, signal, untracked } from '@angular/core';
 import type { MaterialRecord, SpeciesRecord } from '../../models/materials.model';
 import { fetchMaterials, fetchSpecies } from '../../services/materials.service';
+import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 
 export type EntityKind = 'material' | 'species';
 
@@ -17,7 +18,7 @@ export interface EntityRow {
     note: string | null;
 }
 
-const PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 12;
 const SEARCH_DELAY_MS = 250;
 
 function materialRow(item: MaterialRecord): EntityRow {
@@ -47,6 +48,7 @@ function speciesRow(item: SpeciesRecord): EntityRow {
 @Component({
     selector: 'adsmod-entity-panel',
     standalone: true,
+    imports: [DataPaginationComponent],
     template: `
         <section class="entity-panel" aria-labelledby="entity-panel-title">
             <h2 id="entity-panel-title" class="sr-only">Materials and species</h2>
@@ -110,21 +112,26 @@ function speciesRow(item: SpeciesRecord): EntityRow {
                             </li>
                         }
                     </ul>
-                    @if (total() > pageSize) {
-                        <div class="entity-pager">
-                            <button class="button quiet" type="button" [disabled]="page() <= 1 || loading()" (click)="goTo(page() - 1)">Previous</button>
-                            <span>{{ page() }} / {{ pageCount() }}</span>
-                            <button class="button quiet" type="button" [disabled]="page() >= pageCount() || loading()" (click)="goTo(page() + 1)">Next</button>
-                        </div>
-                    }
+                }
+                @if (total()) {
+                    <adsmod-data-pagination
+                        [page]="page()"
+                        [pageSize]="pageSize()"
+                        [pageSizes]="pageSizes"
+                        [total]="total()"
+                        [itemLabel]="kind() === 'material' ? 'material' : 'species'"
+                        [disabled]="loading()"
+                        (pageChange)="goTo($event)"
+                        (pageSizeChange)="setPageSize($event)"
+                    />
                 }
             </div>
         </section>
     `,
     styles: [
         `
-            :host { display: block; min-width: 0; }
-            .entity-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--spacing-xs); max-height: calc(100vh - var(--console-header-height) - 7rem); min-height: 0; }
+            :host { display: flex; flex-direction: column; min-width: 0; }
+            .entity-panel { display: flex; flex: 1; flex-direction: column; gap: var(--spacing-xs); min-height: 0; }
             .entity-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border-color); }
             .entity-tabs button {
                 display: inline-flex;
@@ -145,9 +152,10 @@ function speciesRow(item: SpeciesRecord): EntityRow {
             }
             .entity-tabs button.active { border-bottom-color: var(--primary-600); color: var(--text-primary); }
             .entity-tabs .count { padding: 0 6px; border-radius: 999px; background: var(--slate-100); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
-            .entity-body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--spacing-xs); min-height: 0; padding-top: var(--spacing-xs); }
+            .entity-body { display: flex; flex: 1; flex-direction: column; gap: var(--spacing-xs); min-height: 0; padding-top: var(--spacing-xs); }
+            .entity-body adsmod-data-pagination { margin-top: auto; }
             .entity-body > input { width: 100%; }
-            .entity-rows { margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; }
+            .entity-rows { margin: 0; padding: 0; list-style: none; }
             .entity-row {
                 display: grid;
                 grid-template-columns: minmax(0, 1fr) auto;
@@ -170,8 +178,6 @@ function speciesRow(item: SpeciesRecord): EntityRow {
             .entity-uses { color: var(--text-secondary); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
             .entity-uses.unused { color: var(--text-tertiary); font-style: italic; }
             .entity-meta { grid-column: span 2; overflow: hidden; color: var(--text-tertiary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
-            @media (max-width: 1200px) { .entity-panel { max-height: 28rem; } }
-            .entity-pager { padding-top: var(--spacing-xs); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
             .entity-message { margin: 0; padding: var(--spacing-sm) 0; color: var(--text-secondary); font-size: 0.82rem; }
             .entity-message.error { color: var(--danger-text); }
         `,
@@ -184,7 +190,8 @@ export class EntityPanelComponent {
     readonly selected = output<EntityRow>();
     readonly kindChanged = output<EntityKind>();
 
-    protected readonly pageSize = PAGE_SIZE;
+    protected readonly pageSizes = [12, 25] as const;
+    protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
     protected readonly kind = signal<EntityKind>('material');
     protected readonly query = signal('');
     protected readonly page = signal(1);
@@ -214,10 +221,6 @@ export class EntityPanelComponent {
         void this.load();
     }
 
-    protected pageCount(): number {
-        return Math.max(1, Math.ceil(this.total() / PAGE_SIZE));
-    }
-
     protected setKind(kind: EntityKind): void {
         if (kind === this.kind()) return;
         this.kind.set(kind);
@@ -234,6 +237,12 @@ export class EntityPanelComponent {
         this.searchTimer = setTimeout(() => void this.load(), SEARCH_DELAY_MS);
     }
 
+    protected setPageSize(size: number): void {
+        this.pageSize.set(size);
+        this.page.set(1);
+        void this.load();
+    }
+
     protected goTo(page: number): void {
         this.page.set(page);
         void this.load();
@@ -242,7 +251,7 @@ export class EntityPanelComponent {
     private async load(): Promise<void> {
         const requestId = ++this.requestId;
         const kind = this.kind();
-        const params = { page: this.page(), page_size: PAGE_SIZE, q: this.query().trim() };
+        const params = { page: this.page(), page_size: this.pageSize(), q: this.query().trim() };
         this.loading.set(true);
         const result =
             kind === 'material'

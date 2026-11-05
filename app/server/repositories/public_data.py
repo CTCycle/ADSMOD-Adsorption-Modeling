@@ -43,6 +43,9 @@ from server.repositories.provenance import (
 from server.repositories.schemas.types import normalize_identity
 
 ACTIVE_SYNC_STATUSES = ("queued", "running")
+# Probes that read provider state without acquiring records; they are never
+# listed as acquisitions or counted in acquisition statistics.
+NON_ACQUISITION_OPERATIONS = ("health_check", "nist_index")
 TERMINAL_SYNC_STATUSES = (
     "completed",
     "partially_completed",
@@ -179,14 +182,22 @@ class PublicDataRepository:
                     .scalar_subquery()
                     .label("structures"),
                     select(func.count(PublicDataSyncRun.id))
-                    .where(PublicDataSyncRun.status.in_(("queued", "running")))
+                    .where(
+                        PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES),
+                        PublicDataSyncRun.operation.not_in(
+                            NON_ACQUISITION_OPERATIONS
+                        ),
+                    )
                     .scalar_subquery()
                     .label("active_sync_runs"),
                     select(func.count(PublicDataSyncRun.id))
                     .where(
                         PublicDataSyncRun.status.in_(
                             ("failed", "partially_completed")
-                        )
+                        ),
+                        PublicDataSyncRun.operation.not_in(
+                            NON_ACQUISITION_OPERATIONS
+                        ),
                     )
                     .scalar_subquery()
                     .label("failed_sync_runs"),
@@ -360,12 +371,13 @@ class PublicDataRepository:
                 query = query.where(PublicDataSyncRun.status == status_filter)
             if status_scope == "active":
                 query = query.where(
-                    PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES)
+                    PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES),
+                    PublicDataSyncRun.operation.not_in(NON_ACQUISITION_OPERATIONS),
                 )
             elif status_scope == "history":
                 query = query.where(
                     PublicDataSyncRun.status.in_(TERMINAL_SYNC_STATUSES),
-                    PublicDataSyncRun.operation != "health_check",
+                    PublicDataSyncRun.operation.not_in(NON_ACQUISITION_OPERATIONS),
                 )
             elif status_scope is not None:
                 raise ValueError(f"Unsupported sync-run scope: {status_scope!r}")

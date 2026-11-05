@@ -176,7 +176,7 @@ test('Catalog shows cached status and refreshes it through a background health r
     await expect(page.locator('.source-facts').first()).toContainText('4');
     await expect(page.getByText('Not checked')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Refresh status' }).click();
+    await page.getByRole('button', { name: 'Refresh provider status' }).click();
     await healthStarted;
     await expect(page.getByText('Not checked')).toBeVisible();
     releaseHealth();

@@ -30,21 +30,30 @@ describe('AcquireViewComponent', () => {
     const fetchMock = vi.fn();
     let runs: Record<string, unknown>[] = [];
     let collectionRequests = 0;
+    let availableCount: number | null = 12;
 
     beforeEach(async () => {
         vi.useFakeTimers();
         collectionRequests = 0;
+        availableCount = 12;
         fetchMock.mockReset();
-        fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
             const url = String(input);
             if (url.includes('/sources/nist/collections')) {
                 collectionRequests += 1;
                 return {
                     ok: true,
                     json: async () => ({
-                        collections: [{ category: 'guest', local_count: collectionRequests * 3, available_count: 12, indexed_at: null }],
+                        collections: [{ category: 'guest', local_count: collectionRequests * 3, available_count: availableCount, indexed_at: availableCount === null ? null : '2026-10-20T08:00:00Z' }],
                     }),
                 };
+            }
+            if (url.includes('/sync-runs/index-1')) {
+                availableCount = 40;
+                return { ok: true, json: async () => run({ id: 'index-1', source_key: 'nist', operation: 'nist_index', parameters: { category: 'guest' }, imported_count: 0 }) };
+            }
+            if (url.endsWith('/sync-runs') && init?.method === 'POST') {
+                return { ok: true, json: async () => run({ id: 'index-1', source_key: 'nist', operation: 'nist_index', parameters: { category: 'guest' }, status: 'running', progress: 0, imported_count: 0 }) };
             }
             if (url.includes('/sync-runs')) {
                 const scope = new URL(url, 'http://localhost').searchParams.get('scope');
@@ -109,5 +118,27 @@ describe('AcquireViewComponent', () => {
         const element = fixture.nativeElement as HTMLElement;
         expect(element.querySelector('.collection-count strong')?.textContent).toContain('6 / 12');
         expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/datasets');
+    });
+
+    it('reports unchecked availability distinctly and shows stored versus available after a check', async () => {
+        availableCount = null;
+        runs = [];
+        const fixture = TestBed.createComponent(AcquireViewComponent);
+        fixture.detectChanges();
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.waitFor(() => expect(collectionRequests).toBeGreaterThan(0));
+        fixture.detectChanges();
+        const element = fixture.nativeElement as HTMLElement;
+        const cell = (): string => element.querySelector('.collection-count')?.textContent ?? '';
+        expect(cell()).toContain('3 stored');
+        expect(cell()).toContain('Availability not checked');
+        expect(cell()).not.toContain('/');
+
+        (element.querySelector('.collection-row .table-action') as HTMLButtonElement).click();
+        await vi.advanceTimersByTimeAsync(1000);
+        fixture.detectChanges();
+
+        expect(cell()).toContain('/ 40 records');
+        expect(element.querySelector('.acquisition-history-table .data-table-empty')).not.toBeNull();
     });
 });

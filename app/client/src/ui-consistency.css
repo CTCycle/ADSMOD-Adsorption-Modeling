@@ -766,6 +766,23 @@ button.quiet.danger:hover:not(:disabled) {
   background: var(--danger-bg);
 }
 
+/* Square icon-only action; the accessible name comes from aria-label. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  min-width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .user-dataset-list-card .card-title-row {
   flex-wrap: wrap;
   align-items: center;

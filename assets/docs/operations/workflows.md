@@ -20,7 +20,7 @@ acquires external data. The former `public-data` routes are not supported.
 
 ## Upload And Fit A Local Dataset
 
-1. Open `datasets` and choose Add dataset to import a local file.
+1. Open `datasets` and use the upload button in the toolbar to import a local file. Rows show experiment, measurement, material, and species counts, a source icon (tooltip names the origin), and icon actions to explore or delete; datasets and materials/species paginate independently (12 per page, up to 25).
 2. Upload a `.csv`, `.xls`, or `.xlsx` dataset. In the wizard, review Preview, then Map columns:
    dataset information, data interpretation, scientific units, validation settings, and column mapping.
    Units are searchable; a unit not in the catalog can be saved for future imports or used for the
@@ -56,7 +56,7 @@ acquires external data. The former `public-data` routes are not supported.
 
 ## Use NIST Data For Fitting
 
-1. Open `sources/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use Check availability to see stored versus available records.
+1. Open `sources/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use Check availability to see stored versus available records (`N / M records`). Availability checks are not acquisitions: they never appear in acquisition history or its counters. Fetch share only sets how much of the index a fetch requests.
 2. Set the share of the index to consider and select Fetch. Each run is bounded; fetch again to continue where the previous run stopped. Records already stored are never downloaded twice.
 3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
 4. Follow "View datasets" to the Datasets page and explore the `NIST ISODB` dataset. NIST experiments can be
@@ -72,7 +72,7 @@ The overview, source registry, and local record views do not need an external pr
 3. COD: search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import.
 4. Follow the Run tracker and open the imported records from its links.
 5. Review species and materials in the Datasets page side column: each opens a detail panel with identifiers, properties, linked structures, and the datasets that use it. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
-6. Open `sources/catalog` to review providers by data type and saved connection state, and use Refresh status to queue independent health checks. Local records stay available when a provider is unavailable.
+6. Open `sources/catalog` to review providers by data type and saved connection state, and use the refresh icon in the Sources tab bar to queue independent health checks. Local records stay available when a provider is unavailable.
 
 Scheduled NIST refresh is disabled by default. To enable it, configure `application.public_data.auto_sync_enabled`, select one or more `auto_sync_categories`, and choose the interval and fraction in the runtime configuration.
 

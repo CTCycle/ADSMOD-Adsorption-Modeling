@@ -5,7 +5,7 @@ Last updated: 2026-11-05
 ## Page Structure
 
 - Unified frontend routes
-  - `datasets` (adsorption datasets with materials and species in a secondary column; Add dataset opens the import wizard)
+  - `datasets` (adsorption datasets with materials and species in a secondary column; the toolbar upload icon opens the import wizard)
   - `datasets/:id` (dataset header, experiment navigator, worksheet-style measurement table, explicit edit mode)
   - `sources/:view` (external provider catalog, acquisition, and COD structures)
   - `dashboards/overview` and `dashboards/explore` (read-only data exploration over stored isotherms)

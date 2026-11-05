@@ -29,7 +29,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 import { ChartComponent } from '../dashboards/components/chart.component';
 import { DatasetDeleteDialogComponent } from './dataset-delete-dialog.component';
 import { DatasetEditSession } from './dataset-edit-session';
-import { SOURCE_LABELS } from './dataset-list.component';
+import { DATASET_SOURCES } from '../../shared/utils/dataset-source';
 import { ExperimentMetaComponent } from './experiment-meta.component';
 import { ExperimentNavigatorComponent } from './experiment-navigator.component';
 import { MeasurementWorksheetComponent, pressureUnitLabel } from './measurement-worksheet.component';
@@ -510,7 +510,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
 
     protected originText(dataset: DatasetSummary): string {
         const imported = this.detail()?.latest_import;
-        return imported ? `${SOURCE_LABELS[dataset.source]} · ${imported.original_filename}` : SOURCE_LABELS[dataset.source];
+        return imported ? `${DATASET_SOURCES[dataset.source].label} · ${imported.original_filename}` : DATASET_SOURCES[dataset.source].label;
     }
 
     protected provenanceText(info: DatasetDetail): string {

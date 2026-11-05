@@ -435,7 +435,7 @@ def test_identical_active_requests_reuse_the_existing_sync_run(
         manager.dispose()
 
 ###############################################################################
-def test_sync_run_scopes_exclude_health_checks_from_history(
+def test_sync_run_scopes_and_overview_exclude_availability_probes(
     tmp_path: Path,
 ) -> None:
     manager = _database(tmp_path)
@@ -462,9 +462,21 @@ def test_sync_run_scopes_exclude_health_checks_from_history(
             operation="health_check",
             parameters={},
         )
+        index = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_index",
+            parameters={"category": "experiments"},
+        )
+        failed_index = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_index",
+            parameters={"category": "guest"},
+        )
         repository.update_sync_run(completed["id"], status="completed")
         repository.update_sync_run(failed["id"], status="failed")
         repository.update_sync_run(health["id"], status="completed")
+        repository.update_sync_run(index["id"], status="completed")
+        repository.update_sync_run(failed_index["id"], status="failed")
 
         active_runs, active_total = repository.list_sync_runs(
             status_scope="active"
@@ -481,8 +493,13 @@ def test_sync_run_scopes_exclude_health_checks_from_history(
             failed["id"],
         }
         assert all(
-            run["operation"] != "health_check" for run in history_runs
+            run["operation"] not in ("health_check", "nist_index")
+            for run in history_runs
         )
+        overview = repository.overview_counts()
+        assert overview["active_sync_runs"] == 1
+        assert overview["failed_sync_runs"] == 1
+        assert overview["latest_successful_sync_at"] is None
     finally:
         manager.dispose()
 

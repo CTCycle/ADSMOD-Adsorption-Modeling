@@ -35,13 +35,14 @@ interface ImportedLink {
     queryParams: Record<string, string | number>;
 }
 
-const COLLECTIONS: { category: NISTCategory; label: string; description: string }[] = [
-    { category: 'guest', label: 'Adsorbate species', description: 'Guest molecules.' },
-    { category: 'host', label: 'Adsorbent materials', description: 'Host materials.' },
-    { category: 'experiments', label: 'Adsorption isotherms', description: 'Measured isotherms.' },
+const COLLECTIONS: { category: NISTCategory; label: string }[] = [
+    { category: 'guest', label: 'Adsorbate species' },
+    { category: 'host', label: 'Adsorbent materials' },
+    { category: 'experiments', label: 'Adsorption isotherms' },
 ];
 const ACTIVE_STATUSES = new Set(['queued', 'running']);
 const POLL_INTERVAL_MS = 1500;
+const AVAILABILITY_POLL_MS = 800;
 const POLL_RETRY_MIN_MS = 3000;
 const POLL_RETRY_MAX_MS = 15000;
 const MAX_COD_SELECTION = 50;
@@ -69,17 +70,9 @@ const persistFraction = (category: NISTCategory, value: number): void => {
     standalone: true,
     imports: [FormsModule, RouterLink, EntityPickerComponent, DataPaginationComponent, ConfirmDialogComponent],
     template: `
-        <section class="public-section acquire-intro">
-            <div class="section-heading">
-                <div>
-                    <h3>Acquire records</h3>
-                    <p>Runs continue in the background. Stored records are reused.</p>
-                </div>
-            </div>
-            @if (error()) {
-                <div class="public-alert error" role="alert"><strong>Request failed.</strong><span>{{ error() }}</span><button type="button" class="button secondary" (click)="error.set(null)">Dismiss</button></div>
-            }
-        </section>
+        @if (error()) {
+            <div class="public-alert error" role="alert"><strong>Request failed.</strong><span>{{ error() }}</span><button type="button" class="button secondary" (click)="error.set(null)">Dismiss</button></div>
+        }
 
         <section class="public-section source-panel" id="acquire-nist">
             <div class="section-heading">
@@ -94,8 +87,8 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     <thead>
                         <tr>
                             <th class="col-collection" scope="col">Collection</th>
-                            <th class="col-count" scope="col">Stored / available</th>
-                            <th class="col-fraction" scope="col">Share of index</th>
+                            <th class="col-count" scope="col">Stored locally / available</th>
+                            <th class="col-fraction" scope="col">Fetch share</th>
                             <th class="col-actions" scope="col"></th>
                         </tr>
                     </thead>
@@ -105,19 +98,27 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                             @let busy = isBusy('nist', collection.category);
                             <tr class="collection-row">
                                 <td>
-                                    <div class="collection-name">
-                                        <strong>{{ collection.label }}</strong>
-                                        <span>{{ collection.description }}</span>
-                                    </div>
+                                    <strong class="collection-name">{{ collection.label }}</strong>
                                 </td>
                                 <td>
                                     <div class="collection-count">
-                                        <strong>{{ state.local_count.toLocaleString() }}{{ state.available_count === null ? '' : ' / ' + state.available_count.toLocaleString() }}</strong>
-                                        <span>{{ state.available_count === null ? 'stored · availability not checked' : 'stored / available · checked ' + formatDate(state.indexed_at) }}</span>
+                                        @if (state.available_count === null) {
+                                            <strong>{{ state.local_count.toLocaleString() }} stored</strong>
+                                            <span>Availability not checked</span>
+                                        } @else {
+                                            <strong>{{ state.local_count.toLocaleString() }} / {{ state.available_count.toLocaleString() }} records</strong>
+                                            @if (state.available_count > 0) {
+                                                <div class="coverage-meter">
+                                                    <progress max="100" [value]="coveragePercent(state)" [attr.aria-label]="collection.label + ' local coverage'"></progress>
+                                                    <span>{{ coveragePercent(state) }}%</span>
+                                                </div>
+                                            }
+                                            <span>Checked {{ formatDate(state.indexed_at) }}</span>
+                                        }
                                     </div>
                                 </td>
                                 <td>
-                                    <label class="collection-fraction">Share of index
+                                    <label class="collection-fraction">
                                         <input
                                             type="number"
                                             min="0.01"
@@ -131,7 +132,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                                 </td>
                                 <td>
                                     <div class="table-actions">
-                                        <button class="table-action" type="button" [disabled]="busy || isSubmitting('nist:index:' + collection.category)" (click)="checkAvailability(collection.category)">Check availability</button>
+                                        <button class="table-action" type="button" [disabled]="busy || isSubmitting('nist:index:' + collection.category)" [attr.aria-busy]="isSubmitting('nist:index:' + collection.category)" (click)="checkAvailability(collection.category)">{{ isSubmitting('nist:index:' + collection.category) ? 'Checking…' : 'Check availability' }}</button>
                                         <button class="button primary" type="button" [disabled]="busy || isSubmitting('nist:fetch:' + collection.category)" (click)="fetchCollection(collection.category)">{{ busy ? 'Running…' : 'Fetch' }}</button>
                                     </div>
                                 </td>
@@ -501,11 +502,38 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         persistFraction(category, parsed);
     }
 
-    protected checkAvailability(category: NISTCategory): Promise<void> {
-        return this.queue(
-            `nist:index:${category}`,
-            () => startPublicDataSync({ source_key: 'nist', operation: 'nist_index', category }),
-        );
+    protected coveragePercent(state: NISTCollectionView): number {
+        if (!state.available_count) return 0;
+        return Math.min(100, Math.round((state.local_count / state.available_count) * 100));
+    }
+
+    /** Availability probes are not acquisitions: poll the single run directly and refresh coverage. */
+    protected async checkAvailability(category: NISTCategory): Promise<void> {
+        const key = `nist:index:${category}`;
+        if (this.isSubmitting(key)) return;
+        this.error.set(null);
+        this.markSubmitting(key, true);
+        try {
+            const started = await startPublicDataSync({ source_key: 'nist', operation: 'nist_index', category });
+            if (!started.data) {
+                this.error.set(started.error);
+                return;
+            }
+            let run = started.data;
+            while (!this.destroyed && this.isActive(run)) {
+                await new Promise((resolve) => window.setTimeout(resolve, AVAILABILITY_POLL_MS));
+                const polled = await fetchPublicDataSyncRun(run.id);
+                if (!polled.data) {
+                    this.error.set(polled.error);
+                    return;
+                }
+                run = polled.data;
+            }
+            if (run.status !== 'completed') this.error.set(run.error_detail || `Availability check ${run.status.replaceAll('_', ' ')}.`);
+            await this.refreshCollections();
+        } finally {
+            this.markSubmitting(key, false);
+        }
     }
 
     protected async fetchCollection(category: NISTCategory): Promise<void> {
@@ -703,7 +731,6 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     protected operationLabel(run: PublicDataSyncRun): string {
         const category = COLLECTIONS.find((item) => item.category === run.parameters['category'])?.label ?? 'collection';
         switch (run.operation) {
-            case 'nist_index': return `NIST availability · ${category}`;
             case 'nist_category': return `NIST fetch · ${category}`;
             case 'pubchem_resolve': return `PubChem · ${String(run.parameters['query'] ?? 'compound')}`;
             case 'pubchem_enrich': return 'PubChem enrichment of stored chemicals';

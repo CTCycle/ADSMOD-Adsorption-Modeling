@@ -171,7 +171,7 @@ All provider acquisition runs through `POST /sync-runs`. There are no synchronou
 
 | Operation | Source | Parameters | Effect |
 | --- | --- | --- | --- |
-| `nist_index` | `nist` | `category` | Counts the records NIST publishes for one collection. |
+| `nist_index` | `nist` | `category` | Counts the records NIST publishes for one collection. It is a probe, not an acquisition: `NON_ACQUISITION_OPERATIONS` (this and `health_check`) are excluded from history/active run lists and overview counters, while the newest result still feeds collection coverage. |
 | `nist_category` | `nist` | `category`, `fraction`, optional `overwrite_local_edits` | Fetches not-yet-stored records from the leading share of the index, in batches. With `overwrite_local_edits`, locally edited NIST experiments in that share are fetched again and restored from source in place (same experiment id); without it they are skipped. |
 | `pubchem_resolve` | `pubchem` | `query`, optional `adsorbate_id` | Resolves one compound. With `adsorbate_id`, the CID is attached to that chemical. |
 | `pubchem_enrich` | `pubchem` | — | Resolves stored chemicals without PubChem identity by InChIKey or name, bounded per run. |
@@ -204,7 +204,7 @@ Automatic refresh is disabled by default. It can be enabled for an explicit list
 
 The Angular route `/sources/:view` is the provider workspace for discovery and acquisition. Views are Catalog, Acquire, and Structures. Locally stored data is managed on the Datasets page instead.
 
-- **Catalog** groups providers by the data type they contribute (adsorption isotherms, chemical identity and properties, crystal structures), derived from each provider's capabilities, so a new provider appears without layout changes. Each card shows description, data types, license, saved health, last acquisition, and local record counts, and Refresh status queues health checks.
+- **Catalog** groups providers by the data type they contribute (adsorption isotherms, chemical identity and properties, crystal structures), derived from each provider's capabilities, so a new provider appears without layout changes. Each card shows description, data types, license, saved health, last acquisition, and local record counts, and the refresh icon in the tab bar queues health checks.
 - **Acquire** holds every fetch control: NIST collections (availability, share, fetch), PubChem (resolve one compound, enrich stored chemicals), and COD (search, multi-select, optional material link, import). One run tracker lists runs with progress, cancel, and failed-record reasons. Fetching NIST isotherms first asks for confirmation when locally edited NIST experiments would be overwritten.
 - **Structures** lists imported COD structures with a `?id=` detail panel, explicit material link and unlink, and CIF download.
 

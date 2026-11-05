@@ -24,6 +24,7 @@ import {
     setStructureMaterial,
     structureFileUrl,
 } from '../../services/public-data.service';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 import { AcquireViewComponent } from './acquire-view.component';
 import { EntityPickerComponent, type PickedEntity } from '../../shared/components/entity-picker/entity-picker.component';
@@ -36,10 +37,10 @@ const VIEW_LABELS: Record<SourcesView, string> = {
 };
 
 /** Catalog sections, keyed by the primary data type a provider contributes. */
-const CATEGORIES: readonly { capability: string; title: string; description: string }[] = [
-    { capability: 'adsorption', title: 'Adsorption isotherms', description: 'Measured isotherms.' },
-    { capability: 'chemicals', title: 'Chemical identity and properties', description: 'Species identifiers and properties.' },
-    { capability: 'structures', title: 'Crystal structures', description: 'Structures linkable to materials.' },
+const CATEGORIES: readonly { capability: string; title: string }[] = [
+    { capability: 'adsorption', title: 'Adsorption isotherms' },
+    { capability: 'chemicals', title: 'Chemical identity and properties' },
+    { capability: 'structures', title: 'Crystal structures' },
 ];
 const CAPABILITY_LABELS: Record<string, string> = {
     adsorption: 'Isotherms',
@@ -57,12 +58,26 @@ const positiveId = (value: string | null): number | null => {
 @Component({
     selector: 'adsmod-sources-page',
     standalone: true,
-    imports: [FormsModule, RouterLink, RouterLinkActive, AcquireViewComponent, EntityPickerComponent, DataPaginationComponent],
+    imports: [FormsModule, RouterLink, RouterLinkActive, AcquireViewComponent, EntityPickerComponent, DataPaginationComponent, IconComponent],
     template: `
         <div class="public-workspace">
             <nav class="public-tabs" aria-label="Sources">
                 @for (tab of views; track tab) {
                     <a [routerLink]="['/sources', tab]" routerLinkActive="active">{{ viewLabel(tab) }}</a>
+                }
+                @if (view() === 'catalog') {
+                    <button
+                        class="button quiet icon-button tabs-action"
+                        type="button"
+                        title="Refresh status"
+                        aria-label="Refresh provider status"
+                        [class.spinning]="sourceHealthLoading()"
+                        [disabled]="sourceHealthLoading()"
+                        [attr.aria-busy]="sourceHealthLoading()"
+                        (click)="refreshSourceHealth()"
+                    >
+                        <adsmod-icon name="refresh" />
+                    </button>
                 }
             </nav>
 
@@ -104,17 +119,9 @@ const positiveId = (value: string | null): number | null => {
                             · last success {{ formatDate(overview()?.latest_successful_sync_at ?? null) }}
                         </p>
                     </section>
-                    <div class="catalog-toolbar">
-                        <button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button>
-                    </div>
                     @for (group of catalog(); track group.title) {
-                        <section class="public-section catalog-group" [attr.aria-labelledby]="'catalog-' + group.capability">
-                            <div class="section-heading">
-                                <div>
-                                    <h3 [id]="'catalog-' + group.capability">{{ group.title }}</h3>
-                                    <p>{{ group.description }}</p>
-                                </div>
-                            </div>
+                        <section class="catalog-group" [attr.aria-labelledby]="'catalog-' + group.capability">
+                            <h3 class="catalog-group-title" [id]="'catalog-' + group.capability">{{ group.title }}</h3>
                             <div class="source-summary-grid">
                                 @for (source of group.sources; track source.key) {
                                     <article class="source-summary">
@@ -274,7 +281,7 @@ export class SourcesPageComponent {
         });
         const other = this.sources().filter((source) => !placed.has(source.key));
         if (other.length) {
-            groups.push({ capability: 'other', title: 'Other sources', description: 'Additional providers.', sources: other });
+            groups.push({ capability: 'other', title: 'Other sources', sources: other });
         }
         return groups.filter((group) => group.sources.length);
     });
