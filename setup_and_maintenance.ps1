@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 [CmdletBinding()]
-param([switch]$DryRun)
+param([switch]$DryRun, [switch]$Launch)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -1457,7 +1457,7 @@ function Get-MaintenanceProcessBlockers {
         [System.IO.Path]::GetFullPath($UvDir).TrimEnd('\'),
         [System.IO.Path]::GetFullPath($PlaywrightCacheDir).TrimEnd('\')
     ) | ForEach-Object { $_.Replace('/', '\').ToLowerInvariant() }
-    $markers = @('start_on_windows.ps1', 'server.cli', 'ng.js', 'dev-serve.mjs', 'pytest', 'run_tests.bat', 'playwright', 'vitest', 'npm-cli.js', 'uv.exe')
+    $markers = @('setup_and_maintenance.ps1', 'server.cli', 'ng.js', 'dev-serve.mjs', 'pytest', 'run_tests.bat', 'playwright', 'vitest', 'npm-cli.js', 'uv.exe')
     $ownedRuntimeProcessNames = @('python.exe', 'pythonw.exe', 'node.exe', 'uv.exe', 'pytest.exe', 'ng.exe', 'npm.exe', 'chrome.exe', 'chromium.exe')
     $blockers = [Collections.Generic.List[object]]::new()
     foreach ($process in $processes) {
@@ -1702,7 +1702,6 @@ function Wait-ForMenu {
 
 function Get-MainMenuEntries {
     return @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Launch application'; Hint = 'Run ADSMOD here; Ctrl+C stops it'; Key = 'Launch'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Label = 'Kill all application processes'; Hint = 'Stop every recognized ADSMOD process, including previous sessions'; Key = 'KillAll'; Destructive = $true }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Install / update dependencies'; Hint = 'Refresh local runtimes and packages'; Key = 'Install'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Label = 'Rebuild frontend'; Hint = 'Rebuild the generated frontend bundle'; Key = 'Rebuild'; Destructive = $false }
@@ -1775,6 +1774,16 @@ function Show-MainMenu {
     return $entries
 }
 
+if ($Launch) {
+    try {
+        Invoke-TrackedLauncherAction -Name 'Launch application' -Action { [void](Start-Application) }
+        exit 0
+    } catch {
+        Write-Fatal $_.Exception.Message
+        exit 1
+    }
+}
+
 $exitMenu = $false
 while (-not $exitMenu) {
     $entries = @(Show-MainMenu)
@@ -1798,7 +1807,6 @@ while (-not $exitMenu) {
     try {
         Invoke-TrackedLauncherAction -Name $entry.Label -Action {
             switch ($entry.Key) {
-                'Launch' { [void](Start-Application) }
                 'KillAll' { Stop-AllApplicationProcesses }
                 'Install' { Install-UpdateDependencies }
                 'Rebuild' { Rebuild-Frontend }
@@ -1816,9 +1824,6 @@ while (-not $exitMenu) {
         Wait-ForMenu
     } catch {
         Write-Fatal $_.Exception.Message
-        if ($selection -eq '1') {
-            exit 1
-        }
         Wait-ForMenu
     }
 }

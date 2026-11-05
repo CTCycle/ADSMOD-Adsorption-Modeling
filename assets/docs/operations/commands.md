@@ -1,11 +1,13 @@
 # ADSMOD operational commands
 
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 ## Launch and maintenance
 
+Launch ADSMOD with the batch wrapper. It invokes PowerShell 7 and runs the setup script in -Launch mode. Start the maintenance menu directly with setup_and_maintenance.ps1.
+
 ```powershell
-& .\start_on_windows.ps1
+.\start_on_windows.bat
 ```
 
 Use the menu for dependency synchronization, frontend rebuild, database
@@ -19,7 +21,7 @@ root. `settings/.env` may also set `ADSMOD_STORAGE_ROOT`; see
 Preview a cleanup action without deleting files:
 
 ```powershell
-& .\start_on_windows.ps1 -DryRun
+.\setup_and_maintenance.ps1 -DryRun
 ```
 
 Choose **Remove logs**, **Clear cache**, **Remove checkpoints**, **Remove all

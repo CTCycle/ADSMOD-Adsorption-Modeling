@@ -227,10 +227,10 @@ try {
 
     $launcherRepo = Join-Path $testRoot 'launcher-repo'
     $launcherData = Join-Path $testRoot 'launcher-data'
-    $launcherScript = Join-Path $launcherRepo 'start_on_windows.ps1'
+    $launcherScript = Join-Path $launcherRepo 'setup_and_maintenance.ps1'
     $launcherModule = Join-Path $launcherRepo 'app\scripts\launcher_cleanup.psm1'
     New-Item -ItemType Directory -Path (Split-Path -Parent $launcherModule) -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'start_on_windows.ps1') -Destination $launcherScript
+    Copy-Item -LiteralPath (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'setup_and_maintenance.ps1') -Destination $launcherScript
     Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'scripts\launcher_cleanup.psm1') -Destination $launcherModule
     New-DataFixture -Repository $launcherRepo -DataRoot $launcherData | Out-Null
     $launcherSqlite = Join-Path $launcherData 'external\adsmod.sqlite'
@@ -240,7 +240,7 @@ try {
         [Environment]::SetEnvironmentVariable('ADSMOD_STORAGE_ROOT', $launcherData, 'Process')
         Push-Location $testRoot
         try {
-            $menuInput = "9`n10`n11`n12`n13`n14`n"
+            $menuInput = (8..13 -join [Environment]::NewLine) + [Environment]::NewLine
             $launcherOutput = @($menuInput | & pwsh -NoLogo -NoProfile -File $launcherScript -DryRun 2>&1)
             $launcherExitCode = $LASTEXITCODE
         }

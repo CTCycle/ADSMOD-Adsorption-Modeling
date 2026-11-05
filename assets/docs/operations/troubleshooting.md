@@ -1,6 +1,6 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
 ## Backend or UI unreachable
 
@@ -45,7 +45,7 @@ remain untouched.
 
 ## Missing dependencies
 
-Run **Install / update dependencies** in `start_on_windows.ps1`. The installer
+Run **Install / update dependencies** in `setup_and_maintenance.ps1`. The installer
 uses the locked backend workspace and `npm ci`, and writes the dependency-state
 manifest only after the installation succeeds. Automatic repair preserves the
 recorded Standard/Development and Base/ML profile; choose the ML-enabled

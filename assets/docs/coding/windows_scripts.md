@@ -1,10 +1,10 @@
 # ADSMOD Windows Script Rules
 
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 ## Operational Script Expectations
 
-- Use `start_on_windows.ps1` as the canonical launcher and maintenance entry point.
+- Use start_on_windows.bat to launch ADSMOD; it invokes setup_and_maintenance.ps1 -Launch. Use the PowerShell script directly for maintenance actions.
 - Keep PowerShell usage explicit and deterministic.
 - Preserve runtime-safe path handling.
 - Route normal disposable runtime and tool caches below `runtimes/cache`; keep

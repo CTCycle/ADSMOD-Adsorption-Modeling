@@ -1,14 +1,14 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 ## Recommended startup
 
 ```powershell
-& .\start_on_windows.ps1
+.\start_on_windows.bat
 ```
 
-The launcher reads runtime host, ports, and CORS configuration through
+The batch launcher invokes setup_and_maintenance.ps1 -Launch through PowerShell 7. The launch mode follows the same startup path as the former menu action, including first-run runtime, dependency, and frontend setup. Run setup_and_maintenance.ps1 without -Launch to open the maintenance menu. The launcher reads runtime host, ports, and CORS configuration through
 `server.runtime_config` from `settings/.env` or the process environment; process
 values take precedence. The storage root is resolved first; database connection
 settings come from `database.json` inside that root. It inspects the backend
@@ -55,7 +55,7 @@ port-conflict resolution.
 The launcher requires PowerShell 7 (`pwsh`); Windows PowerShell 5.1 lacks APIs
 used by the build fingerprint.
 
-The interactive menu is generated from structured rows. Its order is
+The maintenance menu is generated from structured rows. Its order is
 `APPLICATION`, `SETUP & VALIDATION`, `SOURCE CONTROL` (Check before Update),
 `DATA & MAINTENANCE`, and a final sequential `EXIT` option. The launcher
 computes the numeric-column width from the menu size, so one- and two-digit

@@ -1,11 +1,11 @@
 # ADSMOD local deployment
 
-Last updated: 2026-10-22
+Last updated: 2026-11-05
 
-The supported deployment is the Windows local web launcher:
+The supported deployment is the Windows local web launcher. Use start_on_windows.bat to launch; it invokes setup_and_maintenance.ps1 -Launch through PowerShell 7. Run setup_and_maintenance.ps1 directly for maintenance actions:
 
 ```powershell
-& .\start_on_windows.ps1
+.\start_on_windows.bat
 ```
 
 The launcher provisions portable Python, uv, and Node.js under `runtimes/`,

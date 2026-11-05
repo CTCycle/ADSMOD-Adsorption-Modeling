@@ -49,10 +49,10 @@ The supported local setup is Windows with PowerShell 7. From a PowerShell 7 wind
 ```powershell
 git clone https://github.com/CTCycle/ADSMOD-Adsorption-Modeling.git
 Set-Location ADSMOD-Adsorption-Modeling
-.\start_on_windows.ps1
+.\start_on_windows.bat
 ```
 
-Choose the application launch option in the menu. On first use, the launcher downloads its pinned Python, `uv`, and Node.js runtimes, installs the selected dependency profile, and builds the web client. This setup can take several minutes. Keep the console open while using ADSMOD; press **Ctrl+C** there to stop it.
+The batch launcher invokes PowerShell 7 in -Launch mode. On first use, it downloads the pinned Python, uv, and Node.js runtimes, installs the selected dependency profile, and builds the web client. This setup can take several minutes. Keep the console open while using ADSMOD; press Ctrl+C there to stop it.
 
 The base profile includes the dataset, public data, fitting, and dashboard workspaces. Choose the optional ML profile during setup to enable training and checkpoint workflows. Initial setup and public-provider requests require network access.
 
