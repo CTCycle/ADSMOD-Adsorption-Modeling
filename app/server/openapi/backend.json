@@ -576,6 +576,124 @@
               "minimum": 1,
               "title": "Dataset Id"
             }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "adsorbent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Adsorbent Id"
+            }
+          },
+          {
+            "name": "adsorbate_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Adsorbate Id"
+            }
+          },
+          {
+            "name": "temperature_min_k",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Temperature Min K"
+            }
+          },
+          {
+            "name": "temperature_max_k",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Temperature Max K"
+            }
+          },
+          {
+            "name": "edited_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Edited Only"
+            }
           }
         ],
         "responses": {
@@ -584,7 +702,60 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExperimentListResponse"
+                  "$ref": "#/components/schemas/ExperimentPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{dataset_id}/experiments/{experiment_id}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Experiment Detail",
+        "operationId": "experiment_detail_api_v1_datasets__dataset_id__experiments__experiment_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetailResponse"
                 }
               }
             }
@@ -652,6 +823,20 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pressure",
+                "sequence"
+              ],
+              "type": "string",
+              "default": "pressure",
+              "title": "Order"
+            }
           }
         ],
         "responses": {
@@ -678,13 +863,13 @@
         }
       }
     },
-    "/api/v1/datasets/{dataset_id}/rename": {
-      "patch": {
+    "/api/v1/datasets/{dataset_id}/delete-impact": {
+      "get": {
         "tags": [
           "datasets"
         ],
-        "summary": "Rename Dataset",
-        "operationId": "rename_dataset_api_v1_datasets__dataset_id__rename_patch",
+        "summary": "Delete Impact",
+        "operationId": "delete_impact_api_v1_datasets__dataset_id__delete_impact_get",
         "parameters": [
           {
             "name": "dataset_id",
@@ -697,76 +882,13 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DatasetRenameRequest"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DatasetMutationResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/datasets/{dataset_id}/metadata": {
-      "patch": {
-        "tags": [
-          "datasets"
-        ],
-        "summary": "Update Metadata",
-        "operationId": "update_metadata_api_v1_datasets__dataset_id__metadata_patch",
-        "parameters": [
-          {
-            "name": "dataset_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "title": "Dataset Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DatasetMetadata"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetMutationResponse"
+                  "$ref": "#/components/schemas/DatasetDeleteImpact"
                 }
               }
             }
@@ -785,6 +907,98 @@
       }
     },
     "/api/v1/datasets/{dataset_id}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Get Dataset",
+        "operationId": "get_dataset_api_v1_datasets__dataset_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update Dataset",
+        "operationId": "update_dataset_api_v1_datasets__dataset_id__patch",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetMutationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEditErrorDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "datasets"
@@ -1091,6 +1305,424 @@
         }
       }
     },
+    "/api/v1/materials": {
+      "get": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "List Materials",
+        "operationId": "list_materials_api_v1_materials_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "formula",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Formula"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "name": "has_structure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Structure"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialPageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/materials/{adsorbent_id}": {
+      "get": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Get Material",
+        "operationId": "get_material_api_v1_materials__adsorbent_id__get",
+        "parameters": [
+          {
+            "name": "adsorbent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Adsorbent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Delete Material",
+        "operationId": "delete_material_api_v1_materials__adsorbent_id__delete",
+        "parameters": [
+          {
+            "name": "adsorbent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Adsorbent Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/species": {
+      "get": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "List Species",
+        "operationId": "list_species_api_v1_species_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "formula",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Formula"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "name": "molecular_weight_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Molecular Weight Min"
+            }
+          },
+          {
+            "name": "molecular_weight_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Molecular Weight Max"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeciesPageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/species/{adsorbate_id}": {
+      "get": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Get Species",
+        "operationId": "get_species_api_v1_species__adsorbate_id__get",
+        "parameters": [
+          {
+            "name": "adsorbate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Adsorbate Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeciesDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Delete Species",
+        "operationId": "delete_species_api_v1_species__adsorbate_id__delete",
+        "parameters": [
+          {
+            "name": "adsorbate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Adsorbate Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public-data/overview": {
       "get": {
         "tags": [
@@ -1168,6 +1800,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/sources/nist/edited-experiments": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Nist Edited Experiments",
+        "operationId": "nist_edited_experiments_api_v1_public_data_sources_nist_edited_experiments_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NISTEditedExperimentsResponse"
                 }
               }
             }
@@ -1516,568 +2169,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicDataSyncFailureListResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/adsorption": {
-      "get": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "List Adsorption",
-        "operationId": "list_adsorption_api_v1_public_data_adsorption_get",
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1,
-              "title": "Page"
-            }
-          },
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 25,
-              "title": "Page Size"
-            }
-          },
-          {
-            "name": "source",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Source"
-            }
-          },
-          {
-            "name": "material",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Material"
-            }
-          },
-          {
-            "name": "adsorbate",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Adsorbate"
-            }
-          },
-          {
-            "name": "material_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Material Id"
-            }
-          },
-          {
-            "name": "adsorbate_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Adsorbate Id"
-            }
-          },
-          {
-            "name": "temperature_min_k",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Temperature Min K"
-            }
-          },
-          {
-            "name": "temperature_max_k",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "number",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Temperature Max K"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdsorptionPageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/adsorption/{isotherm_id}": {
-      "get": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "Get Adsorption",
-        "operationId": "get_adsorption_api_v1_public_data_adsorption__isotherm_id__get",
-        "parameters": [
-          {
-            "name": "isotherm_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Isotherm Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdsorptionDetailResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/materials": {
-      "get": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "List Materials",
-        "operationId": "list_materials_api_v1_public_data_materials_get",
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1,
-              "title": "Page"
-            }
-          },
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 25,
-              "title": "Page Size"
-            }
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 512
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Q"
-            }
-          },
-          {
-            "name": "formula",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 255
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Formula"
-            }
-          },
-          {
-            "name": "source",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 64
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Source"
-            }
-          },
-          {
-            "name": "has_structure",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Has Structure"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterialPageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/materials/{adsorbent_id}": {
-      "get": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "Get Material",
-        "operationId": "get_material_api_v1_public_data_materials__adsorbent_id__get",
-        "parameters": [
-          {
-            "name": "adsorbent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Adsorbent Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaterialDetailResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/chemicals": {
-      "get": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "List Chemicals",
-        "operationId": "list_chemicals_api_v1_public_data_chemicals_get",
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 1,
-              "title": "Page"
-            }
-          },
-          {
-            "name": "page_size",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 25,
-              "title": "Page Size"
-            }
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 512
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Q"
-            }
-          },
-          {
-            "name": "formula",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 255
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Formula"
-            }
-          },
-          {
-            "name": "source",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 64
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Source"
-            }
-          },
-          {
-            "name": "molecular_weight_min",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "number",
-                  "minimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Molecular Weight Min"
-            }
-          },
-          {
-            "name": "molecular_weight_max",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "number",
-                  "minimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Molecular Weight Max"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChemicalPageResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/public-data/chemicals/{adsorbate_id}": {
-      "get": {
-        "tags": [
-          "public-data"
-        ],
-        "summary": "Get Chemical",
-        "operationId": "get_chemical_api_v1_public_data_chemicals__adsorbate_id__get",
-        "parameters": [
-          {
-            "name": "adsorbate_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Adsorbate Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChemicalRecordView"
                 }
               }
             }
@@ -3178,357 +3269,6 @@
   },
   "components": {
     "schemas": {
-      "AdsorptionDetailResponse": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "external_id": {
-            "type": "string",
-            "title": "External Id"
-          },
-          "source": {
-            "type": "string",
-            "title": "Source"
-          },
-          "source_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Url"
-          },
-          "material_id": {
-            "type": "integer",
-            "title": "Material Id"
-          },
-          "material": {
-            "type": "string",
-            "title": "Material"
-          },
-          "adsorbates": {
-            "items": {
-              "$ref": "#/components/schemas/EntityReference"
-            },
-            "type": "array",
-            "title": "Adsorbates"
-          },
-          "temperature_k": {
-            "type": "number",
-            "title": "Temperature K"
-          },
-          "pressure_min": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pressure Min"
-          },
-          "pressure_max": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pressure Max"
-          },
-          "pressure_unit": {
-            "type": "string",
-            "enum": [
-              "Pa",
-              "1"
-            ],
-            "title": "Pressure Unit",
-            "default": "Pa"
-          },
-          "uptake_min_mol_kg": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uptake Min Mol Kg"
-          },
-          "uptake_max_mol_kg": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uptake Max Mol Kg"
-          },
-          "point_count": {
-            "type": "integer",
-            "title": "Point Count",
-            "default": 0
-          },
-          "doi": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Doi"
-          },
-          "reference_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reference Title"
-          },
-          "retrieved_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retrieved At"
-          },
-          "pressure_basis": {
-            "type": "string",
-            "title": "Pressure Basis"
-          },
-          "conditions": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Conditions"
-          },
-          "provenance": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Provenance"
-          },
-          "measurements": {
-            "items": {
-              "$ref": "#/components/schemas/MeasurementView"
-            },
-            "type": "array",
-            "title": "Measurements"
-          },
-          "external_identifiers": {
-            "items": {
-              "$ref": "#/components/schemas/ExternalIdentifierView"
-            },
-            "type": "array",
-            "title": "External Identifiers"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "external_id",
-          "source",
-          "material_id",
-          "material",
-          "adsorbates",
-          "temperature_k",
-          "pressure_basis",
-          "conditions",
-          "provenance",
-          "measurements",
-          "external_identifiers"
-        ],
-        "title": "AdsorptionDetailResponse"
-      },
-      "AdsorptionPageResponse": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/AdsorptionRecordView"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/Pagination"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "pagination"
-        ],
-        "title": "AdsorptionPageResponse"
-      },
-      "AdsorptionRecordView": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "external_id": {
-            "type": "string",
-            "title": "External Id"
-          },
-          "source": {
-            "type": "string",
-            "title": "Source"
-          },
-          "source_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Url"
-          },
-          "material_id": {
-            "type": "integer",
-            "title": "Material Id"
-          },
-          "material": {
-            "type": "string",
-            "title": "Material"
-          },
-          "adsorbates": {
-            "items": {
-              "$ref": "#/components/schemas/EntityReference"
-            },
-            "type": "array",
-            "title": "Adsorbates"
-          },
-          "temperature_k": {
-            "type": "number",
-            "title": "Temperature K"
-          },
-          "pressure_min": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pressure Min"
-          },
-          "pressure_max": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pressure Max"
-          },
-          "pressure_unit": {
-            "type": "string",
-            "enum": [
-              "Pa",
-              "1"
-            ],
-            "title": "Pressure Unit",
-            "default": "Pa"
-          },
-          "uptake_min_mol_kg": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uptake Min Mol Kg"
-          },
-          "uptake_max_mol_kg": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uptake Max Mol Kg"
-          },
-          "point_count": {
-            "type": "integer",
-            "title": "Point Count",
-            "default": 0
-          },
-          "doi": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Doi"
-          },
-          "reference_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reference Title"
-          },
-          "retrieved_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retrieved At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "external_id",
-          "source",
-          "material_id",
-          "material",
-          "adsorbates",
-          "temperature_k"
-        ],
-        "title": "AdsorptionRecordView"
-      },
       "AnalyticsFilter": {
         "properties": {
           "dataset_sources": {
@@ -4184,243 +3924,6 @@
         ],
         "title": "CheckpointsResponse"
       },
-      "ChemicalPageResponse": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ChemicalRecordView"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/Pagination"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "pagination"
-        ],
-        "title": "ChemicalPageResponse"
-      },
-      "ChemicalPropertyView": {
-        "properties": {
-          "key": {
-            "type": "string",
-            "title": "Key"
-          },
-          "value_number": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value Number"
-          },
-          "value_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value Text"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
-          },
-          "source": {
-            "type": "string",
-            "title": "Source"
-          }
-        },
-        "type": "object",
-        "required": [
-          "key",
-          "source"
-        ],
-        "title": "ChemicalPropertyView"
-      },
-      "ChemicalRecordView": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "preferred_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Preferred Name"
-          },
-          "formula": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Formula"
-          },
-          "molecular_weight": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Molecular Weight"
-          },
-          "inchi": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inchi"
-          },
-          "inchi_key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inchi Key"
-          },
-          "connectivity_smiles": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Connectivity Smiles"
-          },
-          "smiles": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Smiles"
-          },
-          "pubchem_cid": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pubchem Cid"
-          },
-          "synonyms": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Synonyms"
-          },
-          "properties": {
-            "items": {
-              "$ref": "#/components/schemas/ChemicalPropertyView"
-            },
-            "type": "array",
-            "title": "Properties"
-          },
-          "external_identifiers": {
-            "items": {
-              "$ref": "#/components/schemas/ExternalIdentifierView"
-            },
-            "type": "array",
-            "title": "External Identifiers"
-          },
-          "structure_2d_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Structure 2D Url"
-          },
-          "conformer_3d_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Conformer 3D Url"
-          },
-          "isotherm_count": {
-            "type": "integer",
-            "title": "Isotherm Count",
-            "default": 0
-          },
-          "retrieved_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Retrieved At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "ChemicalRecordView"
-      },
       "ColumnDetection": {
         "properties": {
           "name": {
@@ -4496,6 +3999,44 @@
           "confidence"
         ],
         "title": "ColumnDetection"
+      },
+      "ComponentUpdate": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Id"
+          },
+          "adsorbate_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbate Id"
+          },
+          "mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mole Fraction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ComponentUpdate"
       },
       "CustomUnitDefinition": {
         "properties": {
@@ -4960,6 +4501,144 @@
         "type": "object",
         "title": "DatasetConfig"
       },
+      "DatasetDeleteImpact": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "experiment_count": {
+            "type": "integer",
+            "title": "Experiment Count"
+          },
+          "observation_count": {
+            "type": "integer",
+            "title": "Observation Count"
+          },
+          "fitting_run_count": {
+            "type": "integer",
+            "title": "Fitting Run Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "experiment_count",
+          "observation_count",
+          "fitting_run_count"
+        ],
+        "title": "DatasetDeleteImpact"
+      },
+      "DatasetDetailResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "dataset": {
+            "$ref": "#/components/schemas/DatasetSummary"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          },
+          "latest_import": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetImportSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset"
+        ],
+        "title": "DatasetDetailResponse"
+      },
+      "DatasetEditErrorDetail": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetEditIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "issues"
+        ],
+        "title": "DatasetEditErrorDetail"
+      },
+      "DatasetEditIssue": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "dataset",
+              "experiment",
+              "observation"
+            ],
+            "title": "Scope"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "experiment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experiment Id"
+          },
+          "observation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope",
+          "field",
+          "message"
+        ],
+        "title": "DatasetEditIssue"
+      },
       "DatasetImportInspectionResponse": {
         "properties": {
           "status": {
@@ -5040,6 +4719,39 @@
           "validation"
         ],
         "title": "DatasetImportResponse"
+      },
+      "DatasetImportSummary": {
+        "properties": {
+          "original_filename": {
+            "type": "string",
+            "title": "Original Filename"
+          },
+          "source_structure": {
+            "type": "string",
+            "enum": [
+              "atomic",
+              "aggregated",
+              "mixed"
+            ],
+            "title": "Source Structure"
+          },
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_filename",
+          "source_structure",
+          "parser_version",
+          "created_at"
+        ],
+        "title": "DatasetImportSummary"
       },
       "DatasetInfoResponse": {
         "properties": {
@@ -5242,27 +4954,6 @@
         "type": "object",
         "title": "DatasetListResponse"
       },
-      "DatasetMetadata": {
-        "properties": {
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 32,
-            "title": "Tags"
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 2000,
-            "title": "Description",
-            "default": ""
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "DatasetMetadata"
-      },
       "DatasetMutationResponse": {
         "properties": {
           "status": {
@@ -5280,22 +4971,6 @@
           "dataset"
         ],
         "title": "DatasetMutationResponse"
-      },
-      "DatasetRenameRequest": {
-        "properties": {
-          "new_name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "New Name"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "new_name"
-        ],
-        "title": "DatasetRenameRequest"
       },
       "DatasetSelection": {
         "properties": {
@@ -5416,6 +5091,10 @@
             "type": "string",
             "title": "Created At"
           },
+          "last_update": {
+            "type": "string",
+            "title": "Last Update"
+          },
           "experiment_count": {
             "type": "integer",
             "title": "Experiment Count"
@@ -5423,6 +5102,35 @@
           "observation_count": {
             "type": "integer",
             "title": "Observation Count"
+          },
+          "edited_experiment_count": {
+            "type": "integer",
+            "title": "Edited Experiment Count",
+            "default": 0
+          },
+          "material_count": {
+            "type": "integer",
+            "title": "Material Count",
+            "default": 0
+          },
+          "species_count": {
+            "type": "integer",
+            "title": "Species Count",
+            "default": 0
+          },
+          "material_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Material Names"
+          },
+          "species_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Species Names"
           },
           "tags": {
             "items": {
@@ -5443,10 +5151,98 @@
           "name",
           "source",
           "created_at",
+          "last_update",
           "experiment_count",
           "observation_count"
         ],
         "title": "DatasetSummary"
+      },
+      "DatasetUpdateRequest": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "experiments": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentUpdate"
+            },
+            "type": "array",
+            "maxItems": 10000,
+            "title": "Experiments"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationUpdate"
+            },
+            "type": "array",
+            "maxItems": 100000,
+            "title": "Observations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DatasetUpdateRequest"
+      },
+      "DatasetUsage": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "experiment_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Experiment Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "experiment_count"
+        ],
+        "title": "DatasetUsage"
       },
       "DisplayUnitCapabilities": {
         "properties": {
@@ -5672,13 +5468,103 @@
         ],
         "title": "EntityReference"
       },
-      "ExperimentListResponse": {
+      "ExperimentComponent": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "adsorbate_id": {
+            "type": "integer",
+            "title": "Adsorbate Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mole Fraction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "position",
+          "adsorbate_id",
+          "name"
+        ],
+        "title": "ExperimentComponent"
+      },
+      "ExperimentDetailResponse": {
         "properties": {
           "status": {
             "type": "string",
             "const": "success",
             "title": "Status",
             "default": "success"
+          },
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "experiment": {
+            "$ref": "#/components/schemas/ExperimentSummary"
+          },
+          "conditions": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Conditions"
+          },
+          "provenance": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentProvenance"
+            },
+            "type": "array",
+            "title": "Provenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_name",
+          "experiment"
+        ],
+        "title": "ExperimentDetailResponse"
+      },
+      "ExperimentPage": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
           },
           "experiments": {
             "items": {
@@ -5689,7 +5575,49 @@
           }
         },
         "type": "object",
-        "title": "ExperimentListResponse"
+        "required": [
+          "dataset_id",
+          "offset",
+          "limit",
+          "total"
+        ],
+        "title": "ExperimentPage"
+      },
+      "ExperimentProvenance": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "doi": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Doi"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "external_id"
+        ],
+        "title": "ExperimentProvenance"
       },
       "ExperimentSummary": {
         "properties": {
@@ -5709,6 +5637,10 @@
             "type": "string",
             "title": "Name"
           },
+          "adsorbent_id": {
+            "type": "integer",
+            "title": "Adsorbent Id"
+          },
           "adsorbent": {
             "type": "string",
             "title": "Adsorbent"
@@ -5719,6 +5651,13 @@
             },
             "type": "array",
             "title": "Adsorbates"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentComponent"
+            },
+            "type": "array",
+            "title": "Components"
           },
           "temperature_k": {
             "type": "number",
@@ -5754,6 +5693,27 @@
               "relative"
             ],
             "title": "Pressure Basis"
+          },
+          "saturation_pressure_pa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturation Pressure Pa"
+          },
+          "duplicate_policy": {
+            "type": "string",
+            "enum": [
+              "reject",
+              "keep",
+              "average"
+            ],
+            "title": "Duplicate Policy",
+            "default": "reject"
           },
           "observation_count": {
             "type": "integer",
@@ -5792,6 +5752,39 @@
             ],
             "title": "Pressure Canonical Unit"
           },
+          "pressure_original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Original Unit"
+          },
+          "uptake_original_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Original Unit"
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At"
+          },
           "fitting_eligible": {
             "type": "boolean",
             "title": "Fitting Eligible"
@@ -5814,6 +5807,7 @@
           "dataset_id",
           "external_key",
           "name",
+          "adsorbent_id",
           "adsorbent",
           "adsorbates",
           "temperature_k",
@@ -5822,6 +5816,128 @@
           "fitting_eligible"
         ],
         "title": "ExperimentSummary"
+      },
+      "ExperimentUpdate": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "adsorbent_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbent Id"
+          },
+          "temperature_original": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Original"
+          },
+          "temperature_original_unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature Original Unit"
+          },
+          "pressure_unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Unit"
+          },
+          "uptake_unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Unit"
+          },
+          "pressure_basis": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "absolute",
+                  "partial",
+                  "relative"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Basis"
+          },
+          "saturation_pressure_pa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturation Pressure Pa"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentUpdate"
+            },
+            "type": "array",
+            "title": "Components"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ExperimentUpdate",
+        "description": "Experiment-level changes; omitted fields stay unchanged.\n\nNullable fields (`saturation_pressure_pa`, component `mole_fraction`) are\ncleared only when sent explicitly as null."
       },
       "ExternalIdentifierView": {
         "properties": {
@@ -6982,6 +7098,17 @@
             ],
             "title": "Molar Mass G Mol"
           },
+          "smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smiles"
+          },
           "structure_count": {
             "type": "integer",
             "title": "Structure Count",
@@ -7005,13 +7132,19 @@
             },
             "type": "array",
             "title": "Structures"
+          },
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetUsage"
+            },
+            "type": "array",
+            "title": "Datasets"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "name",
-          "external_identifiers"
+          "name"
         ],
         "title": "MaterialDetailResponse"
       },
@@ -7067,6 +7200,17 @@
             ],
             "title": "Molar Mass G Mol"
           },
+          "smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smiles"
+          },
           "structure_count": {
             "type": "integer",
             "title": "Structure Count",
@@ -7088,58 +7232,9 @@
         "type": "object",
         "required": [
           "id",
-          "name",
-          "external_identifiers"
+          "name"
         ],
         "title": "MaterialRecordView"
-      },
-      "MeasurementView": {
-        "properties": {
-          "sequence_index": {
-            "type": "integer",
-            "title": "Sequence Index"
-          },
-          "adsorbate": {
-            "type": "string",
-            "title": "Adsorbate"
-          },
-          "pressure_original": {
-            "type": "number",
-            "title": "Pressure Original"
-          },
-          "pressure_original_unit": {
-            "type": "string",
-            "title": "Pressure Original Unit"
-          },
-          "pressure_pa": {
-            "type": "number",
-            "title": "Pressure Pa"
-          },
-          "uptake_original": {
-            "type": "number",
-            "title": "Uptake Original"
-          },
-          "uptake_original_unit": {
-            "type": "string",
-            "title": "Uptake Original Unit"
-          },
-          "uptake_mol_kg": {
-            "type": "number",
-            "title": "Uptake Mol Kg"
-          }
-        },
-        "type": "object",
-        "required": [
-          "sequence_index",
-          "adsorbate",
-          "pressure_original",
-          "pressure_original_unit",
-          "pressure_pa",
-          "uptake_original",
-          "uptake_original_unit",
-          "uptake_mol_kg"
-        ],
-        "title": "MeasurementView"
       },
       "ModelCatalogResponse": {
         "properties": {
@@ -7339,6 +7434,20 @@
         "additionalProperties": false,
         "type": "object",
         "title": "NISTConfig"
+      },
+      "NISTEditedExperimentsResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "NISTEditedExperimentsResponse"
       },
       "NormalizedExperimentPreview": {
         "properties": {
@@ -7563,6 +7672,10 @@
             "type": "integer",
             "title": "Id"
           },
+          "component_id": {
+            "type": "integer",
+            "title": "Component Id"
+          },
           "sequence_index": {
             "type": "integer",
             "title": "Sequence Index"
@@ -7621,6 +7734,7 @@
         "type": "object",
         "required": [
           "id",
+          "component_id",
           "sequence_index",
           "pressure_original",
           "pressure_original_unit",
@@ -7631,6 +7745,54 @@
           "uptake_mol_kg"
         ],
         "title": "ObservationRow"
+      },
+      "ObservationUpdate": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Id"
+          },
+          "pressure_original": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Original"
+          },
+          "uptake_original": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Original"
+          },
+          "uptake_stddev_mol_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptake Stddev Mol Kg"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ObservationUpdate"
       },
       "OperationStatusResponse": {
         "properties": {
@@ -8391,6 +8553,11 @@
               }
             ],
             "title": "Adsorbent Id"
+          },
+          "overwrite_local_edits": {
+            "type": "boolean",
+            "title": "Overwrite Local Edits",
+            "default": false
           }
         },
         "type": "object",
@@ -9154,6 +9321,416 @@
         "type": "object",
         "title": "SettingsUpdateRequest",
         "description": "Full settings replacement; partial updates are intentionally rejected."
+      },
+      "SpeciesDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "preferred_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Name"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "molecular_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Molecular Weight"
+          },
+          "inchi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inchi"
+          },
+          "inchi_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inchi Key"
+          },
+          "connectivity_smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connectivity Smiles"
+          },
+          "smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smiles"
+          },
+          "pubchem_cid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pubchem Cid"
+          },
+          "synonyms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonyms"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/SpeciesPropertyView"
+            },
+            "type": "array",
+            "title": "Properties"
+          },
+          "external_identifiers": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalIdentifierView"
+            },
+            "type": "array",
+            "title": "External Identifiers"
+          },
+          "structure_2d_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure 2D Url"
+          },
+          "conformer_3d_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conformer 3D Url"
+          },
+          "isotherm_count": {
+            "type": "integer",
+            "title": "Isotherm Count",
+            "default": 0
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "datasets": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetUsage"
+            },
+            "type": "array",
+            "title": "Datasets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SpeciesDetailResponse"
+      },
+      "SpeciesPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SpeciesRecordView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "SpeciesPageResponse"
+      },
+      "SpeciesPropertyView": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value_number": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Number"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "source"
+        ],
+        "title": "SpeciesPropertyView"
+      },
+      "SpeciesRecordView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "preferred_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Name"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "molecular_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Molecular Weight"
+          },
+          "inchi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inchi"
+          },
+          "inchi_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inchi Key"
+          },
+          "connectivity_smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connectivity Smiles"
+          },
+          "smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smiles"
+          },
+          "pubchem_cid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pubchem Cid"
+          },
+          "synonyms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonyms"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/SpeciesPropertyView"
+            },
+            "type": "array",
+            "title": "Properties"
+          },
+          "external_identifiers": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalIdentifierView"
+            },
+            "type": "array",
+            "title": "External Identifiers"
+          },
+          "structure_2d_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure 2D Url"
+          },
+          "conformer_3d_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conformer 3D Url"
+          },
+          "isotherm_count": {
+            "type": "integer",
+            "title": "Isotherm Count",
+            "default": 0
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SpeciesRecordView"
       },
       "StructureAtomView": {
         "properties": {

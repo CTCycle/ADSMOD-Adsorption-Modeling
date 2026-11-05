@@ -3,14 +3,9 @@
 
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type {
-    AdsorptionDetailResponse,
-    AdsorptionPageResponse,
     CODSearchResponse,
-    ChemicalPageResponse,
-    ChemicalRecordView,
-    MaterialDetailResponse,
-    MaterialPageResponse,
     NISTCollectionListResponse,
+    NISTEditedExperimentsResponse,
     PublicDataOverviewResponse,
     PublicDataSyncFailureListResponse,
     PublicDataSyncRequest,
@@ -63,6 +58,10 @@ export function checkPublicSourceHealth(sourceKey: string): Promise<ApiResult<Pu
     return requestJson(`/public-data/sources/${encodeURIComponent(sourceKey)}/health-check`, { method: 'POST' });
 }
 
+export function fetchNistEditedExperiments(): Promise<ApiResult<NISTEditedExperimentsResponse>> {
+    return requestJson('/public-data/sources/nist/edited-experiments');
+}
+
 export function fetchNistCollections(): Promise<ApiResult<NISTCollectionListResponse>> {
     return requestJson('/public-data/sources/nist/collections');
 }
@@ -107,55 +106,6 @@ export function cancelPublicDataSyncRun(runId: string): Promise<ApiResult<Public
 
 export function fetchPublicOverview(): Promise<ApiResult<PublicDataOverviewResponse>> {
     return requestJson('/public-data/overview');
-}
-
-export function fetchPublicAdsorption(params: {
-    page?: number;
-    page_size?: number;
-    source?: string;
-    material?: string;
-    adsorbate?: string;
-    material_id?: number | null;
-    adsorbate_id?: number | null;
-    temperature_min_k?: number | null;
-    temperature_max_k?: number | null;
-}): Promise<ApiResult<AdsorptionPageResponse>> {
-    return requestJson(`/public-data/adsorption${queryString(params)}`);
-}
-
-export function fetchPublicAdsorptionDetail(id: number): Promise<ApiResult<AdsorptionDetailResponse>> {
-    return requestJson(`/public-data/adsorption/${id}`);
-}
-
-export function fetchPublicMaterials(params: {
-    page?: number;
-    page_size?: number;
-    q?: string;
-    formula?: string;
-    source?: string;
-    has_structure?: boolean | null;
-}): Promise<ApiResult<MaterialPageResponse>> {
-    return requestJson(`/public-data/materials${queryString(params)}`);
-}
-
-export function fetchPublicMaterialDetail(id: number): Promise<ApiResult<MaterialDetailResponse>> {
-    return requestJson(`/public-data/materials/${id}`);
-}
-
-export function fetchPublicChemicals(params: {
-    page?: number;
-    page_size?: number;
-    q?: string;
-    formula?: string;
-    source?: string;
-    molecular_weight_min?: number | null;
-    molecular_weight_max?: number | null;
-}): Promise<ApiResult<ChemicalPageResponse>> {
-    return requestJson(`/public-data/chemicals${queryString(params)}`);
-}
-
-export function fetchPublicChemicalDetail(id: number): Promise<ApiResult<ChemicalRecordView>> {
-    return requestJson(`/public-data/chemicals/${id}`);
 }
 
 export function resolvePubChem(query: string, adsorbateId?: number | null): Promise<ApiResult<PublicDataSyncRun>> {

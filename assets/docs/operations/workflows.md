@@ -1,22 +1,22 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 
 ## Main Navigation
 
 The application uses one Angular frontend with these primary routes:
 
-- `datasets` for custom workspace datasets and file import
-- `datasets/:id` for one dataset (`?tab=overview|experiments|preview|visualization`)
+- `datasets` for datasets, adsorbent materials, and chemical species, and file import
+- `datasets/:id` for one dataset (`?experiment=<id>` selects an experiment)
 - `help` for the Docs page (tutorials, guides, and tips; `/docs` is reserved by the backend)
-- `public-data` for the public-data workspace (opens Overview)
-- `public-data/:view` for Overview, Acquire, Adsorption Data, Materials, Chemicals, Structures, and Sources
+- `sources` for the provider workspace (opens Catalog)
+- `sources/:view` for Catalog, Acquire, and Structures
 - `dashboards/overview` and `dashboards/explore` for cross-dataset data exploration
 - `fitting` for adsorption model fitting
 - `training` for processing, training datasets, checkpoints, and the dashboard
 
-Custom dataset management and public data are standalone workspaces. The former
-split `public-materials` destination is not a supported route.
+Datasets manages local data (uploaded and acquired); Sources discovers and
+acquires external data. The former `public-data` routes are not supported.
 
 ## Upload And Fit A Local Dataset
 
@@ -27,12 +27,16 @@ split `public-materials` destination is not a supported route.
    current import only. A unit without a conversion definition blocks the import.
 3. Validate series: experiments appear as collapsible sections with their observations, warnings, and
    errors. Datasets with blocking errors cannot be saved.
-4. Open a dataset to inspect its overview, experiments, data preview, and isotherm plot. Edit, rename,
-   and delete are available from the list and the dataset page; returning to the list keeps its page and
-   page size.
-5. Open `fitting`.
-6. Select the dataset, model set, optimizer, and iterations.
-7. Start fitting and monitor logs.
+4. After saving, the new dataset is highlighted in the list; Explore dataset opens it directly. Explore
+   shows the experiments in a navigator and their measurements in a worksheet table (or a plot).
+5. To correct data, choose Edit dataset: change dataset metadata, experiment name, material, species,
+   temperature and units, or individual measurement values. Save changes validates everything,
+   reports field-specific problems, and overwrites the stored values in one transaction; Cancel
+   discards the changes. Delete asks for confirmation and states how many experiments, measurements,
+   and fitting runs are removed; materials and species are kept.
+6. Open `fitting`.
+7. Select the dataset (search experiments when a dataset has many), model set, optimizer, and iterations.
+8. Start fitting and monitor logs.
 
 ## Explore And Compare Stored Data
 
@@ -52,22 +56,23 @@ split `public-materials` destination is not a supported route.
 
 ## Use NIST Data For Fitting
 
-1. Open `public-data/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use Check availability to see stored versus available records.
+1. Open `sources/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use Check availability to see stored versus available records.
 2. Set the share of the index to consider and select Fetch. Each run is bounded; fetch again to continue where the previous run stopped. Records already stored are never downloaded twice.
 3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
-4. Follow "View isotherms →" to the Adsorption Data view, then open a record to reach its material and adsorbates.
-5. Open `fitting`, select the NIST workspace dataset, and start fitting.
+4. Follow "View datasets" to the Datasets page and explore the `NIST ISODB` dataset. NIST experiments can be
+   edited like any other; fetching NIST isotherms again asks before overwriting those local edits.
+5. Open `fitting`, select the NIST ISODB dataset, and start fitting.
 
 The overview, source registry, and local record views do not need an external provider to respond.
 
 ## Retrieve Public Materials And Adsorbates
 
-1. Open `public-data/acquire`.
-2. PubChem: resolve a CID, InChIKey, or name, or select Enrich stored chemicals to add PubChem identity, synonyms, and properties to stored chemicals that lack them. From a chemical's detail, Resolve on PubChem attaches the result to that chemical instead of creating a new one.
-3. COD: search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. From a material's detail, Find COD structures opens this panel with the material preselected.
+1. Open `sources/acquire`.
+2. PubChem: resolve a CID, InChIKey, or name, or select Enrich stored chemicals to add PubChem identity, synonyms, and properties to stored species that lack them.
+3. COD: search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import.
 4. Follow the Run tracker and open the imported records from its links.
-5. Browse Materials, Chemicals, Structures, and Adsorption Data. Records link to each other (isotherm → material and adsorbates, material → structures and isotherms, chemical → isotherms), every detail has a shareable `?id=` URL, and a structure can be linked to or unlinked from a material and its CIF downloaded.
-6. Open `public-data/sources` to review provider registration and saved connection state, and use Refresh status to queue independent health checks. Local records stay available when a provider is unavailable.
+5. Review species and materials in the Datasets page side column: each opens a detail panel with identifiers, properties, linked structures, and the datasets that use it. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
+6. Open `sources/catalog` to review providers by data type and saved connection state, and use Refresh status to queue independent health checks. Local records stay available when a provider is unavailable.
 
 Scheduled NIST refresh is disabled by default. To enable it, configure `application.public_data.auto_sync_enabled`, select one or more `auto_sync_categories`, and choose the interval and fraction in the runtime configuration.
 

@@ -22,7 +22,7 @@ class TestHomepage:
         expect(page).to_have_title("ADSMOD Adsorption Modeling")
         expect(page.locator(".console-brand-name")).to_have_text("ADSMOD")
         expect(page.locator("nav[aria-label='Primary']").first).to_be_visible()
-        expect(page.locator(".custom-datasets-page")).to_be_visible()
+        expect(page.locator(".datasets-page")).to_be_visible()
         expect(page.locator("input[type='file']").first).to_be_attached()
 
 

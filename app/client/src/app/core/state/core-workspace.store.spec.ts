@@ -38,16 +38,23 @@ function experiment(datasetId: number, id: number, name = `experiment-${id}`): E
         dataset_id: datasetId,
         external_key: `external-${id}`,
         name,
+        adsorbent_id: 1,
         adsorbent: 'carbon',
         adsorbates: ['CO2'],
+        components: [{ id: id * 10, position: 1, adsorbate_id: 1, name: 'CO2', mole_fraction: null }],
         temperature_k: 298.15,
         temperature_original: 298.15,
         temperature_original_unit: 'K',
         pressure_basis: 'absolute',
+        saturation_pressure_pa: null,
+        duplicate_policy: 'reject',
         observation_count: 2,
         pressure_min: 1,
         pressure_max: 100,
         pressure_canonical_unit: 'Pa',
+        pressure_original_unit: 'Pa',
+        uptake_original_unit: 'mol/kg',
+        edited_at: null,
         fitting_eligible: true,
         ineligibility_reason: null,
     };
@@ -165,7 +172,7 @@ function setupFetchMock(
             }));
         }
 
-        const experimentMatch = url.match(/\/datasets\/(\d+)\/experiments$/);
+        const experimentMatch = url.match(/\/datasets\/(\d+)\/experiments(?:\?|$)/);
         if (experimentMatch) {
             const request = experimentResponses[Number(experimentMatch[1])];
             if (!request) {
@@ -221,14 +228,13 @@ describe('CoreWorkspaceStore', () => {
         vi.stubGlobal('fetch', fetchMock);
     });
 
-    it('keeps all datasets for fitting while exposing uploaded-only custom datasets', async () => {
+    it('keeps uploaded and public datasets in one list', async () => {
         setupFetchMock({});
 
         const store = TestBed.inject(CoreWorkspaceStore);
         await store.refreshDatasets();
 
         expect(store.datasets().map((dataset) => dataset.source)).toEqual(['uploaded', 'nist']);
-        expect(store.customDatasets().map((dataset) => dataset.name)).toEqual(['dataset-1']);
     });
 
     it('keeps the latest dataset experiments when responses resolve out of order', async () => {
@@ -240,9 +246,9 @@ describe('CoreWorkspaceStore', () => {
         const selectA = store.selectDataset(1);
         const selectB = store.selectDataset(2);
 
-        datasetB.resolve(response({ experiments: [experiment(2, 202)] }));
+        datasetB.resolve(response({ experiments: [experiment(2, 202)], total: 1 }));
         await selectB;
-        datasetA.resolve(response({ experiments: [experiment(1, 101)] }));
+        datasetA.resolve(response({ experiments: [experiment(1, 101)], total: 1 }));
         await selectA;
 
         expect(store.selectedDatasetId()).toBe(2);
@@ -258,7 +264,7 @@ describe('CoreWorkspaceStore', () => {
         const selectA = store.selectDataset(1);
         await store.selectDataset(null);
 
-        datasetA.resolve(response({ experiments: [experiment(1, 101)] }));
+        datasetA.resolve(response({ experiments: [experiment(1, 101)], total: 1 }));
         await selectA;
 
         expect(store.selectedDatasetId()).toBeNull();
@@ -276,7 +282,7 @@ describe('CoreWorkspaceStore', () => {
         const selectA = store.selectDataset(1);
         const selectB = store.selectDataset(2);
 
-        datasetB.resolve(response({ experiments: [experiment(2, 202)] }));
+        datasetB.resolve(response({ experiments: [experiment(2, 202)], total: 1 }));
         await selectB;
         datasetA.reject(new Error('dataset A failed'));
         await selectA;
@@ -296,11 +302,11 @@ describe('CoreWorkspaceStore', () => {
         const selectA = store.selectDataset(1);
         const selectB = store.selectDataset(2);
 
-        datasetB.resolve(response({ experiments: [experiment(2, 202)] }));
+        datasetB.resolve(response({ experiments: [experiment(2, 202)], total: 1 }));
         await selectB;
         expect(store.selectedExperimentId()).toBe(202);
 
-        datasetA.resolve(response({ experiments: [experiment(1, 101)] }));
+        datasetA.resolve(response({ experiments: [experiment(1, 101)], total: 1 }));
         await selectA;
         expect(store.selectedDatasetId()).toBe(2);
         expect(store.selectedExperimentId()).toBe(202);
@@ -310,7 +316,7 @@ describe('CoreWorkspaceStore', () => {
         const fittingStart = deferred<MockResponse>();
         const fittingStatus = deferred<MockResponse>();
         setupFetchMock(
-            { 2: response({ experiments: [experiment(2, 202)] }) },
+            { 2: response({ experiments: [experiment(2, 202)], total: 1 }) },
             fittingStart,
             fittingStatus,
         );

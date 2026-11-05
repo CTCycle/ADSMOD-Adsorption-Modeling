@@ -6,14 +6,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from server.domain.public_data import (
-    AdsorptionDetailResponse,
-    AdsorptionPageResponse,
     CODSearchResponse,
-    ChemicalPageResponse,
-    ChemicalRecordView,
-    MaterialDetailResponse,
-    MaterialPageResponse,
     NISTCollectionListResponse,
+    NISTEditedExperimentsResponse,
     PublicDataSyncCreateRequest,
     PublicDataSyncFailureListResponse,
     PublicDataSyncRunListResponse,
@@ -29,6 +24,7 @@ from server.services.providers import (
     ProviderRateLimitError,
     ProviderUnavailableError,
 )
+from server.repositories.nist import NISTRepository
 from server.services.container import CoreServiceContainer
 from server.services.data.public_data import PublicDataService
 from server.services.data.public_data_sync import PublicDataSyncCoordinator
@@ -42,10 +38,16 @@ class PublicDataEndpoint:
         router: APIRouter,
         service: PublicDataService,
         sync: PublicDataSyncCoordinator,
+        nist: NISTRepository,
     ) -> None:
         self.router = router
         self.service = service
         self.sync = sync
+        self.nist = nist
+
+    # -------------------------------------------------------------------------
+    def nist_edited_experiments(self) -> NISTEditedExperimentsResponse:
+        return NISTEditedExperimentsResponse(count=self.nist.edited_experiment_count())
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -178,110 +180,6 @@ class PublicDataEndpoint:
         return self.service.get_overview()
 
     # -------------------------------------------------------------------------
-    def list_adsorption(
-        self,
-        page: int = Query(1, ge=1),
-        page_size: int = Query(25, ge=1, le=100),
-        source: str | None = None,
-        material: str | None = None,
-        adsorbate: str | None = None,
-        material_id: int | None = Query(default=None, ge=1),
-        adsorbate_id: int | None = Query(default=None, ge=1),
-        temperature_min_k: float | None = Query(default=None, gt=0),
-        temperature_max_k: float | None = Query(default=None, gt=0),
-    ) -> AdsorptionPageResponse:
-        if (
-            temperature_min_k is not None
-            and temperature_max_k is not None
-            and temperature_min_k > temperature_max_k
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="temperature_min_k cannot exceed temperature_max_k.",
-            )
-        return self.service.list_adsorption(
-            page=page,
-            page_size=page_size,
-            source=source,
-            material=material,
-            adsorbate=adsorbate,
-            material_id=material_id,
-            adsorbate_id=adsorbate_id,
-            temperature_min_k=temperature_min_k,
-            temperature_max_k=temperature_max_k,
-        )
-
-    # -------------------------------------------------------------------------
-    def get_adsorption(self, isotherm_id: int) -> AdsorptionDetailResponse:
-        try:
-            return self.service.get_adsorption(isotherm_id)
-        except LookupError as exc:
-            raise self._lookup_error(exc) from exc
-
-    # -------------------------------------------------------------------------
-    def list_materials(
-        self,
-        page: int = Query(1, ge=1),
-        page_size: int = Query(25, ge=1, le=100),
-        q: str | None = Query(default=None, max_length=512),
-        formula: str | None = Query(default=None, max_length=255),
-        source: str | None = Query(default=None, max_length=64),
-        has_structure: bool | None = None,
-    ) -> MaterialPageResponse:
-        return self.service.list_materials(
-            page=page,
-            page_size=page_size,
-            query_text=q,
-            formula=formula,
-            source=source,
-            has_structure=has_structure,
-        )
-
-    # -------------------------------------------------------------------------
-    def get_material(self, adsorbent_id: int) -> MaterialDetailResponse:
-        try:
-            return self.service.get_material(adsorbent_id)
-        except LookupError as exc:
-            raise self._lookup_error(exc) from exc
-
-    # -------------------------------------------------------------------------
-    def list_chemicals(
-        self,
-        page: int = Query(1, ge=1),
-        page_size: int = Query(25, ge=1, le=100),
-        q: str | None = Query(default=None, max_length=512),
-        formula: str | None = Query(default=None, max_length=255),
-        source: str | None = Query(default=None, max_length=64),
-        molecular_weight_min: float | None = Query(default=None, ge=0),
-        molecular_weight_max: float | None = Query(default=None, ge=0),
-    ) -> ChemicalPageResponse:
-        if (
-            molecular_weight_min is not None
-            and molecular_weight_max is not None
-            and molecular_weight_min > molecular_weight_max
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="molecular_weight_min cannot exceed molecular_weight_max.",
-            )
-        return self.service.list_chemicals(
-            page=page,
-            page_size=page_size,
-            query_text=q,
-            formula=formula,
-            source=source,
-            molecular_weight_min=molecular_weight_min,
-            molecular_weight_max=molecular_weight_max,
-        )
-
-    # -------------------------------------------------------------------------
-    def get_chemical(self, adsorbate_id: int) -> ChemicalRecordView:
-        try:
-            return self.service.get_chemical(adsorbate_id)
-        except LookupError as exc:
-            raise self._lookup_error(exc) from exc
-
-    # -------------------------------------------------------------------------
     async def search_cod(
         self,
         q: str | None = Query(default=None, max_length=512),
@@ -377,6 +275,12 @@ class PublicDataEndpoint:
             status_code=status.HTTP_202_ACCEPTED,
         )
         self.router.add_api_route(
+            "/sources/nist/edited-experiments",
+            self.nist_edited_experiments,
+            methods=["GET"],
+            response_model=NISTEditedExperimentsResponse,
+        )
+        self.router.add_api_route(
             "/sources/nist/collections",
             self.list_nist_collections,
             methods=["GET"],
@@ -421,42 +325,6 @@ class PublicDataEndpoint:
             response_model=PublicDataSyncFailureListResponse,
         )
         self.router.add_api_route(
-            "/adsorption",
-            self.list_adsorption,
-            methods=["GET"],
-            response_model=AdsorptionPageResponse,
-        )
-        self.router.add_api_route(
-            "/adsorption/{isotherm_id}",
-            self.get_adsorption,
-            methods=["GET"],
-            response_model=AdsorptionDetailResponse,
-        )
-        self.router.add_api_route(
-            "/materials",
-            self.list_materials,
-            methods=["GET"],
-            response_model=MaterialPageResponse,
-        )
-        self.router.add_api_route(
-            "/materials/{adsorbent_id}",
-            self.get_material,
-            methods=["GET"],
-            response_model=MaterialDetailResponse,
-        )
-        self.router.add_api_route(
-            "/chemicals",
-            self.list_chemicals,
-            methods=["GET"],
-            response_model=ChemicalPageResponse,
-        )
-        self.router.add_api_route(
-            "/chemicals/{adsorbate_id}",
-            self.get_chemical,
-            methods=["GET"],
-            response_model=ChemicalRecordView,
-        )
-        self.router.add_api_route(
             "/structures/search",
             self.search_cod,
             methods=["GET"],
@@ -494,6 +362,7 @@ def create_public_data_router(container: CoreServiceContainer) -> APIRouter:
         router=router,
         service=container.public_data_service,
         sync=container.public_data_sync,
+        nist=container.nist_repository,
     ).add_routes()
     return router
 

@@ -5,6 +5,7 @@ import { Routes } from '@angular/router';
 import { machineLearningEntryGuard, machineLearningGuard } from './core/guards/machine-learning.guard';
 import { CoreShellComponent } from './layout/core-shell.component';
 import { settingsAutosaveGuard } from './features/settings/settings-autosave.guard';
+import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
 
 export const routes: Routes = [
     {
@@ -12,10 +13,10 @@ export const routes: Routes = [
         component: CoreShellComponent,
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'datasets' },
-            { path: 'datasets', loadComponent: () => import('./features/datasets/custom-datasets-page.component').then((m) => m.CustomDatasetsPageComponent) },
-            { path: 'datasets/:id', loadComponent: () => import('./features/datasets/dataset-details-page.component').then((m) => m.DatasetDetailsPageComponent) },
-            { path: 'public-data', pathMatch: 'full', redirectTo: 'public-data/overview' },
-            { path: 'public-data/:view', loadComponent: () => import('./features/public-data/public-data-workspace.component').then((m) => m.PublicDataWorkspaceComponent) },
+            { path: 'datasets', loadComponent: () => import('./features/datasets/datasets-page.component').then((m) => m.DatasetsPageComponent) },
+            { path: 'datasets/:id', canDeactivate: [unsavedChangesGuard], loadComponent: () => import('./features/datasets/dataset-details-page.component').then((m) => m.DatasetDetailsPageComponent) },
+            { path: 'sources', pathMatch: 'full', redirectTo: 'sources/catalog' },
+            { path: 'sources/:view', loadComponent: () => import('./features/sources/sources-page.component').then((m) => m.SourcesPageComponent) },
             {
                 path: 'dashboards',
                 loadComponent: () => import('./features/dashboards/dashboards-page.component').then((m) => m.DashboardsPageComponent),

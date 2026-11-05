@@ -12,6 +12,7 @@ from server.services.providers import CODProvider, NISTPublicDataProvider, PubCh
 from server.services.providers.public_data import RequestBudget
 from server.repositories.analytics import AnalyticsRepository
 from server.repositories.database.manager import DatabaseManager
+from server.repositories.dataset_edits import DatasetEditRepository
 from server.repositories.datasets import DatasetRepository
 from server.repositories.units import UnitRepository
 from server.repositories.fitting import FittingRepository
@@ -19,7 +20,9 @@ from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
 from server.repositories.public_data import PublicDataRepository
 from server.services.data.analytics import AnalyticsService
+from server.services.data.dataset_editing import DatasetEditService
 from server.services.data.datasets import DatasetService
+from server.services.data.materials import MaterialService
 from server.services.data.nist_mapper import NISTCanonicalMapper
 from server.services.data.nist_service import NISTDataService
 from server.services.data.public_data import PublicDataService
@@ -49,9 +52,12 @@ class CoreServiceContainer:
         self.public_data_repository = PublicDataRepository(self.database)
         self.analytics_service = AnalyticsService(AnalyticsRepository(self.database))
         self.pubchem_request_budget = RequestBudget()
+        self.dataset_edits = DatasetEditRepository(self.database)
+        units = UnitRepository(self.database)
         self.dataset_service = DatasetService(
             repository=self.datasets,
-            units=UnitRepository(self.database),
+            units=units,
+            editor=DatasetEditService(self.dataset_edits, units),
             allowed_extensions=config.application.datasets.allowed_extensions,
             column_detection_cutoff=config.application.datasets.column_detection_cutoff,
             preview_row_limit=config.application.fitting.preview_row_limit,
@@ -61,6 +67,10 @@ class CoreServiceContainer:
             datasets=self.datasets,
             materials=self.materials,
             public_data=self.public_data_repository,
+            edits=self.dataset_edits,
+        )
+        self.material_service = MaterialService(
+            self.materials, self.public_data_repository
         )
         self.nist_service = self._build_nist_service(config)
         self.public_data_service = self._build_public_data_service(

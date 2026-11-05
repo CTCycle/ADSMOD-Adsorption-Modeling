@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 
 ## Backend package
 
@@ -54,3 +54,29 @@ ML does not open the operational database. It receives snapshots through the
 in-process `TrainingDataAccess` contract, checks the content hash, and keeps its
 training manifest and checkpoints under the configured storage root. This
 prevents ORM changes from becoming an implicit ML API.
+
+## Adsorption data hierarchy
+
+Adsorption data is stored as dataset → experiment → measurement:
+
+- `datasets` is a collection of one or more experiments (`created_at`, and
+  `updated_at`, exposed as `last_update`, which is bumped on every saved edit
+  and whenever experiments are appended).
+- `isotherms` is the experiment table: one dataset, exactly one adsorbent
+  (`adsorbent_id`, RESTRICT), one temperature, pressure basis, and optional
+  saturation pressure. `edited_at` records the last local edit; NIST
+  re-download restores edited experiments only when explicitly confirmed.
+- `isotherm_components` links an experiment to one or more adsorbates
+  (RESTRICT); single-species isotherms have one component, NIST binary
+  mixtures two.
+- `observations` holds measurements with source values and units next to the
+  canonical pressure (Pa or p/p₀) and uptake (mol/kg).
+
+`adsorbents` and `adsorbates` are reusable across datasets; deleting a dataset
+cascades to its experiments, measurements, and fitting runs but never removes
+materials or species, and a material or species cannot be deleted while an
+experiment references it. Edits overwrite stored values in one transaction
+(`DatasetEditRepository.apply`); there is no version history. Edited source
+values are re-converted with the importer's `UnitCatalog`, so canonical values
+follow the same unit rules as imports.
+

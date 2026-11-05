@@ -10,6 +10,12 @@ export function extractErrorMessage(response: Response, data: unknown): string {
         if (typeof detailValue === 'string' && detailValue) {
             return detailValue;
         }
+        if (typeof detailValue === 'object' && detailValue !== null && !Array.isArray(detailValue)) {
+            const nestedMessage = (detailValue as Record<string, unknown>)['message'];
+            if (typeof nestedMessage === 'string' && nestedMessage) {
+                return nestedMessage;
+            }
+        }
         if (Array.isArray(detailValue) && detailValue.length > 0) {
             return detailValue
                 .map((entry) => {

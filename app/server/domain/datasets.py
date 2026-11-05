@@ -175,8 +175,14 @@ class DatasetSummary(BaseModel):
     name: str
     source: Literal["uploaded", "nist"]
     created_at: str
+    last_update: str
     experiment_count: int
     observation_count: int
+    edited_experiment_count: int = 0
+    material_count: int = 0
+    species_count: int = 0
+    material_names: list[str] = Field(default_factory=list)
+    species_names: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     description: str = ""
 
@@ -234,41 +240,161 @@ class DatasetImportInspectionResponse(BaseModel):
     warnings: list[ImportIssue] = Field(default_factory=list)
 
 ###############################################################################
+class ExperimentComponent(BaseModel):
+    id: int
+    position: int
+    adsorbate_id: int
+    name: str
+    mole_fraction: float | None = None
+
+
+###############################################################################
 class ExperimentSummary(BaseModel):
     id: int
     dataset_id: int
     external_key: str
     name: str
+    adsorbent_id: int
     adsorbent: str
     adsorbates: list[str]
+    components: list[ExperimentComponent] = Field(default_factory=list)
     temperature_k: float
     temperature_original: float | None = None
     temperature_original_unit: str | None = None
     pressure_basis: PressureBasis
+    saturation_pressure_pa: float | None = None
+    duplicate_policy: Literal["reject", "keep", "average"] = "reject"
     observation_count: int
     pressure_min: float | None = None
     pressure_max: float | None = None
     pressure_canonical_unit: str | None = None
+    pressure_original_unit: str | None = None
+    uptake_original_unit: str | None = None
+    edited_at: str | None = None
     fitting_eligible: bool
     ineligibility_reason: str | None = None
 
+
 ###############################################################################
-class ExperimentListResponse(BaseModel):
+class ExperimentPage(BaseModel):
     status: Literal["success"] = "success"
+    dataset_id: int
+    offset: int
+    limit: int
+    total: int
     experiments: list[ExperimentSummary] = Field(default_factory=list)
 
-###############################################################################
-class DatasetMetadata(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    tags: list[str] = Field(default_factory=list, max_length=32)
-    description: str = Field(default="", max_length=2000)
 
 ###############################################################################
-class DatasetRenameRequest(BaseModel):
+class ExperimentProvenance(BaseModel):
+    source: str
+    external_id: str
+    source_url: str | None = None
+    doi: list[str] = Field(default_factory=list)
+
+
+###############################################################################
+class ExperimentDetailResponse(BaseModel):
+    status: Literal["success"] = "success"
+    dataset_name: str
+    experiment: ExperimentSummary
+    conditions: dict[str, Any] = Field(default_factory=dict)
+    provenance: list[ExperimentProvenance] = Field(default_factory=list)
+
+
+###############################################################################
+class DatasetImportSummary(BaseModel):
+    original_filename: str
+    source_structure: Literal["atomic", "aggregated", "mixed"]
+    parser_version: str
+    created_at: str
+
+
+###############################################################################
+class DatasetDetailResponse(BaseModel):
+    status: Literal["success"] = "success"
+    dataset: DatasetSummary
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    latest_import: DatasetImportSummary | None = None
+
+
+###############################################################################
+class DatasetDeleteImpact(BaseModel):
+    status: Literal["success"] = "success"
+    dataset_id: int
+    experiment_count: int
+    observation_count: int
+    fitting_run_count: int
+
+
+###############################################################################
+class ComponentUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    new_name: str = Field(min_length=1, max_length=255)
+    id: int = Field(ge=1)
+    adsorbate_id: int | None = Field(default=None, ge=1)
+    mole_fraction: float | None = None
+
+
+###############################################################################
+class ExperimentUpdate(BaseModel):
+    """Experiment-level changes; omitted fields stay unchanged.
+
+    Nullable fields (`saturation_pressure_pa`, component `mole_fraction`) are
+    cleared only when sent explicitly as null.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    adsorbent_id: int | None = Field(default=None, ge=1)
+    temperature_original: float | None = None
+    temperature_original_unit: str | None = Field(default=None, max_length=16)
+    pressure_unit: str | None = Field(default=None, max_length=32)
+    uptake_unit: str | None = Field(default=None, max_length=32)
+    pressure_basis: PressureBasis | None = None
+    saturation_pressure_pa: float | None = None
+    components: list[ComponentUpdate] = Field(default_factory=list)
+
+
+###############################################################################
+class ObservationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int = Field(ge=1)
+    pressure_original: float | None = None
+    uptake_original: float | None = None
+    uptake_stddev_mol_kg: float | None = None
+
+
+###############################################################################
+class DatasetUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    tags: list[str] | None = Field(default=None, max_length=32)
+    experiments: list[ExperimentUpdate] = Field(default_factory=list, max_length=10000)
+    observations: list[ObservationUpdate] = Field(
+        default_factory=list, max_length=100000
+    )
+
+
+###############################################################################
+class DatasetEditIssue(BaseModel):
+    scope: Literal["dataset", "experiment", "observation"]
+    field: str
+    message: str
+    experiment_id: int | None = None
+    observation_id: int | None = None
+
+
+###############################################################################
+class DatasetEditErrorDetail(BaseModel):
+    message: str
+    issues: list[DatasetEditIssue]
+
 
 ###############################################################################
 class DatasetMutationResponse(BaseModel):
@@ -278,6 +404,7 @@ class DatasetMutationResponse(BaseModel):
 ###############################################################################
 class ObservationRow(BaseModel):
     id: int
+    component_id: int
     sequence_index: int
     source_row: int | None = None
     pressure_original: float

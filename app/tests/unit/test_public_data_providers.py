@@ -49,6 +49,7 @@ from server.services.providers.public_data import (
     PublicDataProvider,
     RequestBudget,
 )
+from server.services.data.materials import MaterialService
 from server.services.data.public_data import PublicDataService
 
 
@@ -351,6 +352,14 @@ def _manager() -> DatabaseManager:
 
 
 ###############################################################################
+def _seeded_dataset_id(manager: DatabaseManager) -> int:
+    with manager.session_factory() as session:
+        dataset_id = session.scalar(select(Isotherm.dataset_id).limit(1))
+    assert dataset_id is not None
+    return int(dataset_id)
+
+
+###############################################################################
 def _count_selects(manager: DatabaseManager, operation) -> int:  # type: ignore[no-untyped-def]
     statements: list[str] = []
 
@@ -392,6 +401,7 @@ def test_structure_link_endpoint_maps_conflicts_to_http_409() -> None:
         router=APIRouter(),
         service=ConflictingService(),  # type: ignore[arg-type]
         sync=object(),  # type: ignore[arg-type]
+        nist=object(),  # type: ignore[arg-type]
     )
 
     with pytest.raises(HTTPException) as error:
@@ -1107,24 +1117,24 @@ def test_navigation_filters_by_ids_and_structure_links_are_explicit() -> None:
         structure = repository.get_structure(structure_id)
         material_id = int(structure["material_id"])
 
-        rows, total = repository.list_adsorption(
-            page=1, page_size=25, material_id=material_id
-        )
+        datasets = DatasetRepository(manager)
+        materials = MaterialRepository(manager)
+        dataset_id = _seeded_dataset_id(manager)
+        rows, total = datasets.experiments(dataset_id, adsorbent_id=material_id)
         assert total == 1
-        assert rows[0]["material_id"] == material_id
-        adsorbate_id = rows[0]["adsorbates"][0]["id"]
-        _, by_adsorbate = repository.list_adsorption(
-            page=1, page_size=25, adsorbate_id=adsorbate_id
-        )
+        assert rows[0]["adsorbent_id"] == material_id
+        adsorbate_id = rows[0]["components"][0]["adsorbate_id"]
+        _, by_adsorbate = datasets.experiments(dataset_id, adsorbate_id=adsorbate_id)
         assert by_adsorbate == 1
 
-        material = repository.get_material(material_id)
-        assert material["isotherm_count"] == 1
-        assert [item["id"] for item in material["structures"]] == [structure_id]
+        material = MaterialService(materials, repository).get_material(material_id)
+        assert material.isotherm_count == 1
+        assert [item.id for item in material.structures] == [structure_id]
+        assert [usage.id for usage in material.datasets] == [dataset_id]
 
         other_material = next(
             item["id"]
-            for item in repository.list_materials(page=1, page_size=25)[0]
+            for item in materials.list_materials(page=1, page_size=25)[0]
             if item["id"] != material_id
         )
         with pytest.raises(ValueError, match="unlink it first"):
@@ -1274,24 +1284,18 @@ def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
         repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         _seed_listing_rows(repository)
 
+        materials = MaterialRepository(manager)
         assert (
             _count_selects(
                 manager,
-                lambda: repository.list_adsorption(page=1, page_size=2),
-            )
-            <= 6
-        )
-        assert (
-            _count_selects(
-                manager,
-                lambda: repository.list_materials(page=1, page_size=2),
+                lambda: materials.list_materials(page=1, page_size=2),
             )
             <= 5
         )
         assert (
             _count_selects(
                 manager,
-                lambda: repository.list_chemicals(page=1, page_size=2),
+                lambda: materials.list_species(page=1, page_size=2),
             )
             <= 6
         )

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import (
     APIRouter,
     File,
@@ -19,17 +21,21 @@ from server.domain.datasets import (
     CustomUnitResponse,
     DatasetImportResponse,
     DatasetImportInspectionResponse,
+    DatasetDeleteImpact,
+    DatasetDetailResponse,
+    DatasetEditErrorDetail,
     DatasetListResponse,
-    DatasetMetadata,
     DatasetMutationResponse,
-    DatasetRenameRequest,
-    ExperimentListResponse,
+    DatasetUpdateRequest,
+    ExperimentDetailResponse,
+    ExperimentPage,
     ImportPreviewResponse,
     ImportValidationResponse,
     ObservationPage,
     SupportedUnitsResponse,
 )
 from server.services.container import CoreServiceContainer
+from server.services.data.dataset_editing import DatasetEditValidationError
 from server.services.data.datasets import DatasetService
 from server.common.constants import DATASETS_ROUTER_PREFIX, MAX_UPLOAD_SIZE_BYTES
 
@@ -142,11 +148,64 @@ class DatasetEndpoint:
             raise self.not_found(exc) from exc
 
     # -------------------------------------------------------------------------
-    def list_experiments(
-        self, dataset_id: int = Path(..., ge=1)
-    ) -> ExperimentListResponse:
+    def get_dataset(self, dataset_id: int = Path(..., ge=1)) -> DatasetDetailResponse:
         try:
-            return self.service.list_experiments(dataset_id)
+            return self.service.get_dataset(dataset_id)
+        except LookupError as exc:
+            raise self.not_found(exc) from exc
+
+    # -------------------------------------------------------------------------
+    def delete_impact(self, dataset_id: int = Path(..., ge=1)) -> DatasetDeleteImpact:
+        try:
+            return self.service.delete_impact(dataset_id)
+        except LookupError as exc:
+            raise self.not_found(exc) from exc
+
+    # -------------------------------------------------------------------------
+    def list_experiments(
+        self,
+        dataset_id: int = Path(..., ge=1),
+        offset: int = Query(0, ge=0),
+        limit: int = Query(50, ge=1, le=500),
+        q: str | None = Query(default=None, max_length=255),
+        adsorbent_id: int | None = Query(default=None, ge=1),
+        adsorbate_id: int | None = Query(default=None, ge=1),
+        temperature_min_k: float | None = Query(default=None, gt=0),
+        temperature_max_k: float | None = Query(default=None, gt=0),
+        edited_only: bool = False,
+    ) -> ExperimentPage:
+        if (
+            temperature_min_k is not None
+            and temperature_max_k is not None
+            and temperature_min_k > temperature_max_k
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="temperature_min_k cannot exceed temperature_max_k.",
+            )
+        try:
+            return self.service.list_experiments(
+                dataset_id,
+                offset=offset,
+                limit=limit,
+                query_text=q,
+                adsorbent_id=adsorbent_id,
+                adsorbate_id=adsorbate_id,
+                temperature_min_k=temperature_min_k,
+                temperature_max_k=temperature_max_k,
+                edited_only=edited_only,
+            )
+        except LookupError as exc:
+            raise self.not_found(exc) from exc
+
+    # -------------------------------------------------------------------------
+    def experiment_detail(
+        self,
+        dataset_id: int = Path(..., ge=1),
+        experiment_id: int = Path(..., ge=1),
+    ) -> ExperimentDetailResponse:
+        try:
+            return self.service.experiment_detail(dataset_id, experiment_id)
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
@@ -157,35 +216,34 @@ class DatasetEndpoint:
         isotherm_id: int = Path(..., ge=1),
         offset: int = Query(0, ge=0),
         limit: int = Query(100, ge=1, le=500),
+        order: Literal["pressure", "sequence"] = "pressure",
     ) -> ObservationPage:
         try:
-            return self.service.get_observations(dataset_id, isotherm_id, offset, limit)
+            return self.service.get_observations(
+                dataset_id, isotherm_id, offset, limit, order
+            )
         except LookupError as exc:
             raise self.not_found(exc) from exc
 
     # -------------------------------------------------------------------------
-    def rename_dataset(
+    def update_dataset(
         self,
-        request: DatasetRenameRequest,
+        request: DatasetUpdateRequest,
         dataset_id: int = Path(..., ge=1),
     ) -> DatasetMutationResponse:
         try:
-            return self.service.rename(dataset_id, request.new_name)
+            return self.service.update(dataset_id, request)
+        except DatasetEditValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=DatasetEditErrorDetail(
+                    message=str(exc), issues=exc.issues
+                ).model_dump(mode="json"),
+            ) from exc
         except LookupError as exc:
             raise self.not_found(exc) from exc
         except ValueError as exc:
             raise self.bad_request(exc) from exc
-
-    # -------------------------------------------------------------------------
-    def update_metadata(
-        self,
-        request: DatasetMetadata,
-        dataset_id: int = Path(..., ge=1),
-    ) -> DatasetMutationResponse:
-        try:
-            return self.service.update_metadata(dataset_id, request)
-        except LookupError as exc:
-            raise self.not_found(exc) from exc
 
     # -------------------------------------------------------------------------
     def delete_dataset(self, dataset_id: int = Path(..., ge=1)) -> None:
@@ -250,7 +308,13 @@ class DatasetEndpoint:
             "/{dataset_id}/experiments",
             self.list_experiments,
             methods=["GET"],
-            response_model=ExperimentListResponse,
+            response_model=ExperimentPage,
+        )
+        self.router.add_api_route(
+            "/{dataset_id}/experiments/{experiment_id}",
+            self.experiment_detail,
+            methods=["GET"],
+            response_model=ExperimentDetailResponse,
         )
         self.router.add_api_route(
             "/{dataset_id}/experiments/{isotherm_id}/observations",
@@ -259,16 +323,23 @@ class DatasetEndpoint:
             response_model=ObservationPage,
         )
         self.router.add_api_route(
-            "/{dataset_id}/rename",
-            self.rename_dataset,
-            methods=["PATCH"],
-            response_model=DatasetMutationResponse,
+            "/{dataset_id}/delete-impact",
+            self.delete_impact,
+            methods=["GET"],
+            response_model=DatasetDeleteImpact,
         )
         self.router.add_api_route(
-            "/{dataset_id}/metadata",
-            self.update_metadata,
+            "/{dataset_id}",
+            self.get_dataset,
+            methods=["GET"],
+            response_model=DatasetDetailResponse,
+        )
+        self.router.add_api_route(
+            "/{dataset_id}",
+            self.update_dataset,
             methods=["PATCH"],
             response_model=DatasetMutationResponse,
+            responses={422: {"model": DatasetEditErrorDetail}},
         )
         self.router.add_api_route(
             "/{dataset_id}",

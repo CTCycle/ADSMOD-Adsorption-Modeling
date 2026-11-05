@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import String, cast, delete, func, literal, or_, select, union, update
+from sqlalchemy import String, cast, delete, func, literal, or_, select, update
 from sqlalchemy.orm import Session
 
 from server.repositories.database.manager import DatabaseManager
@@ -16,10 +16,7 @@ from server.repositories.datasets import stable_material_key
 from server.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
-    Dataset,
     Isotherm,
-    IsothermComponent,
-    Observation,
 )
 from server.repositories.schemas.public_data import (
     AdsorbateSourceRecord,
@@ -36,6 +33,12 @@ from server.repositories.schemas.public_data import (
     Structure,
     StructureAtom,
     StructureSourceRecord,
+)
+from server.repositories.provenance import (
+    provenance_entries,
+    public_adsorbate_ids,
+    public_adsorbent_ids,
+    references_for_records,
 )
 from server.repositories.schemas.types import normalize_identity
 
@@ -165,11 +168,11 @@ class PublicDataRepository:
                     .scalar_subquery()
                     .label("adsorption_records"),
                     select(func.count())
-                    .select_from(self._public_adsorbent_ids().subquery())
+                    .select_from(public_adsorbent_ids().subquery())
                     .scalar_subquery()
                     .label("materials"),
                     select(func.count())
-                    .select_from(self._public_adsorbate_ids().subquery())
+                    .select_from(public_adsorbate_ids().subquery())
                     .scalar_subquery()
                     .label("chemicals"),
                     select(func.count(func.distinct(StructureSourceRecord.structure_id)))
@@ -201,49 +204,6 @@ class PublicDataRepository:
                 "failed_sync_runs": int(row.failed_sync_runs or 0),
                 "latest_successful_sync_at": row.latest_successful_sync_at,
             }
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _public_adsorbate_ids(source: str | None = None) -> Any:
-        """Chemicals with a provider record, or used by a provider-backed isotherm."""
-        linked = (
-            select(AdsorbateSourceRecord.adsorbate_id.label("entity_id"))
-            .join(SourceRecord, SourceRecord.id == AdsorbateSourceRecord.source_record_id)
-            .join(DataSource, DataSource.id == SourceRecord.source_id)
-        )
-        measured = (
-            select(IsothermComponent.adsorbate_id.label("entity_id"))
-            .join(
-                IsothermSourceRecord,
-                IsothermSourceRecord.isotherm_id == IsothermComponent.isotherm_id,
-            )
-            .join(SourceRecord, SourceRecord.id == IsothermSourceRecord.source_record_id)
-            .join(DataSource, DataSource.id == SourceRecord.source_id)
-        )
-        if source:
-            linked = linked.where(DataSource.key == source)
-            measured = measured.where(DataSource.key == source)
-        return union(linked, measured)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _public_adsorbent_ids(source: str | None = None) -> Any:
-        """Materials with a provider record, or measured in a provider-backed isotherm."""
-        linked = (
-            select(AdsorbentSourceRecord.adsorbent_id.label("entity_id"))
-            .join(SourceRecord, SourceRecord.id == AdsorbentSourceRecord.source_record_id)
-            .join(DataSource, DataSource.id == SourceRecord.source_id)
-        )
-        measured = (
-            select(Isotherm.adsorbent_id.label("entity_id"))
-            .join(IsothermSourceRecord, IsothermSourceRecord.isotherm_id == Isotherm.id)
-            .join(SourceRecord, SourceRecord.id == IsothermSourceRecord.source_record_id)
-            .join(DataSource, DataSource.id == SourceRecord.source_id)
-        )
-        if source:
-            linked = linked.where(DataSource.key == source)
-            measured = measured.where(DataSource.key == source)
-        return union(linked, measured)
 
     # -------------------------------------------------------------------------
     def update_source_health(
@@ -1107,594 +1067,6 @@ class PublicDataRepository:
             return structure.format, structure.content
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _provenance_entries(
-        session: Session, entity: str, entity_ids: list[int]
-    ) -> dict[int, list[tuple[int, dict[str, Any]]]]:
-        if not entity_ids:
-            return {}
-        if entity == "adsorbate":
-            link_model = AdsorbateSourceRecord
-            id_column = link_model.adsorbate_id
-        elif entity == "adsorbent":
-            link_model = AdsorbentSourceRecord
-            id_column = link_model.adsorbent_id
-        elif entity == "isotherm":
-            link_model = IsothermSourceRecord
-            id_column = link_model.isotherm_id
-        elif entity == "structure":
-            link_model = StructureSourceRecord
-            id_column = link_model.structure_id
-        else:
-            raise ValueError(f"Unsupported provenance entity: {entity}")
-
-        rows = session.execute(
-            select(
-                id_column.label("entity_id"),
-                SourceRecord.id.label("source_record_id"),
-                DataSource.key.label("source_key"),
-                SourceRecord.external_id,
-                SourceRecord.source_url,
-                SourceRecord.retrieved_at,
-                SourceRecord.source_version,
-            )
-            .join(SourceRecord, SourceRecord.source_id == DataSource.id)
-            .join(link_model, link_model.source_record_id == SourceRecord.id)
-            .where(id_column.in_(entity_ids))
-            .order_by(
-                id_column,
-                SourceRecord.retrieved_at.desc(),
-                SourceRecord.id.desc(),
-            )
-        ).all()
-        result: dict[int, list[tuple[int, dict[str, Any]]]] = {}
-        for row in rows:
-            result.setdefault(int(row.entity_id), []).append(
-                (
-                    int(row.source_record_id),
-                    {
-                        "source": row.source_key,
-                        "external_id": row.external_id,
-                        "source_url": row.source_url,
-                        "retrieved_at": row.retrieved_at,
-                        "source_version": row.source_version,
-                    },
-                )
-            )
-        return result
-
-    # -------------------------------------------------------------------------
-    @classmethod
-    def _external_identifiers(
-        cls, session: Session, entity: str, entity_id: int
-    ) -> list[dict[str, Any]]:
-        return [
-            identifier
-            for _, identifier in cls._provenance_entries(session, entity, [entity_id]).get(
-                entity_id, []
-            )
-        ]
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _references_for_records(
-        session: Session, source_record_ids: list[int]
-    ) -> dict[int, dict[str, str | None]]:
-        if not source_record_ids:
-            return {}
-        rows = session.execute(
-            select(
-                SourceRecordReference.source_record_id,
-                Reference.doi,
-                Reference.title,
-            )
-            .join(
-                Reference,
-                SourceRecordReference.reference_id == Reference.id,
-            )
-            .where(SourceRecordReference.source_record_id.in_(source_record_ids))
-            .order_by(SourceRecordReference.source_record_id, Reference.id)
-        ).all()
-        result: dict[int, dict[str, str | None]] = {}
-        for row in rows:
-            result.setdefault(
-                int(row.source_record_id), {"doi": row.doi, "title": row.title}
-            )
-        return result
-
-    # -------------------------------------------------------------------------
-    def list_adsorption(
-        self,
-        *,
-        page: int,
-        page_size: int,
-        source: str | None = None,
-        material: str | None = None,
-        adsorbate: str | None = None,
-        material_id: int | None = None,
-        adsorbate_id: int | None = None,
-        temperature_min_k: float | None = None,
-        temperature_max_k: float | None = None,
-    ) -> tuple[list[dict[str, Any]], int]:
-        with self.database.session_factory() as session:
-            query = (
-                select(
-                    Isotherm.id,
-                    Isotherm.external_key,
-                    Isotherm.temperature_k,
-                    Isotherm.pressure_basis,
-                    Dataset.source.label("dataset_source"),
-                    Adsorbent.id.label("material_id"),
-                    Adsorbent.name.label("material"),
-                )
-                .join(Dataset, Dataset.id == Isotherm.dataset_id)
-                .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
-            )
-            if material_id is not None:
-                query = query.where(Isotherm.adsorbent_id == material_id)
-            if adsorbate_id is not None:
-                query = query.where(
-                    Isotherm.id.in_(
-                        select(IsothermComponent.isotherm_id).where(
-                            IsothermComponent.adsorbate_id == adsorbate_id
-                        )
-                    )
-                )
-            if source:
-                source_ids = (
-                    select(IsothermSourceRecord.isotherm_id)
-                    .join(
-                        SourceRecord,
-                        SourceRecord.id == IsothermSourceRecord.source_record_id,
-                    )
-                    .join(DataSource, DataSource.id == SourceRecord.source_id)
-                    .where(DataSource.key == source)
-                )
-                query = query.where(Isotherm.id.in_(source_ids))
-            if material:
-                query = query.where(Adsorbent.name.ilike(f"%{material.strip()}%"))
-            if adsorbate:
-                matching_adsorbates = (
-                    select(IsothermComponent.isotherm_id)
-                    .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
-                    .where(Adsorbate.name.ilike(f"%{adsorbate.strip()}%"))
-                )
-                query = query.where(Isotherm.id.in_(matching_adsorbates))
-            if temperature_min_k is not None:
-                query = query.where(Isotherm.temperature_k >= temperature_min_k)
-            if temperature_max_k is not None:
-                query = query.where(Isotherm.temperature_k <= temperature_max_k)
-
-            total = int(
-                session.scalar(select(func.count()).select_from(query.subquery())) or 0
-            )
-            rows = session.execute(
-                query.order_by(Isotherm.id.desc())
-                .offset((page - 1) * page_size)
-                .limit(page_size)
-            ).all()
-            return self._adsorption_summaries(session, rows), total
-
-    # -------------------------------------------------------------------------
-    def _adsorption_summaries(
-        self, session: Session, rows: list[Any]
-    ) -> list[dict[str, Any]]:
-        if not rows:
-            return []
-        isotherm_ids = [int(row.id) for row in rows]
-        adsorbates_by_isotherm: dict[int, list[dict[str, Any]]] = {}
-        for isotherm_id, adsorbate_id, adsorbate_name in session.execute(
-            select(IsothermComponent.isotherm_id, Adsorbate.id, Adsorbate.name)
-            .join(Adsorbate, IsothermComponent.adsorbate_id == Adsorbate.id)
-            .where(IsothermComponent.isotherm_id.in_(isotherm_ids))
-            .order_by(IsothermComponent.isotherm_id, IsothermComponent.position)
-        ):
-            adsorbates_by_isotherm.setdefault(int(isotherm_id), []).append(
-                {"id": int(adsorbate_id), "name": str(adsorbate_name)}
-            )
-
-        stats_by_isotherm = {
-            int(row.isotherm_id): row
-            for row in session.execute(
-                select(
-                    Observation.isotherm_id.label("isotherm_id"),
-                    func.min(Observation.pressure_canonical).label("pressure_min"),
-                    func.max(Observation.pressure_canonical).label("pressure_max"),
-                    func.min(Observation.uptake_mol_kg).label("uptake_min"),
-                    func.max(Observation.uptake_mol_kg).label("uptake_max"),
-                    func.count(Observation.id).label("point_count"),
-                )
-                .where(Observation.isotherm_id.in_(isotherm_ids))
-                .group_by(Observation.isotherm_id)
-            )
-        }
-        provenance_by_isotherm = self._provenance_entries(
-            session, "isotherm", isotherm_ids
-        )
-        primary_record_ids = [
-            entries[0][0]
-            for entries in provenance_by_isotherm.values()
-            if entries
-        ]
-        references = self._references_for_records(session, primary_record_ids)
-
-        items: list[dict[str, Any]] = []
-        for row in rows:
-            isotherm_id = int(row.id)
-            entries = provenance_by_isotherm.get(isotherm_id, [])
-            source_record_id, primary = entries[0] if entries else (None, None)
-            stats = stats_by_isotherm.get(isotherm_id)
-            reference = references.get(source_record_id, {}) if source_record_id else {}
-            items.append(
-                {
-                    "id": isotherm_id,
-                    "external_id": primary["external_id"] if primary else row.external_key,
-                    "source": primary["source"] if primary else row.dataset_source,
-                    "source_url": primary["source_url"] if primary else None,
-                    "material_id": int(row.material_id),
-                    "material": row.material,
-                    "adsorbates": adsorbates_by_isotherm.get(isotherm_id, []),
-                    "temperature_k": row.temperature_k,
-                    "pressure_min": stats.pressure_min if stats else None,
-                    "pressure_max": stats.pressure_max if stats else None,
-                    # Relative-basis pressures are canonical p/p0, not Pa.
-                    "pressure_unit": "1" if row.pressure_basis == "relative" else "Pa",
-                    "uptake_min_mol_kg": stats.uptake_min if stats else None,
-                    "uptake_max_mol_kg": stats.uptake_max if stats else None,
-                    "point_count": int(stats.point_count if stats else 0),
-                    "doi": reference.get("doi"),
-                    "reference_title": reference.get("title"),
-                    "retrieved_at": primary["retrieved_at"] if primary else None,
-                }
-            )
-        return items
-
-    # -------------------------------------------------------------------------
-    def _adsorption_summary(self, session: Session, row: Any) -> dict[str, Any]:
-        return self._adsorption_summaries(session, [row])[0]
-
-    # -------------------------------------------------------------------------
-    def get_adsorption(self, isotherm_id: int) -> dict[str, Any]:
-        with self.database.session_factory() as session:
-            row = session.execute(
-                select(
-                    Isotherm.id,
-                    Isotherm.external_key,
-                    Isotherm.temperature_k,
-                    Isotherm.pressure_basis,
-                    Isotherm.conditions,
-                    Isotherm.provenance,
-                    Dataset.source.label("dataset_source"),
-                    Adsorbent.id.label("material_id"),
-                    Adsorbent.name.label("material"),
-                )
-                .join(Dataset, Dataset.id == Isotherm.dataset_id)
-                .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
-                .where(Isotherm.id == isotherm_id)
-            ).first()
-            if row is None:
-                raise LookupError(f"Adsorption record {isotherm_id} was not found.")
-            summary = self._adsorption_summary(session, row)
-            measurements = session.execute(
-                select(
-                    Observation.sequence_index,
-                    Adsorbate.name,
-                    Observation.pressure_original,
-                    Observation.pressure_original_unit,
-                    Observation.pressure_canonical,
-                    Observation.uptake_original,
-                    Observation.uptake_original_unit,
-                    Observation.uptake_mol_kg,
-                )
-                .join(
-                    IsothermComponent,
-                    IsothermComponent.id == Observation.component_id,
-                )
-                .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
-                .where(Observation.isotherm_id == isotherm_id)
-                .order_by(Observation.sequence_index, IsothermComponent.position)
-            ).all()
-            summary.update(
-                {
-                    "pressure_basis": row.pressure_basis,
-                    "conditions": dict(row.conditions),
-                    "provenance": dict(row.provenance),
-                    "measurements": [
-                        {
-                            "sequence_index": item[0],
-                            "adsorbate": item[1],
-                            "pressure_original": item[2],
-                            "pressure_original_unit": item[3],
-                            "pressure_pa": item[4],
-                            "uptake_original": item[5],
-                            "uptake_original_unit": item[6],
-                            "uptake_mol_kg": item[7],
-                        }
-                        for item in measurements
-                    ],
-                    "external_identifiers": self._external_identifiers(
-                        session, "isotherm", isotherm_id
-                    ),
-                }
-            )
-            return summary
-
-    # -------------------------------------------------------------------------
-    def list_materials(
-        self,
-        *,
-        page: int,
-        page_size: int,
-        query_text: str | None = None,
-        formula: str | None = None,
-        source: str | None = None,
-        has_structure: bool | None = None,
-    ) -> tuple[list[dict[str, Any]], int]:
-        with self.database.session_factory() as session:
-            query = select(Adsorbent)
-            if query_text:
-                query = query.where(Adsorbent.name.ilike(f"%{query_text.strip()}%"))
-            if formula:
-                query = query.where(Adsorbent.formula.ilike(f"%{formula.strip()}%"))
-            if source:
-                ids = self._public_adsorbent_ids(source).subquery()
-                query = query.where(Adsorbent.id.in_(select(ids.c.entity_id)))
-            if has_structure is not None:
-                structured = select(Structure.adsorbent_id).where(
-                    Structure.adsorbent_id.is_not(None)
-                )
-                query = query.where(
-                    Adsorbent.id.in_(structured)
-                    if has_structure
-                    else Adsorbent.id.not_in(structured)
-                )
-            total = int(
-                session.scalar(select(func.count()).select_from(query.subquery())) or 0
-            )
-            rows = session.scalars(
-                query.order_by(Adsorbent.name)
-                .offset((page - 1) * page_size)
-                .limit(page_size)
-            ).all()
-            return self._material_views(session, rows), total
-
-    # -------------------------------------------------------------------------
-    def _material_views(
-        self, session: Session, items: list[Adsorbent]
-    ) -> list[dict[str, Any]]:
-        row_ids = [item.id for item in items]
-        structure_counts = self._counts_by(
-            session, Structure.adsorbent_id, Structure.id, row_ids
-        )
-        isotherm_counts = self._counts_by(
-            session, Isotherm.adsorbent_id, Isotherm.id, row_ids
-        )
-        provenance = self._provenance_entries(session, "adsorbent", row_ids)
-        return [
-            {
-                "id": item.id,
-                "name": item.name,
-                "formula": item.formula,
-                "molar_mass_g_mol": item.molar_mass_g_mol,
-                "structure_count": structure_counts.get(item.id, 0),
-                "isotherm_count": isotherm_counts.get(item.id, 0),
-                "external_identifiers": [
-                    identifier for _, identifier in provenance.get(item.id, [])
-                ],
-            }
-            for item in items
-        ]
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _counts_by(
-        session: Session, group_column: Any, count_column: Any, ids: list[int]
-    ) -> dict[int, int]:
-        if not ids:
-            return {}
-        return {
-            int(group_id): int(count)
-            for group_id, count in session.execute(
-                select(group_column, func.count(count_column))
-                .where(group_column.in_(ids))
-                .group_by(group_column)
-            )
-            if group_id is not None
-        }
-
-    # -------------------------------------------------------------------------
-    def get_material(self, adsorbent_id: int) -> dict[str, Any]:
-        with self.database.session_factory() as session:
-            item = session.get(Adsorbent, adsorbent_id)
-            if item is None:
-                raise LookupError(f"Material {adsorbent_id} was not found.")
-            view = self._material_views(session, [item])[0]
-            structures = session.scalars(
-                select(Structure)
-                .where(Structure.adsorbent_id == adsorbent_id)
-                .order_by(Structure.updated_at.desc())
-            ).all()
-            view["structures"] = self._structure_views(
-                session, list(structures), include_atoms=False
-            )
-            return view
-
-    # -------------------------------------------------------------------------
-    def list_chemicals(
-        self,
-        *,
-        page: int,
-        page_size: int,
-        query_text: str | None = None,
-        formula: str | None = None,
-        source: str | None = None,
-        molecular_weight_min: float | None = None,
-        molecular_weight_max: float | None = None,
-    ) -> tuple[list[dict[str, Any]], int]:
-        with self.database.session_factory() as session:
-            query = select(Adsorbate)
-            if query_text:
-                normalized = normalize_identity(query_text)
-                synonym_ids = select(AdsorbateSynonym.adsorbate_id).where(
-                    AdsorbateSynonym.normalized_synonym.ilike(f"%{normalized}%")
-                )
-                query = query.where(
-                    or_(
-                        Adsorbate.name.ilike(f"%{query_text.strip()}%"),
-                        Adsorbate.id.in_(synonym_ids),
-                    )
-                )
-            if formula:
-                query = query.where(Adsorbate.formula.ilike(f"%{formula.strip()}%"))
-            if molecular_weight_min is not None:
-                query = query.where(Adsorbate.molar_mass_g_mol >= molecular_weight_min)
-            if molecular_weight_max is not None:
-                query = query.where(Adsorbate.molar_mass_g_mol <= molecular_weight_max)
-            if source:
-                ids = self._public_adsorbate_ids(source).subquery()
-                query = query.where(Adsorbate.id.in_(select(ids.c.entity_id)))
-            total = int(
-                session.scalar(select(func.count()).select_from(query.subquery())) or 0
-            )
-            rows = session.scalars(
-                query.order_by(Adsorbate.name)
-                .offset((page - 1) * page_size)
-                .limit(page_size)
-            ).all()
-            return self._chemical_views(session, rows), total
-
-    # -------------------------------------------------------------------------
-    def get_chemical(self, adsorbate_id: int) -> dict[str, Any]:
-        with self.database.session_factory() as session:
-            item = session.get(Adsorbate, adsorbate_id)
-            if item is None:
-                raise LookupError(f"Chemical {adsorbate_id} was not found.")
-            return self._chemical_view(session, item)
-
-    # -------------------------------------------------------------------------
-    def _chemical_views(
-        self, session: Session, items: list[Adsorbate]
-    ) -> list[dict[str, Any]]:
-        if not items:
-            return []
-        item_ids = [item.id for item in items]
-        provenance = self._provenance_entries(session, "adsorbate", item_ids)
-        properties_by_adsorbate: dict[int, list[tuple[ChemicalProperty, str]]] = {}
-        for adsorbate_id, prop, source_key in session.execute(
-            select(ChemicalProperty.adsorbate_id, ChemicalProperty, DataSource.key)
-            .join(SourceRecord, SourceRecord.id == ChemicalProperty.source_record_id)
-            .join(DataSource, DataSource.id == SourceRecord.source_id)
-            .where(ChemicalProperty.adsorbate_id.in_(item_ids))
-            .order_by(ChemicalProperty.adsorbate_id, ChemicalProperty.key, ChemicalProperty.id)
-        ):
-            properties_by_adsorbate.setdefault(int(adsorbate_id), []).append(
-                (prop, str(source_key))
-            )
-
-        ranked_synonyms = (
-            select(
-                AdsorbateSynonym.adsorbate_id.label("adsorbate_id"),
-                AdsorbateSynonym.synonym.label("synonym"),
-                func.row_number()
-                .over(
-                    partition_by=AdsorbateSynonym.adsorbate_id,
-                    order_by=AdsorbateSynonym.synonym,
-                )
-                .label("row_number"),
-            )
-            .where(AdsorbateSynonym.adsorbate_id.in_(item_ids))
-            .subquery()
-        )
-        synonyms_by_adsorbate: dict[int, list[str]] = {}
-        for adsorbate_id, synonym in session.execute(
-            select(ranked_synonyms.c.adsorbate_id, ranked_synonyms.c.synonym)
-            .where(ranked_synonyms.c.row_number <= 100)
-            .order_by(ranked_synonyms.c.adsorbate_id, ranked_synonyms.c.synonym)
-        ):
-            synonyms_by_adsorbate.setdefault(int(adsorbate_id), []).append(str(synonym))
-
-        isotherm_counts = self._counts_by(
-            session, IsothermComponent.adsorbate_id, IsothermComponent.isotherm_id, item_ids
-        )
-        return [
-            {
-                **self._chemical_payload(
-                    item,
-                    [identifier for _, identifier in provenance.get(item.id, [])],
-                    properties_by_adsorbate.get(item.id, []),
-                    synonyms_by_adsorbate.get(item.id, []),
-                ),
-                "isotherm_count": isotherm_counts.get(item.id, 0),
-            }
-            for item in items
-        ]
-
-    # -------------------------------------------------------------------------
-    def _chemical_view(self, session: Session, item: Adsorbate) -> dict[str, Any]:
-        return self._chemical_views(session, [item])[0]
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _chemical_payload(
-        item: Adsorbate,
-        identifiers: list[dict[str, Any]],
-        properties: list[tuple[ChemicalProperty, str]],
-        synonyms: list[str],
-    ) -> dict[str, Any]:
-        property_map = {prop.key: prop for prop, _ in properties}
-        pubchem = next(
-            (identifier for identifier in identifiers if identifier["source"] == "pubchem"),
-            None,
-        )
-        cid = pubchem["external_id"] if pubchem else None
-        preferred = property_map.get("preferred_name")
-        connectivity = property_map.get("connectivity_smiles")
-        has_3d = property_map.get("pubchem_3d_available") is not None
-        return {
-            "id": item.id,
-            "name": item.name,
-            "preferred_name": preferred.value_text if preferred else None,
-            "formula": item.formula,
-            "molecular_weight": item.molar_mass_g_mol,
-            "inchi": item.inchi,
-            "inchi_key": item.inchi_key,
-            "connectivity_smiles": connectivity.value_text if connectivity else None,
-            "smiles": item.smiles,
-            "pubchem_cid": cid,
-            "synonyms": synonyms,
-            "properties": [
-                {
-                    "key": prop.key,
-                    "value_number": prop.value_number,
-                    "value_text": prop.value_text,
-                    "unit": prop.unit,
-                    "source": source_key,
-                }
-                for prop, source_key in properties
-                if prop.key not in {"preferred_name", "connectivity_smiles", "pubchem_3d_available"}
-            ],
-            "external_identifiers": identifiers,
-            "structure_2d_url": (
-                f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/PNG?image_size=300x300"
-                if cid
-                else None
-            ),
-            "conformer_3d_url": (
-                f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/record/SDF?record_type=3d"
-                if cid and has_3d
-                else None
-            ),
-            "retrieved_at": max(
-                (
-                    identifier["retrieved_at"]
-                    for identifier in identifiers
-                    if identifier["retrieved_at"]
-                ),
-                default=None,
-            ),
-        }
-
-    # -------------------------------------------------------------------------
     def list_structures(
         self,
         *,
@@ -1760,7 +1132,7 @@ class PublicDataRepository:
         if not items:
             return []
         item_ids = [item.id for item in items]
-        provenance = self._provenance_entries(session, "structure", item_ids)
+        provenance = provenance_entries(session, "structure", item_ids)
         material_ids = [item.adsorbent_id for item in items if item.adsorbent_id is not None]
         material_names = {
             int(material_id): str(material_name)
@@ -1800,7 +1172,7 @@ class PublicDataRepository:
             for entries in provenance.values()
             if entries
         ]
-        references = self._references_for_records(session, primary_record_ids)
+        references = references_for_records(session, primary_record_ids)
 
         result: list[dict[str, Any]] = []
         for item in items:

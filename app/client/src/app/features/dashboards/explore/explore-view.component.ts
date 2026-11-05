@@ -34,7 +34,7 @@ import {
     pressureLabel,
     seriesLabel,
 } from '../dashboard-charts';
-import { ExploreInspectorComponent } from './explore-inspector.component';
+import { ExploreInspectorComponent, type InspectorTarget } from './explore-inspector.component';
 import type { ExploreMode, ExploreState } from './explore-state';
 import {
     chartFilter,
@@ -201,7 +201,7 @@ const SEARCH_DELAY_MS = 300;
                                         <td>{{ item.pressure_basis }}</td>
                                         <td class="truncate-cell" [title]="item.dataset"><span class="source-key">{{ item.dataset_source }}</span> {{ item.dataset }}</td>
                                         <td class="num">{{ item.point_count }}</td>
-                                        <td class="col-actions"><div class="table-actions"><button class="table-action" type="button" (click)="inspect(item.id)">Inspect</button></div></td>
+                                        <td class="col-actions"><div class="table-actions"><button class="table-action" type="button" (click)="inspect({ datasetId: item.dataset_id, experimentId: item.id })">Inspect</button></div></td>
                                     </tr>
                                 } @empty {
                                     <tr><td colspan="8" class="data-table-empty">{{ selectionLoading() ? 'Loading…' : 'No isotherms match the query. Widen the filters or import data.' }}</td></tr>
@@ -328,7 +328,7 @@ const SEARCH_DELAY_MS = 300;
                                 <tbody>
                                     @for (row of result.rows; track row.component_id) {
                                         <tr>
-                                            <td class="truncate-cell" [title]="label(row)"><button type="button" class="link-button" (click)="inspect(row.isotherm_id)"><span>{{ label(row) }}</span></button></td>
+                                            <td class="truncate-cell" [title]="label(row)"><button type="button" class="link-button" (click)="inspect({ datasetId: row.dataset_id, experimentId: row.isotherm_id })"><span>{{ label(row) }}</span></button></td>
                                             <td class="truncate-cell">{{ row.dataset }}</td>
                                             <td class="num">{{ row.value === null ? '—' : format(row.value) + ' ' + row.uptake_unit }}</td>
                                             <td>{{ row.method ?? statusLabel(row.status) }}</td>
@@ -349,7 +349,7 @@ const SEARCH_DELAY_MS = 300;
                                         <tbody>
                                             @for (item of result.series; track item.component_id) {
                                                 <tr>
-                                                    <td class="truncate-cell" [title]="label(item)"><button type="button" class="link-button" (click)="inspect(item.isotherm_id)"><span>{{ label(item) }}</span></button></td>
+                                                    <td class="truncate-cell" [title]="label(item)"><button type="button" class="link-button" (click)="inspect({ datasetId: item.dataset_id, experimentId: item.isotherm_id })"><span>{{ label(item) }}</span></button></td>
                                                     <td class="truncate-cell">{{ item.dataset }}</td>
                                                     <td class="num">{{ item.points.length }}</td>
                                                     <td class="num">{{ range(item.points, 'pressure') }}</td>
@@ -374,8 +374,8 @@ const SEARCH_DELAY_MS = 300;
                 </section>
             </div>
 
-            @if (inspectedId(); as isothermId) {
-                <adsmod-explore-inspector [isothermId]="isothermId" (closed)="inspect(null)" />
+            @if (inspected(); as target) {
+                <adsmod-explore-inspector [target]="target" (closed)="inspect(null)" />
             }
         </div>
     `,
@@ -413,7 +413,7 @@ export class ExploreViewComponent {
     protected readonly chartLoading = signal(false);
     protected readonly chartError = signal<string | null>(null);
     protected readonly showTable = signal(false);
-    protected readonly inspectedId = signal<number | null>(null);
+    protected readonly inspected = signal<InspectorTarget | null>(null);
 
     protected readonly facets = computed(() => this.selection()?.facets ?? null);
     protected readonly isRelative = computed(() => this.state().filter.pressure_basis === 'relative');
@@ -589,18 +589,18 @@ export class ExploreViewComponent {
         this.patch({ selectedIds: [...new Set([...this.state().selectedIds, ...ids])].slice(0, MAX_SELECTED) });
     }
 
-    protected inspect(id: number | null): void {
-        this.inspectedId.set(id);
+    protected inspect(target: InspectorTarget | null): void {
+        this.inspected.set(target);
     }
 
     protected chartClicked(event: ChartPointEvent): void {
         const state = this.state();
         if (state.mode === 'isotherms') {
             const item = this.series()?.series[event.seriesIndex];
-            if (item) this.inspect(item.isotherm_id);
+            if (item) this.inspect({ datasetId: item.dataset_id, experimentId: item.isotherm_id });
         } else if (state.mode === 'uptake' && this.uptake()) {
             const row = groupUptakeRows(this.uptake()!.rows).grouped[event.seriesIndex]?.[event.dataIndex];
-            if (row) this.inspect(row.isotherm_id);
+            if (row) this.inspect({ datasetId: row.dataset_id, experimentId: row.isotherm_id });
         }
     }
 

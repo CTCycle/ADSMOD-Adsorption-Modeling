@@ -4,31 +4,155 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable
 from typing import Any
 
-import pandas as pd
-from sqlalchemy import delete, func, select
-from sqlalchemy.orm import selectinload
 import numpy as np
+import pandas as pd
+from sqlalchemy import case, delete, func, or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from server.repositories.database.manager import DatabaseManager
+from server.repositories.provenance import provenance_entries, references_for_records
 from server.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
     Dataset,
     DatasetImport,
+    FittingRun,
     Isotherm,
     IsothermComponent,
     Observation,
+    utc_now,
 )
 from server.repositories.schemas.types import normalize_identity
+
+SUMMARY_NAME_LIMIT = 3
+
 
 ###############################################################################
 def stable_material_key(kind: str, name: str, external: str | None = None) -> str:
     identity = normalize_identity(external or name)
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
     return f"{kind}:{digest}"
+
+
+###############################################################################
+def resolve_adsorbent(
+    session: Session, cache: dict[str, Adsorbent], record: dict[str, Any]
+) -> Adsorbent:
+    external = record.get("external_identifier")
+    key = record.get("key") or stable_material_key("adsorbent", record["name"], external)
+    adsorbent = cache.get(key) or session.scalar(
+        select(Adsorbent).where(Adsorbent.key == key)
+    )
+    if adsorbent is None and external:
+        adsorbent = session.scalar(
+            select(Adsorbent).where(Adsorbent.external_identifier == external)
+        )
+    if adsorbent is None:
+        adsorbent = Adsorbent(
+            key=key, name=record["name"].strip(), external_identifier=external
+        )
+        session.add(adsorbent)
+        session.flush()
+    cache[key] = adsorbent
+    return adsorbent
+
+
+###############################################################################
+def resolve_adsorbate(
+    session: Session, cache: dict[str, Adsorbate], record: dict[str, Any]
+) -> Adsorbate:
+    inchi_key = record.get("inchi_key")
+    key = record.get("key") or stable_material_key("adsorbate", record["name"], inchi_key)
+    adsorbate = cache.get(key) or session.scalar(
+        select(Adsorbate).where(Adsorbate.key == key)
+    )
+    if adsorbate is None and inchi_key:
+        adsorbate = session.scalar(
+            select(Adsorbate).where(Adsorbate.inchi_key == inchi_key)
+        )
+    if adsorbate is None:
+        adsorbate = Adsorbate(
+            key=key,
+            name=record["name"].strip(),
+            inchi_key=inchi_key,
+            inchi=record.get("inchi"),
+            formula=record.get("formula"),
+            molar_mass_g_mol=record.get("molar_mass_g_mol"),
+            smiles=record.get("smiles"),
+        )
+        session.add(adsorbate)
+        session.flush()
+    elif record.get("smiles") and not adsorbate.smiles:
+        adsorbate.smiles = record["smiles"]
+    cache[key] = adsorbate
+    return adsorbate
+
+
+###############################################################################
+def write_experiment_content(
+    session: Session,
+    isotherm: Isotherm,
+    record: dict[str, Any],
+    adsorbates_by_key: dict[str, Adsorbate],
+) -> None:
+    """Insert the components and observations of one canonical experiment."""
+    component_by_name: dict[str, IsothermComponent] = {}
+    for position, adsorbate_record in enumerate(record["adsorbates"], start=1):
+        adsorbate = resolve_adsorbate(session, adsorbates_by_key, adsorbate_record)
+        component = IsothermComponent(
+            isotherm_id=isotherm.id,
+            position=position,
+            adsorbate_id=adsorbate.id,
+            mole_fraction=adsorbate_record.get("mole_fraction"),
+        )
+        session.add(component)
+        session.flush()
+        component_by_name[normalize_identity(adsorbate_record["name"])] = component
+
+    for observation in record["observations"]:
+        component = component_by_name[normalize_identity(observation["adsorbate"])]
+        session.add(
+            Observation(
+                isotherm_id=isotherm.id,
+                component_id=component.id,
+                sequence_index=observation["sequence_index"],
+                source_row=observation.get("source_row"),
+                pressure_original=observation["pressure_original"],
+                pressure_original_unit=observation["pressure_original_unit"],
+                pressure_canonical=observation["pressure_canonical"],
+                pressure_canonical_unit=observation["pressure_canonical_unit"],
+                uptake_original=observation["uptake_original"],
+                uptake_original_unit=observation["uptake_original_unit"],
+                uptake_mol_kg=observation["uptake_mol_kg"],
+                uptake_stddev_mol_kg=observation.get("uptake_stddev_mol_kg"),
+                conversion_metadata=observation.get("conversion_metadata", {}),
+                extra_metadata=observation.get("extra_metadata", {}),
+            )
+        )
+
+
+###############################################################################
+def isotherm_fields(record: dict[str, Any], adsorbent_id: int) -> dict[str, Any]:
+    return {
+        "name": record["name"],
+        "adsorbent_id": adsorbent_id,
+        "temperature_original": record["temperature_original"],
+        "temperature_original_unit": record["temperature_original_unit"],
+        "temperature_k": record["temperature_k"],
+        "pressure_basis": record["pressure_basis"],
+        "duplicate_policy": record.get("duplicate_policy", "reject"),
+        "saturation_pressure_pa": record.get("saturation_pressure_pa"),
+        "conditions": record.get("conditions", {}),
+        "provenance": record.get("provenance", {}),
+    }
+
+
+###############################################################################
+def iso_or_none(value: Any) -> str | None:
+    return value.isoformat() if value is not None else None
+
 
 ###############################################################################
 class DatasetRepository:
@@ -38,40 +162,148 @@ class DatasetRepository:
         self.database = database
 
     # -------------------------------------------------------------------------
-    def list_summaries(self) -> list[dict[str, Any]]:
+    def list_summaries(self, dataset_id: int | None = None) -> list[dict[str, Any]]:
         statement = (
             select(
                 Dataset,
                 func.count(func.distinct(Isotherm.id)).label("experiment_count"),
                 func.count(Observation.id).label("observation_count"),
+                func.count(
+                    func.distinct(
+                        case((Isotherm.edited_at.is_not(None), Isotherm.id))
+                    )
+                ).label("edited_experiment_count"),
             )
             .outerjoin(Isotherm, Isotherm.dataset_id == Dataset.id)
             .outerjoin(Observation, Observation.isotherm_id == Isotherm.id)
             .group_by(Dataset.id)
             .order_by(Dataset.created_at.desc(), Dataset.id.desc())
         )
+        if dataset_id is not None:
+            statement = statement.where(Dataset.id == dataset_id)
         with self.database.session_factory() as session:
             rows = session.execute(statement).all()
+            ids = [dataset.id for dataset, *_ in rows]
+            materials = self._ranked_names(
+                session,
+                select(
+                    Isotherm.dataset_id.label("dataset_id"),
+                    Adsorbent.name.label("name"),
+                    func.count(Isotherm.id).label("uses"),
+                )
+                .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
+                .where(Isotherm.dataset_id.in_(ids))
+                .group_by(Isotherm.dataset_id, Adsorbent.id, Adsorbent.name),
+            )
+            species = self._ranked_names(
+                session,
+                select(
+                    Isotherm.dataset_id.label("dataset_id"),
+                    Adsorbate.name.label("name"),
+                    func.count(Isotherm.id).label("uses"),
+                )
+                .join(IsothermComponent, IsothermComponent.isotherm_id == Isotherm.id)
+                .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
+                .where(Isotherm.dataset_id.in_(ids))
+                .group_by(Isotherm.dataset_id, Adsorbate.id, Adsorbate.name),
+            )
             return [
                 {
                     "id": dataset.id,
                     "name": dataset.name,
                     "source": dataset.source,
                     "created_at": dataset.created_at.isoformat(),
+                    "last_update": dataset.updated_at.isoformat(),
                     "experiment_count": int(experiment_count or 0),
                     "observation_count": int(observation_count or 0),
+                    "edited_experiment_count": int(edited_count or 0),
+                    "material_count": materials.get(dataset.id, (0, []))[0],
+                    "material_names": materials.get(dataset.id, (0, []))[1],
+                    "species_count": species.get(dataset.id, (0, []))[0],
+                    "species_names": species.get(dataset.id, (0, []))[1],
                     "tags": list(dataset.tags or []),
                     "description": dataset.description or "",
                 }
-                for dataset, experiment_count, observation_count in rows
+                for dataset, experiment_count, observation_count, edited_count in rows
             ]
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _ranked_names(
+        session: Session, grouped: Any
+    ) -> dict[int, tuple[int, list[str]]]:
+        """Return (distinct count, most used names) per dataset in one query."""
+        usage = grouped.subquery()
+        ranked = select(
+            usage.c.dataset_id,
+            usage.c.name,
+            func.row_number()
+            .over(
+                partition_by=usage.c.dataset_id,
+                order_by=(usage.c.uses.desc(), usage.c.name),
+            )
+            .label("rank"),
+            func.count().over(partition_by=usage.c.dataset_id).label("total"),
+        ).subquery()
+        result: dict[int, tuple[int, list[str]]] = {}
+        for dataset_id, name, _, total in session.execute(
+            select(ranked).where(ranked.c.rank <= SUMMARY_NAME_LIMIT).order_by(
+                ranked.c.dataset_id, ranked.c.rank
+            )
+        ):
+            count, names = result.get(int(dataset_id), (int(total), []))
+            result[int(dataset_id)] = (count, [*names, str(name)])
+        return result
+
+    # -------------------------------------------------------------------------
     def summary(self, dataset_id: int) -> dict[str, Any]:
-        for item in self.list_summaries():
-            if item["id"] == dataset_id:
-                return item
-        raise LookupError(f"Dataset {dataset_id} does not exist.")
+        rows = self.list_summaries(dataset_id)
+        if not rows:
+            raise LookupError(f"Dataset {dataset_id} does not exist.")
+        return rows[0]
+
+    # -------------------------------------------------------------------------
+    def detail(self, dataset_id: int) -> dict[str, Any]:
+        summary = self.summary(dataset_id)
+        with self.database.session_factory() as session:
+            dataset = session.get(Dataset, dataset_id)
+            if dataset is None:
+                raise LookupError(f"Dataset {dataset_id} does not exist.")
+            latest = session.scalar(
+                select(DatasetImport)
+                .where(DatasetImport.dataset_id == dataset_id)
+                .order_by(DatasetImport.created_at.desc(), DatasetImport.id.desc())
+            )
+            return {
+                "dataset": summary,
+                "provenance": dict(dataset.provenance or {}),
+                "latest_import": (
+                    {
+                        "original_filename": latest.original_filename,
+                        "source_structure": latest.source_structure,
+                        "parser_version": latest.parser_version,
+                        "created_at": latest.created_at.isoformat(),
+                    }
+                    if latest is not None
+                    else None
+                ),
+            }
+
+    # -------------------------------------------------------------------------
+    def delete_impact(self, dataset_id: int) -> dict[str, Any]:
+        summary = self.summary(dataset_id)
+        with self.database.session_factory() as session:
+            runs = session.scalar(
+                select(func.count(FittingRun.id))
+                .join(Isotherm, Isotherm.id == FittingRun.isotherm_id)
+                .where(Isotherm.dataset_id == dataset_id)
+            )
+        return {
+            "dataset_id": dataset_id,
+            "experiment_count": summary["experiment_count"],
+            "observation_count": summary["observation_count"],
+            "fitting_run_count": int(runs or 0),
+        }
 
     # -------------------------------------------------------------------------
     def import_inspection(self, dataset_id: int) -> dict[str, Any]:
@@ -128,34 +360,6 @@ class DatasetRepository:
             return pd.DataFrame([dict(row) for row in rows])
 
     # -------------------------------------------------------------------------
-    def rename(self, dataset_id: int, name: str) -> None:
-        normalized = normalize_identity(name)
-        with self.database.transaction() as session:
-            existing = session.scalar(
-                select(Dataset.id).where(
-                    Dataset.normalized_name == normalized, Dataset.id != dataset_id
-                )
-            )
-            if existing is not None:
-                raise ValueError(f"A dataset named '{name}' already exists.")
-            dataset = session.get(Dataset, dataset_id)
-            if dataset is None:
-                raise LookupError(f"Dataset {dataset_id} does not exist.")
-            dataset.name = name.strip()
-            dataset.normalized_name = normalized
-
-    # -------------------------------------------------------------------------
-    def update_metadata(
-        self, dataset_id: int, tags: Iterable[str], description: str
-    ) -> None:
-        with self.database.transaction() as session:
-            dataset = session.get(Dataset, dataset_id)
-            if dataset is None:
-                raise LookupError(f"Dataset {dataset_id} does not exist.")
-            dataset.tags = sorted({tag.strip() for tag in tags if tag.strip()})
-            dataset.description = description.strip()
-
-    # -------------------------------------------------------------------------
     def delete(self, dataset_id: int) -> None:
         with self.database.transaction() as session:
             result = session.execute(delete(Dataset).where(Dataset.id == dataset_id))
@@ -163,75 +367,208 @@ class DatasetRepository:
                 raise LookupError(f"Dataset {dataset_id} does not exist.")
 
     # -------------------------------------------------------------------------
-    def experiments(self, dataset_id: int) -> list[dict[str, Any]]:
-        statement = (
-            select(Isotherm)
-            .where(Isotherm.dataset_id == dataset_id)
-            .options(
-                selectinload(Isotherm.adsorbent),
-                selectinload(Isotherm.components).selectinload(
-                    IsothermComponent.adsorbate
-                ),
-            )
-            .order_by(Isotherm.name, Isotherm.id)
-        )
-        stats_statement = (
-            select(
-                Observation.isotherm_id,
-                func.count(Observation.id),
-                func.min(Observation.pressure_canonical),
-                func.max(Observation.pressure_canonical),
-                func.min(Observation.pressure_canonical_unit),
-            )
-            .join(Isotherm, Isotherm.id == Observation.isotherm_id)
-            .where(Isotherm.dataset_id == dataset_id)
-            .group_by(Observation.isotherm_id)
-        )
-        with self.database.session_factory() as session:
-            isotherms = list(session.scalars(statement).unique())
-            stats = {row[0]: row[1:] for row in session.execute(stats_statement)}
-            if not isotherms and session.get(Dataset, dataset_id) is None:
-                raise LookupError(f"Dataset {dataset_id} does not exist.")
-            output: list[dict[str, Any]] = []
-            for isotherm in isotherms:
-                count, pressure_min, pressure_max, pressure_unit = stats.get(
-                    isotherm.id, (0, None, None, None)
+    def experiments(
+        self,
+        dataset_id: int,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        query_text: str | None = None,
+        adsorbent_id: int | None = None,
+        adsorbate_id: int | None = None,
+        temperature_min_k: float | None = None,
+        temperature_max_k: float | None = None,
+        edited_only: bool = False,
+    ) -> tuple[list[dict[str, Any]], int]:
+        filtered = select(Isotherm.id).where(Isotherm.dataset_id == dataset_id)
+        if query_text:
+            pattern = f"%{query_text.strip()}%"
+            filtered = filtered.where(
+                or_(
+                    Isotherm.name.ilike(pattern),
+                    Isotherm.external_key.ilike(pattern),
+                    Isotherm.adsorbent_id.in_(
+                        select(Adsorbent.id).where(Adsorbent.name.ilike(pattern))
+                    ),
+                    Isotherm.id.in_(
+                        select(IsothermComponent.isotherm_id)
+                        .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
+                        .where(Adsorbate.name.ilike(pattern))
+                    ),
                 )
-                components = sorted(isotherm.components, key=lambda item: item.position)
-                component_names = [item.adsorbate.name for item in components]
-                eligible = len(components) == 1 and count >= 2
-                reason = None
-                if len(components) != 1:
-                    reason = (
-                        "The available theoretical models are single-component models."
+            )
+        if adsorbent_id is not None:
+            filtered = filtered.where(Isotherm.adsorbent_id == adsorbent_id)
+        if adsorbate_id is not None:
+            filtered = filtered.where(
+                Isotherm.id.in_(
+                    select(IsothermComponent.isotherm_id).where(
+                        IsothermComponent.adsorbate_id == adsorbate_id
                     )
-                elif count < 2:
-                    reason = "At least two observations are required."
-                output.append(
-                    {
-                        "id": isotherm.id,
-                        "dataset_id": dataset_id,
-                        "external_key": isotherm.external_key,
-                        "name": isotherm.name,
-                        "adsorbent": isotherm.adsorbent.name,
-                        "adsorbates": component_names,
-                        "temperature_k": isotherm.temperature_k,
-                        "temperature_original": isotherm.temperature_original,
-                        "temperature_original_unit": isotherm.temperature_original_unit,
-                        "pressure_basis": isotherm.pressure_basis,
-                        "observation_count": count,
-                        "pressure_min": pressure_min,
-                        "pressure_max": pressure_max,
-                        "pressure_canonical_unit": pressure_unit,
-                        "fitting_eligible": eligible,
-                        "ineligibility_reason": reason,
-                    }
                 )
-            return output
+            )
+        if temperature_min_k is not None:
+            filtered = filtered.where(Isotherm.temperature_k >= temperature_min_k)
+        if temperature_max_k is not None:
+            filtered = filtered.where(Isotherm.temperature_k <= temperature_max_k)
+        if edited_only:
+            filtered = filtered.where(Isotherm.edited_at.is_not(None))
+        with self.database.session_factory() as session:
+            if session.get(Dataset, dataset_id) is None:
+                raise LookupError(f"Dataset {dataset_id} does not exist.")
+            total = int(
+                session.scalar(select(func.count()).select_from(filtered.subquery()))
+                or 0
+            )
+            isotherms = list(
+                session.scalars(
+                    select(Isotherm)
+                    .where(Isotherm.id.in_(filtered))
+                    .options(
+                        selectinload(Isotherm.adsorbent),
+                        selectinload(Isotherm.components).selectinload(
+                            IsothermComponent.adsorbate
+                        ),
+                    )
+                    .order_by(Isotherm.name, Isotherm.id)
+                    .offset(offset)
+                    .limit(limit)
+                ).unique()
+            )
+            return self._experiment_payloads(session, isotherms), total
+
+    # -------------------------------------------------------------------------
+    def experiment(self, dataset_id: int, experiment_id: int) -> dict[str, Any]:
+        with self.database.session_factory() as session:
+            isotherm = session.scalar(
+                select(Isotherm)
+                .where(Isotherm.id == experiment_id, Isotherm.dataset_id == dataset_id)
+                .options(
+                    selectinload(Isotherm.adsorbent),
+                    selectinload(Isotherm.components).selectinload(
+                        IsothermComponent.adsorbate
+                    ),
+                )
+            )
+            if isotherm is None:
+                raise LookupError(
+                    f"Experiment {experiment_id} does not belong to dataset {dataset_id}."
+                )
+            return self._experiment_payloads(session, [isotherm])[0]
+
+    # -------------------------------------------------------------------------
+    def experiment_detail(self, dataset_id: int, experiment_id: int) -> dict[str, Any]:
+        summary = self.experiment(dataset_id, experiment_id)
+        with self.database.session_factory() as session:
+            row = session.execute(
+                select(Isotherm.conditions, Dataset.name)
+                .join(Dataset, Dataset.id == Isotherm.dataset_id)
+                .where(Isotherm.id == experiment_id)
+            ).one()
+            entries = provenance_entries(session, "isotherm", [experiment_id]).get(
+                experiment_id, []
+            )
+            references = references_for_records(
+                session, [record_id for record_id, _ in entries]
+            )
+            return {
+                "dataset_name": row.name,
+                "experiment": summary,
+                "conditions": dict(row.conditions or {}),
+                "provenance": [
+                    {
+                        "source": entry["source"],
+                        "external_id": entry["external_id"],
+                        "source_url": entry["source_url"],
+                        "doi": [
+                            doi
+                            for doi in [references.get(record_id, {}).get("doi")]
+                            if doi
+                        ],
+                    }
+                    for record_id, entry in entries
+                ],
+            }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _experiment_payloads(
+        session: Session, isotherms: list[Isotherm]
+    ) -> list[dict[str, Any]]:
+        ids = [isotherm.id for isotherm in isotherms]
+        stats = {
+            row[0]: row[1:]
+            for row in session.execute(
+                select(
+                    Observation.isotherm_id,
+                    func.count(Observation.id),
+                    func.min(Observation.pressure_canonical),
+                    func.max(Observation.pressure_canonical),
+                    func.min(Observation.pressure_canonical_unit),
+                    func.min(Observation.pressure_original_unit),
+                    func.min(Observation.uptake_original_unit),
+                )
+                .where(Observation.isotherm_id.in_(ids))
+                .group_by(Observation.isotherm_id)
+            )
+        } if ids else {}
+        output: list[dict[str, Any]] = []
+        for isotherm in isotherms:
+            count, pressure_min, pressure_max, canonical_unit, pressure_unit, uptake_unit = (
+                stats.get(isotherm.id, (0, None, None, None, None, None))
+            )
+            components = sorted(isotherm.components, key=lambda item: item.position)
+            reason = None
+            if len(components) != 1:
+                reason = "The available theoretical models are single-component models."
+            elif count < 2:
+                reason = "At least two observations are required."
+            output.append(
+                {
+                    "id": isotherm.id,
+                    "dataset_id": isotherm.dataset_id,
+                    "external_key": isotherm.external_key,
+                    "name": isotherm.name,
+                    "adsorbent_id": isotherm.adsorbent_id,
+                    "adsorbent": isotherm.adsorbent.name,
+                    "adsorbates": [item.adsorbate.name for item in components],
+                    "components": [
+                        {
+                            "id": item.id,
+                            "position": item.position,
+                            "adsorbate_id": item.adsorbate_id,
+                            "name": item.adsorbate.name,
+                            "mole_fraction": item.mole_fraction,
+                        }
+                        for item in components
+                    ],
+                    "temperature_k": isotherm.temperature_k,
+                    "temperature_original": isotherm.temperature_original,
+                    "temperature_original_unit": isotherm.temperature_original_unit,
+                    "pressure_basis": isotherm.pressure_basis,
+                    "saturation_pressure_pa": isotherm.saturation_pressure_pa,
+                    "duplicate_policy": isotherm.duplicate_policy,
+                    "observation_count": count,
+                    "pressure_min": pressure_min,
+                    "pressure_max": pressure_max,
+                    "pressure_canonical_unit": canonical_unit,
+                    "pressure_original_unit": pressure_unit,
+                    "uptake_original_unit": uptake_unit,
+                    "edited_at": iso_or_none(isotherm.edited_at),
+                    "fitting_eligible": reason is None,
+                    "ineligibility_reason": reason,
+                }
+            )
+        return output
 
     # -------------------------------------------------------------------------
     def observations(
-        self, dataset_id: int, isotherm_id: int, offset: int = 0, limit: int = 100
+        self,
+        dataset_id: int,
+        isotherm_id: int,
+        offset: int = 0,
+        limit: int = 100,
+        order: str = "pressure",
     ) -> tuple[list[dict[str, Any]], int]:
         base = (
             select(Observation)
@@ -241,20 +578,21 @@ class DatasetRepository:
                 Observation.isotherm_id == isotherm_id,
             )
         )
+        ordering = (
+            (Observation.sequence_index, Observation.component_id, Observation.id)
+            if order == "sequence"
+            else (
+                Observation.pressure_canonical,
+                Observation.sequence_index,
+                Observation.id,
+            )
+        )
         with self.database.session_factory() as session:
             total = int(
                 session.scalar(select(func.count()).select_from(base.subquery())) or 0
             )
             rows = list(
-                session.scalars(
-                    base.order_by(
-                        Observation.pressure_canonical,
-                        Observation.sequence_index,
-                        Observation.id,
-                    )
-                    .offset(offset)
-                    .limit(limit)
-                )
+                session.scalars(base.order_by(*ordering).offset(offset).limit(limit))
             )
             if not rows and session.get(Isotherm, isotherm_id) is None:
                 raise LookupError(f"Isotherm {isotherm_id} does not exist.")
@@ -262,6 +600,7 @@ class DatasetRepository:
                 [
                     {
                         "id": row.id,
+                        "component_id": row.component_id,
                         "sequence_index": row.sequence_index,
                         "source_row": row.source_row,
                         "pressure_original": row.pressure_original,
@@ -324,11 +663,9 @@ class DatasetRepository:
                 grouped: dict[float, list[Observation]] = {}
                 for item in observations:
                     grouped.setdefault(float(item.pressure_canonical), []).append(item)
-                averaged: list[dict[str, Any]] = []
+                averaged: list[tuple[float, float, float | None]] = []
                 source_ids: list[int] = []
-                for index, (pressure, group) in enumerate(
-                    sorted(grouped.items()), start=0
-                ):
+                for pressure, group in sorted(grouped.items()):
                     source_ids.extend(item.id for item in group)
                     values = [float(item.uptake_mol_kg) for item in group]
                     sigmas = [item.uptake_stddev_mol_kg for item in group]
@@ -367,60 +704,6 @@ class DatasetRepository:
             }
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _resolve_adsorbent(
-        session: Any, cache: dict[str, Adsorbent], record: dict[str, Any]
-    ) -> Adsorbent:
-        external = record.get("external_identifier")
-        key = record.get("key") or stable_material_key("adsorbent", record["name"], external)
-        adsorbent = cache.get(key) or session.scalar(
-            select(Adsorbent).where(Adsorbent.key == key)
-        )
-        if adsorbent is None and external:
-            adsorbent = session.scalar(
-                select(Adsorbent).where(Adsorbent.external_identifier == external)
-            )
-        if adsorbent is None:
-            adsorbent = Adsorbent(
-                key=key, name=record["name"].strip(), external_identifier=external
-            )
-            session.add(adsorbent)
-            session.flush()
-        cache[key] = adsorbent
-        return adsorbent
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _resolve_adsorbate(
-        session: Any, cache: dict[str, Adsorbate], record: dict[str, Any]
-    ) -> Adsorbate:
-        inchi_key = record.get("inchi_key")
-        key = record.get("key") or stable_material_key("adsorbate", record["name"], inchi_key)
-        adsorbate = cache.get(key) or session.scalar(
-            select(Adsorbate).where(Adsorbate.key == key)
-        )
-        if adsorbate is None and inchi_key:
-            adsorbate = session.scalar(
-                select(Adsorbate).where(Adsorbate.inchi_key == inchi_key)
-            )
-        if adsorbate is None:
-            adsorbate = Adsorbate(
-                key=key,
-                name=record["name"].strip(),
-                inchi_key=inchi_key,
-                inchi=record.get("inchi"),
-                formula=record.get("formula"),
-                molar_mass_g_mol=record.get("molar_mass_g_mol"),
-                smiles=record.get("smiles"),
-            )
-            session.add(adsorbate)
-            session.flush()
-        elif record.get("smiles") and not adsorbate.smiles:
-            adsorbate.smiles = record["smiles"]
-        cache[key] = adsorbate
-        return adsorbate
-
-    # -------------------------------------------------------------------------
     def persist_canonical(
         self,
         *,
@@ -457,6 +740,8 @@ class DatasetRepository:
                     raise LookupError(
                         f"Canonical {source} dataset {dataset_id} does not exist."
                     )
+                if experiments:
+                    dataset.updated_at = utc_now()
 
             if import_manifest is not None:
                 session.add(DatasetImport(dataset_id=dataset.id, **import_manifest))
@@ -464,75 +749,16 @@ class DatasetRepository:
             adsorbates_by_key: dict[str, Adsorbate] = {}
             adsorbents_by_key: dict[str, Adsorbent] = {}
             for record in experiments:
-                adsorbent = self._resolve_adsorbent(
+                adsorbent = resolve_adsorbent(
                     session, adsorbents_by_key, record["adsorbent"]
                 )
-
                 isotherm = Isotherm(
                     dataset_id=dataset.id,
                     external_key=record["external_key"],
-                    name=record["name"],
-                    adsorbent_id=adsorbent.id,
-                    temperature_original=record["temperature_original"],
-                    temperature_original_unit=record["temperature_original_unit"],
-                    temperature_k=record["temperature_k"],
-                    pressure_basis=record["pressure_basis"],
-                    duplicate_policy=record.get("duplicate_policy", "reject"),
-                    saturation_pressure_pa=record.get("saturation_pressure_pa"),
-                    conditions=record.get("conditions", {}),
-                    provenance=record.get("provenance", {}),
+                    **isotherm_fields(record, adsorbent.id),
                 )
                 session.add(isotherm)
                 session.flush()
-
-                component_by_name: dict[str, IsothermComponent] = {}
-                for position, adsorbate_record in enumerate(
-                    record["adsorbates"], start=1
-                ):
-                    adsorbate = self._resolve_adsorbate(
-                        session, adsorbates_by_key, adsorbate_record
-                    )
-                    component = IsothermComponent(
-                        isotherm_id=isotherm.id,
-                        position=position,
-                        adsorbate_id=adsorbate.id,
-                        mole_fraction=adsorbate_record.get("mole_fraction"),
-                    )
-                    session.add(component)
-                    session.flush()
-                    component_by_name[normalize_identity(adsorbate_record["name"])] = (
-                        component
-                    )
-
-                for observation in record["observations"]:
-                    component = component_by_name[
-                        normalize_identity(observation["adsorbate"])
-                    ]
-                    session.add(
-                        Observation(
-                            isotherm_id=isotherm.id,
-                            component_id=component.id,
-                            sequence_index=observation["sequence_index"],
-                            source_row=observation.get("source_row"),
-                            pressure_original=observation["pressure_original"],
-                            pressure_original_unit=observation[
-                                "pressure_original_unit"
-                            ],
-                            pressure_canonical=observation["pressure_canonical"],
-                            pressure_canonical_unit=observation[
-                                "pressure_canonical_unit"
-                            ],
-                            uptake_original=observation["uptake_original"],
-                            uptake_original_unit=observation["uptake_original_unit"],
-                            uptake_mol_kg=observation["uptake_mol_kg"],
-                            uptake_stddev_mol_kg=observation.get(
-                                "uptake_stddev_mol_kg"
-                            ),
-                            conversion_metadata=observation.get(
-                                "conversion_metadata", {}
-                            ),
-                            extra_metadata=observation.get("extra_metadata", {}),
-                        )
-                    )
+                write_experiment_content(session, isotherm, record, adsorbates_by_key)
             session.flush()
             return dataset.id

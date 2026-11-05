@@ -29,7 +29,7 @@ import { buildHistogramOption, buildRankingOption, CATEGORICAL_PALETTE, formatVa
                     <span>Import a dataset or fetch NIST isotherms; the dashboard reads them directly, without copying data.</span>
                     <div class="heading-actions">
                         <a class="button secondary" routerLink="/datasets">Open Custom Datasets</a>
-                        <a class="button secondary" routerLink="/public-data/acquire">Acquire public data</a>
+                        <a class="button secondary" routerLink="/sources/acquire">Acquire public data</a>
                     </div>
                 </section>
             } @else {

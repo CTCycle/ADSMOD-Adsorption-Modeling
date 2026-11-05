@@ -4891,20 +4891,6 @@ input.source-file-input {
 }
 .dataset-add-row p { margin: 0; font-size: 0.87rem; }
 .dataset-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1.5rem; background: rgba(3, 24, 47, 0.38); backdrop-filter: blur(4px); }
-.dataset-metadata-editor { width: min(100%, 560px); max-height: min(680px, calc(100vh - 3rem)); overflow: auto; padding: 0; border: 1px solid var(--primary-100); border-radius: 18px; background: var(--surface); box-shadow: 0 24px 70px rgba(3, 29, 51, 0.26); }
-.dataset-metadata-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.35rem 1.4rem 1.1rem; border-bottom: 1px solid var(--slate-200); }
-.dataset-metadata-header h2 { margin: 0; color: var(--console-text, #1c2a45); font-size: 1.1rem; }
-.dataset-metadata-subtitle { margin: 0.35rem 0 0; color: var(--console-text-muted, #657386); font-size: 0.8rem; }
-.dataset-metadata-footer { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.9rem 1.4rem; border-top: 1px solid var(--slate-200); background: var(--slate-50); }
-.dataset-metadata-close { width: 2rem; height: 2rem; min-height: 0; padding: 0; border-radius: 50%; font-size: 1.2rem; line-height: 1; }
-.dataset-metadata-body { display: grid; gap: 1rem; padding: 1.25rem 1.4rem 1.4rem; }
-.metadata-field { display: grid; gap: 0.35rem; }
-.metadata-field > span { color: var(--console-text, #1c2a45); font-size: 0.78rem; font-weight: 700; }
-.metadata-field small { color: var(--console-text-muted, #657386); font-size: 0.74rem; }
-.metadata-input { width: 100%; min-height: 2.75rem; padding: 0.7rem 0.8rem; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--slate-50); color: var(--console-text, #1c2a45); box-shadow: inset 0 1px 2px rgba(22, 54, 91, 0.05); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; }
-.metadata-input::placeholder { color: var(--slate-400); }
-.metadata-input:focus { border-color: var(--primary-300); outline: none; background: var(--surface); box-shadow: 0 0 0 3px rgba(50, 112, 218, 0.14); }
-.metadata-textarea { min-height: 132px; resize: vertical; line-height: 1.5; }
 .nist-fetch-card, .nist-log-card { min-width: 0; overflow: hidden; }
 .nist-log-card { width: 100%; min-height: 0; display: flex; flex-direction: column; }
 .nist-clear-button { width: 2rem; height: 2rem; min-height: 0; padding: 0; border-radius: 50%; line-height: 1; }

@@ -74,18 +74,7 @@ class FittingService:
         pressure_basis = "absolute"
         molar_mass = None
         if dataset_id is not None and isotherm_id is not None:
-            context = next(
-                (
-                    item
-                    for item in self.datasets.experiments(dataset_id)
-                    if item["id"] == isotherm_id
-                ),
-                None,
-            )
-            if context is None:
-                raise LookupError(
-                    f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}."
-                )
+            context = self.datasets.experiment(dataset_id, isotherm_id)
             pressure_basis = context["pressure_basis"]
             if not context["fitting_eligible"]:
                 return ModelCatalogResponse(

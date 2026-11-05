@@ -3,9 +3,16 @@
 
 import { Component, effect, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { AdsorptionDetailResponse, ChemicalRecordView, MaterialDetailResponse } from '../../../models/public-data.model';
-import { fetchPublicAdsorptionDetail, fetchPublicChemicalDetail, fetchPublicMaterialDetail } from '../../../services/public-data.service';
+import type { ExperimentDetail } from '../../../models/dataset.model';
+import type { MaterialDetail, SpeciesDetail } from '../../../models/materials.model';
+import { fetchExperimentDetail } from '../../../services/dataset.service';
+import { fetchMaterialDetail, fetchSpeciesDetail } from '../../../services/materials.service';
 import { formatValue, pressureLabel } from '../dashboard-charts';
+
+export interface InspectorTarget {
+    datasetId: number;
+    experimentId: number;
+}
 
 @Component({
     selector: 'adsmod-explore-inspector',
@@ -14,28 +21,30 @@ import { formatValue, pressureLabel } from '../dashboard-charts';
     styleUrl: '../dashboards.css',
     host: { '(document:keydown.escape)': 'closed.emit()' },
     template: `
-        <aside class="detail-panel explore-inspector" aria-label="Isotherm details" aria-live="polite">
+        <aside class="detail-panel explore-inspector" aria-label="Experiment details" aria-live="polite">
             <div class="detail-header">
                 <div>
-                    <p class="eyebrow">{{ isotherm()?.source ?? 'Isotherm' }} · {{ isotherm()?.external_id ?? '#' + isothermId() }}</p>
-                    <h3>{{ isotherm()?.material ?? 'Loading…' }}</h3>
+                    <p class="eyebrow">{{ detail()?.dataset_name ?? 'Experiment' }} · {{ detail()?.experiment?.external_key ?? '#' + target().experimentId }}</p>
+                    <h3>{{ detail()?.experiment?.adsorbent ?? 'Loading…' }}</h3>
                 </div>
                 <button class="detail-close" type="button" aria-label="Close details" (click)="closed.emit()">×</button>
             </div>
             @if (error()) {
                 <p class="inline-error" role="alert">{{ error() }}</p>
             }
-            @if (isotherm(); as detail) {
+            @if (detail(); as info) {
                 <div class="detail-grid">
-                    <div><span>Temperature</span><strong>{{ format(detail.temperature_k) }} K</strong></div>
-                    <div><span>Pressure basis</span><strong>{{ detail.pressure_basis }}</strong></div>
-                    <div><span>Measurements</span><strong>{{ detail.measurements.length }}</strong></div>
-                    <div><span>Pressure range</span><strong>{{ format(detail.pressure_min) }}–{{ format(detail.pressure_max) }} {{ unitLabel(detail.pressure_unit) }}</strong></div>
+                    <div><span>Temperature</span><strong>{{ format(info.experiment.temperature_k) }} K</strong></div>
+                    <div><span>Pressure basis</span><strong>{{ info.experiment.pressure_basis }}</strong></div>
+                    <div><span>Measurements</span><strong>{{ info.experiment.observation_count }}</strong></div>
+                    <div><span>Pressure range</span><strong>{{ format(info.experiment.pressure_min) }}–{{ format(info.experiment.pressure_max) }} {{ unitLabel(info.experiment.pressure_canonical_unit ?? 'Pa') }}</strong></div>
                 </div>
                 <div class="detail-links">
-                    <a class="text-link" [routerLink]="['/public-data', 'adsorption']" [queryParams]="{ id: detail.id }">Open adsorption record</a>
-                    @if (detail.doi) {<a class="text-link" [href]="'https://doi.org/' + detail.doi" target="_blank" rel="noopener noreferrer">DOI {{ detail.doi }}</a>}
-                    @if (detail.source_url) {<a class="text-link" [href]="detail.source_url" target="_blank" rel="noopener noreferrer">Source record</a>}
+                    <a class="text-link" [routerLink]="['/datasets', target().datasetId]" [queryParams]="{ experiment: target().experimentId }">Open in dataset</a>
+                    @for (record of info.provenance; track record.source + record.external_id) {
+                        @for (doi of record.doi; track doi) {<a class="text-link" [href]="'https://doi.org/' + doi" target="_blank" rel="noopener noreferrer">DOI {{ doi }}</a>}
+                        @if (record.source_url) {<a class="text-link" [href]="record.source_url" target="_blank" rel="noopener noreferrer">Source record</a>}
+                    }
                 </div>
             }
             @if (material(); as item) {
@@ -45,7 +54,7 @@ import { formatValue, pressureLabel } from '../dashboard-charts';
                         <div><dt>Name</dt><dd>{{ item.name }}</dd></div>
                         <div><dt>Formula</dt><dd>{{ item.formula ?? '—' }}</dd></div>
                         <div><dt>Molar mass</dt><dd>{{ item.molar_mass_g_mol === null ? '—' : format(item.molar_mass_g_mol) + ' g/mol' }}</dd></div>
-                        <div><dt>Isotherms</dt><dd>{{ item.isotherm_count }}</dd></div>
+                        <div><dt>Experiments</dt><dd>{{ item.isotherm_count }}</dd></div>
                     </dl>
                     @for (structure of item.structures.slice(0, 3); track structure.id) {
                         <p class="structure-line">
@@ -57,10 +66,9 @@ import { formatValue, pressureLabel } from '../dashboard-charts';
                     } @empty {
                         <p class="empty-inline">No crystal structure is linked to this material.</p>
                     }
-                    <a class="text-link" [routerLink]="['/public-data', 'materials']" [queryParams]="{ id: item.id }">Open material record</a>
                 </section>
             }
-            @for (chemical of chemicals(); track chemical.id) {
+            @for (chemical of species(); track chemical.id) {
                 <section class="detail-section">
                     <h4>Adsorbate · {{ chemical.preferred_name ?? chemical.name }}</h4>
                     @if (chemical.structure_2d_url) {
@@ -73,26 +81,24 @@ import { formatValue, pressureLabel } from '../dashboard-charts';
                         <div><dt>SMILES</dt><dd><code>{{ chemical.smiles ?? chemical.connectivity_smiles ?? '—' }}</code></dd></div>
                         <div><dt>PubChem CID</dt><dd>{{ chemical.pubchem_cid ?? '—' }}</dd></div>
                     </dl>
-                    <a class="text-link" [routerLink]="['/public-data', 'chemicals']" [queryParams]="{ id: chemical.id }">Open chemical record</a>
                 </section>
             }
-        </aside>
     `,
 })
 export class ExploreInspectorComponent {
-    readonly isothermId = input.required<number>();
+    readonly target = input.required<InspectorTarget>();
     readonly closed = output<void>();
 
-    protected readonly isotherm = signal<AdsorptionDetailResponse | null>(null);
-    protected readonly material = signal<MaterialDetailResponse | null>(null);
-    protected readonly chemicals = signal<ChemicalRecordView[]>([]);
+    protected readonly detail = signal<ExperimentDetail | null>(null);
+    protected readonly material = signal<MaterialDetail | null>(null);
+    protected readonly species = signal<SpeciesDetail[]>([]);
     protected readonly error = signal<string | null>(null);
 
     private token = 0;
 
     constructor() {
         effect(() => {
-            void this.load(this.isothermId());
+            void this.load(this.target());
         });
     }
 
@@ -104,27 +110,28 @@ export class ExploreInspectorComponent {
         return pressureLabel(unit);
     }
 
-    private async load(isothermId: number): Promise<void> {
+    private async load(target: InspectorTarget): Promise<void> {
         const token = ++this.token;
-        this.isotherm.set(null);
+        this.detail.set(null);
         this.material.set(null);
-        this.chemicals.set([]);
+        this.species.set([]);
         this.error.set(null);
-        const detail = await fetchPublicAdsorptionDetail(isothermId);
+        const detail = await fetchExperimentDetail(target.datasetId, target.experimentId);
         if (token !== this.token) return;
         if (!detail.data) {
-            this.error.set(detail.error ?? 'The isotherm could not be loaded.');
+            this.error.set(detail.error ?? 'The experiment could not be loaded.');
             return;
         }
-        this.isotherm.set(detail.data);
-        const [material, ...chemicals] = await Promise.all([
-            fetchPublicMaterialDetail(detail.data.material_id),
-            ...detail.data.adsorbates.map((adsorbate) => fetchPublicChemicalDetail(adsorbate.id)),
+        this.detail.set(detail.data);
+        const experiment = detail.data.experiment;
+        const [material, ...species] = await Promise.all([
+            fetchMaterialDetail(experiment.adsorbent_id),
+            ...experiment.components.map((component) => fetchSpeciesDetail(component.adsorbate_id)),
         ]);
         if (token !== this.token) return;
-        this.material.set(material.data as MaterialDetailResponse | null);
-        this.chemicals.set(chemicals.flatMap((result) => (result.data ? [result.data as ChemicalRecordView] : [])));
-        const failure = [material, ...chemicals].find((result) => result.error);
+        this.material.set(material.data as MaterialDetail | null);
+        this.species.set(species.flatMap((result) => (result.data ? [result.data as SpeciesDetail] : [])));
+        const failure = [material, ...species].find((result) => result.error);
         if (failure) this.error.set(failure.error);
     }
 }

@@ -1,7 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-export type PublicDataView = 'overview' | 'acquire' | 'adsorption' | 'materials' | 'chemicals' | 'structures' | 'sources';
+export type SourcesView = 'catalog' | 'acquire' | 'structures';
 export type SourceStatus = 'available' | 'degraded' | 'unavailable' | 'unknown';
 export type PublicDataSyncStatus = 'queued' | 'running' | 'completed' | 'partially_completed' | 'failed' | 'cancelled' | 'interrupted';
 export type PublicDataSyncOperation = 'health_check' | 'nist_index' | 'nist_category' | 'pubchem_resolve' | 'pubchem_enrich' | 'cod_import';
@@ -62,6 +62,11 @@ export interface PublicDataSyncRequest {
     cod_id?: string;
     cod_ids?: string[];
     adsorbent_id?: number;
+    overwrite_local_edits?: boolean;
+}
+
+export interface NISTEditedExperimentsResponse {
+    count: number;
 }
 
 export interface NISTCollectionView {
@@ -116,102 +121,6 @@ export interface PublicDataSyncFailureListResponse {
 export interface EntityReference {
     id: number;
     name: string;
-}
-
-export interface AdsorptionRecordView {
-    id: number;
-    external_id: string;
-    source: string;
-    source_url: string | null;
-    material_id: number;
-    material: string;
-    adsorbates: EntityReference[];
-    temperature_k: number;
-    pressure_min: number | null;
-    pressure_max: number | null;
-    pressure_unit: 'Pa' | '1';
-    uptake_min_mol_kg: number | null;
-    uptake_max_mol_kg: number | null;
-    point_count: number;
-    doi: string | null;
-    reference_title: string | null;
-    retrieved_at: string | null;
-}
-
-export interface MeasurementView {
-    sequence_index: number;
-    adsorbate: string;
-    pressure_original: number;
-    pressure_original_unit: string;
-    pressure_pa: number;
-    uptake_original: number;
-    uptake_original_unit: string;
-    uptake_mol_kg: number;
-}
-
-export interface AdsorptionDetailResponse extends AdsorptionRecordView {
-    pressure_basis: string;
-    conditions: Record<string, unknown>;
-    provenance: Record<string, unknown>;
-    measurements: MeasurementView[];
-    external_identifiers: ExternalIdentifierView[];
-}
-
-export interface AdsorptionPageResponse {
-    items: AdsorptionRecordView[];
-    pagination: Pagination;
-}
-
-export interface MaterialRecordView {
-    id: number;
-    name: string;
-    formula: string | null;
-    molar_mass_g_mol: number | null;
-    structure_count: number;
-    isotherm_count: number;
-    external_identifiers: ExternalIdentifierView[];
-}
-
-export interface MaterialDetailResponse extends MaterialRecordView {
-    structures: StructureRecordView[];
-}
-
-export interface MaterialPageResponse {
-    items: MaterialRecordView[];
-    pagination: Pagination;
-}
-
-export interface ChemicalPropertyView {
-    key: string;
-    value_number: number | null;
-    value_text: string | null;
-    unit: string | null;
-    source: string;
-}
-
-export interface ChemicalRecordView {
-    id: number;
-    name: string;
-    preferred_name: string | null;
-    formula: string | null;
-    molecular_weight: number | null;
-    inchi: string | null;
-    inchi_key: string | null;
-    connectivity_smiles: string | null;
-    smiles: string | null;
-    pubchem_cid: string | null;
-    synonyms: string[];
-    properties: ChemicalPropertyView[];
-    external_identifiers: ExternalIdentifierView[];
-    structure_2d_url: string | null;
-    conformer_3d_url: string | null;
-    isotherm_count: number;
-    retrieved_at: string | null;
-}
-
-export interface ChemicalPageResponse {
-    items: ChemicalRecordView[];
-    pagination: Pagination;
 }
 
 export interface CODSearchResult {

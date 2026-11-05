@@ -24,7 +24,7 @@ export interface DocsGroup {
 /** Documentation anchor opened for each application page. */
 export const DOCS_ANCHOR_BY_PAGE = {
     datasets: 'dataset-management',
-    'public-data': 'public-data',
+    sources: 'sources',
     dashboards: 'dashboards',
     fitting: 'fitting',
     training: 'training',
@@ -41,11 +41,11 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
                 title: 'Getting started',
                 intro: 'ADSMOD turns measured adsorption data into validated, unit-consistent isotherms that can be explored, fitted, and used for training.',
                 steps: [
-                    { title: 'Add data', description: 'Open Custom Datasets and choose Add dataset to import a CSV or Excel file with the import wizard.' },
+                    { title: 'Add data', description: 'Open Datasets and choose Add dataset to import a CSV or Excel file with the import wizard.' },
                     { title: 'Inspect it', description: 'Open a dataset to review its experiments, observations, saved column mapping, and a plot of each isotherm.' },
                     { title: 'Analyse it', description: 'Use Dashboards to compare stored isotherms, Fitting to compare model equations, and Training to prepare machine learning workflows.' },
                 ],
-                tips: ['Public-source records are discovered and managed in the Public Data workspace.'],
+                tips: ['External providers are discovered and acquired from the Sources page.'],
             },
         ],
     },
@@ -116,26 +116,33 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
         sections: [
             {
                 id: 'dataset-management',
-                title: 'Dataset management',
-                intro: 'Manage datasets uploaded directly into the ADSMOD workspace.',
+                title: 'Datasets',
+                intro: 'Manage local adsorption datasets together with the adsorbent materials and chemical species they reference.',
                 steps: [
-                    { title: 'Add a workspace dataset', description: 'Choose a CSV, TXT, XLSX, or JSON file to upload it into the workspace.' },
-                    { title: 'Review and maintain datasets', description: 'Open a dataset to see its overview, experiments, data preview, and plot. Edit metadata, rename a dataset, or delete it from the workspace.' },
-                    { title: 'Continue to fitting', description: 'Select an uploaded dataset in Fitting after its import has completed.' },
+                    { title: 'Add a dataset', description: 'Choose Add dataset to upload a CSV or Excel file. The import wizard previews the file, maps columns and units, groups measurements into experiments, and validates everything before saving.' },
+                    { title: 'Explore a dataset', description: 'A dataset groups one or more experiments; each experiment has one material, one or more species, one temperature, and its measurements. Explore opens the worksheet view of every experiment.' },
+                    { title: 'Edit values', description: 'Choose Edit dataset to change metadata, experiment conditions, materials, species, units, or individual measurements. Changes stay local until Save changes; Cancel discards them.' },
+                    { title: 'Inspect materials and species', description: 'Use the Materials and Species tabs to search registered entities, see which datasets use them, and delete entities that are no longer referenced.' },
                 ],
-                tips: ['A workspace dataset must be available before it can be selected in Fitting or Training.', 'Returning to Custom Datasets keeps your page and page size.'],
+                tips: [
+                    'Saving overwrites the stored values and updates the dataset\'s last update time; there is no version history.',
+                    'Canonical pressure (Pa or p/p₀) and uptake (mol/kg) are recomputed from the edited source values on save.',
+                    'Deleting a dataset removes its experiments, measurements, and fitting runs, but keeps materials and species.',
+                ],
             },
             {
-                id: 'public-data',
-                title: 'Public Data',
-                intro: 'Explore normalized adsorption, materials, chemical, and structural records with source provenance.',
+                id: 'sources',
+                title: 'Sources',
+                intro: 'Discover the external providers ADSMOD integrates and acquire their records into the local database.',
                 steps: [
-                    { title: 'Choose a data view', description: 'Use the workspace tabs to move between adsorption data, materials, chemicals, structures, and provider status.' },
-                    { title: 'Filter locally cached data', description: 'Use server-side filters and pagination to inspect normalized records without loading entire collections into the browser.' },
-                    { title: 'Retrieve source records', description: 'Use NIST acquisition, PubChem resolution, or COD structure search where the relevant source supports retrieval.' },
-                    { title: 'Inspect provenance', description: 'Open a record to review source identifiers, retrieval information, normalized values, and references.' },
+                    { title: 'Browse the catalog', description: 'Providers are grouped by the data they offer: adsorption isotherms, chemical identity, and crystal structures.' },
+                    { title: 'Acquire records', description: 'Use NIST acquisition, PubChem resolution, or COD structure import. Acquired isotherms appear as the NIST ISODB dataset on the Datasets page.' },
+                    { title: 'Track runs', description: 'Acquisition runs execute in the background; review progress, failures, and history from the Acquire view.' },
                 ],
-                tips: ['NIST remains the adsorption acquisition source, while PubChem and COD add chemical and structural information.', 'External provider outages do not remove locally cached records.'],
+                tips: [
+                    'Re-downloading NIST data asks before overwriting experiments you edited locally.',
+                    'External provider outages do not remove locally stored records.',
+                ],
             },
             {
                 id: 'dashboards',

@@ -30,7 +30,7 @@ import {
     commitDataset,
     fetchDatasetConfiguration,
     previewDataset,
-    updateMetadata,
+    updateDataset,
     validateDataset,
 } from '../../services/dataset.service';
 import {
@@ -351,13 +351,22 @@ function formatPressureUnit(unit: string): string {
                         </button>
                     }
                     @if (step() === 4) {
-                        <button
-                            class="button primary"
-                            type="button"
-                            (click)="finish()"
-                        >
-                            Done
-                        </button>
+                        <div class="import-wizard-finish">
+                            <button
+                                class="button secondary"
+                                type="button"
+                                (click)="finish(false)"
+                            >
+                                Done
+                            </button>
+                            <button
+                                class="button primary"
+                                type="button"
+                                (click)="finish(true)"
+                            >
+                                Explore dataset
+                            </button>
+                        </div>
                     }
                 </footer>
             </section>
@@ -396,6 +405,10 @@ function formatPressureUnit(unit: string): string {
             .import-wizard-footer {
                 border-top: 1px solid var(--slate-200);
                 border-bottom: 0;
+            }
+            .import-wizard-finish {
+                display: flex;
+                gap: 0.5rem;
             }
             .import-steps {
                 display: grid;
@@ -620,6 +633,8 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
     @Output() readonly cancelled = new EventEmitter<void>();
     @Output() readonly closed = new EventEmitter<void>();
     @Output() readonly saved = new EventEmitter<number>();
+    /** Emitted with the new dataset id when the user chooses to explore it. */
+    @Output() readonly explore = new EventEmitter<number>();
     @ViewChild('closeButton') private closeButton?: ElementRef<HTMLButtonElement>;
 
     protected readonly stepLabels = [
@@ -982,10 +997,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         }
         const description = this.description().trim();
         if (description) {
-            const stored = await updateMetadata(result.data.dataset.id, {
-                tags: result.data.dataset.tags,
-                description,
-            });
+            const stored = await updateDataset(result.data.dataset.id, { description });
             if (stored.error) {
                 this.error.set(
                     `The dataset was saved, but its description could not be stored: ${stored.error}`,
@@ -996,10 +1008,13 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         this.step.set(4);
     }
 
-    protected finish(): void {
+    protected finish(explore: boolean): void {
         const dataset = this.savedImport()?.dataset;
         if (dataset) {
             this.saved.emit(dataset.id);
+            if (explore) {
+                this.explore.emit(dataset.id);
+            }
             this.closed.emit();
         }
     }

@@ -18,19 +18,22 @@ describe('application routes', () => {
         expect(paths).toEqual(
             expect.arrayContaining([
                 'datasets',
-                'public-data',
-                'public-data/:view',
+                'datasets/:id',
+                'sources',
+                'sources/:view',
                 'dashboards',
                 'fitting',
                 'training',
                 'training/:view',
             ])
         );
-        expect(paths).not.toContain('public-materials');
+        expect(paths).not.toContain('public-data');
+        expect(paths).not.toContain('public-data/:view');
         const dashboards = childRoutes.find((route) => route.path === 'dashboards');
         expect(dashboards?.children?.find((route) => route.path === '')?.redirectTo).toBe('overview');
         expect(dashboards?.children?.map((route) => route.path)).toEqual(['', 'overview', 'explore']);
-        expect(childRoutes.find((route) => route.path === 'public-data')?.redirectTo).toBe('public-data/overview');
+        expect(childRoutes.find((route) => route.path === 'sources')?.redirectTo).toBe('sources/catalog');
+        expect(childRoutes.find((route) => route.path === 'datasets/:id')?.canDeactivate).toHaveLength(1);
         expect(childRoutes.find((route) => route.path === '')?.redirectTo).toBe('datasets');
         expect(routes.find((route) => route.path === '**')?.redirectTo).toBe('datasets');
     });

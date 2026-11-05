@@ -565,6 +565,7 @@ class PublicDataSyncCoordinator:
         result = await nist.sync_category_records(
             category=str(parameters["category"]),
             fraction=float(parameters.get("fraction", 1.0)),
+            overwrite_local_edits=bool(parameters.get("overwrite_local_edits", False)),
             batch_size=config.sync_batch_size,
             max_records=config.sync_max_records_per_run,
             processed_before=int(run.get("processed_count", 0)),

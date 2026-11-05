@@ -6,15 +6,16 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import type {
     CODSearchResult,
-    MaterialRecordView,
     NISTCategory,
     NISTCollectionView,
     PublicDataSyncFailure,
     PublicDataSyncRun,
 } from '../../models/public-data.model';
+import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
     cancelPublicDataSyncRun,
     fetchNistCollections,
+    fetchNistEditedExperiments,
     fetchPublicDataSyncFailures,
     fetchPublicDataSyncRun,
     fetchPublicDataSyncRuns,
@@ -26,7 +27,7 @@ import {
     type ApiResult,
 } from '../../services/public-data.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
-import { MaterialPickerComponent } from './material-picker.component';
+import { EntityPickerComponent, type PickedEntity } from '../../shared/components/entity-picker/entity-picker.component';
 
 interface ImportedLink {
     label: string;
@@ -66,7 +67,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
 @Component({
     selector: 'adsmod-public-data-acquire',
     standalone: true,
-    imports: [FormsModule, RouterLink, MaterialPickerComponent, DataPaginationComponent],
+    imports: [FormsModule, RouterLink, EntityPickerComponent, DataPaginationComponent, ConfirmDialogComponent],
     template: `
         <section class="public-section acquire-intro">
             <div class="section-heading">
@@ -380,7 +381,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                         @if (codLinkMaterial(); as material) {
                             <p class="target-chip">Link imports to <strong>{{ material.name }}</strong><button class="text-button" type="button" (click)="codLinkMaterial.set(null)">Change</button></p>
                         } @else {
-                            <adsmod-material-picker label="Link imports to material (optional)" (selected)="codLinkMaterial.set($event)" />
+                            <adsmod-entity-picker kind="material" label="Link imports to material (optional)" (selected)="codLinkMaterial.set($event)" />
                         }
                         <button class="button primary" type="button" [disabled]="!selectedCodIds().length || isSubmitting('cod:import')" (click)="importStructures()">{{ isSubmitting('cod:import') ? 'Starting…' : 'Import selected (' + selectedCodIds().length + ')' }}</button>
                     </div>
@@ -389,8 +390,16 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 }
             </section>
         </div>
+        <adsmod-confirm-dialog
+            [open]="overwriteCount() !== null"
+            title="Overwrite local edits?"
+            [message]="(overwriteCount() ?? 0) + ' NIST experiment(s) were edited locally. Fetching NIST experiments again replaces those edits with the source data. Continue?'"
+            confirmLabel="Overwrite and fetch"
+            (confirmed)="confirmOverwrite()"
+            (closed)="overwriteCount.set(null)"
+        />
     `,
-    styleUrls: ['./public-data-workspace.component.css', './acquire-view.component.css'],
+    styleUrls: ['./sources-page.component.css', './acquire-view.component.css'],
 })
 export class AcquireViewComponent implements OnInit, AfterViewInit {
     private readonly route = inject(ActivatedRoute);
@@ -431,7 +440,9 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     protected readonly codSearchCompleted = signal(false);
     protected readonly codResults = signal<CODSearchResult[]>([]);
     protected readonly selectedCodIds = signal<string[]>([]);
-    protected readonly codLinkMaterial = signal<Pick<MaterialRecordView, 'id' | 'name'> | null>(null);
+    protected readonly codLinkMaterial = signal<PickedEntity | null>(null);
+    /** Locally edited NIST experiments a pending experiments fetch would overwrite. */
+    protected readonly overwriteCount = signal<number | null>(null);
     protected readonly codPage = signal(1);
     protected readonly codPageSize = signal(10);
 
@@ -497,10 +508,37 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         );
     }
 
-    protected fetchCollection(category: NISTCategory): Promise<void> {
+    protected async fetchCollection(category: NISTCategory): Promise<void> {
+        if (category === 'experiments') {
+            const edited = await fetchNistEditedExperiments();
+            if (edited.error) {
+                this.error.set(edited.error);
+                return;
+            }
+            if (edited.data?.count) {
+                this.overwriteCount.set(edited.data.count);
+                return;
+            }
+        }
+        await this.startCollectionFetch(category, false);
+    }
+
+    protected confirmOverwrite(): void {
+        this.overwriteCount.set(null);
+        void this.startCollectionFetch('experiments', true);
+    }
+
+    private startCollectionFetch(category: NISTCategory, overwriteLocalEdits: boolean): Promise<void> {
         return this.queue(
             `nist:fetch:${category}`,
-            () => startPublicDataSync({ source_key: 'nist', operation: 'nist_category', category, fraction: this.fractions()[category] }),
+            () =>
+                startPublicDataSync({
+                    source_key: 'nist',
+                    operation: 'nist_category',
+                    category,
+                    fraction: this.fractions()[category],
+                    ...(overwriteLocalEdits ? { overwrite_local_edits: true } : {}),
+                }),
         );
     }
 
@@ -686,16 +724,14 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         switch (run.operation) {
             case 'nist_category':
                 if (!run.imported_count && !run.skipped_count) return null;
-                if (category === 'experiments') return { label: 'View isotherms', path: ['/public-data', 'adsorption'], queryParams: { source: 'nist' } };
-                if (category === 'guest') return { label: 'View chemicals', path: ['/public-data', 'chemicals'], queryParams: { source: 'nist' } };
-                return { label: 'View materials', path: ['/public-data', 'materials'], queryParams: { source: 'nist' } };
+                if (category === 'experiments') return { label: 'View datasets', path: ['/datasets'], queryParams: {} };
+                return { label: category === 'guest' ? 'View species' : 'View materials', path: ['/datasets'], queryParams: {} };
             case 'pubchem_resolve':
-                return single === null ? null : { label: 'Open chemical', path: ['/public-data', 'chemicals'], queryParams: { id: single } };
             case 'pubchem_enrich':
-                return run.imported_count || run.skipped_count ? { label: 'View chemicals', path: ['/public-data', 'chemicals'], queryParams: { source: 'pubchem' } } : null;
+                return run.imported_count || run.skipped_count ? { label: 'View species', path: ['/datasets'], queryParams: {} } : null;
             case 'cod_import':
-                if (single !== null) return { label: 'Open structure', path: ['/public-data', 'structures'], queryParams: { id: single } };
-                return run.imported_count || run.skipped_count ? { label: 'View structures', path: ['/public-data', 'structures'], queryParams: { source: 'cod' } } : null;
+                if (single !== null) return { label: 'Open structure', path: ['/sources', 'structures'], queryParams: { id: single } };
+                return run.imported_count || run.skipped_count ? { label: 'View structures', path: ['/sources', 'structures'], queryParams: { source: 'cod' } } : null;
             default:
                 return null;
         }

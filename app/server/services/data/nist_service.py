@@ -190,8 +190,13 @@ class NISTDataService:
         on_skip: Any,
         processed_before: int = 0,
         resume_after_external_id: str | None = None,
+        overwrite_local_edits: bool = False,
     ) -> dict[str, Any]:
-        """Fetch one NIST collection in idempotent, checkpointed batches."""
+        """Fetch one NIST collection in idempotent, checkpointed batches.
+
+        Existing experiments are skipped. With `overwrite_local_edits`, locally
+        edited NIST experiments are fetched again and restored from source.
+        """
         api_client = self._api_client()
         timeout = self._request_timeout()
         failed_count = imported_count = skipped_count = processed_count = 0
@@ -211,6 +216,11 @@ class NISTDataService:
                     "start a new acquisition to avoid skipping records."
                 )
             existing, base_url = await self._category_sync_details(category)
+            restore = category == "experiments" and overwrite_local_edits
+            if restore:
+                existing = existing - await asyncio.to_thread(
+                    self.repository.edited_experiment_ids
+                )
             checkpointed_identifiers = identifiers
             if resume_after_external_id:
                 checkpoint_index = identifiers.index(resume_after_external_id)
@@ -239,6 +249,7 @@ class NISTDataService:
                     category=category,
                     successful=successful,
                     on_skip=on_skip,
+                    restore_edited=restore,
                 )
                 failed_count += batch_failures
                 skipped_count += batch_skips
@@ -365,11 +376,14 @@ class NISTDataService:
         category: NISTCategory,
         successful: list[tuple[str, dict[str, Any]]],
         on_skip: Any,
+        restore_edited: bool = False,
     ) -> tuple[int, int]:
         if not successful:
             return 0, 0
         if category == "experiments":
-            mapped_records, reasons = await self._map_experiment_batch(successful)
+            mapped_records, reasons = await self._map_experiment_batch(
+                successful, restore_edited
+            )
             identity_key = "external_key"
         else:
             mapped_records, reasons = await asyncio.to_thread(
@@ -395,7 +409,7 @@ class NISTDataService:
 
     # -------------------------------------------------------------------------
     async def _map_experiment_batch(
-        self, successful: list[tuple[str, dict[str, Any]]]
+        self, successful: list[tuple[str, dict[str, Any]]], restore_edited: bool = False
     ) -> tuple[list[dict[str, Any]], dict[str, str]]:
         fetched = pd.DataFrame([payload for _identifier, payload in successful])
         single_component, binary_mixture = self.builder.build_datasets(fetched)
@@ -406,7 +420,9 @@ class NISTDataService:
             records, [payload for _identifier, payload in successful]
         )
         if records:
-            await asyncio.to_thread(self.repository.save_experiments, records, False)
+            await asyncio.to_thread(
+                self.repository.save_experiments, records, restore_edited
+            )
         return records, reasons
 
     # -------------------------------------------------------------------------

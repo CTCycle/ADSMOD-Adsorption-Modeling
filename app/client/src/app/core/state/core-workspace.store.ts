@@ -3,7 +3,6 @@
 
 import { computed, Injectable, signal } from '@angular/core';
 import type {
-    DatasetMetadata,
     DatasetSummary,
     ExperimentSummary,
 } from '../../models/dataset.model';
@@ -20,8 +19,6 @@ import {
     deleteDataset,
     fetchDatasets,
     fetchExperiments,
-    renameDataset,
-    updateMetadata,
 } from '../../services/dataset.service';
 import {
     cancelFittingJob,
@@ -33,8 +30,19 @@ import {
 } from '../../services/fitting.service';
 
 export type OptimizationMethod = FittingPayload['optimizer'];
+export type DatasetSort = 'last_update' | 'created_at' | 'name' | 'measurements';
+
+export interface DatasetListState {
+    page: number;
+    pageSize: number;
+    query: string;
+    source: 'all' | DatasetSummary['source'];
+    sort: DatasetSort;
+}
 
 const FITTING_LAST_RUN_KEY = 'adsmod.fitting.last-run';
+/** Experiments loaded per fitting selection query; larger datasets are searched. */
+export const FITTING_EXPERIMENT_LIMIT = 500;
 
 interface StoredFittingRunContext {
     run_id: number;
@@ -65,11 +73,18 @@ export class CoreWorkspaceStore {
     readonly fittingJobId = signal<string | null>(null);
     readonly fittingCancellationPending = signal(false);
     readonly datasets = signal<DatasetSummary[]>([]);
-    readonly customDatasets = computed(() => this.datasets().filter((dataset) => dataset.source === 'uploaded'));
-    /** Custom dataset list paging, kept so the list survives a visit to a dataset page. */
-    readonly datasetListState = signal({ page: 1, pageSize: 10 });
+    /** Dataset list state, kept so the list survives a visit to a dataset page. */
+    readonly datasetListState = signal<DatasetListState>({
+        page: 1,
+        pageSize: 10,
+        query: '',
+        source: 'all',
+        sort: 'last_update',
+    });
     readonly selectedDatasetId = signal<number | null>(null);
     readonly experiments = signal<ExperimentSummary[]>([]);
+    readonly experimentTotal = signal(0);
+    readonly experimentQuery = signal('');
     readonly selectedExperimentId = signal<number | null>(null);
     readonly experimentsLoading = signal(false);
     readonly managementStatus = signal('');
@@ -173,14 +188,32 @@ export class CoreWorkspaceStore {
         this.selectedDatasetId.set(datasetId);
         this.selectedExperimentId.set(null);
         this.experiments.set([]);
+        this.experimentTotal.set(0);
+        this.experimentQuery.set('');
         this.fittingResult.set(null);
         this.clearStoredFittingRun();
         if (datasetId === null) {
             this.experimentsLoading.set(false);
             return;
         }
+        await this.loadExperiments(datasetId, revision);
+    }
+
+    /** Narrow the fitting experiment list for datasets with many experiments. */
+    async searchExperiments(query: string): Promise<void> {
+        const datasetId = this.selectedDatasetId();
+        this.experimentQuery.set(query);
+        if (datasetId === null) {
+            return;
+        }
+        await this.loadExperiments(datasetId, ++this.experimentLoadRevision);
+    }
+
+    private async loadExperiments(datasetId: number, revision: number): Promise<void> {
         this.experimentsLoading.set(true);
-        const result = await fetchExperiments(datasetId);
+        const result = await fetchExperiments(datasetId, 0, FITTING_EXPERIMENT_LIMIT, {
+            q: this.experimentQuery().trim(),
+        });
         if (
             revision !== this.experimentLoadRevision ||
             this.selectedDatasetId() !== datasetId
@@ -195,6 +228,7 @@ export class CoreWorkspaceStore {
             return;
         }
         this.experiments.set(result.data.experiments);
+        this.experimentTotal.set(result.data.total);
         if (result.data.experiments.length === 1) {
             this.selectedExperimentId.set(result.data.experiments[0].id);
         }
@@ -208,37 +242,17 @@ export class CoreWorkspaceStore {
         this.clearStoredFittingRun();
     }
 
-    async deleteDataset(datasetId: number): Promise<void> {
+    async deleteDataset(datasetId: number): Promise<boolean> {
         const result = await deleteDataset(datasetId);
         if (result.error) {
             this.managementStatus.set(result.error);
-            return;
+            return false;
         }
         if (this.selectedDatasetId() === datasetId) {
             await this.selectDataset(null);
         }
         await this.refreshDatasets();
-    }
-
-    async renameDataset(datasetId: number, newName: string): Promise<void> {
-        const result = await renameDataset(datasetId, newName);
-        if (result.error) {
-            this.managementStatus.set(result.error);
-            return;
-        }
-        await this.refreshDatasets();
-    }
-
-    async saveMetadata(
-        datasetId: number,
-        metadata: DatasetMetadata,
-    ): Promise<void> {
-        const result = await updateMetadata(datasetId, metadata);
-        if (result.error) {
-            this.managementStatus.set(result.error);
-            return;
-        }
-        await this.refreshDatasets();
+        return true;
     }
 
     setOptimizationMethod(method: OptimizationMethod): void {

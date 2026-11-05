@@ -8,13 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from server.domain.public_data import (
-    AdsorptionDetailResponse,
-    AdsorptionPageResponse,
     CODSearchResponse,
-    ChemicalPageResponse,
-    ChemicalRecordView,
-    MaterialDetailResponse,
-    MaterialPageResponse,
     Pagination,
     PublicDataOverviewResponse,
     PublicSourceListResponse,
@@ -95,60 +89,6 @@ class PublicDataService:
     # -------------------------------------------------------------------------
     def get_overview(self) -> PublicDataOverviewResponse:
         return PublicDataOverviewResponse.model_validate(self.repository.overview_counts())
-
-    # -------------------------------------------------------------------------
-    def list_adsorption(self, **filters: Any) -> AdsorptionPageResponse:
-        rows, total = self.repository.list_adsorption(**filters)
-        return AdsorptionPageResponse(
-            items=rows,
-            pagination=Pagination(
-                page=int(filters["page"]),
-                page_size=int(filters["page_size"]),
-                total=total,
-            ),
-        )
-
-    # -------------------------------------------------------------------------
-    def get_adsorption(self, isotherm_id: int) -> AdsorptionDetailResponse:
-        return AdsorptionDetailResponse.model_validate(
-            self.repository.get_adsorption(isotherm_id)
-        )
-
-    # -------------------------------------------------------------------------
-    def list_materials(self, **filters: Any) -> MaterialPageResponse:
-        rows, total = self.repository.list_materials(**filters)
-        return MaterialPageResponse(
-            items=rows,
-            pagination=Pagination(
-                page=int(filters["page"]),
-                page_size=int(filters["page_size"]),
-                total=total,
-            ),
-        )
-
-    # -------------------------------------------------------------------------
-    def get_material(self, adsorbent_id: int) -> MaterialDetailResponse:
-        return MaterialDetailResponse.model_validate(
-            self.repository.get_material(adsorbent_id)
-        )
-
-    # -------------------------------------------------------------------------
-    def list_chemicals(self, **filters: Any) -> ChemicalPageResponse:
-        rows, total = self.repository.list_chemicals(**filters)
-        return ChemicalPageResponse(
-            items=rows,
-            pagination=Pagination(
-                page=int(filters["page"]),
-                page_size=int(filters["page_size"]),
-                total=total,
-            ),
-        )
-
-    # -------------------------------------------------------------------------
-    def get_chemical(self, adsorbate_id: int) -> ChemicalRecordView:
-        return ChemicalRecordView.model_validate(
-            self.repository.get_chemical(adsorbate_id)
-        )
 
     # -------------------------------------------------------------------------
     async def resolve_pubchem(

@@ -1,6 +1,6 @@
 # Public data architecture
 
-Last updated: 2026-10-20
+Last updated: 2026-11-05
 
 ## Scope
 
@@ -158,12 +158,10 @@ Key endpoints:
 - `GET /overview`
 - `GET /sources`
 - `GET /sources/nist/collections`: stored and last-indexed available counts per NIST collection
+- `GET /sources/nist/edited-experiments`: number of NIST experiments edited locally, used to confirm a re-download
 - `POST /sources/{source_key}/health-check` (HTTP 202)
 - `GET /sync-runs`, `POST /sync-runs` (HTTP 202), `GET /sync-runs/{run_id}`
 - `POST /sync-runs/{run_id}/cancel`, `GET /sync-runs/{run_id}/failures`
-- `GET /adsorption` (filters: `source`, `material`, `adsorbate`, `material_id`, `adsorbate_id`, temperature range), `GET /adsorption/{isotherm_id}`
-- `GET /materials`, `GET /materials/{adsorbent_id}` (with linked structures and isotherm count)
-- `GET /chemicals`, `GET /chemicals/{adsorbate_id}` (with isotherm count)
 - `GET /structures` (filters include `material_id`), `GET /structures/{structure_id}`
 - `PUT /structures/{structure_id}/material`: explicit link or unlink (`{"adsorbent_id": null}`)
 - `GET /structures/{structure_id}/file`: the stored original CIF
@@ -174,14 +172,14 @@ All provider acquisition runs through `POST /sync-runs`. There are no synchronou
 | Operation | Source | Parameters | Effect |
 | --- | --- | --- | --- |
 | `nist_index` | `nist` | `category` | Counts the records NIST publishes for one collection. |
-| `nist_category` | `nist` | `category`, `fraction` | Fetches not-yet-stored records from the leading share of the index, in batches. |
+| `nist_category` | `nist` | `category`, `fraction`, optional `overwrite_local_edits` | Fetches not-yet-stored records from the leading share of the index, in batches. With `overwrite_local_edits`, locally edited NIST experiments in that share are fetched again and restored from source in place (same experiment id); without it they are skipped. |
 | `pubchem_resolve` | `pubchem` | `query`, optional `adsorbate_id` | Resolves one compound. With `adsorbate_id`, the CID is attached to that chemical. |
 | `pubchem_enrich` | `pubchem` | — | Resolves stored chemicals without PubChem identity by InChIKey or name, bounded per run. |
 | `cod_import` | `cod` | `cod_id` or `cod_ids` (≤50), optional `adsorbent_id` | Imports CIF records and optionally links them to a material. |
 
 Each run stores only the parameters its operation uses. External provider failures are recorded on the run and do not invalidate unrelated providers or local records.
 
-The Overview endpoint returns aggregate counts and acquisition summaries from local tables in one database read. It counts provider-backed data only: isotherms and structures with a source record, plus chemicals and materials that have a source record or are used by a provider-backed isotherm. The `source` filter on Materials and Chemicals uses the same rule. `GET /sources` returns provider registration, saved health state, freshness, last successful sync time, and cached counts without contacting providers.
+The Overview endpoint returns aggregate counts and acquisition summaries from local tables in one database read. It counts provider-backed data only: isotherms and structures with a source record, plus chemicals and materials that have a source record or are used by a provider-backed isotherm. The `source` filter on `/api/v1/materials` and `/api/v1/species` uses the same rule. Local materials, species, and acquired isotherms are browsed on the Datasets page; acquired NIST isotherms are experiments of the `NIST ISODB` dataset. `GET /sources` returns provider registration, saved health state, freshness, last successful sync time, and cached counts without contacting providers.
 
 ## Identity and deduplication
 
@@ -204,12 +202,11 @@ Automatic refresh is disabled by default. It can be enabled for an explicit list
 
 ## Frontend workspace
 
-The Angular route `/public-data/:view` is the single public-data workspace. Views are Overview, Acquire, Adsorption Data, Materials, Chemicals, Structures, and Sources.
+The Angular route `/sources/:view` is the provider workspace for discovery and acquisition. Views are Catalog, Acquire, and Structures. Locally stored data is managed on the Datasets page instead.
 
-- **Acquire** holds every fetch control: NIST collections (availability, share, fetch), PubChem (resolve one compound, enrich stored chemicals), and COD (search, multi-select, optional material link, import). One run tracker lists runs with progress, cancel, failed-record reasons, and a link to the imported records.
-- **Domain views** are browse-only and cross-linked. Isotherms link to their material and adsorbates, materials to their structures and isotherms, and chemicals to their isotherms. Details live in a `?id=` query parameter, so every record is deep-linkable. `material_id` and `adsorbate_id` query parameters filter isotherms and structures.
-- Shortcuts carry context into Acquire. "Resolve on PubChem" on a chemical attaches the result to that chemical, and "Find COD structures" on a material preselects it as the link target.
-- **Sources** shows provider registration, saved health, freshness, and stored provenance counts, and queues health checks.
+- **Catalog** groups providers by the data type they contribute (adsorption isotherms, chemical identity and properties, crystal structures), derived from each provider's capabilities, so a new provider appears without layout changes. Each card shows description, data types, license, saved health, last acquisition, and local record counts, and Refresh status queues health checks.
+- **Acquire** holds every fetch control: NIST collections (availability, share, fetch), PubChem (resolve one compound, enrich stored chemicals), and COD (search, multi-select, optional material link, import). One run tracker lists runs with progress, cancel, and failed-record reasons. Fetching NIST isotherms first asks for confirmation when locally edited NIST experiments would be overwritten.
+- **Structures** lists imported COD structures with a `?id=` detail panel, explicit material link and unlink, and CIF download.
 
 The central tables use bounded columns, truncation for long identifiers, explicit detail actions, server-side pagination, loading/empty/error states, and horizontally scrollable table frames when the viewport cannot show all scientific columns.
 

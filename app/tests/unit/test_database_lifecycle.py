@@ -478,6 +478,7 @@ def test_postgres_creation_permission_error_is_actionable(
 
 # Alembic quality
 
+HEAD_REVISION = "20261105_dataset_editing"
 RETIRED_TABLES = {"training_datasets", "training_samples"}
 RETIRED_SETTINGS_COLUMNS = {
     "runtime_host",
@@ -507,11 +508,13 @@ def test_packaged_history_is_linear_from_one_root_and_matches_current_models(
         script = config.attributes["script_directory"]
         revisions = tuple(script.walk_revisions())
 
-        head, root = revisions
+        head, middle, root = revisions
         assert root.revision == INITIAL_REVISION == "20261021_current_schema"
         assert root.down_revision is None
-        assert head.revision == "20261103_custom_units"
-        assert head.down_revision == root.revision
+        assert middle.revision == "20261103_custom_units"
+        assert middle.down_revision == root.revision
+        assert head.revision == HEAD_REVISION
+        assert head.down_revision == middle.revision
         assert result.after == (head.revision,)
         with manager.engine.connect() as connection:
             table_names = set(inspect(connection).get_table_names())
@@ -530,24 +533,65 @@ def test_packaged_history_is_linear_from_one_root_and_matches_current_models(
 
 
 ###############################################################################
-def test_database_at_baseline_revision_upgrades_to_custom_units_head(
+SEED_STATEMENTS = (
+    "INSERT INTO datasets (id, name, normalized_name, source, description, tags,"
+    " provenance, created_at, updated_at) VALUES (7, 'Seed', 'seed', 'uploaded', '',"
+    " '[]', '{}', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+    "INSERT INTO adsorbents (id, key, name, normalized_name, created_at, updated_at)"
+    " VALUES (3, 'adsorbent:a', 'Zeolite', 'zeolite', '2026-01-01 00:00:00',"
+    " '2026-01-01 00:00:00')",
+    "INSERT INTO adsorbates (id, key, name, normalized_name, created_at, updated_at)"
+    " VALUES (5, 'adsorbate:b', 'CO2', 'co2', '2026-01-01 00:00:00',"
+    " '2026-01-01 00:00:00')",
+    "INSERT INTO isotherms (id, dataset_id, external_key, name, adsorbent_id,"
+    " temperature_original, temperature_original_unit, temperature_k, pressure_basis,"
+    " duplicate_policy, conditions, provenance, created_at, updated_at) VALUES"
+    " (11, 7, 'exp-1', 'Exp 1', 3, 298.15, 'K', 298.15, 'absolute', 'reject', '{}',"
+    " '{}', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+    "INSERT INTO isotherm_components (id, isotherm_id, position, adsorbate_id)"
+    " VALUES (13, 11, 1, 5)",
+    "INSERT INTO observations (id, isotherm_id, component_id, sequence_index,"
+    " pressure_original, pressure_original_unit, pressure_canonical,"
+    " pressure_canonical_unit, uptake_original, uptake_original_unit, uptake_mol_kg,"
+    " conversion_metadata, extra_metadata) VALUES (17, 11, 13, 0, 1.5, 'bar',"
+    " 150000.0, 'Pa', 2.25, 'mol/kg', 2.25, '{}', '{}')",
+)
+
+
+def test_previous_head_with_data_upgrades_to_head_preserving_records(
     tmp_path,
 ) -> None:  # type: ignore[no-untyped-def]
-    settings = _sqlite_settings(str(tmp_path / "baseline-schema.db"))
+    settings = _sqlite_settings(str(tmp_path / "previous-head.db"))
     manager = DatabaseManager(settings)
     try:
         config = build_alembic_config()
         with manager.engine.begin() as connection:
             config.attributes["connection"] = connection
-            command.upgrade(config, INITIAL_REVISION)
-            assert "custom_units" not in inspect(connection).get_table_names()
+            command.upgrade(config, "20261103_custom_units")
+            for statement in SEED_STATEMENTS:
+                connection.exec_driver_sql(statement)
 
         result = migrate_engine(manager.engine, settings)
 
-        assert result.before == (INITIAL_REVISION,)
-        assert result.after == ("20261103_custom_units",)
+        assert result.before == ("20261103_custom_units",)
+        assert result.after == (HEAD_REVISION,)
         with manager.engine.connect() as connection:
-            assert "custom_units" in inspect(connection).get_table_names()
+            isotherm = connection.exec_driver_sql(
+                "SELECT id, dataset_id, adsorbent_id, temperature_k, edited_at"
+                " FROM isotherms"
+            ).all()
+            assert isotherm == [(11, 7, 3, 298.15, None)]
+            assert connection.exec_driver_sql(
+                "SELECT id, isotherm_id, component_id, pressure_canonical,"
+                " uptake_mol_kg FROM observations"
+            ).all() == [(17, 11, 13, 150000.0, 2.25)]
+            assert connection.exec_driver_sql(
+                "SELECT isotherm_id, adsorbate_id FROM isotherm_components"
+            ).all() == [(11, 5)]
+            indexes = {
+                index["name"] for index in inspect(connection).get_indexes("isotherms")
+            }
+            assert "ix_isotherms_dataset_edited" in indexes
     finally:
         manager.dispose()
 

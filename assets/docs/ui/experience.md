@@ -1,22 +1,20 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 ## Page Structure
 
 - Unified frontend routes
-  - `datasets` (custom user dataset upload and management)
-  - `public-data/:view` (normalized public adsorption, materials, chemicals, structures, and source management)
+  - `datasets` (adsorption datasets with materials and species in a secondary column; Add dataset opens the import wizard)
+  - `datasets/:id` (dataset header, experiment navigator, worksheet-style measurement table, explicit edit mode)
+  - `sources/:view` (external provider catalog, acquisition, and COD structures)
   - `dashboards/overview` and `dashboards/explore` (read-only data exploration over stored isotherms)
   - `fitting`
   - `training` when machine learning capability discovery reports it available
-- Public Data sub-views
-  - `Overview`
-  - `Adsorption Data`
-  - `Materials`
-  - `Chemicals`
+- Sources sub-views
+  - `Catalog`
+  - `Acquire`
   - `Structures`
-  - `Sources`
 - Training sub-views
   - `Data Processing`
   - `Train datasets`
@@ -28,7 +26,9 @@ Last updated: 2026-10-21
 - Core workflows are long-running and status-heavy.
 - Keep behavior consistent across dataset ingestion, fitting, NIST collection, dashboards, and training.
 - Preserve non-blocking UX by polling backend job endpoints for progress.
-- Keep provider-specific acquisition controls inside the Public Data `Sources` view; normalized browsing belongs in the domain views.
+- Keep provider acquisition on the Sources page and locally stored data on the Datasets page.
+- Measurement tables are read-only until Edit dataset; edits stay local until Save changes, Cancel discards them, and leaving with unsaved changes asks first.
+- Large collections page on the server: experiments 50 per page, measurements 100 per page.
 
 ## Responsiveness
 

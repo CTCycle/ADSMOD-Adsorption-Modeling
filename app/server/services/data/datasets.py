@@ -13,15 +13,18 @@ from pydantic import ValidationError
 
 from server.configurations.settings import DEFAULT_DATASET_ALLOWED_EXTENSIONS
 from server.domain.datasets import (
+    DatasetDeleteImpact,
+    DatasetDetailResponse,
     DatasetImportResponse,
     DatasetImportInspectionResponse,
     DatasetListResponse,
-    DatasetMetadata,
     DatasetMutationResponse,
     DatasetSummary,
+    DatasetUpdateRequest,
     CustomUnitRequest,
     CustomUnitResponse,
-    ExperimentListResponse,
+    ExperimentDetailResponse,
+    ExperimentPage,
     ImportMapping,
     ImportPreviewResponse,
     ImportValidationResponse,
@@ -29,6 +32,7 @@ from server.domain.datasets import (
     SupportedUnitsResponse,
     UnitOption,
 )
+from server.services.data.dataset_editing import DatasetEditService
 from server.services.data.importer import AdsorptionImportEngine, PARSER_VERSION
 from server.common.units import BUILT_IN_UNIT_DETAILS, UnitRegistry
 from server.repositories.datasets import DatasetRepository
@@ -42,6 +46,7 @@ class DatasetService:
         self,
         repository: DatasetRepository,
         units: UnitRepository,
+        editor: DatasetEditService,
         importer: AdsorptionImportEngine | None = None,
         allowed_extensions: Collection[str] = DEFAULT_DATASET_ALLOWED_EXTENSIONS,
         column_detection_cutoff: float = 0.6,
@@ -49,6 +54,7 @@ class DatasetService:
     ) -> None:
         self.repository = repository
         self.units = units
+        self.editor = editor
         self.importer = importer or AdsorptionImportEngine(
             allowed_extensions,
             column_detection_cutoff=column_detection_cutoff,
@@ -232,17 +238,42 @@ class DatasetService:
         self.units.delete(unit_id)
 
     # -------------------------------------------------------------------------
-    def list_experiments(self, dataset_id: int) -> ExperimentListResponse:
-        return ExperimentListResponse(
-            experiments=self.repository.experiments(dataset_id)
+    def get_dataset(self, dataset_id: int) -> DatasetDetailResponse:
+        return DatasetDetailResponse(**self.repository.detail(dataset_id))
+
+    # -------------------------------------------------------------------------
+    def delete_impact(self, dataset_id: int) -> DatasetDeleteImpact:
+        return DatasetDeleteImpact(**self.repository.delete_impact(dataset_id))
+
+    # -------------------------------------------------------------------------
+    def list_experiments(
+        self, dataset_id: int, *, offset: int, limit: int, **filters: Any
+    ) -> ExperimentPage:
+        items, total = self.repository.experiments(
+            dataset_id, offset=offset, limit=limit, **filters
+        )
+        return ExperimentPage(
+            dataset_id=dataset_id,
+            offset=offset,
+            limit=limit,
+            total=total,
+            experiments=items,
+        )
+
+    # -------------------------------------------------------------------------
+    def experiment_detail(
+        self, dataset_id: int, experiment_id: int
+    ) -> ExperimentDetailResponse:
+        return ExperimentDetailResponse(
+            **self.repository.experiment_detail(dataset_id, experiment_id)
         )
 
     # -------------------------------------------------------------------------
     def get_observations(
-        self, dataset_id: int, isotherm_id: int, offset: int, limit: int
+        self, dataset_id: int, isotherm_id: int, offset: int, limit: int, order: str
     ) -> ObservationPage:
         rows, total = self.repository.observations(
-            dataset_id, isotherm_id, offset, limit
+            dataset_id, isotherm_id, offset, limit, order
         )
         return ObservationPage(
             dataset_id=dataset_id,
@@ -254,17 +285,10 @@ class DatasetService:
         )
 
     # -------------------------------------------------------------------------
-    def rename(self, dataset_id: int, new_name: str) -> DatasetMutationResponse:
-        self.repository.rename(dataset_id, new_name)
-        return DatasetMutationResponse(
-            dataset=DatasetSummary(**self.repository.summary(dataset_id))
-        )
-
-    # -------------------------------------------------------------------------
-    def update_metadata(
-        self, dataset_id: int, metadata: DatasetMetadata
+    def update(
+        self, dataset_id: int, request: DatasetUpdateRequest
     ) -> DatasetMutationResponse:
-        self.repository.update_metadata(dataset_id, metadata.tags, metadata.description)
+        self.editor.apply(dataset_id, request)
         return DatasetMutationResponse(
             dataset=DatasetSummary(**self.repository.summary(dataset_id))
         )

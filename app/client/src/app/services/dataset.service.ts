@@ -4,11 +4,16 @@
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type {
     CustomUnitDefinition,
+    DatasetDeleteImpact,
+    DatasetDetail,
+    DatasetEditIssue,
     DatasetImportResponse,
-    DatasetMetadata,
     DatasetImportInspection,
     DatasetSummary,
-    ExperimentSummary,
+    DatasetUpdateRequest,
+    ExperimentDetail,
+    ExperimentFilters,
+    ExperimentPage,
     ImportMapping,
     ImportPreview,
     ImportValidation,
@@ -121,10 +126,34 @@ export function fetchDatasetImport(
     return request(`/${datasetId}/import`, { method: 'GET' });
 }
 
+export function fetchDataset(datasetId: number): Promise<ApiResult<DatasetDetail>> {
+    return request(`/${datasetId}`, { method: 'GET' });
+}
+
+export function fetchDeleteImpact(datasetId: number): Promise<ApiResult<DatasetDeleteImpact>> {
+    return request(`/${datasetId}/delete-impact`, { method: 'GET' });
+}
+
 export function fetchExperiments(
     datasetId: number,
-): Promise<ApiResult<{ experiments: ExperimentSummary[] }>> {
-    return request(`/${datasetId}/experiments`, { method: 'GET' });
+    offset = 0,
+    limit = 50,
+    filters: ExperimentFilters = {},
+): Promise<ApiResult<ExperimentPage>> {
+    const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined && value !== null && value !== '' && value !== false) {
+            query.set(key, String(value));
+        }
+    }
+    return request(`/${datasetId}/experiments?${query.toString()}`, { method: 'GET' });
+}
+
+export function fetchExperimentDetail(
+    datasetId: number,
+    experimentId: number,
+): Promise<ApiResult<ExperimentDetail>> {
+    return request(`/${datasetId}/experiments/${experimentId}`, { method: 'GET' });
 }
 
 export function fetchObservations(
@@ -132,9 +161,10 @@ export function fetchObservations(
     isothermId: number,
     offset = 0,
     limit = 100,
+    order: 'pressure' | 'sequence' = 'pressure',
 ): Promise<ApiResult<ObservationPage>> {
     return request(
-        `/${datasetId}/experiments/${isothermId}/observations?offset=${offset}&limit=${limit}`,
+        `/${datasetId}/experiments/${isothermId}/observations?offset=${offset}&limit=${limit}&order=${order}`,
         { method: 'GET' },
     );
 }
@@ -143,24 +173,40 @@ export function deleteDataset(datasetId: number): Promise<ApiResult<null>> {
     return request(`/${datasetId}`, { method: 'DELETE' });
 }
 
-export function renameDataset(
-    datasetId: number,
-    newName: string,
-): Promise<ApiResult<{ dataset: DatasetSummary }>> {
-    return request(`/${datasetId}/rename`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_name: newName }),
-    });
+export interface DatasetUpdateResult extends ApiResult<{ dataset: DatasetSummary }> {
+    issues: DatasetEditIssue[];
 }
 
-export function updateMetadata(
+/** Save an edit change set; validation failures return field-specific issues. */
+export async function updateDataset(
     datasetId: number,
-    metadata: DatasetMetadata,
-): Promise<ApiResult<{ dataset: DatasetSummary }>> {
-    return request(`/${datasetId}/metadata`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(metadata),
-    });
+    changes: DatasetUpdateRequest,
+): Promise<DatasetUpdateResult> {
+    try {
+        const response = await fetchWithTimeout(
+            `${API_BASE_URL}/datasets/${datasetId}`,
+            {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(changes),
+            },
+            HTTP_TIMEOUT,
+        );
+        const payload: unknown = await response.json().catch(() => ({}));
+        if (response.ok) {
+            return { data: payload as { dataset: DatasetSummary }, error: null, issues: [] };
+        }
+        const detail = (payload as { detail?: { issues?: DatasetEditIssue[] } }).detail;
+        return {
+            data: null,
+            error: extractErrorMessage(response, payload),
+            issues: Array.isArray(detail?.issues) ? detail.issues : [],
+        };
+    } catch (error) {
+        return {
+            data: null,
+            error: error instanceof Error ? error.message : 'Unable to reach the backend.',
+            issues: [],
+        };
+    }
 }

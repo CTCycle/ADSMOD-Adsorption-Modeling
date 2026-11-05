@@ -94,7 +94,7 @@
     border: 1px solid var(--border-color, #d8dee8);
 }
 
-.overview-totals > a {
+.overview-totals > * {
     display: grid;
     gap: 3px;
     padding: 14px 16px;
@@ -107,18 +107,12 @@
     background: var(--surface-subtle, #f7f9fc);
 }
 
-.overview-totals > a:nth-child(odd) {
+.overview-totals > :nth-child(odd) {
     border-right: 1px solid var(--border-color, #d8dee8);
 }
 
-.overview-totals > a:nth-child(-n + 2) {
+.overview-totals > :nth-child(-n + 2) {
     border-bottom: 1px solid var(--border-color, #d8dee8);
-}
-
-.overview-cta {
-    width: fit-content;
-    margin-top: 10px;
-    text-decoration: none;
 }
 
 .overview-totals strong {
@@ -146,8 +140,7 @@
 
 .section-heading,
 .source-summary-head,
-.detail-header,
-.source-actions {
+.detail-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -163,10 +156,6 @@
 
 .public-workspace .section-heading > div:first-child {
     min-width: 0;
-}
-
-.section-heading.small {
-    margin-bottom: 10px;
 }
 
 .source-summary-grid {
@@ -228,18 +217,12 @@
     text-transform: uppercase;
 }
 
-.source-status.available,
-.health-dot.available {
+.source-status.available {
     color: var(--success-text);
 }
 
-.source-status.unavailable,
-.health-dot.unavailable {
+.source-status.unavailable {
     color: var(--danger-text);
-}
-
-.health-dot.degraded {
-    color: var(--warning-text);
 }
 
 .capability-list {
@@ -254,67 +237,12 @@
     content: " ·";
 }
 
-.source-summary-foot,
-.source-meta {
+.source-summary-foot {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 14px;
     color: var(--text-secondary, #667085);
     font-size: 0.72rem;
-}
-
-.sync-run-list {
-    display: grid;
-    gap: 8px;
-}
-
-.sync-run-row {
-    display: grid;
-    grid-template-columns: minmax(180px, 1fr) minmax(100px, 0.7fr) auto auto;
-    gap: 12px;
-    align-items: center;
-    padding: 10px 12px;
-    border: 1px solid var(--border-color, #e3e7ee);
-    font-size: 0.73rem;
-}
-
-.sync-run-row > div {
-    display: grid;
-    gap: 3px;
-    min-width: 0;
-}
-
-.sync-run-row > div span {
-    color: var(--text-secondary, #667085);
-}
-
-.sync-run-row progress {
-    width: 100%;
-}
-
-.sync-run-row > span {
-    color: var(--text-secondary, #667085);
-    white-space: nowrap;
-}
-
-.sync-run-error {
-    grid-column: 1 / -1;
-    margin: 0;
-    color: var(--danger, #b42318);
-    font-size: 0.82rem;
-}
-
-.sync-run-details {
-    grid-column: 1 / -1;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--surface-muted, #f5f7fa);
-}
-
-.sync-run-details p {
-    margin: 0;
-    color: var(--text-secondary, #667085);
-    font-size: 0.8rem;
 }
 
 .sync-failures {
@@ -373,9 +301,7 @@
 }
 
 .text-link,
-.source-summary a,
-.source-actions a,
-.provenance-row a {
+.source-summary a {
     color: var(--accent-color, #2563eb);
     text-decoration: none;
 }
@@ -463,94 +389,6 @@
     font-size: 0.72rem;
 }
 
-.adsorption-table-frame {
-    --data-table-min-width: 1000px;
-}
-
-.adsorption-table .col-source {
-    width: 78px;
-}
-
-.adsorption-table .col-external {
-    width: 150px;
-}
-
-.adsorption-table .col-material {
-    width: 210px;
-}
-
-.adsorption-table .col-adsorbate {
-    width: 190px;
-}
-
-.adsorption-table .col-number {
-    width: 96px;
-}
-
-.adsorption-table .col-range {
-    width: 128px;
-}
-
-.adsorption-table .col-points {
-    width: 62px;
-}
-
-.adsorption-table .col-actions {
-    width: 74px;
-}
-
-.materials-table-frame {
-    --data-table-min-width: 820px;
-}
-
-.materials-table .col-formula {
-    width: 130px;
-}
-
-.materials-table .col-number {
-    width: 120px;
-}
-
-.materials-table .col-sources {
-    width: 120px;
-}
-
-.materials-table .col-count {
-    width: 90px;
-}
-
-.materials-table .col-actions {
-    width: 74px;
-}
-
-.chemicals-table-frame {
-    --data-table-min-width: 860px;
-}
-
-.chemicals-table .col-formula {
-    width: 110px;
-}
-
-.chemicals-table .col-number {
-    width: 120px;
-}
-
-.chemicals-table .col-inchi {
-    width: 190px;
-}
-
-.chemicals-table .col-cid {
-    width: 90px;
-}
-
-.chemicals-table .col-sources {
-    width: 110px;
-}
-
-.chemicals-table .col-actions {
-    width: 74px;
-}
-
 .structures-table-frame {
     --data-table-min-width: 900px;
 }
@@ -587,34 +425,6 @@
     width: 74px;
 }
 
-.source-table-frame {
-    --data-table-min-width: 980px;
-}
-
-.source-table .col-source {
-    width: 320px;
-}
-
-.source-table .col-status {
-    width: 100px;
-}
-
-.source-table .col-records {
-    width: 130px;
-}
-
-.source-table .col-date {
-    width: 132px;
-}
-
-.source-table .col-actions {
-    width: 190px;
-}
-
-.mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
 .detail-close {
     border: 0;
     background: transparent;
@@ -631,7 +441,6 @@
     text-align: center !important;
 }
 
-.source-description,
 .source-detail {
     max-width: 100%;
     margin: 4px 0 0;
@@ -672,8 +481,7 @@
     line-height: 1;
 }
 
-.detail-grid,
-.property-grid {
+.detail-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1px;
@@ -681,8 +489,7 @@
     border: 1px solid var(--border-color, #d8dee8);
 }
 
-.detail-grid > div,
-.property-grid > div {
+.detail-grid > div {
     display: grid;
     gap: 4px;
     min-width: 0;
@@ -690,14 +497,12 @@
     background: var(--surface-color, #fff);
 }
 
-.detail-grid span,
-.property-grid span {
+.detail-grid span {
     color: var(--text-secondary, #667085);
     font-size: 0.68rem;
 }
 
-.detail-grid strong,
-.property-grid strong {
+.detail-grid strong {
     min-width: 0;
     overflow-wrap: anywhere;
     font-size: 0.78rem;
@@ -714,109 +519,9 @@
     font-size: 0.82rem;
 }
 
-.provenance-row {
-    display: grid;
-    grid-template-columns: 90px minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--border-color, #eef1f5);
-    font-size: 0.74rem;
-}
-
-.provenance-row code,
-.atom-list code,
-.identifier-list dd {
+.atom-list code {
     min-width: 0;
     overflow-wrap: anywhere;
-}
-
-.plot-panel {
-    min-width: 0;
-    padding: 12px;
-    border: 1px solid var(--border-color, #d8dee8);
-}
-
-.plot-title {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.plot-title span {
-    color: var(--text-secondary, #667085);
-    font-size: 0.7rem;
-}
-
-.plot-panel svg {
-    display: block;
-    width: 100%;
-    max-height: 320px;
-    overflow: visible;
-}
-
-.plot-axis {
-    stroke: currentColor;
-    stroke-width: 1;
-}
-
-.plot-line {
-    fill: none;
-    stroke: var(--accent-color, #2563eb);
-    stroke-width: 2;
-    vector-effect: non-scaling-stroke;
-}
-
-.plot-panel text {
-    fill: currentColor;
-    font-size: 13px;
-}
-
-.chemical-detail-layout {
-    display: grid;
-    grid-template-columns: 180px minmax(0, 1fr);
-    gap: 16px;
-    align-items: stretch;
-}
-
-.molecule-preview {
-    display: grid;
-    place-items: center;
-    min-height: 160px;
-    border: 1px solid var(--border-color, #d8dee8);
-    background: var(--surface);
-}
-
-.molecule-preview img {
-    display: block;
-    width: 100%;
-    max-width: 170px;
-    height: auto;
-}
-
-.identifier-list {
-    display: grid;
-    grid-template-columns: 140px minmax(0, 1fr);
-    gap: 6px 12px;
-    margin: 0;
-    font-size: 0.74rem;
-}
-
-.identifier-list dt {
-    color: var(--text-secondary, #667085);
-}
-
-.identifier-list dd {
-    margin: 0;
-}
-
-.wrap-list {
-    overflow-wrap: anywhere;
-    color: var(--text-secondary, #667085);
-    font-size: 0.76rem;
-    line-height: 1.55;
 }
 
 .atom-list {
@@ -834,36 +539,6 @@
 .detail-note {
     color: var(--text-secondary, #667085);
     font-size: 0.7rem;
-}
-
-.external-button {
-    width: fit-content;
-}
-
-.source-health {
-    display: flex;
-    gap: 9px;
-    align-items: center;
-    min-width: 0;
-}
-
-.source-health > div {
-    display: grid;
-    min-width: 0;
-}
-
-.source-health code {
-    color: var(--text-secondary, #667085);
-    font-size: 0.68rem;
-}
-
-.health-dot {
-    width: 8px;
-    height: 8px;
-    flex: 0 0 auto;
-    border-radius: 50%;
-    background: currentColor;
-    color: var(--slate-400);
 }
 
 .public-alert {
@@ -902,62 +577,43 @@
 
 @media (max-width: 1180px) {
     .public-intro,
-    .source-summary-grid {
+.source-summary-grid {
         grid-template-columns: 1fr;
     }
 
     .filter-bar,
-    .filter-bar.compact {
+.filter-bar.compact {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .provider-query,
-    .provider-query.structure-query {
+.provider-query.structure-query {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .sync-run-row {
-        grid-template-columns: minmax(0, 1fr) auto;
     }
 }
 
 @media (max-width: 760px) {
     .public-section,
-    .public-intro,
-    .detail-panel {
+.public-intro,
+.detail-panel {
         padding: 14px;
     }
 
     .filter-bar,
-    .filter-bar.compact,
-    .provider-query,
-    .provider-query.structure-query,
-    .detail-grid,
-    .property-grid,
-    .chemical-detail-layout {
+.filter-bar.compact,
+.provider-query,
+.provider-query.structure-query,
+.detail-grid {
         grid-template-columns: 1fr;
     }
 
     .filter-actions,
-    .filter-actions .button {
+.filter-actions .button {
         width: 100%;
-    }
-
-    .sync-run-row {
-        grid-template-columns: 1fr;
-        align-items: start;
     }
 
     .atom-list {
         grid-template-columns: 1fr;
-    }
-
-    .identifier-list {
-        grid-template-columns: 1fr;
-    }
-
-    .identifier-list dt {
-        margin-top: 5px;
     }
 }
 
@@ -965,22 +621,55 @@
     font-size: 0.875rem;
 }
 
-.source-health strong {
-    display: block;
-    max-width: 100%;
-    overflow: hidden;
-    font-size: 0.875rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.source-actions {
+/* Catalog: providers grouped by the data type they contribute. */
+.catalog-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    font-size: 0.8125rem;
+    gap: 8px;
+    margin-top: 12px;
 }
 
-.source-actions a {
-    text-decoration: none;
+.catalog-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-secondary, #667085);
+    font-size: 0.78rem;
+}
+
+.catalog-toolbar p {
+    margin: 0;
+}
+
+.source-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px 12px;
+    margin: 0;
+}
+
+.source-facts dt {
+    color: var(--text-tertiary, #667085);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.source-facts dd {
+    margin: 0;
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.source-links {
+    display: inline-flex;
+    gap: 12px;
+}
+
+@media (max-width: 640px) {
+    .source-facts {
+        grid-template-columns: 1fr;
+    }
 }

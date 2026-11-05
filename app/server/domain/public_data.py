@@ -82,6 +82,7 @@ class PublicDataSyncCreateRequest(BaseModel):
     cod_id: str | None = Field(default=None, pattern=r"^\d{4,12}$")
     cod_ids: list[str] | None = Field(default=None, min_length=1, max_length=50)
     adsorbent_id: int | None = Field(default=None, ge=1)
+    overwrite_local_edits: bool = False
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
@@ -118,7 +119,7 @@ class PublicDataSyncCreateRequest(BaseModel):
         """Return only the parameters the selected operation uses."""
         fields = {
             "nist_index": ("category",),
-            "nist_category": ("category", "fraction"),
+            "nist_category": ("category", "fraction", "overwrite_local_edits"),
             "pubchem_resolve": ("query", "adsorbate_id"),
             "pubchem_enrich": (),
             "cod_import": ("cod_id", "cod_ids", "adsorbent_id"),
@@ -126,6 +127,8 @@ class PublicDataSyncCreateRequest(BaseModel):
         values = {name: getattr(self, name) for name in fields}
         if self.operation == "nist_category" and values["fraction"] is None:
             values["fraction"] = 1.0
+        if not values.get("overwrite_local_edits"):
+            values.pop("overwrite_local_edits", None)
         return {key: value for key, value in values.items() if value is not None}
 
 ###############################################################################
@@ -186,98 +189,6 @@ class EntityReference(BaseModel):
     name: str
 
 ###############################################################################
-class AdsorptionRecordView(BaseModel):
-    id: int
-    external_id: str
-    source: str
-    source_url: str | None = None
-    material_id: int
-    material: str
-    adsorbates: list[EntityReference]
-    temperature_k: float
-    pressure_min: float | None = None
-    pressure_max: float | None = None
-    pressure_unit: Literal["Pa", "1"] = "Pa"
-    uptake_min_mol_kg: float | None = None
-    uptake_max_mol_kg: float | None = None
-    point_count: int = 0
-    doi: str | None = None
-    reference_title: str | None = None
-    retrieved_at: datetime | None = None
-
-###############################################################################
-class AdsorptionPageResponse(BaseModel):
-    items: list[AdsorptionRecordView]
-    pagination: Pagination
-
-###############################################################################
-class MeasurementView(BaseModel):
-    sequence_index: int
-    adsorbate: str
-    pressure_original: float
-    pressure_original_unit: str
-    pressure_pa: float
-    uptake_original: float
-    uptake_original_unit: str
-    uptake_mol_kg: float
-
-###############################################################################
-class AdsorptionDetailResponse(AdsorptionRecordView):
-    pressure_basis: str
-    conditions: dict[str, object]
-    provenance: dict[str, object]
-    measurements: list[MeasurementView]
-    external_identifiers: list[ExternalIdentifierView]
-
-###############################################################################
-class MaterialRecordView(BaseModel):
-    id: int
-    name: str
-    formula: str | None = None
-    molar_mass_g_mol: float | None = None
-    structure_count: int = 0
-    isotherm_count: int = 0
-    external_identifiers: list[ExternalIdentifierView]
-
-###############################################################################
-class MaterialPageResponse(BaseModel):
-    items: list[MaterialRecordView]
-    pagination: Pagination
-
-###############################################################################
-class ChemicalPropertyView(BaseModel):
-    key: str
-    value_number: float | None = None
-    value_text: str | None = None
-    unit: str | None = None
-    source: str
-
-###############################################################################
-class ChemicalRecordView(BaseModel):
-    id: int
-    name: str
-    preferred_name: str | None = None
-    formula: str | None = None
-    molecular_weight: float | None = None
-    inchi: str | None = None
-    inchi_key: str | None = None
-    connectivity_smiles: str | None = None
-    smiles: str | None = None
-    pubchem_cid: str | None = None
-    synonyms: list[str] = Field(default_factory=list)
-    properties: list[ChemicalPropertyView] = Field(default_factory=list)
-    external_identifiers: list[ExternalIdentifierView] = Field(default_factory=list)
-    structure_2d_url: str | None = None
-    conformer_3d_url: str | None = None
-    isotherm_count: int = 0
-    retrieved_at: datetime | None = None
-
-###############################################################################
-class ChemicalPageResponse(BaseModel):
-    items: list[ChemicalRecordView]
-    pagination: Pagination
-
-###############################################################################
 class CODSearchResult(BaseModel):
     cod_id: str
     name: str | None = None
@@ -315,6 +226,10 @@ class NISTCollectionView(BaseModel):
 ###############################################################################
 class NISTCollectionListResponse(BaseModel):
     collections: list[NISTCollectionView]
+
+###############################################################################
+class NISTEditedExperimentsResponse(BaseModel):
+    count: int = Field(ge=0)
 
 ###############################################################################
 class StructureAtomView(BaseModel):
@@ -359,29 +274,16 @@ class StructurePageResponse(BaseModel):
     items: list[StructureRecordView]
     pagination: Pagination
 
-###############################################################################
-class MaterialDetailResponse(MaterialRecordView):
-    structures: list[StructureRecordView] = Field(default_factory=list)
-
 
 __all__ = [
-    "AdsorptionDetailResponse",
-    "AdsorptionPageResponse",
-    "AdsorptionRecordView",
-    "ChemicalPageResponse",
-    "ChemicalPropertyView",
-    "ChemicalRecordView",
     "CODSearchResponse",
     "CODSearchResult",
     "EntityReference",
     "ExternalIdentifierView",
-    "MaterialDetailResponse",
-    "MaterialPageResponse",
-    "MaterialRecordView",
-    "MeasurementView",
     "NISTCategory",
     "NISTCollectionListResponse",
     "NISTCollectionView",
+    "NISTEditedExperimentsResponse",
     "Pagination",
     "ProviderCapability",
     "PublicDataSyncCreateRequest",

@@ -11,6 +11,7 @@ from server.services.container import CoreServiceContainer
 from server.api.analytics import create_analytics_router
 from server.api.datasets import create_dataset_router
 from server.api.fitting import create_fitting_router
+from server.api.materials import create_material_router
 from server.api.public_data import create_public_data_router
 
 ###############################################################################
@@ -24,6 +25,7 @@ def register_core_routes(
     for router_factory in (
         create_dataset_router,
         create_fitting_router,
+        create_material_router,
         create_public_data_router,
         create_analytics_router,
     ):

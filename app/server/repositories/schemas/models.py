@@ -291,6 +291,7 @@ class Isotherm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
+    edited_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     dataset: Mapped[Dataset] = relationship(back_populates="isotherms", lazy="raise")
     adsorbent: Mapped[Adsorbent] = relationship(
@@ -333,6 +334,7 @@ class Isotherm(Base):
         Index("ix_isotherms_dataset_name", "dataset_id", "name"),
         Index("ix_isotherms_adsorbent", "adsorbent_id"),
         Index("ix_isotherms_temperature", "temperature_k"),
+        Index("ix_isotherms_dataset_edited", "dataset_id", "edited_at"),
     )
 
 ###############################################################################

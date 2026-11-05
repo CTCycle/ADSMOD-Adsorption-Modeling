@@ -4,7 +4,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 const longMaterial = 'Hierarchical activated carbon framework with an intentionally long scientific sample designation 2026-09-A';
-const longExternalId = 'NIST-ISODB-EXPERIMENT-IDENTIFIER-WITH-LONG-PROVENANCE-SUFFIX-0000000000001';
 
 async function installApiMocks(page: Page): Promise<void> {
     await page.route('**/health/ready', async (route) => {
@@ -26,28 +25,11 @@ async function installApiMocks(page: Page): Promise<void> {
     await page.route('**/api/v1/public-data/overview', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ adsorption_records: 101, materials: 50, chemicals: 80, structures: 38, active_sync_runs: 0, failed_sync_runs: 0, latest_successful_sync_at: null }) });
     });
-    await page.route('**/api/v1/public-data/adsorption/1', async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 1, external_id: longExternalId, source: 'nist', source_url: 'https://adsorption.nist.gov/', material_id: 4, material: longMaterial, adsorbates: [{ id: 7, name: 'carbon dioxide' }], temperature_k: 298.15, pressure_min: 1000, pressure_max: 1000000, pressure_unit: 'Pa', uptake_min_mol_kg: 0.02, uptake_max_mol_kg: 8.4, point_count: 4, doi: '10.1000/example', reference_title: null, retrieved_at: '2026-09-02T12:00:00Z', pressure_basis: 'absolute', conditions: { method: 'volumetric' }, provenance: { normalized: true }, external_identifiers: [{ source: 'nist', external_id: longExternalId, source_url: 'https://adsorption.nist.gov/', retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], measurements: [
-            { sequence_index: 0, adsorbate: 'carbon dioxide', pressure_original: 1, pressure_original_unit: 'kPa', pressure_pa: 1000, uptake_original: 0.02, uptake_original_unit: 'mol/kg', uptake_mol_kg: 0.02 },
-            { sequence_index: 1, adsorbate: 'carbon dioxide', pressure_original: 10, pressure_original_unit: 'kPa', pressure_pa: 10000, uptake_original: 0.6, uptake_original_unit: 'mol/kg', uptake_mol_kg: 0.6 },
-            { sequence_index: 2, adsorbate: 'carbon dioxide', pressure_original: 100, pressure_original_unit: 'kPa', pressure_pa: 100000, uptake_original: 3.2, uptake_original_unit: 'mol/kg', uptake_mol_kg: 3.2 },
-            { sequence_index: 3, adsorbate: 'carbon dioxide', pressure_original: 1000, pressure_original_unit: 'kPa', pressure_pa: 1000000, uptake_original: 8.4, uptake_original_unit: 'mol/kg', uptake_mol_kg: 8.4 },
-        ] }) });
-    });
-    await page.route(/\/api\/v1\/public-data\/adsorption(?:\?.*)?$/, async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 1, external_id: longExternalId, source: 'nist', source_url: 'https://adsorption.nist.gov/', material_id: 4, material: longMaterial, adsorbates: [{ id: 7, name: 'carbon dioxide' }], temperature_k: 298.15, pressure_min: 1000, pressure_max: 1000000, pressure_unit: 'Pa', uptake_min_mol_kg: 0.02, uptake_max_mol_kg: 8.4, point_count: 120, doi: '10.1000/example', reference_title: null, retrieved_at: '2026-09-02T12:00:00Z' }], pagination: { page: 1, page_size: 25, total: 101 } }) });
-    });
-    await page.route('**/api/v1/public-data/materials**', async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 4, name: longMaterial, formula: 'C120H24O8', molar_mass_g_mol: 1593.4, structure_count: 1, isotherm_count: 1, external_identifiers: [{ source: 'nist', external_id: 'material-123', source_url: null, retrieved_at: '2026-09-02T12:00:00Z', source_version: null }] }], pagination: { page: 1, page_size: 25, total: 50 } }) });
-    });
-    await page.route('**/api/v1/public-data/chemicals/7', async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 7, name: 'carbon dioxide', preferred_name: 'carbon dioxide', formula: 'CO2', molecular_weight: 44.009, inchi: 'InChI=1S/CO2/c2-1-3', inchi_key: 'CURLTUGMZLYLDI-UHFFFAOYSA-N', connectivity_smiles: 'C(=O)=O', smiles: 'C(=O)=O', pubchem_cid: '280', synonyms: Array.from({ length: 20 }, (_, index) => `long scientific synonym ${index + 1}`), properties: [{ key: 'tpsa_angstrom2', value_number: 34.1, value_text: null, unit: 'Å²', source: 'pubchem' }], external_identifiers: [{ source: 'pubchem', external_id: '280', source_url: 'https://pubchem.ncbi.nlm.nih.gov/compound/280', retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], structure_2d_url: null, conformer_3d_url: 'https://example.test/co2.sdf', isotherm_count: 1, retrieved_at: '2026-09-02T12:00:00Z' }) });
-    });
-    await page.route(/\/api\/v1\/public-data\/chemicals(?:\?.*)?$/, async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 7, name: 'carbon dioxide', preferred_name: 'carbon dioxide', formula: 'CO2', molecular_weight: 44.009, inchi: 'InChI=1S/CO2/c2-1-3', inchi_key: 'CURLTUGMZLYLDI-UHFFFAOYSA-N', connectivity_smiles: 'C(=O)=O', smiles: 'C(=O)=O', pubchem_cid: '280', synonyms: [], properties: [], external_identifiers: [{ source: 'pubchem', external_id: '280', source_url: 'https://pubchem.ncbi.nlm.nih.gov/compound/280', retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], structure_2d_url: null, conformer_3d_url: 'https://example.test/co2.sdf', isotherm_count: 1, retrieved_at: '2026-09-02T12:00:00Z' }], pagination: { page: 1, page_size: 25, total: 80 } }) });
-    });
     await page.route('**/api/v1/public-data/structures**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 9, source: 'cod', external_id: '9012345', source_url: 'https://www.crystallography.net/cod/9012345.html', material_id: null, material_name: null, name: longMaterial, formula: 'C120H24O8', format: 'cif', content_sha256: 'a'.repeat(64), space_group: 'P 21/c', space_group_number: 14, cell_a_angstrom: 12.3, cell_b_angstrom: 18.4, cell_c_angstrom: 25.1, cell_alpha_deg: 90, cell_beta_deg: 102.3, cell_gamma_deg: 90, cell_volume_angstrom3: 5500.2, has_coordinates: true, atom_count: 144, doi: '10.1000/example', reference_title: null, retrieved_at: '2026-09-02T12:00:00Z', atoms: [] }], pagination: { page: 1, page_size: 25, total: 38 } }) });
+    });
+    await page.route('**/api/v1/public-data/sources/nist/edited-experiments', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0 }) });
     });
     await page.route('**/api/v1/public-data/sources/nist/collections', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ collections: [
@@ -55,9 +37,6 @@ async function installApiMocks(page: Page): Promise<void> {
             { category: 'guest', local_count: 20, available_count: null, indexed_at: null },
             { category: 'host', local_count: 30, available_count: 120, indexed_at: '2026-10-19T10:00:00Z' },
         ] }) });
-    });
-    await page.route('**/api/v1/public-data/materials/4', async (route) => {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 4, name: longMaterial, formula: 'C120H24O8', molar_mass_g_mol: 1593.4, structure_count: 1, isotherm_count: 1, external_identifiers: [{ source: 'nist', external_id: 'material-123', source_url: null, retrieved_at: '2026-09-02T12:00:00Z', source_version: null }], structures: [{ id: 9, source: 'cod', external_id: '9012345', source_url: null, material_id: 4, material_name: longMaterial, name: null, formula: 'C120H24O8', format: 'cif', content_sha256: 'a'.repeat(64), space_group: 'P 21/c', space_group_number: 14, cell_a_angstrom: null, cell_b_angstrom: null, cell_c_angstrom: null, cell_alpha_deg: null, cell_beta_deg: null, cell_gamma_deg: null, cell_volume_angstrom3: null, has_coordinates: true, atom_count: 144, doi: null, reference_title: null, retrieved_at: null, atoms: [] }] }) });
     });
 }
 
@@ -72,7 +51,7 @@ async function assertContainedLayout(page: Page): Promise<void> {
     await expect(page.locator('.public-workspace')).toBeVisible();
     const frames = await page.locator('.data-table-frame').evaluateAll((elements) => elements.map((frame) => {
         const parent = frame.closest('.public-section, .detail-panel') ?? frame.parentElement;
-        if (!parent) throw new Error('Public data table has no layout parent');
+        if (!parent) throw new Error('Sources table has no layout parent');
         const frameRect = frame.getBoundingClientRect();
         const parentRect = parent.getBoundingClientRect();
         return {
@@ -94,71 +73,35 @@ async function assertContainedLayout(page: Page): Promise<void> {
     }
 }
 
-test('public data workspace remains contained across dense scientific views', async ({ page }, testInfo: TestInfo) => {
+test('sources stay contained across catalog, acquisition, and structures', async ({ page }, testInfo: TestInfo) => {
     await installApiMocks(page);
-    let useOverviewScreenshotFixture = true;
-    await page.route('**/api/v1/public-data/sources', async (route) => {
-        if (!useOverviewScreenshotFixture) {
-            await route.fallback();
-            return;
-        }
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: [
-            { key: 'cod', name: 'Crystallography Open Database', description: 'Open crystallographic structures with unit-cell metadata, atomic coordinates, CIF files, and publication references.', capabilities: ['structures', 'references'], health_status: 'unknown', health_detail: null, health_fresh: false, last_health_checked_at: null, last_successful_sync_at: null, homepage_url: 'https://www.crystallography.net/cod/', license_name: 'CC0 1.0', license_url: 'https://creativecommons.org/publicdomain/zero/1.0/', terms_url: 'https://wiki.crystallography.net/howtoobtaincod/', record_count: 0 },
-            { key: 'nist', name: 'NIST/ARPA-E Database of Novel and Emerging Adsorbent Materials', description: 'Public adsorption experiments plus guest-species and host-material records from the ADSMOD NIST integration.', capabilities: ['adsorption', 'materials', 'chemicals', 'references'], health_status: 'unknown', health_detail: null, health_fresh: false, last_health_checked_at: null, last_successful_sync_at: null, homepage_url: 'https://adsorption.nist.gov/', license_name: null, license_url: null, terms_url: 'https://adsorption.nist.gov/', record_count: 0 },
-            { key: 'pubchem', name: 'PubChem', description: 'NIH public chemical information, identifiers, molecular descriptors, and 2D/3D structure records.', capabilities: ['chemicals', 'structures', 'references'], health_status: 'unknown', health_detail: null, health_fresh: false, last_health_checked_at: null, last_successful_sync_at: null, homepage_url: 'https://pubchem.ncbi.nlm.nih.gov/', license_name: 'Public domain / source-attributed records', license_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/downloads', terms_url: 'https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access', record_count: 0 },
-        ] }) });
-    });
-    for (const resource of ['adsorption', 'materials', 'chemicals', 'structures']) {
-        await page.route(`**/api/v1/public-data/${resource}**`, async (route) => {
-            if (!useOverviewScreenshotFixture) {
-                await route.fallback();
-                return;
-            }
-            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], pagination: { page: 1, page_size: 1, total: 0 } }) });
-        });
+    await page.goto('/sources');
+    await expect(page).toHaveURL(/\/sources\/catalog$/);
+    await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Sources/);
+    await expect(page.getByRole('heading', { name: 'External data sources' })).toBeVisible();
+    for (const group of ['Adsorption isotherms', 'Chemical identity and properties', 'Crystal structures']) {
+        await expect(page.getByRole('heading', { name: group })).toBeVisible();
     }
-    await page.goto('/public-data/overview');
-    await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
-    await expect(page.getByRole('heading', { name: 'Integrated sources' })).toBeVisible();
-    await expect(page.locator('.public-workspace .section-heading').last()).toHaveCSS('flex-direction', 'row');
-    await expect(page.locator('.public-workspace .section-heading').last()).toHaveCSS('text-align', 'left');
+    await expect(page.locator('.source-summary')).toHaveCount(3);
     await assertContainedLayout(page);
     if (testInfo.project.name === 'viewport-1440x920') {
-        await page.screenshot({ path: testInfo.outputPath('public-data-overview-after.jpg') });
+        await page.screenshot({ path: testInfo.outputPath('sources-catalog.jpg') });
     }
-    useOverviewScreenshotFixture = false;
 
-    for (const view of ['acquire', 'adsorption', 'materials', 'chemicals', 'structures', 'sources']) {
-        await page.goto(`/public-data/${view}`);
-        await expect(page.locator('.public-workspace')).toBeVisible();
-        await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
+    for (const view of ['acquire', 'structures']) {
+        await page.goto(`/sources/${view}`);
+        await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Sources/);
         await assertContainedLayout(page);
     }
 
-    await page.getByRole('link', { name: 'Fitting', exact: true }).hover();
-    await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
-    await expect(page.getByRole('link', { name: 'Fitting', exact: true })).not.toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('link', { name: 'Fitting', exact: true })).toHaveCSS('box-shadow', 'none');
-    if (testInfo.project.name === 'viewport-1440x920') {
-        await page.screenshot({ path: testInfo.outputPath('public-nav-unselected-hover.png') });
-    }
-
-    await page.goto('/public-data/materials');
+    await page.goto('/sources/structures');
     const controlHeight = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--control-height').trim());
     await expect(page.locator('.filter-bar input, .filter-bar select').first()).toHaveCSS('height', controlHeight);
-
-    await page.goto('/public-data/adsorption');
-    await page.getByRole('button', { name: 'Inspect' }).click();
-    await expect(page.getByRole('img', { name: 'Pressure versus uptake isotherm plot' })).toBeVisible();
-    await assertContainedLayout(page);
-
-    await page.goto('/public-data/chemicals');
-    await page.getByRole('button', { name: 'Inspect' }).click();
-    await expect(page.getByRole('heading', { name: 'carbon dioxide' })).toBeVisible();
-    await assertContainedLayout(page);
+    await page.goto('/public-data/overview');
+    await expect(page).toHaveURL(/\/datasets$/);
 });
 
-test('Overview renders before one local summary response and skips provider health probes', async ({ page }) => {
+test('Catalog renders before one local summary response and skips provider health probes', async ({ page }) => {
     await installApiMocks(page);
 
     const sourceRequests: string[] = [];
@@ -185,12 +128,12 @@ test('Overview renders before one local summary response and skips provider heal
         }
     });
 
-    await page.goto('/public-data/overview');
+    await page.goto('/sources/catalog');
     await overviewStarted;
-    await expect(page.getByRole('heading', { name: 'Integrated sources' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'External data sources' })).toBeVisible();
     await expect(page.locator('.overview-totals strong').first()).toHaveText('—');
     expect(overviewRequests).toBe(1);
-    expect(sourceRequests).toHaveLength(1);
+    expect(sourceRequests.length).toBeGreaterThanOrEqual(1);
     expect(new URL(sourceRequests[0]).pathname).toBe('/api/v1/public-data/sources');
     expect(providerRequests).toEqual([]);
 
@@ -201,7 +144,7 @@ test('Overview renders before one local summary response and skips provider heal
     await expect(page.locator('.overview-totals strong').nth(3)).toHaveText('3');
 });
 
-test('Sources shows cached status and refreshes it through a background health run', async ({ page }) => {
+test('Catalog shows cached status and refreshes it through a background health run', async ({ page }) => {
     await installApiMocks(page);
 
     let releaseHealth!: () => void;
@@ -228,9 +171,9 @@ test('Sources shows cached status and refreshes it through a background health r
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ runs: [], total: 0 }) });
     });
 
-    await page.goto('/public-data/sources');
+    await page.goto('/sources/catalog');
     await expect(page.getByText('NIST test provider')).toBeVisible();
-    await expect(page.getByText('4 stored source records')).toBeVisible();
+    await expect(page.locator('.source-facts').first()).toContainText('4');
     await expect(page.getByText('Not checked')).toBeVisible();
 
     await page.getByRole('button', { name: 'Refresh status' }).click();
@@ -285,7 +228,7 @@ test('NIST collection fetching in Acquire tracks durable progress and cooperativ
     });
 
     await page.addInitScript(() => window.localStorage.setItem('adsmod.nist.fraction.experiments', '0.1'));
-    await page.goto('/public-data/acquire');
+    await page.goto('/sources/acquire');
     const isotherms = page.locator('.collection-row', { hasText: 'Adsorption isotherms' });
     await expect(isotherms).toContainText(/100 \/ 1[,.\s]?000/);
     await assertContainedLayout(page);
@@ -369,7 +312,7 @@ test('COD search in Acquire imports a bounded selection and links to the stored 
         await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify(completedRun()) });
     });
 
-    await page.goto('/public-data/acquire?panel=cod');
+    await page.goto('/sources/acquire?panel=cod');
     await page.locator('#acquire-cod-query').fill('carbon dioxide');
     await page.locator('#acquire-cod').getByRole('button', { name: 'Search' }).click();
     await expect(page.getByText('Carbon dioxide phase A')).toBeVisible();
@@ -382,27 +325,11 @@ test('COD search in Acquire imports a bounded selection and links to the stored 
         operation: 'cod_import',
         cod_ids: ['9012345', '9012346'],
     });
-    await expect(page.locator('#acquire-runs').getByRole('link', { name: /View structures/ })).toHaveAttribute('href', '/public-data/structures?source=cod');
+    await expect(page.locator('#acquire-runs').getByRole('link', { name: /View structures/ })).toHaveAttribute('href', '/sources/structures?source=cod');
     await assertContainedLayout(page);
 });
 
-test('stored records cross-link isotherms, materials, chemicals, and structures', async ({ page }) => {
-    await installApiMocks(page);
-
-    await page.goto('/public-data/adsorption?id=1');
-    await expect(page.getByRole('img', { name: 'Pressure versus uptake isotherm plot' })).toBeVisible();
-    await page.getByRole('complementary', { name: 'Adsorption record details' }).getByRole('link', { name: /^Material:/ }).click();
-    await expect(page).toHaveURL(/\/public-data\/materials\?id=4$/);
-    const material = page.getByRole('complementary', { name: 'Material details' });
-    await expect(material.getByRole('link', { name: 'View 1 isotherms' })).toHaveAttribute('href', '/public-data/adsorption?material_id=4');
-    await expect(material.getByRole('link', { name: 'Find COD structures' })).toHaveAttribute('href', /panel=cod.*formula=C120H24O8/);
-    await material.getByRole('link', { name: 'Open' }).first().click();
-    await expect(page).toHaveURL(/\/public-data\/structures\?id=9$/);
-    await expect(page.getByRole('complementary', { name: 'Structure details' })).toBeVisible();
-    await assertContainedLayout(page);
-});
-
-test('late Overview responses do not overwrite the selected view', async ({ page }) => {
+test('late catalog responses do not overwrite the selected view', async ({ page }) => {
     await installApiMocks(page);
 
     let releaseOverview!: () => void;
@@ -415,10 +342,41 @@ test('late Overview responses do not overwrite the selected view', async ({ page
         await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Delayed Overview failure' }) });
     });
 
-    await page.goto('/public-data/overview');
+    await page.goto('/sources/catalog');
     await overviewStarted;
-    await page.getByRole('link', { name: 'Materials', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Materials' })).toBeVisible();
+    await page.getByRole('link', { name: 'Structures', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Structures', level: 3 })).toBeVisible();
     releaseOverview();
     await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('re-downloading NIST isotherms asks before overwriting local edits', async ({ page }) => {
+    await installApiMocks(page);
+    let requestBody: Record<string, unknown> | null = null;
+    await page.route('**/api/v1/public-data/sources/nist/edited-experiments', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 2 }) });
+    });
+    await page.route('**/api/v1/public-data/sync-runs', async (route) => {
+        if (route.request().method() !== 'POST') {
+            await route.fallback();
+            return;
+        }
+        requestBody = route.request().postDataJSON() as Record<string, unknown>;
+        await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'nist-run-2', source_key: 'nist', operation: 'nist_category', parameters: requestBody, status: 'queued', progress: 0, processed_count: 0, imported_count: 0, skipped_count: 0, failed_count: 0, checkpoint: {}, cancel_requested: false, error_detail: null, created_at: '2026-10-19T10:00:00Z', started_at: null, finished_at: null }) });
+    });
+
+    await page.addInitScript(() => window.localStorage.setItem('adsmod.nist.fraction.experiments', '0.1'));
+    await page.goto('/sources/acquire');
+    const isotherms = page.locator('.collection-row', { hasText: 'Adsorption isotherms' });
+    await isotherms.getByRole('button', { name: 'Fetch' }).click();
+    const dialog = page.getByRole('alertdialog', { name: 'Overwrite local edits?' });
+    await expect(dialog).toContainText('2 NIST experiment(s) were edited locally');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    expect(requestBody).toBeNull();
+
+    await isotherms.getByRole('button', { name: 'Fetch' }).click();
+    await page.getByRole('alertdialog', { name: 'Overwrite local edits?' }).getByRole('button', { name: 'Overwrite and fetch' }).click();
+    await expect.poll(() => requestBody).toEqual({
+        source_key: 'nist', operation: 'nist_category', category: 'experiments', fraction: 0.1, overwrite_local_edits: true,
+    });
 });

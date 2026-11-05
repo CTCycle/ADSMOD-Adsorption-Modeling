@@ -29,11 +29,11 @@ type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
                 <nav class="console-nav" aria-label="Primary">
                     <a class="console-nav-item" routerLink="/datasets" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">□</span>
-                        <span>Custom Datasets</span>
+                        <span>Datasets</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/public-data" routerLinkActive="active" ariaCurrentWhenActive="page">
+                    <a class="console-nav-item" routerLink="/sources" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⇩</span>
-                        <span>Public Data</span>
+                        <span>Sources</span>
                     </a>
                     <a class="console-nav-item" routerLink="/dashboards" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">▦</span>
@@ -95,8 +95,8 @@ export class CoreShellComponent {
         const url = this.currentUrl();
         const page: DocsPage = url.startsWith('/dashboards')
             ? 'dashboards'
-            : url.startsWith('/public-data')
-              ? 'public-data'
+            : url.startsWith('/sources')
+              ? 'sources'
               : url.startsWith('/fitting')
                 ? 'fitting'
                 : url.startsWith('/training')
@@ -111,8 +111,8 @@ export class CoreShellComponent {
         if (url.startsWith('/dashboards')) {
             return 'Dashboards';
         }
-        if (url.startsWith('/public-data')) {
-            return 'Public Data';
+        if (url.startsWith('/sources')) {
+            return 'Sources';
         }
         if (url.startsWith('/fitting')) {
             return 'Fitting';
@@ -126,15 +126,15 @@ export class CoreShellComponent {
         if (url.startsWith('/help')) {
             return 'Docs';
         }
-        return url.startsWith('/datasets/') ? 'Dataset Details' : 'Custom Datasets';
+        return url.startsWith('/datasets/') ? 'Dataset' : 'Datasets';
     });
     protected readonly pageDescription = computed(() => {
         const url = this.currentUrl();
         if (url.startsWith('/dashboards')) {
             return 'Query, compare, and visualise stored adsorption data without copying it.';
         }
-        if (url.startsWith('/public-data')) {
-            return 'Discover, normalize, inspect, and trace scientific records from integrated public sources.';
+        if (url.startsWith('/sources')) {
+            return 'Discover external data providers and acquire their records into the local database.';
         }
         if (url.startsWith('/fitting')) {
             return 'Configure and run adsorption model fitting workflows.';
@@ -149,8 +149,8 @@ export class CoreShellComponent {
             return 'Tutorials, guides, and tips for every ADSMOD workflow.';
         }
         return url.startsWith('/datasets/')
-            ? 'Inspect experiments, observations, and saved import settings.'
-            : 'Manage datasets uploaded directly into the workspace.';
+            ? 'Inspect and edit experiments and their measurements.'
+            : 'Manage local adsorption datasets, adsorbent materials, and chemical species.';
     });
 
     constructor() {

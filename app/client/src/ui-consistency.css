@@ -215,8 +215,7 @@ button {
   line-height: 1.5;
 }
 
-.field-label,
-.metadata-field > span {
+.field-label {
   font-size: 0.8125rem;
   line-height: 1.35;
   font-weight: 600;
@@ -391,12 +390,6 @@ button {
   min-height: 40px;
 }
 
-.dataset-metadata-header .dataset-metadata-close {
-  width: 42px;
-  min-width: 42px;
-  min-height: 42px;
-  padding: 0;
-}
 
 .dataset-modal-backdrop {
   padding: var(--spacing-md);

@@ -8,8 +8,14 @@ const datasetRecord = {
     name: 'Example workspace dataset',
     source: 'uploaded',
     created_at: '2026-09-24T12:00:00Z',
+    last_update: '2026-09-25T08:30:00Z',
     experiment_count: 1,
-    observation_count: 4,
+    observation_count: 2,
+    edited_experiment_count: 0,
+    material_count: 1,
+    species_count: 1,
+    material_names: ['Hierarchical activated carbon framework'],
+    species_names: ['carbon dioxide'],
     tags: ['team'],
     description: 'A small imported dataset for the shell interaction check.',
 };
@@ -77,8 +83,8 @@ async function readShellGeometry(page: Page) {
 test('primary routes share one stable shell at each supported viewport', async ({ page }, testInfo: TestInfo) => {
     await installShellApiMocks(page);
     const routes = [
-        { path: '/datasets', title: 'Custom Datasets', key: 'datasets' },
-        { path: '/public-data/overview', title: 'Public Data', key: 'public-data' },
+        { path: '/datasets', title: 'Datasets', key: 'datasets' },
+        { path: '/sources/catalog', title: 'Sources', key: 'sources' },
         { path: '/dashboards', title: 'Dashboards', key: 'dashboards' },
         { path: '/fitting', title: 'Fitting', key: 'fitting' },
         { path: '/training/processing', title: 'Training', key: 'training' },
@@ -117,7 +123,7 @@ test('primary routes share one stable shell at each supported viewport', async (
 
         const captureDesktop = testInfo.project.name === 'viewport-1440x920';
         const captureMobile = testInfo.project.name === 'mobile-600x900' && ['datasets', 'training'].includes(route.key);
-        const captureKnownOverflowViewport = testInfo.project.name === 'known-overflow-1280x720' && route.key === 'public-data';
+        const captureKnownOverflowViewport = testInfo.project.name === 'known-overflow-1280x720' && route.key === 'sources';
         if (captureDesktop || captureMobile || captureKnownOverflowViewport) {
             await page.screenshot({ path: testInfo.outputPath(`${route.key}.png`) });
         }
@@ -129,14 +135,14 @@ test('primary routes share one stable shell at each supported viewport', async (
             { width: 195, height: 422 },
         ]) {
             await page.setViewportSize(viewport);
-            await page.goto('/public-data/materials');
-            await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Public Data/);
+            await page.goto('/sources/structures');
+            await expect(page.locator('.console-nav-item[aria-current="page"]')).toHaveText(/Sources/);
             const geometry = await readShellGeometry(page);
             expect(geometry.documentWidth).toBeLessThanOrEqual(viewport.width + 1);
             expect(geometry.themeSwitch.x + geometry.themeSwitch.width).toBeLessThanOrEqual(viewport.width + 1);
 
             if (viewport.width === 390) {
-                await page.screenshot({ path: testInfo.outputPath('public-materials-mobile-390x844.png') });
+                await page.screenshot({ path: testInfo.outputPath('sources-structures-mobile-390x844.png') });
             }
         }
     }
@@ -146,147 +152,152 @@ test('training routes remain gated when the optional service is unavailable', as
     await installShellApiMocks(page, false);
     await page.goto('/training/processing');
     await expect(page).toHaveURL(/\/datasets$/);
-    await expect(page.getByRole('heading', { name: 'Custom Datasets', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Datasets', exact: true })).toBeVisible();
 });
 
-test('dataset tables stay contained and deletion requires an explicit confirmation', async ({ page }, testInfo: TestInfo) => {
+const experimentRecord = {
+    id: 31,
+    dataset_id: 17,
+    external_key: 'experiment-with-a-long-stable-key-31',
+    name: 'Carbon dioxide adsorption experiment',
+    adsorbent_id: 4,
+    adsorbent: 'Hierarchical activated carbon framework',
+    adsorbates: ['carbon dioxide'],
+    components: [{ id: 51, position: 1, adsorbate_id: 7, name: 'carbon dioxide', mole_fraction: null }],
+    temperature_k: 298.15,
+    temperature_original: 298.15,
+    temperature_original_unit: 'K',
+    pressure_basis: 'absolute',
+    saturation_pressure_pa: null,
+    duplicate_policy: 'reject',
+    observation_count: 2,
+    pressure_min: 100000,
+    pressure_max: 200000,
+    pressure_canonical_unit: 'Pa',
+    pressure_original_unit: 'bar',
+    uptake_original_unit: 'mmol/g',
+    edited_at: null,
+    fitting_eligible: true,
+    ineligibility_reason: null,
+};
+
+test('datasets, materials, and species stay contained; edits save and deletion is confirmed', async ({ page }, testInfo: TestInfo) => {
     await installShellApiMocks(page, false);
     let dataset: typeof datasetRecord | null = { ...datasetRecord };
+    let uptake = 0.1;
     let deleteRequests = 0;
+    let patchBody: Record<string, unknown> | null = null;
+    const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    await page.route(/\/api\/v1\/(materials|species)(?:\?.*)?$/, async (route) => {
+        const isMaterial = new URL(route.request().url()).pathname.endsWith('/materials');
+        const item = isMaterial
+            ? { id: 4, name: 'Hierarchical activated carbon framework', formula: null, molar_mass_g_mol: null, smiles: null, structure_count: 0, isotherm_count: dataset ? 1 : 0, external_identifiers: [] }
+            : { id: 7, name: 'carbon dioxide', preferred_name: null, formula: 'CO2', molecular_weight: 44.01, inchi: null, inchi_key: null, connectivity_smiles: null, smiles: null, pubchem_cid: null, synonyms: [], properties: [], external_identifiers: [], structure_2d_url: null, conformer_3d_url: null, isotherm_count: dataset ? 1 : 0, retrieved_at: null };
+        await route.fulfill(json({ items: [item], pagination: { page: 1, page_size: 25, total: 1 } }));
+    });
     await page.route(/\/api\/v1\/datasets(?:\/[^?]*)?(?:\?.*)?$/, async (route) => {
         const request = route.request();
         const pathname = new URL(request.url()).pathname;
         if (request.method() === 'GET' && pathname.endsWith('/datasets')) {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ datasets: dataset ? [dataset] : [] }),
-            });
-            return;
-        }
-        if (request.method() === 'GET' && pathname.endsWith('/17/experiments')) {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ experiments: [{
-                    id: 31,
-                    dataset_id: 17,
-                    external_key: 'experiment-with-a-long-stable-key-31',
-                    name: 'Carbon dioxide adsorption experiment',
-                    adsorbent: 'Hierarchical activated carbon framework',
-                    adsorbates: ['carbon dioxide'],
-                    temperature_k: 298.15,
-                    pressure_basis: 'absolute',
-                    observation_count: 2,
-                    fitting_eligible: true,
-                    ineligibility_reason: null,
-                }] }),
-            });
-            return;
-        }
-        if (request.method() === 'GET' && pathname.endsWith('/17/experiments/31/observations')) {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    status: 'success',
-                    dataset_id: 17,
-                    isotherm_id: 31,
-                    offset: 0,
-                    limit: 10,
-                    total: 2,
-                    rows: [
-                        { id: 1, sequence_index: 0, uptake_stddev_mol_kg: null, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: 0.1, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.1 },
-                        { id: 2, sequence_index: 1, uptake_stddev_mol_kg: null, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
-                    ],
-                }),
-            });
-            return;
-        }
-        if (request.method() === 'PATCH' && pathname.endsWith('/17/rename')) {
-            const body = request.postDataJSON() as { new_name: string };
-            dataset = { ...datasetRecord, name: body.new_name };
-            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ dataset }) });
-            return;
-        }
-        if (request.method() === 'DELETE' && pathname.endsWith('/17')) {
+            await route.fulfill(json({ datasets: dataset ? [dataset] : [] }));
+        } else if (request.method() === 'GET' && pathname.endsWith('/datasets/supported-units')) {
+            await route.fulfill(json({ pressure: [], uptake: [], temperature: [], allowed_extensions: ['.csv'] }));
+        } else if (request.method() === 'GET' && pathname.endsWith('/datasets/17')) {
+            await route.fulfill(json({ status: 'success', dataset, provenance: {}, latest_import: null }));
+        } else if (request.method() === 'GET' && pathname.endsWith('/17/delete-impact')) {
+            await route.fulfill(json({ dataset_id: 17, experiment_count: 1, observation_count: 2, fitting_run_count: 3 }));
+        } else if (request.method() === 'GET' && pathname.endsWith('/17/experiments')) {
+            await route.fulfill(json({ status: 'success', dataset_id: 17, offset: 0, limit: 50, total: 1, experiments: [experimentRecord] }));
+        } else if (request.method() === 'GET' && pathname.endsWith('/17/experiments/31/observations')) {
+            await route.fulfill(json({
+                status: 'success', dataset_id: 17, isotherm_id: 31, offset: 0, limit: 100, total: 2,
+                rows: [
+                    { id: 1, component_id: 51, sequence_index: 0, uptake_stddev_mol_kg: null, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: uptake, uptake_original_unit: 'mmol/g', uptake_mol_kg: uptake },
+                    { id: 2, component_id: 51, sequence_index: 1, uptake_stddev_mol_kg: null, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
+                ],
+            }));
+        } else if (request.method() === 'PATCH' && pathname.endsWith('/datasets/17')) {
+            patchBody = request.postDataJSON() as Record<string, unknown>;
+            uptake = 0.15;
+            dataset = { ...datasetRecord, last_update: '2026-09-26T09:00:00Z', edited_experiment_count: 1 };
+            await route.fulfill(json({ status: 'success', dataset }));
+        } else if (request.method() === 'DELETE' && pathname.endsWith('/datasets/17')) {
             deleteRequests += 1;
             dataset = null;
             await route.fulfill({ status: 204, body: '' });
-            return;
+        } else {
+            await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
         }
-        await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
     });
 
     await page.goto('/datasets');
-    await expect(page.getByRole('link', { name: datasetRecord.name, exact: true }).first()).toBeVisible();
-    const datasetTableGeometry = await page.locator('.dataset-table-frame').evaluate((frame) => {
-        const card = frame.closest<HTMLElement>('.workspace-datasets-card');
-        const table = frame.querySelector('table');
-        if (!card || !table) throw new Error('Dataset table geometry is unavailable');
+    await expect(page.getByRole('link', { name: datasetRecord.name, exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Materials/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('button', { name: 'Show details for Hierarchical activated carbon framework' })).toBeVisible();
+    const listGeometry = await page.evaluate(() => {
+        const primary = document.querySelector('.datasets-primary')!.getBoundingClientRect();
+        const secondary = document.querySelector('.datasets-secondary')!.getBoundingClientRect();
         return {
-            frameLeft: frame.getBoundingClientRect().left,
-            frameRight: frame.getBoundingClientRect().right,
-            cardLeft: card.getBoundingClientRect().left,
-            cardRight: card.getBoundingClientRect().right,
-            frameWidth: frame.clientWidth,
-            frameScrollWidth: frame.scrollWidth,
-            tableWidth: table.getBoundingClientRect().width,
             viewportWidth: document.documentElement.clientWidth,
             documentWidth: document.documentElement.scrollWidth,
+            sideBySide: secondary.left >= primary.right,
+            primaryWidth: primary.width,
+            secondaryWidth: secondary.width,
         };
     });
-    expect(datasetTableGeometry.frameLeft).toBeGreaterThanOrEqual(datasetTableGeometry.cardLeft);
-    expect(datasetTableGeometry.frameRight).toBeLessThanOrEqual(datasetTableGeometry.cardRight + 1);
-    expect(datasetTableGeometry.documentWidth).toBeLessThanOrEqual(datasetTableGeometry.viewportWidth + 1);
-    expect(datasetTableGeometry.frameScrollWidth).toBeLessThanOrEqual(datasetTableGeometry.frameWidth + 1);
+    expect(listGeometry.documentWidth).toBeLessThanOrEqual(listGeometry.viewportWidth + 1);
+    if (listGeometry.viewportWidth >= 1200) {
+        expect(listGeometry.sideBySide).toBe(true);
+        expect(listGeometry.primaryWidth).toBeGreaterThan(listGeometry.secondaryWidth * 1.5);
+    } else {
+        expect(listGeometry.sideBySide).toBe(false);
+    }
     if (testInfo.project.name === 'viewport-1440x920') {
         await page.screenshot({ path: testInfo.outputPath('datasets-populated-desktop.png') });
     }
-    await page.getByRole('button', { name: `Rename ${datasetRecord.name}`, exact: true }).click();
-    await page.getByLabel('Dataset name').fill('Renamed workspace dataset');
-    await page.getByRole('button', { name: 'Save name' }).click();
-    await expect(page.getByRole('link', { name: 'Renamed workspace dataset', exact: true }).first()).toBeVisible();
 
-    await page.getByRole('link', { name: 'Renamed workspace dataset', exact: true }).first().click();
-    await expect(page).toHaveURL(/\/datasets\/17$/);
-    await expect(page.getByRole('heading', { name: 'Renamed workspace dataset', level: 2 })).toBeVisible();
-    await page.getByRole('link', { name: 'Experiments', exact: true }).click();
-    await expect(page).toHaveURL(/tab=experiments/);
-    await expect(page.getByRole('button', { name: /Carbon dioxide adsorption experiment/ })).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('.explorer-table tbody tr')).toHaveCount(2);
+    await page.getByRole('link', { name: `Explore ${datasetRecord.name}` }).click();
+    await expect(page).toHaveURL(/\/datasets\/17\?experiment=31$/);
+    await expect(page.getByRole('heading', { name: datasetRecord.name, level: 2 })).toBeVisible();
+    const worksheet = page.getByRole('table', { name: /^Measurements of/ });
+    await expect(worksheet.locator('tbody tr')).toHaveCount(2);
+    await expect(worksheet.locator('input')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Edit dataset' }).click();
+    await expect(page.getByText('Editing', { exact: true })).toBeVisible();
+    const cell = page.getByLabel('Uptake for measurement 1');
+    await cell.fill('0.15');
+    await cell.press('Enter');
+    await expect(page.getByLabel('Uptake for measurement 2')).toBeFocused();
+    await expect(page.getByText(/1 unsaved change\b/)).toBeVisible();
     const detailsGeometry = await page.evaluate(() => ({
         viewportWidth: document.documentElement.clientWidth,
         documentWidth: document.documentElement.scrollWidth,
     }));
     expect(detailsGeometry.documentWidth).toBeLessThanOrEqual(detailsGeometry.viewportWidth + 1);
     if (testInfo.project.name === 'viewport-1440x920') {
-        await page.screenshot({ path: testInfo.outputPath('dataset-details-experiments-desktop.png') });
+        await page.screenshot({ path: testInfo.outputPath('dataset-details-editing-desktop.png') });
     }
-    await page.goBack();
-    await page.goBack();
-    await expect(page).toHaveURL(/\/datasets$/);
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Changes saved.', { exact: true })).toBeVisible();
+    expect(patchBody).toEqual({ observations: [{ id: 1, uptake_original: 0.15 }] });
+    await expect(worksheet.locator('input')).toHaveCount(0);
+    await expect(worksheet.locator('tbody tr').first()).toContainText('0.15');
 
-    await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
     const confirmation = page.getByRole('alertdialog');
-    await expect(confirmation).toContainText('Renamed workspace dataset');
+    await expect(confirmation).toContainText('1 experiments, 2 measurements and 3 saved fitting runs');
     await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(confirmation.getByRole('button', { name: 'Delete dataset', exact: true })).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
-    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.keyboard.press('Escape');
     await expect(confirmation).toHaveCount(0);
     expect(deleteRequests).toBe(0);
 
-    await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
-    await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(confirmation).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true })).toBeFocused();
-    await page.getByRole('button', { name: 'Delete Renamed workspace dataset', exact: true }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.getByRole('button', { name: 'Delete dataset', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Renamed workspace dataset', exact: true })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/datasets$/);
+    await expect(page.getByRole('link', { name: datasetRecord.name, exact: true })).toHaveCount(0);
     expect(deleteRequests).toBe(1);
 });
 

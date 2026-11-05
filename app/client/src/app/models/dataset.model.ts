@@ -51,18 +51,42 @@ export interface UnitCatalog {
     allowed_extensions: string[];
 }
 
-export interface DatasetMetadata {
-    tags: string[];
-    description: string;
-}
-
-export interface DatasetSummary extends DatasetMetadata {
+export interface DatasetSummary {
     id: number;
     name: string;
     source: DatasetSource;
     created_at: string;
+    last_update: string;
     experiment_count: number;
     observation_count: number;
+    edited_experiment_count: number;
+    material_count: number;
+    species_count: number;
+    material_names: string[];
+    species_names: string[];
+    tags: string[];
+    description: string;
+}
+
+export interface DatasetImportSummary {
+    original_filename: string;
+    source_structure: ImportableStructure;
+    parser_version: string;
+    created_at: string;
+}
+
+export interface DatasetDetail {
+    status: 'success';
+    dataset: DatasetSummary;
+    provenance: Record<string, unknown>;
+    latest_import: DatasetImportSummary | null;
+}
+
+export interface DatasetDeleteImpact {
+    dataset_id: number;
+    experiment_count: number;
+    observation_count: number;
+    fitting_run_count: number;
 }
 
 export interface ImportIssue {
@@ -183,27 +207,116 @@ export interface DatasetImportInspection {
     warnings: ImportIssue[];
 }
 
+export interface ExperimentComponent {
+    id: number;
+    position: number;
+    adsorbate_id: number;
+    name: string;
+    mole_fraction: number | null;
+}
+
 export interface ExperimentSummary {
     id: number;
     dataset_id: number;
     external_key: string;
     name: string;
+    adsorbent_id: number;
     adsorbent: string;
     adsorbates: string[];
+    components: ExperimentComponent[];
     temperature_k: number;
     temperature_original: number | null;
     temperature_original_unit: string | null;
     pressure_basis: PressureBasis;
+    saturation_pressure_pa: number | null;
+    duplicate_policy: 'reject' | 'keep' | 'average';
     observation_count: number;
     pressure_min: number | null;
     pressure_max: number | null;
     pressure_canonical_unit: string | null;
+    pressure_original_unit: string | null;
+    uptake_original_unit: string | null;
+    edited_at: string | null;
     fitting_eligible: boolean;
     ineligibility_reason: string | null;
 }
 
+export interface ExperimentPage {
+    status: 'success';
+    dataset_id: number;
+    offset: number;
+    limit: number;
+    total: number;
+    experiments: ExperimentSummary[];
+}
+
+export interface ExperimentFilters {
+    q?: string;
+    adsorbent_id?: number | null;
+    adsorbate_id?: number | null;
+    edited_only?: boolean;
+}
+
+export interface ExperimentProvenance {
+    source: string;
+    external_id: string;
+    source_url: string | null;
+    doi: string[];
+}
+
+export interface ExperimentDetail {
+    status: 'success';
+    dataset_name: string;
+    experiment: ExperimentSummary;
+    conditions: Record<string, unknown>;
+    provenance: ExperimentProvenance[];
+}
+
+export interface ComponentUpdate {
+    id: number;
+    adsorbate_id?: number;
+    mole_fraction?: number | null;
+}
+
+export interface ExperimentUpdate {
+    id: number;
+    name?: string;
+    adsorbent_id?: number;
+    temperature_original?: number;
+    temperature_original_unit?: string;
+    pressure_unit?: string;
+    uptake_unit?: string;
+    pressure_basis?: PressureBasis;
+    saturation_pressure_pa?: number | null;
+    components?: ComponentUpdate[];
+}
+
+export interface ObservationUpdate {
+    id: number;
+    pressure_original?: number | null;
+    uptake_original?: number | null;
+    uptake_stddev_mol_kg?: number | null;
+}
+
+export interface DatasetUpdateRequest {
+    name?: string;
+    description?: string;
+    tags?: string[];
+    experiments?: ExperimentUpdate[];
+    observations?: ObservationUpdate[];
+}
+
+export interface DatasetEditIssue {
+    scope: 'dataset' | 'experiment' | 'observation';
+    field: string;
+    message: string;
+    experiment_id: number | null;
+    observation_id: number | null;
+}
+
 export interface ObservationRow {
     id: number;
+    component_id: number;
     sequence_index: number;
     source_row: number | null;
     pressure_original: number;

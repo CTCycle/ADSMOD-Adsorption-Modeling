@@ -62,6 +62,18 @@ import { ModelCardComponent } from './model-card.component';
                                                 </option>
                                             }
                                         </select>
+                                        @if (store.experimentTotal() > store.experiments().length || store.experimentQuery()) {
+                                            <input
+                                                class="text-input fitting-experiment-search"
+                                                type="search"
+                                                aria-label="Search experiments"
+                                                placeholder="Search by name, material, or species"
+                                                [value]="store.experimentQuery()"
+                                                [disabled]="store.fittingRunning()"
+                                                (change)="searchExperiments($event)"
+                                            />
+                                            <span class="field-help">Showing {{ store.experiments().length }} of {{ store.experimentTotal() }} experiments.</span>
+                                        }
                                     </div>
                                     <div class="control-group">
                                         <label class="field-label" for="fitting-weighting-control">Weighting</label>
@@ -266,6 +278,10 @@ export class ModelsPageComponent {
     protected selectExperiment(event: Event): void {
         const id = Number((event.target as HTMLSelectElement).value);
         this.store.setSelectedExperiment(Number.isFinite(id) && id > 0 ? id : null);
+    }
+
+    protected searchExperiments(event: Event): void {
+        void this.store.searchExperiments((event.target as HTMLInputElement).value);
     }
 
     protected selectOptimizer(event: Event): void {

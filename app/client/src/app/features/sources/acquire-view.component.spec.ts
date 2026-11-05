@@ -90,7 +90,7 @@ describe('AcquireViewComponent', () => {
 
         const link = element.querySelector('#acquire-runs a.table-action') as HTMLAnchorElement;
         expect(link.textContent).toContain('Open structure');
-        expect(link.getAttribute('href')).toBe('/public-data/structures?id=9');
+        expect(link.getAttribute('href')).toBe('/sources/structures?id=9');
     });
 
     it('refreshes NIST counts once a running collection fetch finishes', async () => {
@@ -108,6 +108,6 @@ describe('AcquireViewComponent', () => {
         expect(collectionRequests).toBe(2);
         const element = fixture.nativeElement as HTMLElement;
         expect(element.querySelector('.collection-count strong')?.textContent).toContain('6 / 12');
-        expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/public-data/chemicals?source=nist');
+        expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/datasets');
     });
 });

@@ -10,6 +10,7 @@ import pandas as pd
 from sqlalchemy import func, select
 
 from server.repositories.database.manager import DatabaseManager
+from server.repositories.dataset_edits import DatasetEditRepository
 from server.repositories.datasets import DatasetRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.public_data import PublicDataRepository
@@ -42,11 +43,13 @@ class NISTRepository:
         datasets: DatasetRepository,
         materials: MaterialRepository,
         public_data: PublicDataRepository | None = None,
+        edits: DatasetEditRepository | None = None,
     ) -> None:
         self.database = database
         self.datasets = datasets
         self.materials = materials
         self.public_data = public_data
+        self.edits = edits or DatasetEditRepository(database)
 
     # -------------------------------------------------------------------------
     def list_nist_experiment_ids(self) -> set[str]:
@@ -263,17 +266,33 @@ class NISTRepository:
             )
 
     # -------------------------------------------------------------------------
-    def save_experiments(
-        self, experiments: list[dict[str, Any]], _replace: bool = False
-    ) -> None:
-        existing = self.list_nist_experiment_ids()
+    def nist_dataset_id(self) -> int | None:
         with self.database.session_factory() as session:
-            collection_id = session.scalar(
+            return session.scalar(
                 select(Dataset.id).where(
                     Dataset.source == "nist",
                     Dataset.normalized_name == normalize_identity(NIST_DATASET_NAME),
                 )
             )
+
+    # -------------------------------------------------------------------------
+    def edited_experiment_ids(self) -> set[str]:
+        dataset_id = self.nist_dataset_id()
+        return set() if dataset_id is None else self.edits.edited_external_keys(dataset_id)
+
+    # -------------------------------------------------------------------------
+    def edited_experiment_count(self) -> int:
+        dataset_id = self.nist_dataset_id()
+        return 0 if dataset_id is None else self.edits.edited_count(dataset_id)
+
+    # -------------------------------------------------------------------------
+    def save_experiments(
+        self, experiments: list[dict[str, Any]], restore_edited: bool = False
+    ) -> None:
+        """Append new NIST experiments; optionally restore locally edited ones."""
+        existing = self.list_nist_experiment_ids()
+        edited = self.edited_experiment_ids() if restore_edited else set()
+        collection_id = self.nist_dataset_id()
         if collection_id is None:
             collection_id = self.datasets.persist_canonical(
                 name=NIST_DATASET_NAME,
@@ -286,6 +305,9 @@ class NISTRepository:
             )
         for experiment in experiments:
             source_id = str(experiment["external_key"])
+            if source_id.casefold() in edited:
+                self.edits.replace_from_source(collection_id, experiment)
+                continue
             if source_id.casefold() in existing:
                 continue
             self.datasets.persist_canonical(

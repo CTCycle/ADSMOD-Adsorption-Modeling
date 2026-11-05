@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -15,7 +15,19 @@ The unified backend serves all versioned routes under `/api/v1`:
   user-defined units (`POST /units`, `DELETE /units/{unit_id}`). Import
   validation reports an unusable unit once as an `unsupported_unit` error. A
   unit saved without a conversion factor is a label only and is never converted.
-- `/public-data/*` (NIST, PubChem, and COD acquisition and browsing)
+  Dataset management: `GET /datasets` (summaries with experiment, measurement,
+  material, and species counts and `last_update`), `GET /datasets/{id}`,
+  `PATCH /datasets/{id}` (atomic edit change set; field-specific issues return
+  HTTP 422 with `detail.issues`), `GET /datasets/{id}/delete-impact`,
+  `DELETE /datasets/{id}`, `GET /datasets/{id}/experiments` (paginated with
+  `offset`, `limit`, `q`, `adsorbent_id`, `adsorbate_id`, temperature range,
+  `edited_only`), `GET /datasets/{id}/experiments/{experiment_id}`, and
+  `GET /datasets/{id}/experiments/{experiment_id}/observations`
+  (`order=pressure|sequence`).
+- `/materials` and `/species` (list, detail with the datasets that use the
+  entity, and `DELETE`, which returns HTTP 409 while experiments reference it)
+- `/public-data/*` (NIST, PubChem, and COD provider catalog, acquisition, and
+  COD structures)
 - `/fitting/*`
 - `/analytics/*` (read-only cross-dataset queries for the dashboards:
   `GET /overview`, and `POST /selection`, `/series`, `/uptake-at-pressure`,

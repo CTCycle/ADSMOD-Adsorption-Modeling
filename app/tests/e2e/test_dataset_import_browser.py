@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import uuid
 
 import pytest
@@ -57,8 +58,8 @@ def _import_inspect_reload_and_delete(
     page.get_by_role("button", name="Review mapping").click()
     page.get_by_label("Dataset name").fill(dataset_name)
     page.get_by_role("button", name="Validate and preview series").click()
-    summary = wizard.locator(".import-summary-grid strong")
-    expect(summary.nth(0)).to_have_text("valid")
+    summary = wizard.locator(".validation-summary strong")
+    expect(summary.nth(0)).to_have_text("Valid")
     expect(summary.nth(1)).to_have_text("2")
     expect(summary.nth(2)).to_have_text("6")
 
@@ -70,58 +71,54 @@ def _import_inspect_reload_and_delete(
     expect(wizard).to_be_hidden()
 
     page.reload()
-    dataset_row = (
-        page.get_by_role("table", name="Workspace datasets")
-        .get_by_role("row")
-        .filter(has_text=dataset_name)
-    )
-    expect(dataset_row).to_be_visible()
-    expect(dataset_row.locator("td").nth(2)).to_have_text("2")
-    expect(dataset_row.locator("td").nth(3)).to_have_text("6")
-    dataset_row.get_by_role("button", name=f"Open {dataset_name}").click()
-    expect(page.get_by_text("Detected columns", exact=True)).to_be_visible()
-    experiments = page.locator(".dataset-experiments-table tbody tr")
-    expect(experiments).to_have_count(2)
+    dataset_row = page.locator(".dataset-row").filter(has_text=dataset_name)
+    expect(dataset_row).to_have_count(1)
+    expect(dataset_row.locator(".dataset-row-facts dd").nth(0)).to_have_text("2")
+    expect(dataset_row.locator(".dataset-row-facts dd").nth(1)).to_have_text("6")
+    dataset_row.get_by_role("link", name=f"Explore {dataset_name}").click()
 
-    experiments.nth(1).get_by_role("button", name="Inspect").click()
-    expect(page.get_by_text("3 rows", exact=True)).to_be_visible()
-    expect(
-        page.get_by_role("table", name="Persisted observations").locator("tbody tr")
-    ).to_have_count(3)
+    experiments = page.locator(".experiment-item")
+    expect(experiments).to_have_count(2)
+    experiments.nth(1).click()
+    worksheet = page.get_by_role("table", name=re.compile(r"^Measurements of"))
+    expect(worksheet.locator("tbody tr")).to_have_count(3)
+    expect(worksheet.locator("input")).to_have_count(0)
+
+    page.get_by_role("button", name="Edit dataset").click()
+    cell = page.get_by_label("Uptake for measurement 1")
+    cell.fill("0.5")
+    cell.press("Enter")
+    with page.expect_response(
+        lambda response: response.request.method == "PATCH" and "/api/v1/datasets/" in response.url
+    ) as save_response:
+        page.get_by_role("button", name="Save changes").click()
+    assert save_response.value.status == 200
+    expect(page.get_by_text("Changes saved.", exact=True)).to_be_visible()
 
     page.reload()
-    dataset_row = (
-        page.get_by_role("table", name="Workspace datasets")
-        .get_by_role("row")
-        .filter(has_text=dataset_name)
-    )
-    expect(dataset_row).to_be_visible()
-    dataset_row.get_by_role("button", name=f"Open {dataset_name}").click()
-    expect(page.get_by_text("Detected columns", exact=True)).to_be_visible()
-    expect(page.locator(".dataset-experiments-table tbody tr")).to_have_count(2)
+    # Columns after the row header: source row, pressure, uptake.
+    expect(worksheet.locator("tbody tr").first.locator("td").nth(2)).to_have_text("0.5")
+    page.get_by_role("link", name="← Datasets").click()
 
+    dataset_row = page.locator(".dataset-row").filter(has_text=dataset_name)
     with page.expect_response(
         lambda response: (
             response.request.method == "DELETE" and "/api/v1/datasets/" in response.url
         )
     ) as delete_response:
         dataset_row.get_by_role("button", name=f"Delete {dataset_name}").click()
-        dialog = page.get_by_role("alertdialog", name="Delete dataset?")
+        dialog = page.get_by_role("alertdialog", name=f"Delete {dataset_name}")
         expect(dialog).to_be_visible()
         dialog.get_by_role("button", name="Delete dataset").click()
     assert delete_response.value.status == 204
-    expect(dataset_row).to_be_hidden()
+    expect(dataset_row).to_have_count(0)
 
     page.reload()
-    expect(
-        page.get_by_role("table", name="Workspace datasets")
-        .get_by_role("row")
-        .filter(has_text=dataset_name)
-    ).to_have_count(0)
+    expect(page.locator(".dataset-row").filter(has_text=dataset_name)).to_have_count(0)
 
 
 ###############################################################################
-def test_csv_import_persists_inspection_experiment_switch_and_deletion(
+def test_csv_import_explore_edit_and_delete(
     page_context: Page,
 ) -> None:
     page = page_context

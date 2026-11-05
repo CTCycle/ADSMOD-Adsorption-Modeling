@@ -41,6 +41,7 @@ describe('ModelsPageComponent', () => {
                     ok: true,
                     status: 200,
                     json: async () => ({
+                        total: 1,
                         experiments: [
                             {
                                 id: 42,
@@ -287,6 +288,7 @@ describe('ModelsPageComponent', () => {
                     ok: true,
                     status: 200,
                     json: async () => ({
+                        total: 1,
                         experiments: [{
                             id: 42,
                             dataset_id: 1,

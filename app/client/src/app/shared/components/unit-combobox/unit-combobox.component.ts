@@ -81,7 +81,8 @@ let nextId = 0;
                     }
                 </ul>
             }
-            @if (detected() && !text()) {
+            @if (!showOverrideState()) {
+            } @else if (detected() && !text()) {
                 <span class="unit-badge detected">Auto-detected</span>
             } @else if (text()) {
                 <span class="unit-badge manual">Manual override</span>
@@ -304,6 +305,8 @@ export class UnitComboboxComponent {
     readonly detected = input<string | null>(null);
     readonly placeholder = input('Search or type a unit');
     readonly invalid = input(false);
+    /** Import mapping shows whether a unit overrides detection; editors do not. */
+    readonly showOverrideState = input(true);
     /** The selected unit text; empty means "use the detected unit". */
     readonly value = model('');
     readonly customUnit = output<CustomUnitChoice>();

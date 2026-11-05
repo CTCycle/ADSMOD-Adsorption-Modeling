@@ -67,10 +67,21 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "/api/v1/public-data/sync-runs/{run_id}" in paths
         assert "/api/v1/public-data/sync-runs/{run_id}/cancel" in paths
         assert "/api/v1/public-data/sync-runs/{run_id}/resume" in paths
-        assert "/api/v1/public-data/adsorption" in paths
+        assert "/api/v1/public-data/sources/nist/edited-experiments" in paths
         assert "/api/v1/public-data/structures/search" in paths
         assert "/api/v1/public-data/sources/nist/collections" in paths
-        assert "/api/v1/public-data/materials/{adsorbent_id}" in paths
+        assert {"get", "delete"} <= set(paths["/api/v1/materials/{adsorbent_id}"])
+        assert {"get", "delete"} <= set(paths["/api/v1/species/{adsorbate_id}"])
+        assert {"get", "patch", "delete"} <= set(paths["/api/v1/datasets/{dataset_id}"])
+        assert "/api/v1/datasets/{dataset_id}/experiments/{experiment_id}" in paths
+        for retired in (
+            "/api/v1/public-data/adsorption",
+            "/api/v1/public-data/materials",
+            "/api/v1/public-data/chemicals",
+            "/api/v1/datasets/{dataset_id}/rename",
+            "/api/v1/datasets/{dataset_id}/metadata",
+        ):
+            assert retired not in paths
         assert "put" in paths["/api/v1/public-data/structures/{structure_id}/material"]
         assert "/api/v1/public-data/structures/{structure_id}/file" in paths
         assert "post" in paths["/api/v1/public-data/sync-runs/{run_id}/cancel"]
