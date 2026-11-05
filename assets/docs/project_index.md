@@ -1,6 +1,6 @@
 # ADSMOD Project Overview
 
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 ## Purpose
 
@@ -116,7 +116,7 @@ and per-run narratives should not be added there.
 - [`operations/overview.md`](operations/overview.md)
   - Index for end-user workflows, common commands, and troubleshooting.
 - [`operations/workflows.md`](operations/workflows.md)
-  - Primary user workflows across datasets, fitting, dashboards, public data, and training.
+  - Primary user workflows across datasets, modeling (fitting sessions and deep learning), dashboards, and public data.
 - [`operations/commands.md`](operations/commands.md)
   - Launch, test, frontend, and maintenance commands.
 - [`operations/troubleshooting.md`](operations/troubleshooting.md)

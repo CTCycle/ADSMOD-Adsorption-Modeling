@@ -1041,60 +1041,6 @@
         ],
         "summary": "Model Catalog",
         "operationId": "model_catalog_api_v1_fitting_models_get",
-        "parameters": [
-          {
-            "name": "pressure_unit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "bar",
-              "title": "Pressure Unit"
-            }
-          },
-          {
-            "name": "uptake_unit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "mmol/g",
-              "title": "Uptake Unit"
-            }
-          },
-          {
-            "name": "dataset_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dataset Id"
-            }
-          },
-          {
-            "name": "isotherm_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Isotherm Id"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1102,6 +1048,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ModelCatalogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fitting/models/{model_key}": {
+      "put": {
+        "tags": [
+          "fitting"
+        ],
+        "summary": "Update Model",
+        "operationId": "update_model_api_v1_fitting_models__model_key__put",
+        "parameters": [
+          {
+            "name": "model_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelSettingsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDefinition"
                 }
               }
             }
@@ -1119,22 +1107,286 @@
         }
       }
     },
-    "/api/v1/fitting/run": {
+    "/api/v1/fitting/models/{model_key}/reset": {
       "post": {
         "tags": [
           "fitting"
         ],
-        "summary": "Start Fitting Job",
-        "operationId": "start_fitting_job_api_v1_fitting_run_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FittingRequest"
+        "summary": "Reset Model",
+        "operationId": "reset_model_api_v1_fitting_models__model_key__reset_post",
+        "parameters": [
+          {
+            "name": "model_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDefinition"
+                }
               }
             }
           },
-          "required": true
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fitting/datasets/{dataset_id}/readiness": {
+      "get": {
+        "tags": [
+          "fitting"
+        ],
+        "summary": "Dataset Readiness",
+        "operationId": "dataset_readiness_api_v1_fitting_datasets__dataset_id__readiness_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingDatasetReadiness"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fitting/sessions": {
+      "get": {
+        "tags": [
+          "fitting"
+        ],
+        "summary": "List Sessions",
+        "operationId": "list_sessions_api_v1_fitting_sessions_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Query"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "running",
+                  "completed",
+                  "warning",
+                  "failed",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              "default": [],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "dataset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model"
+            }
+          },
+          {
+            "name": "created_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created From"
+            }
+          },
+          {
+            "name": "created_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created To"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "created_at",
+                "name",
+                "status"
+              ],
+              "type": "string",
+              "default": "created_at",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "default": "desc",
+              "title": "Direction"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingSessionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "fitting"
+        ],
+        "summary": "Start Session",
+        "operationId": "start_session_api_v1_fitting_sessions_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FittingSessionRequest"
+              }
+            }
+          }
         },
         "responses": {
           "200": {
@@ -1142,10 +1394,85 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStartResponse"
+                  "$ref": "#/components/schemas/FittingSessionStartResponse"
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fitting/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "fitting"
+        ],
+        "summary": "Get Session",
+        "operationId": "get_session_api_v1_fitting_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FittingSessionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "fitting"
+        ],
+        "summary": "Delete Session",
+        "operationId": "delete_session_api_v1_fitting_sessions__session_id__delete",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -1246,48 +1573,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobCancelResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/fitting/runs/{run_id}": {
-      "get": {
-        "tags": [
-          "fitting"
-        ],
-        "summary": "Get Persisted Run",
-        "operationId": "get_persisted_run_api_v1_fitting_runs__run_id__get",
-        "parameters": [
-          {
-            "name": "run_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Run Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PersistedRunResponse"
                 }
               }
             }
@@ -4521,9 +4806,9 @@
             "type": "integer",
             "title": "Observation Count"
           },
-          "fitting_run_count": {
+          "fitting_session_count": {
             "type": "integer",
-            "title": "Fitting Run Count"
+            "title": "Fitting Session Count"
           }
         },
         "type": "object",
@@ -4531,7 +4816,7 @@
           "dataset_id",
           "experiment_count",
           "observation_count",
-          "fitting_run_count"
+          "fitting_session_count"
         ],
         "title": "DatasetDeleteImpact"
       },
@@ -5542,6 +5827,66 @@
         ],
         "title": "ExperimentDetailResponse"
       },
+      "ExperimentFitResponse": {
+        "properties": {
+          "isotherm_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isotherm Id"
+          },
+          "experiment_name": {
+            "type": "string",
+            "title": "Experiment Name"
+          },
+          "pressure_unit": {
+            "type": "string",
+            "title": "Pressure Unit"
+          },
+          "uptake_unit": {
+            "type": "string",
+            "title": "Uptake Unit"
+          },
+          "observation_count": {
+            "type": "integer",
+            "title": "Observation Count"
+          },
+          "best_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Model"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SessionModelResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "isotherm_id",
+          "experiment_name",
+          "pressure_unit",
+          "uptake_unit",
+          "observation_count",
+          "best_model",
+          "results"
+        ],
+        "title": "ExperimentFitResponse"
+      },
       "ExperimentPage": {
         "properties": {
           "status": {
@@ -6053,6 +6398,186 @@
         ],
         "title": "FeatureCapabilities"
       },
+      "FitMetrics": {
+        "properties": {
+          "sse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sse"
+          },
+          "rmse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmse"
+          },
+          "mae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae"
+          },
+          "r_squared": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R Squared"
+          },
+          "adjusted_r_squared": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjusted R Squared"
+          },
+          "chi_square": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chi Square"
+          },
+          "aic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aic"
+          },
+          "aicc": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aicc"
+          },
+          "bic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sse",
+          "rmse",
+          "mae",
+          "r_squared",
+          "adjusted_r_squared",
+          "chi_square",
+          "aic",
+          "aicc",
+          "bic"
+        ],
+        "title": "FitMetrics"
+      },
+      "FittedParameter": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "standard_error": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standard Error"
+          },
+          "ci95_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci95 Low"
+          },
+          "ci95_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ci95 High"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "value",
+          "standard_error",
+          "ci95_low",
+          "ci95_high",
+          "unit"
+        ],
+        "title": "FittedParameter"
+      },
       "FittingConfig": {
         "properties": {
           "default_max_iterations": {
@@ -6068,24 +6593,6 @@
             "minimum": 10.0,
             "title": "Max Iterations Upper Bound",
             "default": 1000000000
-          },
-          "default_parameter_initial": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Default Parameter Initial",
-            "default": 1.0
-          },
-          "default_parameter_min": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Default Parameter Min",
-            "default": 0.0
-          },
-          "default_parameter_max": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Default Parameter Max",
-            "default": 100.0
           },
           "preview_row_limit": {
             "type": "integer",
@@ -6154,9 +6661,6 @@
           },
           "display_units": {
             "$ref": "#/components/schemas/DisplayUnitCapabilities"
-          },
-          "parameter_defaults": {
-            "$ref": "#/components/schemas/ParameterDefaults"
           }
         },
         "additionalProperties": false,
@@ -6168,29 +6672,309 @@
           "max_evaluations_bounds",
           "weighting_options",
           "default_weighting",
-          "display_units",
-          "parameter_defaults"
+          "display_units"
         ],
         "title": "FittingConfigurationResponse"
       },
-      "FittingRequest": {
+      "FittingDatasetReadiness": {
         "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
           "dataset_id": {
             "type": "integer",
-            "minimum": 1.0,
             "title": "Dataset Id"
           },
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "experiment_count": {
+            "type": "integer",
+            "title": "Experiment Count"
+          },
+          "eligible_count": {
+            "type": "integer",
+            "title": "Eligible Count"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "inverse_sigma_available": {
+            "type": "boolean",
+            "title": "Inverse Sigma Available"
+          },
+          "model_incompatibility": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Model Incompatibility"
+          },
+          "experiments": {
+            "items": {
+              "$ref": "#/components/schemas/FittingExperimentSummary"
+            },
+            "type": "array",
+            "title": "Experiments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "dataset_name",
+          "experiment_count",
+          "eligible_count",
+          "ready",
+          "inverse_sigma_available",
+          "model_incompatibility",
+          "experiments"
+        ],
+        "title": "FittingDatasetReadiness"
+      },
+      "FittingExperimentSummary": {
+        "properties": {
           "isotherm_id": {
             "type": "integer",
-            "minimum": 1.0,
             "title": "Isotherm Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "isotherm_id",
+          "name",
+          "eligible"
+        ],
+        "title": "FittingExperimentSummary"
+      },
+      "FittingSessionDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "warning",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
           },
           "models": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "maxItems": 9,
+            "title": "Models"
+          },
+          "experiment_count": {
+            "type": "integer",
+            "title": "Experiment Count"
+          },
+          "optimizer": {
+            "type": "string",
+            "title": "Optimizer"
+          },
+          "weighting": {
+            "type": "string",
+            "title": "Weighting"
+          },
+          "max_evaluations": {
+            "type": "integer",
+            "title": "Max Evaluations"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "best_models": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Best Models"
+          },
+          "configuration": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Configuration"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log"
+          },
+          "experiments": {
+            "items": {
+              "$ref": "#/components/schemas/ExperimentFitResponse"
+            },
+            "type": "array",
+            "title": "Experiments"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dataset_id",
+          "dataset_name",
+          "status",
+          "message",
+          "models",
+          "experiment_count",
+          "optimizer",
+          "weighting",
+          "max_evaluations",
+          "created_at",
+          "completed_at",
+          "duration_seconds",
+          "configuration",
+          "log",
+          "experiments"
+        ],
+        "title": "FittingSessionDetail"
+      },
+      "FittingSessionListResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FittingSessionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "FittingSessionListResponse"
+      },
+      "FittingSessionRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Dataset Id"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 32,
             "minItems": 1,
             "title": "Models"
           },
@@ -6218,15 +7002,15 @@
             "title": "Weighting",
             "default": "unweighted"
           },
-          "parameter_configuration": {
+          "parameter_overrides": {
             "additionalProperties": {
               "additionalProperties": {
-                "$ref": "#/components/schemas/ParameterConfiguration"
+                "$ref": "#/components/schemas/ParameterBounds"
               },
               "type": "object"
             },
             "type": "object",
-            "title": "Parameter Configuration"
+            "title": "Parameter Overrides"
           },
           "display_units": {
             "$ref": "#/components/schemas/DisplayUnits"
@@ -6235,11 +7019,157 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "name",
           "dataset_id",
-          "isotherm_id",
           "models"
         ],
-        "title": "FittingRequest"
+        "title": "FittingSessionRequest",
+        "description": "Start a fitting session over every experiment of one dataset."
+      },
+      "FittingSessionStartResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "success",
+            "title": "Status",
+            "default": "success"
+          },
+          "session_id": {
+            "type": "integer",
+            "title": "Session Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "poll_interval": {
+            "type": "number",
+            "title": "Poll Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "job_id",
+          "poll_interval"
+        ],
+        "title": "FittingSessionStartResponse"
+      },
+      "FittingSessionSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "dataset_id": {
+            "type": "integer",
+            "title": "Dataset Id"
+          },
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "completed",
+              "warning",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "experiment_count": {
+            "type": "integer",
+            "title": "Experiment Count"
+          },
+          "optimizer": {
+            "type": "string",
+            "title": "Optimizer"
+          },
+          "weighting": {
+            "type": "string",
+            "title": "Weighting"
+          },
+          "max_evaluations": {
+            "type": "integer",
+            "title": "Max Evaluations"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "best_models": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Best Models"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "dataset_id",
+          "dataset_name",
+          "status",
+          "message",
+          "models",
+          "experiment_count",
+          "optimizer",
+          "weighting",
+          "max_evaluations",
+          "created_at",
+          "completed_at",
+          "duration_seconds"
+        ],
+        "title": "FittingSessionSummary"
       },
       "HTTPValidationError": {
         "properties": {
@@ -7244,14 +8174,6 @@
             "title": "Status",
             "default": "success"
           },
-          "pressure_unit": {
-            "type": "string",
-            "title": "Pressure Unit"
-          },
-          "uptake_unit": {
-            "type": "string",
-            "title": "Uptake Unit"
-          },
           "models": {
             "items": {
               "$ref": "#/components/schemas/ModelDefinition"
@@ -7262,8 +8184,6 @@
         },
         "type": "object",
         "required": [
-          "pressure_unit",
-          "uptake_unit",
           "models"
         ],
         "title": "ModelCatalogResponse"
@@ -7298,6 +8218,10 @@
             "type": "string",
             "title": "Reference"
           },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
           "parameters": {
             "items": {
               "$ref": "#/components/schemas/ModelParameterDefinition"
@@ -7315,6 +8239,7 @@
           "pressure_requirement",
           "requires_temperature",
           "reference",
+          "enabled",
           "parameters"
         ],
         "title": "ModelDefinition"
@@ -7337,13 +8262,21 @@
             "type": "number",
             "title": "Upper"
           },
-          "initial": {
+          "canonical_lower": {
             "type": "number",
-            "title": "Initial"
+            "title": "Canonical Lower"
+          },
+          "canonical_upper": {
+            "type": "number",
+            "title": "Canonical Upper"
           },
           "unit": {
             "type": "string",
             "title": "Unit"
+          },
+          "customized": {
+            "type": "boolean",
+            "title": "Customized"
           }
         },
         "type": "object",
@@ -7352,10 +8285,33 @@
           "label",
           "lower",
           "upper",
-          "initial",
-          "unit"
+          "canonical_lower",
+          "canonical_upper",
+          "unit",
+          "customized"
         ],
         "title": "ModelParameterDefinition"
+      },
+      "ModelSettingsUpdate": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ParameterBounds"
+            },
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "ModelSettingsUpdate"
       },
       "NISTCollectionListResponse": {
         "properties": {
@@ -7839,7 +8795,7 @@
         ],
         "title": "Pagination"
       },
-      "ParameterConfiguration": {
+      "ParameterBounds": {
         "properties": {
           "lower": {
             "type": "number",
@@ -7848,363 +8804,16 @@
           "upper": {
             "type": "number",
             "title": "Upper"
-          },
-          "initial": {
-            "type": "number",
-            "title": "Initial"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "lower",
-          "upper",
-          "initial"
+          "upper"
         ],
-        "title": "ParameterConfiguration"
-      },
-      "ParameterDefaults": {
-        "properties": {
-          "lower": {
-            "type": "number",
-            "title": "Lower"
-          },
-          "upper": {
-            "type": "number",
-            "title": "Upper"
-          },
-          "initial": {
-            "type": "number",
-            "title": "Initial"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "lower",
-          "upper",
-          "initial"
-        ],
-        "title": "ParameterDefaults"
-      },
-      "PersistedRunCurvePointResponse": {
-        "properties": {
-          "pressure": {
-            "type": "number",
-            "title": "Pressure"
-          },
-          "pressure_unit": {
-            "type": "string",
-            "title": "Pressure Unit"
-          },
-          "uptake_mol_kg": {
-            "type": "number",
-            "title": "Uptake Mol Kg"
-          }
-        },
-        "type": "object",
-        "required": [
-          "pressure",
-          "pressure_unit",
-          "uptake_mol_kg"
-        ],
-        "title": "PersistedRunCurvePointResponse"
-      },
-      "PersistedRunMetricsResponse": {
-        "properties": {
-          "sse": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sse"
-          },
-          "rmse": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Rmse"
-          },
-          "mae": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mae"
-          },
-          "r_squared": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "R Squared"
-          },
-          "adjusted_r_squared": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Adjusted R Squared"
-          },
-          "chi_square": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chi Square"
-          },
-          "aic": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Aic"
-          },
-          "aicc": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Aicc"
-          },
-          "bic": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bic"
-          }
-        },
-        "type": "object",
-        "required": [
-          "sse",
-          "rmse",
-          "mae",
-          "r_squared",
-          "adjusted_r_squared",
-          "chi_square",
-          "aic",
-          "aicc",
-          "bic"
-        ],
-        "title": "PersistedRunMetricsResponse"
-      },
-      "PersistedRunModelResponse": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "model": {
-            "type": "string",
-            "title": "Model"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "convergence_message": {
-            "type": "string",
-            "title": "Convergence Message"
-          },
-          "metrics": {
-            "$ref": "#/components/schemas/PersistedRunMetricsResponse"
-          },
-          "predicted_observations": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Predicted Observations"
-          },
-          "predicted_curve": {
-            "items": {
-              "$ref": "#/components/schemas/PersistedRunCurvePointResponse"
-            },
-            "type": "array",
-            "title": "Predicted Curve"
-          },
-          "warnings": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Warnings"
-          },
-          "parameters": {
-            "items": {
-              "$ref": "#/components/schemas/PersistedRunParameterResponse"
-            },
-            "type": "array",
-            "title": "Parameters"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "model",
-          "status",
-          "convergence_message",
-          "metrics",
-          "predicted_observations",
-          "predicted_curve",
-          "warnings",
-          "parameters"
-        ],
-        "title": "PersistedRunModelResponse"
-      },
-      "PersistedRunParameterResponse": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "value": {
-            "type": "number",
-            "title": "Value"
-          },
-          "unit": {
-            "type": "string",
-            "title": "Unit"
-          },
-          "standard_error": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Standard Error"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "value",
-          "unit",
-          "standard_error"
-        ],
-        "title": "PersistedRunParameterResponse"
-      },
-      "PersistedRunResponse": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "const": "success",
-            "title": "Status",
-            "default": "success"
-          },
-          "run_id": {
-            "type": "integer",
-            "title": "Run Id"
-          },
-          "dataset_id": {
-            "type": "integer",
-            "title": "Dataset Id"
-          },
-          "isotherm_id": {
-            "type": "integer",
-            "title": "Isotherm Id"
-          },
-          "optimizer": {
-            "type": "string",
-            "title": "Optimizer"
-          },
-          "weighting": {
-            "type": "string",
-            "title": "Weighting"
-          },
-          "status_detail": {
-            "type": "string",
-            "title": "Status Detail"
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          },
-          "created_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created At"
-          },
-          "completed_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completed At"
-          },
-          "results": {
-            "items": {
-              "$ref": "#/components/schemas/PersistedRunModelResponse"
-            },
-            "type": "array",
-            "title": "Results"
-          }
-        },
-        "type": "object",
-        "required": [
-          "run_id",
-          "dataset_id",
-          "isotherm_id",
-          "optimizer",
-          "weighting",
-          "status_detail",
-          "message",
-          "created_at",
-          "completed_at",
-          "results"
-        ],
-        "title": "PersistedRunResponse"
+        "title": "ParameterBounds",
+        "description": "Canonical-unit (Pa, mol/kg) search bounds for one model parameter."
       },
       "ProcessedDatasetInfo": {
         "properties": {
@@ -9252,6 +9861,76 @@
           "total_series"
         ],
         "title": "SeriesResponse"
+      },
+      "SessionModelResult": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "warning",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "convergence_message": {
+            "type": "string",
+            "title": "Convergence Message"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "observation_count": {
+            "type": "integer",
+            "title": "Observation Count"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/FittedParameter"
+            },
+            "type": "array",
+            "title": "Parameters"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/FitMetrics"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "name",
+          "status",
+          "convergence_message",
+          "rank",
+          "observation_count",
+          "parameters",
+          "metrics",
+          "warnings"
+        ],
+        "title": "SessionModelResult"
       },
       "SettingsResponse": {
         "properties": {

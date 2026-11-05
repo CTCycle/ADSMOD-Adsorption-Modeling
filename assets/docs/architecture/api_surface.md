@@ -28,7 +28,31 @@ The unified backend serves all versioned routes under `/api/v1`:
   entity, and `DELETE`, which returns HTTP 409 while experiments reference it)
 - `/public-data/*` (NIST, PubChem, and COD provider catalog, acquisition, and
   COD structures)
-- `/fitting/*`
+- `/fitting/*`, dataset-level fitting sessions and global model defaults:
+  - `GET /models` (catalog with `enabled`, effective `lower`/`upper`,
+    `canonical_lower`/`canonical_upper`, `unit`, `customized`),
+    `PUT /models/{key}` (`enabled` and per-parameter bounds in canonical units,
+    Pa and mol/kg), `POST /models/{key}/reset`
+  - `GET /datasets/{id}/readiness` (eligibility, inverse-sigma availability,
+    model incompatibility)
+  - `GET /sessions` (`query`, `status[]`, `dataset_id`, `model`, `created_from`,
+    `created_to`, `sort=created_at|name|status`, `direction`, `page`,
+    `page_size` up to 100; returns `{items, total, page, page_size}`),
+    `POST /sessions` (`name`, `dataset_id`, `models`, `optimizer`,
+    `max_evaluations`, `weighting`, `parameter_overrides`, `display_units`;
+    returns `session_id`, `job_id`, `poll_interval`), `GET /sessions/{id}`, and
+    `DELETE /sessions/{id}` (204; 409 while running)
+  - `GET /jobs/{job_id}` and `DELETE /jobs/{job_id}` for polling and cancel
+
+  A session fits all experiments of exactly one dataset. Start returns 400 when
+  any experiment is ineligible, a model is disabled, unknown, or incompatible,
+  or `inverse_sigma` weighting lacks uncertainties. Global defaults replace the
+  canonical `ModelSpec` bounds inside the solver (data-driven heuristics still
+  apply within them); session overrides never change the globals. The effective
+  bounds, overrides, experiment input hashes, and model version are stored in
+  `fitting_sessions.configuration`. Sessions still `running` at startup are
+  marked failed ("Interrupted by application restart"). The former
+  `POST /fitting/run` and `GET /fitting/runs/{id}` are removed.
 - `/analytics/*` (read-only cross-dataset queries for the dashboards:
   `GET /overview`, and `POST /selection`, `/series`, `/uptake-at-pressure`,
   `/distribution`)

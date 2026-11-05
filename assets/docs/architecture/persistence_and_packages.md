@@ -15,7 +15,7 @@ Core owns the active database and its Alembic baseline under
 `app/server/migrations`. SQLite and PostgreSQL share the same schema. The
 history starts from one root revision (`20261021_current_schema`) that creates
 the baseline schema; later revisions chain linearly from it (currently
-`20261103_custom_units`, which adds the `custom_units` table). Startup upgrades
+`20261106_modeling_sessions`; earlier steps add `custom_units` and dataset editing). Startup upgrades
 an empty or baseline-stamped database to the head and accepts only that head; it never infers or silently adopts an unknown schema. Databases stamped
 with removed historical revisions fail closed and must be recreated. Startup
 does not drop or recreate them. The current schema includes
@@ -48,6 +48,20 @@ avoid lock-upgrade collisions when independent public-data runs are queued or
 updated concurrently. PostgreSQL continues to use database-managed transaction
 concurrency.
 
+## Fitting sessions
+
+`fitting_sessions` (one per dataset-level run, with a `configuration` JSON
+snapshot of effective bounds, overrides, and experiment input hashes) owns
+`fitting_session_models`, `fit_results` (`session_id`; `isotherm_id` is SET NULL
+and `isotherm_name` is kept so results survive experiment deletion), and
+`fit_parameters`. `adsorption_model_settings` holds one row per model
+(`model_key`, `enabled`, `parameter_bounds` JSON in canonical units,
+`updated_at`) and supplies the global solver bounds; the former
+`application_settings.fitting_default_parameter_*` columns were dropped.
+Migration `20261106_modeling_sessions` drops the old `fitting_runs` tables, so
+previously stored single-experiment runs are intentionally discarded. The
+dataset delete-impact field is `fitting_session_count`.
+
 ## ML artifacts
 
 ML does not open the operational database. It receives snapshots through the
@@ -73,7 +87,7 @@ Adsorption data is stored as dataset → experiment → measurement:
   canonical pressure (Pa or p/p₀) and uptake (mol/kg).
 
 `adsorbents` and `adsorbates` are reusable across datasets; deleting a dataset
-cascades to its experiments, measurements, and fitting runs but never removes
+cascades to its experiments, measurements, and fitting sessions but never removes
 materials or species, and a material or species cannot be deleted while an
 experiment references it. Edits overwrite stored values in one transaction
 (`DatasetEditRepository.apply`); there is no version history. Edited source

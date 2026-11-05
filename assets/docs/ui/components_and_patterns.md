@@ -10,8 +10,8 @@ Last updated: 2026-11-05
 - `public-data/:view` is the single public-data workspace for NIST retrieval, normalized records, PubChem enrichment, and COD structures
 - `dashboards` uses Overview and Explore & compare tabs; Explore pairs a faceted query sidebar with a results table, an ECharts analysis panel, and a fixed inspector drawer that closes on Escape
 - Charts render through the shared `adsmod-chart` ECharts wrapper; filled markers are measurements and hollow markers are calculated values, and every chart offers its data as a table
-- `fitting` page uses controls plus status or log columns and model card grids
-- `training` uses a left toolbar with a right active-workspace panel
+- `modeling` uses Curve Fitting, Deep Learning (ML profile only), and Adsorption Models tabs. Curve Fitting lists sessions with search, status/dataset/model/date filters, sorting, and server-side pagination, and starts a four-step wizard (Dataset, Models, Settings, Review); the session view shows status, log, per-experiment results, and the configuration snapshot. Adsorption Models is a catalog of model cards with enable toggles and canonical-unit bound editors. Deep Learning keeps the former Training left toolbar with a right active-workspace panel
+- Sources Catalog groups providers into collapsible categories (state persisted in `localStorage` key `adsmod.sources.collapsed`) under a compact summary card; providers show official logos from `public/sources/*.svg`
 
 ## Controls
 
@@ -28,9 +28,9 @@ Last updated: 2026-11-05
 ## Navigation
 
 - Header tabs use `.header-tab` with active and hover states
-- Training sub-navigation uses `.training-view-tab` with explicit active states
+- Deep Learning sub-navigation uses `.training-view-tab` with explicit active states; the Modeling tabs sit in the page header
 - Core navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/layout/core-shell.component.ts`.
-- Training sub-navigation is routed through `app/client/src/app/app.routes.ts` and rendered by `app/client/src/app/features/training/pages/machine-learning-page.component.ts`.
+- Modeling tabs and Deep Learning sub-navigation are routed through `app/client/src/app/app.routes.ts`; `app/client/src/app/features/modeling/modeling-page.component.ts` renders the tabs and Deep Learning is rendered by `app/client/src/app/features/training/pages/machine-learning-page.component.ts`.
 
 ## Data Views And Overlays
 

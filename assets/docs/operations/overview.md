@@ -1,6 +1,6 @@
 # Operations Overview
 
-Last updated: 2026-09-30
+Last updated: 2026-11-05
 
 ## Scope
 
@@ -9,7 +9,7 @@ This section covers end-user workflows, operational commands, and troubleshootin
 ## Documents
 
 - [`workflows.md`](workflows.md)
-  - Dataset, fitting, dashboard, and training task flows.
+  - Dataset, modeling (fitting sessions and deep learning), dashboard, and public-data task flows.
 - [`commands.md`](commands.md)
   - Launch, maintenance, testing, and frontend commands.
 - [`troubleshooting.md`](troubleshooting.md)

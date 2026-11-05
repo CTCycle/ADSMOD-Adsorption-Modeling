@@ -1,6 +1,6 @@
 # ADSMOD runtime and application settings
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 
 ## Settings ownership
 
@@ -39,9 +39,6 @@ Database switching is performed in the running backend after the candidate conne
 | Public data | `public_data.auto_sync_fraction` | Slider, greater than 0 through 1; `1.0` | Fraction of each selected NIST collection requested by a scheduled refresh. Immediate. |
 | Fitting & jobs | `fitting.default_max_iterations` | Integer input, 10–1,000,000,000; `1000` | Default maximum evaluations in the fitting workflow. Immediate for a newly initialized fitting form. |
 | Fitting & jobs | `fitting.max_iterations_upper_bound` | Integer input, 10–1,000,000,000; `1000000000` | Server-enforced maximum evaluations for submitted fitting jobs. Must be at least the default. Immediate. |
-| Fitting & jobs | `fitting.default_parameter_min` | Non-negative numeric input; `0.0` | Lower default bound for model parameter controls. Model-specific physical ranges are intersected with this bound when possible. Immediate. |
-| Fitting & jobs | `fitting.default_parameter_initial` | Non-negative numeric input; `1.0` | Initial estimate for new model parameter controls, clamped to each effective parameter range. Immediate. |
-| Fitting & jobs | `fitting.default_parameter_max` | Non-negative numeric input; `100.0` | Upper default bound for model parameter controls. Model-specific physical ranges are intersected with this bound when possible. Immediate. |
 | Fitting & jobs | `fitting.best_model_metric` | Dropdown; `aicc` | Ranks successful model fits by the selected metric, ascending for error/information criteria and descending for R² metrics. Immediate for new jobs; the selected metric is saved with each run. |
 | Fitting & jobs | `jobs.polling_interval` | Seconds input, 0.1–60; `1.0` | Polling cadence returned for new jobs. Existing jobs retain their captured cadence. Immediate for new jobs. |
 | Training | `training.use_jit` | Toggle; `false` | Default JIT compilation choice for future training jobs. Immediate. |
@@ -50,7 +47,7 @@ Database switching is performed in the running backend after the candidate conne
 | Training | `training.dataloader_workers` | Integer input, 0–64; `0` | Default worker count for future training jobs. Immediate. |
 | Training | `training.persistent_workers` | Toggle; `false` | Keeps training data-loader workers between epochs. Requires at least one worker. Immediate for future training jobs. |
 
-Fitting defaults are also projected through `/api/v1/system/configuration`; training defaults, including `persistent_workers`, are projected through `/api/v1/training/configuration` when the optional ML profile is available. These endpoints are read-only views of the same saved settings. The unused `insert_batch_size` control was removed because no application behavior consumed it.
+Fitting defaults are also projected through `/api/v1/system/configuration` (it no longer returns parameter defaults); training defaults, including `persistent_workers`, are projected through `/api/v1/training/configuration` when the optional ML profile is available. These endpoints are read-only views of the same saved settings. The unused `insert_batch_size` control was removed because no application behavior consumed it. Default parameter bounds are no longer application settings: the `fitting.default_parameter_{initial,min,max}` settings and columns were removed, and per-model parameter bounds are stored in `adsorption_model_settings` and edited on the Modeling > Adsorption Models tab (see `architecture/api_surface.md`).
 
 ## Runtime networking environment
 

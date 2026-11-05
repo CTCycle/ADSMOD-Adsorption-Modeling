@@ -12,8 +12,9 @@ The application uses one Angular frontend with these primary routes:
 - `sources` for the provider workspace (opens Catalog)
 - `sources/:view` for Catalog, Acquire, and Structures
 - `dashboards/overview` and `dashboards/explore` for cross-dataset data exploration
-- `fitting` for adsorption model fitting
-- `training` for processing, training datasets, checkpoints, and the dashboard
+- `modeling/fitting` for fitting sessions, `modeling/fitting/new` for the new-session wizard, and `modeling/fitting/:id` for one session
+- `modeling/models` for the adsorption model catalog and global parameter defaults
+- `modeling/deep-learning/:view` for processing, training datasets, checkpoints, and the dashboard (ML profile only)
 
 Datasets manages local data (uploaded and acquired); Sources discovers and
 acquires external data. The former `public-data` routes are not supported.
@@ -33,10 +34,18 @@ acquires external data. The former `public-data` routes are not supported.
    temperature and units, or individual measurement values. Save changes validates everything,
    reports field-specific problems, and overwrites the stored values in one transaction; Cancel
    discards the changes. Delete asks for confirmation and states how many experiments, measurements,
-   and fitting runs are removed; materials and species are kept.
-6. Open `fitting`.
-7. Select the dataset (search experiments when a dataset has many), model set, optimizer, and iterations.
-8. Start fitting and monitor logs.
+   and fitting sessions are removed; materials and species are kept.
+6. Open `modeling/fitting` and choose New session.
+7. Complete the four steps: Dataset (readiness shows whether every experiment is eligible), Models
+   (only enabled, compatible models), Fitting settings (optimizer, evaluations, weighting, optional
+   per-session parameter bounds, display units), and Review. Start the session and monitor its log.
+8. Open the session from the list to review per-experiment results, the best model, and the
+   configuration snapshot. The list filters by name, status, dataset, model, and date; delete a
+   session once it is no longer running.
+
+A session fits all experiments of one dataset. To change a model's global bounds or disable it,
+use `modeling/models`; bounds are edited in canonical units (Pa, mol/kg) and results are shown in
+the session display units (bar, mmol/g by default). Session overrides never change the globals.
 
 ## Explore And Compare Stored Data
 
@@ -61,7 +70,7 @@ acquires external data. The former `public-data` routes are not supported.
 3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
 4. Follow "View datasets" to the Datasets page and explore the `NIST ISODB` dataset. NIST experiments can be
    edited like any other; fetching NIST isotherms again asks before overwriting those local edits.
-5. Open `fitting`, select the NIST ISODB dataset, and start fitting.
+5. Open `modeling/fitting`, start a new session, select the NIST ISODB dataset, and start fitting.
 
 The overview, source registry, and local record views do not need an external provider to respond.
 
@@ -78,16 +87,16 @@ Scheduled NIST refresh is disabled by default. To enable it, configure `applicat
 
 ## Build Training Data And Run Training
 
-1. Open the unified UI and navigate to `training/processing`.
+1. Open the unified UI and navigate to `modeling/deep-learning/processing`.
 2. In `Data Processing`, build processed datasets.
 3. In `Train datasets`, start a new training run.
-4. Use `training/dashboard` to monitor progress, metrics, and logs.
+4. Use `modeling/deep-learning/dashboard` to monitor progress, metrics, and logs.
 5. Training is available only when the optional ML profile is installed and
    capability discovery reports it available.
 
 ## Resume From A Checkpoint
 
-1. Open the unified UI `training/checkpoints` view.
+1. Open the unified UI `modeling/deep-learning/checkpoints` view.
 2. Select a checkpoint.
 3. Resume training with additional epochs.
 4. Validate resumed metrics in the dashboard.
