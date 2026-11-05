@@ -478,12 +478,15 @@ def test_postgres_creation_permission_error_is_actionable(
 
 # Alembic quality
 
-HEAD_REVISION = "20261105_dataset_editing"
-RETIRED_TABLES = {"training_datasets", "training_samples"}
+HEAD_REVISION = "20261106_modeling_sessions"
+RETIRED_TABLES = {"training_datasets", "training_samples", "fitting_runs"}
 RETIRED_SETTINGS_COLUMNS = {
     "runtime_host",
     "runtime_backend_port",
     "runtime_frontend_port",
+    "fitting_default_parameter_initial",
+    "fitting_default_parameter_min",
+    "fitting_default_parameter_max",
 }
 
 
@@ -508,13 +511,12 @@ def test_packaged_history_is_linear_from_one_root_and_matches_current_models(
         script = config.attributes["script_directory"]
         revisions = tuple(script.walk_revisions())
 
-        head, middle, root = revisions
+        head, root = revisions[0], revisions[-1]
         assert root.revision == INITIAL_REVISION == "20261021_current_schema"
         assert root.down_revision is None
-        assert middle.revision == "20261103_custom_units"
-        assert middle.down_revision == root.revision
+        for newer, older in zip(revisions, revisions[1:]):
+            assert newer.down_revision == older.revision
         assert head.revision == HEAD_REVISION
-        assert head.down_revision == middle.revision
         assert result.after == (head.revision,)
         with manager.engine.connect() as connection:
             table_names = set(inspect(connection).get_table_names())
@@ -555,6 +557,10 @@ SEED_STATEMENTS = (
     " pressure_canonical_unit, uptake_original, uptake_original_unit, uptake_mol_kg,"
     " conversion_metadata, extra_metadata) VALUES (17, 11, 13, 0, 1.5, 'bar',"
     " 150000.0, 'Pa', 2.25, 'mol/kg', 2.25, '{}', '{}')",
+    "INSERT INTO fitting_runs (id, isotherm_id, input_sha256, optimizer,"
+    " max_evaluations, pressure_display_unit, uptake_display_unit, configuration,"
+    " status, message, created_at) VALUES (19, 11, 'x', 'trf', 100, 'bar', 'mmol/g',"
+    " '{}', 'completed', '', '2026-01-01 00:00:00')",
 )
 
 
@@ -592,6 +598,11 @@ def test_previous_head_with_data_upgrades_to_head_preserving_records(
                 index["name"] for index in inspect(connection).get_indexes("isotherms")
             }
             assert "ix_isotherms_dataset_edited" in indexes
+            # Single-experiment fitting runs are discarded by the session migration.
+            assert "fitting_runs" not in inspect(connection).get_table_names()
+            assert connection.exec_driver_sql(
+                "SELECT COUNT(*) FROM fitting_sessions"
+            ).scalar() == 0
     finally:
         manager.dispose()
 

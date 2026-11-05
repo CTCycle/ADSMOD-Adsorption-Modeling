@@ -6,7 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
@@ -14,13 +14,10 @@ from scipy.optimize import least_squares
 from scipy.stats import t as student_t
 
 from server.domain.fitting import (
-    FitMetrics,
-    FittedParameter,
-    FittingRequest,
+    ExperimentFitRequest,
     ModelDefinition,
-    ModelFitResult,
     ModelParameterDefinition,
-    PredictionPoint,
+    ParameterBounds,
 )
 from server.common.units import UnitConversionError, UnitRegistry
 from server.services.modeling.models import (
@@ -276,34 +273,6 @@ def display_parameter_value(
     )
 
 ###############################################################################
-def parameter_from_display(
-    parameter: ParameterSpec,
-    value: float,
-    *,
-    pressure_factor_value: float,
-    uptake_factor_value: float,
-    related_value: float | None,
-) -> float:
-    kind = parameter.unit_kind
-    if kind == "pressure^-1":
-        return value / pressure_factor_value
-    if kind == "uptake":
-        return value * uptake_factor_value
-    if kind in {"dimensionless", "energy^-2"}:
-        return value
-    if kind == "uptake/pressure":
-        return value * uptake_factor_value / pressure_factor_value
-    if kind == "pressure^-beta":
-        return value / pressure_factor_value ** float(related_value or 1.0)
-    if kind == "freundlich":
-        return (
-            value
-            * uptake_factor_value
-            / pressure_factor_value ** (1.0 / float(related_value or 1.0))
-        )
-    return value
-
-###############################################################################
 def _fit_residual(
     parameters: np.ndarray,
     models: AdsorptionModels,
@@ -381,7 +350,9 @@ class ModelSolver:
                 low = parameter.lower
                 high = min(parameter.upper, max(guess * 1e6, parameter.lower * 10))
             elif parameter.name == "beta" and spec.key == "redlich_peterson":
-                guess, low, high = 0.8, 0.05, 1.0
+                low = max(parameter.lower, 0.05)
+                high = min(parameter.upper, 1.0)
+                guess = 0.8
             else:
                 guess, low, high = 1.0, parameter.lower, parameter.upper
             if high <= low:
@@ -394,39 +365,6 @@ class ModelSolver:
             initial[0] = min(upper[0], max(lower[0], 10.0 / p_median))
             initial[2] = min(upper[2], max(lower[2], 0.1 / p_median))
         return np.asarray(initial), np.asarray(lower), np.asarray(upper)
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _apply_overrides(
-        spec: ModelSpec,
-        overrides: dict[str, Any],
-        initial: np.ndarray,
-        lower: np.ndarray,
-        upper: np.ndarray,
-        p_factor: float,
-        q_factor: float,
-    ) -> None:
-        """Replace default bounds and start values in place with user overrides."""
-        related_override = overrides.get("n") or overrides.get("beta")
-        related_value = (
-            float(related_override.initial) if related_override is not None else 1.0
-        )
-        for index, parameter in enumerate(spec.parameters):
-            override = overrides.get(parameter.name)
-            if override is None:
-                continue
-            for target, display_value in (
-                (lower, override.lower),
-                (upper, override.upper),
-                (initial, override.initial),
-            ):
-                target[index] = parameter_from_display(
-                    parameter,
-                    display_value,
-                    pressure_factor_value=p_factor,
-                    uptake_factor_value=q_factor,
-                    related_value=related_value,
-                )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -493,10 +431,6 @@ class ModelSolver:
         saturation_pressure_pa: float | None,
         optimizer: str,
         max_evaluations: int,
-        overrides: dict[str, Any],
-        display_pressure_unit: str,
-        display_uptake_unit: str,
-        molar_mass_g_mol: float | None,
         weighting: str = "unweighted",
         stop_event: Any | None = None,
     ) -> FitComputation:
@@ -513,13 +447,6 @@ class ModelSolver:
         try:
             initial, lower, upper = self.initial_configuration(
                 spec, pressure, uptake, temperature_k
-            )
-            p_factor = pressure_factor(display_pressure_unit, pressure_basis)
-            _, q_factor, _ = UnitRegistry.uptake_factor_to_mol_kg(
-                display_uptake_unit, molar_mass_g_mol
-            )
-            self._apply_overrides(
-                spec, overrides, initial, lower, upper, p_factor, q_factor
             )
             if (
                 np.any(lower >= upper)
@@ -765,7 +692,7 @@ class FittingPipeline:
     def run(
         self,
         series: dict[str, Any],
-        request: FittingRequest,
+        request: ExperimentFitRequest,
         *,
         stop_event: Any | None = None,
     ) -> list[FitComputation]:
@@ -798,7 +725,9 @@ class FittingPipeline:
             spec = self.solver.models.get_spec(model)
             if spec.key not in seen:
                 seen.add(spec.key)
-                resolved_specs.append(spec)
+                resolved_specs.append(
+                    with_bounds(spec, request.model_bounds.get(spec.key, {}))
+                )
         computations = []
         for spec in resolved_specs:
             raise_if_cancelled(stop_event)
@@ -813,10 +742,6 @@ class FittingPipeline:
                     saturation_pressure_pa=series.get("saturation_pressure_pa"),
                     optimizer=request.optimizer,
                     max_evaluations=request.max_evaluations,
-                    overrides=request.parameter_configuration.get(spec.key, {}),
-                    display_pressure_unit=request.display_units.pressure,
-                    display_uptake_unit=request.display_units.uptake,
-                    molar_mass_g_mol=series.get("adsorbate_molar_mass_g_mol"),
                     weighting=request.weighting,
                     stop_event=stop_event,
                 )
@@ -844,18 +769,14 @@ class FittingPipeline:
     def catalog(
         self,
         *,
-        pressure_unit: str,
-        uptake_unit: str,
-        pressure_basis: str = "absolute",
-        molar_mass_g_mol: float | None = None,
+        enabled: dict[str, bool],
+        bounds: dict[str, dict[str, ParameterBounds]],
     ) -> list[ModelDefinition]:
-        p_factor = pressure_factor(pressure_unit, pressure_basis)
-        _, q_factor, _ = UnitRegistry.uptake_factor_to_mol_kg(
-            uptake_unit, molar_mass_g_mol
-        )
+        """Describe every model with its effective canonical-unit default bounds."""
         definitions: list[ModelDefinition] = []
-        for spec in self.solver.models.model_names:
-            model = self.solver.models.get_spec(spec)
+        for key in self.solver.models.model_names:
+            model = self.solver.models.get_spec(key)
+            stored = bounds.get(model.key, {})
             definitions.append(
                 ModelDefinition(
                     key=model.key,
@@ -865,37 +786,26 @@ class FittingPipeline:
                     pressure_requirement=model.pressure_requirement,
                     requires_temperature=model.requires_temperature,
                     reference=model.reference,
+                    enabled=enabled.get(model.key, True),
                     parameters=[
                         ModelParameterDefinition(
                             name=parameter.name,
                             label=parameter.label,
-                            lower=parameter_to_display(
-                                parameter,
-                                parameter.lower,
-                                pressure_factor_value=p_factor,
-                                uptake_factor_value=q_factor,
-                                related_value=1.0,
-                            ),
-                            upper=parameter_to_display(
-                                parameter,
-                                parameter.upper,
-                                pressure_factor_value=p_factor,
-                                uptake_factor_value=q_factor,
-                                related_value=1.0,
-                            ),
-                            initial=parameter_to_display(
-                                parameter,
-                                math.sqrt(parameter.lower * parameter.upper),
-                                pressure_factor_value=p_factor,
-                                uptake_factor_value=q_factor,
-                                related_value=1.0,
-                            ),
+                            lower=stored[parameter.name].lower
+                            if parameter.name in stored
+                            else parameter.lower,
+                            upper=stored[parameter.name].upper
+                            if parameter.name in stored
+                            else parameter.upper,
+                            canonical_lower=parameter.lower,
+                            canonical_upper=parameter.upper,
                             unit=parameter_unit(
                                 parameter,
-                                pressure_unit=pressure_unit,
-                                uptake_unit=uptake_unit,
+                                pressure_unit="Pa",
+                                uptake_unit="mol/kg",
                                 related_value=1.0,
                             ),
+                            customized=parameter.name in stored,
                         )
                         for parameter in model.parameters
                     ],
@@ -903,114 +813,18 @@ class FittingPipeline:
             )
         return definitions
 
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def to_response_result(
-        computation: FitComputation,
-        *,
-        pressure: np.ndarray,
-        uptake: np.ndarray,
-        pressure_basis: str,
-        pressure_unit: str,
-        uptake_unit: str,
-        molar_mass_g_mol: float | None,
-    ) -> ModelFitResult:
-        p_factor = pressure_factor(pressure_unit, pressure_basis)
-        _, q_factor, _ = UnitRegistry.uptake_factor_to_mol_kg(
-            uptake_unit, molar_mass_g_mol
-        )
-        parameters: list[FittedParameter] = []
-        if computation.parameters is not None:
-            related = {
-                parameter.name: computation.parameters[index]
-                for index, parameter in enumerate(computation.spec.parameters)
-            }
-            related_value = related.get("n", related.get("beta", 1.0))
-            for index, parameter in enumerate(computation.spec.parameters):
-                parameters.append(
-                    FittedParameter(
-                        name=parameter.name,
-                        label=parameter.label,
-                        value=float(
-                            display_parameter_value(
-                                computation.parameters[index],
-                                parameter,
-                                pressure_factor_value=p_factor,
-                                uptake_factor_value=q_factor,
-                                related_value=float(related_value),
-                            )
-                        ),
-                        standard_error=display_parameter_value(
-                            computation.standard_errors[index]
-                            if computation.standard_errors is not None
-                            else None,
-                            parameter,
-                            pressure_factor_value=p_factor,
-                            uptake_factor_value=q_factor,
-                            related_value=float(related_value),
-                        ),
-                        ci95_low=display_parameter_value(
-                            computation.ci95_low[index]
-                            if computation.ci95_low is not None
-                            else None,
-                            parameter,
-                            pressure_factor_value=p_factor,
-                            uptake_factor_value=q_factor,
-                            related_value=float(related_value),
-                        ),
-                        ci95_high=display_parameter_value(
-                            computation.ci95_high[index]
-                            if computation.ci95_high is not None
-                            else None,
-                            parameter,
-                            pressure_factor_value=p_factor,
-                            uptake_factor_value=q_factor,
-                            related_value=float(related_value),
-                        ),
-                        unit=parameter_unit(
-                            parameter,
-                            pressure_unit=pressure_unit,
-                            uptake_unit=uptake_unit,
-                            related_value=float(related_value),
-                        ),
-                    )
-                )
 
-        observed_predictions: list[PredictionPoint] = []
-        curve: list[PredictionPoint] = []
-        if computation.status != "failed":
-            observed_predictions = [
-                PredictionPoint(
-                    pressure=float(value / p_factor),
-                    observed=float(observed / q_factor),
-                    predicted=float(predicted / q_factor),
-                    residual=float((observed - predicted) / q_factor),
-                )
-                for value, observed, predicted in zip(
-                    pressure, uptake, computation.predicted, strict=True
-                )
-            ]
-            curve = [
-                PredictionPoint(
-                    pressure=float(value / p_factor),
-                    predicted=float(predicted / q_factor),
-                )
-                for value, predicted in zip(
-                    computation.curve_pressure, computation.curve_uptake, strict=True
-                )
-            ]
-        return ModelFitResult(
-            model=computation.spec.key,
-            name=computation.spec.name,
-            status=computation.status,  # type: ignore[arg-type]
-            convergence_message=computation.message,
-            function_evaluations=computation.function_evaluations,
-            jacobian_rank=computation.jacobian_rank,
-            condition_number=computation.condition_number,
-            parameters=parameters,
-            metrics=FitMetrics(**computation.metrics.values),
-            observed_predictions=observed_predictions,
-            curve=curve,
-            warnings=computation.warnings,
-            rank=computation.rank,
-        )
+###############################################################################
+def with_bounds(spec: ModelSpec, bounds: dict[str, ParameterBounds]) -> ModelSpec:
+    """Return the spec with its canonical search bounds replaced by ``bounds``."""
+    if not bounds:
+        return spec
+    return replace(
+        spec,
+        parameters=tuple(
+            replace(parameter, lower=bounds[parameter.name].lower, upper=bounds[parameter.name].upper)
+            if parameter.name in bounds
+            else parameter
+            for parameter in spec.parameters
+        ),
+    )

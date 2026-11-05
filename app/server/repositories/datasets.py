@@ -18,7 +18,7 @@ from server.repositories.schemas.models import (
     Adsorbent,
     Dataset,
     DatasetImport,
-    FittingRun,
+    FittingSession,
     Isotherm,
     IsothermComponent,
     Observation,
@@ -294,15 +294,15 @@ class DatasetRepository:
         summary = self.summary(dataset_id)
         with self.database.session_factory() as session:
             runs = session.scalar(
-                select(func.count(FittingRun.id))
-                .join(Isotherm, Isotherm.id == FittingRun.isotherm_id)
-                .where(Isotherm.dataset_id == dataset_id)
+                select(func.count(FittingSession.id)).where(
+                    FittingSession.dataset_id == dataset_id
+                )
             )
         return {
             "dataset_id": dataset_id,
             "experiment_count": summary["experiment_count"],
             "observation_count": summary["observation_count"],
-            "fitting_run_count": int(runs or 0),
+            "fitting_session_count": int(runs or 0),
         }
 
     # -------------------------------------------------------------------------
@@ -616,6 +616,20 @@ class DatasetRepository:
                 ],
                 total,
             )
+
+    # -------------------------------------------------------------------------
+    def experiment_identities(self, dataset_id: int) -> tuple[str, list[tuple[int, str]]]:
+        """Return the dataset name and every experiment ``(id, name)`` it owns."""
+        with self.database.session_factory() as session:
+            dataset = session.get(Dataset, dataset_id)
+            if dataset is None:
+                raise LookupError(f"Dataset {dataset_id} does not exist.")
+            rows = session.execute(
+                select(Isotherm.id, Isotherm.name)
+                .where(Isotherm.dataset_id == dataset_id)
+                .order_by(Isotherm.name, Isotherm.id)
+            ).all()
+            return dataset.name, [(int(row.id), str(row.name)) for row in rows]
 
     # -------------------------------------------------------------------------
     def fitting_series(self, dataset_id: int, isotherm_id: int) -> dict[str, Any]:

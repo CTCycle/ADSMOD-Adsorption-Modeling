@@ -61,9 +61,6 @@ class ApplicationSettingsRecord(Base):
     public_data_auto_sync_fraction: Mapped[float] = mapped_column(Float, nullable=False)
     fitting_default_max_iterations: Mapped[int] = mapped_column(Integer, nullable=False)
     fitting_max_iterations_upper_bound: Mapped[int] = mapped_column(Integer, nullable=False)
-    fitting_default_parameter_initial: Mapped[float] = mapped_column(Float, nullable=False)
-    fitting_default_parameter_min: Mapped[float] = mapped_column(Float, nullable=False)
-    fitting_default_parameter_max: Mapped[float] = mapped_column(Float, nullable=False)
     fitting_preview_row_limit: Mapped[int] = mapped_column(Integer, nullable=False)
     fitting_best_model_metric: Mapped[str] = mapped_column(String(32), nullable=False)
     jobs_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
@@ -309,12 +306,6 @@ class Isotherm(Base):
         passive_deletes=True,
         lazy="raise",
     )
-    fitting_runs: Mapped[list[FittingRun]] = relationship(
-        back_populates="isotherm",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        lazy="raise",
-    )
 
     __table_args__ = (
         UniqueConstraint("dataset_id", "external_key", name="uq_isotherms_dataset_key"),
@@ -433,31 +424,40 @@ class Observation(Base):
     )
 
 ###############################################################################
-class FittingRun(Base):
-    __tablename__ = "fitting_runs"
+class FittingSession(Base):
+    __tablename__ = "fitting_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    isotherm_id: Mapped[int] = mapped_column(
-        ForeignKey("isotherms.id", ondelete="CASCADE"), nullable=False
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False
     )
+    dataset_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    isotherm_ids: Mapped[list[Any]] = mapped_column(JSONList, nullable=False)
     input_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     optimizer: Mapped[str] = mapped_column(String(32), nullable=False)
+    weighting: Mapped[str] = mapped_column(String(32), nullable=False)
     max_evaluations: Mapped[int] = mapped_column(Integer, nullable=False)
     pressure_display_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     uptake_display_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     configuration: Mapped[dict[str, Any]] = mapped_column(JSONMapping, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     message: Mapped[str] = mapped_column(String, nullable=False, default="")
+    log: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, nullable=False
     )
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
-    isotherm: Mapped[Isotherm] = relationship(
-        back_populates="fitting_runs", lazy="raise"
+    models: Mapped[list[FittingSessionModel]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="raise",
+        order_by="FittingSessionModel.position",
     )
     results: Mapped[list[FitResult]] = relationship(
-        back_populates="run",
+        back_populates="session",
         cascade="all, delete-orphan",
         passive_deletes=True,
         lazy="raise",
@@ -466,10 +466,27 @@ class FittingRun(Base):
     __table_args__ = (
         CheckConstraint(
             "status IN ('running', 'completed', 'warning', 'failed', 'cancelled')",
-            name="ck_fitting_runs_status",
+            name="ck_fitting_sessions_status",
         ),
-        CheckConstraint("max_evaluations > 0", name="ck_fitting_runs_evaluations"),
-        Index("ix_fitting_runs_isotherm_created", "isotherm_id", "created_at"),
+        CheckConstraint("max_evaluations > 0", name="ck_fitting_sessions_evaluations"),
+        Index("ix_fitting_sessions_created", "created_at"),
+        Index("ix_fitting_sessions_dataset", "dataset_id"),
+    )
+
+###############################################################################
+class FittingSessionModel(Base):
+    __tablename__ = "fitting_session_models"
+
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("fitting_sessions.id", ondelete="CASCADE"), primary_key=True
+    )
+    model_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    session: Mapped[FittingSession] = relationship(back_populates="models", lazy="raise")
+
+    __table_args__ = (
+        Index("ix_fitting_session_models_key", "model_key"),
     )
 
 ###############################################################################
@@ -477,9 +494,13 @@ class FitResult(Base):
     __tablename__ = "fit_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    run_id: Mapped[int] = mapped_column(
-        ForeignKey("fitting_runs.id", ondelete="CASCADE"), nullable=False
+    session_id: Mapped[int] = mapped_column(
+        ForeignKey("fitting_sessions.id", ondelete="CASCADE"), nullable=False
     )
+    isotherm_id: Mapped[int | None] = mapped_column(
+        ForeignKey("isotherms.id", ondelete="SET NULL")
+    )
+    isotherm_name: Mapped[str] = mapped_column(String(255), nullable=False)
     model_name: Mapped[str] = mapped_column(String(128), nullable=False)
     model_version: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -503,7 +524,7 @@ class FitResult(Base):
     warnings: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
     rank: Mapped[int | None] = mapped_column(Integer)
 
-    run: Mapped[FittingRun] = relationship(back_populates="results", lazy="raise")
+    session: Mapped[FittingSession] = relationship(back_populates="results", lazy="raise")
     parameters: Mapped[list[FitParameter]] = relationship(
         back_populates="result",
         cascade="all, delete-orphan",
@@ -512,14 +533,16 @@ class FitResult(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("run_id", "model_name", name="uq_fit_results_run_model"),
+        UniqueConstraint(
+            "session_id", "isotherm_id", "model_name", name="uq_fit_results_session_model"
+        ),
         CheckConstraint(
             "status IN ('success', 'warning', 'failed')",
             name="ck_fit_results_status",
         ),
         CheckConstraint("observation_count >= 0", name="ck_fit_results_observations"),
         CheckConstraint("parameter_count > 0", name="ck_fit_results_parameters"),
-        Index("ix_fit_results_run_rank", "run_id", "rank"),
+        Index("ix_fit_results_session_rank", "session_id", "isotherm_id", "rank"),
     )
 
 ###############################################################################
@@ -592,8 +615,24 @@ class TrainingSnapshotRow(Base):
         Index("ix_training_snapshot_rows_snapshot_index", "snapshot_id", "row_index"),
     )
 
+###############################################################################
+class AdsorptionModelSetting(Base):
+    """User-configured global defaults and availability for one adsorption model."""
+
+    __tablename__ = "adsorption_model_settings"
+
+    model_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    parameter_bounds: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
+    )
+
 
 __all__ = [
+    "AdsorptionModelSetting",
     "Adsorbate",
     "Adsorbent",
     "Base",
@@ -601,7 +640,8 @@ __all__ = [
     "DatasetImport",
     "FitParameter",
     "FitResult",
-    "FittingRun",
+    "FittingSession",
+    "FittingSessionModel",
     "Isotherm",
     "IsothermComponent",
     "Observation",

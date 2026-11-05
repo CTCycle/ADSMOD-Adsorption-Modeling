@@ -324,7 +324,7 @@ class DatasetDeleteImpact(BaseModel):
     dataset_id: int
     experiment_count: int
     observation_count: int
-    fitting_run_count: int
+    fitting_session_count: int
 
 
 ###############################################################################

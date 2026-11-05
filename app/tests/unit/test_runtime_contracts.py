@@ -127,14 +127,8 @@ def test_settings_validation_checks_dependent_fields_together() -> None:
         RuntimeConfig(backend_port=6045, frontend_port=6045)
     with pytest.raises(ValidationError, match="at least one NIST collection"):
         PublicDataConfig(auto_sync_enabled=True)
-    with pytest.raises(ValidationError, match="between the minimum and maximum"):
-        FittingConfig(default_parameter_min=2, default_parameter_initial=1)
-    with pytest.raises(ValidationError, match="greater than"):
-        FittingConfig(
-            default_parameter_min=2,
-            default_parameter_max=2,
-            default_parameter_initial=2,
-        )
+    with pytest.raises(ValidationError, match="max_iterations_upper_bound"):
+        FittingConfig(default_max_iterations=500, max_iterations_upper_bound=100)
     with pytest.raises(ValidationError, match="greater than zero"):
         TrainingConfig(persistent_workers=True, dataloader_workers=0)
     with pytest.raises(ValidationError):

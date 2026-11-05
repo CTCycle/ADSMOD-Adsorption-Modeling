@@ -204,9 +204,6 @@ class PublicDataConfig(StrictModel):
 class FittingConfig(StrictModel):
     default_max_iterations: int = Field(default=1000, ge=10, le=1000000000)
     max_iterations_upper_bound: int = Field(default=1000000000, ge=10, le=1000000000)
-    default_parameter_initial: float = Field(default=1.0, ge=0.0)
-    default_parameter_min: float = Field(default=0.0, ge=0.0)
-    default_parameter_max: float = Field(default=100.0, ge=0.0)
     preview_row_limit: int = Field(default=20, ge=1, le=500)
     best_model_metric: Literal["sse", "rmse", "mae", "r_squared", "adjusted_r_squared", "chi_square", "aic", "aicc", "bic"] = "aicc"
 
@@ -216,14 +213,6 @@ class FittingConfig(StrictModel):
         if self.max_iterations_upper_bound < self.default_max_iterations:
             raise ValueError(
                 "fitting.max_iterations_upper_bound must be >= fitting.default_max_iterations"
-            )
-        if self.default_parameter_max <= self.default_parameter_min:
-            raise ValueError(
-                "fitting.default_parameter_max must be greater than fitting.default_parameter_min"
-            )
-        if not self.default_parameter_min <= self.default_parameter_initial <= self.default_parameter_max:
-            raise ValueError(
-                "fitting.default_parameter_initial must be between the minimum and maximum"
             )
         return self
 

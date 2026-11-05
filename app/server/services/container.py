@@ -16,6 +16,7 @@ from server.repositories.dataset_edits import DatasetEditRepository
 from server.repositories.datasets import DatasetRepository
 from server.repositories.units import UnitRepository
 from server.repositories.fitting import FittingRepository
+from server.repositories.model_settings import ModelSettingsRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
 from server.repositories.public_data import PublicDataRepository
@@ -81,6 +82,7 @@ class CoreServiceContainer:
             config=config,
             datasets=self.datasets,
             results=self.fitting,
+            model_settings=ModelSettingsRepository(self.database),
             job_manager=self.job_manager,
         )
         self.public_data_sync = PublicDataSyncCoordinator(

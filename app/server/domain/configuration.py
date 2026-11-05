@@ -15,14 +15,6 @@ class NumericBounds(BaseModel):
     maximum: int | float
 
 ###############################################################################
-class ParameterDefaults(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    lower: float
-    upper: float
-    initial: float
-
-###############################################################################
 class DisplayUnitCapabilities(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -43,7 +35,6 @@ class FittingConfigurationResponse(BaseModel):
     weighting_options: tuple[str, ...]
     default_weighting: str
     display_units: DisplayUnitCapabilities
-    parameter_defaults: ParameterDefaults
 
 ###############################################################################
 class RuntimeDeviceCapabilities(BaseModel):
@@ -72,7 +63,6 @@ __all__ = [
     "DisplayUnitCapabilities",
     "FittingConfigurationResponse",
     "NumericBounds",
-    "ParameterDefaults",
     "RuntimeDeviceCapabilities",
     "TrainingConfigurationResponse",
 ]

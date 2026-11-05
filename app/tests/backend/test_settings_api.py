@@ -58,8 +58,6 @@ def test_settings_save_applies_to_new_requests_and_requires_restarts_when_needed
         payload["public_data"]["sync_resume_on_startup"] = True
         payload["fitting"]["default_max_iterations"] = 2500
         payload["fitting"]["max_iterations_upper_bound"] = 5000
-        payload["fitting"]["default_parameter_initial"] = 2
-        payload["fitting"]["default_parameter_max"] = 9
         payload["fitting"]["preview_row_limit"] = 7
         payload["fitting"]["best_model_metric"] = "rmse"
         payload["jobs"]["polling_interval"] = 2.5
@@ -108,13 +106,6 @@ def test_settings_save_applies_to_new_requests_and_requires_restarts_when_needed
             == 2.5
         )
         assert runtime.container.config.application.training.persistent_workers is True
-        assert client.get("/api/v1/system/configuration").json()[
-            "parameter_defaults"
-        ] == {
-            "lower": 0.0,
-            "upper": 9.0,
-            "initial": 2.0,
-        }
         assert (
             client.get("/api/v1/system/configuration").json()["default_max_evaluations"]
             == 2500
@@ -154,10 +145,10 @@ def test_settings_save_applies_to_new_requests_and_requires_restarts_when_needed
             "unmapped_uptake",
         }
         rejected_fit = client.post(
-            "/api/v1/fitting/run",
+            "/api/v1/fitting/sessions",
             json={
+                "name": "Over the ceiling",
                 "dataset_id": 1,
-                "isotherm_id": 1,
                 "models": ["langmuir"],
                 "max_evaluations": 5001,
             },

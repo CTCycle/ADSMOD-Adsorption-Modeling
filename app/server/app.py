@@ -25,9 +25,8 @@ from server.domain.configuration import (
     DisplayUnitCapabilities,
     FittingConfigurationResponse,
     NumericBounds,
-    ParameterDefaults,
 )
-from server.domain.fitting import FittingRequest
+from server.domain.fitting import FittingSessionRequest
 from server.api.entrypoint import health_router, register_root_routes
 from server.api.frontend import register_frontend_routes
 from server.api.database import create_database_router
@@ -131,7 +130,7 @@ def configuration(request: Request) -> FittingConfigurationResponse:
     uptake_units = tuple(dict.fromkeys(UnitRegistry.UPTAKE_ALIASES.values()))
     return FittingConfigurationResponse(
         supported_optimizers=tuple(
-            get_args(FittingRequest.model_fields["optimizer"].annotation)
+            get_args(FittingSessionRequest.model_fields["optimizer"].annotation)
         ),
         default_optimizer="trf",
         default_max_evaluations=fitting.default_max_iterations,
@@ -139,7 +138,7 @@ def configuration(request: Request) -> FittingConfigurationResponse:
             minimum=10, maximum=fitting.max_iterations_upper_bound
         ),
         weighting_options=tuple(
-            get_args(FittingRequest.model_fields["weighting"].annotation)
+            get_args(FittingSessionRequest.model_fields["weighting"].annotation)
         ),
         default_weighting="unweighted",
         display_units=DisplayUnitCapabilities(
@@ -147,11 +146,6 @@ def configuration(request: Request) -> FittingConfigurationResponse:
             uptake=uptake_units,
             default_pressure="bar",
             default_uptake="mmol/g",
-        ),
-        parameter_defaults=ParameterDefaults(
-            lower=fitting.default_parameter_min,
-            upper=fitting.default_parameter_max,
-            initial=fitting.default_parameter_initial,
         ),
     )
 
@@ -241,6 +235,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         application.state.runtime.startup_settings = settings
         application.state.core_container.apply_settings(config)
         application.state.core_container.public_data_service.ensure_sources()
+        application.state.core_container.fitting_service.fail_interrupted_sessions()
         await application.state.core_container.public_data_sync.start()
         application.state.runtime.database_ready = True
     except Exception as exc:  # noqa: BLE001
