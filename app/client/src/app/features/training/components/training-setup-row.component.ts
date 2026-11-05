@@ -81,7 +81,7 @@ type TrainingSetupViewMode = 'all' | 'datasets' | 'checkpoints';
                                 <h4 class="split-selection-card-title">Start Training Run</h4>
                             </div>
 
-                            <p class="split-selection-card-description split-selection-card-description-wide">Select a processed adsorption dataset and open the training setup.</p>
+                            <p class="split-selection-card-description split-selection-card-description-wide">Pick a processed dataset to set up training.</p>
 
                             @if (selectedDatasetLabel()) {
                                 <div class="split-selection-card-selection">

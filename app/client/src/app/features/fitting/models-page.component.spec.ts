@@ -330,7 +330,7 @@ describe('ModelsPageComponent', () => {
         await vi.waitFor(() => expect(store.fittingJobId()).toBe('fitting-cancel-test'));
         fixture.detectChanges();
         const cancelButton = Array.from(root.querySelectorAll<HTMLButtonElement>('button'))
-            .find((button) => button.textContent?.includes('Cancel Fitting'));
+            .find((button) => button.textContent?.includes('Cancel fitting'));
         expect(cancelButton).not.toBeUndefined();
         cancelButton!.click();
 

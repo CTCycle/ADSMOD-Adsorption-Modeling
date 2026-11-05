@@ -320,7 +320,7 @@ const SEARCH_DELAY_MS = 300;
                     </div>
 
                     @if (state().mode === 'uptake' && uptake(); as result) {
-                        <p class="chart-legend-note">Filled markers are measurements; hollow markers are values interpolated between the two listed observations. Nothing is extrapolated.</p>
+                        <p class="chart-legend-note">Filled: measured. Hollow: interpolated.</p>
                         <div class="data-table-frame">
                             <table class="data-table">
                                 <caption class="sr-only">Uptake at {{ format(result.pressure) }} {{ unitName(result.pressure_unit) }}</caption>

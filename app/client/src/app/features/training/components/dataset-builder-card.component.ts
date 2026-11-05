@@ -78,11 +78,11 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                                 <path d="m8 17 4 4 4-4" />
                             </svg>
                         </div>
-                        <h4 class="split-selection-card-title">Build Training Dataset</h4>
+                        <h4 class="split-selection-card-title">Build training dataset</h4>
                     </div>
 
                     <p class="split-selection-card-description">
-                        Merge uploaded and NIST adsorption data into a machine-learning-ready dataset.
+                        Merge datasets for model training.
                         @if (datasetInfo()?.available) {
                             <span class="split-selection-card-ready-note">
                                 Ready: {{ datasetInfo()?.train_samples }}T / {{ datasetInfo()?.validation_samples }}V
@@ -108,7 +108,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                             [disabled]="selectedCount() === 0 || isBuilding() || !trainingConfiguration()"
                             (click)="isWizardOpen.set(true)"
                         >
-                            {{ isBuilding() ? 'Building...' : 'Configure Dataset Build' }}
+                            {{ isBuilding() ? 'Building...' : 'Configure build' }}
                         </button>
                         <button
                             class="secondary split-selection-card-action-button"
@@ -117,7 +117,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                             title="Clear current training dataset"
                             (click)="clearDataset()"
                         >
-                            Clear Dataset
+                            Clear dataset
                         </button>
                     </div>
                 </div>

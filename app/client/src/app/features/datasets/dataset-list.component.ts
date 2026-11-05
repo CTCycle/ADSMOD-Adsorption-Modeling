@@ -27,10 +27,7 @@ export const SOURCE_LABELS: Record<DatasetSummary['source'], string> = {
     template: `
         <section class="dataset-list" aria-labelledby="dataset-list-title">
             <header class="dataset-list-head">
-                <div>
-                    <h2 id="dataset-list-title">Adsorption datasets</h2>
-                    <p>Each dataset groups one or more experiments, and each experiment holds its measurements.</p>
-                </div>
+                <h2 id="dataset-list-title">Datasets <span class="dataset-list-count">{{ filtered().length }}</span></h2>
                 <button #addButton class="button primary" type="button" (click)="addRequested.emit()">Add dataset</button>
             </header>
 
@@ -38,7 +35,7 @@ export const SOURCE_LABELS: Record<DatasetSummary['source'], string> = {
                 <input
                     type="search"
                     aria-label="Search datasets"
-                    placeholder="Search name, description, material, or species"
+                    placeholder="Search datasets"
                     [value]="state().query"
                     (input)="update({ query: $any($event.target).value, page: 1 })"
                 />
@@ -76,17 +73,11 @@ export const SOURCE_LABELS: Record<DatasetSummary['source'], string> = {
                                         <span class="edited-badge" [title]="dataset.edited_experiment_count + ' experiment(s) edited locally'">Edited</span>
                                     }
                                 </div>
-                                @if (dataset.description) {
-                                    <p class="dataset-row-description" [title]="dataset.description">{{ dataset.description }}</p>
-                                }
-                                <dl class="dataset-row-facts">
-                                    <div><dt>Experiments</dt><dd>{{ dataset.experiment_count }}</dd></div>
-                                    <div><dt>Measurements</dt><dd>{{ dataset.observation_count }}</dd></div>
-                                    <div class="wide"><dt>Materials</dt><dd [title]="dataset.material_names.join(', ')">{{ namesLabel(dataset.material_names, dataset.material_count) }}</dd></div>
-                                    <div class="wide"><dt>Species</dt><dd [title]="dataset.species_names.join(', ')">{{ namesLabel(dataset.species_names, dataset.species_count) }}</dd></div>
-                                    <div><dt>Created</dt><dd>{{ dataset.created_at | date: 'mediumDate' }}</dd></div>
-                                    <div><dt>Updated</dt><dd [title]="dataset.last_update | date: 'medium'">{{ dataset.last_update | date: 'mediumDate' }}</dd></div>
-                                </dl>
+                                <p class="dataset-row-meta">
+                                    {{ dataset.experiment_count }} {{ dataset.experiment_count === 1 ? 'experiment' : 'experiments' }} ·
+                                    {{ dataset.observation_count }} measurements · Updated {{ dataset.last_update | date: 'mediumDate' }}
+                                </p>
+                                <p class="dataset-row-names" [title]="detailTitle(dataset)">{{ detailLabel(dataset) }}</p>
                             </div>
                             <div class="dataset-row-actions">
                                 <a class="button secondary" [routerLink]="['/datasets', dataset.id]" [attr.aria-label]="'Explore ' + dataset.name">Explore</a>
@@ -109,10 +100,10 @@ export const SOURCE_LABELS: Record<DatasetSummary['source'], string> = {
     styles: [
         `
             :host { display: block; min-width: 0; }
-            .dataset-list { display: grid; gap: var(--spacing-sm); }
-            .dataset-list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-md); }
-            .dataset-list-head h2 { margin: 0; font-size: 1.05rem; }
-            .dataset-list-head p { margin: 2px 0 0; color: var(--text-secondary); font-size: 0.8rem; }
+            .dataset-list { display: grid; gap: var(--spacing-md); }
+            .dataset-list-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); }
+            .dataset-list-head h2 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+            .dataset-list-count { margin-left: 0.25rem; padding: 0 7px; border-radius: 999px; background: var(--slate-100); color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; vertical-align: middle; }
             .dataset-list-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--spacing-xs); }
             .dataset-list-tools .select-input { width: auto; min-width: 9.5rem; }
             .dataset-rows { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border-color); }
@@ -121,18 +112,19 @@ export const SOURCE_LABELS: Record<DatasetSummary['source'], string> = {
                 grid-template-columns: minmax(0, 1fr) auto;
                 gap: var(--spacing-md);
                 align-items: center;
-                padding: 0.7rem 0.25rem;
+                padding: var(--spacing-md) var(--spacing-xs);
                 border-bottom: 1px solid var(--border-color);
                 transition: background-color 600ms ease;
             }
+            .dataset-row:last-child { border-bottom: 0; }
             .dataset-row.highlighted { background: color-mix(in srgb, var(--primary-600) 8%, transparent); }
             .dataset-row-main { min-width: 0; }
             .dataset-row-title { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
             .dataset-row-name {
                 overflow: hidden;
                 color: var(--text-primary);
-                font-size: 0.9rem;
-                font-weight: 700;
+                font-size: 0.95rem;
+                font-weight: 600;
                 text-decoration: none;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -144,40 +136,33 @@ export const SOURCE_LABELS: Record<DatasetSummary['source'], string> = {
                 border-radius: 999px;
                 background: var(--slate-100);
                 color: var(--text-secondary);
-                font-size: 0.64rem;
+                font-size: 0.6875rem;
                 font-weight: 700;
                 letter-spacing: 0.03em;
                 text-transform: uppercase;
             }
             .origin-badge.nist { color: var(--link); }
             .edited-badge { background: color-mix(in srgb, #d97706 14%, transparent); color: #b45309; }
-            .dataset-row-description {
-                margin: 2px 0 0;
+            .dataset-row-meta,
+            .dataset-row-names {
+                margin: 0.2rem 0 0;
                 overflow: hidden;
-                color: var(--text-secondary);
-                font-size: 0.76rem;
+                font-size: 0.8125rem;
+                font-variant-numeric: tabular-nums;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-            .dataset-row-facts {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-                gap: 0.25rem var(--spacing-md);
-                margin: 0.45rem 0 0;
-            }
-            .dataset-row-facts div { min-width: 0; }
-            .dataset-row-facts .wide { grid-column: span 2; }
-            .dataset-row-facts dt { color: var(--text-tertiary); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
-            .dataset-row-facts dd { margin: 0; overflow: hidden; font-size: 0.78rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
-            .dataset-row-actions { display: flex; gap: 0.35rem; }
+            .dataset-row-meta { color: var(--text-secondary); }
+            .dataset-row-names { color: var(--text-tertiary); }
+            .dataset-row-actions { display: flex; align-items: center; gap: var(--spacing-xs); }
             .dataset-list-empty { display: grid; gap: 0.25rem; margin: 0; padding: var(--spacing-lg) 0; color: var(--text-secondary); font-size: 0.85rem; }
             .dataset-list-empty strong { color: var(--text-primary); }
             @media (max-width: 640px) {
-                .dataset-list-head { flex-direction: column; }
                 .dataset-list-tools { grid-template-columns: 1fr 1fr; }
                 .dataset-list-tools input { grid-column: span 2; }
                 .dataset-list-tools .select-input { width: 100%; min-width: 0; }
                 .dataset-row { grid-template-columns: 1fr; }
+                .dataset-row-actions .button { flex: 1; }
             }
         `,
     ],
@@ -256,9 +241,23 @@ export class DatasetListComponent {
         return SOURCE_LABELS[dataset.source];
     }
 
-    protected namesLabel(names: string[], total: number): string {
-        if (!total) return '—';
-        const extra = total - names.length;
-        return extra > 0 ? `${names.join(', ')} +${extra}` : names.join(', ');
+    protected detailLabel(dataset: DatasetSummary): string {
+        return [
+            this.namesLabel(dataset.material_names, dataset.material_count),
+            this.namesLabel(dataset.species_names, dataset.species_count),
+        ]
+            .filter(Boolean)
+            .join(' · ');
+    }
+
+    protected detailTitle(dataset: DatasetSummary): string {
+        return [...dataset.material_names, ...dataset.species_names].join(', ');
+    }
+
+    private namesLabel(names: string[], total: number): string {
+        if (!total) return '';
+        const shown = names.slice(0, 2);
+        const extra = total - shown.length;
+        return extra > 0 ? `${shown.join(', ')} +${extra}` : shown.join(', ');
     }
 }

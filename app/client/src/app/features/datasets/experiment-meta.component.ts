@@ -111,7 +111,7 @@ const BASIS_LABELS: Record<PressureBasis, string> = {
                             @if (issue('uptake_unit'); as problem) { <small role="alert">{{ problem.message }}</small> }
                         </div>
                     </div>
-                    <p class="unit-note">Changing a unit reinterprets the stored source values of every measurement in this experiment; canonical values are recomputed on save.</p>
+                    <p class="unit-note">Changing a unit reinterprets every measurement in this experiment.</p>
                 }
             </div>
         }

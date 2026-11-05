@@ -78,7 +78,7 @@ function speciesRow(item: SpeciesRecord): EntityRow {
                 <input
                     type="search"
                     [attr.aria-label]="kind() === 'material' ? 'Search materials' : 'Search species'"
-                    [placeholder]="kind() === 'material' ? 'Search materials' : 'Search species or synonyms'"
+                    [placeholder]="kind() === 'material' ? 'Search materials' : 'Search species'"
                     [value]="query()"
                     (input)="search($any($event.target).value)"
                 />
@@ -103,9 +103,9 @@ function speciesRow(item: SpeciesRecord): EntityRow {
                                     <span class="entity-uses" [class.unused]="!row.experimentCount">
                                         {{ row.experimentCount ? row.experimentCount + ' exp.' : 'Unused' }}
                                     </span>
-                                    <span class="entity-meta">
-                                        {{ row.formula || 'No formula' }}@if (row.molarMass) { · {{ row.molarMass.toFixed(2) }} g/mol}@if (row.note) { · {{ row.note }}}
-                                    </span>
+                                    @if (row.formula) {
+                                        <span class="entity-meta">{{ row.formula }}</span>
+                                    }
                                 </button>
                             </li>
                         }
@@ -124,14 +124,14 @@ function speciesRow(item: SpeciesRecord): EntityRow {
     styles: [
         `
             :host { display: block; min-width: 0; }
-            .entity-panel { display: grid; gap: var(--spacing-xs); }
+            .entity-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--spacing-xs); max-height: calc(100vh - var(--console-header-height) - 7rem); min-height: 0; }
             .entity-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border-color); }
             .entity-tabs button {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 gap: 0.4rem;
-                min-height: 2.5rem;
+                min-height: 2.75rem;
                 padding: 0 0.5rem;
                 border: 0;
                 border-bottom: 2px solid transparent;
@@ -139,21 +139,21 @@ function speciesRow(item: SpeciesRecord): EntityRow {
                 background: transparent;
                 color: var(--text-secondary);
                 font: inherit;
-                font-size: 0.82rem;
-                font-weight: 700;
+                font-size: 0.875rem;
+                font-weight: 600;
                 cursor: pointer;
             }
             .entity-tabs button.active { border-bottom-color: var(--primary-600); color: var(--text-primary); }
             .entity-tabs .count { padding: 0 6px; border-radius: 999px; background: var(--slate-100); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
-            .entity-body { display: grid; gap: var(--spacing-xs); padding-top: var(--spacing-xs); }
+            .entity-body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--spacing-xs); min-height: 0; padding-top: var(--spacing-xs); }
             .entity-body > input { width: 100%; }
-            .entity-rows { margin: 0; padding: 0; list-style: none; }
+            .entity-rows { margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; }
             .entity-row {
                 display: grid;
                 grid-template-columns: minmax(0, 1fr) auto;
                 gap: 1px var(--spacing-xs);
                 width: 100%;
-                padding: 0.45rem 0.5rem;
+                padding: 0.625rem 0.5rem;
                 border: 0;
                 border-bottom: 1px solid var(--border-color);
                 border-radius: 0;
@@ -166,11 +166,12 @@ function speciesRow(item: SpeciesRecord): EntityRow {
             .entity-row:hover { background: var(--slate-50); }
             .entity-row.selected { background: var(--slate-50); box-shadow: inset 3px 0 0 var(--primary-600); }
             .entity-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-            .entity-name { overflow: hidden; font-size: 0.82rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-            .entity-uses { color: var(--text-secondary); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+            .entity-name { overflow: hidden; font-size: 0.875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+            .entity-uses { color: var(--text-secondary); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
             .entity-uses.unused { color: var(--text-tertiary); font-style: italic; }
-            .entity-meta { grid-column: span 2; overflow: hidden; color: var(--text-tertiary); font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
-            .entity-pager { display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+            .entity-meta { grid-column: span 2; overflow: hidden; color: var(--text-tertiary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
+            @media (max-width: 1200px) { .entity-panel { max-height: 28rem; } }
+            .entity-pager { padding-top: var(--spacing-xs); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
             .entity-message { margin: 0; padding: var(--spacing-sm) 0; color: var(--text-secondary); font-size: 0.82rem; }
             .entity-message.error { color: var(--danger-text); }
         `,

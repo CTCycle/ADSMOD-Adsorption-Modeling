@@ -1,7 +1,8 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { Component, DestroyRef, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { Meta, Title } from '@angular/platform-browser';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
@@ -27,13 +28,13 @@ type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
                 </div>
 
                 <nav class="console-nav" aria-label="Primary">
-                    <a class="console-nav-item" routerLink="/datasets" routerLinkActive="active" ariaCurrentWhenActive="page">
-                        <span class="console-nav-icon" aria-hidden="true">□</span>
-                        <span>Datasets</span>
-                    </a>
                     <a class="console-nav-item" routerLink="/sources" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⇩</span>
                         <span>Sources</span>
+                    </a>
+                    <a class="console-nav-item" routerLink="/datasets" routerLinkActive="active" ariaCurrentWhenActive="page">
+                        <span class="console-nav-icon" aria-hidden="true">□</span>
+                        <span>Datasets</span>
                     </a>
                     <a class="console-nav-item" routerLink="/dashboards" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">▦</span>
@@ -87,6 +88,8 @@ export class CoreShellComponent {
     @ViewChild('mainContent') private mainContent?: ElementRef<HTMLElement>;
     @ViewChild('sidebar') private sidebar?: ElementRef<HTMLElement>;
     private readonly router = inject(Router);
+    private readonly title = inject(Title);
+    private readonly meta = inject(Meta);
     private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
     protected readonly backendStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
@@ -131,29 +134,33 @@ export class CoreShellComponent {
     protected readonly pageDescription = computed(() => {
         const url = this.currentUrl();
         if (url.startsWith('/dashboards')) {
-            return 'Query, compare, and visualise stored adsorption data without copying it.';
+            return 'Compare and visualise stored adsorption data.';
         }
         if (url.startsWith('/sources')) {
-            return 'Discover external data providers and acquire their records into the local database.';
+            return 'Find and import data from external providers.';
         }
         if (url.startsWith('/fitting')) {
-            return 'Configure and run adsorption model fitting workflows.';
+            return 'Fit adsorption models to your data.';
         }
         if (url.startsWith('/training')) {
-            return 'Prepare datasets, checkpoints, and model training workflows.';
+            return 'Prepare data and train models.';
         }
         if (url.startsWith('/settings')) {
-            return 'Configure application defaults and provider behavior.';
+            return 'Application defaults and provider options.';
         }
         if (url.startsWith('/help')) {
-            return 'Tutorials, guides, and tips for every ADSMOD workflow.';
+            return 'Guides and tips for every workflow.';
         }
         return url.startsWith('/datasets/')
-            ? 'Inspect and edit experiments and their measurements.'
-            : 'Manage local adsorption datasets, adsorbent materials, and chemical species.';
+            ? 'Inspect and edit experiments and measurements.'
+            : 'Browse your datasets, materials, and species.';
     });
 
     constructor() {
+        effect(() => {
+            this.title.setTitle(`${this.pageTitle()} · ADSMOD`);
+            this.meta.updateTag({ name: 'description', content: this.pageDescription() });
+        });
         void this.refreshBackendStatus();
         const serviceStatusTimer = window.setInterval(() => void this.refreshBackendStatus(), 10_000);
         this.destroyRef.onDestroy(() => window.clearInterval(serviceStatusTimer));

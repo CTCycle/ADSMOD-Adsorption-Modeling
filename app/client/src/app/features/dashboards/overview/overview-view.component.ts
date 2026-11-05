@@ -26,10 +26,10 @@ import { buildHistogramOption, buildRankingOption, CATEGORICAL_PALETTE, formatVa
             @if (data.isotherms === 0) {
                 <section class="console-card chart-empty standalone">
                     <strong>No isotherms stored yet</strong>
-                    <span>Import a dataset or fetch NIST isotherms; the dashboard reads them directly, without copying data.</span>
+                    <span>Import a dataset or acquire public data to get started.</span>
                     <div class="heading-actions">
-                        <a class="button secondary" routerLink="/datasets">Open Custom Datasets</a>
-                        <a class="button secondary" routerLink="/sources/acquire">Acquire public data</a>
+                        <a class="button secondary" routerLink="/datasets">Open datasets</a>
+                        <a class="button secondary" routerLink="/sources/acquire">Acquire data</a>
                     </div>
                 </section>
             } @else {

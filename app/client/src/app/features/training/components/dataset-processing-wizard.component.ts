@@ -19,7 +19,7 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
             <div class="wizard-modal">
                 <div class="wizard-header">
                     <h4 id="dataset-processing-wizard-title">Dataset Processing Wizard</h4>
-                    <p>Configure processing settings for your selected datasets.</p>
+                    <p>Processing settings.</p>
                     <adsmod-wizard-progress-indicator [currentPage]="currentPage()" [totalPages]="2" />
                 </div>
 

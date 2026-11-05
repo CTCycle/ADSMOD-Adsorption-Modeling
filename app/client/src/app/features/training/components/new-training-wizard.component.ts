@@ -39,7 +39,7 @@ const LAST_PAGE_INDEX = 4;
                         <div class="wizard-page">
                             <div class="wizard-card">
                                 <div class="wizard-card-header"><span class="wizard-card-icon">📊</span><span>Dataset Configuration</span></div>
-                                <p class="wizard-card-description">Control how the training dataset is shuffled during training.</p>
+                                <p class="wizard-card-description">Dataset shuffling.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-toggle-row wizard-toggle-row-aligned">
                                         <div class="wizard-toggle-control">
@@ -67,7 +67,7 @@ const LAST_PAGE_INDEX = 4;
                         <div class="wizard-page">
                             <div class="wizard-card">
                                 <div class="wizard-card-header"><span class="wizard-card-icon">🧠</span><span>Model Configuration</span></div>
-                                <p class="wizard-card-description">Define the architecture and embedding dimensions for the SCADS model family.</p>
+                                <p class="wizard-card-description">Model architecture and embeddings.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-settings-grid">
                                         <adsmod-number-input label="Encoders" [value]="numEncoders()" [min]="minimum('num_encoders')" [max]="maximum('num_encoders')" [step]="1" [precision]="0" (valueChange)="numEncodersControl.setValue($event)" />
@@ -92,7 +92,7 @@ const LAST_PAGE_INDEX = 4;
                         <div class="wizard-page">
                             <div class="wizard-card">
                                 <div class="wizard-card-header"><span class="wizard-card-icon">⚙️</span><span>Training Configuration</span></div>
-                                <p class="wizard-card-description">Define the training schedule, checkpointing, and learning rate behavior.</p>
+                                <p class="wizard-card-description">Schedule, checkpoints, and learning rate.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-settings-grid">
                                         <adsmod-number-input label="Epochs" [value]="epochs()" [min]="minimum('epochs')" [max]="maximum('epochs')" [step]="1" [precision]="0" (valueChange)="epochsControl.setValue($event)" />
@@ -119,7 +119,7 @@ const LAST_PAGE_INDEX = 4;
                         <div class="wizard-page">
                             <div class="wizard-card">
                                 <div class="wizard-card-header"><span class="wizard-card-icon">🖥️</span><span>Device Controls</span></div>
-                                <p class="wizard-card-description">Configure data loading and runtime acceleration options.</p>
+                                <p class="wizard-card-description">Data loading and acceleration.</p>
                                 <div class="wizard-card-body">
                                     <div class="wizard-device-layout">
                                         <div class="wizard-device-column wizard-device-column-left">
@@ -141,7 +141,7 @@ const LAST_PAGE_INDEX = 4;
                                         <div class="wizard-device-column wizard-device-column-right">
                                             <div class="wizard-device-option-card">
                                                 <h5 class="wizard-device-option-title">Torch Compile</h5>
-                                                <p class="wizard-device-option-description">Enable torch.compile to optimize runtime graph execution.</p>
+                                                <p class="wizard-device-option-description">Optimise the model graph with torch.compile.</p>
                                                 <div class="wizard-device-option-controls">
                                                     <adsmod-checkbox label="Torch Compile" [checked]="useJit()" (checkedChange)="useJitControl.setValue($event)" />
                                                     <div class="wizard-device-option-dropdown">
@@ -157,7 +157,7 @@ const LAST_PAGE_INDEX = 4;
 
                                             <div class="wizard-device-option-card">
                                                 <h5 class="wizard-device-option-title">Enable GPU</h5>
-                                                <p class="wizard-device-option-description">Run training on CUDA and choose the target GPU device index.</p>
+                                                <p class="wizard-device-option-description">Train on a CUDA GPU.</p>
                                                 <div class="wizard-device-option-controls">
                                                     <adsmod-checkbox label="Enable GPU" [checked]="useDeviceGpu()" (checkedChange)="useDeviceGpuControl.setValue($event)" />
                                                     <div class="wizard-device-option-dropdown">

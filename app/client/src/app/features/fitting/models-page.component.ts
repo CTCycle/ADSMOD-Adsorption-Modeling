@@ -20,7 +20,7 @@ import { ModelCardComponent } from './model-card.component';
                     <div class="fitting-config-panel">
                         <div class="models-header-row">
                             <div class="models-title-block">
-                                <h3>Fitting Configuration</h3>
+                                <h3>Fitting configuration</h3>
                             </div>
                         </div>
 
@@ -45,7 +45,7 @@ import { ModelCardComponent } from './model-card.component';
                                         </div>
                                     </div>
                                     <div class="control-group">
-                                        <label class="field-label" for="fitting-experiment-control">Experiment / isotherm</label>
+                                        <label class="field-label" for="fitting-experiment-control">Experiment</label>
                                         <select
                                             id="fitting-experiment-control"
                                             class="select-input"
@@ -67,7 +67,7 @@ import { ModelCardComponent } from './model-card.component';
                                                 class="text-input fitting-experiment-search"
                                                 type="search"
                                                 aria-label="Search experiments"
-                                                placeholder="Search by name, material, or species"
+                                                placeholder="Search experiments"
                                                 [value]="store.experimentQuery()"
                                                 [disabled]="store.fittingRunning()"
                                                 (change)="searchExperiments($event)"
@@ -112,15 +112,15 @@ import { ModelCardComponent } from './model-card.component';
                                     <div class="control-group">
                                         <div class="fitting-action-buttons">
                                             <button class="primary fitting-action-primary" type="button" [disabled]="!store.fittingConfiguration() || store.fittingRunning()" (click)="startFitting()">
-                                                Start Fitting
+                                                Start fitting
                                             </button>
                                             @if (store.fittingJobId()) {
                                                 <button class="secondary fitting-action-secondary" type="button" [disabled]="store.fittingCancellationPending()" (click)="cancelFitting()">
-                                                    {{ store.fittingCancellationPending() ? 'Cancelling…' : 'Cancel Fitting' }}
+                                                    {{ store.fittingCancellationPending() ? 'Cancelling…' : 'Cancel fitting' }}
                                                 </button>
                                             }
                                             <button class="secondary fitting-action-secondary" type="button" (click)="store.resetFittingStatus()">
-                                                Reset Log
+                                                Reset log
                                             </button>
                                         </div>
                                     </div>
@@ -129,7 +129,7 @@ import { ModelCardComponent } from './model-card.component';
 
                             <div class="fitting-status-column">
                                 <div class="fitting-status-box">
-                                    <div class="status-label">Fitting Log:</div>
+                                    <div class="status-label">Fitting log</div>
                                     <pre class="status-text">{{ store.fittingStatus() || 'Ready to start...' }}</pre>
                                 </div>
                             </div>
@@ -236,7 +236,7 @@ import { ModelCardComponent } from './model-card.component';
                     }
 
                     <div class="models-grid-header">
-                        <h3>Select Adsorption Models</h3>
+                        <h3>Models</h3>
                     </div>
 
                     <div class="models-grid">

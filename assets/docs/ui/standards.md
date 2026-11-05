@@ -1,6 +1,6 @@
 # ADSMOD UI standards
 
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 These standards refine the current console UI without changing its information architecture.
 
@@ -24,6 +24,11 @@ Use the existing Space Grotesk stack for interface text and a monospace stack on
 - Primary blue tokens are reserved for navigation, primary actions, focus, and progress.
 - Green, amber, and red are semantic status colors and must not be the only indication of state.
 - Body text should use `--slate-700` or darker on light surfaces; muted text should remain readable at normal size.
+
+## Copy and scaling
+
+- Keep on-screen text minimal: one short line per description, labels in sentence case, detail in `title` or Docs.
+- Lists and grids must hold many items: use `repeat(auto-fill, minmax(...))` grids, paginate long lists, and cap sticky side panels at viewport height with an internal scroll region.
 
 ## Themes
 

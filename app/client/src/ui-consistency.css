@@ -1078,3 +1078,39 @@ a.table-action {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
+
+/* Fitting: two-column control grid, and a model grid that grows with the catalogue. */
+.fitting-controls-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.fitting-controls-row > .control-group:nth-child(n + 5) {
+  grid-column: 1 / -1;
+}
+
+.models-grid {
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--spacing-md);
+}
+
+.model-grid-card {
+  min-height: 0;
+}
+
+@media (max-width: 640px) {
+  .fitting-controls-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Readable model cards in both themes. */
+.model-description {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.model-equation {
+  color: var(--text-primary);
+}

@@ -11,8 +11,9 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
     template: `
         <div class="data-pagination">
             <span class="pagination-summary" aria-live="polite">{{ summary }}</span>
+            @if (total > options[0]) {
             <label class="pagination-size">
-                Rows per page
+                Rows
                     <select
                         [disabled]="disabled"
                         autocomplete="off"
@@ -23,6 +24,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                     }
                 </select>
             </label>
+            }
+            @if (pageCount > 1) {
             <div class="pagination-controls">
                 <button
                     class="pagination-button"
@@ -42,6 +45,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                     Next
                 </button>
             </div>
+            }
         </div>
     `,
     styles: [
@@ -55,11 +59,11 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                 align-items: center;
                 justify-content: space-between;
                 gap: 10px 14px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: var(--spacing-md);
+                padding-top: var(--spacing-md);
                 border-top: 1px solid var(--border-color, #e3e7ee);
                 color: var(--text-secondary, #667085);
-                font-size: 0.75rem;
+                font-size: 0.8125rem;
             }
             .pagination-summary,
             .pagination-page {
@@ -73,12 +77,12 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                 align-items: center;
                 gap: 8px;
                 color: var(--text-secondary, #667085);
-                font-size: 0.72rem;
+                font-size: 0.8125rem;
                 font-weight: 600;
             }
             .pagination-size select {
-                min-height: 30px;
-                height: 30px;
+                min-height: 32px;
+                height: 32px;
                 padding: 0 8px;
                 border: 1px solid var(--border-color, #d8dee8);
                 border-radius: 6px;
@@ -97,8 +101,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
                 white-space: nowrap;
             }
             .pagination-button {
-                min-height: 30px;
-                height: 30px;
+                min-height: 32px;
+                height: 32px;
                 padding: 0 10px;
                 border: 1px solid var(--border-color, #d8dee8);
                 border-radius: 6px;

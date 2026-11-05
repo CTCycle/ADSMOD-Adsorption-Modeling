@@ -37,9 +37,9 @@ const VIEW_LABELS: Record<SourcesView, string> = {
 
 /** Catalog sections, keyed by the primary data type a provider contributes. */
 const CATEGORIES: readonly { capability: string; title: string; description: string }[] = [
-    { capability: 'adsorption', title: 'Adsorption isotherms', description: 'Measured isotherms that become experiments in a local dataset.' },
-    { capability: 'chemicals', title: 'Chemical identity and properties', description: 'Identifiers, synonyms, and properties that enrich local species.' },
-    { capability: 'structures', title: 'Crystal structures', description: 'Crystallographic records that can be linked to local materials.' },
+    { capability: 'adsorption', title: 'Adsorption isotherms', description: 'Measured isotherms.' },
+    { capability: 'chemicals', title: 'Chemical identity and properties', description: 'Species identifiers and properties.' },
+    { capability: 'structures', title: 'Crystal structures', description: 'Structures linkable to materials.' },
 ];
 const CAPABILITY_LABELS: Record<string, string> = {
     adsorption: 'Isotherms',
@@ -86,29 +86,25 @@ const positiveId = (value: string | null): number | null => {
                     <section class="public-intro">
                         <div>
                             <h2>External data sources</h2>
-                            <p>
-                                Browse the providers ADSMOD integrates. Browsing reads the provider; acquiring copies records into your local database,
-                                where isotherms appear as datasets and materials and species become reusable entities on the Datasets page.
-                            </p>
+                            <p>Acquire records from external providers into your local database.</p>
                             <div class="catalog-actions">
                                 <a class="button primary" routerLink="/sources/acquire">Acquire data</a>
                                 <a class="button secondary" routerLink="/datasets">Open local datasets</a>
                             </div>
                         </div>
                         <div class="overview-totals" aria-label="Records acquired from providers">
-                            <div><strong>{{ overview()?.adsorption_records ?? '—' }}</strong><span>acquired isotherms</span></div>
-                            <div><strong>{{ overview()?.materials ?? '—' }}</strong><span>provider materials</span></div>
-                            <div><strong>{{ overview()?.chemicals ?? '—' }}</strong><span>provider species</span></div>
+                            <div><strong>{{ overview()?.adsorption_records ?? '—' }}</strong><span>isotherms</span></div>
+                            <div><strong>{{ overview()?.materials ?? '—' }}</strong><span>materials</span></div>
+                            <div><strong>{{ overview()?.chemicals ?? '—' }}</strong><span>species</span></div>
                             <a routerLink="/sources/structures"><strong>{{ overview()?.structures ?? '—' }}</strong><span>structures</span></a>
                         </div>
                         <p class="acquisition-summary" aria-live="polite">
                             <a routerLink="/sources/acquire">{{ overview()?.active_sync_runs ?? 0 }} active</a>
                             · <a routerLink="/sources/acquire">{{ overview()?.failed_sync_runs ?? 0 }} failed</a>
-                            · latest successful acquisition {{ formatDate(overview()?.latest_successful_sync_at ?? null) }}
+                            · last success {{ formatDate(overview()?.latest_successful_sync_at ?? null) }}
                         </p>
                     </section>
                     <div class="catalog-toolbar">
-                        <p>Status reflects the last saved provider check.</p>
                         <button class="button secondary" type="button" [disabled]="sourceHealthLoading()" (click)="refreshSourceHealth()">{{ sourceHealthLoading() ? 'Checking…' : 'Refresh status' }}</button>
                     </div>
                     @for (group of catalog(); track group.title) {
@@ -123,7 +119,7 @@ const positiveId = (value: string | null): number | null => {
                                 @for (source of group.sources; track source.key) {
                                     <article class="source-summary">
                                         <div class="source-summary-head">
-                                            <div><strong>{{ source.name }}</strong><span class="source-key">{{ source.key }}</span></div>
+                                            <strong>{{ source.name }}</strong>
                                             <span class="source-status" [class.available]="source.health_status === 'available'" [class.unavailable]="source.health_status === 'unavailable'">
                                                 {{ source.health_status === 'unknown' ? 'Not checked' : source.health_status }}
                                             </span>
@@ -137,8 +133,7 @@ const positiveId = (value: string | null): number | null => {
                                         </div>
                                         <dl class="source-facts">
                                             <div><dt>Local records</dt><dd>{{ source.record_count }}</dd></div>
-                                            <div><dt>Last acquisition</dt><dd>{{ formatDate(source.last_successful_sync_at) }}</dd></div>
-                                            <div><dt>Last checked</dt><dd>{{ formatDate(source.last_health_checked_at) }}@if (!source.health_fresh && source.last_health_checked_at) { <span class="source-stale">stale</span> }</dd></div>
+                                            <div><dt>Last acquired</dt><dd>{{ formatDate(source.last_successful_sync_at) }}</dd></div>
                                         </dl>
                                         <div class="source-summary-foot">
                                             <span class="source-links">
@@ -164,7 +159,7 @@ const positiveId = (value: string | null): number | null => {
                 }
                 @case ('structures') {
                     <section class="public-section">
-                        <div class="section-heading"><div><h3>Structures</h3><p>Imported COD structures with their original CIF, unit cell, and atom sites. Link a structure to the material it describes.</p></div><a class="button secondary" [routerLink]="['/sources', 'acquire']" [queryParams]="{ panel: 'cod' }">Search COD</a></div>
+                        <div class="section-heading"><div><h3>Structures</h3><p>Imported crystal structures.</p></div><a class="button secondary" [routerLink]="['/sources', 'acquire']" [queryParams]="{ panel: 'cod' }">Search COD</a></div>
                         @if (structureMaterialFilter()) {
                             <p class="filter-chip">Showing structures linked to material #{{ structureMaterialFilter() }}<a class="text-link" [routerLink]="[]" [queryParams]="{ material_id: null, id: null }" queryParamsHandling="merge">Clear</a></p>
                         }

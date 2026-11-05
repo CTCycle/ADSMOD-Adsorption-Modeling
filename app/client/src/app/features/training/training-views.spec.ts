@@ -99,10 +99,10 @@ describe('MachineLearningPageComponent', () => {
             root.querySelectorAll<HTMLAnchorElement>('.training-view-tab'),
         );
         expect(tabs.map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
-            'Data Processing',
+            'Data processing',
             'Train datasets',
             'Checkpoints',
-            'Training Dashboard',
+            'Training dashboard',
         ]);
         expect(tabs.every((tab) => tab.getAttribute('href')?.startsWith('/training/'))).toBe(true);
         expect(root.textContent).toContain('Training requires the optional ML service.');

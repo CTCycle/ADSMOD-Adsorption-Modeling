@@ -35,10 +35,10 @@ interface TrainingViewSpec {
 }
 
 const TRAINING_VIEWS: readonly TrainingViewSpec[] = [
-    { id: 'processing', label: 'Data Processing', description: 'Prepare adsorption datasets for model training.' },
+    { id: 'processing', label: 'Data processing', description: 'Prepare adsorption datasets for model training.' },
     { id: 'datasets', label: 'Train datasets', description: 'Choose a processed dataset and configure a new training run.' },
     { id: 'checkpoints', label: 'Checkpoints', description: 'Review saved checkpoints and resume a training run.' },
-    { id: 'dashboard', label: 'Training Dashboard', description: 'Track training progress, metrics, and logs in real time.' },
+    { id: 'dashboard', label: 'Training dashboard', description: 'Track training progress, metrics, and logs in real time.' },
 ];
 
 const isTrainingViewId = (value: string | null): value is TrainingViewId =>
@@ -119,7 +119,7 @@ interface PendingTrainingDelete {
                 } @else if (trainingAvailability() === 'unavailable') {
                     <section class="training-unavailable-card" aria-live="polite">
                         <h3>Training requires the optional ML service.</h3>
-                        <p>Source and Fitting remain available in core-only mode. Start or install the ML service to use training workflows.</p>
+                        <p>Start the ML service to enable training.</p>
                     </section>
                 } @else {
                     @switch (activeView().id) {

@@ -98,7 +98,7 @@ export function exact(value: number | null): string {
             </table>
         </div>
         @if (editing()) {
-            <p class="worksheet-hint">Enter or ↓ moves down, ↑ moves up, Tab moves across, Esc restores the stored value. Derived columns are recomputed when you save.</p>
+            <p class="worksheet-hint">Enter/↓ down · ↑ up · Tab across · Esc restores the value.</p>
         }
         @if (total() > pageSize) {
             <adsmod-data-pagination

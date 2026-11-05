@@ -36,9 +36,9 @@ interface ImportedLink {
 }
 
 const COLLECTIONS: { category: NISTCategory; label: string; description: string }[] = [
-    { category: 'guest', label: 'Adsorbate species', description: 'Guest molecules with InChIKey, formula, and molecular weight.' },
-    { category: 'host', label: 'Adsorbent materials', description: 'Host materials keyed by the NIST material hashkey.' },
-    { category: 'experiments', label: 'Adsorption isotherms', description: 'Measured isotherms converted to canonical pressure and uptake.' },
+    { category: 'guest', label: 'Adsorbate species', description: 'Guest molecules.' },
+    { category: 'host', label: 'Adsorbent materials', description: 'Host materials.' },
+    { category: 'experiments', label: 'Adsorption isotherms', description: 'Measured isotherms.' },
 ];
 const ACTIVE_STATUSES = new Set(['queued', 'running']);
 const POLL_INTERVAL_MS = 1500;
@@ -72,8 +72,8 @@ const persistFraction = (category: NISTCategory, value: number): void => {
         <section class="public-section acquire-intro">
             <div class="section-heading">
                 <div>
-                    <h3>Fetch records from NIST, PubChem, and COD</h3>
-                    <p>Requests run in the backend and keep running when you leave this page. Stored records are reused, never downloaded twice.</p>
+                    <h3>Acquire records</h3>
+                    <p>Runs continue in the background. Stored records are reused.</p>
                 </div>
             </div>
             @if (error()) {
@@ -85,7 +85,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
             <div class="section-heading">
                 <div>
                     <h4>Adsorption collections</h4>
-                    <p>Check how many records NIST publishes, choose the share to consider, and fetch. Each run is bounded; fetch again to continue where the previous run stopped.</p>
+                    <p>Fetch NIST records in bounded runs; fetch again to continue.</p>
                 </div>
             </div>
             <div class="data-table-frame collection-table-frame">
@@ -146,7 +146,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
             <div class="section-heading">
                 <div>
                     <h4>Acquisitions</h4>
-                    <p>Active work keeps its progress here; completed runs remain available with their counters and failures.</p>
+                    <p>Progress and results of fetch runs.</p>
                 </div>
                 <button class="button secondary" type="button" (click)="refreshAll()">Refresh</button>
             </div>
@@ -319,7 +319,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 <div class="section-heading">
                     <div>
                         <h4>Chemical identity and properties</h4>
-                        <p>Resolve one compound by CID, InChIKey, or name, or fill in PubChem identity for stored chemicals that do not have it yet.</p>
+                        <p>Resolve a compound or enrich stored species.</p>
                     </div>
                 </div>
                 @if (pubchemTarget(); as target) {
@@ -331,7 +331,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     <button class="button primary" type="button" [disabled]="!pubchemQuery.trim() || isSubmitting('pubchem:resolve')" (click)="resolveCompound()">{{ isSubmitting('pubchem:resolve') ? 'Resolving…' : 'Resolve' }}</button>
                 </div>
                 <div class="panel-footer">
-                    <span>Stored chemicals without PubChem identity are resolved in bounded batches. Lookups that PubChem cannot answer are not retried.</span>
+                    <span>Resolves stored species missing a PubChem identity.</span>
                     <button class="button secondary" type="button" [disabled]="isBusy('pubchem', 'pubchem_enrich') || isSubmitting('pubchem:enrich')" (click)="enrichChemicals()">{{ isSubmitting('pubchem:enrich') ? 'Starting…' : 'Enrich stored chemicals' }}</button>
                 </div>
             </section>
@@ -340,11 +340,11 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 <div class="section-heading">
                     <div>
                         <h4>Crystal structures</h4>
-                        <p>Search with a bounded query, select results, and import the original CIF with unit cell and atom sites.</p>
+                        <p>Search COD and import selected structures.</p>
                     </div>
                 </div>
                 <div class="provider-query structure-query">
-                    <div><label for="acquire-cod-query">Search</label><span>Broad result sets are rejected by the server.</span></div>
+                    <div><label for="acquire-cod-query">Search</label><span>Text, formula, or COD ID</span></div>
                     <input id="acquire-cod-query" [(ngModel)]="codQuery" placeholder="Text, formula, or COD ID" (keyup.enter)="searchStructures()" />
                     <select [(ngModel)]="codQueryType" aria-label="COD query type"><option value="text">Text</option><option value="formula">Formula</option><option value="id">COD ID</option></select>
                     <button class="button primary" type="button" [disabled]="codSearching() || !codQuery.trim()" (click)="searchStructures()">{{ codSearching() ? 'Searching…' : 'Search' }}</button>
@@ -386,7 +386,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                         <button class="button primary" type="button" [disabled]="!selectedCodIds().length || isSubmitting('cod:import')" (click)="importStructures()">{{ isSubmitting('cod:import') ? 'Starting…' : 'Import selected (' + selectedCodIds().length + ')' }}</button>
                     </div>
                 } @else if (codSearchCompleted()) {
-                    <p class="empty-inline" role="status">No COD records matched. Try a COD ID, a formula such as “C6 H6”, or a narrower text query.</p>
+                    <p class="empty-inline" role="status">No matching COD records. Try a narrower query.</p>
                 }
             </section>
         </div>
