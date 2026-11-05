@@ -22,11 +22,11 @@ describe('application routes', () => {
                 'sources',
                 'sources/:view',
                 'dashboards',
-                'fitting',
-                'training',
-                'training/:view',
+                'modeling',
             ])
         );
+        expect(paths).not.toContain('fitting');
+        expect(paths).not.toContain('training');
         expect(paths).not.toContain('public-data');
         expect(paths).not.toContain('public-data/:view');
         const dashboards = childRoutes.find((route) => route.path === 'dashboards');
@@ -38,16 +38,26 @@ describe('application routes', () => {
         expect(routes.find((route) => route.path === '**')?.redirectTo).toBe('datasets');
     });
 
-    it('guards the training entry route instead of combining redirectTo with canActivate', () => {
-        const trainingRoute = (routes[0].children ?? []).find((route) => route.path === 'training');
+    it('nests the Modeling workspace views and guards the deep-learning entry routes', () => {
+        const modeling = (routes[0].children ?? []).find((route) => route.path === 'modeling');
+        const children = modeling?.children ?? [];
 
-        expect(trainingRoute?.redirectTo).toBeUndefined();
-        expect(trainingRoute?.canActivate).toHaveLength(1);
-        expect(trainingRoute?.loadComponent).toBeTypeOf('function');
+        expect(children.map((route) => route.path)).toEqual([
+            '',
+            'fitting',
+            'fitting/new',
+            'fitting/:sessionId',
+            'models',
+            'deep-learning',
+            'deep-learning/:view',
+        ]);
+        expect(children.find((route) => route.path === '')?.redirectTo).toBe('fitting');
 
-        const trainingViewRoute = (routes[0].children ?? []).find((route) => route.path === 'training/:view');
-        expect(trainingViewRoute?.canActivate).toHaveLength(1);
-        expect(trainingViewRoute?.loadComponent).toBeTypeOf('function');
+        const entry = children.find((route) => route.path === 'deep-learning');
+        expect(entry?.redirectTo).toBeUndefined();
+        expect(entry?.canActivate).toHaveLength(1);
+        expect(entry?.loadComponent).toBeTypeOf('function');
+        expect(children.find((route) => route.path === 'deep-learning/:view')?.canActivate).toHaveLength(1);
     });
 });
 
@@ -109,7 +119,7 @@ describe('CoreShellComponent', () => {
         vi.unstubAllGlobals();
     });
 
-    it('recovers backend status from Offline to Online and gates Training by the active profile', async () => {
+    it('recovers backend status from Offline to Online', async () => {
         setBackendResponses(false, true);
         const fixture = TestBed.createComponent(CoreShellComponent);
         fixtures.push(fixture);
@@ -121,7 +131,6 @@ describe('CoreShellComponent', () => {
         const statusBar = root.querySelector<HTMLElement>('.console-status-bar');
         expect(statusBar?.textContent).toContain('BackendOnline');
         expect(root.querySelector('.service-dot.core')?.classList.contains('offline')).toBe(false);
-        expect(root.querySelector('a[routerLink="/training"]')).toBeNull();
 
         setBackendResponses(null, false);
 
@@ -130,7 +139,6 @@ describe('CoreShellComponent', () => {
 
         expect(statusBar?.textContent).toContain('BackendOffline');
         expect(root.querySelector('.service-dot.core')?.classList.contains('offline')).toBe(true);
-        expect(root.querySelector('a[routerLink="/training"]')).toBeNull();
 
         setBackendResponses(true, true);
 
@@ -139,7 +147,6 @@ describe('CoreShellComponent', () => {
 
         expect(statusBar?.textContent).toContain('BackendOnline');
         expect(root.querySelector('.service-dot.core')?.classList.contains('offline')).toBe(false);
-        expect(root.querySelector('a[routerLink="/training"]')).not.toBeNull();
     });
 
     it('links Docs to the documentation page, removes the header help button, and exposes the Settings route', () => {

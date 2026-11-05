@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatabaseSettings, SettingsResponse, UserSettings } from '../../models/settings.model';
 import { SettingsPageComponent } from './settings-page.component';
 
@@ -27,9 +26,6 @@ const defaults: UserSettings = {
     fitting: {
         default_max_iterations: 1000,
         max_iterations_upper_bound: 1_000_000_000,
-        default_parameter_initial: 1,
-        default_parameter_min: 0,
-        default_parameter_max: 100,
         preview_row_limit: 20,
         best_model_metric: 'aicc',
     },
@@ -99,12 +95,6 @@ describe('SettingsPageComponent automatic persistence', () => {
         vi.stubGlobal('fetch', fetchMock);
         await TestBed.configureTestingModule({
             imports: [SettingsPageComponent],
-            providers: [
-                {
-                    provide: CoreWorkspaceStore,
-                    useValue: { loadCatalog: vi.fn().mockResolvedValue(undefined) },
-                },
-            ],
         }).compileComponents();
     });
 

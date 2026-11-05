@@ -201,16 +201,13 @@ button {
   line-height: 1.45;
 }
 
-.section-title,
-.models-title-block h3,
-.models-grid-header h3 {
+.section-title {
   font-size: 1.25rem;
   line-height: 1.3;
   font-weight: 600;
 }
 
-.section-caption,
-.models-title-block p {
+.section-caption {
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -319,10 +316,6 @@ button {
 }
 
 /* Keep fitting and training section headings subordinate to the shell page title. */
-.models-header-row,
-.models-grid-header {
-  margin-bottom: var(--spacing-sm);
-}
 
 .training-row-action {
   min-height: 36px;
@@ -345,23 +338,7 @@ button {
   font-size: 0.74rem;
 }
 
-.fitting-config-error {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-sm) var(--spacing-md);
-  margin: 0 0 var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-sm);
-  background: var(--danger-bg);
-  color: var(--danger-text);
-}
 
-.fitting-config-error p {
-  margin: 0;
-}
 
 .fitting-status-box .status-text {
   overflow-wrap: anywhere;
@@ -732,7 +709,6 @@ input[type="number"] {
 
 .dataset-upload-button,
 .split-selection-card-action-button,
-.fitting-action-primary,
 .file-upload-label,
 .dataset-status .button,
 .confirm-dialog .confirm-destructive,
@@ -1097,37 +1073,10 @@ a.table-action {
 }
 
 /* Fitting: two-column control grid, and a model grid that grows with the catalogue. */
-.fitting-controls-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-md);
-}
 
-.fitting-controls-row > .control-group:nth-child(n + 5) {
-  grid-column: 1 / -1;
-}
 
-.models-grid {
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: var(--spacing-md);
-}
 
-.model-grid-card {
-  min-height: 0;
-}
 
-@media (max-width: 640px) {
-  .fitting-controls-row {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* Readable model cards in both themes. */
-.model-description {
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-}
 
-.model-equation {
-  color: var(--text-primary);
-}
