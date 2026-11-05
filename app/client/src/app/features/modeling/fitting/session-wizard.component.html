@@ -1,0 +1,210 @@
+<section class="wizard" aria-labelledby="wizard-title">
+    <header class="wizard-head">
+        <div>
+            <a class="back-link" routerLink="/modeling/fitting">← Fitting sessions</a>
+            <h2 id="wizard-title">New fitting session</h2>
+        </div>
+        <ol class="wizard-steps" aria-label="Steps">
+            @for (label of steps; track label; let index = $index) {
+                <li [class.active]="index === step()" [class.done]="index < step()" [attr.aria-current]="index === step() ? 'step' : null">
+                    @if (index < step()) {
+                        <button type="button" class="step-link" (click)="goTo(index)"><span class="step-number">{{ index + 1 }}</span>{{ label }}</button>
+                    } @else {
+                        <span class="step-number">{{ index + 1 }}</span>{{ label }}
+                    }
+                </li>
+            }
+        </ol>
+    </header>
+
+    @if (draft(); as draft) {
+        <div class="wizard-body">
+            @switch (draft.step) {
+                @case (0) {
+                    <div class="step-grid">
+                        <label class="field">
+                            <span class="field-label">Session name</span>
+                            <input class="text-input" type="text" maxlength="120" placeholder="e.g. CO₂ screening, 298 K" [value]="draft.name" (input)="setName($any($event.target).value)" />
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Dataset</span>
+                            <select class="select-input" [value]="draft.datasetId ?? ''" (change)="setDataset($any($event.target).value)">
+                                <option value="">{{ workspace.datasets().length ? 'Select a dataset' : 'No datasets available' }}</option>
+                                @for (item of workspace.datasets(); track item.id) {
+                                    <option [value]="item.id" [selected]="item.id === draft.datasetId">{{ item.name }}</option>
+                                }
+                            </select>
+                            <span class="field-help">Every experiment in the dataset is fitted.</span>
+                        </label>
+                    </div>
+
+                    @if (dataset(); as selected) {
+                        <dl class="dataset-summary" aria-label="Dataset summary">
+                            <div><dt>Experiments</dt><dd>{{ selected.experiment_count }}</dd></div>
+                            <div><dt>Measurements</dt><dd>{{ selected.observation_count }}</dd></div>
+                            <div><dt>Materials</dt><dd>{{ selected.material_count }}</dd></div>
+                            <div><dt>Species</dt><dd>{{ selected.species_count }}</dd></div>
+                        </dl>
+                        @if (store.readinessLoading()) {
+                            <p class="note" role="status">Checking every experiment for fitting…</p>
+                        } @else if (store.readinessError()) {
+                            <p class="notice danger" role="alert">{{ store.readinessError() }}</p>
+                        } @else if (store.readiness(); as readiness) {
+                            @if (readiness.ready) {
+                                <p class="notice success" role="status">All {{ readiness.experiment_count }} experiments can be fitted.</p>
+                            } @else {
+                                <div class="notice danger" role="alert">
+                                    <p><strong>{{ ineligible().length }} of {{ readiness.experiment_count }} experiments cannot be fitted.</strong> Fix or remove them in the dataset before starting a session.</p>
+                                    <ul>
+                                        @for (item of ineligible(); track item.isotherm_id) {
+                                            <li><strong>{{ item.name }}</strong> · {{ item.reason }}</li>
+                                        }
+                                    </ul>
+                                    <a [routerLink]="['/datasets', readiness.dataset_id]">Open dataset</a>
+                                </div>
+                            }
+                        }
+                    }
+                }
+
+                @case (1) {
+                    <div class="models-toolbar">
+                        <p class="note">{{ selectedModels().length }} of {{ enabledModels().length }} enabled models selected. Bounds start from the saved global defaults.</p>
+                        <div class="toolbar-actions">
+                            <button class="button quiet" type="button" (click)="selectAll(true)">Select all</button>
+                            <button class="button quiet" type="button" (click)="selectAll(false)">Clear</button>
+                        </div>
+                    </div>
+                    @if (!enabledModels().length) {
+                        <p class="notice danger" role="alert">No adsorption models are enabled. <a routerLink="/modeling/models">Enable models in the catalog</a>.</p>
+                    }
+                    <ul class="model-choices">
+                        @for (model of enabledModels(); track model.key) {
+                            <li class="model-choice" [class.selected]="isSelected(model.key)" [class.incompatible]="incompatibility()[model.key]">
+                                <label class="choice-main">
+                                    <input type="checkbox" [checked]="isSelected(model.key)" [disabled]="!!incompatibility()[model.key]" (change)="toggleModel(model.key, $any($event.target).checked)" />
+                                    <span class="choice-text">
+                                        <strong>{{ model.name }}</strong>
+                                        <span>{{ model.assumptions }}</span>
+                                        @if (incompatibility()[model.key]; as reason) {
+                                            <span class="choice-reason">Not available for this dataset · {{ reason }}</span>
+                                        }
+                                    </span>
+                                </label>
+                                <details class="choice-extra">
+                                    <summary>Equation</summary>
+                                    <adsmod-equation-renderer class="choice-equation catalog-equation" [latex]="model.equation_latex" />
+                                </details>
+                                @if (isSelected(model.key)) {
+                                    <details class="choice-extra" [open]="hasOverride(model.key)">
+                                        <summary>Bounds @if (hasOverride(model.key)) { <span class="session-badge">Session only</span> }</summary>
+                                        <adsmod-model-config-form
+                                            [parameters]="model.parameters"
+                                            [value]="sessionBounds(model)"
+                                            [reference]="defaults(model)"
+                                            [label]="model.name + ' session bounds'"
+                                            (valueChange)="setOverride(model, $event)"
+                                        />
+                                        <p class="note">Pa and mol/kg. Changes apply to this session only and never modify the global defaults.</p>
+                                        @if (hasOverride(model.key)) {
+                                            <button class="button quiet" type="button" (click)="clearOverride(model)">Use global defaults</button>
+                                        }
+                                    </details>
+                                }
+                            </li>
+                        }
+                    </ul>
+                    @if (disabledCount()) {
+                        <p class="note">{{ disabledCount() }} model{{ disabledCount() === 1 ? ' is' : 's are' }} disabled in the <a routerLink="/modeling/models">adsorption model catalog</a>.</p>
+                    }
+                }
+
+                @case (2) {
+                    <div class="step-grid">
+                        <label class="field">
+                            <span class="field-label">Weighting</span>
+                            <select class="select-input" [value]="draft.weighting" (change)="setWeighting($any($event.target).value)">
+                                @for (option of store.configuration()?.weighting_options ?? ['unweighted']; track option) {
+                                    <option [value]="option" [disabled]="option === 'inverse_sigma' && !store.readiness()?.inverse_sigma_available" [selected]="option === draft.weighting">{{ weightingLabels[option] }}</option>
+                                }
+                            </select>
+                            <span class="field-help">
+                                @if (store.readiness()?.inverse_sigma_available) {
+                                    Inverse sigma divides residuals by each measurement's uncertainty.
+                                } @else {
+                                    Inverse sigma requires uncertainties for every measurement, which this dataset lacks.
+                                }
+                            </span>
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Max iterations</span>
+                            <input class="text-input" type="number" step="1" [min]="maxBounds().minimum" [max]="maxBounds().maximum" [value]="draft.maxEvaluations" (change)="setMaxEvaluations($any($event.target).value)" />
+                            <span class="field-help">Upper limit on model evaluations per fit ({{ maxBounds().minimum }}–{{ maxBounds().maximum }}).</span>
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Optimization method</span>
+                            <select class="select-input" [value]="draft.optimizer" (change)="setOptimizer($any($event.target).value)">
+                                @for (option of store.configuration()?.supported_optimizers ?? ['trf']; track option) {
+                                    <option [value]="option" [selected]="option === draft.optimizer">{{ optimizerLabels[option] }}</option>
+                                }
+                            </select>
+                            <span class="field-help">Bounded least-squares algorithm. TRF is robust for most isotherms; Dogbox can be faster for small problems.</span>
+                        </label>
+                    </div>
+                }
+
+                @case (3) {
+                    <dl class="review">
+                        <div><dt>Session name</dt><dd>{{ draft.name.trim() }}</dd></div>
+                        <div><dt>Dataset</dt><dd>{{ dataset()?.name ?? '—' }}</dd></div>
+                        <div><dt>Experiments</dt><dd>{{ store.readiness()?.experiment_count ?? '—' }} (all experiments in the dataset)</dd></div>
+                        <div><dt>Optimization method</dt><dd>{{ optimizerLabels[draft.optimizer] }}</dd></div>
+                        <div><dt>Weighting</dt><dd>{{ weightingLabels[draft.weighting] }}</dd></div>
+                        <div><dt>Max iterations</dt><dd>{{ draft.maxEvaluations }}</dd></div>
+                    </dl>
+                    <div class="review-table-wrap">
+                        <table class="review-table">
+                            <caption>Models and effective parameter bounds (Pa, mol/kg)</caption>
+                            <thead><tr><th scope="col">Model</th><th scope="col">Parameter</th><th scope="col">Lower</th><th scope="col">Upper</th><th scope="col">Source</th></tr></thead>
+                            <tbody>
+                                @for (model of selectedModels(); track model.key) {
+                                    @for (parameter of model.parameters; track parameter.name; let first = $first) {
+                                        <tr [class.group-start]="first">
+                                            <th scope="row">@if (first) { {{ model.name }} }</th>
+                                            <td>{{ parameter.name }}</td>
+                                            <td class="num">{{ formatNumber(sessionBounds(model)[parameter.name].lower) }}</td>
+                                            <td class="num">{{ formatNumber(sessionBounds(model)[parameter.name].upper) }}</td>
+                                            <td>{{ isOverridden(model.key, parameter.name) ? 'Session' : parameter.customized ? 'Saved default' : 'Canonical' }}</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (startError()) {
+                        <p class="notice danger" role="alert">{{ startError() }}</p>
+                    }
+                }
+            }
+
+            @if (stepError() && draft.step !== 3) {
+                <p class="step-error" role="status">{{ stepError() }}</p>
+            }
+        </div>
+
+        <adsmod-wizard-navigation-footer
+            [isFirstPage]="draft.step === 0"
+            [isLastPage]="draft.step === 3"
+            [isLoading]="starting()"
+            [nextDisabled]="!!stepError()"
+            confirmIdleLabel="Start fitting"
+            confirmLoadingLabel="Starting…"
+            (closed)="cancel()"
+            (previous)="previous()"
+            (next)="next()"
+            (confirmed)="start()"
+        />
+    } @else {
+        <p class="note" role="status">Preparing the session…</p>
+    }
+</section>

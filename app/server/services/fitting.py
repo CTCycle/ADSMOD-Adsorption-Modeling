@@ -141,7 +141,10 @@ class FittingService:
     # -------------------------------------------------------------------------
     @staticmethod
     def _validate_bounds(
-        spec: ModelSpec, parameters: dict[str, ParameterBounds]
+        spec: ModelSpec,
+        parameters: dict[str, ParameterBounds],
+        *,
+        prune_canonical: bool = True,
     ) -> dict[str, dict[str, float]]:
         known = {parameter.name: parameter for parameter in spec.parameters}
         unknown = sorted(set(parameters) - set(known))
@@ -156,8 +159,10 @@ class FittingService:
                     f"{spec.name} parameter '{name}' requires a strictly positive lower bound."
                 )
             canonical = known[name]
-            if math.isclose(bounds.lower, canonical.lower) and math.isclose(
-                bounds.upper, canonical.upper
+            if (
+                prune_canonical
+                and math.isclose(bounds.lower, canonical.lower)
+                and math.isclose(bounds.upper, canonical.upper)
             ):
                 continue
             customized[name] = {"lower": bounds.lower, "upper": bounds.upper}
@@ -289,7 +294,8 @@ class FittingService:
                 raise ValueError(
                     f"Parameter overrides were given for {spec.name}, which is not selected."
                 )
-            validated = self._validate_bounds(spec, parameters)
+            # Session overrides are explicit: keep them even when they equal canonical bounds.
+            validated = self._validate_bounds(spec, parameters, prune_canonical=False)
             overrides[spec.key] = {
                 name: ParameterBounds(**values) for name, values in validated.items()
             }
@@ -515,8 +521,7 @@ class FittingService:
 
         publish(0.0)
         records: list[dict[str, Any]] = []
-        fitted = 0
-        degraded = False
+        statuses: list[str] = []
         try:
             for index, series in enumerate(series_list, start=1):
                 raise_if_cancelled(stop_event)
@@ -525,18 +530,13 @@ class FittingService:
                 computations = self.pipeline.run(series, request, stop_event=stop_event)
                 self._rank(computations, metric)
                 for item in computations:
+                    statuses.append(item.status)
                     if item.status == "failed":
-                        degraded = True
                         log.append(f"[WARN]   {item.spec.name}: {item.message}")
-                    else:
-                        fitted += 1
-                        degraded = degraded or item.status == "warning"
                 best = next((item.spec.name for item in computations if item.rank == 1), None)
                 log.append(f"[INFO]   Best model: {best or 'none'}")
                 records.extend(self._persistence_record(item, series) for item in computations)
-            total = len(series_list) * len(request.models)
-            status = "failed" if fitted == 0 else "warning" if degraded else "completed"
-            summary = f"{fitted} of {total} model fits succeeded across {len(series_list)} experiment(s)."
+            status, summary = self._session_outcome(statuses, len(series_list))
             log.append(f"[{'ERROR' if status == 'failed' else 'INFO'}] {summary}")
             with self._lifecycle_lock:
                 raise_if_cancelled(stop_event)
@@ -558,6 +558,25 @@ class FittingService:
                 else:
                     self.results.fail_session(session_id, str(exc), log)
             raise
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _session_outcome(statuses: list[str], experiment_count: int) -> tuple[str, str]:
+        fitted = sum(status != "failed" for status in statuses)
+        warned = statuses.count("warning")
+        status = (
+            "failed"
+            if fitted == 0
+            else "warning"
+            if warned or fitted < len(statuses)
+            else "completed"
+        )
+        summary = (
+            f"{fitted} of {len(statuses)} model fits succeeded across "
+            f"{experiment_count} experiment(s)"
+            + (f", {warned} with warnings." if warned else ".")
+        )
+        return status, summary
 
     # -------------------------------------------------------------------------
     def fail_interrupted_sessions(self) -> int:
@@ -714,7 +733,16 @@ class FittingService:
         record = self.results.get_session(session_id)
         grouped: dict[str, list[FitResult]] = {}
         identities: dict[str, int | None] = {}
-        for result in record.results:
+        fitted_order = [item.get("name") for item in record.configuration.get("experiments", [])]
+        for result in sorted(
+            record.results,
+            key=lambda item: (
+                fitted_order.index(item.isotherm_name)
+                if item.isotherm_name in fitted_order
+                else len(fitted_order),
+                item.id,
+            ),
+        ):
             grouped.setdefault(result.isotherm_name, []).append(result)
             identities[result.isotherm_name] = result.isotherm_id
         experiments = [

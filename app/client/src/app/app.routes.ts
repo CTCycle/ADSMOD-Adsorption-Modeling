@@ -26,22 +26,32 @@ export const routes: Routes = [
                     { path: 'explore', loadComponent: () => import('./features/dashboards/explore/explore-view.component').then((m) => m.ExploreViewComponent) },
                 ],
             },
-            { path: 'fitting', loadComponent: () => import('./features/fitting/models-page.component').then((m) => m.ModelsPageComponent) },
             // "/docs" is reserved by the backend (OpenAPI UI), so the in-app docs live at "/help".
             { path: 'help', loadComponent: () => import('./features/docs/docs-page.component').then((m) => m.DocsPageComponent) },
             { path: 'settings', canDeactivate: [settingsAutosaveGuard], loadComponent: () => import('./features/settings/settings-page.component').then((m) => m.SettingsPageComponent) },
             {
-                path: 'training',
-                pathMatch: 'full',
-                canActivate: [machineLearningEntryGuard],
-                loadComponent: () =>
-                    import('./features/training/pages/machine-learning-page.component').then((m) => m.MachineLearningPageComponent),
-            },
-            {
-                path: 'training/:view',
-                canActivate: [machineLearningGuard],
-                loadComponent: () =>
-                    import('./features/training/pages/machine-learning-page.component').then((m) => m.MachineLearningPageComponent),
+                path: 'modeling',
+                loadComponent: () => import('./features/modeling/modeling-page.component').then((m) => m.ModelingPageComponent),
+                children: [
+                    { path: '', pathMatch: 'full', redirectTo: 'fitting' },
+                    { path: 'fitting', loadComponent: () => import('./features/modeling/fitting/sessions-view.component').then((m) => m.SessionsViewComponent) },
+                    { path: 'fitting/new', loadComponent: () => import('./features/modeling/fitting/session-wizard.component').then((m) => m.SessionWizardComponent) },
+                    { path: 'fitting/:sessionId', loadComponent: () => import('./features/modeling/fitting/session-view.component').then((m) => m.SessionViewComponent) },
+                    { path: 'models', loadComponent: () => import('./features/modeling/models/adsorption-models-view.component').then((m) => m.AdsorptionModelsViewComponent) },
+                    {
+                        path: 'deep-learning',
+                        pathMatch: 'full',
+                        canActivate: [machineLearningEntryGuard],
+                        loadComponent: () =>
+                            import('./features/training/pages/machine-learning-page.component').then((m) => m.MachineLearningPageComponent),
+                    },
+                    {
+                        path: 'deep-learning/:view',
+                        canActivate: [machineLearningGuard],
+                        loadComponent: () =>
+                            import('./features/training/pages/machine-learning-page.component').then((m) => m.MachineLearningPageComponent),
+                    },
+                ],
             },
         ],
     },

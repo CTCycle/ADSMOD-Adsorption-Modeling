@@ -104,7 +104,7 @@ describe('MachineLearningPageComponent', () => {
             'Checkpoints',
             'Training dashboard',
         ]);
-        expect(tabs.every((tab) => tab.getAttribute('href')?.startsWith('/training/'))).toBe(true);
+        expect(tabs.every((tab) => tab.getAttribute('href')?.startsWith('/modeling/deep-learning/'))).toBe(true);
         expect(root.textContent).toContain('Training requires the optional ML service.');
     });
 });

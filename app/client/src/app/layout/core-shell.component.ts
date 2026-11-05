@@ -40,16 +40,10 @@ type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
                         <span class="console-nav-icon" aria-hidden="true">▦</span>
                         <span>Dashboards</span>
                     </a>
-                    <a class="console-nav-item" routerLink="/fitting" routerLinkActive="active" ariaCurrentWhenActive="page">
+                    <a class="console-nav-item" routerLink="/modeling" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⌁</span>
-                        <span>Fitting</span>
+                        <span>Modeling</span>
                     </a>
-                    @if (machineLearningAvailable()) {
-                        <a class="console-nav-item" routerLink="/training" routerLinkActive="active" ariaCurrentWhenActive="page">
-                            <span class="console-nav-icon" aria-hidden="true">✺</span>
-                            <span>Training</span>
-                        </a>
-                    }
                 </nav>
 
                 <div class="console-sidebar-footer">
@@ -93,20 +87,17 @@ export class CoreShellComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
     protected readonly backendStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
-    protected readonly machineLearningAvailable = signal(false);
     protected readonly docsAnchor = computed<string>(() => {
         const url = this.currentUrl();
         const page: DocsPage = url.startsWith('/dashboards')
             ? 'dashboards'
             : url.startsWith('/sources')
               ? 'sources'
-              : url.startsWith('/fitting')
-                ? 'fitting'
-                : url.startsWith('/training')
-                  ? 'training'
-                  : url.startsWith('/settings')
-                    ? 'settings'
-                    : 'datasets';
+              : url.startsWith('/modeling')
+                ? 'modeling'
+                : url.startsWith('/settings')
+                  ? 'settings'
+                  : 'datasets';
         return DOCS_ANCHOR_BY_PAGE[page];
     });
     protected readonly pageTitle = computed(() => {
@@ -117,11 +108,8 @@ export class CoreShellComponent {
         if (url.startsWith('/sources')) {
             return 'Sources';
         }
-        if (url.startsWith('/fitting')) {
-            return 'Fitting';
-        }
-        if (url.startsWith('/training')) {
-            return 'Training';
+        if (url.startsWith('/modeling')) {
+            return 'Modeling';
         }
         if (url.startsWith('/settings')) {
             return 'Settings';
@@ -139,11 +127,8 @@ export class CoreShellComponent {
         if (url.startsWith('/sources')) {
             return 'Find and import data from external providers.';
         }
-        if (url.startsWith('/fitting')) {
-            return 'Fit adsorption models to your data.';
-        }
-        if (url.startsWith('/training')) {
-            return 'Prepare data and train models.';
+        if (url.startsWith('/modeling')) {
+            return 'Fit adsorption models, manage the model catalog, and train deep learning models.';
         }
         if (url.startsWith('/settings')) {
             return 'Application defaults and provider options.';
@@ -199,6 +184,5 @@ export class CoreShellComponent {
         const [capabilities, readiness] = await Promise.all([fetchApplicationCapabilities(true), fetchBackendReadiness()]);
         const backendOnline = capabilities.data !== null && readiness.data?.state === 'ready';
         this.backendStatus.set(backendOnline ? 'Online' : 'Offline');
-        this.machineLearningAvailable.set(capabilities.data?.features.machine_learning === true);
     }
 }

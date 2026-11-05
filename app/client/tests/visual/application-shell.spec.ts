@@ -86,8 +86,8 @@ test('primary routes share one stable shell at each supported viewport', async (
         { path: '/datasets', title: 'Datasets', key: 'datasets' },
         { path: '/sources/catalog', title: 'Sources', key: 'sources' },
         { path: '/dashboards', title: 'Dashboards', key: 'dashboards' },
-        { path: '/fitting', title: 'Fitting', key: 'fitting' },
-        { path: '/training/processing', title: 'Training', key: 'training' },
+        { path: '/modeling/fitting', title: 'Modeling', key: 'fitting' },
+        { path: '/modeling/deep-learning/processing', title: 'Modeling', key: 'training' },
     ];
     let referenceGeometry: Awaited<ReturnType<typeof readShellGeometry>> | null = null;
 
@@ -150,7 +150,7 @@ test('primary routes share one stable shell at each supported viewport', async (
 
 test('training routes remain gated when the optional service is unavailable', async ({ page }) => {
     await installShellApiMocks(page, false);
-    await page.goto('/training/processing');
+    await page.goto('/modeling/deep-learning/processing');
     await expect(page).toHaveURL(/\/datasets$/);
     await expect(page.getByRole('heading', { name: 'Datasets', exact: true })).toBeVisible();
 });

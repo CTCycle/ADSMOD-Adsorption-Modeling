@@ -10,6 +10,6 @@ export class TrainingViewNavigationService {
     private readonly router = inject(Router);
 
     navigateTo(view: TrainingViewId): Promise<boolean> {
-        return this.router.navigate(['/training', view]);
+        return this.router.navigate(['/modeling/deep-learning', view]);
     }
 }

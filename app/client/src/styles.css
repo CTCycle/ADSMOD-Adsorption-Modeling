@@ -4308,12 +4308,13 @@ button.secondary {
   overflow: hidden;
 }
 
-.model-equation .equation-container {
-  width: 100%;
-  font-size: clamp(0.72rem, 1vw, 0.98rem);
+.catalog-equation .equation-container {
+  width: auto;
+  max-width: 100%;
+  font-size: 0.88rem;
 }
 
-.model-equation .equation-container .katex {
+.catalog-equation .equation-container .katex {
   font-size: 1em;
 }
 

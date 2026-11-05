@@ -13,10 +13,10 @@ import { Component, input, output } from '@angular/core';
                 <button class="secondary" type="button" [disabled]="isLoading()" (click)="previous.emit()">Previous</button>
             }
             @if (!isLastPage()) {
-                <button class="primary" type="button" [disabled]="isLoading()" (click)="next.emit()">Next</button>
+                <button class="primary" type="button" [disabled]="isLoading() || nextDisabled()" (click)="next.emit()">Next</button>
             }
             @if (isLastPage()) {
-                <button class="primary" type="button" [disabled]="isLoading()" (click)="confirmed.emit()">
+                <button class="primary" type="button" [disabled]="isLoading() || nextDisabled()" (click)="confirmed.emit()">
                     {{ isLoading() ? confirmLoadingLabel() : confirmIdleLabel() }}
                 </button>
             }
@@ -27,6 +27,8 @@ export class WizardNavigationFooterComponent {
     readonly isLoading = input(false);
     readonly isFirstPage = input(false);
     readonly isLastPage = input(false);
+    /** Blocks Next/confirm while the current page is invalid. */
+    readonly nextDisabled = input(false);
     readonly confirmIdleLabel = input.required<string>();
     readonly confirmLoadingLabel = input.required<string>();
     readonly closed = output<void>();

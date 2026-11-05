@@ -68,7 +68,7 @@ interface PendingTrainingDelete {
         <div class="training-page training-view-panel">
             <nav class="training-view-toolbar" aria-label="Training views">
                     @for (view of views; track view.id) {
-                        <a class="training-view-tab" [routerLink]="['/training', view.id]" routerLinkActive="active" ariaCurrentWhenActive="page">
+                        <a class="training-view-tab" [routerLink]="['/modeling/deep-learning', view.id]" routerLinkActive="active" ariaCurrentWhenActive="page">
                             <span class="training-view-tab-icon" aria-hidden="true">
                                 @switch (view.id) {
                                     @case ('processing') {

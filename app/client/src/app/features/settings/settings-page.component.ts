@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, DestroyRef, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatabaseSettings, DatabaseSettingsRequest, SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
 import { fetchDatabaseSettings, fetchSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
 import { toErrorMessage } from '../../shared/utils/error-message';
@@ -151,9 +150,6 @@ const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', '
                             <div class="settings-grid">
                                 <label class="settings-field" for="setting-fit-iterations"><span class="settings-label">Default maximum iterations</span><input id="setting-fit-iterations" type="number" min="10" max="1000000000" [(ngModel)]="settings.fitting.default_max_iterations" (ngModelChange)="markChanged()" /><span class="settings-help">Starting value for the fitting workflow.</span></label>
                                 <label class="settings-field" for="setting-fit-ceiling"><span class="settings-label">Maximum iteration ceiling</span><input id="setting-fit-ceiling" type="number" min="10" max="1000000000" [(ngModel)]="settings.fitting.max_iterations_upper_bound" (ngModelChange)="markChanged()" /><span class="settings-help">Upper bound enforced when a fit is submitted.</span></label>
-                                <label class="settings-field" for="setting-param-min"><span class="settings-label">Default parameter minimum</span><input id="setting-param-min" type="number" min="0" step="any" [(ngModel)]="settings.fitting.default_parameter_min" (ngModelChange)="markChanged()" /><span class="settings-help">Lower bound suggested for model parameters.</span></label>
-                                <label class="settings-field" for="setting-param-initial"><span class="settings-label">Default parameter initial value</span><input id="setting-param-initial" type="number" min="0" step="any" [(ngModel)]="settings.fitting.default_parameter_initial" (ngModelChange)="markChanged()" /><span class="settings-help">Starting estimate used by model parameter controls.</span></label>
-                                <label class="settings-field" for="setting-param-max"><span class="settings-label">Default parameter maximum</span><input id="setting-param-max" type="number" min="0" step="any" [(ngModel)]="settings.fitting.default_parameter_max" (ngModelChange)="markChanged()" /><span class="settings-help">Upper bound suggested for model parameters.</span></label>
                                 <label class="settings-field" for="setting-best-metric"><span class="settings-label">Best model metric</span><select id="setting-best-metric" class="select-input" [(ngModel)]="settings.fitting.best_model_metric" (ngModelChange)="markChanged()">@for (metric of modelMetrics; track metric.value) { <option [value]="metric.value">{{ metric.label }}</option> }</select><span class="settings-help">Ranks successful fits by the selected metric.</span></label>
                                 <label class="settings-field" for="setting-polling"><span class="settings-label">Job polling interval (seconds)</span><input id="setting-polling" type="number" min="0.1" max="60" step="0.1" [(ngModel)]="settings.jobs.polling_interval" (ngModelChange)="markChanged()" /><span class="settings-help">Default client polling cadence for new job requests.</span></label>
                             </div>
@@ -184,7 +180,6 @@ const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', '
     styleUrl: './settings-page.component.css',
 })
 export class SettingsPageComponent {
-    private readonly workspace = inject(CoreWorkspaceStore);
     private readonly changeDetector = inject(ChangeDetectorRef);
     protected readonly tabs = [
         { id: 'import' as const, label: 'Data import', mark: '↥' },
@@ -267,9 +262,6 @@ export class SettingsPageComponent {
             { label: 'Automatic sync fraction', value: value.public_data.auto_sync_fraction, minimum: 0, maximum: 1, exclusiveMinimum: true },
             { label: 'Default maximum iterations', value: value.fitting.default_max_iterations, minimum: 10, maximum: 1000000000, integer: true },
             { label: 'Maximum iteration ceiling', value: value.fitting.max_iterations_upper_bound, minimum: 10, maximum: 1000000000, integer: true },
-            { label: 'Default parameter minimum', value: value.fitting.default_parameter_min, minimum: 0 },
-            { label: 'Default parameter initial value', value: value.fitting.default_parameter_initial, minimum: 0 },
-            { label: 'Default parameter maximum', value: value.fitting.default_parameter_max, minimum: 0 },
             { label: 'Job polling interval', value: value.jobs.polling_interval, minimum: 0.1, maximum: 60 },
             { label: 'Data loader workers', value: value.training.dataloader_workers, minimum: 0, maximum: 64, integer: true },
         ];
@@ -284,8 +276,6 @@ export class SettingsPageComponent {
         if (value.datasets.allowed_extensions.length === 0) errors.push('Select at least one allowed file extension.');
         if (value.public_data.auto_sync_enabled && value.public_data.auto_sync_categories.length === 0) errors.push('Select at least one NIST collection before enabling automatic refresh.');
         if (value.fitting.max_iterations_upper_bound < value.fitting.default_max_iterations) errors.push('The maximum iteration ceiling must be at least the default maximum iterations.');
-        if (value.fitting.default_parameter_min >= value.fitting.default_parameter_max) errors.push('The parameter minimum must be less than the maximum.');
-        if (value.fitting.default_parameter_initial < value.fitting.default_parameter_min || value.fitting.default_parameter_initial > value.fitting.default_parameter_max) errors.push('The parameter initial value must be between the minimum and maximum.');
         if (value.training.persistent_workers && value.training.dataloader_workers === 0) errors.push('Persistent workers require at least one data loader worker.');
         return errors;
     }
@@ -539,8 +529,6 @@ export class SettingsPageComponent {
                 return false;
             }
             const snapshot = structuredClone(this.settingsOnly(this.draft));
-            const refreshCatalog = JSON.stringify(this.saved?.datasets.allowed_extensions)
-                !== JSON.stringify(snapshot.datasets.allowed_extensions);
             this.saving = true;
             this.errorMessage = '';
             this.statusMessage = '';
@@ -558,13 +546,6 @@ export class SettingsPageComponent {
                     this.statusMessage = response.pending_restart_fields.length
                         ? 'Saved. Restart ADSMOD to apply the pending startup change.'
                         : 'Saved and applied.';
-                    if (refreshCatalog) {
-                        try {
-                            await this.workspace.loadCatalog();
-                        } catch {
-                            this.errorMessage = 'Settings were saved, but the workspace catalog could not refresh. Reload ADSMOD to update available file formats.';
-                        }
-                    }
                 } else if (this.draft) {
                     this.draft.pending_restart_fields = [...response.pending_restart_fields];
                 }

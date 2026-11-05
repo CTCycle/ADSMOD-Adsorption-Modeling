@@ -1,0 +1,75 @@
+/* Copyright © 2023 Thomas Virdis */
+/* Licensed under the MIT License. */
+
+:host { display: grid; gap: var(--spacing-sm); min-width: 0; }
+
+.back-link { justify-self: start; color: var(--text-secondary); font-size: 0.8rem; text-decoration: none; }
+.back-link:hover { color: var(--link); text-decoration: underline; }
+
+.session-panel {
+    display: grid;
+    gap: var(--spacing-sm);
+    min-width: 0;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+}
+
+.session-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--spacing-sm); }
+.session-title { min-width: 0; }
+.session-title h2 { margin: 0; font-size: 1.125rem; font-weight: 600; overflow-wrap: anywhere; }
+.session-title p { margin: 0.2rem 0 0; color: var(--text-secondary); font-size: 0.82rem; }
+.session-head-actions { display: flex; align-items: center; gap: var(--spacing-xs); }
+
+.session-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border: 1px solid var(--info-border);
+    border-radius: 999px;
+    background: var(--info-bg);
+    color: var(--info-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.session-status[data-status='completed'] { border-color: var(--success-border); background: var(--success-bg); color: var(--success-text); }
+.session-status[data-status='warning'] { border-color: var(--warning-border); background: var(--warning-bg); color: var(--warning-text); }
+.session-status[data-status='failed'] { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
+.session-status[data-status='cancelled'] { border-color: var(--border-color); background: var(--slate-100); color: var(--text-secondary); }
+
+.session-run { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--spacing-md); align-items: start; }
+.session-run-meta { display: grid; gap: var(--spacing-sm); min-width: 0; }
+.session-log { min-height: 12rem; }
+.session-log .status-text { max-height: 22rem; overflow: auto; white-space: pre-wrap; }
+
+.run-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.5rem 1rem; margin: 0; }
+.run-facts dt { color: var(--text-tertiary); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.run-facts dd { margin: 0.1rem 0 0; font-size: 0.85rem; overflow-wrap: anywhere; }
+
+.snapshot { display: grid; gap: 0.5rem; }
+.snapshot summary { color: var(--link); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.snapshot[open] { gap: 0.5rem; }
+.table-wrap { overflow-x: auto; }
+.bounds-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.bounds-table caption { padding-bottom: 0.3rem; color: var(--text-secondary); font-weight: 600; text-align: left; }
+.bounds-table th, .bounds-table td { padding: 0.25rem 0.45rem; border-bottom: 1px solid var(--border-color); text-align: left; }
+.bounds-table thead th { color: var(--text-tertiary); font-size: 0.68rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.bounds-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.session-badge { margin-left: 0.3rem; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--primary-600) 12%, transparent); color: var(--primary-600); font-size: 0.62rem; font-weight: 700; text-transform: uppercase; }
+
+.fitting-result-best { color: var(--text-secondary); font-size: 0.82rem; }
+.fitting-result-best strong { color: var(--text-primary); }
+
+.notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); margin: 0; padding: 0.55rem 0.75rem; border: 1px solid var(--info-border); border-radius: var(--radius-md); background: var(--info-bg); color: var(--info-text); font-size: 0.82rem; }
+.notice.danger { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
+.note { margin: 0; color: var(--text-secondary); font-size: 0.82rem; }
+
+@media (max-width: 900px) {
+    .session-run { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+    .session-panel { padding: var(--spacing-sm); }
+}

@@ -1,0 +1,161 @@
+/* Copyright © 2023 Thomas Virdis */
+/* Licensed under the MIT License. */
+
+:host { display: block; min-width: 0; }
+
+.sessions {
+    display: grid;
+    gap: var(--spacing-sm);
+    min-width: 0;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+}
+
+.sessions-head h2 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+
+.sessions-count,
+.filter-count {
+    margin-left: 0.25rem;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--slate-100);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.filter-count { margin-left: 0; background: var(--primary-600); color: #fff; }
+
+.sessions-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+    gap: var(--spacing-xs);
+    align-items: center;
+}
+
+.sessions-tools .select-input { width: auto; min-width: 9rem; }
+.sessions-tools .button { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
+
+.sessions-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    gap: var(--spacing-xs) var(--spacing-sm);
+    align-items: end;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    background: var(--surface-subtle);
+}
+
+.sessions-filters label { display: grid; gap: 0.2rem; min-width: 0; }
+.sessions-filters label span { color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; }
+.sessions-filters .select-input,
+.sessions-filters input { width: 100%; min-width: 0; }
+
+.sessions-table-wrap { overflow-x: auto; border-top: 1px solid var(--border-color); }
+
+.sessions-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+.sessions-table th {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.sessions-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+.sessions-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.sessions-table .nowrap { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.col-toggle { width: 2.25rem; }
+.col-actions { width: 5rem; white-space: nowrap; text-align: right; }
+
+.session-row.open td { background: var(--surface-subtle); border-bottom-color: transparent; }
+.session-name { display: block; max-width: 28rem; overflow: hidden; color: var(--text-primary); font-weight: 600; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.session-name:hover { color: var(--link); text-decoration: underline; }
+.session-dataset { display: block; color: var(--text-tertiary); font-size: 0.75rem; }
+
+.row-chevron { display: inline-flex; transition: transform 150ms ease; }
+.row-chevron.open { transform: rotate(180deg); }
+
+.session-status {
+    display: inline-block;
+    padding: 1px 8px;
+    border: 1px solid var(--info-border);
+    border-radius: 999px;
+    background: var(--info-bg);
+    color: var(--info-text);
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.session-status[data-status='completed'] { border-color: var(--success-border); background: var(--success-bg); color: var(--success-text); }
+.session-status[data-status='warning'] { border-color: var(--warning-border); background: var(--warning-bg); color: var(--warning-text); }
+.session-status[data-status='failed'] { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
+.session-status[data-status='cancelled'] { border-color: var(--border-color); background: var(--slate-100); color: var(--text-secondary); }
+
+.session-detail-row td { padding: 0 0.5rem 0.75rem 2.75rem; background: var(--surface-subtle); }
+
+.session-detail {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0.5rem 1rem;
+    margin: 0 0 0.6rem;
+}
+
+.session-detail .wide { grid-column: 1 / -1; }
+.session-detail dt { color: var(--text-tertiary); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.session-detail dd { margin: 0.1rem 0 0; color: var(--text-primary); }
+.muted { color: var(--text-tertiary); }
+
+.best-list { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 0; padding: 0; list-style: none; }
+.best-list span { color: var(--text-secondary); }
+.best-list span::after { content: ':'; }
+
+.sessions-empty { display: grid; justify-items: start; gap: 0.25rem; margin: 0; padding: var(--spacing-lg) 0; color: var(--text-secondary); font-size: 0.85rem; }
+.sessions-empty strong { color: var(--text-primary); }
+
+.inline-error {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin: 0;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-md);
+    background: var(--danger-bg);
+    color: var(--danger-text);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+    .sessions-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sessions-tools input { grid-column: 1 / -1; }
+    .sessions-tools .select-input { width: 100%; min-width: 0; }
+    .sessions-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+    .sessions { padding: var(--spacing-sm); }
+    .sessions-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .sessions-table, .sessions-table tbody, .sessions-table tr, .sessions-table td { display: block; width: 100%; }
+    .session-row { display: grid !important; grid-template-columns: 2.25rem minmax(0, 1fr) auto; padding: 0.35rem 0; border-bottom: 1px solid var(--border-color); }
+    .session-row td { padding: 0.15rem 0.25rem; border: 0; text-align: left !important; }
+    .session-row td[data-label] { grid-column: 2; }
+    .session-row td[data-label]:not([data-label='Name'])::before { content: attr(data-label) ': '; color: var(--text-tertiary); font-size: 0.75rem; }
+    .session-row .col-toggle { grid-column: 1; grid-row: 1; width: auto; }
+    .session-row .col-actions { grid-column: 3; grid-row: 1; width: auto; }
+    .session-name { max-width: 100%; }
+    .session-detail-row td { padding: 0.25rem 0.5rem 0.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .row-chevron { transition: none; }
+}

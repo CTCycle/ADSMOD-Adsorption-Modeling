@@ -44,9 +44,9 @@ export class DatasetDeleteDialogComponent {
         );
         const result = await fetchDeleteImpact(dataset.id);
         if (result.data && this.dataset()?.id === dataset.id) {
-            const runs = result.data.fitting_run_count;
+            const runs = result.data.fitting_session_count;
             const parts = [`${result.data.experiment_count} experiments`, `${result.data.observation_count} measurements`];
-            if (runs) parts.push(`${runs} saved fitting run${runs === 1 ? '' : 's'}`);
+            if (runs) parts.push(`${runs} fitting session${runs === 1 ? '' : 's'}`);
             const removed = `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
             this.message.set(`This permanently removes ${removed}. Materials and species stay available for other datasets.`);
         }

@@ -26,8 +26,7 @@ export const DOCS_ANCHOR_BY_PAGE = {
     datasets: 'dataset-management',
     sources: 'sources',
     dashboards: 'dashboards',
-    fitting: 'fitting',
-    training: 'training',
+    modeling: 'curve-fitting',
     settings: 'settings',
 } as const;
 
@@ -43,7 +42,7 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
                 steps: [
                     { title: 'Add data', description: 'Open Datasets and choose the upload button to import a CSV or Excel file with the import wizard.' },
                     { title: 'Inspect it', description: 'Open a dataset to review its experiments, observations, saved column mapping, and a plot of each isotherm.' },
-                    { title: 'Analyse it', description: 'Use Dashboards to compare stored isotherms, Fitting to compare model equations, and Training to prepare machine learning workflows.' },
+                    { title: 'Analyse it', description: 'Use Dashboards to compare stored isotherms, Modeling to fit model equations and prepare machine learning workflows.' },
                 ],
                 tips: ['External providers are discovered and acquired from the Sources page.'],
             },
@@ -127,7 +126,7 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
                 tips: [
                     'Saving overwrites the stored values and updates the dataset\'s last update time; there is no version history.',
                     'Canonical pressure (Pa or p/p₀) and uptake (mol/kg) are recomputed from the edited source values on save.',
-                    'Deleting a dataset removes its experiments, measurements, and fitting runs, but keeps materials and species.',
+                    'Deleting a dataset removes its experiments, measurements, and fitting sessions, but keeps materials and species.',
                 ],
             },
             {
@@ -163,23 +162,34 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
     },
     {
         id: 'modelling',
-        label: 'Fitting and training',
+        label: 'Modeling',
         sections: [
             {
-                id: 'fitting',
-                title: 'Adsorption fitting',
-                intro: 'Configure an adsorption fit and compare enabled model equations against a selected dataset.',
+                id: 'curve-fitting',
+                title: 'Curve Fitting',
+                intro: 'Fit adsorption models with fitting sessions. A session fits all experiments of exactly one dataset.',
                 steps: [
-                    { title: 'Choose a dataset', description: 'Select a workspace or NIST dataset from the Dataset control.' },
-                    { title: 'Set the run options', description: 'Choose the maximum iterations and optimization method for the fit.' },
-                    { title: 'Choose models', description: 'Enable or disable the adsorption models you want to compare.' },
-                    { title: 'Start fitting', description: 'Use Start fitting to run the workflow and follow its progress in the fitting log.' },
+                    { title: 'Create a session', description: 'Choose New session and follow the four-step wizard: name and dataset, models, fitting settings, and review.' },
+                    { title: 'Find sessions', description: 'The sessions list supports search, filters, and pagination.' },
+                    { title: 'Follow a session', description: 'Open a session to see its log, progress, and results.' },
+                    { title: 'Delete a session', description: 'Deleting a session removes only the session and its results; the dataset is untouched.' },
                 ],
-                tips: ['Reset log clears the visible fitting messages.', 'At least one model should remain enabled for a meaningful comparison.'],
+                tips: ['Disabled models cannot be selected in new sessions.', 'Per-session bound overrides never change the global defaults.'],
             },
             {
-                id: 'training',
-                title: 'Training',
+                id: 'adsorption-models',
+                title: 'Adsorption Models',
+                intro: 'The global catalog of adsorption model equations and their default parameter search bounds.',
+                steps: [
+                    { title: 'Enable or disable models', description: 'Disabled models cannot be used in new sessions.' },
+                    { title: 'Edit default bounds', description: 'Edit the default parameter search bounds in canonical units: Pa and mol/kg.' },
+                    { title: 'Save or restore', description: 'Save defaults stores your edits; Restore defaults returns to the built-in bounds.' },
+                ],
+                tips: ['Sessions snapshot the effective bounds, so history stays reproducible after defaults change.'],
+            },
+            {
+                id: 'deep-learning',
+                title: 'Deep Learning',
                 intro: 'Prepare data, configure training, review checkpoints, and monitor training runs.',
                 steps: [
                     { title: 'Prepare data', description: 'Use Data processing to select and prepare the datasets needed for training.' },
@@ -187,7 +197,7 @@ export const DOCS_GROUPS: readonly DocsGroup[] = [
                     { title: 'Monitor progress', description: 'Use the dashboard to follow active metrics and review completed runs.' },
                     { title: 'Review checkpoints', description: 'Open Checkpoints to inspect saved training artifacts before reusing them.' },
                 ],
-                tips: ['Training requires the optional machine learning dependencies.', 'Keep the status and metric panels visible while a run is active.'],
+                tips: ['Deep Learning requires the optional machine learning dependencies.', 'Keep the status and metric panels visible while a run is active.'],
             },
             {
                 id: 'settings',

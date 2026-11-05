@@ -6,7 +6,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { CheckpointInfo, NumericConstraint, ResumeTrainingConfig } from '../../../models/training.model';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
-import { WizardNavigationFooterComponent } from './wizard-navigation-footer.component';
+import { WizardNavigationFooterComponent } from '../../../shared/components/wizard-navigation-footer/wizard-navigation-footer.component';
 import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.component';
 
 @Component({

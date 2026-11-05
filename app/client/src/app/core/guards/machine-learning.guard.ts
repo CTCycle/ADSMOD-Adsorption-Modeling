@@ -13,6 +13,6 @@ export const machineLearningGuard: CanActivateFn = async () => {
 export const machineLearningEntryGuard: CanActivateFn = async () => {
     const router = inject(Router);
     return await machineLearningAvailable()
-        ? router.createUrlTree(['/training', 'processing'])
+        ? router.createUrlTree(['/modeling', 'deep-learning', 'processing'])
         : router.createUrlTree(['/datasets']);
 };

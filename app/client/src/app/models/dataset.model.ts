@@ -86,7 +86,7 @@ export interface DatasetDeleteImpact {
     dataset_id: number;
     experiment_count: number;
     observation_count: number;
-    fitting_run_count: number;
+    fitting_session_count: number;
 }
 
 export interface ImportIssue {

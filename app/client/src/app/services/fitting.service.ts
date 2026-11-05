@@ -1,140 +1,94 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import type { FittingConfiguration, FittingPayload, FittingResponse, ModelCatalogResponse, PersistedFittingRunResponse } from '../models/fitting.model';
+import type {
+    FittingConfiguration,
+    FittingDatasetReadiness,
+    FittingSessionDetail,
+    FittingSessionListResponse,
+    FittingSessionPayload,
+    FittingSessionQuery,
+    FittingSessionStartResponse,
+    ModelCatalogEntry,
+    ModelCatalogResponse,
+    ModelSettingsUpdate,
+} from '../models/fitting.model';
 import { API_BASE_URL } from '../core/config/api-base-url';
-import type { JobStatusResponse } from '../models/job.model';
-import { pollJobUntilTerminal, startJob } from './job.service';
-import type { JobStartResult } from './job.service';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 import { toErrorMessage } from '../shared/utils/error-message';
 
-export async function startFittingJob(
-    payload: FittingPayload
-): Promise<JobStartResult> {
-    return startJob('/fitting/run', payload);
+export interface ServiceResult<T> {
+    data: T | null;
+    error: string | null;
 }
 
-export async function cancelFittingJob(
-    jobId: string,
-): Promise<{ error: string | null }> {
+async function request<T>(path: string, init: RequestInit = { method: 'GET' }): Promise<ServiceResult<T>> {
     try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/fitting/jobs/${encodeURIComponent(jobId)}`,
-            { method: 'DELETE' },
-            HTTP_TIMEOUT,
-        );
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            return { error: extractErrorMessage(response, body) };
+        const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, init, HTTP_TIMEOUT);
+        if (response.status === 204) {
+            return { data: null, error: null };
         }
-        return { error: null };
-    } catch (error) {
-        return {
-            error: toErrorMessage(error, 'An unknown error occurred.'),
-        };
-    }
-}
-
-export async function fetchPersistedFittingRun(
-    runId: number,
-): Promise<{ data: PersistedFittingRunResponse | null; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/fitting/runs/${runId}`,
-            { method: 'GET' },
-            HTTP_TIMEOUT,
-        );
-        const body = await response.json().catch(() => ({}));
+        const body = await response.json().catch(() => null);
         if (!response.ok) {
-            return { data: null, error: extractErrorMessage(response, body) };
+            return { data: null, error: extractErrorMessage(response, body ?? {}) };
         }
         if (!body || typeof body !== 'object') {
-            return { data: null, error: 'Invalid persisted fitting run response.' };
+            return { data: null, error: 'The server returned an invalid response.' };
         }
-        return { data: body as PersistedFittingRunResponse, error: null };
-    } catch (error) {
-        return {
-            data: null,
-            error: toErrorMessage(error, 'An unknown error occurred.'),
-        };
-    }
-}
-
-export async function pollFittingJobUntilComplete(
-    jobId: string,
-    pollInterval?: number,
-    onProgress?: (status: JobStatusResponse) => void
-): Promise<{ message: string; data: FittingResponse | null }> {
-    const result = await pollJobUntilTerminal('/fitting', jobId, pollInterval, onProgress);
-    if (result.error || !result.data) {
-        return { message: `[ERROR] ${result.error || 'Job status response was empty.'}`, data: null };
-    }
-    const status = result.data;
-
-    if (status.status === 'completed') {
-        const result = status.result as FittingResponse | undefined;
-        if (!result) {
-            return { message: '[INFO] Fitting completed.', data: null };
-        }
-
-        const defaultMessage =
-            result.status === 'error'
-                ? '[ERROR] Fitting finished without any successful model fits.'
-                : result.status === 'warning'
-                    ? '[WARN] Fitting completed with partial issues.'
-                    : '[INFO] Fitting completed successfully.';
-        const summary = result.summary?.trim();
-        if (!summary) {
-            return { message: defaultMessage, data: result };
-        }
-        const prefix = result.status === 'error'
-            ? '[ERROR]'
-            : result.status === 'warning'
-                ? '[WARN]'
-                : '[INFO]';
-        return { message: `${prefix} ${summary}`, data: result };
-    }
-
-    if (status.status === 'failed') {
-        return { message: `[ERROR] ${status.error || 'Job failed.'}`, data: null };
-    }
-
-    return { message: '[INFO] Job was cancelled.', data: null };
-}
-
-export async function fetchModelCatalog(pressure = 'bar', uptake = 'mmol/g'): Promise<{ data: ModelCatalogResponse | null; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(
-            `${API_BASE_URL}/fitting/models?pressure_unit=${encodeURIComponent(pressure)}&uptake_unit=${encodeURIComponent(uptake)}`,
-            { method: 'GET' },
-            HTTP_TIMEOUT,
-        );
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            return { data: null, error: extractErrorMessage(response, body) };
-        }
-        if (!body || typeof body !== 'object') {
-            return { data: null, error: 'Invalid model catalogue response.' };
-        }
-        return { data: body as ModelCatalogResponse, error: null };
+        return { data: body as T, error: null };
     } catch (error) {
         return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
     }
 }
 
-export async function fetchFittingConfiguration(): Promise<{ data: FittingConfiguration | null; error: string | null }> {
-    try {
-        const response = await fetchWithTimeout(`${API_BASE_URL}/system/configuration`, { method: 'GET' }, HTTP_TIMEOUT);
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            return { data: null, error: extractErrorMessage(response, body) };
-        }
-        if (!body || typeof body !== 'object') {
-            return { data: null, error: 'Invalid fitting configuration response.' };
-        }
-        return { data: body as FittingConfiguration, error: null };
-    } catch (error) {
-        return { data: null, error: toErrorMessage(error, 'An unknown error occurred.') };
-    }
+const json = (method: string, payload: unknown): RequestInit => ({
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+});
+
+export const fetchFittingConfiguration = (): Promise<ServiceResult<FittingConfiguration>> =>
+    request('/system/configuration');
+
+export const fetchModelCatalog = (): Promise<ServiceResult<ModelCatalogResponse>> =>
+    request('/fitting/models');
+
+export const saveModelSettings = (key: string, update: ModelSettingsUpdate): Promise<ServiceResult<ModelCatalogEntry>> =>
+    request(`/fitting/models/${encodeURIComponent(key)}`, json('PUT', update));
+
+export const restoreModelDefaults = (key: string): Promise<ServiceResult<ModelCatalogEntry>> =>
+    request(`/fitting/models/${encodeURIComponent(key)}/reset`, { method: 'POST' });
+
+export const fetchDatasetReadiness = (datasetId: number): Promise<ServiceResult<FittingDatasetReadiness>> =>
+    request(`/fitting/datasets/${datasetId}/readiness`);
+
+export const startFittingSession = (payload: FittingSessionPayload): Promise<ServiceResult<FittingSessionStartResponse>> =>
+    request('/fitting/sessions', json('POST', payload));
+
+export const fetchFittingSession = (sessionId: number): Promise<ServiceResult<FittingSessionDetail>> =>
+    request(`/fitting/sessions/${sessionId}`);
+
+export const deleteFittingSession = async (sessionId: number): Promise<{ error: string | null }> =>
+    ({ error: (await request(`/fitting/sessions/${sessionId}`, { method: 'DELETE' })).error });
+
+export const cancelFittingJob = async (jobId: string): Promise<{ error: string | null }> =>
+    ({ error: (await request(`/fitting/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' })).error });
+
+export function fittingSessionParams(query: FittingSessionQuery): URLSearchParams {
+    const params = new URLSearchParams({
+        sort: query.sort,
+        direction: query.direction,
+        page: String(query.page),
+        page_size: String(query.pageSize),
+    });
+    if (query.query.trim()) params.set('query', query.query.trim());
+    query.statuses.forEach((status) => params.append('status', status));
+    if (query.datasetId !== null) params.set('dataset_id', String(query.datasetId));
+    if (query.model) params.set('model', query.model);
+    if (query.createdFrom) params.set('created_from', query.createdFrom);
+    if (query.createdTo) params.set('created_to', query.createdTo);
+    return params;
 }
+
+export const fetchFittingSessions = (query: FittingSessionQuery): Promise<ServiceResult<FittingSessionListResponse>> =>
+    request(`/fitting/sessions?${fittingSessionParams(query).toString()}`);

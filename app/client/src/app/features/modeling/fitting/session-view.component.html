@@ -1,0 +1,149 @@
+<a class="back-link" routerLink="/modeling/fitting">← Fitting sessions</a>
+
+@if (loadError() && !session()) {
+    <div class="notice danger" role="alert">
+        <span>{{ loadError() }}</span>
+        <button class="button secondary" type="button" (click)="load()">Retry</button>
+    </div>
+} @else if (!session()) {
+    <p class="note" role="status">Loading fitting session…</p>
+}
+
+@if (session(); as session) {
+    <section class="session-panel" aria-labelledby="session-title">
+        <header class="session-head">
+            <div class="session-title">
+                <h2 id="session-title">{{ session.name }}</h2>
+                <p>
+                    <a [routerLink]="['/datasets', session.dataset_id]">{{ session.dataset_name }}</a>
+                    · {{ session.experiment_count }} experiment{{ session.experiment_count === 1 ? '' : 's' }}
+                    · {{ session.models.length }} model{{ session.models.length === 1 ? '' : 's' }}
+                    · {{ session.created_at | date: 'medium' }}
+                </p>
+            </div>
+            <div class="session-head-actions">
+                <span class="session-status" [attr.data-status]="session.status" role="status">{{ statusLabels[session.status] }}</span>
+                @if (running() && session.job_id) {
+                    <button class="button secondary" type="button" [disabled]="cancelling()" (click)="cancel()">{{ cancelling() ? 'Cancelling…' : 'Cancel fitting' }}</button>
+                }
+            </div>
+        </header>
+
+        @if (actionError()) {
+            <p class="notice danger" role="alert">{{ actionError() }}</p>
+        }
+
+        <div class="session-run">
+            <div class="session-run-meta">
+                @if (running()) {
+                    <adsmod-progress-bar [value]="progress()" label="Fitting progress" />
+                } @else {
+                    <dl class="run-facts">
+                        <div><dt>Outcome</dt><dd>{{ session.message || statusLabels[session.status] }}</dd></div>
+                        <div><dt>Successful fits</dt><dd>{{ fittedCount() }} / {{ fitCount() }}</dd></div>
+                        <div><dt>Duration</dt><dd>{{ formatDuration(session.duration_seconds) }}</dd></div>
+                        <div><dt>Completed</dt><dd>{{ session.completed_at ? (session.completed_at | date: 'medium') : '—' }}</dd></div>
+                    </dl>
+                }
+                <details class="snapshot">
+                    <summary>Configuration snapshot</summary>
+                    <dl class="run-facts">
+                        <div><dt>Optimization method</dt><dd>{{ optimizerLabels[session.optimizer] }}</dd></div>
+                        <div><dt>Weighting</dt><dd>{{ weightingLabels[session.weighting] }}</dd></div>
+                        <div><dt>Max iterations</dt><dd>{{ session.max_evaluations }}</dd></div>
+                    </dl>
+                    <div class="table-wrap">
+                        <table class="bounds-table">
+                            <caption>Effective parameter bounds (Pa, mol/kg)</caption>
+                            <thead><tr><th scope="col">Model</th><th scope="col">Parameter</th><th scope="col">Lower</th><th scope="col">Upper</th></tr></thead>
+                            <tbody>
+                                @for (row of boundsEntries(); track row.model + row.parameter) {
+                                    <tr>
+                                        <td>{{ modelName(row.model) }}</td>
+                                        <td>{{ row.parameter }}@if (row.session) { <span class="session-badge">Session</span> }</td>
+                                        <td class="num">{{ formatNumber(row.lower) }}</td>
+                                        <td class="num">{{ formatNumber(row.upper) }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            </div>
+            <div class="fitting-status-box session-log">
+                <div class="status-label">Fitting log</div>
+                <pre class="status-text" aria-live="polite">{{ log() || (running() ? 'Starting…' : 'No log was recorded for this session.') }}</pre>
+            </div>
+        </div>
+    </section>
+
+    @for (experiment of session.experiments; track experiment.experiment_name) {
+        <section class="fitting-result-panel" [attr.aria-labelledby]="'experiment-' + $index">
+            <div class="fitting-result-header">
+                <div>
+                    <p class="fitting-result-kicker">Experiment · {{ experiment.observation_count }} measurements</p>
+                    <h4 [id]="'experiment-' + $index">{{ experiment.experiment_name }}</h4>
+                </div>
+                <span class="fitting-result-best">Best model <strong>{{ experiment.best_model ? bestResultName(experiment) : 'None' }}</strong></span>
+            </div>
+            <div class="fitting-result-table-wrap">
+                <table class="fitting-result-table">
+                    <caption class="sr-only">Fitting results for {{ experiment.experiment_name }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Model</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">RMSE</th>
+                            <th scope="col">R²</th>
+                            <th scope="col">AICc</th>
+                            <th scope="col">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (fit of experiment.results; track fit.model) {
+                            <tr [class.fitting-result-row-best]="fit.model === experiment.best_model">
+                                <th scope="row">
+                                    {{ fit.name }}
+                                    @if (fit.model === experiment.best_model) {
+                                        <span class="fitting-best-label">Best</span>
+                                    }
+                                </th>
+                                <td><span class="fitting-result-status" [class.warning]="fit.status === 'warning'" [class.failed]="fit.status === 'failed'">{{ fit.status }}</span></td>
+                                <td>{{ formatNumber(fit.metrics.rmse) }}</td>
+                                <td>{{ formatNumber(fit.metrics.r_squared) }}</td>
+                                <td>{{ formatNumber(fit.metrics.aicc) }}</td>
+                                <td class="fitting-result-details">
+                                    @if (fit.parameters.length || fit.warnings.length || fit.convergence_message) {
+                                        <details>
+                                            <summary>{{ fit.status === 'failed' ? 'Why it failed' : 'Parameters' }}</summary>
+                                            @if (fit.convergence_message) {
+                                                <p>{{ fit.convergence_message }}</p>
+                                            }
+                                            @for (warning of fit.warnings; track $index) {
+                                                @if (warning !== fit.convergence_message) {
+                                                    <p class="fitting-result-warning">{{ warning }}</p>
+                                                }
+                                            }
+                                            @if (fit.parameters.length) {
+                                                <dl class="fitting-result-parameters">
+                                                    @for (parameter of fit.parameters; track parameter.name) {
+                                                        <dt>{{ parameter.name }}</dt>
+                                                        <dd>{{ formatNumber(parameter.value) }}@if (parameter.standard_error !== null) { ± {{ formatNumber(parameter.standard_error) }}} {{ parameter.unit }}</dd>
+                                                    }
+                                                </dl>
+                                            }
+                                        </details>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    } @empty {
+        @if (!running()) {
+            <p class="note">This session has no fitted results{{ session.status === 'cancelled' ? ' because it was cancelled' : '' }}.</p>
+        }
+    }
+}

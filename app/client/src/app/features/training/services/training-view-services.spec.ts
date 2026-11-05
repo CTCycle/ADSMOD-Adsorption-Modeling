@@ -91,6 +91,6 @@ describe('TrainingViewNavigationService', () => {
         const service = TestBed.inject(TrainingViewNavigationService);
 
         await expect(service.navigateTo('dashboard')).resolves.toBe(true);
-        expect(router.navigate).toHaveBeenCalledWith(['/training', 'dashboard']);
+        expect(router.navigate).toHaveBeenCalledWith(['/modeling/deep-learning', 'dashboard']);
     });
 });

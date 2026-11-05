@@ -8,7 +8,7 @@ import type { NumericConstraint, TorchCompileBackend, TrainingConfig } from '../
 import { CheckboxComponent } from '../../../shared/components/checkbox/checkbox.component';
 import { NumberInputComponent } from '../../../shared/components/number-input/number-input.component';
 import { SwitchComponent } from '../../../shared/components/switch/switch.component';
-import { WizardNavigationFooterComponent } from './wizard-navigation-footer.component';
+import { WizardNavigationFooterComponent } from '../../../shared/components/wizard-navigation-footer/wizard-navigation-footer.component';
 import { WizardProgressIndicatorComponent } from './wizard-progress-indicator.component';
 
 const TORCH_COMPILE_BACKENDS: readonly TorchCompileBackend[] = ['inductor', 'cudagraphs', 'aot_eager', 'eager'];

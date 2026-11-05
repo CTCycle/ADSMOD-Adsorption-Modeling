@@ -35,9 +35,6 @@ export interface UserSettings {
     fitting: {
         default_max_iterations: number;
         max_iterations_upper_bound: number;
-        default_parameter_initial: number;
-        default_parameter_min: number;
-        default_parameter_max: number;
         preview_row_limit: number;
         best_model_metric: SettingsModelMetric;
     };
