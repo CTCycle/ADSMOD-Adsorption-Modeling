@@ -50,6 +50,23 @@ const CAPABILITY_LABELS: Record<string, string> = {
     references: 'References',
 };
 
+/** Official provider marks, served from public/sources. */
+export const SOURCE_LOGOS: Record<string, { src: string; alt: string }> = {
+    nist: { src: 'sources/nist.svg', alt: 'NIST logo' },
+    pubchem: { src: 'sources/pubchem.svg', alt: 'PubChem logo' },
+    cod: { src: 'sources/cod.svg', alt: 'Crystallography Open Database logo' },
+};
+export const COLLAPSED_GROUPS_KEY = 'adsmod.sources.collapsed';
+
+const loadCollapsedGroups = (): Set<string> => {
+    try {
+        const parsed: unknown = JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_KEY) ?? '[]');
+        return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []);
+    } catch {
+        return new Set();
+    }
+};
+
 const positiveId = (value: string | null): number | null => {
     const parsed = Number(value);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -120,13 +137,34 @@ const positiveId = (value: string | null): number | null => {
                         </p>
                     </section>
                     @for (group of catalog(); track group.title) {
-                        <section class="catalog-group" [attr.aria-labelledby]="'catalog-' + group.capability">
-                            <h3 class="catalog-group-title" [id]="'catalog-' + group.capability">{{ group.title }}</h3>
+                        <section class="catalog-group" [class.collapsed]="isCollapsed(group.capability)" [attr.aria-labelledby]="'catalog-' + group.capability">
+                            <h3 class="catalog-group-title" [id]="'catalog-' + group.capability">
+                                <button
+                                    type="button"
+                                    class="catalog-group-toggle"
+                                    [attr.aria-expanded]="!isCollapsed(group.capability)"
+                                    [attr.aria-controls]="'catalog-body-' + group.capability"
+                                    (click)="toggleGroup(group.capability)"
+                                >
+                                    <span class="catalog-group-name">{{ group.title }}</span>
+                                    <span class="catalog-group-count">{{ group.sources.length }}</span>
+                                    <span class="collapsible-chevron" [class.open]="!isCollapsed(group.capability)" aria-hidden="true">▾</span>
+                                </button>
+                            </h3>
+                            <div class="catalog-group-body" [id]="'catalog-body-' + group.capability" [attr.inert]="isCollapsed(group.capability) ? '' : null">
+                            <div class="catalog-group-inner">
                             <div class="source-summary-grid">
                                 @for (source of group.sources; track source.key) {
                                     <article class="source-summary">
                                         <div class="source-summary-head">
-                                            <strong>{{ source.name }}</strong>
+                                            <span class="source-title">
+                                                @if (logoFor(source.key); as logo) {
+                                                    <img class="source-logo" [src]="logo.src" [alt]="logo.alt" (error)="logoFailed(source.key)" />
+                                                } @else {
+                                                    <span class="source-monogram" aria-hidden="true">{{ monogram(source.name) }}</span>
+                                                }
+                                                <strong>{{ source.name }}</strong>
+                                            </span>
                                             <span class="source-status" [class.available]="source.health_status === 'available'" [class.unavailable]="source.health_status === 'unavailable'">
                                                 {{ source.health_status === 'unknown' ? 'Not checked' : source.health_status }}
                                             </span>
@@ -153,6 +191,8 @@ const positiveId = (value: string | null): number | null => {
                                         </div>
                                     </article>
                                 }
+                            </div>
+                            </div>
                             </div>
                         </section>
                     } @empty {
@@ -264,6 +304,8 @@ export class SourcesPageComponent {
     protected readonly structureMaterialFilter = signal<number | null>(null);
     protected readonly page = signal(1);
     protected readonly pageSize = signal(25);
+    protected readonly collapsedGroups = signal<ReadonlySet<string>>(loadCollapsedGroups());
+    private readonly failedLogos = signal<ReadonlySet<string>>(new Set());
 
     protected structureQuery = '';
     protected structureSource = '';
@@ -296,6 +338,33 @@ export class SourcesPageComponent {
 
     protected viewLabel(view: SourcesView): string {
         return VIEW_LABELS[view];
+    }
+
+    protected isCollapsed(id: string): boolean {
+        return this.collapsedGroups().has(id);
+    }
+
+    protected toggleGroup(id: string): void {
+        const next = new Set(this.collapsedGroups());
+        if (!next.delete(id)) next.add(id);
+        this.collapsedGroups.set(next);
+        try {
+            localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...next]));
+        } catch {
+            // Storage unavailable: collapse state simply is not remembered.
+        }
+    }
+
+    protected logoFor(key: string): { src: string; alt: string } | null {
+        return this.failedLogos().has(key) ? null : (SOURCE_LOGOS[key] ?? null);
+    }
+
+    protected logoFailed(key: string): void {
+        this.failedLogos.update((failed) => new Set(failed).add(key));
+    }
+
+    protected monogram(name: string): string {
+        return name.trim().charAt(0).toUpperCase() || '?';
     }
 
     protected capabilityLabel(capability: string): string {
