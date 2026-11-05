@@ -87,7 +87,7 @@
 .choice-equation { display: flex; justify-content: center; overflow-x: auto; padding: 0.25rem 0; color: var(--text-primary); font-size: 0.8rem; scrollbar-width: thin; }
 .session-badge { margin-left: 0.35rem; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--primary-600) 12%, transparent); color: var(--primary-600); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
 
-.review { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0.5rem 1rem; margin: 0; }
+.review { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.5rem 1rem; margin: 0; }
 .review dt { color: var(--text-tertiary); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
 .review dd { margin: 0.1rem 0 0; font-size: 0.88rem; overflow-wrap: anywhere; }
 
