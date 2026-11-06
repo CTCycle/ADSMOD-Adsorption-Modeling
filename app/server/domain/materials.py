@@ -71,6 +71,7 @@ class SpeciesRecordView(BaseModel):
     external_identifiers: list[ExternalIdentifierView] = Field(default_factory=list)
     structure_2d_url: str | None = None
     conformer_3d_url: str | None = None
+    conformer_3d_cached: bool = False
     isotherm_count: int = 0
     retrieved_at: datetime | None = None
 

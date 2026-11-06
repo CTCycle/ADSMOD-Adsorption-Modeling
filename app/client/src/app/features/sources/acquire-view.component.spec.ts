@@ -117,7 +117,7 @@ describe('AcquireViewComponent', () => {
         expect(collectionRequests).toBe(2);
         const element = fixture.nativeElement as HTMLElement;
         expect(element.querySelector('.collection-count strong')?.textContent).toContain('6 / 12');
-        expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/datasets');
+        expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/datasets?kind=species');
     });
 
     it('reports unchecked availability distinctly and shows stored versus available after a check', async () => {

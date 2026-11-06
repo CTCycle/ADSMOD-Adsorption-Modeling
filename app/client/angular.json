@@ -16,6 +16,7 @@
             "index": "index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": ["3dmol"],
             "assets": [
               {
                 "glob": "**/*",

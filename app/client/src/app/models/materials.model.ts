@@ -54,6 +54,7 @@ export interface SpeciesRecord {
     external_identifiers: ExternalIdentifierView[];
     structure_2d_url: string | null;
     conformer_3d_url: string | null;
+    conformer_3d_cached: boolean;
     isotherm_count: number;
     retrieved_at: string | null;
 }

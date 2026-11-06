@@ -218,6 +218,16 @@ class PublicDataEndpoint:
             raise self._provider_error(exc) from exc
 
     # -------------------------------------------------------------------------
+    async def ensure_conformer(self, adsorbate_id: int) -> Response:
+        try:
+            sdf, _ = await self.service.ensure_conformer(adsorbate_id)
+        except LookupError as exc:
+            raise self._lookup_error(exc) from exc
+        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
+            raise self._provider_error(exc) from exc
+        return Response(content=sdf, media_type="chemical/x-mdl-sdfile")
+
+    # -------------------------------------------------------------------------
     def get_overview(self) -> PublicDataOverviewResponse:
         return self.service.get_overview()
 
@@ -339,6 +349,13 @@ class PublicDataEndpoint:
             self.lookup_chemicals,
             methods=["GET"],
             response_model=ChemicalLookupResponse,
+        )
+        self.router.add_api_route(
+            "/chemicals/{adsorbate_id}/conformer",
+            self.ensure_conformer,
+            methods=["POST"],
+            response_class=Response,
+            responses={200: {"content": {"chemical/x-mdl-sdfile": {}}}},
         )
         self.router.add_api_route(
             "/sync-runs",

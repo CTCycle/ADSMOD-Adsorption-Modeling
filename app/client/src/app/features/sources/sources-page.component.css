@@ -106,9 +106,19 @@
     text-decoration: none;
 }
 
+.overview-totals > a {
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+}
+
 .overview-totals > a:hover,
 .overview-totals > a:focus-visible {
     background: var(--surface-subtle, #f7f9fc);
+}
+
+.overview-totals > a:hover strong,
+.overview-totals > a:focus-visible strong {
+    color: var(--accent-color, #2563eb);
 }
 
 .overview-totals > :nth-child(odd) {
@@ -591,13 +601,6 @@
 }
 
 /* Catalog: providers grouped by the data type they contribute. */
-.catalog-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-}
-
 .catalog-group {
     display: grid;
     gap: 10px;

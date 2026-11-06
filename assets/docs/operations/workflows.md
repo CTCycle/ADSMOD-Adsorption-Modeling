@@ -6,6 +6,7 @@ Last updated: 2026-11-06
 
 The application uses one Angular frontend with these primary routes:
 
+- `home` for the default overview of stored data, sources, and modeling (the Sources statistics tiles open Datasets already filtered to provider records)
 - `datasets` for datasets, adsorbent materials, and chemical species, and file import
 - `datasets/:id` for one dataset (`?experiment=<id>` selects an experiment)
 - `help` for the Docs page (tutorials, guides, and tips; `/docs` is reserved by the backend)
@@ -78,10 +79,10 @@ The overview, source registry, and local record views do not need an external pr
 ## Retrieve Public Materials And Adsorbates
 
 1. Open `sources/acquire`.
-2. PubChem: in Single mode search a CID, InChIKey, or name, inspect the matches, and Import one; in Bulk mode set the share and select Enrich stored species to add PubChem identity, synonyms, and properties to stored species that lack them. The card shows how many stored species are enriched (a local ratio; PubChem publishes no total).
+2. PubChem: in Single mode search a CID, InChIKey, or name, inspect the matches, and Import one; in Bulk mode set the share and select Enrich stored species to add PubChem identity, synonyms, and properties to stored species that lack them. The card shows how many stored species are enriched (a local ratio; PubChem publishes no total). Fetch 3D structures (Bulk mode) downloads the 3D conformer of enriched species that have none stored yet.
 3. COD: in Single mode search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. In Bulk mode set the share and select Fetch structures: stored materials without a structure are looked up by name, and only exact, unique matches are imported and linked. Unavailable and ambiguous materials are skipped and listed under Acquisitions → Details.
 4. Follow the Run tracker and open the imported records from its links.
-5. Review species and materials in the Datasets page side column: each opens a detail panel with identifiers, properties, linked structures, and the datasets that use it. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
+5. Review species and materials in the Datasets page side column: each opens a detail panel of collapsible sections with identifiers, properties, provenance, a structure preview (2D image and 3D viewer for species; linked COD crystal structures and 3D viewer for materials), and the datasets that use it. Missing data reads "Not available" and inapplicable fields "Not applicable"; a species without a cached conformer can be fetched from its panel. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
 6. Open `sources/catalog` to review providers by data type and saved connection state, and use the refresh icon in the Sources tab bar to queue independent health checks. Local records stay available when a provider is unavailable.
 
 Scheduled NIST refresh is disabled by default. To enable it, configure `application.public_data.auto_sync_enabled`, select one or more `auto_sync_categories`, and choose the interval and fraction in the runtime configuration.

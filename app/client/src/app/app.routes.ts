@@ -12,7 +12,8 @@ export const routes: Routes = [
         path: '',
         component: CoreShellComponent,
         children: [
-            { path: '', pathMatch: 'full', redirectTo: 'datasets' },
+            { path: '', pathMatch: 'full', redirectTo: 'home' },
+            { path: 'home', loadComponent: () => import('./features/home/home-page.component').then((m) => m.HomePageComponent) },
             { path: 'datasets', loadComponent: () => import('./features/datasets/datasets-page.component').then((m) => m.DatasetsPageComponent) },
             { path: 'datasets/:id', canDeactivate: [unsavedChangesGuard], loadComponent: () => import('./features/datasets/dataset-details-page.component').then((m) => m.DatasetDetailsPageComponent) },
             { path: 'sources', pathMatch: 'full', redirectTo: 'sources/catalog' },
@@ -55,5 +56,5 @@ export const routes: Routes = [
             },
         ],
     },
-    { path: '**', redirectTo: 'datasets' },
+    { path: '**', redirectTo: 'home' },
 ];

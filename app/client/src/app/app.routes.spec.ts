@@ -10,13 +10,14 @@ import { provideRouter } from '@angular/router';
 // Route table behavior
 
 describe('application routes', () => {
-    it('keeps implemented shell destinations reachable and recovers unknown routes to datasets', () => {
+    it('keeps implemented shell destinations reachable and recovers unknown routes to home', () => {
         const childRoutes = routes[0].children ?? [];
         const paths = childRoutes.map((route) => route.path);
 
         expect(routes[0]?.component).toBe(CoreShellComponent);
         expect(paths).toEqual(
             expect.arrayContaining([
+                'home',
                 'datasets',
                 'datasets/:id',
                 'sources',
@@ -34,8 +35,8 @@ describe('application routes', () => {
         expect(dashboards?.children?.map((route) => route.path)).toEqual(['', 'overview', 'explore']);
         expect(childRoutes.find((route) => route.path === 'sources')?.redirectTo).toBe('sources/catalog');
         expect(childRoutes.find((route) => route.path === 'datasets/:id')?.canDeactivate).toHaveLength(1);
-        expect(childRoutes.find((route) => route.path === '')?.redirectTo).toBe('datasets');
-        expect(routes.find((route) => route.path === '**')?.redirectTo).toBe('datasets');
+        expect(childRoutes.find((route) => route.path === '')?.redirectTo).toBe('home');
+        expect(routes.find((route) => route.path === '**')?.redirectTo).toBe('home');
     });
 
     it('nests the Modeling workspace views and guards the deep-learning entry routes', () => {

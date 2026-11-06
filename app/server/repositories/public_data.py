@@ -20,6 +20,7 @@ from server.repositories.schemas.models import (
     Isotherm,
 )
 from server.repositories.schemas.public_data import (
+    CONFORMER_PROPERTY,
     AdsorbateSourceRecord,
     AdsorbateSynonym,
     AdsorbentSourceRecord,
@@ -838,6 +839,10 @@ class PublicDataRepository:
             )
         if payload.get("conformer_3d_url"):
             property_rows.append(("pubchem_3d_available", None, "true", None))
+        if payload.get("conformer_3d_sdf"):
+            property_rows.append(
+                (CONFORMER_PROPERTY, None, str(payload["conformer_3d_sdf"]), None)
+            )
         units = {
             "tpsa_angstrom2": "Å²",
             "exact_mass_da": "Da",
@@ -961,6 +966,92 @@ class PublicDataRepository:
                 {"id": int(row.id), "query": row.inchi_key or row.name}
                 for row in selected
             ]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _pubchem_record_for(adsorbate_id: Any) -> Any:
+        return (
+            select(SourceRecord.id, SourceRecord.external_id)
+            .join(AdsorbateSourceRecord, AdsorbateSourceRecord.source_record_id == SourceRecord.id)
+            .join(DataSource, DataSource.id == SourceRecord.source_id)
+            .where(
+                DataSource.key == "pubchem",
+                SourceRecord.record_type == "chemical",
+                AdsorbateSourceRecord.adsorbate_id == adsorbate_id,
+            )
+        )
+
+    # -------------------------------------------------------------------------
+    def conformer_state(self, adsorbate_id: int) -> dict[str, Any] | None:
+        """PubChem CID, 3D availability and cached SDF; None without a PubChem link."""
+        with self.database.session_factory() as session:
+            record = session.execute(self._pubchem_record_for(adsorbate_id)).first()
+            if record is None:
+                return None
+            values = dict(
+                session.execute(
+                    select(ChemicalProperty.key, ChemicalProperty.value_text).where(
+                        ChemicalProperty.source_record_id == record.id,
+                        ChemicalProperty.key.in_(("pubchem_3d_available", CONFORMER_PROPERTY)),
+                    )
+                ).all()
+            )
+        return {
+            "cid": str(record.external_id),
+            "available": "pubchem_3d_available" in values,
+            "sdf": values.get(CONFORMER_PROPERTY),
+        }
+
+    # -------------------------------------------------------------------------
+    def store_conformer(self, adsorbate_id: int, sdf: str) -> None:
+        with self.database.transaction() as session:
+            record = session.execute(self._pubchem_record_for(adsorbate_id)).first()
+            if record is None:
+                raise LookupError(f"Chemical {adsorbate_id} has no PubChem record.")
+            for key, value in (("pubchem_3d_available", "true"), (CONFORMER_PROPERTY, sdf)):
+                session.execute(
+                    delete(ChemicalProperty).where(
+                        ChemicalProperty.source_record_id == record.id,
+                        ChemicalProperty.key == key,
+                    )
+                )
+                session.add(
+                    ChemicalProperty(
+                        adsorbate_id=adsorbate_id,
+                        source_record_id=record.id,
+                        key=key,
+                        value_text=value,
+                    )
+                )
+
+    # -------------------------------------------------------------------------
+    def conformer_candidates(self, limit: int, fraction: float = 1.0) -> list[dict[str, Any]]:
+        """Enriched chemicals with a published 3D conformer that is not cached yet.
+
+        Chemicals whose earlier download failed permanently are excluded so
+        repeated runs make progress.
+        """
+        with self.database.session_factory() as session:
+            cached = select(ChemicalProperty.source_record_id).where(
+                ChemicalProperty.key == CONFORMER_PROPERTY
+            )
+            settled = select(PublicDataSyncFailure.external_id).where(
+                PublicDataSyncFailure.source_key == "pubchem",
+                PublicDataSyncFailure.retry_eligible_at.is_(None),
+                PublicDataSyncFailure.external_id.like("conformer:%"),
+            )
+            rows = session.execute(
+                select(AdsorbateSourceRecord.adsorbate_id)
+                .join(ChemicalProperty, ChemicalProperty.source_record_id == AdsorbateSourceRecord.source_record_id)
+                .where(
+                    ChemicalProperty.key == "pubchem_3d_available",
+                    AdsorbateSourceRecord.source_record_id.not_in(cached),
+                    (literal("conformer:") + cast(AdsorbateSourceRecord.adsorbate_id, String)).not_in(settled),
+                )
+                .order_by(AdsorbateSourceRecord.adsorbate_id)
+            ).all()
+        selected = rows[: self._fraction_count(len(rows), fraction, limit)]
+        return [{"id": int(row.adsorbate_id)} for row in selected]
 
     # -------------------------------------------------------------------------
     @staticmethod

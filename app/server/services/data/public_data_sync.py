@@ -626,11 +626,16 @@ class PublicDataSyncCoordinator:
         on_progress: ProgressCallback,
         should_cancel: CancelCheck,
     ) -> dict[str, Any]:
-        """Resolve stored chemicals that have no PubChem identity yet."""
+        """Resolve stored chemicals without PubChem identity, or fetch missing conformers."""
         run_id = str(run["id"])
         config, public_data, _ = self._active_settings()
+        conformers = bool(run["parameters"].get("conformers"))
         candidates = await asyncio.to_thread(
-            self.repository.pubchem_enrichment_candidates,
+            (
+                self.repository.conformer_candidates
+                if conformers
+                else self.repository.pubchem_enrichment_candidates
+            ),
             config.sync_max_records_per_run,
             float(run["parameters"].get("fraction", 1.0)),
         )
@@ -640,18 +645,23 @@ class PublicDataSyncCoordinator:
             if await should_cancel():
                 break
             try:
-                entity_id, imported = await public_data.resolve_pubchem(
-                    str(candidate["query"]), int(candidate["id"])
-                )
+                if conformers:
+                    entity_id = int(candidate["id"])
+                    _, imported = await public_data.ensure_conformer(entity_id)
+                else:
+                    entity_id, imported = await public_data.resolve_pubchem(
+                        str(candidate["query"]), int(candidate["id"])
+                    )
                 entity_ids.append(entity_id)
                 counts["imported" if imported else "skipped"] += 1
             except (ProviderError, ValueError, LookupError) as exc:
                 counts["failed"] += 1
+                label = candidate.get("query") or f"chemical {candidate['id']}"
                 await self._store_failure(
                     run_id,
                     "pubchem",
-                    f"adsorbate:{candidate['id']}",
-                    f"{candidate['query']}: {exc or exc.__class__.__name__}",
+                    f"{'conformer' if conformers else 'adsorbate'}:{candidate['id']}",
+                    f"{label}: {exc or exc.__class__.__name__}",
                     self._retry_time(exc),
                 )
             counts["processed"] += 1

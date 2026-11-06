@@ -1,11 +1,12 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 ## Page Structure
 
 - Unified frontend routes
-  - `datasets` (adsorption datasets with materials and species in a secondary column; the toolbar upload icon opens the import wizard)
+  - `home` (default landing page: three summary cards for data, sources, and modeling, each tile linking to the relevant section)
+  - `datasets` (adsorption datasets with materials and species in a secondary column; the toolbar upload icon opens the import wizard; `?origin=`, `?kind=` and `?source=` preselect the dataset origin, the Materials/Species tab, and a provider filter)
   - `datasets/:id` (dataset header, experiment navigator, worksheet-style measurement table, explicit edit mode)
   - `sources/:view` (external provider catalog, acquisition, and COD structures)
   - `dashboards/overview` and `dashboards/explore` (read-only data exploration over stored isotherms)
@@ -23,6 +24,10 @@ Last updated: 2026-11-05
   - `Train datasets`
   - `Checkpoints`
   - `Training Dashboard`
+
+## Entity detail panel
+
+Selecting a species or material opens a right-side panel of collapsible sections (identity, identifiers, structure, properties, usage, provenance). A field the record could hold but lacks reads "Not available"; a field that does not apply to the entity type (for example InChI for a material, or a unit cell for a species) reads "Not applicable". The structure section shows a compact 2D image or the linked crystal structures; "View 3D" opens an expanded dialog instead of squeezing a WebGL viewer into the narrow panel.
 
 ## Workflow UX
 

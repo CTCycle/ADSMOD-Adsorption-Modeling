@@ -15,6 +15,7 @@ export interface EntityListParams {
     page?: number;
     page_size?: number;
     q?: string;
+    source?: string | null;
 }
 
 function queryString(params: EntityListParams): string {

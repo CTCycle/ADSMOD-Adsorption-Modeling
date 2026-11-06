@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from server.repositories.database.bulk import upsert_records
@@ -25,6 +25,7 @@ from server.repositories.schemas.models import (
     IsothermComponent,
 )
 from server.repositories.schemas.public_data import (
+    CONFORMER_PROPERTY,
     AdsorbateSynonym,
     ChemicalProperty,
     DataSource,
@@ -258,9 +259,22 @@ class MaterialRepository:
             return []
         item_ids = [item.id for item in items]
         provenance = provenance_entries(session, "adsorbate", item_ids)
-        properties_by_adsorbate: dict[int, list[tuple[ChemicalProperty, str]]] = {}
-        for adsorbate_id, prop, source_key in session.execute(
-            select(ChemicalProperty.adsorbate_id, ChemicalProperty, DataSource.key)
+        properties_by_adsorbate: dict[int, list[tuple[Any, str]]] = {}
+        cached_conformers: set[int] = set()
+        # The cached 3D conformer is a large text value: its row marks the cache, its content is not loaded.
+        value_text = case(
+            (ChemicalProperty.key == CONFORMER_PROPERTY, None),
+            else_=ChemicalProperty.value_text,
+        ).label("value_text")
+        for row in session.execute(
+            select(
+                ChemicalProperty.adsorbate_id,
+                ChemicalProperty.key,
+                ChemicalProperty.value_number,
+                value_text,
+                ChemicalProperty.unit,
+                DataSource.key.label("source_key"),
+            )
             .join(SourceRecord, SourceRecord.id == ChemicalProperty.source_record_id)
             .join(DataSource, DataSource.id == SourceRecord.source_id)
             .where(ChemicalProperty.adsorbate_id.in_(item_ids))
@@ -268,8 +282,11 @@ class MaterialRepository:
                 ChemicalProperty.adsorbate_id, ChemicalProperty.key, ChemicalProperty.id
             )
         ):
-            properties_by_adsorbate.setdefault(int(adsorbate_id), []).append(
-                (prop, str(source_key))
+            if row.key == CONFORMER_PROPERTY:
+                cached_conformers.add(int(row.adsorbate_id))
+                continue
+            properties_by_adsorbate.setdefault(int(row.adsorbate_id), []).append(
+                (row, str(row.source_key))
             )
         ranked_synonyms = (
             select(
@@ -307,6 +324,7 @@ class MaterialRepository:
                     synonyms_by_adsorbate.get(item.id, []),
                 ),
                 "isotherm_count": isotherm_counts.get(item.id, 0),
+                "conformer_3d_cached": item.id in cached_conformers,
             }
             for item in items
         ]
@@ -316,7 +334,7 @@ class MaterialRepository:
     def _species_payload(
         item: Adsorbate,
         identifiers: list[dict[str, Any]],
-        properties: list[tuple[ChemicalProperty, str]],
+        properties: list[tuple[Any, str]],
         synonyms: list[str],
     ) -> dict[str, Any]:
         property_map = {prop.key: prop for prop, _ in properties}

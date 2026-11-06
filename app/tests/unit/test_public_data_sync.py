@@ -1159,3 +1159,74 @@ def test_cod_bulk_imports_only_unique_exact_matches_and_remembers_the_rest(
             manager.dispose()
 
     asyncio.run(scenario())
+
+###############################################################################
+def test_conformer_download_is_cached_and_bulk_run_skips_cached_species(
+    monkeypatch, tmp_path: Path
+) -> None:  # type: ignore[no-untyped-def]
+    from server.repositories.materials import MaterialRepository
+
+    async def scenario() -> None:
+        manager = _database(tmp_path)
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        adsorbate_id = repository.upsert_pubchem_compound(
+            {
+                "cid": "297",
+                "name": "Methane",
+                "formula": "CH4",
+                "inchi_key": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+                "conformer_3d_url": "https://pubchem.ncbi.nlm.nih.gov/conformer",
+                "raw_metadata": {},
+            }
+        )
+        provider = PubChemProvider(parallel_requests=1)
+        downloads: list[str] = []
+
+        async def fake_conformer(cid: str) -> str:
+            downloads.append(cid)
+            return "methane\n  3D\n\nM  END"
+
+        monkeypatch.setattr(provider, "fetch_conformer", fake_conformer)
+        public_data = PublicDataService(repository=repository, providers=[provider])
+        coordinator = PublicDataSyncCoordinator(
+            repository=repository,
+            public_data=public_data,
+            nist=_Nist(),
+            config=PublicDataConfig(),
+        )
+        materials = MaterialRepository(manager)
+        assert materials.get_species(adsorbate_id)["conformer_3d_cached"] is False
+        await coordinator.start()
+        try:
+            queued = await coordinator.enqueue(
+                source_key="pubchem",
+                operation="pubchem_enrich",
+                parameters={"fraction": 1.0, "conformers": True},
+            )
+            run = await _wait_for_terminal(coordinator, queued["id"])
+            assert run["status"] == "completed"
+            assert run["imported_count"] == 1
+            assert downloads == ["297"]
+            assert materials.get_species(adsorbate_id)["conformer_3d_cached"] is True
+            assert repository.conformer_candidates(10) == []
+            sdf, downloaded = await public_data.ensure_conformer(adsorbate_id)
+            assert (sdf, downloaded) == ("methane\n  3D\n\nM  END", False)
+            assert downloads == ["297"]
+        finally:
+            await coordinator.close()
+            await public_data.close()
+            manager.dispose()
+
+    asyncio.run(scenario())
+
+###############################################################################
+def test_conformers_flag_applies_only_to_pubchem_enrichment() -> None:
+    with pytest.raises(ValueError):
+        PublicDataSyncCreateRequest(
+            source_key="cod", operation="cod_import", fraction=0.5, conformers=True
+        )
+    request = PublicDataSyncCreateRequest(
+        source_key="pubchem", operation="pubchem_enrich", fraction=0.5, conformers=True
+    )
+    assert request.parameters() == {"fraction": 0.5, "conformers": True}

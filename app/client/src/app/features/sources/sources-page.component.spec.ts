@@ -43,4 +43,21 @@ describe('SourcesPageComponent catalog', () => {
         page.logoFailed('nist');
         expect(page.logoFor('nist')).toBeNull();
     });
+
+    it('makes each statistics tile a filtered link and drops the redundant action buttons', () => {
+        TestBed.configureTestingModule({ providers: [provideRouter([])] });
+        const fixture = TestBed.createComponent(SourcesPageComponent);
+        fixture.detectChanges();
+        const element = fixture.nativeElement as HTMLElement;
+
+        const tiles = Array.from(element.querySelectorAll<HTMLAnchorElement>('.overview-totals > a'));
+        expect(tiles.map((tile) => tile.getAttribute('href'))).toEqual([
+            '/datasets?origin=nist',
+            '/datasets?kind=material&source=any',
+            '/datasets?kind=species&source=any',
+            '/sources/structures',
+        ]);
+        expect(element.textContent).not.toContain('Acquire data');
+        expect(element.textContent).not.toContain('Open local datasets');
+    });
 });

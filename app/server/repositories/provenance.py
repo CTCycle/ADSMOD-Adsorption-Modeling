@@ -22,6 +22,9 @@ from server.repositories.schemas.public_data import (
     StructureSourceRecord,
 )
 
+# `source` filter value selecting records backed by any provider.
+ANY_PROVIDER = "any"
+
 LINK_COLUMNS = {
     "adsorbate": AdsorbateSourceRecord.adsorbate_id,
     "adsorbent": AdsorbentSourceRecord.adsorbent_id,
@@ -146,7 +149,7 @@ def public_adsorbate_ids(source: str | None = None) -> Any:
         .join(SourceRecord, SourceRecord.id == IsothermSourceRecord.source_record_id)
         .join(DataSource, DataSource.id == SourceRecord.source_id)
     )
-    if source:
+    if source and source != ANY_PROVIDER:
         linked = linked.where(DataSource.key == source)
         measured = measured.where(DataSource.key == source)
     return union(linked, measured)
@@ -166,7 +169,7 @@ def public_adsorbent_ids(source: str | None = None) -> Any:
         .join(SourceRecord, SourceRecord.id == IsothermSourceRecord.source_record_id)
         .join(DataSource, DataSource.id == SourceRecord.source_id)
     )
-    if source:
+    if source and source != ANY_PROVIDER:
         linked = linked.where(DataSource.key == source)
         measured = measured.where(DataSource.key == source)
     return union(linked, measured)

@@ -22,6 +22,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from server.repositories.schemas.models import Base, utc_now
 from server.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime
 
+# ChemicalProperty key holding the cached PubChem 3D conformer (SDF text).
+CONFORMER_PROPERTY = "conformer_3d_sdf"
+
 ###############################################################################
 class DataSource(Base):
     __tablename__ = "data_sources"

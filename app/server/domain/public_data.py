@@ -90,11 +90,15 @@ class PublicDataSyncCreateRequest(BaseModel):
     cod_ids: list[str] | None = Field(default=None, min_length=1, max_length=50)
     adsorbent_id: int | None = Field(default=None, ge=1)
     overwrite_local_edits: bool = False
+    # pubchem_enrich only: download missing 3D conformers instead of resolving identities.
+    conformers: bool = False
     identifiers: list[str] | None = Field(default=None, min_length=1, max_length=200)
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_operation_parameters(self) -> "PublicDataSyncCreateRequest":
+        if self.conformers and self.operation != "pubchem_enrich":
+            raise ValueError("conformers applies only to pubchem_enrich runs.")
         # COD imports either name explicit identifiers or run in bulk over the
         # local materials that have no structure yet (selected by `fraction`).
         cod_explicit = (self.cod_id is not None) != (self.cod_ids is not None)
@@ -145,7 +149,7 @@ class PublicDataSyncCreateRequest(BaseModel):
                 "overwrite_local_edits",
             ),
             "pubchem_resolve": ("query", "adsorbate_id"),
-            "pubchem_enrich": ("fraction",),
+            "pubchem_enrich": ("fraction", "conformers"),
             "cod_import": ("cod_id", "cod_ids", "adsorbent_id", "fraction"),
         }[self.operation]
         values = {name: getattr(self, name) for name in fields}
@@ -158,8 +162,9 @@ class PublicDataSyncCreateRequest(BaseModel):
             self.cod_id is not None or self.cod_ids is not None
         ):
             values["fraction"] = None
-        if not values.get("overwrite_local_edits"):
-            values.pop("overwrite_local_edits", None)
+        for flag in ("overwrite_local_edits", "conformers"):
+            if flag in values and not values[flag]:
+                del values[flag]
         return {key: value for key, value in values.items() if value is not None}
 
 ###############################################################################

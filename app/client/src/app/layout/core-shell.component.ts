@@ -28,6 +28,10 @@ type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
                 </div>
 
                 <nav class="console-nav" aria-label="Primary">
+                    <a class="console-nav-item" routerLink="/home" routerLinkActive="active" ariaCurrentWhenActive="page">
+                        <span class="console-nav-icon" aria-hidden="true">⌂</span>
+                        <span>Home</span>
+                    </a>
                     <a class="console-nav-item" routerLink="/sources" routerLinkActive="active" ariaCurrentWhenActive="page">
                         <span class="console-nav-icon" aria-hidden="true">⇩</span>
                         <span>Sources</span>
@@ -102,6 +106,9 @@ export class CoreShellComponent {
     });
     protected readonly pageTitle = computed(() => {
         const url = this.currentUrl();
+        if (url.startsWith('/home')) {
+            return 'Home';
+        }
         if (url.startsWith('/dashboards')) {
             return 'Dashboards';
         }
@@ -121,6 +128,9 @@ export class CoreShellComponent {
     });
     protected readonly pageDescription = computed(() => {
         const url = this.currentUrl();
+        if (url.startsWith('/home')) {
+            return 'The current state of your data, sources, and models.';
+        }
         if (url.startsWith('/dashboards')) {
             return 'Compare and visualise stored adsorption data.';
         }

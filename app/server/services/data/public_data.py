@@ -116,6 +116,27 @@ class PublicDataService:
         return int(resolved_id), True
 
     # -------------------------------------------------------------------------
+    async def ensure_conformer(self, adsorbate_id: int) -> tuple[str, bool]:
+        """Return the 3D SDF of a PubChem-linked chemical, downloading it once.
+
+        Returns the SDF text and whether it was downloaded now. A cached
+        conformer never triggers a provider request.
+        """
+        state = await asyncio.to_thread(self.repository.conformer_state, adsorbate_id)
+        if state is None:
+            raise LookupError(
+                f"Chemical {adsorbate_id} has no PubChem record; resolve it in PubChem first."
+            )
+        if state["sdf"]:
+            return str(state["sdf"]), False
+        provider = self.providers.get("pubchem")
+        if not isinstance(provider, PubChemProvider):
+            raise RuntimeError("PubChem provider is not configured.")
+        sdf = await provider.fetch_conformer(state["cid"])
+        await asyncio.to_thread(self.repository.store_conformer, adsorbate_id, sdf)
+        return sdf, True
+
+    # -------------------------------------------------------------------------
     async def lookup_pubchem(self, query: str) -> ChemicalLookupResponse:
         """Preview PubChem matches, flagging those already stored locally."""
         provider = self.providers.get("pubchem")

@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -56,6 +56,11 @@ The unified backend serves all versioned routes under `/api/v1`:
 - `/analytics/*` (read-only cross-dataset queries for the dashboards:
   `GET /overview`, and `POST /selection`, `/series`, `/uptake-at-pressure`,
   `/distribution`)
+- `/home/summary` (read-only totals for the Home page: datasets, experiments,
+  stored species and materials, sources with at least one source record, and
+  fitting sessions by status; species and materials are stored entity rows,
+  the same population the Datasets page lists, whereas `/public-data/overview`
+  counts provider-backed entities only)
 - `/training/configuration` and the training lifecycle under `/training/*`
   when the optional machine learning dependencies are installed
 

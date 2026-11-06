@@ -68,6 +68,8 @@ export interface PublicDataSyncRequest {
     adsorbent_id?: number;
     identifiers?: string[];
     overwrite_local_edits?: boolean;
+    /** pubchem_enrich only: download missing 3D conformers instead of resolving identities. */
+    conformers?: boolean;
 }
 
 export interface NISTSearchItem {

@@ -82,6 +82,12 @@ Official references:
 
 COD records are not automatically linked to a canonical ADSMOD material by name or formula. A structure may remain unlinked until a trustworthy material association is known.
 
+## Structure preview
+
+- Species: the compact 2D image is PubChem's PNG for the stored CID (loaded by the browser only when a detail panel is open). The 3D conformer is cached on first use or by the bulk `conformers` run; a new PubChem resolve already downloads the SDF and caches it with no extra request. A species without a PubChem record shows no structure and links to the Acquire form rather than guessing from its name.
+- Materials: only COD structures that were explicitly linked (or matched uniquely by the bulk run) are shown; the CIF is stored verbatim and rendered with 3Dmol.js. Amorphous, composite, and polymeric adsorbents usually have no crystal structure, so the panel reports none instead of an unrelated record. No other structure provider is used.
+- Viewer: 3Dmol.js (BSD-3-Clause) is loaded by a dynamic import when the expanded viewer first opens and is not part of the initial bundle. Current COD files use `_space_group_symop_*` tags that 3Dmol does not read, so the viewer renames them to the legacy `_symmetry_equiv_pos_*` tags to expand the full unit cell.
+
 ## Provider interface
 
 Every provider declares:
@@ -168,6 +174,7 @@ Key endpoints:
 - `PUT /structures/{structure_id}/material`: explicit link or unlink (`{"adsorbent_id": null}`)
 - `GET /structures/{structure_id}/file`: the stored original CIF
 - `GET /structures/search`: bounded COD search
+- `POST /chemicals/{adsorbate_id}/conformer`: returns the species' 3D SDF; it is downloaded from PubChem once, stored as the `conformer_3d_sdf` chemical property, and served locally afterwards (404 when the species has no PubChem record or PubChem publishes no 3D conformer)
 
 All provider acquisition runs through `POST /sync-runs`. There are no synchronous import routes and no separate NIST job API. Operations:
 
@@ -176,7 +183,7 @@ All provider acquisition runs through `POST /sync-runs`. There are no synchronou
 | `nist_index` | `nist` | `category` | Counts the records NIST publishes for one collection. It is a probe, not an acquisition: `NON_ACQUISITION_OPERATIONS` (this and `health_check`) are excluded from history/active run lists and overview counters, while the newest result still feeds collection coverage. |
 | `nist_category` | `nist` | `category`, `fraction` or `identifiers` (≤200 isotherm filenames, experiments only), optional `overwrite_local_edits` | Fetches not-yet-stored records from the leading share of the index, or exactly the listed records (targeted acquisition; the compounds and materials they reference are stored first), in batches. With `overwrite_local_edits`, locally edited NIST experiments in that share are fetched again and restored from source in place (same experiment id); without it they are skipped. |
 | `pubchem_resolve` | `pubchem` | `query`, optional `adsorbate_id` | Resolves one compound. With `adsorbate_id`, the CID is attached to that chemical. |
-| `pubchem_enrich` | `pubchem` | optional `fraction` | Resolves the leading share of stored chemicals without PubChem identity by InChIKey or name, bounded per run. |
+| `pubchem_enrich` | `pubchem` | optional `fraction`, optional `conformers` | Resolves the leading share of stored chemicals without PubChem identity by InChIKey or name, bounded per run. With `conformers: true` it instead downloads the 3D conformer of enriched species that have one but no cached copy; failures without a retry time are not repeated. |
 | `cod_import` | `cod` | `cod_id` or `cod_ids` (≤50), optional `adsorbent_id`; or `fraction` (bulk) | Imports CIF records and optionally links them to a material. In bulk mode it searches COD by name for the leading share of stored materials that have no structure and no earlier final outcome. Only an exact, unique name match is imported and linked; no match or several candidates are recorded as skips (with candidate COD IDs) and are not retried. COD rows often have no chemical name, and one material can have many CIFs, so ambiguity is the common outcome and is resolved manually in single mode. |
 
 Each run stores only the parameters its operation uses. External provider failures are recorded on the run and do not invalidate unrelated providers or local records.

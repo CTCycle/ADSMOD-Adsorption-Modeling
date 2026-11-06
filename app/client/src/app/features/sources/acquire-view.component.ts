@@ -17,6 +17,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 import {
     cancelPublicDataSyncRun,
     enrichChemicals as startChemicalEnrichment,
+    enrichConformers as startConformerEnrichment,
     fetchBulkStructures as startBulkStructures,
     fetchNistCollections,
     fetchNistEditedExperiments,
@@ -221,8 +222,9 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     <div class="query-row">
                         <label class="query-field query-select"><span>Share to enrich</span><input type="number" min="0.01" max="1" step="0.05" [ngModel]="bulkFractions().pubchem" (ngModelChange)="setBulkFraction('pubchem', $event)" aria-label="Share of unenriched species to enrich" /></label>
                         <button class="button primary" type="button" [disabled]="isBusy('pubchem', 'pubchem_enrich') || isSubmitting('pubchem:enrich')" (click)="enrichChemicals()">{{ isSubmitting('pubchem:enrich') ? 'Starting…' : 'Enrich stored species' }}</button>
+                        <button class="button secondary" type="button" [disabled]="isBusy('pubchem', 'pubchem_enrich') || isSubmitting('pubchem:conformers')" (click)="fetchConformers()">{{ isSubmitting('pubchem:conformers') ? 'Starting…' : 'Fetch 3D structures' }}</button>
                     </div>
-                    <p class="run-note result-note">Looks up stored species that have no PubChem identity yet{{ overview() ? ' (' + (overview()!.species_total - overview()!.species_enriched).toLocaleString() + ' remaining)' : '' }}. Species already enriched or confirmed unresolvable are skipped.</p>
+                    <p class="run-note result-note">Looks up stored species that have no PubChem identity yet{{ overview() ? ' (' + (overview()!.species_total - overview()!.species_enriched).toLocaleString() + ' remaining)' : '' }}. Species already enriched or confirmed unresolvable are skipped. “Fetch 3D structures” downloads the 3D conformer for enriched species that have one but no local copy yet; it can also be fetched one species at a time from the Datasets detail panel.</p>
                 }
             </section>
 
@@ -767,6 +769,10 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         return this.queue('pubchem:enrich', () => startChemicalEnrichment(this.bulkFractions().pubchem));
     }
 
+    protected fetchConformers(): Promise<void> {
+        return this.queue('pubchem:conformers', () => startConformerEnrichment(this.bulkFractions().pubchem));
+    }
+
     protected fetchBulkStructures(): Promise<void> {
         return this.queue('cod:bulk', () => startBulkStructures(this.bulkFractions().cod));
     }
@@ -941,7 +947,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
                 return picked ? `NIST targeted fetch · ${picked.length} isotherms` : `NIST fetch · ${category}`;
             }
             case 'pubchem_resolve': return `PubChem · ${String(run.parameters['query'] ?? 'compound')}`;
-            case 'pubchem_enrich': return 'PubChem enrichment of stored chemicals';
+            case 'pubchem_enrich': return run.parameters['conformers'] ? 'PubChem 3D structures for stored chemicals' : 'PubChem enrichment of stored chemicals';
             case 'cod_import': {
                 if ('fraction' in run.parameters) return 'COD structures for stored materials';
                 const ids = (run.parameters['cod_ids'] as string[] | undefined) ?? [String(run.parameters['cod_id'] ?? '')];
@@ -961,10 +967,12 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
             case 'nist_category':
                 if (!run.imported_count && !run.skipped_count) return null;
                 if (category === 'experiments') return { label: 'View datasets', path: ['/datasets'], queryParams: {} };
-                return { label: category === 'guest' ? 'View species' : 'View materials', path: ['/datasets'], queryParams: {} };
+                return category === 'guest'
+                    ? { label: 'View species', path: ['/datasets'], queryParams: { kind: 'species' } }
+                    : { label: 'View materials', path: ['/datasets'], queryParams: { kind: 'material' } };
             case 'pubchem_resolve':
             case 'pubchem_enrich':
-                return run.imported_count || run.skipped_count ? { label: 'View species', path: ['/datasets'], queryParams: {} } : null;
+                return run.imported_count || run.skipped_count ? { label: 'View species', path: ['/datasets'], queryParams: { kind: 'species' } } : null;
             case 'cod_import':
                 if (single !== null) return { label: 'Open structure', path: ['/sources', 'structures'], queryParams: { id: single } };
                 return run.imported_count || run.skipped_count ? { label: 'View structures', path: ['/sources', 'structures'], queryParams: { source: 'cod' } } : null;

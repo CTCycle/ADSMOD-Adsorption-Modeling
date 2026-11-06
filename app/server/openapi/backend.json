@@ -2319,6 +2319,44 @@
         }
       }
     },
+    "/api/v1/public-data/chemicals/{adsorbate_id}/conformer": {
+      "post": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Ensure Conformer",
+        "operationId": "ensure_conformer_api_v1_public_data_chemicals__adsorbate_id__conformer_post",
+        "parameters": [
+          {
+            "name": "adsorbate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Adsorbate Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "chemical/x-mdl-sdfile": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public-data/sync-runs": {
       "get": {
         "tags": [
@@ -3170,6 +3208,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/home/summary": {
+      "get": {
+        "tags": [
+          "home"
+        ],
+        "summary": "Get Summary",
+        "operationId": "get_summary_api_v1_home_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeSummaryResponse"
                 }
               }
             }
@@ -7537,6 +7596,90 @@
         ],
         "title": "HistogramBin"
       },
+      "HomeSourceCount": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "record_count": {
+            "type": "integer",
+            "title": "Record Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "record_count"
+        ],
+        "title": "HomeSourceCount"
+      },
+      "HomeSummaryResponse": {
+        "properties": {
+          "datasets": {
+            "type": "integer",
+            "title": "Datasets"
+          },
+          "experiments": {
+            "type": "integer",
+            "title": "Experiments"
+          },
+          "species": {
+            "type": "integer",
+            "title": "Species"
+          },
+          "materials": {
+            "type": "integer",
+            "title": "Materials"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/HomeSourceCount"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "fitting_sessions": {
+            "type": "integer",
+            "title": "Fitting Sessions"
+          },
+          "fitting_sessions_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Fitting Sessions By Status"
+          },
+          "latest_fitting_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Fitting At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasets",
+          "experiments",
+          "species",
+          "materials",
+          "sources",
+          "fitting_sessions",
+          "fitting_sessions_by_status"
+        ],
+        "title": "HomeSummaryResponse",
+        "description": "Counts of persisted entities.\n\nSpecies and materials are stored entity rows, the same population the\nDatasets page lists, whether they came from an upload or a provider."
+      },
       "ImportIssue": {
         "properties": {
           "code": {
@@ -9580,6 +9723,11 @@
             "title": "Overwrite Local Edits",
             "default": false
           },
+          "conformers": {
+            "type": "boolean",
+            "title": "Conformers",
+            "default": false
+          },
           "identifiers": {
             "anyOf": [
               {
@@ -10570,6 +10718,11 @@
             ],
             "title": "Conformer 3D Url"
           },
+          "conformer_3d_cached": {
+            "type": "boolean",
+            "title": "Conformer 3D Cached",
+            "default": false
+          },
           "isotherm_count": {
             "type": "integer",
             "title": "Isotherm Count",
@@ -10813,6 +10966,11 @@
               }
             ],
             "title": "Conformer 3D Url"
+          },
+          "conformer_3d_cached": {
+            "type": "boolean",
+            "title": "Conformer 3D Cached",
+            "default": false
           },
           "isotherm_count": {
             "type": "integer",

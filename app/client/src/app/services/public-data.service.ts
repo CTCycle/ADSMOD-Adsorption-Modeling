@@ -97,6 +97,10 @@ export function enrichChemicals(fraction: number): Promise<ApiResult<PublicDataS
     return startPublicDataSync({ source_key: 'pubchem', operation: 'pubchem_enrich', fraction });
 }
 
+export function enrichConformers(fraction: number): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({ source_key: 'pubchem', operation: 'pubchem_enrich', fraction, conformers: true });
+}
+
 export function fetchBulkStructures(fraction: number): Promise<ApiResult<PublicDataSyncRun>> {
     return startPublicDataSync({ source_key: 'cod', operation: 'cod_import', fraction });
 }
@@ -194,4 +198,26 @@ export function setStructureMaterial(structureId: number, adsorbentId: number | 
 
 export function structureFileUrl(structureId: number): string {
     return `${API_BASE_URL}/public-data/structures/${structureId}/file`;
+}
+
+async function requestText(path: string, init: RequestInit = {}): Promise<ApiResult<string>> {
+    try {
+        const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, init, HTTP_TIMEOUT);
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            return { data: null, error: extractErrorMessage(response, payload) };
+        }
+        return { data: await response.text(), error: null };
+    } catch (error) {
+        return { data: null, error: toErrorMessage(error, 'An unknown public data error occurred.') };
+    }
+}
+
+/** Returns the species' 3D SDF, downloading it from PubChem once and serving the local copy afterwards. */
+export function fetchSpeciesConformer(adsorbateId: number): Promise<ApiResult<string>> {
+    return requestText(`/public-data/chemicals/${adsorbateId}/conformer`, { method: 'POST' });
+}
+
+export function fetchStructureFileText(structureId: number): Promise<ApiResult<string>> {
+    return requestText(`/public-data/structures/${structureId}/file`);
 }

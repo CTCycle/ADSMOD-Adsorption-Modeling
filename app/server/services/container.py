@@ -17,6 +17,7 @@ from server.repositories.datasets import DatasetRepository
 from server.repositories.units import UnitRepository
 from server.repositories.fitting import FittingRepository
 from server.repositories.model_settings import ModelSettingsRepository
+from server.repositories.home import HomeRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
 from server.repositories.public_data import PublicDataRepository
@@ -51,6 +52,7 @@ class CoreServiceContainer:
         self.materials = MaterialRepository(self.database)
         self.fitting = FittingRepository(self.database)
         self.public_data_repository = PublicDataRepository(self.database)
+        self.home = HomeRepository(self.database)
         self.analytics_service = AnalyticsService(AnalyticsRepository(self.database))
         self.pubchem_request_budget = RequestBudget()
         self.dataset_edits = DatasetEditRepository(self.database)

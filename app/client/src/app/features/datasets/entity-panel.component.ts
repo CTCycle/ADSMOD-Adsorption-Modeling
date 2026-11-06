@@ -84,6 +84,11 @@ function speciesRow(item: SpeciesRecord): EntityRow {
                     [value]="query()"
                     (input)="search($any($event.target).value)"
                 />
+                @if (source(); as activeSource) {
+                    <button type="button" class="entity-filter" aria-label="Clear provider filter" (click)="clearSource()">
+                        {{ activeSource === 'any' ? 'Provider records' : activeSource.toUpperCase() + ' records' }} ×
+                    </button>
+                }
                 @if (error()) {
                     <p class="entity-message error" role="alert">{{ error() }}</p>
                 } @else if (loading() && !rows().length) {
@@ -155,6 +160,8 @@ function speciesRow(item: SpeciesRecord): EntityRow {
             .entity-body { display: flex; flex: 1; flex-direction: column; gap: var(--spacing-xs); min-height: 0; padding-top: var(--spacing-xs); }
             .entity-body adsmod-data-pagination { margin-top: auto; }
             .entity-body > input { width: 100%; }
+            .entity-filter { align-self: flex-start; padding: 0.15rem 0.6rem; border: 1px solid var(--border-color); border-radius: 999px; background: var(--slate-100); color: var(--text-secondary); font: inherit; font-size: 0.75rem; cursor: pointer; }
+            .entity-filter:hover { border-color: var(--primary-600); }
             .entity-rows { margin: 0; padding: 0; list-style: none; }
             .entity-row {
                 display: grid;
@@ -187,6 +194,9 @@ export class EntityPanelComponent {
     /** Changing this value reloads the current page, e.g. after a dataset import or deletion. */
     readonly refreshKey = input(0);
     readonly selectedId = input<number | null>(null);
+    /** Tab and provider filter applied once on first load, e.g. when arriving from the Sources page. */
+    readonly initialKind = input<EntityKind>('material');
+    readonly initialSource = input<string | null>(null);
     readonly selected = output<EntityRow>();
     readonly kindChanged = output<EntityKind>();
 
@@ -194,6 +204,7 @@ export class EntityPanelComponent {
     protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
     protected readonly kind = signal<EntityKind>('material');
     protected readonly query = signal('');
+    protected readonly source = signal<string | null>(null);
     protected readonly page = signal(1);
     protected readonly rows = signal<EntityRow[]>([]);
     protected readonly total = signal(0);
@@ -201,7 +212,9 @@ export class EntityPanelComponent {
     protected readonly error = signal<string | null>(null);
     protected readonly totals = signal<Record<EntityKind, number | null>>({ material: null, species: null });
     protected readonly emptyLabel = computed(() =>
-        this.kind() === 'material'
+        this.source()
+            ? 'No provider records yet. Acquire data from Sources.'
+            : this.kind() === 'material'
             ? 'No materials yet. They are registered when datasets are imported.'
             : 'No species yet. They are registered when datasets are imported.',
     );
@@ -209,10 +222,19 @@ export class EntityPanelComponent {
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
     private requestId = 0;
 
+    private initialized = false;
+
     constructor() {
         effect(() => {
             this.refreshKey();
-            untracked(() => void this.load());
+            untracked(() => {
+                if (!this.initialized) {
+                    this.initialized = true;
+                    this.kind.set(this.initialKind());
+                    this.source.set(this.initialSource());
+                }
+                void this.load();
+            });
         });
     }
 
@@ -225,8 +247,15 @@ export class EntityPanelComponent {
         if (kind === this.kind()) return;
         this.kind.set(kind);
         this.query.set('');
+        this.source.set(null);
         this.page.set(1);
         this.kindChanged.emit(kind);
+        void this.load();
+    }
+
+    protected clearSource(): void {
+        this.source.set(null);
+        this.page.set(1);
         void this.load();
     }
 
@@ -251,7 +280,7 @@ export class EntityPanelComponent {
     private async load(): Promise<void> {
         const requestId = ++this.requestId;
         const kind = this.kind();
-        const params = { page: this.page(), page_size: this.pageSize(), q: this.query().trim() };
+        const params = { page: this.page(), page_size: this.pageSize(), q: this.query().trim(), source: this.source() };
         this.loading.set(true);
         const result =
             kind === 'material'
@@ -270,7 +299,7 @@ export class EntityPanelComponent {
         this.error.set(result.error);
         this.rows.set(result.rows);
         this.total.set(result.total);
-        if (!params.q) {
+        if (!params.q && !params.source) {
             this.totals.update((totals) => ({ ...totals, [kind]: result.total }));
         }
     }

@@ -179,6 +179,19 @@ class PubChemProvider(RetryingHttpProvider):
         return selected
 
     # -------------------------------------------------------------------------
+    async def fetch_conformer(self, cid: str) -> str:
+        """Download the 3D SDF of one compound; raises when none is published."""
+        response = await self._request(
+            "GET",
+            f"{self.base_url}/compound/cid/{quote(cid, safe='')}/record/SDF?record_type=3d",
+            headers={"Accept": "chemical/x-mdl-sdfile"},
+        )
+        text = response.text.strip()
+        if not text:
+            raise ProviderNotFoundError(f"PubChem has no 3D conformer for CID {cid}.")
+        return text
+
+    # -------------------------------------------------------------------------
     async def resolve(self, query: str) -> dict[str, Any]:
         namespace, value = self._namespace(query)
         if not value:
@@ -225,16 +238,12 @@ class PubChemProvider(RetryingHttpProvider):
             synonyms = []
 
         conformer_url = f"{self.base_url}/compound/cid/{cid}/record/SDF?record_type=3d"
-        has_3d = False
+        # The probe already downloads the SDF, so keep it instead of discarding it.
         try:
-            await self._request(
-                "GET",
-                conformer_url,
-                headers={"Accept": "chemical/x-mdl-sdfile"},
-            )
-            has_3d = True
+            conformer_sdf: str | None = await self.fetch_conformer(cid)
         except ProviderError:
-            has_3d = False
+            conformer_sdf = None
+        has_3d = conformer_sdf is not None
 
         formula = str(row.get("MolecularFormula") or "").strip() or None
         descriptor_values = {
@@ -267,6 +276,7 @@ class PubChemProvider(RetryingHttpProvider):
             "elemental_composition": self._elemental_composition(formula),
             "structure_2d_url": f"{self.base_url}/compound/cid/{cid}/PNG?image_size=300x300",
             "conformer_3d_url": conformer_url if has_3d else None,
+            "conformer_3d_sdf": conformer_sdf,
             "source_url": f"https://pubchem.ncbi.nlm.nih.gov/compound/{cid}",
             "raw_metadata": row,
         }

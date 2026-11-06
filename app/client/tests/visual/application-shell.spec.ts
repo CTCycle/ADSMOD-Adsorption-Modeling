@@ -83,6 +83,7 @@ async function readShellGeometry(page: Page) {
 test('primary routes share one stable shell at each supported viewport', async ({ page }, testInfo: TestInfo) => {
     await installShellApiMocks(page);
     const routes = [
+        { path: '/home', title: 'Home', key: 'home' },
         { path: '/datasets', title: 'Datasets', key: 'datasets' },
         { path: '/sources/catalog', title: 'Sources', key: 'sources' },
         { path: '/dashboards', title: 'Dashboards', key: 'dashboards' },

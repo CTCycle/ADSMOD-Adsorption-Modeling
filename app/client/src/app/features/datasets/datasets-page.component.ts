@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { Component, inject, signal, viewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatasetSummary } from '../../models/dataset.model';
 import { fetchDatasetConfiguration } from '../../services/dataset.service';
@@ -10,7 +10,7 @@ import { DatasetImportWizardComponent } from '../source/dataset-import-wizard.co
 import { DatasetDeleteDialogComponent } from './dataset-delete-dialog.component';
 import { DatasetListComponent } from './dataset-list.component';
 import { EntityDetailDrawerComponent } from './entity-detail-drawer.component';
-import { EntityPanelComponent, type EntityRow } from './entity-panel.component';
+import { EntityPanelComponent, type EntityKind, type EntityRow } from './entity-panel.component';
 
 const DEFAULT_FILE_ACCEPT = '.csv,.xls,.xlsx';
 const HIGHLIGHT_MS = 4000;
@@ -51,6 +51,8 @@ const HIGHLIGHT_MS = 4000;
                     class="console-card datasets-secondary"
                     [refreshKey]="entityRefresh()"
                     [selectedId]="selectedEntity()?.id ?? null"
+                    [initialKind]="initialKind"
+                    [initialSource]="initialSource"
                     (selected)="selectedEntity.set($event)"
                     (kindChanged)="selectedEntity.set(null)"
                 />
@@ -97,6 +99,10 @@ const HIGHLIGHT_MS = 4000;
 export class DatasetsPageComponent {
     protected readonly store = inject(CoreWorkspaceStore);
     private readonly router = inject(Router);
+    private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+    /** Deep-link filters, e.g. from the Sources catalog tiles. */
+    protected readonly initialKind: EntityKind = this.query.get('kind') === 'species' ? 'species' : 'material';
+    protected readonly initialSource: string | null = this.query.get('source');
     private readonly list = viewChild.required(DatasetListComponent);
     protected readonly pendingFile = signal<File | null>(null);
     protected readonly acceptedFileTypes = signal(DEFAULT_FILE_ACCEPT);
@@ -108,6 +114,10 @@ export class DatasetsPageComponent {
     private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
+        const origin = this.query.get('origin');
+        if (origin === 'nist' || origin === 'uploaded') {
+            this.store.datasetListState.update((state) => ({ ...state, source: origin, page: 1 }));
+        }
         void this.store.refreshDatasets();
         void this.loadDatasetConfiguration();
     }

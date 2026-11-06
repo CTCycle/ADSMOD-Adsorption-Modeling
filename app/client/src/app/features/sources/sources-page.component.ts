@@ -119,10 +119,6 @@ const positiveId = (value: string | null): number | null => {
                         <div>
                             <h2>External data sources</h2>
                             <p>Acquire records from external providers into your local database.</p>
-                            <div class="catalog-actions">
-                                <a class="button primary" routerLink="/sources/acquire">Acquire data</a>
-                                <a class="button secondary" routerLink="/datasets">Open local datasets</a>
-                            </div>
                             <p class="acquisition-summary" aria-live="polite">
                                 <a routerLink="/sources/acquire" [queryParams]="{ panel: 'runs' }">{{ overview()?.active_sync_runs ?? 0 }} active</a>
                                 · <a routerLink="/sources/acquire" [queryParams]="{ panel: 'runs' }">{{ overview()?.failed_sync_runs ?? 0 }} failed</a>
@@ -130,10 +126,10 @@ const positiveId = (value: string | null): number | null => {
                             </p>
                         </div>
                         <div class="overview-totals" aria-label="Records acquired from providers">
-                            <div><strong>{{ overview()?.adsorption_records ?? '—' }}</strong><span>isotherms</span></div>
-                            <div><strong>{{ overview()?.materials ?? '—' }}</strong><span>materials</span></div>
-                            <div><strong>{{ overview()?.chemicals ?? '—' }}</strong><span>species</span></div>
-                            <a routerLink="/sources/structures"><strong>{{ overview()?.structures ?? '—' }}</strong><span>structures</span></a>
+                            <a routerLink="/datasets" [queryParams]="{ origin: 'nist' }" title="Open provider datasets"><strong>{{ overview()?.adsorption_records ?? '—' }}</strong><span>isotherms</span></a>
+                            <a routerLink="/datasets" [queryParams]="{ kind: 'material', source: 'any' }" title="Open provider materials"><strong>{{ overview()?.materials ?? '—' }}</strong><span>materials</span></a>
+                            <a routerLink="/datasets" [queryParams]="{ kind: 'species', source: 'any' }" title="Open provider species"><strong>{{ overview()?.chemicals ?? '—' }}</strong><span>species</span></a>
+                            <a routerLink="/sources/structures" title="Open structures"><strong>{{ overview()?.structures ?? '—' }}</strong><span>structures</span></a>
                         </div>
                     </section>
                     @for (group of catalog(); track group.title) {
