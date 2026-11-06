@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import time
 from typing import Any, Literal
 from urllib.parse import quote
 
@@ -20,6 +21,7 @@ from server.services.data.nist_mapper import NISTCanonicalMapper
 from server.repositories.nist import NISTRepository
 
 NISTCategory = Literal["experiments", "guest", "host"]
+SEARCH_CACHE_SECONDS = 600.0
 
 ###############################################################################
 class NISTDataService:
@@ -36,6 +38,8 @@ class NISTDataService:
         self.repository = repository
         self.mapper = mapper
         self.builder = NISTDatasetBuilder()
+        self._search_lock = asyncio.Lock()
+        self._search_cache: dict[str, Any] | None = None
 
     # -------------------------------------------------------------------------
     def _api_client(self) -> NISTApiClient:
@@ -93,6 +97,26 @@ class NISTDataService:
         requested = int(math.ceil(self.clamp_fraction(fraction) * total))
         requested = min(total, max(0, requested))
         return ordered[:requested], total
+
+    # -------------------------------------------------------------------------
+    def select_identifiers(
+        self,
+        index: pd.DataFrame,
+        identifier_column: str,
+        fraction: float,
+        requested: list[str] | None,
+    ) -> tuple[list[str], int]:
+        """Pick the fractional head of the index, or the requested records
+        that the current index still lists (in the requested order)."""
+        if not requested:
+            return self.ordered_identifiers(
+                index, identifier_column, self.clamp_fraction(fraction)
+            )
+        indexed, total = self.ordered_identifiers(index, identifier_column, 1.0)
+        known = {item.lower(): item for item in indexed}
+        return [
+            known[item.lower()] for item in requested if item.lower() in known
+        ], total
 
     # -------------------------------------------------------------------------
     async def load_index_for_category(
@@ -170,6 +194,224 @@ class NISTDataService:
         }
 
     # -------------------------------------------------------------------------
+    async def _search_indexes(self) -> dict[str, Any]:
+        """Return the three NIST indexes, cached briefly across searches.
+
+        NIST exposes no server-side search: query parameters are ignored by
+        the index endpoints, so searches join the downloaded indexes locally.
+        """
+        async with self._search_lock:
+            cached = self._search_cache
+            if cached and time.monotonic() - cached["at"] < SEARCH_CACHE_SECONDS:
+                return cached
+            async with httpx.AsyncClient(timeout=self._request_timeout()) as client:
+                api_client = self._api_client()
+                experiments = await api_client.fetch_experiments_index(client)
+                guests = await api_client.fetch_guest_index(client)
+                hosts = await api_client.fetch_host_index(client)
+            self._search_cache = {
+                "at": time.monotonic(),
+                "experiments": experiments.to_dict("records"),
+                "guests": self._name_lookup(guests, api_client.guest_identifier),
+                "hosts": self._name_lookup(hosts, api_client.host_identifier),
+            }
+            return self._search_cache
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _name_lookup(
+        frame: pd.DataFrame, identifier_column: str
+    ) -> dict[str, tuple[str, list[str]]]:
+        lookup: dict[str, tuple[str, list[str]]] = {}
+        for row in frame.to_dict("records"):
+            identifier = str(row.get(identifier_column) or "").strip()
+            if not identifier:
+                continue
+            name = str(row.get("name") or "").strip()
+            synonyms = [
+                str(item).strip().casefold()
+                for item in (row.get("synonyms") or [])
+                if str(item).strip()
+            ]
+            lookup[identifier] = (name, [name.casefold(), *synonyms])
+        return lookup
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _matching_identifiers(
+        lookup: dict[str, tuple[str, list[str]]], text: str | None
+    ) -> set[str] | None:
+        """Identifiers named `text`: exact name/synonym/key matches when there
+        are any, otherwise names that contain it. Synonyms are matched exactly
+        only, since partial synonym hits (e.g. 'methane' in 'dimethyl ether
+        synonyms') bury the intended compound."""
+        needle = (text or "").strip().casefold()
+        if not needle:
+            return None
+        exact = {
+            identifier
+            for identifier, (_name, names) in lookup.items()
+            if identifier.casefold() == needle or needle in names
+        }
+        if exact:
+            return exact
+        return {
+            identifier
+            for identifier, (_name, names) in lookup.items()
+            if needle in names[0]
+        }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _isotherm_matches(
+        row: dict[str, Any],
+        *,
+        adsorbate_keys: set[str] | None,
+        adsorbent_keys: set[str] | None,
+        experiment: str,
+        temperature_range: tuple[float | None, float | None],
+    ) -> bool:
+        adsorbent = (row.get("adsorbent") or {}).get("hashkey")
+        inchi_keys = {item.get("InChIKey") for item in row.get("adsorbates") or []}
+        if adsorbent_keys is not None and adsorbent not in adsorbent_keys:
+            return False
+        if adsorbate_keys is not None and not (inchi_keys & adsorbate_keys):
+            return False
+        if experiment and experiment not in (
+            f"{row.get('filename') or ''} {row.get('DOI') or ''}".casefold()
+        ):
+            return False
+        low, high = temperature_range
+        temperature = row.get("temperature")
+        if low is None and high is None:
+            return True
+        if not isinstance(temperature, (int, float)):
+            return False
+        return (low is None or temperature >= low) and (
+            high is None or temperature <= high
+        )
+
+    # -------------------------------------------------------------------------
+    async def search_experiments(
+        self,
+        *,
+        adsorbate: str | None,
+        adsorbent: str | None,
+        experiment: str | None,
+        temperature_min: float | None,
+        temperature_max: float | None,
+        limit: int,
+        offset: int,
+    ) -> dict[str, Any]:
+        """Find NIST isotherms by adsorbate, adsorbent or experiment text."""
+        if not any((adsorbate, adsorbent, experiment)):
+            raise ValueError(
+                "Provide an adsorbate, adsorbent or experiment (filename or DOI)."
+            )
+        indexes = await self._search_indexes()
+        guests, hosts = indexes["guests"], indexes["hosts"]
+        adsorbate_keys = self._matching_identifiers(guests, adsorbate)
+        adsorbent_keys = self._matching_identifiers(hosts, adsorbent)
+        needle = (experiment or "").strip().casefold()
+        matches = [
+            row
+            for row in indexes["experiments"]
+            if self._isotherm_matches(
+                row,
+                adsorbate_keys=adsorbate_keys,
+                adsorbent_keys=adsorbent_keys,
+                experiment=needle,
+                temperature_range=(temperature_min, temperature_max),
+            )
+        ]
+        existing = await asyncio.to_thread(self.repository.list_nist_experiment_ids)
+        page = matches[offset : offset + limit]
+        return {
+            "total": len(matches),
+            "items": [
+                self._search_item(row, guests, hosts, existing) for row in page
+            ],
+        }
+
+    # -------------------------------------------------------------------------
+    def _search_item(
+        self,
+        row: dict[str, Any],
+        guests: dict[str, tuple[str, list[str]]],
+        hosts: dict[str, tuple[str, list[str]]],
+        existing: set[str],
+    ) -> dict[str, Any]:
+        filename = str(row.get("filename") or "")
+        hashkey = (row.get("adsorbent") or {}).get("hashkey")
+        keys = [
+            str(item["InChIKey"])
+            for item in row.get("adsorbates") or []
+            if item.get("InChIKey")
+        ]
+        temperature = row.get("temperature")
+        return {
+            "filename": filename,
+            "doi": row.get("DOI") or None,
+            "adsorbent_name": hosts.get(hashkey, (None,))[0],
+            "adsorbent_hashkey": hashkey,
+            "adsorbate_names": [guests.get(key, (key,))[0] or key for key in keys],
+            "adsorbate_inchi_keys": keys,
+            "temperature_k": (
+                float(temperature) if isinstance(temperature, (int, float)) else None
+            ),
+            "local": self.normalize_identifier(filename) in existing,
+        }
+
+    # -------------------------------------------------------------------------
+    async def sync_targeted_dependencies(self, identifiers: list[str]) -> None:
+        """Store the compound and material records of targeted isotherms first.
+
+        NIST isotherm payloads carry only names and identities; unit
+        conversions (for example wt% needing a molar mass) rely on the full
+        compound record, which bulk acquisition fetches as its own collection.
+        Records already stored are skipped; per-record failures are ignored
+        because the isotherm run reports its own outcome.
+        """
+        indexes = await self._search_indexes()
+        wanted = {item.lower() for item in identifiers}
+        guests: set[str] = set()
+        hosts: set[str] = set()
+        for row in indexes["experiments"]:
+            if str(row.get("filename") or "").lower() not in wanted:
+                continue
+            if (row.get("adsorbent") or {}).get("hashkey"):
+                hosts.add(str(row["adsorbent"]["hashkey"]))
+            guests.update(
+                str(item["InChIKey"])
+                for item in row.get("adsorbates") or []
+                if item.get("InChIKey")
+            )
+
+        async def ignore(_identifier: str, _reason: str) -> None:
+            return None
+
+        api_client = self._api_client()
+        async with httpx.AsyncClient(timeout=self._request_timeout()) as client:
+            for category, keys in (("guest", guests), ("host", hosts)):
+                existing, base_url = await self._category_sync_details(category)
+                missing = self._unimported_identifiers(sorted(keys), existing)
+                if not missing:
+                    continue
+                successful, _failures = await self._fetch_sync_batch(
+                    api_client=api_client,
+                    client=client,
+                    base_url=base_url,
+                    batch=missing,
+                    on_failure=ignore,
+                )
+                await self._persist_sync_batch(
+                    api_client=api_client,
+                    category=category,
+                    successful=successful,
+                    on_skip=ignore,
+                )
+
+    # -------------------------------------------------------------------------
     async def local_counts(self) -> dict[str, int]:
         counts = await asyncio.to_thread(
             self.repository.count_local_records_by_category
@@ -191,11 +433,14 @@ class NISTDataService:
         processed_before: int = 0,
         resume_after_external_id: str | None = None,
         overwrite_local_edits: bool = False,
+        identifiers: list[str] | None = None,
     ) -> dict[str, Any]:
         """Fetch one NIST collection in idempotent, checkpointed batches.
 
         Existing experiments are skipped. With `overwrite_local_edits`, locally
         edited NIST experiments are fetched again and restored from source.
+        Explicit `identifiers` (targeted acquisition) replace the fractional
+        selection but must still be present in the current NIST index.
         """
         api_client = self._api_client()
         timeout = self._request_timeout()
@@ -205,10 +450,8 @@ class NISTDataService:
             index, identifier_column = await self.load_index_for_category(
                 category, client
             )
-            identifiers, available_count = self.ordered_identifiers(
-                index=index,
-                identifier_column=identifier_column,
-                fraction=self.clamp_fraction(fraction),
+            identifiers, available_count = self.select_identifiers(
+                index, identifier_column, fraction, identifiers
             )
             if resume_after_external_id and resume_after_external_id not in identifiers:
                 raise ValueError(

@@ -1080,3 +1080,105 @@ a.table-action {
 
 /* Readable model cards in both themes. */
 
+
+/* Acquisition: a search row that wraps instead of overflowing its card. */
+.query-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: flex-end;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-subtle, var(--surface));
+}
+
+.query-field {
+  display: grid;
+  flex: 1 1 13rem;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.query-field.query-select {
+  flex: 0 1 8.5rem;
+}
+
+.query-row input,
+.query-row select,
+.query-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: var(--control-height);
+  padding: 0 0.7rem;
+  border: 1px solid var(--primary-100);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.query-row > button {
+  flex: 0 0 auto;
+}
+
+/* Two-option switch for single/bulk and bulk/targeted acquisition modes. */
+.mode-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle, var(--surface));
+}
+
+.mode-switch button {
+  min-height: 1.7rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.mode-switch button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--link);
+  box-shadow: var(--shadow-sm);
+}
+
+.mode-switch button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Local coverage line: label, meter, percentage. */
+.acq-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.acq-stats strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.acq-stats progress {
+  flex: 1 1 6rem;
+  height: 6px;
+  min-width: 4rem;
+}

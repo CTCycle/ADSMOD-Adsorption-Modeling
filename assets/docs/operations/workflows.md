@@ -1,6 +1,6 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 ## Main Navigation
 
@@ -70,15 +70,16 @@ the session display units (bar, mmol/g by default). Session overrides never chan
 3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
 4. Follow "View datasets" to the Datasets page and explore the `NIST ISODB` dataset. NIST experiments can be
    edited like any other; fetching NIST isotherms again asks before overwriting those local edits.
-5. Open `modeling/fitting`, start a new session, select the NIST ISODB dataset, and start fitting.
+5. To fetch specific records instead, switch Adsorption collections to Targeted: search by compound (name, synonym, or InChIKey), adsorbent material, or experiment (filename or DOI), optionally with a temperature range, tick the isotherms, and select Fetch selected. Already stored isotherms are marked and cannot be selected; fetching also stores the referenced compound and material records. Isotherms whose uptake unit is unsupported are skipped with a reason, as in bulk runs.
+6. Open `modeling/fitting`, start a new session, select the NIST ISODB dataset, and start fitting.
 
 The overview, source registry, and local record views do not need an external provider to respond.
 
 ## Retrieve Public Materials And Adsorbates
 
 1. Open `sources/acquire`.
-2. PubChem: resolve a CID, InChIKey, or name, or select Enrich stored chemicals to add PubChem identity, synonyms, and properties to stored species that lack them.
-3. COD: search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import.
+2. PubChem: in Single mode search a CID, InChIKey, or name, inspect the matches, and Import one; in Bulk mode set the share and select Enrich stored species to add PubChem identity, synonyms, and properties to stored species that lack them. The card shows how many stored species are enriched (a local ratio; PubChem publishes no total).
+3. COD: in Single mode search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. In Bulk mode set the share and select Fetch structures: stored materials without a structure are looked up by name, and only exact, unique matches are imported and linked. Unavailable and ambiguous materials are skipped and listed under Acquisitions → Details.
 4. Follow the Run tracker and open the imported records from its links.
 5. Review species and materials in the Datasets page side column: each opens a detail panel with identifiers, properties, linked structures, and the datasets that use it. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
 6. Open `sources/catalog` to review providers by data type and saved connection state, and use the refresh icon in the Sources tab bar to queue independent health checks. Local records stay available when a provider is unavailable.

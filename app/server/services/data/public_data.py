@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from server.domain.public_data import (
+    ChemicalLookupResponse,
     CODSearchResponse,
     Pagination,
     PublicDataOverviewResponse,
@@ -20,6 +21,7 @@ from server.services.providers.cod import CODProvider
 from server.services.providers.pubchem import PubChemProvider
 from server.services.providers.public_data import PublicDataProvider
 from server.repositories.public_data import PublicDataRepository
+from server.repositories.schemas.types import normalize_identity
 
 ###############################################################################
 class PublicDataService:
@@ -114,6 +116,19 @@ class PublicDataService:
         return int(resolved_id), True
 
     # -------------------------------------------------------------------------
+    async def lookup_pubchem(self, query: str) -> ChemicalLookupResponse:
+        """Preview PubChem matches, flagging those already stored locally."""
+        provider = self.providers.get("pubchem")
+        if not isinstance(provider, PubChemProvider):
+            raise RuntimeError("PubChem provider is not configured.")
+        items = await provider.candidates(query)
+        for item in items:
+            item["local_adsorbate_id"] = await asyncio.to_thread(
+                self.repository.find_local_pubchem_adsorbate, item["cid"]
+            )
+        return ChemicalLookupResponse(items=items)
+
+    # -------------------------------------------------------------------------
     async def search_cod(
         self,
         *,
@@ -160,6 +175,46 @@ class PublicDataService:
             adsorbent_id=adsorbent_id,
         )
         return int(structure_id), True
+
+    # -------------------------------------------------------------------------
+    async def import_cod_for_material(
+        self, adsorbent_id: int, name: str
+    ) -> tuple[int | None, bool, str | None]:
+        """Import a COD structure for a stored material only on an exact,
+        unique name match.
+
+        Returns (structure id, imported, reason). A missing or ambiguous match
+        returns no structure and a reason; it is never linked automatically,
+        because one material can map to several COD entries and many have none.
+        """
+        provider = self.providers.get("cod")
+        if not isinstance(provider, CODProvider):
+            raise RuntimeError("COD provider is not configured.")
+        if len(name.strip()) < 3:
+            return None, False, "Material name is too short for a COD search."
+        try:
+            rows = await provider.search(text=name)
+        except ValueError as exc:
+            return None, False, f"Ambiguous: {exc}"
+        if not rows:
+            return None, False, "No COD structure found."
+        # COD rows often have no chemical name (only a formula and a title).
+        key = normalize_identity(name)
+        exact = [
+            row
+            for row in rows
+            if row.get("name") and normalize_identity(row["name"]) == key
+        ]
+        if len(exact) != 1:
+            candidates = ", ".join(str(row["cod_id"]) for row in rows[:5])
+            return None, False, (
+                f"Ambiguous: {len(rows)} COD candidates, {len(exact)} exact name "
+                f"matches (e.g. {candidates}); choose one manually."
+            )
+        structure_id, imported = await self.import_cod(
+            str(exact[0]["cod_id"]), adsorbent_id
+        )
+        return structure_id, imported, None
 
     # -------------------------------------------------------------------------
     def list_structures(self, **filters: Any) -> StructurePageResponse:

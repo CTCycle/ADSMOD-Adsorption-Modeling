@@ -90,25 +90,29 @@
     font-size: 0.84rem;
 }
 
-.provider-query {
-    grid-template-columns: minmax(150px, 0.7fr) minmax(180px, 1.3fr) auto;
+.result-note {
+    margin: 10px 0 0;
 }
 
-.provider-query.structure-query {
-    grid-template-columns: minmax(150px, 0.7fr) minmax(160px, 1.2fr) 110px auto;
+.chemical-results-frame {
+    --data-table-min-width: 420px;
+    margin-top: 10px;
 }
 
-.panel-footer {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: space-between;
-    color: var(--text-secondary, #667085);
-    font-size: 0.74rem;
+.chemical-results-table th:nth-child(2) {
+    width: 96px;
 }
 
-.panel-footer .button {
-    flex: 0 0 auto;
+.chemical-results-table th:nth-child(3) {
+    width: 90px;
+}
+
+.chemical-results-table .col-actions {
+    width: 118px;
+}
+
+.chemical-results-table a {
+    color: var(--accent-color, #2563eb);
 }
 
 .target-chip {
@@ -148,6 +152,11 @@
 
 .cod-results-table a {
     color: var(--accent-color, #2563eb);
+}
+
+.query-row + .data-table-frame,
+.query-row + .empty-inline {
+    margin-top: 10px;
 }
 
 .cod-import-bar {
@@ -451,16 +460,6 @@
 }
 
 @media (max-width: 760px) {
-    .provider-query,
-    .provider-query.structure-query {
-        grid-template-columns: 1fr;
-    }
-
-    .panel-footer {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
     .run-details-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }

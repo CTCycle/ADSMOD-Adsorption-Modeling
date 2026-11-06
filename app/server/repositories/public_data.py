@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -60,9 +61,10 @@ def normalized_sync_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
     normalized = {
         key: value for key, value in parameters.items() if key != "trigger"
     }
-    cod_ids = normalized.get("cod_ids")
-    if isinstance(cod_ids, (list, tuple)):
-        normalized["cod_ids"] = sorted(str(item) for item in cod_ids)
+    for key in ("cod_ids", "identifiers"):
+        values = normalized.get(key)
+        if isinstance(values, (list, tuple)):
+            normalized[key] = sorted(str(item) for item in values)
     return normalized
 
 ###############################################################################
@@ -181,6 +183,27 @@ class PublicDataRepository:
                     select(func.count(func.distinct(StructureSourceRecord.structure_id)))
                     .scalar_subquery()
                     .label("structures"),
+                    select(func.count(Adsorbate.id))
+                    .scalar_subquery()
+                    .label("species_total"),
+                    select(
+                        func.count(func.distinct(AdsorbateSourceRecord.adsorbate_id))
+                    )
+                    .join(
+                        SourceRecord,
+                        SourceRecord.id == AdsorbateSourceRecord.source_record_id,
+                    )
+                    .join(DataSource, DataSource.id == SourceRecord.source_id)
+                    .where(DataSource.key == "pubchem")
+                    .scalar_subquery()
+                    .label("species_enriched"),
+                    select(func.count(Adsorbent.id))
+                    .scalar_subquery()
+                    .label("materials_total"),
+                    select(func.count(func.distinct(Structure.adsorbent_id)))
+                    .where(Structure.adsorbent_id.is_not(None))
+                    .scalar_subquery()
+                    .label("materials_with_structure"),
                     select(func.count(PublicDataSyncRun.id))
                     .where(
                         PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES),
@@ -211,6 +234,10 @@ class PublicDataRepository:
                 "materials": int(row.materials or 0),
                 "chemicals": int(row.chemicals or 0),
                 "structures": int(row.structures or 0),
+                "species_total": int(row.species_total or 0),
+                "species_enriched": int(row.species_enriched or 0),
+                "materials_total": int(row.materials_total or 0),
+                "materials_with_structure": int(row.materials_with_structure or 0),
                 "active_sync_runs": int(row.active_sync_runs or 0),
                 "failed_sync_runs": int(row.failed_sync_runs or 0),
                 "latest_successful_sync_at": row.latest_successful_sync_at,
@@ -898,11 +925,14 @@ class PublicDataRepository:
             return int(matches[0]) if len(matches) == 1 else None
 
     # -------------------------------------------------------------------------
-    def pubchem_enrichment_candidates(self, limit: int) -> list[dict[str, Any]]:
+    def pubchem_enrichment_candidates(
+        self, limit: int, fraction: float = 1.0
+    ) -> list[dict[str, Any]]:
         """Return chemicals without PubChem identity that may still resolve.
 
         Chemicals whose earlier lookup failed permanently (no retry time) are
-        excluded so repeated enrichment runs make progress.
+        excluded so repeated enrichment runs make progress. `fraction` selects
+        the leading share of the eligible chemicals.
         """
         with self.database.session_factory() as session:
             linked = (
@@ -925,12 +955,49 @@ class PublicDataRepository:
                     ),
                 )
                 .order_by(Adsorbate.id)
-                .limit(max(1, limit))
             ).all()
+            selected = rows[: self._fraction_count(len(rows), fraction, limit)]
             return [
                 {"id": int(row.id), "query": row.inchi_key or row.name}
-                for row in rows
+                for row in selected
             ]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _fraction_count(total: int, fraction: float, limit: int) -> int:
+        share = min(1.0, max(0.0, float(fraction)))
+        return min(max(1, limit), math.ceil(share * total))
+
+    # -------------------------------------------------------------------------
+    def cod_bulk_candidates(
+        self, limit: int, fraction: float = 1.0
+    ) -> list[dict[str, Any]]:
+        """Return stored materials that have no structure and no final COD outcome.
+
+        Materials already judged unavailable or ambiguous (a stored failure
+        without retry time) are excluded so repeated bulk runs make progress.
+        """
+        with self.database.session_factory() as session:
+            linked = select(Structure.adsorbent_id).where(
+                Structure.adsorbent_id.is_not(None)
+            )
+            settled = select(PublicDataSyncFailure.external_id).where(
+                PublicDataSyncFailure.source_key == "cod",
+                PublicDataSyncFailure.retry_eligible_at.is_(None),
+                PublicDataSyncFailure.external_id.like("adsorbent:%"),
+            )
+            rows = session.execute(
+                select(Adsorbent.id, Adsorbent.name)
+                .where(
+                    Adsorbent.id.not_in(linked),
+                    (literal("adsorbent:") + cast(Adsorbent.id, String)).not_in(
+                        settled
+                    ),
+                )
+                .order_by(Adsorbent.id)
+            ).all()
+            selected = rows[: self._fraction_count(len(rows), fraction, limit)]
+            return [{"id": int(row.id), "name": row.name} for row in selected]
 
     # -------------------------------------------------------------------------
     def upsert_cod_structure(

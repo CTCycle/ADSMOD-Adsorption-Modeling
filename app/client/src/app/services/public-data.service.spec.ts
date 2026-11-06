@@ -10,6 +10,9 @@ import {
     resolvePubChem,
     cancelPublicDataSyncRun,
     importCOD,
+    searchNistIsotherms,
+    fetchNistIsotherms,
+    fetchBulkStructures,
     setStructureMaterial,
 } from './public-data.service';
 
@@ -138,5 +141,26 @@ describe('public data service', () => {
         expect(String(requestUrl)).toBe('/api/v1/public-data/structures/3/material');
         expect(requestInit.method).toBe('PUT');
         expect(JSON.parse(requestInit.body as string)).toEqual({ adsorbent_id: null });
+    });
+
+    it('searches the NIST index and queues a targeted fetch of the chosen isotherms', async () => {
+        fetchMock.mockResolvedValue({ ok: true, json: async () => ({ items: [], total: 0 }) });
+
+        await searchNistIsotherms({ adsorbate: 'CO2', temperature_min: null, limit: 10, offset: 20 });
+        await fetchNistIsotherms(['iso-1', 'iso-2']);
+        await fetchBulkStructures(0.5);
+
+        expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/public-data/sources/nist/search?adsorbate=CO2&limit=10&offset=20');
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
+            source_key: 'nist',
+            operation: 'nist_category',
+            category: 'experiments',
+            identifiers: ['iso-1', 'iso-2'],
+        });
+        expect(JSON.parse(fetchMock.mock.calls[2][1].body as string)).toEqual({
+            source_key: 'cod',
+            operation: 'cod_import',
+            fraction: 0.5,
+        });
     });
 });

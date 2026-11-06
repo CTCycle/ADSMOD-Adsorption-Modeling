@@ -5,21 +5,28 @@ import { AfterViewInit, Component, DestroyRef, ElementRef, OnInit, computed, inj
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import type {
+    ChemicalLookupItem,
     CODSearchResult,
     NISTCategory,
     NISTCollectionView,
+    PublicDataOverviewResponse,
     PublicDataSyncFailure,
     PublicDataSyncRun,
 } from '../../models/public-data.model';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
     cancelPublicDataSyncRun,
+    enrichChemicals as startChemicalEnrichment,
+    fetchBulkStructures as startBulkStructures,
     fetchNistCollections,
     fetchNistEditedExperiments,
+    fetchNistIsotherms,
     fetchPublicDataSyncFailures,
     fetchPublicDataSyncRun,
     fetchPublicDataSyncRuns,
+    fetchPublicOverview,
     importCOD,
+    lookupChemicals,
     resumePublicDataSyncRun,
     resolvePubChem,
     searchCOD,
@@ -28,6 +35,7 @@ import {
 } from '../../services/public-data.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 import { EntityPickerComponent, type PickedEntity } from '../../shared/components/entity-picker/entity-picker.component';
+import { NistTargetedSearchComponent } from './nist-targeted-search.component';
 
 interface ImportedLink {
     label: string;
@@ -68,7 +76,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
 @Component({
     selector: 'adsmod-public-data-acquire',
     standalone: true,
-    imports: [FormsModule, RouterLink, EntityPickerComponent, DataPaginationComponent, ConfirmDialogComponent],
+    imports: [FormsModule, RouterLink, EntityPickerComponent, DataPaginationComponent, ConfirmDialogComponent, NistTargetedSearchComponent],
     template: `
         <div class="acquisition-toolbar">
             <button class="button secondary" type="button" data-acquisitions-trigger aria-haspopup="dialog"
@@ -85,9 +93,16 @@ const persistFraction = (category: NISTCategory, value: number): void => {
             <div class="section-heading">
                 <div>
                     <h4>Adsorption collections</h4>
-                    <p>Fetch NIST records in bounded runs; fetch again to continue.</p>
+                    <p>{{ nistMode() === 'bulk' ? 'Fetch NIST records in bounded runs; fetch again to continue.' : 'Search the NIST index and fetch only the isotherms you pick.' }}</p>
+                </div>
+                <div class="mode-switch" role="group" aria-label="NIST acquisition mode">
+                    <button type="button" [attr.aria-pressed]="nistMode() === 'bulk'" (click)="nistMode.set('bulk')">Bulk</button>
+                    <button type="button" [attr.aria-pressed]="nistMode() === 'targeted'" (click)="nistMode.set('targeted')">Targeted</button>
                 </div>
             </div>
+            @if (nistMode() === 'targeted') {
+                <adsmod-nist-targeted-search #targeted [submitting]="isSubmitting('nist:targeted')" (fetchSelected)="fetchTargeted($event)" (failed)="error.set($event)" />
+            } @else {
             <div class="data-table-frame collection-table-frame">
                 <table class="data-table collection-table">
                     <caption class="sr-only">NIST adsorption collections</caption>
@@ -148,6 +163,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     </tbody>
                 </table>
             </div>
+            }
         </section>
 
         <div class="acquire-grid">
@@ -155,34 +171,93 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 <div class="section-heading">
                     <div>
                         <h4>Chemical identity and properties</h4>
-                        <p>Resolve a compound or enrich stored species.</p>
+                        <p>{{ pubchemMode() === 'single' ? 'Look up one compound, then import it.' : 'Enrich stored species in bulk.' }}</p>
+                    </div>
+                    <div class="mode-switch" role="group" aria-label="Chemical acquisition mode">
+                        <button type="button" [attr.aria-pressed]="pubchemMode() === 'single'" (click)="pubchemMode.set('single')">Single</button>
+                        <button type="button" [attr.aria-pressed]="pubchemMode() === 'bulk'" (click)="pubchemMode.set('bulk')">Bulk</button>
                     </div>
                 </div>
-                @if (pubchemTarget(); as target) {
-                    <p class="target-chip">Attaching the result to <strong>{{ target.name }}</strong><button class="text-button" type="button" (click)="pubchemTarget.set(null)">Clear</button></p>
+                <p class="acq-stats">
+                    @if (overview(); as stats) {
+                        <span><strong>{{ stats.species_enriched.toLocaleString() }} / {{ stats.species_total.toLocaleString() }}</strong> stored species enriched from PubChem</span>
+                        @if (stats.species_total > 0) {
+                            <progress max="100" [value]="percent(stats.species_enriched, stats.species_total)" aria-label="Enriched species coverage"></progress>
+                            <span>{{ percent(stats.species_enriched, stats.species_total) }}%</span>
+                        }
+                    } @else {
+                        <span>Coverage unavailable</span>
+                    }
+                </p>
+                @if (pubchemMode() === 'single') {
+                    @if (pubchemTarget(); as target) {
+                        <p class="target-chip">Attaching the result to <strong>{{ target.name }}</strong><button class="text-button" type="button" (click)="pubchemTarget.set(null)">Clear</button></p>
+                    }
+                    <div class="query-row">
+                        <label class="query-field"><span>Compound</span><input id="acquire-pubchem-query" [(ngModel)]="pubchemQuery" placeholder="CID, InChIKey, or name" (keyup.enter)="lookupCompound()" /></label>
+                        <button class="button primary" type="button" [disabled]="!pubchemQuery.trim() || pubchemLooking()" (click)="lookupCompound()">{{ pubchemLooking() ? 'Searching…' : 'Search' }}</button>
+                    </div>
+                    @if (pubchemMessage(); as note) { <p class="run-note result-note" role="status">{{ note }}</p> }
+                    @if (pubchemResults().length) {
+                        <div class="data-table-frame data-table-frame--compact chemical-results-frame">
+                            <table class="data-table chemical-results-table">
+                                <caption class="sr-only">PubChem matches</caption>
+                                <thead><tr><th scope="col">Compound</th><th scope="col">Formula</th><th scope="col">CID</th><th class="col-actions" scope="col"></th></tr></thead>
+                                <tbody>
+                                    @for (item of pubchemResults(); track item.cid) {
+                                        <tr>
+                                            <td class="truncate-cell" [title]="item.name + (item.inchi_key ? ' · ' + item.inchi_key : '')">{{ item.name }}</td>
+                                            <td class="truncate-cell" [title]="item.formula || ''">{{ item.formula || '—' }}</td>
+                                            <td><a [href]="item.source_url" target="_blank" rel="noopener noreferrer">{{ item.cid }}</a></td>
+                                            <td><button class="table-action" type="button" [disabled]="isSubmitting('pubchem:resolve:' + item.cid)" (click)="importCompound(item.cid)">{{ item.local_adsorbate_id ? 'Stored · refresh' : 'Import' }}</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (pubchemResults().length > 1) { <p class="run-note">Several compounds match; import the one you need.</p> }
+                    }
+                } @else {
+                    <div class="query-row">
+                        <label class="query-field query-select"><span>Share to enrich</span><input type="number" min="0.01" max="1" step="0.05" [ngModel]="bulkFractions().pubchem" (ngModelChange)="setBulkFraction('pubchem', $event)" aria-label="Share of unenriched species to enrich" /></label>
+                        <button class="button primary" type="button" [disabled]="isBusy('pubchem', 'pubchem_enrich') || isSubmitting('pubchem:enrich')" (click)="enrichChemicals()">{{ isSubmitting('pubchem:enrich') ? 'Starting…' : 'Enrich stored species' }}</button>
+                    </div>
+                    <p class="run-note result-note">Looks up stored species that have no PubChem identity yet{{ overview() ? ' (' + (overview()!.species_total - overview()!.species_enriched).toLocaleString() + ' remaining)' : '' }}. Species already enriched or confirmed unresolvable are skipped.</p>
                 }
-                <div class="provider-query">
-                    <div><label for="acquire-pubchem-query">Compound</label><span>CID, InChIKey, or compound name</span></div>
-                    <input id="acquire-pubchem-query" [(ngModel)]="pubchemQuery" placeholder="e.g. carbon dioxide or 280" (keyup.enter)="resolveCompound()" />
-                    <button class="button primary" type="button" [disabled]="!pubchemQuery.trim() || isSubmitting('pubchem:resolve')" (click)="resolveCompound()">{{ isSubmitting('pubchem:resolve') ? 'Resolving…' : 'Resolve' }}</button>
-                </div>
-                <div class="panel-footer">
-                    <span>Resolves stored species missing a PubChem identity.</span>
-                    <button class="button secondary" type="button" [disabled]="isBusy('pubchem', 'pubchem_enrich') || isSubmitting('pubchem:enrich')" (click)="enrichChemicals()">{{ isSubmitting('pubchem:enrich') ? 'Starting…' : 'Enrich stored chemicals' }}</button>
-                </div>
             </section>
 
             <section class="public-section source-panel" id="acquire-cod">
                 <div class="section-heading">
                     <div>
                         <h4>Crystal structures</h4>
-                        <p>Search COD and import selected structures.</p>
+                        <p>{{ codMode() === 'single' ? 'Search COD, inspect matches, and import selected structures.' : 'Look up structures for stored materials in bulk.' }}</p>
+                    </div>
+                    <div class="mode-switch" role="group" aria-label="Structure acquisition mode">
+                        <button type="button" [attr.aria-pressed]="codMode() === 'single'" (click)="codMode.set('single')">Single</button>
+                        <button type="button" [attr.aria-pressed]="codMode() === 'bulk'" (click)="codMode.set('bulk')">Bulk</button>
                     </div>
                 </div>
-                <div class="provider-query structure-query">
-                    <div><label for="acquire-cod-query">Search</label><span>Text, formula, or COD ID</span></div>
-                    <input id="acquire-cod-query" [(ngModel)]="codQuery" placeholder="Text, formula, or COD ID" (keyup.enter)="searchStructures()" />
-                    <select [(ngModel)]="codQueryType" aria-label="COD query type"><option value="text">Text</option><option value="formula">Formula</option><option value="id">COD ID</option></select>
+                <p class="acq-stats">
+                    @if (overview(); as stats) {
+                        <span><strong>{{ stats.materials_with_structure.toLocaleString() }} / {{ stats.materials_total.toLocaleString() }}</strong> stored materials have a structure · {{ stats.structures.toLocaleString() }} structures from COD</span>
+                        @if (stats.materials_total > 0) {
+                            <progress max="100" [value]="percent(stats.materials_with_structure, stats.materials_total)" aria-label="Materials with a structure"></progress>
+                            <span>{{ percent(stats.materials_with_structure, stats.materials_total) }}%</span>
+                        }
+                    } @else {
+                        <span>Coverage unavailable</span>
+                    }
+                </p>
+                @if (codMode() === 'bulk') {
+                    <div class="query-row">
+                        <label class="query-field query-select"><span>Share to fetch</span><input type="number" min="0.01" max="1" step="0.05" [ngModel]="bulkFractions().cod" (ngModelChange)="setBulkFraction('cod', $event)" aria-label="Share of materials without a structure to look up" /></label>
+                        <button class="button primary" type="button" [disabled]="isBusy('cod', 'cod_import') || isSubmitting('cod:bulk')" (click)="fetchBulkStructures()">{{ isSubmitting('cod:bulk') ? 'Starting…' : 'Fetch structures' }}</button>
+                    </div>
+                    <p class="run-note result-note">Searches COD by name for stored materials without a structure. Only an exact, unique name match is imported and linked; materials with no match or several candidates are skipped and listed under Acquisitions → Details. Many materials have no COD entry.</p>
+                } @else {
+                <div class="query-row">
+                    <label class="query-field query-select"><span>Search by</span><select [(ngModel)]="codQueryType" aria-label="COD query type"><option value="text">Text</option><option value="formula">Formula</option><option value="id">COD ID</option></select></label>
+                    <label class="query-field"><span>Query</span><input id="acquire-cod-query" [(ngModel)]="codQuery" placeholder="Text, formula, or COD ID" (keyup.enter)="searchStructures()" /></label>
                     <button class="button primary" type="button" [disabled]="codSearching() || !codQuery.trim()" (click)="searchStructures()">{{ codSearching() ? 'Searching…' : 'Search' }}</button>
                 </div>
                 @if (codResults().length) {
@@ -213,6 +288,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                         (pageChange)="setCodPage($event)"
                         (pageSizeChange)="setCodPageSize($event)"
                     />
+                    @if (codResults().length > 1) { <p class="run-note result-note">Several structures match; one material can have many entries. Select the ones to import.</p> }
                     <div class="cod-import-bar">
                         @if (codLinkMaterial(); as material) {
                             <p class="target-chip">Link imports to <strong>{{ material.name }}</strong><button class="text-button" type="button" (click)="codLinkMaterial.set(null)">Change</button></p>
@@ -222,7 +298,8 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                         <button class="button primary" type="button" [disabled]="!selectedCodIds().length || isSubmitting('cod:import')" (click)="importStructures()">{{ isSubmitting('cod:import') ? 'Starting…' : 'Import selected (' + selectedCodIds().length + ')' }}</button>
                     </div>
                 } @else if (codSearchCompleted()) {
-                    <p class="empty-inline" role="status">No matching COD records. Try a narrower query.</p>
+                    <p class="empty-inline" role="status">No matching COD records. Not every material has a published structure; try a narrower query.</p>
+                }
                 }
             </section>
         </div>
@@ -420,6 +497,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runsDialog = viewChild<ElementRef<HTMLDialogElement>>('runsDialog');
+    private readonly targeted = viewChild<NistTargetedSearchComponent>('targeted');
     protected readonly runsOpen = signal(false);
     protected readonly runError = signal<string | null>(null);
     private previousOverflow: string | null = null;
@@ -449,6 +527,15 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     protected readonly pollError = signal<string | null>(null);
     protected readonly error = signal<string | null>(null);
     private readonly pendingSubmissions = signal<ReadonlySet<string>>(new Set());
+
+    protected readonly nistMode = signal<'bulk' | 'targeted'>('bulk');
+    protected readonly pubchemMode = signal<'single' | 'bulk'>('single');
+    protected readonly codMode = signal<'single' | 'bulk'>('single');
+    protected readonly overview = signal<PublicDataOverviewResponse | null>(null);
+    protected readonly bulkFractions = signal({ pubchem: 1, cod: 1 });
+    protected readonly pubchemLooking = signal(false);
+    protected readonly pubchemResults = signal<ChemicalLookupItem[]>([]);
+    protected readonly pubchemMessage = signal<string | null>(null);
 
     protected pubchemQuery = '';
     protected readonly pubchemTarget = signal<{ id: number; name: string } | null>(null);
@@ -500,6 +587,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
             this.codLinkMaterial.set({ id: materialId, name: params.get('material_name') ?? `material ${materialId}` });
         }
         void this.refreshCollections();
+        void this.refreshOverview();
         void this.refreshRuns();
     }
 
@@ -650,19 +738,52 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         );
     }
 
-    protected async resolveCompound(): Promise<void> {
+    protected async lookupCompound(): Promise<void> {
         const query = this.pubchemQuery.trim();
         if (!query) return;
-        await this.queue('pubchem:resolve', () => resolvePubChem(query, this.pubchemTarget()?.id));
-        this.pubchemQuery = '';
+        this.pubchemLooking.set(true);
+        this.pubchemResults.set([]);
+        this.pubchemMessage.set(null);
+        this.error.set(null);
+        try {
+            const result = await lookupChemicals(query);
+            if (!result.data) {
+                this.pubchemMessage.set(result.error ?? 'PubChem lookup failed.');
+                return;
+            }
+            this.pubchemResults.set(result.data.items);
+            if (!result.data.items.length) this.pubchemMessage.set('PubChem returned no matching compound.');
+        } finally {
+            this.pubchemLooking.set(false);
+        }
+    }
+
+    protected async importCompound(cid: string): Promise<void> {
+        await this.queue(`pubchem:resolve:${cid}`, () => resolvePubChem(cid, this.pubchemTarget()?.id));
         this.pubchemTarget.set(null);
     }
 
     protected enrichChemicals(): Promise<void> {
-        return this.queue(
-            'pubchem:enrich',
-            () => startPublicDataSync({ source_key: 'pubchem', operation: 'pubchem_enrich' }),
-        );
+        return this.queue('pubchem:enrich', () => startChemicalEnrichment(this.bulkFractions().pubchem));
+    }
+
+    protected fetchBulkStructures(): Promise<void> {
+        return this.queue('cod:bulk', () => startBulkStructures(this.bulkFractions().cod));
+    }
+
+    protected async fetchTargeted(identifiers: string[]): Promise<void> {
+        await this.queue('nist:targeted', () => fetchNistIsotherms(identifiers));
+        this.targeted()?.reset();
+    }
+
+    protected setBulkFraction(key: 'pubchem' | 'cod', value: number | string): void {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) return;
+        this.bulkFractions.update((current) => ({ ...current, [key]: parsed }));
+    }
+
+    protected percent(part: number, total: number): number {
+        return total > 0 ? Math.min(100, Math.round((part / total) * 100)) : 0;
     }
 
     protected async searchStructures(): Promise<void> {
@@ -723,6 +844,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
 
     protected refreshAll(): void {
         void this.refreshCollections();
+        void this.refreshOverview();
         void this.refreshRuns();
     }
 
@@ -814,10 +936,14 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     protected operationLabel(run: PublicDataSyncRun): string {
         const category = COLLECTIONS.find((item) => item.category === run.parameters['category'])?.label ?? 'collection';
         switch (run.operation) {
-            case 'nist_category': return `NIST fetch · ${category}`;
+            case 'nist_category': {
+                const picked = run.parameters['identifiers'] as string[] | undefined;
+                return picked ? `NIST targeted fetch · ${picked.length} isotherms` : `NIST fetch · ${category}`;
+            }
             case 'pubchem_resolve': return `PubChem · ${String(run.parameters['query'] ?? 'compound')}`;
             case 'pubchem_enrich': return 'PubChem enrichment of stored chemicals';
             case 'cod_import': {
+                if ('fraction' in run.parameters) return 'COD structures for stored materials';
                 const ids = (run.parameters['cod_ids'] as string[] | undefined) ?? [String(run.parameters['cod_id'] ?? '')];
                 return ids.length === 1 ? `COD import · ${ids[0]}` : `COD import · ${ids.length} structures`;
             }
@@ -848,7 +974,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     }
 
     protected pendingCount(run: PublicDataSyncRun): number {
-        if (this.isActive(run) || run.operation === 'cod_import') return 0;
+        if (this.isActive(run) || (run.operation === 'cod_import' && !('fraction' in run.parameters))) return 0;
         return Number(run.checkpoint['pending_count'] ?? 0);
     }
 
@@ -867,6 +993,11 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         if (this.destroyed) return;
         if (result.data) this.collections.set(result.data.collections);
         else this.error.set(result.error);
+    }
+
+    private async refreshOverview(): Promise<void> {
+        const result = await fetchPublicOverview();
+        if (!this.destroyed && result.data) this.overview.set(result.data);
     }
 
     private async refreshRuns(): Promise<void> {
@@ -900,6 +1031,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         if (finished.some((run) => run.source_key === 'nist')) {
             void this.refreshCollections();
         }
+        if (finished.length) void this.refreshOverview();
         if (finished.length) {
             await this.refreshHistoryOnly();
         }
@@ -956,8 +1088,9 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
             this.upsertRun(run);
             if (this.isActive(run)) {
                 this.schedulePoll(POLL_INTERVAL_MS);
-            } else if (run.source_key === 'nist') {
-                void this.refreshCollections();
+            } else {
+                if (run.source_key === 'nist') void this.refreshCollections();
+                void this.refreshOverview();
             }
         } finally {
             this.markSubmitting(key, false);

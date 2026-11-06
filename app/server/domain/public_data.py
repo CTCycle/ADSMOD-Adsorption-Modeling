@@ -45,6 +45,13 @@ class PublicDataOverviewResponse(BaseModel):
     materials: int = Field(ge=0)
     chemicals: int = Field(ge=0)
     structures: int = Field(ge=0)
+    # Local coverage for providers that publish no reliable catalogue total:
+    # PubChem identities over all stored species, COD structures over all
+    # stored adsorbent materials.
+    species_total: int = Field(default=0, ge=0)
+    species_enriched: int = Field(default=0, ge=0)
+    materials_total: int = Field(default=0, ge=0)
+    materials_with_structure: int = Field(default=0, ge=0)
     active_sync_runs: int = Field(default=0, ge=0)
     failed_sync_runs: int = Field(default=0, ge=0)
     latest_successful_sync_at: datetime | None = None
@@ -83,19 +90,23 @@ class PublicDataSyncCreateRequest(BaseModel):
     cod_ids: list[str] | None = Field(default=None, min_length=1, max_length=50)
     adsorbent_id: int | None = Field(default=None, ge=1)
     overwrite_local_edits: bool = False
+    identifiers: list[str] | None = Field(default=None, min_length=1, max_length=200)
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_operation_parameters(self) -> "PublicDataSyncCreateRequest":
+        # COD imports either name explicit identifiers or run in bulk over the
+        # local materials that have no structure yet (selected by `fraction`).
+        cod_explicit = (self.cod_id is not None) != (self.cod_ids is not None)
+        cod_bulk = (
+            self.cod_id is None and self.cod_ids is None and self.fraction is not None
+        )
         required = {
             "nist_index": ("nist", self.category is not None),
             "nist_category": ("nist", self.category is not None),
             "pubchem_resolve": ("pubchem", bool(self.query and self.query.strip())),
             "pubchem_enrich": ("pubchem", True),
-            "cod_import": (
-                "cod",
-                (self.cod_id is not None) != (self.cod_ids is not None),
-            ),
+            "cod_import": ("cod", cod_explicit or cod_bulk),
         }
         source, has_value = required[self.operation]
         if source != self.source_key or not has_value:
@@ -104,6 +115,14 @@ class PublicDataSyncCreateRequest(BaseModel):
             )
         if self.query is not None:
             self.query = self.query.strip()
+        if self.identifiers is not None:
+            if self.operation != "nist_category":
+                raise ValueError("identifiers apply only to nist_category runs.")
+            self.identifiers = [item.strip() for item in self.identifiers]
+            if any(not item for item in self.identifiers) or len(
+                {item.lower() for item in self.identifiers}
+            ) != len(self.identifiers):
+                raise ValueError("identifiers must be unique and not empty.")
         if self.cod_ids is not None:
             if len(set(self.cod_ids)) != len(self.cod_ids):
                 raise ValueError("cod_ids must not contain duplicate identifiers.")
@@ -119,14 +138,26 @@ class PublicDataSyncCreateRequest(BaseModel):
         """Return only the parameters the selected operation uses."""
         fields = {
             "nist_index": ("category",),
-            "nist_category": ("category", "fraction", "overwrite_local_edits"),
+            "nist_category": (
+                "category",
+                "fraction",
+                "identifiers",
+                "overwrite_local_edits",
+            ),
             "pubchem_resolve": ("query", "adsorbate_id"),
-            "pubchem_enrich": (),
-            "cod_import": ("cod_id", "cod_ids", "adsorbent_id"),
+            "pubchem_enrich": ("fraction",),
+            "cod_import": ("cod_id", "cod_ids", "adsorbent_id", "fraction"),
         }[self.operation]
         values = {name: getattr(self, name) for name in fields}
-        if self.operation == "nist_category" and values["fraction"] is None:
-            values["fraction"] = 1.0
+        if self.operation == "nist_category":
+            if values["identifiers"] is not None:
+                values["fraction"] = None
+            elif values["fraction"] is None:
+                values["fraction"] = 1.0
+        if self.operation == "cod_import" and (
+            self.cod_id is not None or self.cod_ids is not None
+        ):
+            values["fraction"] = None
         if not values.get("overwrite_local_edits"):
             values.pop("overwrite_local_edits", None)
         return {key: value for key, value in values.items() if value is not None}
@@ -228,6 +259,38 @@ class NISTCollectionListResponse(BaseModel):
     collections: list[NISTCollectionView]
 
 ###############################################################################
+class NISTSearchItem(BaseModel):
+    filename: str
+    doi: str | None = None
+    adsorbent_name: str | None = None
+    adsorbent_hashkey: str | None = None
+    adsorbate_names: list[str] = Field(default_factory=list)
+    adsorbate_inchi_keys: list[str] = Field(default_factory=list)
+    temperature_k: float | None = None
+    local: bool = False
+
+###############################################################################
+class NISTSearchResponse(BaseModel):
+    items: list[NISTSearchItem]
+    total: int = Field(ge=0)
+
+###############################################################################
+class ChemicalLookupItem(BaseModel):
+    cid: str
+    name: str
+    formula: str | None = None
+    molecular_weight: float | None = None
+    inchi_key: str | None = None
+    smiles: str | None = None
+    source_url: str
+    structure_2d_url: str | None = None
+    local_adsorbate_id: int | None = None
+
+###############################################################################
+class ChemicalLookupResponse(BaseModel):
+    items: list[ChemicalLookupItem]
+
+###############################################################################
 class NISTEditedExperimentsResponse(BaseModel):
     count: int = Field(ge=0)
 
@@ -276,6 +339,10 @@ class StructurePageResponse(BaseModel):
 
 
 __all__ = [
+    "ChemicalLookupItem",
+    "ChemicalLookupResponse",
+    "NISTSearchItem",
+    "NISTSearchResponse",
     "CODSearchResponse",
     "CODSearchResult",
     "EntityReference",

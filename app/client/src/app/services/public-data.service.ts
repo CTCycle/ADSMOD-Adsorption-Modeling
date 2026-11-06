@@ -3,7 +3,9 @@
 
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type {
+    ChemicalLookupResponse,
     CODSearchResponse,
+    NISTSearchResponse,
     NISTCollectionListResponse,
     NISTEditedExperimentsResponse,
     PublicDataOverviewResponse,
@@ -64,6 +66,39 @@ export function fetchNistEditedExperiments(): Promise<ApiResult<NISTEditedExperi
 
 export function fetchNistCollections(): Promise<ApiResult<NISTCollectionListResponse>> {
     return requestJson('/public-data/sources/nist/collections');
+}
+
+export function searchNistIsotherms(params: {
+    adsorbate?: string;
+    adsorbent?: string;
+    experiment?: string;
+    temperature_min?: number | null;
+    temperature_max?: number | null;
+    limit?: number;
+    offset?: number;
+}): Promise<ApiResult<NISTSearchResponse>> {
+    return requestJson(`/public-data/sources/nist/search${queryString(params)}`);
+}
+
+export function lookupChemicals(q: string): Promise<ApiResult<ChemicalLookupResponse>> {
+    return requestJson(`/public-data/chemicals/lookup${queryString({ q })}`);
+}
+
+export function fetchNistIsotherms(identifiers: string[]): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({
+        source_key: 'nist',
+        operation: 'nist_category',
+        category: 'experiments',
+        identifiers,
+    });
+}
+
+export function enrichChemicals(fraction: number): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({ source_key: 'pubchem', operation: 'pubchem_enrich', fraction });
+}
+
+export function fetchBulkStructures(fraction: number): Promise<ApiResult<PublicDataSyncRun>> {
+    return startPublicDataSync({ source_key: 'cod', operation: 'cod_import', fraction });
 }
 
 export function startPublicDataSync(request: PublicDataSyncRequest): Promise<ApiResult<PublicDataSyncRun>> {

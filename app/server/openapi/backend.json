@@ -2134,6 +2134,191 @@
         }
       }
     },
+    "/api/v1/public-data/sources/nist/search": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Search Nist",
+        "operationId": "search_nist_api_v1_public_data_sources_nist_search_get",
+        "parameters": [
+          {
+            "name": "adsorbate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Adsorbate"
+            }
+          },
+          {
+            "name": "adsorbent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Adsorbent"
+            }
+          },
+          {
+            "name": "experiment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Experiment"
+            }
+          },
+          {
+            "name": "temperature_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Temperature Min"
+            }
+          },
+          {
+            "name": "temperature_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Temperature Max"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NISTSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public-data/chemicals/lookup": {
+      "get": {
+        "tags": [
+          "public-data"
+        ],
+        "summary": "Lookup Chemicals",
+        "operationId": "lookup_chemicals_api_v1_public_data_chemicals_lookup_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChemicalLookupResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/public-data/sync-runs": {
       "get": {
         "tags": [
@@ -4208,6 +4393,111 @@
           "checkpoints"
         ],
         "title": "CheckpointsResponse"
+      },
+      "ChemicalLookupItem": {
+        "properties": {
+          "cid": {
+            "type": "string",
+            "title": "Cid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula"
+          },
+          "molecular_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Molecular Weight"
+          },
+          "inchi_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inchi Key"
+          },
+          "smiles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smiles"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "structure_2d_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure 2D Url"
+          },
+          "local_adsorbate_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Adsorbate Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cid",
+          "name",
+          "source_url"
+        ],
+        "title": "ChemicalLookupItem"
+      },
+      "ChemicalLookupResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChemicalLookupItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ChemicalLookupResponse"
       },
       "ColumnDetection": {
         "properties": {
@@ -8405,6 +8695,104 @@
         ],
         "title": "NISTEditedExperimentsResponse"
       },
+      "NISTSearchItem": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "doi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doi"
+          },
+          "adsorbent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbent Name"
+          },
+          "adsorbent_hashkey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adsorbent Hashkey"
+          },
+          "adsorbate_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adsorbate Names"
+          },
+          "adsorbate_inchi_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adsorbate Inchi Keys"
+          },
+          "temperature_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature K"
+          },
+          "local": {
+            "type": "boolean",
+            "title": "Local",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename"
+        ],
+        "title": "NISTSearchItem"
+      },
+      "NISTSearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NISTSearchItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "NISTSearchResponse"
+      },
       "NormalizedExperimentPreview": {
         "properties": {
           "external_key": {
@@ -9013,6 +9401,30 @@
             "minimum": 0.0,
             "title": "Structures"
           },
+          "species_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Species Total",
+            "default": 0
+          },
+          "species_enriched": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Species Enriched",
+            "default": 0
+          },
+          "materials_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Materials Total",
+            "default": 0
+          },
+          "materials_with_structure": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Materials With Structure",
+            "default": 0
+          },
           "active_sync_runs": {
             "type": "integer",
             "minimum": 0.0,
@@ -9167,6 +9579,22 @@
             "type": "boolean",
             "title": "Overwrite Local Edits",
             "default": false
+          },
+          "identifiers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 200,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifiers"
           }
         },
         "type": "object",

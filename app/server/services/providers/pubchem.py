@@ -123,6 +123,62 @@ class PubChemProvider(RetryingHttpProvider):
         return composition
 
     # -------------------------------------------------------------------------
+    async def candidates(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Preview compounds matching `query` without importing anything.
+
+        A name can match several compounds; the leading `limit` CIDs are
+        returned with identity fields so the user can choose one.
+        """
+        namespace, value = self._namespace(query)
+        if not value:
+            raise ValueError("PubChem query must not be empty.")
+        cids = [value] if namespace == "cid" else await self._candidate_cids(
+            namespace, value, limit
+        )
+        response = await self._request(
+            "GET",
+            f"{self.base_url}/compound/cid/{','.join(cids)}/property/"
+            "Title,MolecularFormula,MolecularWeight,InChIKey,SMILES/JSON",
+        )
+        try:
+            rows = response.json().get("PropertyTable", {}).get("Properties", [])
+        except ValueError as exc:
+            raise ProviderUnavailableError("PubChem returned malformed JSON.") from exc
+        return [
+            {
+                "cid": str(row["CID"]),
+                "name": str(row.get("Title") or row.get("CID")),
+                "formula": row.get("MolecularFormula") or None,
+                "molecular_weight": self._number(row.get("MolecularWeight")),
+                "inchi_key": row.get("InChIKey") or None,
+                "smiles": row.get("SMILES") or None,
+                "source_url": f"https://pubchem.ncbi.nlm.nih.gov/compound/{row['CID']}",
+                "structure_2d_url": (
+                    f"{self.base_url}/compound/cid/{row['CID']}/PNG?image_size=300x300"
+                ),
+            }
+            for row in rows
+            if row.get("CID") is not None
+        ]
+
+    # -------------------------------------------------------------------------
+    async def _candidate_cids(
+        self, namespace: str, value: str, limit: int
+    ) -> list[str]:
+        response = await self._request(
+            "GET",
+            f"{self.base_url}/compound/{namespace}/{quote(value, safe='')}/cids/JSON",
+        )
+        try:
+            cids = response.json().get("IdentifierList", {}).get("CID", [])
+        except ValueError as exc:
+            raise ProviderUnavailableError("PubChem returned malformed JSON.") from exc
+        selected = [str(cid) for cid in cids if int(cid) > 0][:limit]
+        if not selected:
+            raise ProviderNotFoundError(f"PubChem could not resolve {value!r}.")
+        return selected
+
+    # -------------------------------------------------------------------------
     async def resolve(self, query: str) -> dict[str, Any]:
         namespace, value = self._namespace(query)
         if not value:

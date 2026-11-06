@@ -521,6 +521,10 @@ def test_overview_counts_use_one_local_query() -> None:
             "chemicals": 2,
             # Seeded structures have no provider record, so they are not public data.
             "structures": 0,
+            "species_total": 2,
+            "species_enriched": 0,
+            "materials_total": 2,
+            "materials_with_structure": 2,
             "active_sync_runs": 0,
             "failed_sync_runs": 0,
             "latest_successful_sync_at": None,

@@ -47,6 +47,10 @@ export interface PublicDataOverviewResponse {
     materials: number;
     chemicals: number;
     structures: number;
+    species_total: number;
+    species_enriched: number;
+    materials_total: number;
+    materials_with_structure: number;
     active_sync_runs: number;
     failed_sync_runs: number;
     latest_successful_sync_at: string | null;
@@ -62,7 +66,40 @@ export interface PublicDataSyncRequest {
     cod_id?: string;
     cod_ids?: string[];
     adsorbent_id?: number;
+    identifiers?: string[];
     overwrite_local_edits?: boolean;
+}
+
+export interface NISTSearchItem {
+    filename: string;
+    doi: string | null;
+    adsorbent_name: string | null;
+    adsorbent_hashkey: string | null;
+    adsorbate_names: string[];
+    adsorbate_inchi_keys: string[];
+    temperature_k: number | null;
+    local: boolean;
+}
+
+export interface NISTSearchResponse {
+    items: NISTSearchItem[];
+    total: number;
+}
+
+export interface ChemicalLookupItem {
+    cid: string;
+    name: string;
+    formula: string | null;
+    molecular_weight: number | null;
+    inchi_key: string | null;
+    smiles: string | null;
+    source_url: string;
+    structure_2d_url: string | null;
+    local_adsorbate_id: number | null;
+}
+
+export interface ChemicalLookupResponse {
+    items: ChemicalLookupItem[];
 }
 
 export interface NISTEditedExperimentsResponse {

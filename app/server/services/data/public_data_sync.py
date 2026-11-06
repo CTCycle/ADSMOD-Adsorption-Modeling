@@ -265,6 +265,10 @@ class PublicDataSyncCoordinator:
         ]
 
     # -------------------------------------------------------------------------
+    async def search_nist(self, **filters: Any) -> dict[str, Any]:
+        return await self.nist.search_experiments(**filters)
+
+    # -------------------------------------------------------------------------
     async def _worker_loop(self, worker_index: int) -> None:
         worker = asyncio.current_task()
         while not self._closing and worker_index < self._target_worker_count:
@@ -561,10 +565,13 @@ class PublicDataSyncCoordinator:
         parameters = dict(run["parameters"])
         run_checkpoint = dict(run.get("checkpoint", {}))
         config, _, nist = self._active_settings()
+        if parameters.get("identifiers") and parameters["category"] == "experiments":
+            await nist.sync_targeted_dependencies(list(parameters["identifiers"]))
 
         result = await nist.sync_category_records(
             category=str(parameters["category"]),
             fraction=float(parameters.get("fraction", 1.0)),
+            identifiers=parameters.get("identifiers"),
             overwrite_local_edits=bool(parameters.get("overwrite_local_edits", False)),
             batch_size=config.sync_batch_size,
             max_records=config.sync_max_records_per_run,
@@ -625,6 +632,7 @@ class PublicDataSyncCoordinator:
         candidates = await asyncio.to_thread(
             self.repository.pubchem_enrichment_candidates,
             config.sync_max_records_per_run,
+            float(run["parameters"].get("fraction", 1.0)),
         )
         counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
         entity_ids: list[int] = []
@@ -681,6 +689,10 @@ class PublicDataSyncCoordinator:
         should_cancel: CancelCheck,
     ) -> dict[str, Any]:
         parameters = dict(run["parameters"])
+        if "cod_id" not in parameters and "cod_ids" not in parameters:
+            return await self._run_cod_bulk(
+                run, on_progress=on_progress, should_cancel=should_cancel
+            )
         requested_ids = parameters.get("cod_ids") or [parameters["cod_id"]]
         config, public_data, _ = self._active_settings()
         selected_ids = [
@@ -741,6 +753,73 @@ class PublicDataSyncCoordinator:
                     0,
                     len(requested_ids) - (processed_before + counts["processed"]),
                 ),
+            },
+        }
+
+    # -------------------------------------------------------------------------
+    async def _run_cod_bulk(
+        self,
+        run: dict[str, Any],
+        *,
+        on_progress: ProgressCallback,
+        should_cancel: CancelCheck,
+    ) -> dict[str, Any]:
+        """Look up COD structures for stored materials that have none.
+
+        Only exact, unique name matches are imported and linked; unavailable
+        and ambiguous materials are recorded as skips and not retried.
+        """
+        run_id = str(run["id"])
+        config, public_data, _ = self._active_settings()
+        candidates = await asyncio.to_thread(
+            self.repository.cod_bulk_candidates,
+            config.sync_max_records_per_run,
+            float(run["parameters"]["fraction"]),
+        )
+        counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
+        entity_ids: list[int] = []
+        for candidate in candidates:
+            if await should_cancel():
+                break
+            external_id = f"adsorbent:{candidate['id']}"
+            try:
+                structure_id, imported, reason = await public_data.import_cod_for_material(
+                    int(candidate["id"]), str(candidate["name"])
+                )
+            except (ProviderError, ValueError, LookupError) as exc:
+                counts["failed"] += 1
+                await self._store_failure(
+                    run_id,
+                    "cod",
+                    external_id,
+                    f"{candidate['name']}: {exc or exc.__class__.__name__}",
+                    self._retry_time(exc),
+                )
+            else:
+                if structure_id is None:
+                    counts["skipped"] += 1
+                    await self._store_skip(
+                        run_id, "cod", external_id, f"{candidate['name']}: {reason}"
+                    )
+                else:
+                    entity_ids.append(structure_id)
+                    counts["imported" if imported else "skipped"] += 1
+            counts["processed"] += 1
+            await on_progress(
+                {
+                    "progress": 100.0 * counts["processed"] / len(candidates),
+                    **{f"{key}_count": value for key, value in counts.items()},
+                    "pending_count": len(candidates) - counts["processed"],
+                    "last_external_id": external_id,
+                    "entity_ids": entity_ids,
+                }
+            )
+        return {
+            **{f"{key}_count": value for key, value in counts.items()},
+            "checkpoint": {
+                "entity_ids": entity_ids,
+                "candidate_count": len(candidates),
+                "pending_count": len(candidates) - counts["processed"],
             },
         }
 

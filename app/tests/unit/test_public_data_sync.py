@@ -998,3 +998,164 @@ def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
     assert updates == [
         ("run-claimed-at-shutdown", {"status": "queued", "started_at": None})
     ]
+
+###############################################################################
+def test_nist_search_joins_indexes_by_name_synonym_and_experiment() -> None:
+    class _Repository:
+        @staticmethod
+        def list_nist_experiment_ids() -> set[str]:
+            return {"iso-1"}
+
+    service = NISTDataService(None, _Repository(), None)  # type: ignore[arg-type]
+    service._search_cache = {
+        "at": 10**12,
+        "experiments": [
+            {
+                "filename": "ISO-1",
+                "DOI": "10.1/abc",
+                "adsorbent": {"hashkey": "H1"},
+                "adsorbates": [{"InChIKey": "K-CO2"}],
+                "temperature": 298,
+            },
+            {
+                "filename": "iso-2",
+                "DOI": "10.1/xyz",
+                "adsorbent": {"hashkey": "H2"},
+                "adsorbates": [{"InChIKey": "K-CH4"}],
+                "temperature": 350,
+            },
+        ],
+        "guests": {
+            "K-CO2": ("Carbon Dioxide", ["carbon dioxide", "co2"]),
+            "K-CH4": ("Methane", ["methane"]),
+        },
+        "hosts": {"H1": ("ZIF-8", ["zif-8"]), "H2": ("MOF-5", ["mof-5"])},
+    }
+
+    async def search(**filters: Any) -> dict[str, Any]:
+        base = {
+            "adsorbate": None,
+            "adsorbent": None,
+            "experiment": None,
+            "temperature_min": None,
+            "temperature_max": None,
+            "limit": 25,
+            "offset": 0,
+        }
+        return await service.search_experiments(**{**base, **filters})
+
+    async def scenario() -> None:
+        by_synonym = await search(adsorbate="CO2")
+        assert [item["filename"] for item in by_synonym["items"]] == ["ISO-1"]
+        assert by_synonym["items"][0]["adsorbate_names"] == ["Carbon Dioxide"]
+        assert by_synonym["items"][0]["adsorbent_name"] == "ZIF-8"
+        assert by_synonym["items"][0]["local"] is True
+
+        by_material = await search(adsorbent="mof-5")
+        assert [item["filename"] for item in by_material["items"]] == ["iso-2"]
+        assert by_material["items"][0]["local"] is False
+
+        by_doi = await search(experiment="10.1/", temperature_min=300)
+        assert by_doi["total"] == 1
+        assert by_doi["items"][0]["filename"] == "iso-2"
+
+        partial = await search(adsorbent="zif")
+        assert [item["filename"] for item in partial["items"]] == ["ISO-1"]
+
+        with pytest.raises(ValueError):
+            await search()
+
+    asyncio.run(scenario())
+
+###############################################################################
+def test_targeted_nist_request_replaces_fraction_with_identifiers() -> None:
+    request = PublicDataSyncCreateRequest.model_validate(
+        {
+            "source_key": "nist",
+            "operation": "nist_category",
+            "category": "experiments",
+            "fraction": 0.5,
+            "identifiers": ["iso-1", "iso-2"],
+        }
+    )
+    assert request.parameters() == {
+        "category": "experiments",
+        "identifiers": ["iso-1", "iso-2"],
+    }
+    service = NISTDataService(None, None, None)  # type: ignore[arg-type]
+    index = __import__("pandas").DataFrame({"filename": ["ISO-1", "iso-2", "iso-3"]})
+    assert service.select_identifiers(index, "filename", 1.0, ["iso-1", "gone"]) == (
+        ["ISO-1"],
+        3,
+    )
+
+###############################################################################
+def test_cod_bulk_imports_only_unique_exact_matches_and_remembers_the_rest(
+    tmp_path: Path,
+) -> None:
+    from server.repositories.schemas.models import Adsorbent
+    from server.services.providers.cod import CODProvider
+
+    async def scenario() -> None:
+        manager = _database(tmp_path)
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        with manager.transaction() as session:
+            for name in ("Alpha-MOF", "Beta-MOF", "Gamma-MOF", "Delta-MOF"):
+                session.add(Adsorbent(key=name.lower(), name=name))
+        provider = CODProvider(
+            request_timeout_seconds=5.0, retry_attempts=1, max_interactive_results=250
+        )
+        catalogue = {
+            "Alpha-MOF": [{"cod_id": "1000001", "name": "alpha-mof"}],
+            "Beta-MOF": [
+                {"cod_id": "1000002", "name": "Beta-MOF"},
+                {"cod_id": "1000003", "name": "Beta-MOF"},
+            ],
+            "Gamma-MOF": [],
+            "Delta-MOF": [{"cod_id": "1000004", "name": None}],
+        }
+
+        async def search(**kwargs: Any) -> list[dict[str, Any]]:
+            return catalogue[kwargs["text"]]
+
+        provider.search = search  # type: ignore[method-assign]
+        public_data = PublicDataService(repository=repository, providers=[provider])
+        linked: list[tuple[str, int | None]] = []
+
+        async def import_cod(cod_id: str, adsorbent_id: int | None = None) -> Any:
+            linked.append((cod_id, adsorbent_id))
+            return len(linked), True
+
+        public_data.import_cod = import_cod  # type: ignore[method-assign]
+        coordinator = PublicDataSyncCoordinator(
+            repository=repository,
+            public_data=public_data,
+            nist=_Nist(),  # type: ignore[arg-type]
+            config=PublicDataConfig(),
+        )
+        await coordinator.start()
+        try:
+            queued = await coordinator.enqueue(
+                source_key="cod",
+                operation="cod_import",
+                parameters={"fraction": 1.0},
+            )
+            run = await _wait_for_terminal(coordinator, queued["id"])
+            failures, _ = await coordinator.failures(run["id"], limit=10, offset=0)
+
+            assert run["status"] == "completed"
+            assert (run["processed_count"], run["imported_count"]) == (4, 1)
+            assert run["skipped_count"] == 3
+            assert linked == [("1000001", 1)]
+            assert any("Ambiguous" in item["reason"] for item in failures)
+            assert any("No COD structure" in item["reason"] for item in failures)
+            # Settled outcomes are not retried; only the unlinked match remains.
+            remaining = repository.cod_bulk_candidates(10)
+            assert [item["name"] for item in remaining] == ["Alpha-MOF"]
+        finally:
+            await coordinator.close()
+            await public_data.close()
+            manager.dispose()
+
+    asyncio.run(scenario())

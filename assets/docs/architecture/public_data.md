@@ -1,6 +1,6 @@
 # Public data architecture
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 ## Scope
 
@@ -158,6 +158,8 @@ Key endpoints:
 - `GET /overview`
 - `GET /sources`
 - `GET /sources/nist/collections`: stored and last-indexed available counts per NIST collection
+- `GET /sources/nist/search`: targeted isotherm search by adsorbate, adsorbent, or experiment (filename or DOI) with an optional temperature range; paginated, and flags isotherms already stored. NIST has no server-side search (its index endpoints ignore query parameters), so the service joins the three downloaded indexes (isotherms, gases, materials) locally and caches them for ten minutes. Names match exactly (name, synonym, InChIKey, or hashkey) when any exact match exists, otherwise by name substring.
+- `GET /chemicals/lookup`: non-persisting PubChem preview (up to five candidate compounds, flagged when already stored) used before an import
 - `GET /sources/nist/edited-experiments`: number of NIST experiments edited locally, used to confirm a re-download
 - `POST /sources/{source_key}/health-check` (HTTP 202)
 - `GET /sync-runs`, `POST /sync-runs` (HTTP 202), `GET /sync-runs/{run_id}`
@@ -172,12 +174,14 @@ All provider acquisition runs through `POST /sync-runs`. There are no synchronou
 | Operation | Source | Parameters | Effect |
 | --- | --- | --- | --- |
 | `nist_index` | `nist` | `category` | Counts the records NIST publishes for one collection. It is a probe, not an acquisition: `NON_ACQUISITION_OPERATIONS` (this and `health_check`) are excluded from history/active run lists and overview counters, while the newest result still feeds collection coverage. |
-| `nist_category` | `nist` | `category`, `fraction`, optional `overwrite_local_edits` | Fetches not-yet-stored records from the leading share of the index, in batches. With `overwrite_local_edits`, locally edited NIST experiments in that share are fetched again and restored from source in place (same experiment id); without it they are skipped. |
+| `nist_category` | `nist` | `category`, `fraction` or `identifiers` (≤200 isotherm filenames, experiments only), optional `overwrite_local_edits` | Fetches not-yet-stored records from the leading share of the index, or exactly the listed records (targeted acquisition; the compounds and materials they reference are stored first), in batches. With `overwrite_local_edits`, locally edited NIST experiments in that share are fetched again and restored from source in place (same experiment id); without it they are skipped. |
 | `pubchem_resolve` | `pubchem` | `query`, optional `adsorbate_id` | Resolves one compound. With `adsorbate_id`, the CID is attached to that chemical. |
-| `pubchem_enrich` | `pubchem` | — | Resolves stored chemicals without PubChem identity by InChIKey or name, bounded per run. |
-| `cod_import` | `cod` | `cod_id` or `cod_ids` (≤50), optional `adsorbent_id` | Imports CIF records and optionally links them to a material. |
+| `pubchem_enrich` | `pubchem` | optional `fraction` | Resolves the leading share of stored chemicals without PubChem identity by InChIKey or name, bounded per run. |
+| `cod_import` | `cod` | `cod_id` or `cod_ids` (≤50), optional `adsorbent_id`; or `fraction` (bulk) | Imports CIF records and optionally links them to a material. In bulk mode it searches COD by name for the leading share of stored materials that have no structure and no earlier final outcome. Only an exact, unique name match is imported and linked; no match or several candidates are recorded as skips (with candidate COD IDs) and are not retried. COD rows often have no chemical name, and one material can have many CIFs, so ambiguity is the common outcome and is resolved manually in single mode. |
 
 Each run stores only the parameters its operation uses. External provider failures are recorded on the run and do not invalidate unrelated providers or local records.
+
+Overview also returns local coverage for providers without a published total: `species_enriched` of `species_total` (PubChem identities over stored species) and `materials_with_structure` of `materials_total`. These are local ratios, not provider catalogue sizes.
 
 The Overview endpoint returns aggregate counts and acquisition summaries from local tables in one database read. It counts provider-backed data only: isotherms and structures with a source record, plus chemicals and materials that have a source record or are used by a provider-backed isotherm. The `source` filter on `/api/v1/materials` and `/api/v1/species` uses the same rule. Local materials, species, and acquired isotherms are browsed on the Datasets page; acquired NIST isotherms are experiments of the `NIST ISODB` dataset. `GET /sources` returns provider registration, saved health state, freshness, last successful sync time, and cached counts without contacting providers.
 

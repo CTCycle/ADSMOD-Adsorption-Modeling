@@ -6,9 +6,11 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from server.domain.public_data import (
+    ChemicalLookupResponse,
     CODSearchResponse,
     NISTCollectionListResponse,
     NISTEditedExperimentsResponse,
+    NISTSearchResponse,
     PublicDataSyncCreateRequest,
     PublicDataSyncFailureListResponse,
     PublicDataSyncRunListResponse,
@@ -176,6 +178,46 @@ class PublicDataEndpoint:
         )
 
     # -------------------------------------------------------------------------
+    async def search_nist(
+        self,
+        adsorbate: str | None = Query(default=None, max_length=255),
+        adsorbent: str | None = Query(default=None, max_length=255),
+        experiment: str | None = Query(default=None, max_length=255),
+        temperature_min: float | None = Query(default=None, ge=0),
+        temperature_max: float | None = Query(default=None, ge=0),
+        limit: int = Query(default=25, ge=1, le=100),
+        offset: int = Query(default=0, ge=0),
+    ) -> NISTSearchResponse:
+        try:
+            result = await self.sync.search_nist(
+                adsorbate=adsorbate,
+                adsorbent=adsorbent,
+                experiment=experiment,
+                temperature_min=temperature_min,
+                temperature_max=temperature_max,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
+        return NISTSearchResponse.model_validate(result)
+
+    # -------------------------------------------------------------------------
+    async def lookup_chemicals(
+        self, q: str = Query(min_length=1, max_length=512)
+    ) -> ChemicalLookupResponse:
+        try:
+            return await self.service.lookup_pubchem(q)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
+        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
+            raise self._provider_error(exc) from exc
+
+    # -------------------------------------------------------------------------
     def get_overview(self) -> PublicDataOverviewResponse:
         return self.service.get_overview()
 
@@ -285,6 +327,18 @@ class PublicDataEndpoint:
             self.list_nist_collections,
             methods=["GET"],
             response_model=NISTCollectionListResponse,
+        )
+        self.router.add_api_route(
+            "/sources/nist/search",
+            self.search_nist,
+            methods=["GET"],
+            response_model=NISTSearchResponse,
+        )
+        self.router.add_api_route(
+            "/chemicals/lookup",
+            self.lookup_chemicals,
+            methods=["GET"],
+            response_model=ChemicalLookupResponse,
         )
         self.router.add_api_route(
             "/sync-runs",
