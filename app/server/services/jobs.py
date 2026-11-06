@@ -14,6 +14,7 @@ import subprocess
 import threading
 import uuid
 from collections.abc import Callable
+from datetime import UTC, datetime
 from logging import Logger
 from time import monotonic, sleep
 from typing import Any
@@ -34,6 +35,8 @@ class _JobState:
         self.error: str | None = None
         self.created_at = monotonic()
         self.completed_at: float | None = None
+        self.created_at_utc = datetime.now(UTC)
+        self.completed_at_utc: datetime | None = None
         self.stop_requested = False
         self.lock = threading.Lock()
 
@@ -56,6 +59,8 @@ class _JobState:
                 "error": self.error,
                 "created_at": self.created_at,
                 "completed_at": self.completed_at,
+                "created_at_utc": self.created_at_utc,
+                "completed_at_utc": self.completed_at_utc,
             }
 
 ###############################################################################
@@ -295,6 +300,7 @@ class JobManager:
                 state.stop_requested = True
                 state.status = "cancelled"
                 state.completed_at = monotonic()
+                state.completed_at_utc = datetime.now(UTC)
         if process_state is not None:
             process_state.stop_event.set()
         if thread_stop_event is not None:
@@ -524,6 +530,7 @@ class JobManager:
             "result": result,
             "error": error,
             "completed_at": monotonic(),
+            "completed_at_utc": datetime.now(UTC),
         }
         if status == "completed":
             update_payload["progress"] = 100.0

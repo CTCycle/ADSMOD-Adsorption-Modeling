@@ -7,59 +7,57 @@ import type { NISTSearchItem } from '../../models/public-data.model';
 import { searchNistIsotherms } from '../../services/public-data.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 
-type SearchField = 'adsorbate' | 'adsorbent' | 'experiment';
-
-const FIELDS: { value: SearchField; label: string; placeholder: string }[] = [
-    { value: 'adsorbate', label: 'Compound', placeholder: 'e.g. carbon dioxide, CO2, or an InChIKey' },
-    { value: 'adsorbent', label: 'Adsorbent material', placeholder: 'e.g. ZIF-8 or a NIST material hashkey' },
-    { value: 'experiment', label: 'Experiment', placeholder: 'Isotherm filename or DOI' },
-];
 const MAX_SELECTION = 100;
+const PAGE_SIZE = 25;
 
-/** Targeted NIST acquisition: search the published isotherm index, then fetch only the chosen records. */
+/**
+ * Targeted NIST acquisition: search the published isotherm index, then fetch only the chosen records.
+ * NIST has no server-side search, so every filled criterion is matched locally against the index and
+ * combined (AND). Compound, adsorbent and the isotherm/DOI text each count as an anchor criterion.
+ */
 @Component({
     selector: 'adsmod-nist-targeted-search',
     standalone: true,
     imports: [FormsModule, DataPaginationComponent],
     template: `
         <div class="query-row">
-            <label class="query-field query-select">
-                <span>Search by</span>
-                <select [(ngModel)]="field" aria-label="Search field">
-                    @for (option of fields; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
-                </select>
+            <label class="query-field">
+                <span>Compound</span>
+                <input [(ngModel)]="adsorbate" placeholder="e.g. carbon dioxide, CO2, or an InChIKey" (keyup.enter)="search(1)" />
             </label>
             <label class="query-field">
-                <span>{{ currentField().label }}</span>
-                <input [(ngModel)]="text" [placeholder]="currentField().placeholder" (keyup.enter)="search(1)" />
+                <span>Adsorbent material</span>
+                <input [(ngModel)]="adsorbent" placeholder="e.g. ZIF-8 or a NIST hashkey" (keyup.enter)="search(1)" />
             </label>
-            <button class="button primary" type="button" [disabled]="searching() || !text.trim()" (click)="search(1)">{{ searching() ? 'Searching…' : 'Search' }}</button>
+            <button class="button primary" type="button" [disabled]="searching() || !canSearch()" (click)="search(1)">{{ searching() ? 'Searching…' : 'Search' }}</button>
         </div>
         <details class="advanced-options">
-            <summary>Temperature range (K)</summary>
+            <summary>More filters@if (advancedCount()) { <span class="filter-count">{{ advancedCount() }} active</span> }</summary>
             <div class="advanced-fields">
-                <label class="query-field"><span>Min</span><input type="number" min="0" [(ngModel)]="temperatureMin" aria-label="Minimum temperature in kelvin" /></label>
-                <label class="query-field"><span>Max</span><input type="number" min="0" [(ngModel)]="temperatureMax" aria-label="Maximum temperature in kelvin" /></label>
+                <label class="query-field wide"><span>Isotherm or DOI</span><input [(ngModel)]="experiment" placeholder="Filename or DOI fragment" (keyup.enter)="search(1)" /></label>
+                <label class="query-field"><span>Min T (K)</span><input type="number" min="0" [(ngModel)]="temperatureMin" (keyup.enter)="search(1)" aria-label="Minimum temperature in kelvin" /></label>
+                <label class="query-field"><span>Max T (K)</span><input type="number" min="0" [(ngModel)]="temperatureMax" (keyup.enter)="search(1)" aria-label="Maximum temperature in kelvin" /></label>
+                <button class="button quiet" type="button" (click)="clear()">Clear</button>
             </div>
         </details>
         @if (message(); as text) { <p class="empty-inline" role="status">{{ text }}</p> }
         @if (items().length) {
-            <div class="data-table-frame data-table-frame--compact targeted-frame">
+            <div class="data-table-frame targeted-frame">
                 <table class="data-table targeted-table">
                     <caption class="sr-only">Matching NIST isotherms</caption>
                     <thead><tr>
                         <th class="select-column" scope="col"><input type="checkbox" [checked]="allSelected()" [disabled]="!selectable().length" aria-label="Select all fetchable results" (change)="toggleAll($event)" /></th>
-                        <th scope="col">Isotherm</th><th scope="col">Compound</th><th scope="col">Adsorbent</th><th scope="col">T (K)</th><th scope="col">Status</th>
+                        <th scope="col">Isotherm</th><th scope="col">Compound</th><th scope="col">Adsorbent</th><th class="num" scope="col">T (K)</th><th scope="col">Status</th>
                     </tr></thead>
                     <tbody>
                         @for (item of items(); track item.filename) {
-                            <tr>
+                            <tr [class.selected]="selected().includes(item.filename)">
                                 <td class="select-column"><input type="checkbox" [checked]="selected().includes(item.filename)" [disabled]="item.local" [attr.aria-label]="'Select ' + item.filename" (change)="toggle(item.filename, $event)" /></td>
                                 <td class="truncate-cell" [title]="item.filename + (item.doi ? ' · ' + item.doi : '')">{{ item.filename }}</td>
                                 <td class="truncate-cell" [title]="item.adsorbate_names.join(', ')">{{ item.adsorbate_names.join(', ') || '—' }}</td>
                                 <td class="truncate-cell" [title]="item.adsorbent_name || ''">{{ item.adsorbent_name || '—' }}</td>
-                                <td>{{ item.temperature_k ?? '—' }}</td>
-                                <td>{{ item.local ? 'Stored' : 'Available' }}</td>
+                                <td class="num">{{ item.temperature_k ?? '—' }}</td>
+                                <td><span class="stored-state" [class.stored]="item.local">{{ item.local ? 'Stored' : 'Available' }}</span></td>
                             </tr>
                         }
                     </tbody>
@@ -74,13 +72,19 @@ const MAX_SELECTION = 100;
     `,
     styles: `
         :host { display: grid; gap: 10px; min-width: 0; }
-        .advanced-options summary { cursor: pointer; color: var(--text-secondary, #667085); font-size: 0.74rem; font-weight: 600; }
-        .advanced-fields { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 8px; }
+        .advanced-options summary { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; color: var(--text-secondary, #667085); font-size: 0.74rem; font-weight: 600; }
+        .filter-count { padding: 1px 7px; border-radius: 999px; background: var(--primary-50); color: var(--link); font-size: 0.66rem; }
+        .advanced-fields { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; margin-top: 8px; }
         .advanced-fields .query-field { flex: 0 1 8rem; }
-        .targeted-frame { --data-table-min-width: 640px; }
-        .targeted-table .select-column { width: 40px; }
-        .targeted-table th:nth-child(5) { width: 64px; }
-        .targeted-table th:nth-child(6) { width: 84px; }
+        .advanced-fields .query-field.wide { flex: 1 1 14rem; }
+        .targeted-frame { --data-table-min-width: 680px; max-height: min(54vh, 28rem); }
+        .targeted-table .select-column { width: 2.5rem; }
+        .targeted-table th:nth-child(3) { width: 17%; }
+        .targeted-table th:nth-child(4) { width: 22%; }
+        .targeted-table th:nth-child(5) { width: 4.5rem; }
+        .targeted-table th:nth-child(6) { width: 6rem; }
+        .stored-state { color: var(--text-secondary); }
+        .stored-state.stored { color: var(--success-text); font-weight: 600; }
         .targeted-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; color: var(--text-secondary, #667085); font-size: 0.74rem; }
         .empty-inline { margin: 0; color: var(--text-secondary, #667085); font-size: 0.8rem; }
     `,
@@ -90,10 +94,10 @@ export class NistTargetedSearchComponent {
     readonly fetchSelected = output<string[]>();
     readonly failed = output<string>();
 
-    protected readonly fields = FIELDS;
-    protected readonly pageSize = 10;
-    protected field: SearchField = 'adsorbate';
-    protected text = '';
+    protected readonly pageSize = PAGE_SIZE;
+    protected adsorbate = '';
+    protected adsorbent = '';
+    protected experiment = '';
     protected temperatureMin: number | null = null;
     protected temperatureMax: number | null = null;
     protected readonly searching = signal(false);
@@ -107,22 +111,38 @@ export class NistTargetedSearchComponent {
         () => this.selectable().length > 0 && this.selectable().every((item) => this.selected().includes(item.filename)),
     );
 
-    protected currentField() {
-        return FIELDS.find((item) => item.value === this.field) ?? FIELDS[0];
+    protected canSearch(): boolean {
+        return Boolean(this.adsorbate.trim() || this.adsorbent.trim() || this.experiment.trim());
+    }
+
+    protected advancedCount(): number {
+        return [this.experiment.trim(), this.temperatureMin, this.temperatureMax].filter((value) => value !== '' && value !== null).length;
+    }
+
+    protected clear(): void {
+        this.experiment = '';
+        this.temperatureMin = null;
+        this.temperatureMax = null;
     }
 
     protected async search(page: number): Promise<void> {
-        const query = this.text.trim();
-        if (!query) return;
+        if (!this.canSearch() || this.searching()) return;
+        const { temperatureMin: low, temperatureMax: high } = this;
+        if (low !== null && high !== null && low > high) {
+            this.message.set('The minimum temperature must not exceed the maximum.');
+            return;
+        }
         this.searching.set(true);
         this.message.set(null);
         try {
             const result = await searchNistIsotherms({
-                [this.field]: query,
-                temperature_min: this.temperatureMin,
-                temperature_max: this.temperatureMax,
-                limit: this.pageSize,
-                offset: (page - 1) * this.pageSize,
+                adsorbate: this.adsorbate.trim(),
+                adsorbent: this.adsorbent.trim(),
+                experiment: this.experiment.trim(),
+                temperature_min: low,
+                temperature_max: high,
+                limit: PAGE_SIZE,
+                offset: (page - 1) * PAGE_SIZE,
             });
             if (!result.data) {
                 this.failed.emit(result.error ?? 'NIST search failed.');
@@ -132,7 +152,7 @@ export class NistTargetedSearchComponent {
             this.page.set(page);
             this.items.set(result.data.items);
             this.total.set(result.data.total);
-            if (!result.data.total) this.message.set('No matching NIST isotherms. Try a synonym or a shorter name.');
+            if (!result.data.total) this.message.set('No matching NIST isotherms. Try a synonym, a shorter name, or fewer filters.');
         } finally {
             this.searching.set(false);
         }

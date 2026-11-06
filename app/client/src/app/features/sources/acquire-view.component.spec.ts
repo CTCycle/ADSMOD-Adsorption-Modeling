@@ -4,6 +4,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { JobsMonitorService } from '../../services/jobs-monitor.service';
 import { AcquireViewComponent } from './acquire-view.component';
 
 const run = (overrides: Record<string, unknown>): Record<string, unknown> => ({
@@ -25,6 +26,25 @@ const run = (overrides: Record<string, unknown>): Record<string, unknown> => ({
     finished_at: null,
     ...overrides,
 });
+
+const job = (overrides: Record<string, unknown>): Record<string, unknown> => {
+    const base = run(overrides);
+    return {
+        id: base['id'],
+        kind: 'acquisition',
+        name: base['operation'],
+        source: base['source_key'],
+        status: base['status'],
+        progress: base['progress'],
+        created_at: base['created_at'],
+        finished_at: null,
+        saved_count: base['imported_count'],
+        skipped_count: 0,
+        failed_count: 0,
+        error: null,
+        run: base,
+    };
+};
 
 describe('AcquireViewComponent', () => {
     const fetchMock = vi.fn();
@@ -55,15 +75,9 @@ describe('AcquireViewComponent', () => {
             if (url.endsWith('/sync-runs') && init?.method === 'POST') {
                 return { ok: true, json: async () => run({ id: 'index-1', source_key: 'nist', operation: 'nist_index', parameters: { category: 'guest' }, status: 'running', progress: 0, imported_count: 0 }) };
             }
-            if (url.includes('/sync-runs')) {
-                const scope = new URL(url, 'http://localhost').searchParams.get('scope');
-                const scopedRuns = runs.filter((item) => {
-                    const status = String(item['status']);
-                    if (scope === 'active') return ['queued', 'running'].includes(status);
-                    if (scope === 'history') return !['queued', 'running'].includes(status);
-                    return true;
-                });
-                return { ok: true, json: async () => ({ runs: scopedRuns, total: scopedRuns.length }) };
+            if (url.includes('/jobs')) {
+                const active = runs.filter((item) => ['queued', 'running'].includes(String(item['status']))).length;
+                return { ok: true, json: async () => ({ jobs: runs.map((item) => job(item)), active_count: active }) };
             }
             return { ok: false, status: 404, json: async () => ({}) };
         });
@@ -80,44 +94,37 @@ describe('AcquireViewComponent', () => {
         vi.unstubAllGlobals();
     });
 
-    async function render(): Promise<HTMLElement> {
+    it('uses the same Single / Bulk switch, in that order, on every acquisition card', async () => {
+        runs = [];
         const fixture = TestBed.createComponent(AcquireViewComponent);
         fixture.detectChanges();
         await vi.advanceTimersByTimeAsync(0);
-        await vi.waitFor(() => {
-            fixture.detectChanges();
-            expect(collectionRequests).toBeGreaterThan(0);
-        });
         fixture.detectChanges();
-        return fixture.nativeElement as HTMLElement;
-    }
 
-    it('links a finished import straight to the stored record', async () => {
-        runs = [run({})];
-
-        const element = await render();
-
-        const link = element.querySelector('#acquire-runs a.table-action') as HTMLAnchorElement;
-        expect(link.textContent).toContain('Open structure');
-        expect(link.getAttribute('href')).toBe('/sources/structures?id=9');
+        const switches = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('adsmod-segmented-control'));
+        expect(switches).toHaveLength(3);
+        for (const control of switches) {
+            expect(Array.from(control.querySelectorAll('button')).map((button) => button.textContent?.trim())).toEqual(['Single', 'Bulk']);
+        }
     });
 
     it('refreshes NIST counts once a running collection fetch finishes', async () => {
         runs = [run({ source_key: 'nist', operation: 'nist_category', parameters: { category: 'guest', fraction: 0.1 }, status: 'running', progress: 40 })];
+        const jobs = TestBed.inject(JobsMonitorService);
         const fixture = TestBed.createComponent(AcquireViewComponent);
         fixture.detectChanges();
         await vi.advanceTimersByTimeAsync(0);
-        await vi.waitFor(() => expect(collectionRequests).toBe(1));
+        await vi.waitFor(() => expect(jobs.activeCount()).toBe(1));
         expect(collectionRequests).toBe(1);
 
         runs = [run({ source_key: 'nist', operation: 'nist_category', parameters: { category: 'guest', fraction: 0.1 }, imported_count: 3 })];
-        await vi.advanceTimersByTimeAsync(1600);
+        await jobs.refresh();
+        await vi.advanceTimersByTimeAsync(0);
         fixture.detectChanges();
 
         expect(collectionRequests).toBe(2);
         const element = fixture.nativeElement as HTMLElement;
         expect(element.querySelector('.collection-count strong')?.textContent).toContain('6 / 12');
-        expect(element.querySelector('#acquire-runs a.table-action')?.getAttribute('href')).toBe('/datasets?kind=species');
     });
 
     it('reports unchecked availability distinctly and shows stored versus available after a check', async () => {
@@ -139,40 +146,5 @@ describe('AcquireViewComponent', () => {
         fixture.detectChanges();
 
         expect(cell()).toContain('/ 40 records');
-        expect(element.querySelector('.acquisition-history-table .data-table-empty')).not.toBeNull();
     });
-    it('keeps polling while closed and restores page scrolling on close and destruction', async () => {
-        runs = [run({ status: 'running' })];
-        const fixture = TestBed.createComponent(AcquireViewComponent);
-        fixture.detectChanges();
-        await vi.advanceTimersByTimeAsync(0);
-        fixture.detectChanges();
-        const element = fixture.nativeElement as HTMLElement;
-        const dialog = element.querySelector('dialog')!;
-        dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
-        dialog.close = vi.fn(() => dialog.removeAttribute('open'));
-        const trigger = element.querySelector<HTMLButtonElement>('[data-acquisitions-trigger]')!;
-        expect(dialog.open).toBe(false);
-        expect(trigger.textContent).toContain('1 active');
-        runs = [run({})];
-        await vi.advanceTimersByTimeAsync(1600);
-        fixture.detectChanges();
-        expect(dialog.open).toBe(false);
-        expect(trigger.textContent).toContain('0 active');
-        trigger.click();
-        fixture.detectChanges();
-        expect(dialog.open).toBe(true);
-        expect(document.body.style.overflow).toBe('hidden');
-        element.querySelector<HTMLButtonElement>('[aria-label="Close acquisitions"]')!.click();
-        fixture.detectChanges();
-        expect(dialog.open).toBe(false);
-        expect(document.body.style.overflow).not.toBe('hidden');
-        trigger.click();
-        fixture.detectChanges();
-        expect(dialog.open).toBe(true);
-        expect(element.querySelector('a.table-action')?.getAttribute('href')).toBe('/sources/structures?id=9');
-        fixture.destroy();
-        expect(document.body.style.overflow).not.toBe('hidden');
-    });
-
 });

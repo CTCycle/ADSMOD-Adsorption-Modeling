@@ -2,7 +2,8 @@
 /* Licensed under the MIT License. */
 
 :root {
-  --console-status-height: 34px;
+  --console-status-height: 28px;
+  --scrollbar-thumb: rgb(100 116 139 / 0.5);
   /* Color palette */
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
@@ -91,6 +92,8 @@
 /* Dark theme: applied by ThemeService through data-theme on <html>. */
 :root[data-theme='dark'] {
   color-scheme: dark;
+
+  --scrollbar-thumb: rgb(148 163 184 / 0.4);
 
   --slate-50: #152036;
   --slate-100: #1a2840;
@@ -1191,11 +1194,54 @@ label {
   user-select: none;
 }
 
+/* Compact checkbox shared by forms and table selection columns. */
 input[type="checkbox"] {
-  width: 1.25rem;
-  height: 1.25rem;
+  appearance: none;
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface) center / 0.75rem no-repeat;
+  vertical-align: middle;
   cursor: pointer;
-  accent-color: var(--primary-600);
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--primary-600);
+}
+
+input[type="checkbox"]:checked,
+input[type="checkbox"]:indeterminate {
+  border-color: var(--primary-600);
+  background-color: var(--primary-600);
+}
+
+input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6.5'/%3E%3C/svg%3E");
+}
+
+input[type="checkbox"]:indeterminate {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' stroke='white' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+}
+
+input[type="checkbox"]:disabled {
+  border-color: var(--border-color);
+  background-color: var(--disabled-bg);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"]:checked:disabled {
+  border-color: var(--disabled-text);
+  background-color: var(--disabled-text);
+}
+
+/* Thin, theme-aware scrollbars everywhere (pages, tables, dropdowns, panels). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .switch-container {
@@ -4105,8 +4151,8 @@ body {
   height: var(--console-status-height);
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 0 1rem;
+  gap: 1rem;
+  padding: 0 0.85rem;
   border-top: 1px solid #2d668d;
   background: linear-gradient(180deg, #0a3152 0%, #082943 100%);
   color: #d9eaff;
@@ -4137,7 +4183,13 @@ body {
   font-style: normal;
 }
 
-.console-status-item:nth-child(2) em { color: #9fc4ff; }
+.console-status-item.metric {
+  gap: 0.3rem;
+  color: #9db4d1;
+  font-variant-numeric: tabular-nums;
+}
+
+.console-status-item.metric em { color: #cfe1fb; }
 
 .console-header {
   display: flex;

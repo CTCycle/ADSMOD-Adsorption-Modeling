@@ -3,6 +3,7 @@
 
 import { API_BASE_URL } from '../core/config/api-base-url';
 import type { FittingConfiguration } from '../models/fitting.model';
+import type { SystemStatus } from '../models/job.model';
 import type { TrainingConfiguration } from '../models/training.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 import { toErrorMessage } from '../shared/utils/error-message';
@@ -44,4 +45,5 @@ export const fetchApplicationCapabilities = (refresh = false): Promise<ServiceRe
 export const machineLearningAvailable = async (): Promise<boolean> => (await fetchApplicationCapabilities()).data?.features.machine_learning === true;
 export const fetchFittingConfiguration = (): Promise<ServiceResult<FittingConfiguration>> => readJson<FittingConfiguration>(`${API_BASE_URL}/system/configuration`);
 export const fetchTrainingConfiguration = (): Promise<ServiceResult<TrainingConfiguration>> => readJson<TrainingConfiguration>(`${API_BASE_URL}/training/configuration`);
+export const fetchSystemStatus = (): Promise<ServiceResult<SystemStatus>> => readJson<SystemStatus>(`${API_BASE_URL}/system/status`);
 export const fetchBackendReadiness = (): Promise<ServiceResult<ServiceHealth>> => readJson<ServiceHealth>('/health/ready');

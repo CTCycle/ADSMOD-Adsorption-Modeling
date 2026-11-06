@@ -61,6 +61,8 @@ def test_unified_openapi_surface_contains_public_data_routes(tmp_path: Path) -> 
         assert "/api/v1/datasets" in paths
         assert "/api/v1/fitting/models" in paths
         assert "/api/v1/training/configuration" in paths
+        assert "/api/v1/jobs" in paths
+        assert "/api/v1/system/status" in paths
         assert "/api/v1/public-data/sources" in paths
         assert "/api/v1/public-data/sources/{source_key}/health-check" in paths
         assert "/api/v1/public-data/sync-runs" in paths

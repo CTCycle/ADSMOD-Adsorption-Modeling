@@ -48,6 +48,27 @@
         }
       }
     },
+    "/api/v1/system/status": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "System Status",
+        "operationId": "system_status_api_v1_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/system/capabilities": {
       "get": {
         "tags": [
@@ -3229,6 +3250,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HomeSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "List Jobs",
+        "operationId": "list_jobs_api_v1_jobs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnifiedJobListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -11362,6 +11428,39 @@
         ],
         "title": "SupportedUnitsResponse"
       },
+      "SystemStatusResponse": {
+        "properties": {
+          "cpu_percent": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Cpu Percent"
+          },
+          "memory_mb": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Memory Mb"
+          },
+          "database_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cpu_percent",
+          "memory_mb"
+        ],
+        "title": "SystemStatusResponse"
+      },
       "TrainingConfig": {
         "properties": {
           "use_jit": {
@@ -11957,6 +12056,160 @@
           "progress"
         ],
         "title": "TrainingStatusResponse"
+      },
+      "UnifiedJobListResponse": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/UnifiedJobView"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "active_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Active Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "jobs",
+          "active_count"
+        ],
+        "title": "UnifiedJobListResponse"
+      },
+      "UnifiedJobView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "acquisition",
+              "fitting",
+              "training"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "partially_completed",
+              "failed",
+              "cancelled",
+              "interrupted"
+            ],
+            "title": "Status"
+          },
+          "progress": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Progress"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "saved_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved Count"
+          },
+          "skipped_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped Count"
+          },
+          "failed_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed Count"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicDataSyncRunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "status",
+          "progress",
+          "created_at"
+        ],
+        "title": "UnifiedJobView"
       },
       "UnitOption": {
         "properties": {

@@ -882,6 +882,14 @@ input[type="search"] {
   box-shadow: inset 3px 0 0 var(--primary-600, #2563eb);
 }
 
+/* Compact selection column shared by every table with row checkboxes. */
+.data-table th.select-column,
+.data-table td.select-column {
+  width: 2.5rem;
+  padding-inline: 0;
+  text-align: center;
+}
+
 .data-table .truncate-cell {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1127,8 +1135,15 @@ a.table-action {
   flex: 0 0 auto;
 }
 
-/* Two-option switch for single/bulk and bulk/targeted acquisition modes. */
-.mode-switch {
+/* Compact variant for dense action rows. */
+.button.compact {
+  min-height: 2rem;
+  padding: 0 0.85rem;
+  font-size: 0.78rem;
+}
+
+/* Segmented control (Single / Bulk acquisition modes). */
+.segmented {
   display: inline-flex;
   flex: 0 0 auto;
   padding: 2px;
@@ -1137,9 +1152,10 @@ a.table-action {
   background: var(--surface-subtle, var(--surface));
 }
 
-.mode-switch button {
-  min-height: 1.7rem;
-  padding: 0 0.7rem;
+.segmented button {
+  min-width: 3.6rem;
+  min-height: 1.6rem;
+  padding: 0 0.75rem;
   border: 0;
   border-radius: calc(var(--radius-sm) - 2px);
   background: transparent;
@@ -1150,13 +1166,13 @@ a.table-action {
   font-weight: 600;
 }
 
-.mode-switch button[aria-pressed='true'] {
+.segmented button[aria-pressed='true'] {
   background: var(--surface);
   color: var(--link);
   box-shadow: var(--shadow-sm);
 }
 
-.mode-switch button:focus-visible {
+.segmented button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }

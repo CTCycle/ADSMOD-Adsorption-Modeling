@@ -10,7 +10,8 @@ aliases or unversioned API aliases.
 
 The unified backend serves all versioned routes under `/api/v1`:
 
-- `/system/capabilities` and `/system/configuration`
+- `/system/capabilities`, `/system/configuration` and `/system/status` (backend CPU, memory, database size)
+- `/jobs`: read-only unified list of acquisition, fitting and training jobs
 - `/datasets/*`, including the unit catalog (`GET /supported-units`) and
   user-defined units (`POST /units`, `DELETE /units/{unit_id}`). Import
   validation reports an unusable unit once as an `unsupported_unit` error. A

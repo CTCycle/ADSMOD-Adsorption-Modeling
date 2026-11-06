@@ -27,6 +27,7 @@ from server.domain.configuration import (
     NumericBounds,
 )
 from server.domain.fitting import FittingSessionRequest
+from server.domain.system import SystemStatusResponse
 from server.api.entrypoint import health_router, register_root_routes
 from server.api.frontend import register_frontend_routes
 from server.api.database import create_database_router
@@ -35,6 +36,7 @@ from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
 from server.common.path import resolve_storage_root
 from server.repositories.database.initializer import prepare_database_for_startup
 from server.services.container import CoreServiceContainer
+from server.services.system_status import SystemStatusSampler
 from server.services.training_data import TrainingDataService
 from server.api.settings import create_settings_router
 
@@ -151,8 +153,27 @@ def configuration(request: Request) -> FittingConfigurationResponse:
 
 
 ###############################################################################
+async def system_status(request: Request) -> SystemStatusResponse:
+    runtime: ApplicationRuntime = request.app.state.runtime
+    config = runtime.config
+    return await asyncio.to_thread(
+        request.app.state.system_sampler.sample,
+        config.application.database,
+        runtime.container.database,
+        resolve_storage_root(config),
+    )
+
+
+###############################################################################
 def _build_system_router() -> APIRouter:
     router = APIRouter()
+    router.add_api_route(
+        "/system/status",
+        system_status,
+        methods=["GET"],
+        response_model=SystemStatusResponse,
+        tags=["system"],
+    )
     router.add_api_route(
         "/system/capabilities",
         capabilities,
@@ -314,6 +335,7 @@ def create_app(
     application.state.ready = False
     application.state.core_container = container
     application.state.runtime = runtime
+    application.state.system_sampler = SystemStatusSampler()
     application.state.settings_store = store
     application.state.settings_update_lock = asyncio.Lock()
     application.state.database_switch_lock = asyncio.Lock()

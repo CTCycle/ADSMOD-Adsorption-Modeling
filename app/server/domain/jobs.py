@@ -5,9 +5,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from server.domain.public_data import PublicDataSyncRunView
 
 ###############################################################################
 class JobStartResponse(BaseModel):
@@ -30,6 +33,35 @@ class JobStatusResponse(BaseModel):
 ###############################################################################
 class JobListResponse(BaseModel):
     jobs: list[JobStatusResponse]
+
+###############################################################################
+class UnifiedJobView(BaseModel):
+    id: str
+    kind: Literal["acquisition", "fitting", "training"]
+    name: str
+    source: str | None = None
+    status: Literal[
+        "queued",
+        "running",
+        "completed",
+        "partially_completed",
+        "failed",
+        "cancelled",
+        "interrupted",
+    ]
+    progress: float = Field(ge=0.0, le=100.0)
+    created_at: datetime
+    finished_at: datetime | None = None
+    saved_count: int | None = None
+    skipped_count: int | None = None
+    failed_count: int | None = None
+    error: str | None = None
+    run: PublicDataSyncRunView | None = None
+
+###############################################################################
+class UnifiedJobListResponse(BaseModel):
+    jobs: list[UnifiedJobView]
+    active_count: int = Field(ge=0)
 
 ###############################################################################
 class JobCancelResponse(BaseModel):

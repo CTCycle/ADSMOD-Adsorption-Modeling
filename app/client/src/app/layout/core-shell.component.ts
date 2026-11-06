@@ -7,7 +7,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { ThemeSwitchComponent } from '../shared/components/theme-switch/theme-switch.component';
-import { fetchApplicationCapabilities, fetchBackendReadiness } from '../services/system.service';
+import type { SystemStatus } from '../models/job.model';
+import { fetchApplicationCapabilities, fetchBackendReadiness, fetchSystemStatus } from '../services/system.service';
+import { formatBytes } from '../shared/utils/job-presentation';
+import { JobsPopoverComponent } from './jobs-popover.component';
 import { DOCS_ANCHOR_BY_PAGE } from '../features/docs/docs-content';
 
 type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
@@ -15,7 +18,7 @@ type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
 @Component({
     selector: 'adsmod-core-shell',
     standalone: true,
-    imports: [RouterLink, RouterLinkActive, RouterOutlet, ThemeSwitchComponent],
+    imports: [RouterLink, RouterLinkActive, RouterOutlet, ThemeSwitchComponent, JobsPopoverComponent],
     template: `
         <div class="console-shell">
             <aside #sidebar class="console-sidebar" aria-label="Primary navigation">
@@ -77,8 +80,16 @@ type DocsPage = keyof typeof DOCS_ANCHOR_BY_PAGE;
                 </main>
             </section>
         </div>
-        <div class="console-status-bar" aria-label="Backend status" aria-live="polite">
-            <div class="console-status-item"><span class="service-dot core" [class.offline]="backendStatus() === 'Offline'" aria-hidden="true"></span><strong>Backend</strong><em>{{ backendStatus() }}</em></div>
+        <div class="console-status-bar" aria-label="Application status">
+            <div class="console-status-item" aria-live="polite"><span class="service-dot core" [class.offline]="backendStatus() === 'Offline'" aria-hidden="true"></span><strong>Backend</strong><em>{{ backendStatus() }}</em></div>
+            @if (metrics(); as usage) {
+                <div class="console-status-item metric" title="Backend process CPU usage"><span>CPU</span><em>{{ usage.cpu_percent.toFixed(0) }}%</em></div>
+                <div class="console-status-item metric" title="Backend process memory"><span>RAM</span><em>{{ formatBytes(usage.memory_mb * 1048576) }}</em></div>
+                @if (usage.database_size_bytes !== null) {
+                    <div class="console-status-item metric" title="Database size on disk"><span>DB</span><em>{{ formatBytes(usage.database_size_bytes) }}</em></div>
+                }
+            }
+            <adsmod-jobs-popover />
         </div>
     `,
 })
@@ -91,6 +102,8 @@ export class CoreShellComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly currentUrl = signal(this.router.url);
     protected readonly backendStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
+    protected readonly metrics = signal<SystemStatus | null>(null);
+    protected readonly formatBytes = formatBytes;
     protected readonly docsAnchor = computed<string>(() => {
         const url = this.currentUrl();
         const page: DocsPage = url.startsWith('/dashboards')
@@ -191,8 +204,13 @@ export class CoreShellComponent {
     }
 
     private async refreshBackendStatus(): Promise<void> {
-        const [capabilities, readiness] = await Promise.all([fetchApplicationCapabilities(true), fetchBackendReadiness()]);
+        const [capabilities, readiness, usage] = await Promise.all([
+            fetchApplicationCapabilities(true),
+            fetchBackendReadiness(),
+            fetchSystemStatus(),
+        ]);
         const backendOnline = capabilities.data !== null && readiness.data?.state === 'ready';
         this.backendStatus.set(backendOnline ? 'Online' : 'Offline');
+        this.metrics.set(backendOnline ? usage.data : null);
     }
 }

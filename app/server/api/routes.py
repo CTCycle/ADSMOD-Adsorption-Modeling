@@ -12,6 +12,7 @@ from server.api.analytics import create_analytics_router
 from server.api.datasets import create_dataset_router
 from server.api.fitting import create_fitting_router
 from server.api.home import create_home_router
+from server.api.jobs import create_jobs_router
 from server.api.materials import create_material_router
 from server.api.public_data import create_public_data_router
 
@@ -30,6 +31,7 @@ def register_core_routes(
         create_public_data_router,
         create_analytics_router,
         create_home_router,
+        create_jobs_router,
     ):
         router = router_factory(container)
         app.include_router(router, prefix=prefix, include_in_schema=include_schema)
