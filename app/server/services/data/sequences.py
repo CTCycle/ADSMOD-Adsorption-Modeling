@@ -40,17 +40,25 @@ class PressureUptakeSeriesProcess:
         self.max_uptake = configuration.get("max_uptake", 10)
 
     # -------------------------------------------------------------------------
-    def trim_series(self, series: list | np.ndarray) -> list | np.ndarray:
-        arr = np.asarray(series)
-        nonzero_indices = np.flatnonzero(arr)
-        start_idx = max(nonzero_indices[0] - 1, 0) if nonzero_indices.size > 0 else 0
+    def trim_pairs(
+        self, pressure: list[float], uptake: list[float]
+    ) -> tuple[list[float], list[float]]:
+        """Drop leading all-zero measurements, keeping one, with one shared offset."""
+        if len(pressure) != len(uptake):
+            raise ValueError("Pressure and uptake series must have equal length.")
+        nonzero = np.flatnonzero((np.asarray(pressure) != 0) | (np.asarray(uptake) != 0))
+        start_idx = max(int(nonzero[0]) - 1, 0) if nonzero.size > 0 else 0
 
-        return series[start_idx:]
+        return pressure[start_idx:], uptake[start_idx:]
 
     # -------------------------------------------------------------------------
     def remove_leading_zeros(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        dataframe[self.P_COL] = [self.trim_series(p) for p in dataframe[self.P_COL]]
-        dataframe[self.Q_COL] = [self.trim_series(q) for q in dataframe[self.Q_COL]]
+        trimmed = [
+            self.trim_pairs(p, q)
+            for p, q in zip(dataframe[self.P_COL], dataframe[self.Q_COL], strict=True)
+        ]
+        dataframe[self.P_COL] = [pair[0] for pair in trimmed]
+        dataframe[self.Q_COL] = [pair[1] for pair in trimmed]
 
         return dataframe
 
@@ -80,11 +88,20 @@ class PressureUptakeSeriesProcess:
             dataset[self.P_COL].apply(lambda x: len(x) >= self.min_points)
         ].copy()
         for col in [self.P_COL, self.Q_COL]:
-            filtered_data[col] = filtered_data[col].apply(
-                lambda x: x[: self.max_points] if len(x) > self.max_points else x
-            )
+            filtered_data[col] = [
+                self.subsample_evenly(values) for values in filtered_data[col]
+            ]
 
         return filtered_data
+
+    # -------------------------------------------------------------------------
+    def subsample_evenly(self, values: list[float]) -> list[float]:
+        """Keep at most ``max_points`` values spread over the full isotherm range."""
+        if len(values) <= self.max_points:
+            return values
+        indices = np.linspace(0, len(values) - 1, self.max_points).round().astype(int)
+
+        return [values[i] for i in indices]
 
 ###############################################################################
 class SMILETokenization:

@@ -63,12 +63,40 @@ class TrainingDataService:
     def create_snapshot_from_selections(self, selections: list[dict[str, Any]], *, metadata: dict[str, Any] | None = None) -> SnapshotReference:
         validated = [SnapshotDatasetSelection.model_validate(selection) for selection in selections]
         rows: list[dict[str, Any]] = []
+        excluded = {"multi_component_isotherms": 0, "non_pascal_pressure_isotherms": 0}
         for selection in validated:
             if selection.source == "uploaded":
-                rows.extend(self._uploaded_snapshot_rows(selection.dataset_name, selection.dataset_id))
+                selected = self._uploaded_snapshot_rows(selection.dataset_name, selection.dataset_id)
             else:
-                rows.extend(self._nist_snapshot_rows(selection.dataset_name))
-        return self.create_snapshot(rows, metadata={**dict(metadata or {}), "selections": [selection.model_dump(mode="json") for selection in validated]})
+                selected = self._nist_snapshot_rows(selection.dataset_name)
+            kept, dropped = self._screen_training_rows(selected)
+            rows.extend(kept)
+            for reason, count in dropped.items():
+                excluded[reason] += count
+        if not rows:
+            raise ValueError(
+                "No isotherm is usable for ML training: single-component isotherms "
+                f"with absolute pressure in Pa are required (excluded: {excluded})."
+            )
+        return self.create_snapshot(rows, metadata={**dict(metadata or {}), "selections": [selection.model_dump(mode="json") for selection in validated], "excluded": excluded})
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _screen_training_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+        """Drop isotherms the single-component, Pa-based ML pipeline cannot represent."""
+        components: dict[Any, set[Any]] = {}
+        units: dict[Any, set[Any]] = {}
+        for row in rows:
+            components.setdefault(row["isotherm_id"], set()).add(row.get("component_id"))
+            units.setdefault(row["isotherm_id"], set()).add(row.get("pressure_canonical_unit"))
+        mixtures = {key for key, value in components.items() if len(value) > 1}
+        non_pascal = {key for key, value in units.items() if value != {"Pa"}} - mixtures
+        kept = [
+            {key: value for key, value in row.items() if key not in {"component_id", "pressure_canonical_unit"}}
+            for row in rows
+            if row["isotherm_id"] not in mixtures and row["isotherm_id"] not in non_pascal
+        ]
+        return kept, {"multi_component_isotherms": len(mixtures), "non_pascal_pressure_isotherms": len(non_pascal)}
 
     # -------------------------------------------------------------------------
     def fetch_snapshot(self, snapshot_id: str) -> SnapshotPayload:

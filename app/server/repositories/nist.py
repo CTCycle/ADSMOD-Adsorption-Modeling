@@ -150,10 +150,13 @@ class NISTRepository:
         with self.database.session_factory() as session:
             rows = session.execute(
                 select(
+                    Isotherm.id.label("isotherm_id"),
                     Isotherm.external_key,
                     Isotherm.temperature_k,
                     Adsorbent.name.label("adsorbent"),
                     Adsorbate.name.label("adsorbate"),
+                    Observation.component_id,
+                    Observation.pressure_canonical_unit,
                     Observation.pressure_canonical.label("pressure"),
                     Observation.uptake_mol_kg.label("adsorbed_amount"),
                 )

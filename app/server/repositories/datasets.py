@@ -336,12 +336,15 @@ class DatasetRepository:
             select(
                 Dataset.id.label("dataset_id"),
                 Dataset.name.label("dataset_name"),
+                Isotherm.id.label("isotherm_id"),
                 Isotherm.external_key.label("experiment"),
                 Isotherm.temperature_k.label("temperature"),
                 Adsorbent.name.label("adsorbent_name"),
                 Adsorbate.name.label("adsorbate_name"),
                 Adsorbate.molar_mass_g_mol.label("adsorbate_molecular_weight"),
                 Adsorbate.smiles.label("adsorbate_SMILE"),
+                Observation.component_id,
+                Observation.pressure_canonical_unit,
                 Observation.pressure_canonical.label("pressure"),
                 Observation.uptake_mol_kg.label("adsorbed_amount"),
             )

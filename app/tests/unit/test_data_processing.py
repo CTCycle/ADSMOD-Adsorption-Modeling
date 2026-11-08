@@ -115,3 +115,24 @@ def test_aggregate_preserves_uploaded_adsorbate_features() -> None:
 
     assert aggregated.loc[0, "adsorbate_SMILE"] == "O=C=O"
     assert aggregated.loc[0, "adsorbate_molecular_weight"] == 44.01
+
+###############################################################################
+def test_aggregate_excludes_multi_adsorbate_experiments() -> None:
+    frame = pd.DataFrame(
+        {
+            "filename": ["mix"] * 2 + ["pure"] * 2,
+            "temperature": [298.15] * 4,
+            "adsorbent_name": ["carbon"] * 4,
+            "adsorbate_name": ["co2", "n2", "co2", "co2"],
+            "adsorbate_molecular_weight": [44.01, 28.0, 44.01, 44.01],
+            "adsorbate_SMILE": ["O=C=O", "N#N", "O=C=O", "O=C=O"],
+            "pressure_units": ["Pa"] * 4,
+            "adsorption_units": ["mol/kg"] * 4,
+            "pressure": [1.0, 2.0, 1.0, 2.0],
+            "adsorbed_amount": [0.1, 0.2, 0.1, 0.2],
+        }
+    )
+
+    aggregated = AggregateDatasets({}).aggregate_adsorption_measurements(frame)
+
+    assert aggregated["filename"].tolist() == ["pure"]

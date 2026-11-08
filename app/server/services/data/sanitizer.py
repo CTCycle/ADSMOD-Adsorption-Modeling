@@ -67,6 +67,14 @@ class AggregateDatasets:
             "adsorbed_amount": lambda x: [float(v) for v in x],
         }
 
+        adsorbates_per_file = dataset.groupby("filename")["adsorbate_name"].nunique()
+        mixtures = adsorbates_per_file[adsorbates_per_file > 1].index
+        if len(mixtures) > 0:
+            logger.warning(
+                "Excluded %d multi-adsorbate experiments from single-component aggregation",
+                len(mixtures),
+            )
+            dataset = dataset.loc[~dataset["filename"].isin(mixtures)]
         grouped_data = dataset.groupby(by="filename").agg(aggregate_dict).reset_index()
 
         return grouped_data
