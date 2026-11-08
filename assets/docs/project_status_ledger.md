@@ -1,6 +1,6 @@
 # ADSMOD project status ledger
 
-Last updated: 2026-11-06
+Last updated: 2026-11-08
 
 This is the canonical current-state catalog for ADSMOD. It records validated
 scope, meaningful limitations, open product decisions, evidence anchors, and
@@ -48,6 +48,24 @@ closed every tier; affected gates are reopened by later source changes:
 | Tier 3 — providers | `ADS-T3-01`–`ADS-T3-05` | `PASS` for bounded scopes | NIST coverage remains partial under the accepted skip-and-report policy |
 | Tier 4 — ML workflows | `ADS-T4-01`–`ADS-T4-04` | `PASS` for bounded scopes | The 2026-10-22 browser run completed a positive synthetic lifecycle: dataset build, training, checkpoint, resume, and stop |
 | Tier 5 — resilience and closure | `ADS-T5-01`–`ADS-T5-05` | `PASS` for bounded scopes | Screen-reader audio, long-duration stress, and host-specific local sub-gates remain limited |
+
+### Scientific accuracy audit
+
+The 2026-11-07 audit (`85ee4c9`) did not establish scientific correctness. The
+source fixes for `ADS-01`–`ADS-07` and `ADS-09` landed on 2026-11-08 and are
+covered by unit and backend tests (`test_fitting_accuracy.py`,
+`test_ml_accuracy.py`, `test_ml_contracts.py`, `test_data_processing.py`,
+`test_fitting_sessions.py`): unweighted fits ignore uncertainties, explicit
+bounds are never widened, fitted parameters on a bound warn, the input
+fingerprint covers uptake uncertainty and duplicate policy, saved sessions are
+flagged stale when their data changes, ML snapshots exclude multi-component
+and non-Pa isotherms with reported counts, pressure/uptake pairs are trimmed
+and subsampled together, ML R² uses dataset-level sufficient statistics, and
+unit conversion fails closed. Still open: `ADS-08` grouped-holdout validation
+(interpolation versus unseen-material benchmarks) and the real-dataset ML
+benchmark; the 2026-10-22 ML lifecycle remains a small synthetic run. Fitting
+and ML slices stay unrevalidated in the browser until `ADS-T2-05` and
+`ADS-T4-02`/`ADS-T4-03` are rerun on the new code.
 
 ### Evidence anchors
 
