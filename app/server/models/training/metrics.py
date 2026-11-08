@@ -57,9 +57,10 @@ class MaskedRSquared(keras.metrics.Metric):
     # -------------------------------------------------------------------------
     def __init__(self, name: str = "MaskedR2", **kwargs) -> None:
         super().__init__(name=name, **kwargs)
-        self.ssr = self.add_weight(name="ssr", initializer="zeros")
-        self.sst = self.add_weight(name="sst", initializer="zeros")
-        self.count = self.add_weight(name="count", initializer="zeros")
+        self.n = self.add_weight(name="n", initializer="zeros")
+        self.sum_y = self.add_weight(name="sum_y", initializer="zeros")
+        self.sum_y2 = self.add_weight(name="sum_y2", initializer="zeros")
+        self.sse = self.add_weight(name="sse", initializer="zeros")
 
     # -------------------------------------------------------------------------
     def update_state(self, y_true, y_pred, sample_weight=None) -> None:
@@ -68,37 +69,28 @@ class MaskedRSquared(keras.metrics.Metric):
         y_true = keras.ops.cast(y_true, dtype="float32")
         y_pred = keras.ops.cast(y_pred, dtype="float32")
 
-        mask = keras.ops.not_equal(y_true, PAD_VALUE)
-        mask = keras.ops.cast(mask, dtype="float32")
-
-        residuals = keras.ops.square(y_true - y_pred)
-        residuals = keras.ops.multiply(residuals, mask)
-
-        mean_y_true = keras.ops.sum(y_true * mask) / (
-            keras.ops.sum(mask) + keras.backend.epsilon()
-        )
-        total_variance = keras.ops.square(y_true - mean_y_true)
-        total_variance = keras.ops.multiply(total_variance, mask)
-
+        weights = keras.ops.cast(keras.ops.not_equal(y_true, PAD_VALUE), "float32")
         if sample_weight is not None:
             sample_weight = keras.ops.cast(sample_weight, dtype="float32")
-            residuals = keras.ops.multiply(residuals, sample_weight)
-            total_variance = keras.ops.multiply(total_variance, sample_weight)
-            mask = keras.ops.multiply(mask, sample_weight)
+            weights = keras.ops.multiply(weights, sample_weight)
 
-        self.ssr.assign_add(keras.ops.sum(residuals))
-        self.sst.assign_add(keras.ops.sum(total_variance))
-        self.count.assign_add(keras.ops.sum(mask))
+        self.n.assign_add(keras.ops.sum(weights))
+        self.sum_y.assign_add(keras.ops.sum(weights * y_true))
+        self.sum_y2.assign_add(keras.ops.sum(weights * keras.ops.square(y_true)))
+        self.sse.assign_add(keras.ops.sum(weights * keras.ops.square(y_true - y_pred)))
 
     # -------------------------------------------------------------------------
     def result(self) -> Any:
-        return 1 - (self.ssr / (self.sst + keras.backend.epsilon()))
+        epsilon = keras.backend.epsilon()
+        sst = self.sum_y2 - keras.ops.square(self.sum_y) / (self.n + epsilon)
+        return 1 - self.sse / (sst + epsilon)
 
     # -------------------------------------------------------------------------
     def reset_states(self) -> None:
-        self.ssr.assign(0)
-        self.sst.assign(0)
-        self.count.assign(0)
+        self.n.assign(0)
+        self.sum_y.assign(0)
+        self.sum_y2.assign(0)
+        self.sse.assign(0)
 
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:

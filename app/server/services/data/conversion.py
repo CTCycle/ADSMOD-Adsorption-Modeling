@@ -47,14 +47,18 @@ class PressureConversion:
         values: list[int | float] | int | float | None,
         unit: object,
     ) -> list[float] | float | None:
-        try:
-            resolved = UnitRegistry.pressure_unit(unit)
-            factor = UnitRegistry.PRESSURE_TO_PA.get(resolved)
-        except UnitConversionError:
-            return values
+        resolved = UnitRegistry.pressure_unit(unit)
+        factor = UnitRegistry.PRESSURE_TO_PA.get(resolved)
         if factor is None:
-            return values
-        return map_values(values, lambda value: value * factor)
+            raise UnitConversionError(
+                f"No Pa conversion factor for pressure unit '{unit}'."
+            )
+        try:
+            return map_values(values, lambda value: value * factor)
+        except (TypeError, ValueError) as exc:
+            raise UnitConversionError(
+                f"Pressure values {values!r} in unit '{unit}' cannot be converted: {exc}"
+            ) from exc
 
     # -------------------------------------------------------------------------
     def convert_pressure_units(self, dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -92,16 +96,17 @@ class UptakeConversion:
         self, row: pd.Series, unit_column: str
     ) -> list[float] | float | None:
         values = row.get(self.Q_COL)
-        try:
-            resolved = UnitRegistry.uptake_unit(row.get(unit_column))
-        except UnitConversionError:
-            return values
+        unit = row.get(unit_column)
+        resolved = UnitRegistry.uptake_unit(unit)
 
         molar_mass = row.get(self.MOLAR_MASS_COL)
         if resolved in self.WEIGHT_UNITS and (
             molar_mass in (None, 0, "") or pd.isna(molar_mass)
         ):
-            return values
+            raise UnitConversionError(
+                f"Uptake unit '{unit}' requires a positive adsorbate molar mass "
+                f"(row {row.name})."
+            )
 
         try:
             return map_values(
@@ -112,8 +117,15 @@ class UptakeConversion:
                     None if molar_mass is None else float(molar_mass),
                 ).canonical_value,
             )
-        except (TypeError, ValueError, UnitConversionError):
-            return values
+        except UnitConversionError as exc:
+            raise UnitConversionError(
+                f"Uptake conversion failed for unit '{unit}' (row {row.name}): {exc}"
+            ) from exc
+        except (TypeError, ValueError) as exc:
+            raise UnitConversionError(
+                f"Uptake values {values!r} in unit '{unit}' cannot be converted "
+                f"(row {row.name}): {exc}"
+            ) from exc
 
     # -------------------------------------------------------------------------
     def convert_uptake_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
