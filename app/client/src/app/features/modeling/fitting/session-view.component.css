@@ -64,6 +64,7 @@
 
 .notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-sm); margin: 0; padding: 0.55rem 0.75rem; border: 1px solid var(--info-border); border-radius: var(--radius-md); background: var(--info-bg); color: var(--info-text); font-size: 0.82rem; }
 .notice.danger { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger-text); }
+.notice.warning { border-color: var(--warning-border); background: var(--warning-bg); color: var(--warning-text); }
 .note { margin: 0; color: var(--text-secondary); font-size: 0.82rem; }
 
 @media (max-width: 900px) {

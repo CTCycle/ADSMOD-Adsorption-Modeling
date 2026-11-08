@@ -767,13 +767,34 @@ class FittingService:
             )
             for name, results in grouped.items()
         ]
+        stale, stale_reason = self._session_staleness(record)
         return FittingSessionDetail(
             **self._summary_fields(record),
             configuration=record.configuration,
             log=list(record.log),
             experiments=experiments,
             job_id=self._job_ids_by_session_id.get(record.id),
+            stale=stale,
+            stale_reason=stale_reason,
         )
+
+    # -------------------------------------------------------------------------
+    def _session_staleness(self, record: FittingSession) -> tuple[bool, str | None]:
+        """Compare stored experiment fingerprints with the current dataset content."""
+        for stored in record.configuration.get("experiments", []):
+            name = stored.get("name")
+            try:
+                series = self.datasets.fitting_series(
+                    record.dataset_id, int(stored["isotherm_id"])
+                )
+            except (LookupError, ValueError):
+                return True, f"Experiment '{name}' is no longer available or fittable."
+            if self.pipeline.input_hash(series) != stored.get("input_sha256"):
+                return True, (
+                    f"Experiment '{name}' changed after this session was fitted; "
+                    "results may no longer match the dataset."
+                )
+        return False, None
 
     # -------------------------------------------------------------------------
     def delete_session(self, session_id: int) -> None:

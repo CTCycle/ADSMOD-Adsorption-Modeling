@@ -298,6 +298,12 @@ def _fit_residual(
         pressure_basis=pressure_basis,  # type: ignore[arg-type]
         saturation_pressure_pa=saturation_pressure_pa,
     )
+    return _fit_residual_values(uptake, predicted, sigma)
+
+###############################################################################
+def _fit_residual_values(
+    uptake: np.ndarray, predicted: np.ndarray, sigma: np.ndarray | None
+) -> np.ndarray:
     values = uptake - predicted
     return values / sigma if sigma is not None else values
 
@@ -362,7 +368,9 @@ class ModelSolver:
             else:
                 guess, low, high = 1.0, parameter.lower, parameter.upper
             if high <= low:
-                high = low * 10.0
+                # The data-scale window misses the explicit interval: never widen
+                # beyond the requested bounds, search them as given instead.
+                low, high = parameter.lower, parameter.upper
             initial.append(float(np.clip(guess, low, high)))
             lower.append(low)
             upper.append(high)
@@ -371,6 +379,28 @@ class ModelSolver:
             initial[0] = min(upper[0], max(lower[0], 10.0 / p_median))
             initial[2] = min(upper[2], max(lower[2], 0.1 / p_median))
         return np.asarray(initial), np.asarray(lower), np.asarray(upper)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _bound_warnings(
+        spec: ModelSpec,
+        optimal: np.ndarray,
+        lower: np.ndarray,
+        upper: np.ndarray,
+    ) -> list[str]:
+        """Flag fitted parameters that ended on a search bound."""
+        warnings: list[str] = []
+        for parameter, value, low, high in zip(
+            spec.parameters, optimal, lower, upper, strict=True
+        ):
+            tolerance = 1e-6 * max(abs(high - low), np.finfo(float).tiny)
+            if value - low <= tolerance or high - value <= tolerance:
+                side = "lower" if value - low <= tolerance else "upper"
+                warnings.append(
+                    f"Parameter '{parameter.name}' reached its {side} bound; "
+                    "the estimate is constrained by the search interval."
+                )
+        return warnings
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -475,6 +505,8 @@ class ModelSolver:
                 raise ValueError(
                     "Inverse-sigma weighting requires a complete positive uncertainty series."
                 )
+            # Uncertainties shape the objective only when weighting is requested.
+            fit_sigma = sigma if weighting == "inverse_sigma" else None
 
             starts = [initial]
             if parameter_count >= 3:
@@ -498,7 +530,7 @@ class ModelSolver:
                         temperature_k,
                         pressure_basis,
                         saturation_pressure_pa,
-                        sigma,
+                        fit_sigma,
                     ),
                     bounds=(lower, upper),
                     method=optimizer,
@@ -522,8 +554,13 @@ class ModelSolver:
                     pressure_basis=pressure_basis,  # type: ignore[arg-type]
                     saturation_pressure_pa=saturation_pressure_pa,
                 )
-                candidate_sse = float(np.sum((uptake - predicted_candidate) ** 2))
-                candidates.append((candidate_sse, result, predicted_candidate))
+                candidate_objective = float(
+                    np.sum(
+                        _fit_residual_values(uptake, predicted_candidate, fit_sigma)
+                        ** 2
+                    )
+                )
+                candidates.append((candidate_objective, result, predicted_candidate))
             _, result, predicted = min(candidates, key=lambda item: item[0])
 
             if not result.success:
@@ -546,10 +583,11 @@ class ModelSolver:
                 jacobian=jacobian,
                 rank=rank,
                 condition=condition,
-                sigma=sigma,
+                sigma=fit_sigma,
                 residuals=uptake - predicted,
                 observation_count=pressure.size,
             )
+            warnings.extend(self._bound_warnings(spec, optimal, lower, upper))
 
             if spec.key == "dual_site_langmuir" and optimal[0] < optimal[2]:
                 permutation = np.array([2, 3, 0, 1])
@@ -689,6 +727,8 @@ class FittingPipeline:
                 "temperature_k",
                 "pressure_basis",
                 "saturation_pressure_pa",
+                "uptake_stddev",
+                "duplicate_policy",
             )
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))

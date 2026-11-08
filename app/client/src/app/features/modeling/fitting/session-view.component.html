@@ -33,6 +33,10 @@
             <p class="notice danger" role="alert">{{ actionError() }}</p>
         }
 
+        @if (session.stale) {
+            <p class="notice warning" role="status">{{ session.stale_reason }}</p>
+        }
+
         <div class="session-run">
             <div class="session-run-meta">
                 @if (running()) {

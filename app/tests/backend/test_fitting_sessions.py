@@ -9,6 +9,7 @@ import json
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -189,6 +190,21 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
     }
     assert not any(parameter["customized"] for parameter in _model(client, "toth")["parameters"])
     assert detail["log"][-1].startswith("[INFO]")
+    assert detail["stale"] is False
+
+    service = client.app.state.core_container.fitting_service
+    record = service.results.get_session(detail["id"])
+    stored = record.configuration["experiments"]
+    tampered = SimpleNamespace(
+        dataset_id=record.dataset_id,
+        configuration={"experiments": [{**stored[0], "input_sha256": "0" * 64}]},
+    )
+    missing = SimpleNamespace(
+        dataset_id=record.dataset_id,
+        configuration={"experiments": [{**stored[0], "isotherm_id": 999_999}]},
+    )
+    assert service._session_staleness(tampered)[0] is True
+    assert service._session_staleness(missing)[0] is True
 
     _run(client, {**base, "name": "Freundlich only", "models": ["freundlich"]})
     listing = client.get(

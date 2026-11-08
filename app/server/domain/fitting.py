@@ -189,6 +189,8 @@ class FittingSessionDetail(FittingSessionSummary):
     log: list[str]
     experiments: list[ExperimentFitResponse]
     job_id: str | None = None
+    stale: bool = False
+    stale_reason: str | None = None
 
 ###############################################################################
 class FittingSessionStartResponse(BaseModel):

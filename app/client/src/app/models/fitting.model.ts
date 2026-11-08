@@ -176,6 +176,8 @@ export interface FittingSessionDetail extends FittingSessionSummary {
     log: string[];
     experiments: ExperimentFitResult[];
     job_id: string | null;
+    stale: boolean;
+    stale_reason: string | null;
 }
 
 export interface FittingSessionListResponse {

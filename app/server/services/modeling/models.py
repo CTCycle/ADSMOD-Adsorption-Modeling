@@ -100,7 +100,7 @@ def jovanovic(pressure: np.ndarray, k: float, qsat: float) -> np.ndarray:
 
 ###############################################################################
 def _affinity(name: str = "k") -> ParameterSpec:
-    return ParameterSpec(name, "Affinity coefficient", 1e-16, 1.0, "pressure^-1")
+    return ParameterSpec(name, "Affinity coefficient", 1e-16, 1e6, "pressure^-1")
 
 ###############################################################################
 def _capacity(name: str = "qsat", label: str = "Saturation capacity") -> ParameterSpec:
