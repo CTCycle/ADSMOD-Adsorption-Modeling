@@ -40,8 +40,25 @@
     align-content: start;
 }
 
-.acq-stats {
+/* Same three-column track in both cards: label, progress bar, percentage. */
+.acquire-grid .acq-stats {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 6rem 2.5rem;
+    gap: 4px 12px;
+    min-height: 1.25rem;
     margin-bottom: 8px;
+}
+
+.acquire-grid .acq-stats progress {
+    width: 100%;
+}
+
+.acquire-grid .acq-stats > span:nth-child(3) {
+    text-align: right;
+}
+
+.acquire-grid .section-heading {
+    min-height: 3.25rem;
 }
 
 .bulk-controls {
@@ -49,6 +66,7 @@
     flex-wrap: wrap;
     gap: 8px 10px;
     align-items: flex-end;
+    box-sizing: border-box;
     padding: 10px 12px;
     border: 1px solid var(--border-color);
     background: var(--surface-subtle, var(--surface));
@@ -57,6 +75,7 @@
 .bulk-share {
     display: grid;
     gap: 3px;
+    margin: 0;
     width: 5.5rem;
     color: var(--text-secondary);
     font-size: 0.72rem;
@@ -89,7 +108,8 @@
 }
 
 .how-it-works {
-    margin-top: 8px;
+    margin-top: auto;
+    padding-top: 8px;
     color: var(--text-secondary);
     font-size: 0.74rem;
 }

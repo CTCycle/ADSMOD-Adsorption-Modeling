@@ -134,7 +134,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                                 </td>
                                 <td>
                                     <div class="table-actions">
-                                        <button class="table-action" type="button" [disabled]="busy || isSubmitting('nist:index:' + collection.category)" [attr.aria-busy]="isSubmitting('nist:index:' + collection.category)" (click)="checkAvailability(collection.category)">{{ isSubmitting('nist:index:' + collection.category) ? 'Checking…' : 'Check availability' }}</button>
+                                        <button class="table-action" type="button" [disabled]="busy || isSubmitting('nist:index:' + collection.category)" [attr.aria-busy]="isSubmitting('nist:index:' + collection.category)" (click)="checkAvailability(collection.category)">{{ isSubmitting('nist:index:' + collection.category) ? 'Checking…' : (state.available_count === null ? 'Check availability' : 'Refresh index') }}</button>
                                         <button class="button primary" type="button" [disabled]="busy || isSubmitting('nist:fetch:' + collection.category)" (click)="fetchCollection(collection.category)">{{ busy ? 'Running…' : 'Fetch' }}</button>
                                     </div>
                                 </td>

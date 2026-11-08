@@ -504,6 +504,39 @@ def test_sync_run_scopes_and_overview_exclude_availability_probes(
         manager.dispose()
 
 ###############################################################################
+def test_nist_availability_survives_failed_refresh(tmp_path: Path) -> None:
+    manager = _database(tmp_path)
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        good = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_index",
+            parameters={"category": "guest"},
+        )
+        repository.update_sync_run(
+            good["id"],
+            status="completed",
+            checkpoint={"category": "guest", "available_count": 42},
+            finished_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        failed = repository.create_sync_run(
+            source_key="nist",
+            operation="nist_index",
+            parameters={"category": "guest"},
+        )
+        repository.update_sync_run(
+            failed["id"], status="failed", finished_at=datetime(2026, 1, 2, tzinfo=timezone.utc)
+        )
+
+        cached = repository.latest_nist_availability()["guest"]
+
+        assert cached["available_count"] == 42
+        assert cached["indexed_at"] == datetime(2026, 1, 1, tzinfo=timezone.utc)
+    finally:
+        manager.dispose()
+
+###############################################################################
 def test_resume_interrupted_sync_run_preserves_checkpoint_and_counters(
     tmp_path: Path,
 ) -> None:
