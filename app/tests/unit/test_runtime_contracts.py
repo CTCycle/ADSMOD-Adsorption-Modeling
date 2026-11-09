@@ -181,7 +181,7 @@ def test_public_data_policy_is_bounded_and_categories_are_checked() -> None:
     assert config.health_cache_ttl_seconds == 900
     assert config.sync_batch_size == 50
     assert config.sync_max_records_per_run == 200
-    assert config.sync_max_concurrent_jobs == 1
+    assert config.sync_max_concurrent_jobs == 3
     assert config.sync_resume_on_startup is False
 
     scheduled = PublicDataConfig(

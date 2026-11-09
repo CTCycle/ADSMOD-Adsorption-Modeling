@@ -355,3 +355,33 @@ def test_get_page_preserves_validation_and_missing_snapshot_errors(
         store.get_page("missing", 1, 0)
     with pytest.raises(KeyError):
         store.get_page("missing", 1, 3)
+
+
+###############################################################################
+def test_material_upsert_reuses_row_owning_the_inchi_key() -> None:
+    from contextlib import contextmanager
+    from server.repositories.materials import MaterialRepository
+
+    engine = build_sqlite_engine()
+
+    class StubDatabase:
+        @contextmanager
+        def transaction(self) -> Iterator[Session]:
+            with Session(engine) as session:
+                yield session
+                session.commit()
+
+    repository = MaterialRepository(StubDatabase())  # type: ignore[arg-type]
+    inchi_key = "QGZKDVFQNNGYKY-UHFFFAOYSA-N"
+    repository.upsert_adsorbates([{"key": "adsorbate:a", "name": "Ammonia", "inchi_key": inchi_key}])
+    batch = [
+        {"key": "adsorbate:b", "name": "Ammonia", "inchi_key": inchi_key, "formula": "H3N"},
+        {"key": "adsorbate:c", "name": "NH3", "inchi_key": inchi_key},
+    ]
+    repository.upsert_adsorbates(batch)
+
+    with Session(engine) as session:
+        rows = session.scalars(select(Adsorbate)).all()
+    assert [row.key for row in rows] == ["adsorbate:a"]
+    assert {record["key"] for record in batch} == {"adsorbate:a"}
+    engine.dispose()

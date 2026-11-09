@@ -5,9 +5,9 @@ import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { UnifiedJob } from '../../models/job.model';
 import { JobsMonitorService } from '../../services/jobs-monitor.service';
-import { formatPercent, importedLink, isActiveStatus, jobTitle, pendingCount, statusLabel } from '../../shared/utils/job-presentation';
+import { importedLink, isActiveStatus, jobTitle, pendingCount, statusLabel } from '../../shared/utils/job-presentation';
 
-/** One-line summary of a card's current or latest run, so results are visible where they were started. */
+/** Summary of a card's latest finished run, so results are visible where they were started. Running jobs are tracked in Jobs. */
 @Component({
     selector: 'adsmod-acquire-activity',
     standalone: true,
@@ -17,16 +17,12 @@ import { formatPercent, importedLink, isActiveStatus, jobTitle, pendingCount, st
             <div class="activity" role="status">
                 <div class="activity-head">
                     <strong class="activity-title" [title]="title(current)">{{ title(current) }}</strong>
-                    <span class="activity-status" [attr.data-status]="current.status">{{ label(current) }}{{ active() ? ' · ' + percent(current.progress) : '' }}</span>
+                    <span class="activity-status" [attr.data-status]="current.status">{{ label(current) }}</span>
                 </div>
-                @if (active()) {
-                    <progress max="100" [value]="current.progress" [attr.aria-label]="title(current) + ' progress'"></progress>
-                }
                 <div class="activity-foot">
                     @if (current.saved_count !== null) {
                         <span>{{ current.saved_count }} saved · {{ current.skipped_count }} skipped · {{ current.failed_count }} failed</span>
                     }
-                    @if (moreActive(); as more) { <span>+{{ more }} more running</span> }
                     @if (remaining(); as count) { <span>{{ count }} remain; fetch again to continue</span> }
                     <span class="activity-links">
                         @if (link(); as target) { <a class="text-link" [routerLink]="target.path" [queryParams]="target.queryParams">{{ target.label }}</a> }
@@ -51,7 +47,6 @@ import { formatPercent, importedLink, isActiveStatus, jobTitle, pendingCount, st
         .text-link { color: var(--link); font-weight: 600; }
         .text-button { padding: 0; border: 0; background: none; color: var(--link); font: inherit; font-weight: 600; cursor: pointer; }
         .activity-error { margin: 0; color: var(--danger-text); }
-        progress { width: 100%; height: 6px; }
     `,
 })
 export class AcquireActivityComponent {
@@ -63,13 +58,10 @@ export class AcquireActivityComponent {
     private readonly sourceJobs = computed(() =>
         this.jobs.jobs().filter((job) => job.run?.source_key === this.source() && job.run.operation !== 'nist_index'),
     );
-    private readonly activeJobs = computed(() => this.sourceJobs().filter((job) => isActiveStatus(job.status)));
 
-    protected readonly job = computed<UnifiedJob | undefined>(
-        () => this.activeJobs()[0] ?? this.sourceJobs().find((job) => this.sessionRunIds().has(job.run?.id ?? '')),
+    protected readonly job = computed<UnifiedJob | undefined>(() =>
+        this.sourceJobs().find((job) => !isActiveStatus(job.status) && this.sessionRunIds().has(job.run?.id ?? '')),
     );
-    protected readonly active = computed(() => this.activeJobs().length > 0);
-    protected readonly moreActive = computed(() => Math.max(0, this.activeJobs().length - 1));
     protected readonly remaining = computed(() => {
         const run = this.job()?.run;
         return run ? pendingCount(run) : 0;
@@ -81,7 +73,6 @@ export class AcquireActivityComponent {
 
     protected readonly title = jobTitle;
     protected readonly label = statusLabel;
-    protected readonly percent = formatPercent;
 
     protected openDetails(event: Event): void {
         // The popover closes on any outside document click, including this one.

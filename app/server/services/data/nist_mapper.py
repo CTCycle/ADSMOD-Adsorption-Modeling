@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -26,6 +27,15 @@ def _text(value: object) -> str:
 # NIST gives species without a public InChIKey a placeholder such as
 # "NIST-ISODB-...". It identifies the NIST record but is not an InChIKey.
 _INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
+
+###############################################################################
+def _kelvin(value: object) -> float:
+    temperature = parse_number(value, ".")
+    if not math.isfinite(temperature) or temperature <= 0:
+        raise ValueError(
+            f"NIST temperature must be a positive number of kelvin (got {temperature})."
+        )
+    return temperature
 
 ###############################################################################
 def _inchi_key(value: str) -> str | None:
@@ -180,7 +190,7 @@ class NISTCanonicalMapper:
         first = rows.iloc[0]
         pressure_unit = _text(first["pressure_units"])
         uptake_unit = _text(first["adsorption_units"])
-        temperature = parse_number(first["temperature"], ".")
+        temperature = _kelvin(first["temperature"])
         adsorbent = _text(first["adsorbent"])
         adsorbate = _text(first["adsorbate"])
         molar_mass = (
@@ -238,7 +248,7 @@ class NISTCanonicalMapper:
         first = rows.iloc[0]
         pressure_unit = _text(first["pressure_units"])
         uptake_unit = _text(first["adsorption_units"])
-        temperature = parse_number(first["temperature"], ".")
+        temperature = _kelvin(first["temperature"])
         adsorbent = _text(first["adsorbent_name"])
         species = [_text(first["compound_1"]), _text(first["compound_2"])]
         observations: list[dict[str, Any]] = []

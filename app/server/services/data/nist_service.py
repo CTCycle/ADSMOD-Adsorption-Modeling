@@ -425,7 +425,7 @@ class NISTDataService:
         category: NISTCategory,
         fraction: float,
         batch_size: int,
-        max_records: int,
+        max_records: int | None,
         on_progress: Any,
         should_cancel: Any,
         on_failure: Any,
@@ -472,9 +472,12 @@ class NISTDataService:
                 checkpointed_identifiers, existing
             )
             skipped_count = len(checkpointed_identifiers) - len(candidates)
-            record_cap = max(0, max_records)
-            remaining_cap = max(0, record_cap - max(0, processed_before))
-            remaining = candidates[:remaining_cap]
+            record_cap = None if max_records is None else max(0, max_records)
+            remaining = (
+                candidates
+                if record_cap is None
+                else candidates[: max(0, record_cap - max(0, processed_before))]
+            )
             batch_size = max(1, batch_size)
             for offset in range(0, len(remaining), batch_size):
                 if await should_cancel():

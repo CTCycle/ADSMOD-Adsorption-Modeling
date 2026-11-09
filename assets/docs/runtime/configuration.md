@@ -30,7 +30,7 @@ Database switching is performed in the running backend after the candidate conne
 | Public data | `public_data.health_cache_ttl_seconds` | Seconds input, 30–86400; `900` | Freshness window for provider health results. Immediate. |
 | Public data | `public_data.sync_batch_size` | Integer input, 1–500; `50` | Number of NIST records processed before sync progress is checkpointed. Immediate for new sync runs. |
 | Public data | `public_data.sync_max_records_per_run` | Integer input, 1–10000; `200` | Record cap for NIST, PubChem, and COD acquisition jobs. Immediate for new sync runs. |
-| Public data | `public_data.sync_max_concurrent_jobs` | Integer input, 1–4; `1` | Number of public-data sync workers; worker capacity adjusts while ADSMOD is running. |
+| Public data | `public_data.sync_max_concurrent_jobs` | Integer input, 1–4; `3` | Number of public-data sync workers (acquisitions run concurrently; SQLite writes stay serialized and provider rate limits are shared); worker capacity adjusts while ADSMOD is running. |
 | Public data | `public_data.sync_response_size_limit_bytes` | Integer input in KiB steps, 1 KiB–256 MiB; `67108864` (64 MiB) | Maximum decoded provider response body. The NIST isotherm index is about 18 MB, so smaller limits can prevent that acquisition. Immediate for new requests. |
 | Public data | `public_data.sync_resume_on_startup` | Toggle; `false` | Requeues recoverable interrupted sync jobs during startup. **Restart.** |
 | Public data | `public_data.auto_sync_enabled` | Toggle; `false` | Starts or stops the scheduled NIST refresh loop. Immediate. |

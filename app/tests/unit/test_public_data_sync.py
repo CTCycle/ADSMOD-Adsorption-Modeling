@@ -666,7 +666,7 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
             assert observed == {
                 "processed_before": 100,
                 "resume_after_external_id": "record-100",
-                "max_records": 200,
+                "max_records": None,
             }
             assert resumed["status"] == "partially_completed"
             assert resumed["progress"] == 100.0
@@ -1014,7 +1014,7 @@ def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
         repository=_BlockingRepository(),  # type: ignore[arg-type]
         public_data=object(),  # type: ignore[arg-type]
         nist=object(),  # type: ignore[arg-type]
-        config=PublicDataConfig(),
+        config=PublicDataConfig(sync_max_concurrent_jobs=1),
     )
 
     async def scenario() -> None:
@@ -1299,3 +1299,9 @@ def test_conformers_flag_applies_only_to_pubchem_enrichment() -> None:
         source_key="pubchem", operation="pubchem_enrich", fraction=0.5, conformers=True
     )
     assert request.parameters() == {"fraction": 0.5, "conformers": True}
+
+
+###############################################################################
+def test_fraction_count_applies_cap_only_when_given() -> None:
+    assert PublicDataRepository._fraction_count(9328, 0.25, None) == 2332
+    assert PublicDataRepository._fraction_count(9328, 0.25, 200) == 200

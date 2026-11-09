@@ -110,53 +110,92 @@ import { DOCS_GROUPS } from './docs-content';
                 min-width: 0;
             }
             .docs-section {
+                padding: 1.5rem 1.75rem 1.25rem;
                 scroll-margin-top: 0.75rem;
             }
             .docs-group {
                 margin: 0;
                 color: var(--slate-500);
                 font-size: 0.7rem;
-                letter-spacing: 0.05em;
+                font-weight: 600;
+                letter-spacing: 0.06em;
                 text-transform: uppercase;
             }
             .docs-section h2 {
-                margin: 0.15rem 0 0.4rem;
-                font-size: 1.25rem;
+                margin: 0.25rem 0 0.6rem;
+                font-size: 1.4rem;
+                line-height: 1.25;
             }
             .docs-section h3 {
-                margin: 1rem 0 0.35rem;
-                font-size: 0.9rem;
-            }
-            .docs-intro {
-                color: var(--slate-600, var(--slate-500));
+                margin: 1.25rem 0 0.4rem;
+                font-size: 0.8rem;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: var(--slate-500);
             }
             .docs-section p {
-                max-width: 70ch;
-                margin: 0 0 0.7rem;
-                line-height: 1.55;
+                max-width: 68ch;
+                margin: 0 0 0.75rem;
+                font-size: 0.95rem;
+                line-height: 1.65;
+            }
+            .docs-section .docs-intro {
+                font-size: 1.02rem;
+                color: var(--slate-600, var(--slate-500));
             }
             .docs-steps {
                 display: grid;
-                gap: 0.6rem;
-                margin: 0.8rem 0 0;
-                padding-left: 1.25rem;
+                gap: 0.9rem;
+                margin: 1rem 0 0;
+                padding: 0;
+                list-style: none;
+                counter-reset: step;
             }
             .docs-steps li {
-                max-width: 70ch;
-                padding-left: 0.25rem;
+                position: relative;
+                max-width: 68ch;
+                padding-left: 2.5rem;
+                counter-increment: step;
+            }
+            .docs-steps li::before {
+                content: counter(step);
+                position: absolute;
+                left: 0;
+                top: 0.05rem;
+                display: grid;
+                place-items: center;
+                width: 1.7rem;
+                height: 1.7rem;
+                border-radius: 50%;
+                background: var(--primary-50);
+                color: var(--primary-700, var(--primary-600, inherit));
+                font-size: 0.8rem;
+                font-weight: 600;
             }
             .docs-steps strong {
                 display: block;
+                font-size: 0.95rem;
+                line-height: 1.4;
             }
             .docs-steps span {
+                display: block;
+                margin-top: 0.15rem;
                 color: var(--slate-600, var(--slate-500));
                 font-size: 0.9rem;
+                line-height: 1.6;
             }
             .docs-tips {
+                max-width: 68ch;
                 margin: 0;
-                padding-left: 1.25rem;
+                padding: 0.7rem 1rem 0.7rem 2rem;
+                border-left: 3px solid var(--primary-200, var(--primary-50));
+                border-radius: 0 8px 8px 0;
+                background: var(--primary-50);
                 font-size: 0.9rem;
-                line-height: 1.55;
+                line-height: 1.6;
+            }
+            .docs-tips li + li {
+                margin-top: 0.3rem;
             }
             @media (max-width: 860px) {
                 .docs-layout {

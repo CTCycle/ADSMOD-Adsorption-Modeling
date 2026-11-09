@@ -553,6 +553,14 @@ class PublicDataSyncCoordinator:
         }
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _run_cap(config: Any, parameters: dict[str, Any]) -> int | None:
+        """Only scheduled refreshes are capped; a requested share runs in full."""
+        if parameters.get("trigger") == "scheduled":
+            return int(config.sync_max_records_per_run)
+        return None
+
+    # -------------------------------------------------------------------------
     async def _run_nist_category(
         self,
         run: dict[str, Any],
@@ -574,7 +582,7 @@ class PublicDataSyncCoordinator:
             identifiers=parameters.get("identifiers"),
             overwrite_local_edits=bool(parameters.get("overwrite_local_edits", False)),
             batch_size=config.sync_batch_size,
-            max_records=config.sync_max_records_per_run,
+            max_records=self._run_cap(config, parameters),
             processed_before=int(run.get("processed_count", 0)),
             resume_after_external_id=(
                 str(run_checkpoint["last_external_id"])
@@ -636,7 +644,7 @@ class PublicDataSyncCoordinator:
                 if conformers
                 else self.repository.pubchem_enrichment_candidates
             ),
-            config.sync_max_records_per_run,
+            self._run_cap(config, run["parameters"]),
             float(run["parameters"].get("fraction", 1.0)),
         )
         counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
@@ -783,7 +791,7 @@ class PublicDataSyncCoordinator:
         config, public_data, _ = self._active_settings()
         candidates = await asyncio.to_thread(
             self.repository.cod_bulk_candidates,
-            config.sync_max_records_per_run,
+            self._run_cap(config, run["parameters"]),
             float(run["parameters"]["fraction"]),
         )
         counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}

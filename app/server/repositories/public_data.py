@@ -931,7 +931,7 @@ class PublicDataRepository:
 
     # -------------------------------------------------------------------------
     def pubchem_enrichment_candidates(
-        self, limit: int, fraction: float = 1.0
+        self, limit: int | None, fraction: float = 1.0
     ) -> list[dict[str, Any]]:
         """Return chemicals without PubChem identity that may still resolve.
 
@@ -1025,7 +1025,7 @@ class PublicDataRepository:
                 )
 
     # -------------------------------------------------------------------------
-    def conformer_candidates(self, limit: int, fraction: float = 1.0) -> list[dict[str, Any]]:
+    def conformer_candidates(self, limit: int | None, fraction: float = 1.0) -> list[dict[str, Any]]:
         """Enriched chemicals with a published 3D conformer that is not cached yet.
 
         Chemicals whose earlier download failed permanently are excluded so
@@ -1055,13 +1055,14 @@ class PublicDataRepository:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _fraction_count(total: int, fraction: float, limit: int) -> int:
+    def _fraction_count(total: int, fraction: float, limit: int | None) -> int:
         share = min(1.0, max(0.0, float(fraction)))
-        return min(max(1, limit), math.ceil(share * total))
+        count = math.ceil(share * total)
+        return count if limit is None else min(max(1, limit), count)
 
     # -------------------------------------------------------------------------
     def cod_bulk_candidates(
-        self, limit: int, fraction: float = 1.0
+        self, limit: int | None, fraction: float = 1.0
     ) -> list[dict[str, Any]]:
         """Return stored materials that have no structure and no final COD outcome.
 

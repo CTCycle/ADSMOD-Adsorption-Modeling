@@ -406,7 +406,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         const stats = this.overview();
         if (!stats) return '';
         const remaining = stats.species_total - stats.species_enriched;
-        return this.enrichBlocked() ?? `Up to ${this.shareCount(this.bulkFractions().pubchem, remaining).toLocaleString()} of ${remaining.toLocaleString()} unenriched species.`;
+        return this.enrichBlocked() ?? this.shareHint(this.bulkFractions().pubchem, remaining, 'species without PubChem data');
     });
     protected readonly codBulkBlocked = computed(() => {
         const stats = this.overview();
@@ -418,7 +418,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
         const stats = this.overview();
         if (!stats) return '';
         const remaining = stats.materials_total - stats.materials_with_structure;
-        return this.codBulkBlocked() ?? `Up to ${this.shareCount(this.bulkFractions().cod, remaining).toLocaleString()} of ${remaining.toLocaleString()} materials without a structure.`;
+        return this.codBulkBlocked() ?? this.shareHint(this.bulkFractions().cod, remaining, 'materials without a structure');
     });
 
     protected readonly visibleCodResults = computed(() => {
@@ -499,6 +499,12 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     /** Matches the backend, which rounds a share of an index up to whole records. */
     protected shareCount(fraction: number, total: number): number {
         return Math.ceil(fraction * total);
+    }
+
+    /** Names the batch only when it is a partial share; a full share needs no count restated. */
+    private shareHint(fraction: number, remaining: number, noun: string): string {
+        const count = this.shareCount(fraction, remaining);
+        return count >= remaining ? '' : `Next ${count.toLocaleString()} of ${remaining.toLocaleString()} ${noun}.`;
     }
 
     protected isShareInvalid(key: string): boolean {

@@ -331,6 +331,30 @@ def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> No
     assert "unsupported-volume" in caplog.text
 
 
+###############################################################################
+def test_nist_mapper_skips_experiment_with_non_positive_temperature() -> None:
+    mapper = NISTCanonicalMapper()
+    row = {
+        "pressure_units": "bar",
+        "adsorption_units": "mmol/g",
+        "adsorbent": "CuBTC",
+        "adsorbate": "nitrogen",
+        "pressure": 0.1,
+        "adsorbed_amount": 1.0,
+    }
+    single_component = pd.DataFrame(
+        [
+            {**row, "name": "below-zero", "temperature": -200.0},
+            {**row, "name": "valid", "temperature": 77.0},
+        ]
+    )
+
+    records, skipped = mapper.experiment_records_with_skips(single_component, None)
+
+    assert [record["external_key"] for record in records] == ["valid"]
+    assert "positive number of kelvin" in skipped["below-zero"]
+
+
 # Public data
 
 PUBLIC_SOURCE_DEFINITIONS = [

@@ -238,7 +238,7 @@ describe('AcquireViewComponent', () => {
         runs = [run({ ...finished, status: 'running', progress: 40 })];
         await jobs.refresh();
         fixture.detectChanges();
-        expect(activity()).toContain('40%');
+        expect(activity()).toBe('');
 
         runs = [run(finished)];
         await jobs.refresh();

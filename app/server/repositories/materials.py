@@ -55,30 +55,59 @@ class MaterialRepository:
         self.database = database
 
     # -------------------------------------------------------------------------
-    def upsert_adsorbates(self, records: Iterable[dict[str, Any]]) -> int:
-        columns = Adsorbate.__table__.c
-        rows = [
-            {key: value for key, value in row.items() if key in columns}
-            | {"normalized_name": normalize_identity(str(row.get("name", row["key"])))}
-            for row in records
-        ]
+    def _upsert_materials(
+        self, model: Any, records: Iterable[dict[str, Any]], identity: str
+    ) -> int:
+        records = list(records)
+        table = model.__table__
         with self.database.transaction() as session:
+            self._reconcile_keys(session, model, records, identity)
+            rows = [
+                {key: value for key, value in row.items() if key in table.c}
+                | {
+                    "normalized_name": normalize_identity(
+                        str(row.get("name", row["key"]))
+                    )
+                }
+                for row in records
+            ]
             return upsert_records(
-                session, Adsorbate.__table__, rows, ["key"], keep_existing_on_null=True
+                session, table, rows, ["key"], keep_existing_on_null=True
             )
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _reconcile_keys(
+        session: Session, model: Any, records: list[dict[str, Any]], identity: str
+    ) -> None:
+        """Point records at the row already owning their unique external identity.
+
+        The identity column is unique besides ``key``; a row stored under another
+        key (or repeated in the batch) would otherwise violate that constraint.
+        Keys are rewritten in place so callers can still resolve ids by record key.
+        """
+        column = getattr(model, identity)
+        values = {record[identity] for record in records if record.get(identity)}
+        owners: dict[str, str] = {}
+        if values:
+            owners = {
+                str(value): str(key)
+                for value, key in session.execute(
+                    select(column, model.key).where(column.in_(list(values)))
+                )
+            }
+        for record in records:
+            value = record.get(identity)
+            if value:
+                record["key"] = owners.setdefault(str(value), record["key"])
+
+    # -------------------------------------------------------------------------
+    def upsert_adsorbates(self, records: Iterable[dict[str, Any]]) -> int:
+        return self._upsert_materials(Adsorbate, records, "inchi_key")
+
+    # -------------------------------------------------------------------------
     def upsert_adsorbents(self, records: Iterable[dict[str, Any]]) -> int:
-        columns = Adsorbent.__table__.c
-        rows = [
-            {key: value for key, value in row.items() if key in columns}
-            | {"normalized_name": normalize_identity(str(row.get("name", row["key"])))}
-            for row in records
-        ]
-        with self.database.transaction() as session:
-            return upsert_records(
-                session, Adsorbent.__table__, rows, ["key"], keep_existing_on_null=True
-            )
+        return self._upsert_materials(Adsorbent, records, "external_identifier")
 
     # -------------------------------------------------------------------------
     def adsorbate_ids(self, keys: Iterable[str]) -> dict[str, int]:
