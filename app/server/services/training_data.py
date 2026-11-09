@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 from typing import Any
 
@@ -12,7 +10,7 @@ from server.configurations.settings import AdsmodConfig
 from server.domain.training_data import SnapshotPayload, SnapshotReference
 from server.domain.snapshots import SnapshotDatasetSelection
 from server.common.path import resolve_storage_root
-from server.repositories.snapshots import SnapshotStore
+from server.repositories.snapshots import SnapshotHasher, SnapshotStore
 from server.repositories.database.initializer import prepare_database_for_startup
 from server.services.container import CoreServiceContainer
 
@@ -101,6 +99,7 @@ class TrainingDataService:
     # -------------------------------------------------------------------------
     def fetch_snapshot(self, snapshot_id: str) -> SnapshotPayload:
         rows: list[dict[str, Any]] = []
+        hasher = SnapshotHasher()
         page_number = 1
         content_hash: str | None = None
         total_rows: int | None = None
@@ -111,11 +110,11 @@ class TrainingDataService:
                 total_rows = page.total_rows
             elif page.content_hash != content_hash:
                 raise RuntimeError("Snapshot content hash changed during read.")
-            rows.extend(dict(row) for row in page.rows)
+            for row in page.rows:
+                hasher.update(row)
+            rows.extend(page.rows)
             page_number += 1
-        payload = json.dumps(tuple(rows), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        computed_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-        if content_hash is None or computed_hash != content_hash:
+        if content_hash is None or hasher.hexdigest() != content_hash:
             raise RuntimeError("Snapshot content hash verification failed.")
         return SnapshotPayload(snapshot_id, content_hash, tuple(rows))
 

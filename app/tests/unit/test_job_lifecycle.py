@@ -110,6 +110,33 @@ def test_repeated_terminal_jobs_do_not_leave_stale_execution_bookkeeping() -> No
 
 
 ###############################################################################
+def test_finished_jobs_are_pruned_to_retention_limit_but_running_jobs_are_kept(
+    monkeypatch,  # type: ignore[no-untyped-def]
+) -> None:
+    monkeypatch.setattr(JobManager, "MAX_FINISHED_JOBS", 2)
+    manager = JobManager()
+    release = threading.Event()
+
+    def blocked(stop_event: threading.Event) -> dict[str, str]:
+        release.wait(timeout=10)
+        return {}
+
+    running_id = manager.start_job("prune", blocked)
+    finished_ids = []
+    for _ in range(4):
+        job_id = manager.start_job("prune", _successful_thread_job)
+        _wait_for_terminal(manager, job_id)
+        _wait_for_cleanup(manager, job_id)
+        finished_ids.append(job_id)
+    manager.start_job("prune", _successful_thread_job)
+
+    assert manager.get_job_status(running_id) is not None
+    assert manager.get_job_status(finished_ids[0]) is None
+    assert manager.get_job_status(finished_ids[-1]) is not None
+    release.set()
+
+
+###############################################################################
 def test_thread_exception_releases_execution_bookkeeping() -> None:
     manager = JobManager()
     job_id = manager.start_job("test", _failing_thread_job)

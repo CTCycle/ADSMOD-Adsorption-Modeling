@@ -10,8 +10,6 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
-from scipy.optimize import least_squares
-from scipy.stats import t as student_t
 
 from server.domain.fitting import (
     ExperimentFitRequest,
@@ -446,6 +444,8 @@ class ModelSolver:
             )
             return warnings, None, None, None
         standard_errors = np.sqrt(diagonal)
+        from scipy.stats import t as student_t  # deferred: scipy loads on first fit
+
         critical = float(student_t.ppf(0.975, dof))
         return (
             warnings,
@@ -516,6 +516,8 @@ class ModelSolver:
                         np.clip(initial * 2.0, lower, upper),
                     ]
                 )
+            from scipy.optimize import least_squares  # deferred: loads on first fit
+
             candidates = []
             for start in starts:
                 raise_if_cancelled(stop_event)

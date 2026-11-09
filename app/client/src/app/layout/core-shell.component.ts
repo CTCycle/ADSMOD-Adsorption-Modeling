@@ -100,6 +100,7 @@ export class CoreShellComponent {
     private readonly title = inject(Title);
     private readonly meta = inject(Meta);
     private readonly destroyRef = inject(DestroyRef);
+    private statusRefresh: Promise<void> | null = null;
     private readonly currentUrl = signal(this.router.url);
     protected readonly backendStatus = signal<'Checking' | 'Online' | 'Offline'>('Checking');
     protected readonly metrics = signal<SystemStatus | null>(null);
@@ -170,7 +171,11 @@ export class CoreShellComponent {
             this.meta.updateTag({ name: 'description', content: this.pageDescription() });
         });
         void this.refreshBackendStatus();
-        const serviceStatusTimer = window.setInterval(() => void this.refreshBackendStatus(), 10_000);
+        const serviceStatusTimer = window.setInterval(() => {
+            if (!document.hidden) {
+                void this.refreshBackendStatus();
+            }
+        }, 10_000);
         this.destroyRef.onDestroy(() => window.clearInterval(serviceStatusTimer));
         this.router.events
             .pipe(
@@ -203,7 +208,15 @@ export class CoreShellComponent {
         });
     }
 
-    private async refreshBackendStatus(): Promise<void> {
+    /** Shares one in-flight request so a slow backend cannot accumulate overlapping polls. */
+    private refreshBackendStatus(): Promise<void> {
+        this.statusRefresh ??= this.fetchBackendStatus().finally(() => {
+            this.statusRefresh = null;
+        });
+        return this.statusRefresh;
+    }
+
+    private async fetchBackendStatus(): Promise<void> {
         const [capabilities, readiness, usage] = await Promise.all([
             fetchApplicationCapabilities(true),
             fetchBackendReadiness(),

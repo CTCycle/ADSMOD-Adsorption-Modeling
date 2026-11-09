@@ -41,9 +41,24 @@ class SystemStatusSampler:
         cpu = self.process.cpu_percent(interval=None) / max(1, psutil.cpu_count() or 1)
         return SystemStatusResponse(
             cpu_percent=round(min(100.0, cpu), 1),
-            memory_mb=round(self.process.memory_info().rss / 1024**2, 1),
+            memory_mb=round(self._tree_rss() / 1024**2, 1),
             database_size_bytes=self._database_size(database, manager, storage_root),
         )
+
+    # -------------------------------------------------------------------------
+    def _tree_rss(self) -> int:
+        """Resident memory of the API process plus spawned workers (training)."""
+        total = self.process.memory_info().rss
+        try:
+            children = self.process.children(recursive=True)
+        except psutil.Error:
+            return total
+        for child in children:
+            try:
+                total += child.memory_info().rss
+            except psutil.Error:
+                continue
+        return total
 
     # -------------------------------------------------------------------------
     def _database_size(

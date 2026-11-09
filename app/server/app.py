@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from importlib import import_module
+from importlib.util import find_spec
 from typing import Any, get_args
 
 from fastapi import APIRouter, FastAPI, Request
@@ -39,6 +40,8 @@ from server.services.container import CoreServiceContainer
 from server.services.system_status import SystemStatusSampler
 from server.services.training_data import TrainingDataService
 from server.api.settings import create_settings_router
+
+ML_REQUIREMENTS = ("torch", "keras", "sklearn")
 
 
 ###############################################################################
@@ -193,12 +196,22 @@ def _build_system_router() -> APIRouter:
 
 ###############################################################################
 def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> None:
+    # The ML stack (torch, keras, sklearn) is only located here, never imported:
+    # LazyMlContainer imports it on the first training request.
+    missing = next((name for name in ML_REQUIREMENTS if find_spec(name) is None), None)
+    if missing is not None:
+        runtime.machine_learning_available = False
+        runtime.machine_learning_reason = f"No module named {missing!r}"
+        logger.info(
+            "Optional machine learning support is unavailable because the ML profile is not installed."
+        )
+        return
     try:
         bootstrap = import_module("server.services.ml_bootstrap")
         bootstrap.configure_environment()
-        container_module = import_module("server.services.ml_container")
+        lazy_module = import_module("server.services.ml_lazy")
         routes_module = import_module("server.api.routes")
-        ml_container = container_module.MlServiceContainer(
+        ml_container = lazy_module.LazyMlContainer(
             runtime.config,
             snapshot_access=runtime.training_data,
         )

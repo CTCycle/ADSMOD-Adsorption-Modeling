@@ -83,7 +83,7 @@ class JobsEndpoint:
 
         managers = [self.container.job_manager]
         ml_container = request.app.state.runtime.ml_container
-        if ml_container is not None:
+        if ml_container is not None and ml_container.job_manager is not None:
             managers.append(ml_container.job_manager)
         jobs.extend(
             managed_job(snapshot)

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.schemas.models import (
@@ -25,7 +25,6 @@ class SnapshotRecord:
     content_hash: str
     created_at: str
     row_count: int
-    rows: tuple[dict[str, Any], ...]
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -38,26 +37,37 @@ class SnapshotPage:
     rows: tuple[dict[str, Any], ...]
 
 ###############################################################################
+class SnapshotHasher:
+    """Incrementally hashes the canonical JSON array of snapshot rows."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self) -> None:
+        self._digest = hashlib.sha256(b"[")
+        self._empty = True
+
+    # -------------------------------------------------------------------------
+    def update(self, row: dict[str, Any]) -> None:
+        encoded = json.dumps(
+            row, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        self._digest.update(("" if self._empty else ",").encode() + encoded.encode("utf-8"))
+        self._empty = False
+
+    # -------------------------------------------------------------------------
+    def hexdigest(self) -> str:
+        digest = self._digest.copy()
+        digest.update(b"]")
+        return digest.hexdigest()
+
+###############################################################################
 class SnapshotStore:
     """Core-owned immutable snapshot storage in the operational database."""
+
+    INSERT_CHUNK_SIZE = 5000
 
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _canonical_rows(
-        rows: list[dict[str, Any]],
-    ) -> tuple[str, tuple[dict[str, Any], ...]]:
-        frozen_rows = tuple(dict(row) for row in rows)
-        payload = json.dumps(
-            frozen_rows,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return payload, frozen_rows
 
     # -------------------------------------------------------------------------
     def create(
@@ -68,8 +78,10 @@ class SnapshotStore:
     ) -> SnapshotRecord:
         if not rows:
             raise ValueError("A snapshot must contain at least one row.")
-        payload, frozen_rows = self._canonical_rows(rows)
-        content_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        hasher = SnapshotHasher()
+        for row in rows:
+            hasher.update(row)
+        content_hash = hasher.hexdigest()
         snapshot_id = str(uuid.uuid4())
         created_at = datetime.now(timezone.utc)
         with self.database.transaction() as session:
@@ -84,29 +96,36 @@ class SnapshotStore:
                     content_hash=existing.content_hash,
                     created_at=existing.created_at.isoformat(),
                     row_count=existing.row_count,
-                    rows=frozen_rows,
                 )
-            snapshot = TrainingSnapshot(
-                snapshot_id=snapshot_id,
-                content_hash=content_hash,
-                created_at=created_at,
-                row_count=len(frozen_rows),
-                snapshot_metadata=dict(metadata or {}),
-                rows=[
-                    TrainingSnapshotRow(
-                        row_index=index,
-                        payload=row,
-                    )
-                    for index, row in enumerate(frozen_rows)
-                ],
+            session.add(
+                TrainingSnapshot(
+                    snapshot_id=snapshot_id,
+                    content_hash=content_hash,
+                    created_at=created_at,
+                    row_count=len(rows),
+                    snapshot_metadata=dict(metadata or {}),
+                )
             )
-            session.add(snapshot)
+            session.flush()
+            for start in range(0, len(rows), self.INSERT_CHUNK_SIZE):
+                session.execute(
+                    insert(TrainingSnapshotRow),
+                    [
+                        {
+                            "snapshot_id": snapshot_id,
+                            "row_index": start + offset,
+                            "payload": row,
+                        }
+                        for offset, row in enumerate(
+                            rows[start : start + self.INSERT_CHUNK_SIZE]
+                        )
+                    ],
+                )
         return SnapshotRecord(
             snapshot_id=snapshot_id,
             content_hash=content_hash,
             created_at=created_at.isoformat(),
-            row_count=len(frozen_rows),
-            rows=frozen_rows,
+            row_count=len(rows),
         )
 
     # -------------------------------------------------------------------------
@@ -141,4 +160,4 @@ class SnapshotStore:
             )
 
 
-__all__ = ["SnapshotPage", "SnapshotRecord", "SnapshotStore"]
+__all__ = ["SnapshotHasher", "SnapshotPage", "SnapshotRecord", "SnapshotStore"]

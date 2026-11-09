@@ -90,9 +90,11 @@ export class StructureViewerDialogComponent {
     protected readonly style = signal<RenderStyle>('ball-stick');
     protected readonly status = signal<string | null>('Loading 3D viewer…');
     private viewer: GLViewer | null = null;
+    private viewerHost: HTMLElement | null = null;
+    private destroyed = false;
 
     constructor() {
-        inject(DestroyRef).onDestroy(() => this.viewer?.clear());
+        inject(DestroyRef).onDestroy(() => this.releaseViewer());
         effect(() => {
             this.dialog().nativeElement.focus();
             const format = this.format();
@@ -110,8 +112,12 @@ export class StructureViewerDialogComponent {
         try {
             // 3Dmol is CommonJS: the bundler exposes its API under `default`.
             const library = (await import('3dmol')).default;
+            if (this.destroyed) return;
             this.viewer?.clear();
-            this.viewer ??= library.createViewer(this.host().nativeElement, { backgroundColor: 'white' });
+            if (!this.viewer) {
+                this.viewerHost = this.host().nativeElement;
+                this.viewer = library.createViewer(this.viewerHost, { backgroundColor: 'white' });
+            }
             const options = format === 'cif' ? { doAssembly: true, normalizeAssembly: true, duplicateAssemblyAtoms: true } : {};
             this.viewer.addModel(format === 'cif' ? withLegacySymmetryTags(content) : content, format, options);
             this.applyStyle();
@@ -124,6 +130,18 @@ export class StructureViewerDialogComponent {
         } catch {
             this.status.set('This structure could not be displayed.');
         }
+    }
+
+    /** Free the WebGL context eagerly: browsers cap live contexts and clear() alone keeps the canvas. */
+    private releaseViewer(): void {
+        this.destroyed = true;
+        this.viewer?.clear();
+        const canvas = this.viewerHost?.querySelector('canvas');
+        const context = canvas?.getContext('webgl2') ?? canvas?.getContext('webgl');
+        context?.getExtension('WEBGL_lose_context')?.loseContext();
+        this.viewerHost?.replaceChildren();
+        this.viewer = null;
+        this.viewerHost = null;
     }
 
     private applyStyle(): void {

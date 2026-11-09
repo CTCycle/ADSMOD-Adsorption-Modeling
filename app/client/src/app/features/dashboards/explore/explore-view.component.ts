@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { Location } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import type { EChartsCoreOption } from 'echarts/core';
@@ -474,6 +474,9 @@ export class ExploreViewComponent {
     private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
+        inject(DestroyRef).onDestroy(() => {
+            if (this.searchTimer) clearTimeout(this.searchTimer);
+        });
         void this.loadSelection();
         void this.loadChart();
     }

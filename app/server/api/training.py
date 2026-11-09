@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from server.domain.training import (
@@ -20,14 +22,16 @@ from server.domain.training import (
     TrainingStatusResponse,
 )
 from server.common.utils.logger import logger
-from server.services.ml_container import MlServiceContainer
-from server.services.training import TrainingService
 from server.domain.jobs import (
     JobCancelResponse,
     JobListResponse,
     JobStartResponse,
     JobStatusResponse,
 )
+
+if TYPE_CHECKING:
+    from server.services.ml_lazy import LazyMlContainer
+    from server.services.training import TrainingService
 
 ###############################################################################
 class TrainingEndpoint:
@@ -379,7 +383,7 @@ class TrainingEndpoint:
         )
 
 ###############################################################################
-def create_training_router(container: MlServiceContainer) -> APIRouter:
+def create_training_router(container: LazyMlContainer) -> APIRouter:
     router = APIRouter(prefix="/training", tags=["training"])
     endpoint = TrainingEndpoint(router=router, service=container.training_service)
     endpoint.add_routes()

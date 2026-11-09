@@ -138,6 +138,7 @@ def run_process_runner(
 ###############################################################################
 class JobManager:
     PROCESS_STOP_TIMEOUT_SECONDS = 10.0
+    MAX_FINISHED_JOBS = 50
 
     # -------------------------------------------------------------------------
     def __init__(self, *, logger: Logger | None = None) -> None:
@@ -258,6 +259,7 @@ class JobManager:
         )
 
         with self.lock:
+            self._prune_finished_jobs()
             self.jobs[job_id] = state
             self.job_configs[job_id] = config
             if thread_stop_event is not None:
@@ -277,6 +279,26 @@ class JobManager:
 
         self._logger.info("Started job %s (type=%s)", job_id, job_type)
         return job_id
+
+    # -------------------------------------------------------------------------
+    def _prune_finished_jobs(self) -> None:
+        """Drop the oldest finished jobs (and their results) beyond the retention limit.
+
+        Must be called with ``self.lock`` held. Jobs that still own a worker
+        thread or process are never removed.
+        """
+        finished = [
+            (state.created_at, job_id)
+            for job_id, state in self.jobs.items()
+            if state.status not in ("pending", "running")
+            and job_id not in self.threads
+            and job_id not in self.processes
+        ]
+        excess = len(finished) - self.MAX_FINISHED_JOBS
+        if excess <= 0:
+            return
+        for _, job_id in sorted(finished)[:excess]:
+            del self.jobs[job_id]
 
     # -------------------------------------------------------------------------
     def get_job_status(self, job_id: str) -> dict[str, Any] | None:

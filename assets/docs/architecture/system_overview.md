@@ -1,6 +1,6 @@
 # System overview
 
-Last updated: 2026-10-22
+Last updated: 2026-11-09
 
 ## Repository layout
 
@@ -45,11 +45,14 @@ process, internal HTTP service token, or service-to-service proxy is required.
 ## Optional machine learning
 
 The base backend installation does not install the heavy ML dependencies. The
-optional `ml` dependency extra installs them. At startup the backend lazily
-attempts to load `server.services.ml_container` and `server.api.training`, then
-reports the result via `/api/v1/system/capabilities`. The Angular client uses
-that capability as its single source of truth for ML navigation and route
-access.
+optional `ml` dependency extra installs them. At startup the backend only
+checks that `torch`, `keras`, and `sklearn` are installed, registers the ML
+routes behind `LazyMlContainer` (`server.services.ml_lazy`), and reports the
+result via `/api/v1/system/capabilities`. The ML stack itself is imported on
+the first training request, so a session that never opens the ML pages keeps
+roughly 600 MB less resident memory; training runs in a spawned child
+process. The Angular client uses the capability as its single source of truth
+for ML navigation and route access.
 
 ## Configuration flow
 

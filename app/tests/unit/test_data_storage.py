@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
+import hashlib
+import json
 import threading
 import pytest
 import sqlalchemy
@@ -283,7 +285,21 @@ def test_create_reuses_existing_snapshot_for_same_content(
     assert second.snapshot_id == first.snapshot_id
     assert second.content_hash == first.content_hash
     assert second.created_at == first.created_at
-    assert second.rows == first.rows
+
+
+###############################################################################
+def test_snapshot_hash_matches_canonical_json_of_all_rows(
+    database: DatabaseManager,
+) -> None:
+    rows = _rows()
+    canonical = json.dumps(
+        tuple(rows), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+
+    record = SnapshotStore(database).create(rows)
+
+    assert record.content_hash == hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    assert record.row_count == len(rows)
 
 
 ###############################################################################

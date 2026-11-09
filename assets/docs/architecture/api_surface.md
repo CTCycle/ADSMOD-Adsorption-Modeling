@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -10,7 +10,7 @@ aliases or unversioned API aliases.
 
 The unified backend serves all versioned routes under `/api/v1`:
 
-- `/system/capabilities`, `/system/configuration` and `/system/status` (backend CPU, memory, database size)
+- `/system/capabilities`, `/system/configuration` and `/system/status` (backend CPU, memory including spawned training workers, database size)
 - `/jobs`: read-only unified list of acquisition, fitting and training jobs
 - `/datasets/*`, including the unit catalog (`GET /supported-units`) and
   user-defined units (`POST /units`, `DELETE /units/{unit_id}`). Import
