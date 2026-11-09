@@ -1611,6 +1611,200 @@
         }
       }
     },
+    "/api/v1/identity/reviews": {
+      "get": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "List Identity Reviews",
+        "operationId": "list_identity_reviews_api_v1_identity_reviews_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "open",
+                "merged",
+                "rejected"
+              ],
+              "type": "string",
+              "default": "open",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "adsorbate",
+                    "adsorbent"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityReviewPageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity/reviews/{review_id}/merge": {
+      "post": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Merge Identity Review",
+        "operationId": "merge_identity_review_api_v1_identity_reviews__review_id__merge_post",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Review Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentityMergeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity/reviews/{review_id}/reject": {
+      "post": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Reject Identity Review",
+        "operationId": "reject_identity_review_api_v1_identity_reviews__review_id__reject_post",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Review Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/identity/audit": {
+      "post": {
+        "tags": [
+          "materials"
+        ],
+        "summary": "Audit Identities",
+        "operationId": "audit_identities_api_v1_identity_audit_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityAuditResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/materials": {
       "get": {
         "tags": [
@@ -7310,6 +7504,22 @@
               }
             ],
             "title": "Job Id"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "stale_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale Reason"
           }
         },
         "type": "object",
@@ -7746,6 +7956,243 @@
         "title": "HomeSummaryResponse",
         "description": "Counts of persisted entities.\n\nSpecies and materials are stored entity rows, the same population the\nDatasets page lists, whether they came from an upload or a provider."
       },
+      "IdentityAuditResponse": {
+        "properties": {
+          "adsorbate": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Adsorbate"
+          },
+          "adsorbent": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Adsorbent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "adsorbate",
+          "adsorbent"
+        ],
+        "title": "IdentityAuditResponse"
+      },
+      "IdentityEntityView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "identity_status": {
+            "type": "string",
+            "title": "Identity Status"
+          },
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier"
+          },
+          "experiment_count": {
+            "type": "integer",
+            "title": "Experiment Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "identity_status"
+        ],
+        "title": "IdentityEntityView"
+      },
+      "IdentityMergeRequest": {
+        "properties": {
+          "keep_id": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Keep Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keep_id"
+        ],
+        "title": "IdentityMergeRequest"
+      },
+      "IdentityReviewPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityReviewView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "IdentityReviewPageResponse"
+      },
+      "IdentityReviewView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "adsorbate",
+              "adsorbent"
+            ],
+            "title": "Kind"
+          },
+          "raw_name": {
+            "type": "string",
+            "title": "Raw Name"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evidence"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "merged",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IdentityEntityView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IdentityEntityView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "raw_name",
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "title": "IdentityReviewView"
+      },
+      "ImportIdentityPreview": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "adsorbate",
+              "adsorbent"
+            ],
+            "title": "Kind"
+          },
+          "received_name": {
+            "type": "string",
+            "title": "Received Name"
+          },
+          "canonical_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Name"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "identity_status": {
+            "type": "string",
+            "title": "Identity Status"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "received_name",
+          "method",
+          "identity_status"
+        ],
+        "title": "ImportIdentityPreview"
+      },
       "ImportIssue": {
         "properties": {
           "code": {
@@ -8165,6 +8612,13 @@
             },
             "type": "array",
             "title": "Issues"
+          },
+          "identities": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIdentityPreview"
+            },
+            "type": "array",
+            "title": "Identities"
           }
         },
         "type": "object",
@@ -8538,6 +8992,18 @@
             ],
             "title": "Smiles"
           },
+          "identity_status": {
+            "type": "string",
+            "title": "Identity Status",
+            "default": "provisional"
+          },
+          "synonyms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonyms"
+          },
           "structure_count": {
             "type": "integer",
             "title": "Structure Count",
@@ -8639,6 +9105,18 @@
               }
             ],
             "title": "Smiles"
+          },
+          "identity_status": {
+            "type": "string",
+            "title": "Identity Status",
+            "default": "provisional"
+          },
+          "synonyms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonyms"
           },
           "structure_count": {
             "type": "integer",
@@ -9537,7 +10015,12 @@
             "maximum": 4.0,
             "minimum": 1.0,
             "title": "Sync Max Concurrent Jobs",
-            "default": 1
+            "default": 3
+          },
+          "auto_resolve_uploaded_species": {
+            "type": "boolean",
+            "title": "Auto Resolve Uploaded Species",
+            "default": true
           },
           "sync_response_size_limit_bytes": {
             "type": "integer",
@@ -10653,6 +11136,11 @@
             "type": "string",
             "title": "Name"
           },
+          "identity_status": {
+            "type": "string",
+            "title": "Identity Status",
+            "default": "provisional"
+          },
           "preferred_name": {
             "anyOf": [
               {
@@ -10901,6 +11389,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "identity_status": {
+            "type": "string",
+            "title": "Identity Status",
+            "default": "provisional"
           },
           "preferred_name": {
             "anyOf": [
