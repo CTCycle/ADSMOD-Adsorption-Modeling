@@ -152,11 +152,11 @@
 }
 
 .collection-table .col-fraction {
-    width: 150px;
+    width: 170px;
 }
 
 .collection-table .col-actions {
-    width: 286px;
+    width: 112px;
 }
 
 .collection-count {
@@ -291,6 +291,62 @@
 .run-note {
     margin: 0;
     color: var(--text-secondary, #667085);
+    font-size: 0.74rem;
+}
+
+.section-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.text-button {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--link);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.share-field {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.share-field input.invalid {
+    border-color: var(--danger);
+}
+
+.share-preview {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.share-preview.invalid,
+.bulk-hint.invalid {
+    color: var(--danger-text);
+}
+
+.bulk-hint {
+    margin-top: 6px;
+}
+
+.cod-submit {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+    margin-left: auto;
+    color: var(--text-secondary);
     font-size: 0.74rem;
 }
 

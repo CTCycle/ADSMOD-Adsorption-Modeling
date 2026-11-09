@@ -46,7 +46,7 @@ const PAGE_SIZE = 25;
                 <table class="data-table targeted-table">
                     <caption class="sr-only">Matching NIST isotherms</caption>
                     <thead><tr>
-                        <th class="select-column" scope="col"><input type="checkbox" [checked]="allSelected()" [disabled]="!selectable().length" aria-label="Select all fetchable results" (change)="toggleAll($event)" /></th>
+                        <th class="select-column" scope="col"><input type="checkbox" [checked]="allSelected()" [disabled]="!selectable().length" title="Select all fetchable results on this page" aria-label="Select all fetchable results on this page" (change)="toggleAll($event)" /></th>
                         <th scope="col">Isotherm</th><th scope="col">Compound</th><th scope="col">Adsorbent</th><th class="num" scope="col">T (K)</th><th scope="col">Status</th>
                     </tr></thead>
                     <tbody>
@@ -66,7 +66,13 @@ const PAGE_SIZE = 25;
             <adsmod-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" itemLabel="isotherm" [pageSizes]="[pageSize]" [disabled]="searching()" (pageChange)="search($event)" />
             <div class="targeted-actions">
                 <span>{{ total().toLocaleString() }} matching isotherms · fetching also stores their compound and material records.</span>
-                <button class="button primary" type="button" [disabled]="!selected().length || submitting()" (click)="fetchSelected.emit(selected())">{{ submitting() ? 'Starting…' : 'Fetch selected (' + selected().length + ')' }}</button>
+                <span class="targeted-submit">
+                    @if (selected().length) {
+                        <span>{{ selected().length }} selected across pages</span>
+                        <button class="text-button" type="button" (click)="selected.set([])">Clear</button>
+                    }
+                    <button class="button primary" type="button" [disabled]="!selected().length || submitting()" (click)="fetchSelected.emit(selected())">{{ submitting() ? 'Starting…' : 'Fetch selected (' + selected().length + ')' }}</button>
+                </span>
             </div>
         }
     `,
@@ -86,6 +92,8 @@ const PAGE_SIZE = 25;
         .stored-state { color: var(--text-secondary); }
         .stored-state.stored { color: var(--success-text); font-weight: 600; }
         .targeted-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; color: var(--text-secondary, #667085); font-size: 0.74rem; }
+        .targeted-submit { display: inline-flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+        .text-button { padding: 0; border: 0; background: none; color: var(--link); font: inherit; font-weight: 600; cursor: pointer; }
         .empty-inline { margin: 0; color: var(--text-secondary, #667085); font-size: 0.8rem; }
     `,
 })

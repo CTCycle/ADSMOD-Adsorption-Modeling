@@ -1,6 +1,6 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 
 ## Main Navigation
 
@@ -66,7 +66,7 @@ the session display units (bar, mmol/g by default). Session overrides never chan
 
 ## Use NIST Data For Fitting
 
-1. Open `sources/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use Check availability to see stored versus available records (`N / M records`). Availability checks are not acquisitions: they never appear in acquisition history or its counters. Fetch share only sets how much of the index a fetch requests.
+1. Open `sources/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use the single Check availability button in the card heading to see stored versus available records (`N / M records`). Availability checks are not acquisitions: they never appear in acquisition history or its counters. Fetch share is a percentage (1 to 100) that only sets how much of the index a fetch requests; once availability is known, each row previews the records it covers.
 2. Set the share of the index to consider and select Fetch. Each run is bounded; fetch again to continue where the previous run stopped. Records already stored are never downloaded twice.
 3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
 4. Follow "View datasets" to the Datasets page and explore the `NIST ISODB` dataset. NIST experiments can be
@@ -81,7 +81,7 @@ The overview, source registry, and local record views do not need an external pr
 1. Open `sources/acquire`.
 2. PubChem: in Single mode search a CID, InChIKey, or name, inspect the matches, and Import one; in Bulk mode set the share and select Enrich stored species to add PubChem identity, synonyms, and properties to stored species that lack them. The card shows how many stored species are enriched (a local ratio; PubChem publishes no total). Fetch 3D structures (Bulk mode) downloads the 3D conformer of enriched species that have none stored yet.
 3. COD: in Single mode search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. In Bulk mode set the share and select Fetch structures: stored materials without a structure are looked up by name, and only exact name matches are imported and linked. When several entries share the name, the one with coordinates and the lowest COD ID is used. Unavailable and ambiguous materials are skipped and listed under Jobs → Details (status bar).
-4. Follow the Run tracker and open the imported records from its links.
+4. Each card shows its active or latest run from this visit, with counts and a link to the imported records; Details opens Jobs for failures, Cancel, and Resume. Links from a species or material on the Datasets page open the matching search with it already run, and a failed request keeps the current selection and link target. Each card remembers its Single or Bulk mode.
 5. Review species and materials in the Datasets page side column: each opens a detail panel of collapsible sections with identifiers, properties, provenance, a structure preview (2D image and 3D viewer for species; linked COD crystal structures and 3D viewer for materials), and the datasets that use it. Missing data reads "Not available" and inapplicable fields "Not applicable"; a species without a cached conformer can be fetched from its panel. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
 6. Open `sources/catalog` to review providers by data type and saved connection state, and use the refresh icon in the Sources tab bar to queue independent health checks. Local records stay available when a provider is unavailable.
 
