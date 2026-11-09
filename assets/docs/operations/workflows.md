@@ -48,6 +48,12 @@ A session fits all experiments of one dataset. To change a model's global bounds
 use `modeling/models`; bounds are edited in canonical units (Pa, mol/kg) and results are shown in
 the session display units (bar, mmol/g by default). Session overrides never change the globals.
 
+## Review Species And Material Identities
+
+The validation step of an upload lists each name in the file and what it will be saved as. Names that cannot be matched are saved as unverified, and uploads never wait on a provider.
+
+Open **Datasets > Identity review** from the notice on the Datasets page, or go to `/datasets/identity-review`. **Find duplicates** proposes likely duplicates. For each item, choose **Keep this record** to merge the other record into it, or **Keep separate** to close the question for good. Back up the SQLite database before approving a batch of merges.
+
 ## Explore And Compare Stored Data
 
 1. Open `dashboards/overview` to review database composition, temperature

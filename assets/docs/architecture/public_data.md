@@ -197,7 +197,23 @@ The Overview endpoint returns aggregate counts and acquisition summaries from lo
 - NIST isotherm payloads carry the adsorbent hashkey, adsorbate InChIKeys, and DOI. These are attached before persistence, so isotherm species and materials resolve to the same rows as the NIST species and material catalogues. The DOI becomes a `references` row linked to the isotherm's source record, and each isotherm source record stores its per-record NIST URL.
 - NIST gives some species a placeholder identifier (`NIST-ISODB-...`) instead of an InChIKey. It identifies the NIST record and the canonical row key, but it is never stored as an InChIKey.
 - NIST catalogue records keep their published formula and InChI. Re-importing never clears a stored value with a missing one.
-- PubChem attaches to an existing chemical only by CID link, exact InChIKey, an explicit `adsorbate_id`, or a PubChem synonym that matches exactly one stored compound. A conflicting InChIKey or a CID already linked elsewhere is rejected.
+- PubChem attaches to an existing chemical only by CID link, exact InChIKey, an explicit `adsorbate_id`, or a PubChem synonym that matches exactly one stored compound. A conflicting InChIKey or a CID already linked elsewhere is rejected and opens an identity review.
+
+### Canonical identity
+
+`server.repositories.identity.IdentityResolver` is the only code that turns an incoming name into a canonical row. Uploads, NIST experiments, and restore-from-source call it; NIST catalogue upserts and PubChem use the same aliases and review queue. It reads only the local database, prefetches each batch in a fixed number of queries, and never contacts a provider. The name rules live in `server.common.identity`, and curated entries in `server.common.identity_catalog`.
+
+Adsorbates resolve in this order: valid InChIKey, stable key, exact SMILES, case-sensitive curated formula or curated name, a stored name or alias owned by exactly one row, then a separator-only spelling difference. Names of four characters or fewer match case-sensitively, so `CO` is never cobalt (`Co`). A formula with isomers such as `C4H10` is not curated and stays provisional.
+
+Adsorbents have no molecular key. Identity is the NIST MATDB hashkey or a stored name, alias, or curated synonym held by one row. IZA framework codes classify materials and are not identities. Names are compared without removing numbers, metals, loadings, activation states, or solvent qualifiers. A separator-only match is proposed for review and never linked automatically. Generic class names (`activated carbon`, `coal`) with no source identifier get a dataset-scoped `generic` row.
+
+A guard signature (numbers, metals, composite markers, isomer and charge markers, qualifier words) must be equal before names are compared. Fuzzy matching only proposes likely misspellings: one long word may differ, with similarity of at least 0.9. On the 2026-11-09 database of 455 species and 2,707 materials this produced 17 proposals.
+
+`identity_status` is `resolved`, `provisional`, or `generic`. Aliases are stored in `adsorbate_synonyms` and `adsorbent_synonyms`, with their `origin` and optional source record, and serve as the positive resolution cache. Negative outcomes are kept in `public_data_sync_failures` and `identity_reviews`. Received names are preserved in `isotherm_components.source_name` and `isotherms.adsorbent_source_name`.
+
+`pubchem_enrich` accepts a stored species only on an InChIKey, or when a name or SMILES search leaves exactly one compound consistent with the stored formula. Bare formulas, ions and oxidation states, and several candidates open a review. Adsorbent names are never sent to PubChem. After an upload, `public_data.auto_resolve_uploaded_species` (on by default) queues this run.
+
+`identity_reviews` holds open and decided questions; a decided pair or name is not raised again. `POST /api/v1/identity/audit` proposes likely duplicates without changing canonical rows. `POST /api/v1/identity/reviews/{id}/merge` is the only path that merges rows: in one transaction it re-points experiments, source links, structures, aliases, and properties, keeps the removed name as an alias, and stores a snapshot on the review. It refuses different InChIKeys and experiments that list both species as components. The migration merges nothing. Back up the SQLite file before the first batch of approvals.
 
 ## Durable acquisition runs
 
