@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { Component, computed, effect, input, output, signal, untracked } from '@angular/core';
-import type { MaterialRecord, SpeciesRecord } from '../../models/materials.model';
+import type { IdentityStatus, MaterialRecord, SpeciesRecord } from '../../models/materials.model';
 import { fetchMaterials, fetchSpecies } from '../../services/materials.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 
@@ -16,6 +16,7 @@ export interface EntityRow {
     molarMass: number | null;
     experimentCount: number;
     note: string | null;
+    identityStatus: IdentityStatus;
 }
 
 const DEFAULT_PAGE_SIZE = 12;
@@ -30,6 +31,7 @@ function materialRow(item: MaterialRecord): EntityRow {
         molarMass: item.molar_mass_g_mol,
         experimentCount: item.isotherm_count,
         note: item.structure_count ? `${item.structure_count} structure${item.structure_count === 1 ? '' : 's'}` : null,
+        identityStatus: item.identity_status,
     };
 }
 
@@ -42,6 +44,7 @@ function speciesRow(item: SpeciesRecord): EntityRow {
         molarMass: item.molecular_weight,
         experimentCount: item.isotherm_count,
         note: item.pubchem_cid ? `PubChem ${item.pubchem_cid}` : null,
+        identityStatus: item.identity_status,
     };
 }
 
@@ -110,8 +113,13 @@ function speciesRow(item: SpeciesRecord): EntityRow {
                                     <span class="entity-uses" [class.unused]="!row.experimentCount">
                                         {{ row.experimentCount ? row.experimentCount + ' exp.' : 'Unused' }}
                                     </span>
-                                    @if (row.formula) {
-                                        <span class="entity-meta">{{ row.formula }}</span>
+                                    @if (row.formula || row.identityStatus !== 'resolved') {
+                                        <span class="entity-meta">
+                                            {{ row.formula }}
+                                            @if (row.identityStatus !== 'resolved') {
+                                                <span class="entity-identity">{{ row.identityStatus === 'generic' ? 'Generic name' : 'Unverified identity' }}</span>
+                                            }
+                                        </span>
                                     }
                                 </button>
                             </li>
@@ -185,6 +193,7 @@ function speciesRow(item: SpeciesRecord): EntityRow {
             .entity-uses { color: var(--text-secondary); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
             .entity-uses.unused { color: var(--text-tertiary); font-style: italic; }
             .entity-meta { grid-column: span 2; overflow: hidden; color: var(--text-tertiary); font-size: 0.8125rem; text-overflow: ellipsis; white-space: nowrap; }
+            .entity-identity { padding: 0 0.4rem; border-radius: 999px; background: var(--warning-bg); color: var(--text-secondary); font-size: 0.72rem; }
             .entity-message { margin: 0; padding: var(--spacing-sm) 0; color: var(--text-secondary); font-size: 0.82rem; }
             .entity-message.error { color: var(--danger-text); }
         `,

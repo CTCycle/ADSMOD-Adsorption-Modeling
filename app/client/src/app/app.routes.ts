@@ -15,6 +15,7 @@ export const routes: Routes = [
             { path: '', pathMatch: 'full', redirectTo: 'home' },
             { path: 'home', loadComponent: () => import('./features/home/home-page.component').then((m) => m.HomePageComponent) },
             { path: 'datasets', loadComponent: () => import('./features/datasets/datasets-page.component').then((m) => m.DatasetsPageComponent) },
+            { path: 'datasets/identity-review', loadComponent: () => import('./features/datasets/identity-review-page.component').then((m) => m.IdentityReviewPageComponent) },
             { path: 'datasets/:id', canDeactivate: [unsavedChangesGuard], loadComponent: () => import('./features/datasets/dataset-details-page.component').then((m) => m.DatasetDetailsPageComponent) },
             { path: 'sources', pathMatch: 'full', redirectTo: 'sources/catalog' },
             { path: 'sources/:view', loadComponent: () => import('./features/sources/sources-page.component').then((m) => m.SourcesPageComponent) },

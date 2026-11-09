@@ -179,6 +179,15 @@ export interface NormalizedExperimentPreview {
     observations: NormalizedObservationPreview[];
 }
 
+export interface ImportIdentityPreview {
+    kind: 'adsorbate' | 'adsorbent';
+    received_name: string;
+    canonical_name: string | null;
+    method: string;
+    identity_status: 'resolved' | 'provisional' | 'generic';
+    needs_review: boolean;
+}
+
 export interface ImportValidation {
     status: 'valid' | 'invalid' | 'confirmation_required';
     source_sha256: string;
@@ -187,6 +196,7 @@ export interface ImportValidation {
     observation_count: number;
     experiments: NormalizedExperimentPreview[];
     issues: ImportIssue[];
+    identities: ImportIdentityPreview[];
 }
 
 export interface DatasetImportResponse {

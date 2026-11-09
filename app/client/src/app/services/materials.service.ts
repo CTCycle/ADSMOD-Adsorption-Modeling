@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { API_BASE_URL } from '../core/config/api-base-url';
-import type { MaterialDetail, MaterialPage, SpeciesDetail, SpeciesPage } from '../models/materials.model';
+import type { IdentityAuditResult, IdentityReviewPage, IdentityReviewStatus, MaterialDetail, MaterialPage, SpeciesDetail, SpeciesPage } from '../models/materials.model';
 import { extractErrorMessage, fetchWithTimeout, HTTP_TIMEOUT } from './http-timeout.service';
 import { toErrorMessage } from '../shared/utils/error-message';
 
@@ -18,7 +18,14 @@ export interface EntityListParams {
     source?: string | null;
 }
 
-function queryString(params: EntityListParams): string {
+export interface IdentityReviewParams {
+    page?: number;
+    page_size?: number;
+    status?: IdentityReviewStatus;
+    kind?: 'adsorbate' | 'adsorbent';
+}
+
+function queryString(params: EntityListParams | IdentityReviewParams): string {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
         if (value !== undefined && value !== null && value !== '') {
@@ -63,4 +70,24 @@ export function fetchSpeciesDetail(id: number): Promise<ApiResult<SpeciesDetail>
 
 export function deleteSpecies(id: number): Promise<ApiResult<null>> {
     return request(`/species/${id}`, { method: 'DELETE' });
+}
+
+export function fetchIdentityReviews(params: IdentityReviewParams = {}): Promise<ApiResult<IdentityReviewPage>> {
+    return request(`/identity/reviews${queryString(params)}`);
+}
+
+export function mergeIdentityReview(id: number, keepId: number): Promise<ApiResult<null>> {
+    return request(`/identity/reviews/${id}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keep_id: keepId }),
+    });
+}
+
+export function rejectIdentityReview(id: number): Promise<ApiResult<null>> {
+    return request(`/identity/reviews/${id}/reject`, { method: 'POST' });
+}
+
+export function runIdentityAudit(): Promise<ApiResult<IdentityAuditResult>> {
+    return request('/identity/audit', { method: 'POST' });
 }

@@ -19,6 +19,7 @@ describe('application routes', () => {
             expect.arrayContaining([
                 'home',
                 'datasets',
+                'datasets/identity-review',
                 'datasets/:id',
                 'sources',
                 'sources/:view',

@@ -3,6 +3,8 @@
 
 import type { ExternalIdentifierView, Pagination, StructureRecordView } from './public-data.model';
 
+export type IdentityStatus = 'resolved' | 'provisional' | 'generic';
+
 export interface DatasetUsage {
     id: number;
     name: string;
@@ -12,6 +14,7 @@ export interface DatasetUsage {
 export interface MaterialRecord {
     id: number;
     name: string;
+    identity_status: IdentityStatus;
     formula: string | null;
     molar_mass_g_mol: number | null;
     smiles: string | null;
@@ -41,6 +44,7 @@ export interface SpeciesProperty {
 export interface SpeciesRecord {
     id: number;
     name: string;
+    identity_status: IdentityStatus;
     preferred_name: string | null;
     formula: string | null;
     molecular_weight: number | null;
@@ -66,4 +70,38 @@ export interface SpeciesDetail extends SpeciesRecord {
 export interface SpeciesPage {
     items: SpeciesRecord[];
     pagination: Pagination;
+}
+
+export type IdentityReviewStatus = 'open' | 'merged' | 'rejected';
+
+export interface IdentityEntity {
+    id: number;
+    name: string;
+    identity_status: IdentityStatus;
+    identifier: string | null;
+    experiment_count: number;
+}
+
+export interface IdentityReview {
+    id: number;
+    kind: 'adsorbate' | 'adsorbent';
+    raw_name: string;
+    reason: string;
+    score: number | null;
+    evidence: Record<string, unknown>;
+    status: IdentityReviewStatus;
+    entity: IdentityEntity | null;
+    candidate: IdentityEntity | null;
+    created_at: string;
+    decided_at: string | null;
+}
+
+export interface IdentityReviewPage {
+    items: IdentityReview[];
+    pagination: Pagination;
+}
+
+export interface IdentityAuditResult {
+    adsorbate: number;
+    adsorbent: number;
 }

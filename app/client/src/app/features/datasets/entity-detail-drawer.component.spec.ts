@@ -24,6 +24,7 @@ const speciesDetail = {
     conformer_3d_url: null,
     conformer_3d_cached: false,
     isotherm_count: 0,
+    identity_status: 'resolved',
     retrieved_at: null,
     datasets: [],
 };
@@ -36,6 +37,7 @@ const materialDetail = {
     smiles: null,
     structure_count: 0,
     isotherm_count: 0,
+    identity_status: 'resolved',
     external_identifiers: [],
     structures: [],
     datasets: [],

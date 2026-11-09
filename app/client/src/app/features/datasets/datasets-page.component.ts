@@ -2,10 +2,11 @@
 // Licensed under the MIT License.
 
 import { Component, inject, signal, viewChild } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CoreWorkspaceStore } from '../../core/state/core-workspace.store';
 import type { DatasetSummary } from '../../models/dataset.model';
 import { fetchDatasetConfiguration } from '../../services/dataset.service';
+import { fetchIdentityReviews } from '../../services/materials.service';
 import { DatasetImportWizardComponent } from '../source/dataset-import-wizard.component';
 import { DatasetDeleteDialogComponent } from './dataset-delete-dialog.component';
 import { DatasetListComponent } from './dataset-list.component';
@@ -24,6 +25,7 @@ const HIGHLIGHT_MS = 4000;
         DatasetListComponent,
         EntityDetailDrawerComponent,
         EntityPanelComponent,
+        RouterLink,
     ],
     template: `
         <div class="data-page datasets-page">
@@ -36,6 +38,12 @@ const HIGHLIGHT_MS = 4000;
             }
             @if (notice()) {
                 <div class="dataset-status success" role="status">{{ notice() }}</div>
+            }
+            @if (openReviews()) {
+                <div class="identity-strip" role="status">
+                    <span>{{ openReviews() }} possible duplicate {{ openReviews() === 1 ? 'identity needs' : 'identities need' }} review.</span>
+                    <a routerLink="/datasets/identity-review">Review</a>
+                </div>
             }
             <div class="datasets-layout">
                 <adsmod-dataset-list
@@ -73,6 +81,8 @@ const HIGHLIGHT_MS = 4000;
     `,
     styles: [
         `
+            .identity-strip { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); padding: 0.55rem var(--spacing-md); border-left: 4px solid #ca8a04; background: var(--warning-bg); font-size: 0.875rem; }
+            .identity-strip a { color: var(--primary-600); font-weight: 600; }
             .datasets-layout {
                 display: grid;
                 grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr);
@@ -111,6 +121,7 @@ export class DatasetsPageComponent {
     protected readonly selectedEntity = signal<EntityRow | null>(null);
     protected readonly entityRefresh = signal(0);
     protected readonly notice = signal('');
+    protected readonly openReviews = signal(0);
     private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
@@ -120,6 +131,12 @@ export class DatasetsPageComponent {
         }
         void this.store.refreshDatasets();
         void this.loadDatasetConfiguration();
+        void this.loadOpenReviews();
+    }
+
+    private async loadOpenReviews(): Promise<void> {
+        const result = await fetchIdentityReviews({ page: 1, page_size: 1, status: 'open' });
+        this.openReviews.set(result.data?.pagination.total ?? 0);
     }
 
     private async loadDatasetConfiguration(): Promise<void> {
@@ -142,6 +159,7 @@ export class DatasetsPageComponent {
     protected async wizardSaved(datasetId: number): Promise<void> {
         await this.store.refreshDatasets();
         this.entityRefresh.update((value) => value + 1);
+        void this.loadOpenReviews();
         this.list().revealDataset(datasetId);
         this.highlightedId.set(datasetId);
         setTimeout(() => {

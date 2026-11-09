@@ -17,6 +17,7 @@ import {
 import type {
     DatasetImportResponse,
     ImportIssue,
+    ImportIdentityPreview,
     ImportMapping,
     ImportPreview,
     ImportValidation,
@@ -241,6 +242,27 @@ function formatPressureUnit(unit: string): string {
                                         can be saved. Use Back to adjust the mapping or
                                         units, or correct the source file.
                                     </p>
+                                }
+                                @if (checked.identities.length) {
+                                    <details class="import-identities">
+                                        <summary>Names: {{ identitySummary(checked) }}</summary>
+                                        <div class="table-scroll">
+                                            <table>
+                                                <thead>
+                                                    <tr><th scope="col">In file</th><th scope="col">Saved as</th><th scope="col">Identity</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    @for (item of checked.identities; track item.kind + item.received_name) {
+                                                        <tr>
+                                                            <td>{{ item.received_name }}</td>
+                                                            <td>{{ item.canonical_name ?? 'New record' }}</td>
+                                                            <td>{{ identityLabel(item) }}</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
                                 }
                                 @if (generalIssues().length) {
                                     <div class="import-issues">
@@ -508,6 +530,9 @@ function formatPressureUnit(unit: string): string {
                 z-index: 1;
                 background: var(--slate-50);
             }
+            .import-identities { font-size: 0.875rem; }
+            .import-identities summary { cursor: pointer; font-weight: 600; }
+            .import-identities .table-scroll { max-height: 16rem; margin-top: 0.5rem; overflow: auto; }
             .import-issues {
                 display: grid;
                 gap: 0.5rem;
@@ -648,6 +673,19 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
     protected readonly error = signal('');
     protected readonly preview = signal<ImportPreview | null>(null);
     protected readonly validation = signal<ImportValidation | null>(null);
+
+    protected identitySummary(checked: ImportValidation): string {
+        const matched = checked.identities.filter((item) => item.canonical_name).length;
+        const flagged = checked.identities.filter((item) => item.needs_review).length;
+        const created = checked.identities.length - matched;
+        return `${matched} matched, ${created} new${flagged ? `, ${flagged} to review after saving` : ''}`;
+    }
+
+    protected identityLabel(item: ImportIdentityPreview): string {
+        if (item.needs_review) return 'Needs review';
+        if (item.identity_status === 'generic') return 'Generic name, kept with this dataset';
+        return item.canonical_name ? 'Matched' : 'Unverified';
+    }
     protected readonly savedImport = signal<DatasetImportResponse | null>(null);
     protected readonly unitCatalog = signal<UnitCatalog | null>(null);
     protected readonly unitIssues = signal<ImportIssue[]>([]);

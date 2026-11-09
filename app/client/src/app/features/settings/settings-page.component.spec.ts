@@ -18,6 +18,7 @@ const defaults: UserSettings = {
         sync_max_concurrent_jobs: 1,
         sync_response_size_limit_bytes: 67_108_864,
         sync_resume_on_startup: false,
+        auto_resolve_uploaded_species: true,
         auto_sync_enabled: false,
         auto_sync_categories: [],
         auto_sync_interval_hours: 24,

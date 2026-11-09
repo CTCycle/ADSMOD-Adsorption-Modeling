@@ -27,6 +27,7 @@ export interface UserSettings {
         sync_max_concurrent_jobs: number;
         sync_response_size_limit_bytes: number;
         sync_resume_on_startup: boolean;
+        auto_resolve_uploaded_species: boolean;
         auto_sync_enabled: boolean;
         auto_sync_categories: Array<'experiments' | 'guest' | 'host'>;
         auto_sync_interval_hours: number;
