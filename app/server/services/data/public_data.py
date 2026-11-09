@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -22,6 +23,29 @@ from server.services.providers.pubchem import PubChemProvider
 from server.services.providers.public_data import PublicDataProvider
 from server.repositories.public_data import PublicDataRepository
 from server.repositories.schemas.types import normalize_identity
+
+# A separate word-only qualifier such as "(synthetic)", which COD text search
+# treats as a required term. Chemical groups like "Fe(OH)" are not preceded by a
+# space, and formula fragments contain digits.
+_TRAILING_NAME_QUALIFIER = re.compile(r"\s+\([A-Za-z ]+\)\s*$")
+_COD_NAME_FIELDS = ("chemname", "commonname", "mineral")
+
+
+###############################################################################
+def _cod_search_name(name: str) -> str:
+    cleaned = _TRAILING_NAME_QUALIFIER.sub("", name).strip()
+    return cleaned if len(cleaned) >= 3 else name.strip()
+
+
+###############################################################################
+def _cod_row_matches(row: dict[str, Any], key: str) -> bool:
+    metadata = row.get("raw_metadata") or {}
+    return any(
+        normalize_identity(str(metadata[field])) == key
+        for field in _COD_NAME_FIELDS
+        if str(metadata.get(field) or "").strip()
+    )
+
 
 ###############################################################################
 class PublicDataService:
@@ -204,41 +228,42 @@ class PublicDataService:
     async def import_cod_for_material(
         self, adsorbent_id: int, name: str
     ) -> tuple[int | None, bool, str | None]:
-        """Import a COD structure for a stored material only on an exact,
-        unique name match.
+        """Import a COD structure for a stored material only on an exact name match.
 
-        Returns (structure id, imported, reason). A missing or ambiguous match
-        returns no structure and a reason; it is never linked automatically,
-        because one material can map to several COD entries and many have none.
+        Several entries can carry the same name, so the pick is deterministic:
+        entries with coordinates first, then the lowest COD ID. Returns
+        (structure id, imported, reason). Without an exact match no structure is
+        linked and a reason is returned.
         """
         provider = self.providers.get("cod")
         if not isinstance(provider, CODProvider):
             raise RuntimeError("COD provider is not configured.")
         if len(name.strip()) < 3:
             return None, False, "Material name is too short for a COD search."
+        search_name = _cod_search_name(name)
         try:
-            rows = await provider.search(text=name)
+            rows = await provider.search(text=search_name)
         except ValueError as exc:
             return None, False, f"Ambiguous: {exc}"
         if not rows:
             return None, False, "No COD structure found."
         # COD rows often have no chemical name (only a formula and a title).
-        key = normalize_identity(name)
-        exact = [
-            row
-            for row in rows
-            if row.get("name") and normalize_identity(row["name"]) == key
-        ]
-        if len(exact) != 1:
+        key = normalize_identity(search_name)
+        exact = [row for row in rows if _cod_row_matches(row, key)]
+        if not exact:
             candidates = ", ".join(str(row["cod_id"]) for row in rows[:5])
             return None, False, (
-                f"Ambiguous: {len(rows)} COD candidates, {len(exact)} exact name "
-                f"matches (e.g. {candidates}); choose one manually."
+                f"Ambiguous: {len(rows)} COD candidates, no exact name match "
+                f"(e.g. {candidates}); choose one manually."
             )
+        selected = min(
+            exact,
+            key=lambda row: (not row.get("has_coordinates"), int(row["cod_id"])),
+        )
         # The search row already carries the metadata, so the import need not
         # look the entry up again.
         structure_id, imported = await self.import_cod(
-            str(exact[0]["cod_id"]), adsorbent_id, metadata=exact[0]
+            str(selected["cod_id"]), adsorbent_id, metadata=selected
         )
         return structure_id, imported, None
 

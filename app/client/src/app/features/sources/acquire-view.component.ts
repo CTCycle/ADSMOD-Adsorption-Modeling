@@ -233,7 +233,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     </div>
                     <details class="how-it-works">
                         <summary>How this works</summary>
-                        <p>Searches COD by name for stored materials without a structure. Only an exact, unique name match is imported and linked; materials with no match or several candidates are skipped and listed under Jobs → Details. Many materials have no COD entry.</p>
+                        <p>Searches COD by name for stored materials without a structure. Only an exact name match is imported and linked; if several entries share the name, the one with coordinates and the lowest COD ID is used. Materials with no exact match are skipped and listed under Jobs → Details. Many materials have no COD entry.</p>
                     </details>
                 } @else {
                 <div class="query-row">

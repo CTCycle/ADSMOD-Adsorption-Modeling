@@ -1123,7 +1123,7 @@ def test_targeted_nist_request_replaces_fraction_with_identifiers() -> None:
     )
 
 ###############################################################################
-def test_cod_bulk_imports_only_unique_exact_matches_and_remembers_the_rest(
+def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
     tmp_path: Path,
 ) -> None:
     from server.repositories.schemas.models import Adsorbent
@@ -1134,19 +1134,45 @@ def test_cod_bulk_imports_only_unique_exact_matches_and_remembers_the_rest(
         repository = PublicDataRepository(manager)
         repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         with manager.transaction() as session:
-            for name in ("Alpha-MOF", "Beta-MOF", "Gamma-MOF", "Delta-MOF"):
+            for name in (
+                "Alpha-MOF",
+                "Beta-MOF",
+                "Gamma-MOF",
+                "Delta-MOF",
+                "Epsilon-MOF (synthetic)",
+            ):
                 session.add(Adsorbent(key=name.lower(), name=name))
         provider = CODProvider(
             request_timeout_seconds=5.0, retry_attempts=1, max_interactive_results=250
         )
         catalogue = {
-            "Alpha-MOF": [{"cod_id": "1000001", "name": "alpha-mof"}],
+            "Alpha-MOF": [
+                {"cod_id": "1000001", "raw_metadata": {"chemname": "alpha-mof"}}
+            ],
             "Beta-MOF": [
-                {"cod_id": "1000002", "name": "Beta-MOF"},
-                {"cod_id": "1000003", "name": "Beta-MOF"},
+                {
+                    "cod_id": "1000002",
+                    "has_coordinates": False,
+                    "raw_metadata": {"mineral": "Beta-MOF"},
+                },
+                {
+                    "cod_id": "1000006",
+                    "has_coordinates": True,
+                    "raw_metadata": {"chemname": "Beta-MOF"},
+                },
+                {
+                    "cod_id": "1000003",
+                    "has_coordinates": True,
+                    "raw_metadata": {"chemname": "Beta-MOF"},
+                },
             ],
             "Gamma-MOF": [],
-            "Delta-MOF": [{"cod_id": "1000004", "name": None}],
+            "Delta-MOF": [
+                {"cod_id": "1000004", "raw_metadata": {"title": "Delta-MOF framework"}}
+            ],
+            "Epsilon-MOF": [
+                {"cod_id": "1000005", "raw_metadata": {"commonname": "Epsilon-MOF"}}
+            ],
         }
 
         async def search(**kwargs: Any) -> list[dict[str, Any]]:
@@ -1184,14 +1210,18 @@ def test_cod_bulk_imports_only_unique_exact_matches_and_remembers_the_rest(
             failures, _ = await coordinator.failures(run["id"], limit=10, offset=0)
 
             assert run["status"] == "completed"
-            assert (run["processed_count"], run["imported_count"]) == (4, 1)
-            assert run["skipped_count"] == 3
-            assert linked == [("1000001", 1)]
+            assert (run["processed_count"], run["imported_count"]) == (5, 3)
+            assert run["skipped_count"] == 2
+            assert linked == [("1000001", 1), ("1000003", 2), ("1000005", 5)]
             assert any("Ambiguous" in item["reason"] for item in failures)
             assert any("No COD structure" in item["reason"] for item in failures)
-            # Settled outcomes are not retried; only the unlinked match remains.
+            # Settled outcomes are not retried; only the unlinked matches remain.
             remaining = repository.cod_bulk_candidates(10)
-            assert [item["name"] for item in remaining] == ["Alpha-MOF"]
+            assert [item["name"] for item in remaining] == [
+                "Alpha-MOF",
+                "Beta-MOF",
+                "Epsilon-MOF (synthetic)",
+            ]
         finally:
             await coordinator.close()
             await public_data.close()

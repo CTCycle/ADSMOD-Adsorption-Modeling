@@ -776,7 +776,7 @@ class PublicDataSyncCoordinator:
     ) -> dict[str, Any]:
         """Look up COD structures for stored materials that have none.
 
-        Only exact, unique name matches are imported and linked; unavailable
+        Only exact name matches are imported and linked; unavailable
         and ambiguous materials are recorded as skips and not retried.
         """
         run_id = str(run["id"])
