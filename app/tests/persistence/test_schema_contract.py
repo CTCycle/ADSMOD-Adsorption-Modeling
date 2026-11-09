@@ -47,6 +47,8 @@ EXPECTED_TABLES = {
     "structure_source_records",
     "structure_atoms",
     "adsorbate_synonyms",
+    "adsorbent_synonyms",
+    "identity_reviews",
     "chemical_properties",
     "references",
     "source_record_references",

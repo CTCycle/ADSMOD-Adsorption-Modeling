@@ -182,6 +182,7 @@ class PublicDataConfig(StrictModel):
     sync_batch_size: int = Field(default=50, ge=1, le=500)
     sync_max_records_per_run: int = Field(default=200, ge=1, le=10000)
     sync_max_concurrent_jobs: int = Field(default=3, ge=1, le=4)
+    auto_resolve_uploaded_species: bool = True
     sync_response_size_limit_bytes: int = Field(default=67108864, ge=1024, le=268435456)
     sync_resume_on_startup: bool = False
     auto_sync_enabled: bool = False

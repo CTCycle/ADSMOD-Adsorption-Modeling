@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     false,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -311,8 +312,11 @@ class AdsorbateSynonym(Base):
     adsorbate_id: Mapped[int] = mapped_column(
         ForeignKey("adsorbates.id", ondelete="CASCADE"), nullable=False
     )
-    source_record_id: Mapped[int] = mapped_column(
-        ForeignKey("source_records.id", ondelete="CASCADE"), nullable=False
+    source_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("source_records.id", ondelete="CASCADE")
+    )
+    origin: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="pubchem", server_default="pubchem"
     )
     synonym: Mapped[str] = mapped_column(String(1024), nullable=False)
     normalized_synonym: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -325,6 +329,85 @@ class AdsorbateSynonym(Base):
             name="uq_adsorbate_synonyms_identity",
         ),
         Index("ix_adsorbate_synonyms_normalized", "normalized_synonym"),
+        Index(
+            "uq_adsorbate_synonyms_local",
+            "adsorbate_id",
+            "origin",
+            "normalized_synonym",
+            unique=True,
+            sqlite_where=text("source_record_id IS NULL"),
+            postgresql_where=text("source_record_id IS NULL"),
+        ),
+    )
+
+###############################################################################
+class AdsorbentSynonym(Base):
+    __tablename__ = "adsorbent_synonyms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    adsorbent_id: Mapped[int] = mapped_column(
+        ForeignKey("adsorbents.id", ondelete="CASCADE"), nullable=False
+    )
+    source_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("source_records.id", ondelete="CASCADE")
+    )
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)
+    synonym: Mapped[str] = mapped_column(String(1024), nullable=False)
+    normalized_synonym: Mapped[str] = mapped_column(String(1024), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "adsorbent_id",
+            "source_record_id",
+            "normalized_synonym",
+            name="uq_adsorbent_synonyms_identity",
+        ),
+        Index("ix_adsorbent_synonyms_normalized", "normalized_synonym"),
+        Index(
+            "uq_adsorbent_synonyms_local",
+            "adsorbent_id",
+            "origin",
+            "normalized_synonym",
+            unique=True,
+            sqlite_where=text("source_record_id IS NULL"),
+            postgresql_where=text("source_record_id IS NULL"),
+        ),
+    )
+
+###############################################################################
+class IdentityReview(Base):
+    """A proposed or decided identity question; decisions are never re-raised."""
+
+    __tablename__ = "identity_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    entity_id: Mapped[int | None] = mapped_column(Integer)
+    candidate_id: Mapped[int | None] = mapped_column(Integer)
+    raw_name: Mapped[str] = mapped_column(String(1024), nullable=False)
+    reason: Mapped[str] = mapped_column(String(32), nullable=False)
+    score: Mapped[float | None] = mapped_column(Float)
+    evidence: Mapped[dict[str, Any]] = mapped_column(
+        JSONMapping, nullable=False, default=dict
+    )
+    fingerprint: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+    merge_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONMapping)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+    __table_args__ = (
+        CheckConstraint(
+            "entity_kind IN ('adsorbate', 'adsorbent')",
+            name="ck_identity_reviews_kind",
+        ),
+        CheckConstraint(
+            "status IN ('open', 'merged', 'rejected')",
+            name="ck_identity_reviews_status",
+        ),
+        Index("ix_identity_reviews_status", "status", "entity_kind"),
     )
 
 ###############################################################################

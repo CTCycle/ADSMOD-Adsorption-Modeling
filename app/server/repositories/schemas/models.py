@@ -6,25 +6,26 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import (
-    Boolean,
-    CheckConstraint,
-    Float,
-    ForeignKey,
-    Index,
-    Integer,
-    JSON,
-    String,
-    UniqueConstraint,
-)
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
 from server.repositories.schemas.types import (
     JSONList,
     JSONMapping,
     UTCDateTime,
     normalize_identity,
 )
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    true,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
 
 ###############################################################################
 def utc_now() -> datetime:
@@ -53,6 +54,9 @@ class ApplicationSettingsRecord(Base):
     public_data_sync_batch_size: Mapped[int] = mapped_column(Integer, nullable=False)
     public_data_sync_max_records_per_run: Mapped[int] = mapped_column(Integer, nullable=False)
     public_data_sync_max_concurrent_jobs: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_auto_resolve_uploaded_species: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=true()
+    )
     public_data_sync_response_size_limit_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     public_data_sync_resume_on_startup: Mapped[bool] = mapped_column(Boolean, nullable=False)
     public_data_auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
@@ -198,6 +202,9 @@ class Adsorbate(Base):
     formula: Mapped[str | None] = mapped_column(String(255))
     molar_mass_g_mol: Mapped[float | None] = mapped_column(Float)
     smiles: Mapped[str | None] = mapped_column(String)
+    identity_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="provisional", server_default="provisional"
+    )
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, nullable=False
     )
@@ -233,6 +240,10 @@ class Adsorbent(Base):
     formula: Mapped[str | None] = mapped_column(String(255))
     molar_mass_g_mol: Mapped[float | None] = mapped_column(Float)
     smiles: Mapped[str | None] = mapped_column(String)
+    identity_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="provisional", server_default="provisional"
+    )
+    scope_dataset_id: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, nullable=False
     )
@@ -268,6 +279,7 @@ class Isotherm(Base):
     adsorbent_id: Mapped[int] = mapped_column(
         ForeignKey("adsorbents.id", ondelete="RESTRICT"), nullable=False
     )
+    adsorbent_source_name: Mapped[str | None] = mapped_column(String(255))
     temperature_original: Mapped[float] = mapped_column(Float, nullable=False)
     temperature_original_unit: Mapped[str] = mapped_column(String(16), nullable=False)
     temperature_k: Mapped[float] = mapped_column(Float, nullable=False)
@@ -340,6 +352,7 @@ class IsothermComponent(Base):
     adsorbate_id: Mapped[int] = mapped_column(
         ForeignKey("adsorbates.id", ondelete="RESTRICT"), nullable=False
     )
+    source_name: Mapped[str | None] = mapped_column(String(255))
     mole_fraction: Mapped[float | None] = mapped_column(Float)
 
     isotherm: Mapped[Isotherm] = relationship(back_populates="components", lazy="raise")

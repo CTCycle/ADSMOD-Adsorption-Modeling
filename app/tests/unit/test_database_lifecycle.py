@@ -478,7 +478,7 @@ def test_postgres_creation_permission_error_is_actionable(
 
 # Alembic quality
 
-HEAD_REVISION = "20261106_modeling_sessions"
+HEAD_REVISION = "20261110_species_identity"
 RETIRED_TABLES = {"training_datasets", "training_samples", "fitting_runs"}
 RETIRED_SETTINGS_COLUMNS = {
     "runtime_host",
