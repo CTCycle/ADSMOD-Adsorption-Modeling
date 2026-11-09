@@ -752,54 +752,75 @@ class DatasetRepository:
         experiments: list[dict[str, Any]],
         import_manifest: dict[str, Any] | None = None,
         dataset_id: int | None = None,
+        session: Session | None = None,
+    ) -> int:
+        """Persist experiments; pass `session` to join the caller's transaction."""
+        if session is not None:
+            return self._persist_canonical(
+                session, name, source, provenance, experiments, import_manifest, dataset_id
+            )
+        with self.database.transaction() as own_session:
+            return self._persist_canonical(
+                own_session, name, source, provenance, experiments, import_manifest, dataset_id
+            )
+
+    # -------------------------------------------------------------------------
+    def _persist_canonical(
+        self,
+        session: Session,
+        name: str,
+        source: str,
+        provenance: dict[str, Any],
+        experiments: list[dict[str, Any]],
+        import_manifest: dict[str, Any] | None,
+        dataset_id: int | None,
     ) -> int:
         normalized_name = normalize_identity(name)
-        with self.database.transaction() as session:
-            if dataset_id is None:
-                if (
-                    session.scalar(
-                        select(Dataset.id).where(
-                            Dataset.normalized_name == normalized_name
-                        )
+        if dataset_id is None:
+            if (
+                session.scalar(
+                    select(Dataset.id).where(
+                        Dataset.normalized_name == normalized_name
                     )
-                    is not None
-                ):
-                    raise ValueError(f"A dataset named '{name}' already exists.")
-                dataset = Dataset(
-                    name=name.strip(),
-                    normalized_name=normalized_name,
-                    source=source,
-                    provenance=provenance,
                 )
-                session.add(dataset)
-                session.flush()
-            else:
-                dataset = session.get(Dataset, dataset_id)
-                if dataset is None or dataset.source != source:
-                    raise LookupError(
-                        f"Canonical {source} dataset {dataset_id} does not exist."
-                    )
-                if experiments:
-                    dataset.updated_at = utc_now()
-
-            if import_manifest is not None:
-                session.add(DatasetImport(dataset_id=dataset.id, **import_manifest))
-
-            resolver = IdentityResolver(
-                session,
-                dataset_id=dataset.id,
-                alias_origin="nist" if source == "nist" else "upload",
+                is not None
+            ):
+                raise ValueError(f"A dataset named '{name}' already exists.")
+            dataset = Dataset(
+                name=name.strip(),
+                normalized_name=normalized_name,
+                source=source,
+                provenance=provenance,
             )
-            resolver.prefetch(experiments)
-            for record in experiments:
-                adsorbent = resolve_adsorbent(session, resolver, record["adsorbent"])
-                isotherm = Isotherm(
-                    dataset_id=dataset.id,
-                    external_key=record["external_key"],
-                    **isotherm_fields(record, adsorbent.id),
-                )
-                session.add(isotherm)
-                session.flush()
-                write_experiment_content(session, isotherm, record, resolver)
+            session.add(dataset)
             session.flush()
-            return dataset.id
+        else:
+            dataset = session.get(Dataset, dataset_id)
+            if dataset is None or dataset.source != source:
+                raise LookupError(
+                    f"Canonical {source} dataset {dataset_id} does not exist."
+                )
+            if experiments:
+                dataset.updated_at = utc_now()
+
+        if import_manifest is not None:
+            session.add(DatasetImport(dataset_id=dataset.id, **import_manifest))
+
+        resolver = IdentityResolver(
+            session,
+            dataset_id=dataset.id,
+            alias_origin="nist" if source == "nist" else "upload",
+        )
+        resolver.prefetch(experiments)
+        for record in experiments:
+            adsorbent = resolve_adsorbent(session, resolver, record["adsorbent"])
+            isotherm = Isotherm(
+                dataset_id=dataset.id,
+                external_key=record["external_key"],
+                **isotherm_fields(record, adsorbent.id),
+            )
+            session.add(isotherm)
+            session.flush()
+            write_experiment_content(session, isotherm, record, resolver)
+        session.flush()
+        return dataset.id

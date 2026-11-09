@@ -591,8 +591,11 @@ class PublicDataSyncCoordinator:
         parameters = dict(run["parameters"])
         run_checkpoint = dict(run.get("checkpoint", {}))
         config, _, nist = self._active_settings()
+        dependency_failures: list[str] = []
         if parameters.get("identifiers") and parameters["category"] == "experiments":
-            await nist.sync_targeted_dependencies(list(parameters["identifiers"]))
+            dependency_failures = await nist.sync_targeted_dependencies(
+                list(parameters["identifiers"])
+            )
 
         result = await nist.sync_category_records(
             category=str(parameters["category"]),
@@ -626,6 +629,11 @@ class PublicDataSyncCoordinator:
                 "available_count": int(result.get("available_count", 0)),
                 "local_count": int(result.get("local_count", 0)),
                 "request_stats": dict(result.get("request_stats") or {}),
+                **(
+                    {"dependency_failures": dependency_failures}
+                    if dependency_failures
+                    else {}
+                ),
             }
         }
 

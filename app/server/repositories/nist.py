@@ -315,24 +315,28 @@ class NISTRepository:
                 continue
             if source_id.casefold() in existing:
                 continue
-            self.datasets.persist_canonical(
-                name=NIST_DATASET_NAME,
-                source="nist",
-                provenance={
-                    "repository": NIST_DATASET_NAME,
-                    "source_identifier": source_id,
-                    "ingestion": "deterministic known-schema",
-                },
-                experiments=[experiment],
-                dataset_id=collection_id,
-            )
-            if self.public_data is not None:
-                self.public_data.link_isotherm_record(
-                    source_key="nist",
+            # The record and its provenance link commit together or not at all.
+            with self.database.transaction() as session:
+                self.datasets.persist_canonical(
+                    name=NIST_DATASET_NAME,
+                    source="nist",
+                    provenance={
+                        "repository": NIST_DATASET_NAME,
+                        "source_identifier": source_id,
+                        "ingestion": "deterministic known-schema",
+                    },
+                    experiments=[experiment],
                     dataset_id=collection_id,
-                    external_id=source_id,
-                    source_url=NIST_ISOTHERM_URL.format(quote(source_id, safe="")),
-                    raw_metadata={"collection": NIST_DATASET_NAME},
-                    doi=experiment.get("provenance", {}).get("doi"),
+                    session=session,
                 )
+                if self.public_data is not None:
+                    self.public_data.link_isotherm_record(
+                        source_key="nist",
+                        dataset_id=collection_id,
+                        external_id=source_id,
+                        source_url=NIST_ISOTHERM_URL.format(quote(source_id, safe="")),
+                        raw_metadata={"collection": NIST_DATASET_NAME},
+                        doi=experiment.get("provenance", {}).get("doi"),
+                        session=session,
+                    )
             existing.add(source_id.casefold())

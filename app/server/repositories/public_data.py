@@ -661,37 +661,62 @@ class PublicDataRepository:
         source_url: str | None = None,
         raw_metadata: dict[str, Any] | None = None,
         doi: str | None = None,
+        session: Session | None = None,
     ) -> None:
-        with self.database.transaction() as session:
-            isotherm_id = session.scalar(
-                select(Isotherm.id).where(
-                    Isotherm.dataset_id == dataset_id,
-                    Isotherm.external_key == external_id,
+        """Link a stored isotherm to its source record.
+
+        Pass `session` to join the caller's transaction.
+        """
+        if session is not None:
+            self._link_isotherm_record(
+                session, source_key, dataset_id, external_id, source_url, raw_metadata, doi
+            )
+            return
+        with self.database.transaction() as own_session:
+            self._link_isotherm_record(
+                own_session, source_key, dataset_id, external_id, source_url, raw_metadata, doi
+            )
+
+    # -------------------------------------------------------------------------
+    def _link_isotherm_record(
+        self,
+        session: Session,
+        source_key: str,
+        dataset_id: int,
+        external_id: str,
+        source_url: str | None,
+        raw_metadata: dict[str, Any] | None,
+        doi: str | None,
+    ) -> None:
+        isotherm_id = session.scalar(
+            select(Isotherm.id).where(
+                Isotherm.dataset_id == dataset_id,
+                Isotherm.external_key == external_id,
+            )
+        )
+        if isotherm_id is None:
+            raise LookupError(f"Isotherm {external_id!r} was not persisted.")
+        source = self._source(session, source_key)
+        record = self._record(
+            session,
+            source=source,
+            record_type="adsorption",
+            external_id=external_id,
+            source_url=source_url,
+            raw_metadata=raw_metadata,
+        )
+        link = session.get(IsothermSourceRecord, record.id)
+        if link is not None and link.isotherm_id != isotherm_id:
+            raise ValueError(
+                f"{source_key}:{external_id} is already linked to another isotherm."
+            )
+        if link is None:
+            session.add(
+                IsothermSourceRecord(
+                    source_record_id=record.id, isotherm_id=isotherm_id
                 )
             )
-            if isotherm_id is None:
-                raise LookupError(f"Isotherm {external_id!r} was not persisted.")
-            source = self._source(session, source_key)
-            record = self._record(
-                session,
-                source=source,
-                record_type="adsorption",
-                external_id=external_id,
-                source_url=source_url,
-                raw_metadata=raw_metadata,
-            )
-            link = session.get(IsothermSourceRecord, record.id)
-            if link is not None and link.isotherm_id != isotherm_id:
-                raise ValueError(
-                    f"{source_key}:{external_id} is already linked to another isotherm."
-                )
-            if link is None:
-                session.add(
-                    IsothermSourceRecord(
-                        source_record_id=record.id, isotherm_id=isotherm_id
-                    )
-                )
-            self._attach_reference(session, record, doi=doi)
+        self._attach_reference(session, record, doi=doi)
 
     # -------------------------------------------------------------------------
     @staticmethod

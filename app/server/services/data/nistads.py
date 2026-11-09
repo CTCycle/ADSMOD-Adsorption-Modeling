@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
+import weakref
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -18,6 +20,23 @@ from server.common.utils.encoding import (
     sanitize_dataframe_strings,
 )
 from server.common.utils.logger import logger
+
+_REQUEST_BUDGETS: weakref.WeakKeyDictionary[
+    asyncio.AbstractEventLoop, asyncio.Semaphore
+] = weakref.WeakKeyDictionary()
+
+
+###############################################################################
+def _shared_request_budget(limit: int) -> asyncio.Semaphore:
+    """One NIST request budget per event loop, shared by every client and job."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.Semaphore(limit)
+    budget = _REQUEST_BUDGETS.get(loop)
+    if budget is None:
+        budget = _REQUEST_BUDGETS[loop] = asyncio.Semaphore(limit)
+    return budget
 
 ###############################################################################
 class NISTDatasetBuilder:
@@ -35,6 +54,18 @@ class NISTDatasetBuilder:
             "compositionType",
         ]
         self.single_explode_cols = ["pressure", "adsorbed_amount"]
+        identity_cols = [
+            "filename",
+            "pressureUnits",
+            "adsorptionUnits",
+            "temperature",
+        ]
+        self.single_required_cols = [
+            *identity_cols,
+            *self.single_explode_cols,
+            "adsorbent_name",
+            "adsorbate_name",
+        ]
         self.single_drop_cols = [
             "date",
             "adsorbent",
@@ -52,6 +83,7 @@ class NISTDatasetBuilder:
             "compound_1_composition",
             "compound_2_composition",
         ]
+        self.binary_required_cols = [*identity_cols, *self.binary_explode_cols]
         self.binary_drop_cols = [
             "date",
             "adsorbent",
@@ -66,6 +98,26 @@ class NISTDatasetBuilder:
             "compound_1_data",
             "compound_2_data",
         ]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _drop_incomplete(
+        dataframe: pd.DataFrame, required: list[str]
+    ) -> pd.DataFrame:
+        """Drop only rows missing a field the measurement cannot exist without.
+
+        Optional metadata (for example molecular weight) never removes a row.
+        """
+        subset = [column for column in required if column in dataframe.columns]
+        complete = dataframe.dropna(subset=subset).reset_index(drop=True)
+        dropped = len(dataframe) - len(complete)
+        if dropped:
+            logger.warning(
+                "Rejected %d NIST measurement row(s) missing required fields %s.",
+                dropped,
+                subset,
+            )
+        return complete
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -141,7 +193,9 @@ class NISTDatasetBuilder:
 
     # -------------------------------------------------------------------------
     def add_binary_mixture_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        data_placeholder = {"composition": 1.0, "adsorption": 1.0}
+        # A missing species datum stays empty (None) so the incomplete point is
+        # rejected later, never replaced by an invented measurement.
+        data_placeholder: dict[str, Any] = {}
         dataframe["total_pressure"] = dataframe["isotherm_data"].apply(
             lambda x: [
                 item.get("pressure") for item in (x or []) if isinstance(item, dict)
@@ -173,24 +227,15 @@ class NISTDatasetBuilder:
         dataframe["compound_2_composition"] = dataframe["compound_2_data"].apply(
             lambda x: [item.get("composition") for item in (x or [])]
         )
-        dataframe["compound_1_pressure"] = dataframe.apply(
-            lambda row: [
-                a * b
-                for a, b in zip(
-                    row["compound_1_composition"], row["total_pressure"], strict=False
-                )
-            ],
-            axis=1,
-        )
-        dataframe["compound_2_pressure"] = dataframe.apply(
-            lambda row: [
-                a * b
-                for a, b in zip(
-                    row["compound_2_composition"], row["total_pressure"], strict=False
-                )
-            ],
-            axis=1,
-        )
+        for position in (1, 2):
+            composition_column = f"compound_{position}_composition"
+            dataframe[f"compound_{position}_pressure"] = dataframe.apply(
+                lambda row, column=composition_column: [
+                    None if a is None or b is None else a * b
+                    for a, b in zip(row[column], row["total_pressure"], strict=False)
+                ],
+                axis=1,
+            )
         dataframe["compound_1_adsorption"] = dataframe["compound_1_data"].apply(
             lambda x: [item.get("adsorption") for item in (x or [])]
         )
@@ -223,7 +268,9 @@ class NISTDatasetBuilder:
             single_dataset = single_dataset.drop(
                 columns=self.single_drop_cols, errors="ignore"
             )
-            single_dataset = single_dataset.dropna().reset_index(drop=True)
+            single_dataset = self._drop_incomplete(
+                single_dataset, self.single_required_cols
+            )
             single_dataset = single_dataset.rename(
                 columns={
                     "filename": "name",
@@ -242,7 +289,9 @@ class NISTDatasetBuilder:
             binary_dataset = binary_dataset.drop(
                 columns=self.binary_drop_cols, errors="ignore"
             )
-            binary_dataset = binary_dataset.dropna().reset_index(drop=True)
+            binary_dataset = self._drop_incomplete(
+                binary_dataset, self.binary_required_cols
+            )
             binary_dataset = binary_dataset.rename(
                 columns={
                     "filename": "name",
@@ -286,7 +335,7 @@ class NISTApiClient:
         max_response_bytes: int = 16_777_216,
     ) -> None:
         self.parallel_tasks = max(1, int(parallel_tasks))
-        self.semaphore = asyncio.Semaphore(self.parallel_tasks)
+        self.semaphore = _shared_request_budget(self.parallel_tasks)
         self.max_attempts = max(1, int(retry_attempts))
         self.retry_backoff_max_seconds = max(0.1, float(retry_backoff_max_seconds))
         self.max_response_bytes = max(1024, int(max_response_bytes))
@@ -441,7 +490,9 @@ class NISTApiClient:
                 except (TypeError, ValueError, OverflowError):
                     delay = None
         if delay is None:
-            delay = 0.5 * (2**attempt)
+            # Jitter desynchronises concurrent retries; a server-provided
+            # Retry-After is honoured exactly.
+            delay = 0.5 * (2**attempt) * random.uniform(0.75, 1.25)
         return min(delay, self.retry_backoff_max_seconds)
 
     # -------------------------------------------------------------------------

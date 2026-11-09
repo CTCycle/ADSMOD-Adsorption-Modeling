@@ -222,6 +222,43 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
 
 
 ###############################################################################
+def test_nist_experiment_and_provenance_link_commit_together(tmp_path: Path) -> None:
+    repository = build_nist_repository(tmp_path / "atomic.db")
+    experiment = NISTCanonicalMapper().experiment_records(
+        pd.DataFrame(
+            [
+                {
+                    "name": "atomic-1",
+                    "pressure_units": "kPa",
+                    "adsorption_units": "mol/kg",
+                    "temperature": 298.15,
+                    "adsorbent": "silica",
+                    "adsorbate": "methane",
+                    "adsorbate_molecular_weight": 16.04,
+                    "pressure": 1.0,
+                    "adsorbed_amount": 0.1,
+                }
+            ]
+        ),
+        None,
+    )
+
+    def failing_link(**_kwargs: object) -> None:
+        raise RuntimeError("link failed")
+
+    original_link = repository.public_data.link_isotherm_record
+    repository.public_data.link_isotherm_record = failing_link  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        repository.save_experiments(experiment)
+    # The failed link rolled back the experiment, so a retry is not skipped.
+    assert repository.list_nist_experiment_ids() == set()
+
+    repository.public_data.link_isotherm_record = original_link  # type: ignore[method-assign]
+    repository.save_experiments(experiment)
+    assert repository.list_nist_experiment_ids() == {"atomic-1"}
+
+
+###############################################################################
 def test_nist_category_counts_include_standalone_reference_records(
     tmp_path: Path,
 ) -> None:

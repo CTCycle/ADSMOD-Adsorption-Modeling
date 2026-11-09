@@ -12,6 +12,7 @@ from urllib.parse import quote
 import httpx
 import pandas as pd
 
+from server.common.utils.logger import logger
 from server.configurations.settings import AdsmodConfig
 from server.services.data.nistads import (
     NISTApiClient,
@@ -40,6 +41,8 @@ class NISTDataService:
         self.builder = NISTDatasetBuilder()
         self._search_lock = asyncio.Lock()
         self._search_cache: dict[str, Any] | None = None
+        self._index_lock = asyncio.Lock()
+        self._index_cache: dict[str, tuple[float, pd.DataFrame, str]] = {}
 
     # -------------------------------------------------------------------------
     def _api_client(self) -> NISTApiClient:
@@ -105,35 +108,45 @@ class NISTDataService:
         identifier_column: str,
         fraction: float,
         requested: list[str] | None,
-    ) -> tuple[list[str], int]:
-        """Pick the fractional head of the index, or the requested records
-        that the current index still lists (in the requested order)."""
-        if not requested:
-            return self.ordered_identifiers(
-                index, identifier_column, self.clamp_fraction(fraction)
-            )
+    ) -> tuple[list[str], int, list[str]]:
+        """Return the full ordered index, or the requested records that the
+        current index lists (in requested order) plus the unknown requests.
+
+        Fractional sizing is applied later against records still missing
+        locally, so repeated requests progress through the catalogue.
+        """
         indexed, total = self.ordered_identifiers(index, identifier_column, 1.0)
+        if not requested:
+            return indexed, total, []
         known = {item.lower(): item for item in indexed}
-        return [
-            known[item.lower()] for item in requested if item.lower() in known
-        ], total
+        selected = [known[item.lower()] for item in requested if item.lower() in known]
+        unknown = [item for item in requested if item.lower() not in known]
+        return selected, total, unknown
 
     # -------------------------------------------------------------------------
     async def load_index_for_category(
         self,
         category: NISTCategory,
         client: httpx.AsyncClient,
+        api_client: NISTApiClient | None = None,
     ) -> tuple[pd.DataFrame, str]:
-        api_client = self._api_client()
-        if category == "experiments":
-            return await api_client.fetch_experiments_index(
-                client
-            ), api_client.exp_identifier
-        if category == "guest":
-            return await api_client.fetch_guest_index(
-                client
-            ), api_client.guest_identifier
-        return await api_client.fetch_host_index(client), api_client.host_identifier
+        """Return a category index, reusing a snapshot younger than the TTL."""
+        api_client = api_client or self._api_client()
+        async with self._index_lock:
+            cached = self._index_cache.get(category)
+            if cached and time.monotonic() - cached[0] < SEARCH_CACHE_SECONDS:
+                return cached[1], cached[2]
+            if category == "experiments":
+                index = await api_client.fetch_experiments_index(client)
+                column = api_client.exp_identifier
+            elif category == "guest":
+                index = await api_client.fetch_guest_index(client)
+                column = api_client.guest_identifier
+            else:
+                index = await api_client.fetch_host_index(client)
+                column = api_client.host_identifier
+            self._index_cache[category] = (time.monotonic(), index, column)
+            return index, column
 
     # -------------------------------------------------------------------------
     async def ping_server(self, category: NISTCategory) -> dict[str, Any]:
@@ -178,7 +191,7 @@ class NISTDataService:
         api_client = self._api_client()
         async with httpx.AsyncClient(timeout=self._request_timeout()) as client:
             index, identifier_column = await self.load_index_for_category(
-                category, client
+                category, client, api_client
             )
         _identifiers, available_count = self.ordered_identifiers(
             index=index, identifier_column=identifier_column, fraction=1.0
@@ -205,15 +218,20 @@ class NISTDataService:
             if cached and time.monotonic() - cached["at"] < SEARCH_CACHE_SECONDS:
                 return cached
             async with httpx.AsyncClient(timeout=self._request_timeout()) as client:
-                api_client = self._api_client()
-                experiments = await api_client.fetch_experiments_index(client)
-                guests = await api_client.fetch_guest_index(client)
-                hosts = await api_client.fetch_host_index(client)
+                experiments, _ = await self.load_index_for_category(
+                    "experiments", client
+                )
+                guests, guest_column = await self.load_index_for_category(
+                    "guest", client
+                )
+                hosts, host_column = await self.load_index_for_category(
+                    "host", client
+                )
             self._search_cache = {
                 "at": time.monotonic(),
                 "experiments": experiments.to_dict("records"),
-                "guests": self._name_lookup(guests, api_client.guest_identifier),
-                "hosts": self._name_lookup(hosts, api_client.host_identifier),
+                "guests": self._name_lookup(guests, guest_column),
+                "hosts": self._name_lookup(hosts, host_column),
             }
             return self._search_cache
 
@@ -363,14 +381,14 @@ class NISTDataService:
         }
 
     # -------------------------------------------------------------------------
-    async def sync_targeted_dependencies(self, identifiers: list[str]) -> None:
+    async def sync_targeted_dependencies(self, identifiers: list[str]) -> list[str]:
         """Store the compound and material records of targeted isotherms first.
 
         NIST isotherm payloads carry only names and identities; unit
         conversions (for example wt% needing a molar mass) rely on the full
         compound record, which bulk acquisition fetches as its own collection.
-        Records already stored are skipped; per-record failures are ignored
-        because the isotherm run reports its own outcome.
+        Records already stored are skipped. Identifiers that could not be
+        fetched are returned so the run can report them explicitly.
         """
         indexes = await self._search_indexes()
         wanted = {item.lower() for item in identifiers}
@@ -387,6 +405,11 @@ class NISTDataService:
                 if item.get("InChIKey")
             )
 
+        failed: list[str] = []
+
+        async def collect(identifier: str, _reason: str) -> None:
+            failed.append(identifier)
+
         async def ignore(_identifier: str, _reason: str) -> None:
             return None
 
@@ -402,7 +425,7 @@ class NISTDataService:
                     client=client,
                     base_url=base_url,
                     batch=missing,
-                    on_failure=ignore,
+                    on_failure=collect,
                 )
                 await self._persist_sync_batch(
                     api_client=api_client,
@@ -410,6 +433,11 @@ class NISTDataService:
                     successful=successful,
                     on_skip=ignore,
                 )
+        if failed:
+            logger.warning(
+                "NIST dependency records could not be fetched: %s", sorted(failed)
+            )
+        return sorted(failed)
 
     # -------------------------------------------------------------------------
     async def local_counts(self) -> dict[str, int]:
@@ -445,14 +473,21 @@ class NISTDataService:
         api_client = self._api_client()
         timeout = self._request_timeout()
         failed_count = imported_count = skipped_count = processed_count = 0
-        last_external_id: str | None = None
         async with httpx.AsyncClient(timeout=timeout) as client:
             index, identifier_column = await self.load_index_for_category(
                 category, client
             )
-            identifiers, available_count = self.select_identifiers(
+            targeted = bool(identifiers)
+            identifiers, available_count, unknown = self.select_identifiers(
                 index, identifier_column, fraction, identifiers
             )
+            for identifier in unknown:
+                failed_count += 1
+                await on_failure(
+                    identifier, "The identifier is not present in the current NIST index."
+                )
+            checkpoint_frozen = False
+            last_external_id = resume_after_external_id
             if resume_after_external_id and resume_after_external_id not in identifiers:
                 raise ValueError(
                     "The saved NIST checkpoint is not present in the current index; "
@@ -471,19 +506,36 @@ class NISTDataService:
             candidates = self._unimported_identifiers(
                 checkpointed_identifiers, existing
             )
-            skipped_count = len(checkpointed_identifiers) - len(candidates)
+            # A fractional request covers the next share of the catalogue that
+            # is still missing locally, so repeated requests make progress.
+            budget = (
+                len(identifiers)
+                if targeted
+                else int(math.ceil(self.clamp_fraction(fraction) * available_count))
+            )
+            eligible = candidates[: max(0, budget - max(0, processed_before))]
             record_cap = None if max_records is None else max(0, max_records)
             remaining = (
-                candidates
+                eligible
                 if record_cap is None
-                else candidates[: max(0, record_cap - max(0, processed_before))]
+                else candidates[
+                    : max(0, min(budget, record_cap) - max(0, processed_before))
+                ]
             )
+            scanned = (
+                checkpointed_identifiers[
+                    : checkpointed_identifiers.index(remaining[-1]) + 1
+                ]
+                if remaining
+                else checkpointed_identifiers
+            )
+            skipped_count = len(scanned) - len(remaining)
             batch_size = max(1, batch_size)
             for offset in range(0, len(remaining), batch_size):
                 if await should_cancel():
                     break
                 batch = remaining[offset : offset + batch_size]
-                successful, batch_failures = await self._fetch_sync_batch(
+                successful, failed_ids = await self._fetch_sync_batch(
                     api_client=api_client,
                     client=client,
                     base_url=base_url,
@@ -497,11 +549,20 @@ class NISTDataService:
                     on_skip=on_skip,
                     restore_edited=restore,
                 )
-                failed_count += batch_failures
+                failed_count += len(failed_ids)
                 skipped_count += batch_skips
                 processed_count += len(batch)
                 imported_count += mapped_count
-                last_external_id = batch[-1]
+                # The checkpoint never moves past a failed record, so a resume
+                # replays it (records already stored are skipped on replay).
+                if not checkpoint_frozen:
+                    if failed_ids:
+                        checkpoint_frozen = True
+                        first_failed = batch.index(failed_ids[0])
+                        if first_failed:
+                            last_external_id = batch[first_failed - 1]
+                    else:
+                        last_external_id = batch[-1]
                 await on_progress(
                     {
                         "progress": (
@@ -515,9 +576,9 @@ class NISTDataService:
                         "failed_count": failed_count,
                         "category": category,
                         "available_count": int(available_count),
-                        "requested_count": len(identifiers),
+                        "requested_count": budget,
                         "record_cap": record_cap,
-                        "pending_count": max(0, len(candidates) - processed_count),
+                        "pending_count": max(0, len(eligible) - processed_count),
                         "last_external_id": last_external_id,
                     }
                 )
@@ -532,10 +593,10 @@ class NISTDataService:
                         "failed_count": failed_count,
                         "category": category,
                         "available_count": int(available_count),
-                        "requested_count": len(identifiers),
+                        "requested_count": budget,
                         "record_cap": record_cap,
-                        "pending_count": max(0, len(candidates) - processed_count),
-                        "last_external_id": last_external_id or resume_after_external_id,
+                        "pending_count": max(0, len(eligible) - processed_count),
+                        "last_external_id": last_external_id,
                     }
                 )
 
@@ -544,13 +605,13 @@ class NISTDataService:
         )
         return {
             "available_count": int(available_count),
-            "requested_count": len(identifiers),
+            "requested_count": budget,
             "processed_count": processed_count,
             "imported_count": imported_count,
             "skipped_count": skipped_count,
             "failed_count": failed_count,
             "local_count": int(local_counts.get(category, 0)),
-            "pending_count": max(0, len(candidates) - processed_count),
+            "pending_count": max(0, len(eligible) - processed_count),
             "request_stats": api_client.request_statistics(),
         }
 
@@ -594,7 +655,7 @@ class NISTDataService:
         base_url: str,
         batch: list[str],
         on_failure: Any,
-    ) -> tuple[list[tuple[str, dict[str, Any]]], int]:
+    ) -> tuple[list[tuple[str, dict[str, Any]]], list[str]]:
         responses = await asyncio.gather(
             *(
                 api_client.fetch_json(client, base_url.format(quote(identifier, safe="")))
@@ -602,12 +663,12 @@ class NISTDataService:
             )
         )
         successful = []
-        failures = 0
+        failures: list[str] = []
         for identifier, payload in zip(batch, responses, strict=True):
             if isinstance(payload, dict):
                 successful.append((identifier, payload))
             else:
-                failures += 1
+                failures.append(identifier)
                 await on_failure(
                     identifier,
                     "NIST record request failed or returned malformed data.",
@@ -649,7 +710,7 @@ class NISTDataService:
             await on_skip(
                 identifier,
                 reasons.get(identifier)
-                or "NIST record was excluded by current schema or identity support.",
+                or "NIST record was excluded: no complete measurement rows or unsupported schema/identity.",
             )
         return len(mapped_records), skipped
 

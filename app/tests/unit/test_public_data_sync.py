@@ -1120,7 +1120,167 @@ def test_targeted_nist_request_replaces_fraction_with_identifiers() -> None:
     assert service.select_identifiers(index, "filename", 1.0, ["iso-1", "gone"]) == (
         ["ISO-1"],
         3,
+        ["gone"],
     )
+
+
+###############################################################################
+def _scripted_nist_service(
+    ids: list[str], stored: set[str], failing: set[str]
+) -> tuple[NISTDataService, list[list[str]]]:
+    """NIST service whose index, storage and HTTP outcomes are scripted."""
+    pd = __import__("pandas")
+    service = NISTDataService(None, None, None)  # type: ignore[arg-type]
+    api_client = type(
+        "Api", (), {"request_statistics": lambda self: {}}
+    )()
+    service._api_client = lambda: api_client  # type: ignore[method-assign,return-value]
+    service._request_timeout = lambda **_: None  # type: ignore[method-assign,return-value]
+    fetched: list[list[str]] = []
+
+    async def load_index(category: str, client: Any, api_client: Any = None) -> Any:
+        return pd.DataFrame({"filename": ids}), "filename"
+
+    async def details(category: str) -> Any:
+        return set(stored), "https://example.invalid/{}"
+
+    async def fetch(*, batch: list[str], on_failure: Any, **_: Any) -> Any:
+        fetched.append(list(batch))
+        bad = [item for item in batch if item in failing]
+        for item in bad:
+            await on_failure(item, "failed")
+        good = [(item, {}) for item in batch if item not in failing]
+        return good, bad
+
+    async def persist(*, successful: list[Any], **_: Any) -> Any:
+        stored.update(item.lower() for item, _payload in successful)
+        return len(successful), 0
+
+    service.load_index_for_category = load_index  # type: ignore[method-assign]
+    service._category_sync_details = details  # type: ignore[method-assign]
+    service._fetch_sync_batch = fetch  # type: ignore[method-assign]
+    service._persist_sync_batch = persist  # type: ignore[method-assign]
+    service.repository = type(
+        "Repo", (), {"count_local_records_by_category": lambda self: {}}
+    )()
+    return service, fetched
+
+
+async def _run_scripted_sync(
+    service: NISTDataService, events: list[dict[str, Any]], **overrides: Any
+) -> dict[str, Any]:
+    async def progress(payload: dict[str, Any]) -> None:
+        events.append(payload)
+
+    async def never() -> bool:
+        return False
+
+    async def ignore(*_args: Any) -> None:
+        return None
+
+    arguments: dict[str, Any] = dict(
+        category="experiments",
+        fraction=1.0,
+        batch_size=2,
+        max_records=None,
+        on_progress=progress,
+        should_cancel=never,
+        on_failure=ignore,
+        on_skip=ignore,
+    )
+    return await service.sync_category_records(**(arguments | overrides))
+
+
+def test_nist_checkpoint_never_advances_past_a_failed_record() -> None:
+    ids = ["a", "b", "c", "d"]
+    stored: set[str] = set()
+    service, fetched = _scripted_nist_service(ids, stored, failing={"b"})
+    events: list[dict[str, Any]] = []
+    result = asyncio.run(_run_scripted_sync(service, events))
+    assert result["failed_count"] == 1
+    assert events[-1]["last_external_id"] == "a"
+
+    # Resuming from that checkpoint replays the failed record only.
+    assert stored == {"a", "c", "d"}
+    service, fetched = _scripted_nist_service(ids, stored, failing=set())
+    asyncio.run(_run_scripted_sync(service, [], resume_after_external_id="a"))
+    assert fetched == [["b"]]
+    assert stored == {"a", "b", "c", "d"}
+
+
+def test_nist_fractional_requests_progress_through_missing_records() -> None:
+    ids = [f"id{index}" for index in range(10)]
+    stored = {"id0", "id1"}
+    service, fetched = _scripted_nist_service(ids, stored, failing=set())
+    result = asyncio.run(_run_scripted_sync(service, [], fraction=0.2, batch_size=10))
+    assert fetched == [["id2", "id3"]]
+    assert result["imported_count"] == 2
+
+    fetched.clear()
+    asyncio.run(_run_scripted_sync(service, [], fraction=0.2, batch_size=10))
+    assert fetched == [["id4", "id5"]]
+
+
+def test_nist_targeted_unknown_identifiers_are_reported_as_failures() -> None:
+    service, fetched = _scripted_nist_service(["a", "b"], set(), failing=set())
+    reported: list[str] = []
+
+    async def on_failure(identifier: str, _reason: str) -> None:
+        reported.append(identifier)
+
+    result = asyncio.run(
+        _run_scripted_sync(service, [], identifiers=["a", "ghost"], on_failure=on_failure)
+    )
+    assert reported == ["ghost"]
+    assert result["failed_count"] == 1
+    assert fetched == [["a"]]
+
+
+def test_nist_builder_keeps_rows_missing_optional_metadata_and_invents_nothing() -> None:
+    pd = __import__("pandas")
+    from server.services.data.nistads import NISTDatasetBuilder
+
+    def isotherm(name: str, guests: list[dict[str, Any]], points: list[dict[str, Any]]):
+        return {
+            "filename": name,
+            "adsorbent": {"hashkey": "H", "name": "Zeolite"},
+            "adsorbates": guests,
+            "isotherm_data": points,
+            "temperature": 298,
+            "pressureUnits": "bar",
+            "adsorptionUnits": "mmol/g",
+            "adsorbent_extra": None,
+        }
+
+    single = isotherm(
+        "S1",
+        [{"name": "CO2", "InChIKey": "K1"}],
+        [
+            {"pressure": 1.0, "total_adsorption": 2.0},
+            {"pressure": 2.0, "total_adsorption": 3.0},
+        ],
+    )
+    mixture = isotherm(
+        "M1",
+        [{"name": "CO2", "InChIKey": "K1"}, {"name": "N2", "InChIKey": "K2"}],
+        [
+            {
+                "pressure": 2.0,
+                "species_data": [
+                    {"composition": 0.5, "adsorption": 1.0},
+                    {"composition": 0.5, "adsorption": 2.0},
+                ],
+            },
+            {"pressure": 4.0, "species_data": [{"composition": 1.0}]},
+        ],
+    )
+    builder = NISTDatasetBuilder()
+    singles, _ = builder.build_datasets(pd.DataFrame([single]))
+    assert len(singles) == 2
+    _, binaries = builder.build_datasets(pd.DataFrame([mixture]))
+    # The point without second-species data is rejected, not filled with 1.0.
+    assert len(binaries) == 1
+    assert binaries.loc[0, "compound_2_adsorption"] == 2.0
 
 ###############################################################################
 def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
