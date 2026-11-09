@@ -4497,7 +4497,7 @@ input.source-file-input {
 .dataset-status.error { color: var(--danger-text); background: var(--danger-bg); }
 .user-dataset-list-card { min-height: 0; overflow: hidden; }
 .user-dataset-list-card .card-title-row { min-height: 0; align-items: flex-start; padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xs); }
-.dataset-record-list { display: grid; gap: 10px; min-height: 0; max-height: min(52vh, 34rem); margin-top: 14px; padding: 0 1px 2px; overflow-y: auto; overscroll-behavior: contain; }
+.dataset-record-list { display: grid; gap: 10px; min-height: 0; max-height: min(52vh, 34rem); margin-top: 14px; padding: 0 1px 2px; overflow-y: auto; }
 .dataset-record { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(150px, 0.8fr) auto; gap: 18px; align-items: center; padding: 10px 16px; border: 1px solid var(--console-border, #d7dee8); border-radius: 10px; background: var(--console-surface, #fff); transition: border-color 160ms ease, box-shadow 160ms ease; }
 .dataset-record:hover, .dataset-record.selected { border-color: var(--primary-300); box-shadow: 0 8px 20px -18px rgba(7, 91, 213, 0.75); }
 .dataset-record-copy { min-width: 0; }

@@ -1,6 +1,6 @@
 # ADSMOD runtime and application settings
 
-Last updated: 2026-11-05
+Last updated: 2026-11-09
 
 ## Settings ownership
 
@@ -23,7 +23,7 @@ Database switching is performed in the running backend after the candidate conne
 | Data import | `fitting.preview_row_limit` | Integer input, 1–500; `20` | Caps raw source rows returned by import preview. Immediate. |
 | Public data | `nist.parallel_tasks` | Integer input, 1–100; `40` | Limits concurrent NIST index and record requests. Immediate for new requests. |
 | Public data | `public_data.request_timeout_seconds` | Seconds input, greater than 0 and at most 120; `20` | Timeout for provider requests. Immediate for new requests. |
-| Public data | `public_data.retry_attempts` | Integer input, 1–6; `3` | Maximum provider attempts, including the first request. Immediate for new requests. |
+| Public data | `public_data.retry_attempts` | Integer input, 1–6; `3` | Maximum provider attempts, including the first request. COD always uses at least 5 because it intermittently drops requests. Immediate for new requests. |
 | Public data | `public_data.retry_backoff_max_seconds` | Seconds input, 0.1–120; `30` | Maximum delay between provider retries. Immediate for new requests. |
 | Public data | `public_data.pubchem_parallel_requests` | Integer input, 1–3; `2` | PubChem request concurrency, shared through its request budget. Immediate for new requests. |
 | Public data | `public_data.cod_max_interactive_results` | Integer input, 1–1000; `250` | Maximum COD matches returned by an interactive search. Immediate. |

@@ -149,6 +149,32 @@ test('primary routes share one stable shell at each supported viewport', async (
     }
 });
 
+test('Jobs popover keeps about ten rows visible and scrolls the rest inside the list', async ({ page }) => {
+    await installShellApiMocks(page);
+    const jobs = Array.from({ length: 30 }, (_, index) => ({
+        id: `job-${index}`, kind: 'fitting', name: `Fitting session ${index}`, source: null, status: 'completed', progress: 100,
+        created_at: new Date(Date.UTC(2026, 10, 5, 12, 0) - index * 60_000).toISOString(), finished_at: null,
+        saved_count: 4, skipped_count: 0, failed_count: 0, error: null, run: null,
+    }));
+    await page.route('**/api/v1/jobs**', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jobs, active_count: 0 }) });
+    });
+    await page.goto('/home');
+    await page.getByRole('button', { name: /Jobs/ }).click();
+
+    const list = page.locator('.jobs-list');
+    await expect(list.locator('.job-row')).toHaveCount(30);
+    const metrics = await list.evaluate((element) => {
+        const row = element.querySelector('.job-row')!.getBoundingClientRect().height;
+        const panel = element.closest('.jobs-panel')!.getBoundingClientRect();
+        return { visible: element.clientHeight / row, scrollable: element.scrollHeight > element.clientHeight, panelTop: panel.top, panelBottom: panel.bottom };
+    });
+    expect(metrics.scrollable).toBe(true);
+    expect(metrics.visible).toBeLessThanOrEqual(10.5);
+    expect(metrics.panelTop).toBeGreaterThanOrEqual(0);
+    expect(metrics.panelBottom).toBeLessThanOrEqual(page.viewportSize()!.height);
+});
+
 test('training routes remain gated when the optional service is unavailable', async ({ page }) => {
     await installShellApiMocks(page, false);
     await page.goto('/modeling/deep-learning/processing');

@@ -44,6 +44,10 @@ class CODProvider(RetryingHttpProvider):
     # requests are paced and a 403 is retried after a longer backoff.
     retry_statuses = RetryingHttpProvider.retry_statuses | {403}
     minimum_retry_delay_seconds = 5.0
+    # COD drops roughly one request in five ("Server disconnected without sending a
+    # response") even on fresh connections and at slow pacing. A quick retry
+    # succeeds, so allow enough short retries that one drop never fails a record.
+    minimum_attempts = 5
     search_url = "https://www.crystallography.net/cod/result"
     entry_base_url = "https://www.crystallography.net/cod"
 
@@ -217,11 +221,16 @@ class CODProvider(RetryingHttpProvider):
         return [self.normalize_result(dict(row)) for row in rows if isinstance(row, dict)]
 
     # -------------------------------------------------------------------------
-    async def fetch_record(self, cod_id: str) -> tuple[dict[str, Any], str]:
-        matches = await self.search(cod_id=cod_id)
-        if not matches:
-            raise ProviderNotFoundError(f"COD entry {cod_id} was not found.")
-        metadata = matches[0]
+    async def fetch_record(
+        self, cod_id: str, metadata: dict[str, Any] | None = None
+    ) -> tuple[dict[str, Any], str]:
+        """Download one CIF. Pass ``metadata`` from an earlier search to skip the
+        id lookup that would otherwise repeat the same request."""
+        if metadata is None:
+            matches = await self.search(cod_id=cod_id)
+            if not matches:
+                raise ProviderNotFoundError(f"COD entry {cod_id} was not found.")
+            metadata = matches[0]
         cif_response = await self._request(
             "GET",
             metadata["cif_url"],

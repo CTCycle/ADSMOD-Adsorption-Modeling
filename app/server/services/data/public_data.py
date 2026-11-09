@@ -165,7 +165,10 @@ class PublicDataService:
 
     # -------------------------------------------------------------------------
     async def import_cod(
-        self, cod_id: str, adsorbent_id: int | None = None
+        self,
+        cod_id: str,
+        adsorbent_id: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[int, bool]:
         """Import one COD record unless it is stored already.
 
@@ -185,7 +188,7 @@ class PublicDataService:
         provider = self.providers.get("cod")
         if not isinstance(provider, CODProvider):
             raise RuntimeError("COD provider is not configured.")
-        metadata, cif_text = await provider.fetch_record(cod_id)
+        metadata, cif_text = await provider.fetch_record(cod_id, metadata)
         atoms = provider.parse_atoms(cif_text)
         provider.validate_cif(metadata, cif_text, atoms)
         structure_id = await asyncio.to_thread(
@@ -232,8 +235,10 @@ class PublicDataService:
                 f"Ambiguous: {len(rows)} COD candidates, {len(exact)} exact name "
                 f"matches (e.g. {candidates}); choose one manually."
             )
+        # The search row already carries the metadata, so the import need not
+        # look the entry up again.
         structure_id, imported = await self.import_cod(
-            str(exact[0]["cod_id"]), adsorbent_id
+            str(exact[0]["cod_id"]), adsorbent_id, metadata=exact[0]
         )
         return structure_id, imported, None
 

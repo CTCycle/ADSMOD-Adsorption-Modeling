@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import threading
 from time import monotonic
 from abc import ABC, abstractmethod
@@ -115,6 +116,10 @@ class RetryingHttpProvider(PublicDataProvider):
 
     retry_statuses = frozenset({429, 500, 502, 503, 504})
     minimum_retry_delay_seconds = 0.0
+    # Base delay for transport failures (dropped connections, timeouts).
+    transport_retry_delay_seconds = 0.5
+    # Lower bound on attempts for sources that drop requests intermittently.
+    minimum_attempts = 1
 
     # -------------------------------------------------------------------------
     def __init__(
@@ -129,7 +134,7 @@ class RetryingHttpProvider(PublicDataProvider):
     ) -> None:
         self._semaphore = asyncio.Semaphore(max(1, parallel_requests))
         self.request_timeout_seconds = max(0.1, float(request_timeout_seconds))
-        self.max_attempts = max(1, int(retry_attempts))
+        self.max_attempts = max(1, int(retry_attempts), self.minimum_attempts)
         self.allowed_hosts = frozenset(host.casefold() for host in allowed_hosts)
         self.max_response_bytes = max(1024, int(max_response_bytes))
         self.retry_backoff_max_seconds = max(0.1, float(retry_backoff_max_seconds))
@@ -225,19 +230,26 @@ class RetryingHttpProvider(PublicDataProvider):
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_error = exc
                 if attempt < self.max_attempts - 1:
-                    retry_delay = self._retry_delay(None, attempt)
+                    retry_delay = self._transport_retry_delay(attempt)
                     self._record_request_stat("retries")
                     logger.warning(
-                        "%s transport request failed; retrying attempt %d/%d after %.2fs: %s",
+                        "%s transport request failed (%s); retrying attempt %d/%d after %.2fs",
                         self.name,
+                        self._describe_transport_error(exc),
                         attempt + 2,
                         self.max_attempts,
                         retry_delay,
-                        exc,
                     )
                     await asyncio.sleep(retry_delay)
                     continue
                 self._record_request_stat("failures")
+                logger.error(
+                    "%s transport request failed after %d attempts (%s): %s",
+                    self.name,
+                    self.max_attempts,
+                    self._describe_transport_error(exc),
+                    urlsplit(url).path,
+                )
             except httpx.HTTPStatusError as exc:
                 self._record_request_stat("failures")
                 raise ProviderUnavailableError(
@@ -245,9 +257,20 @@ class RetryingHttpProvider(PublicDataProvider):
                 ) from exc
         if last_error is None:
             self._record_request_stat("failures")
+        reason = (
+            f" ({type(last_error).__name__})" if last_error is not None else ""
+        )
         raise ProviderUnavailableError(
-            f"{self.name} could not be reached after {self.max_attempts} attempts."
+            f"{self.name} could not be reached after {self.max_attempts} attempts{reason}."
         ) from last_error
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _describe_transport_error(exc: Exception) -> str:
+        """Name the failure class, since timeouts often carry an empty message."""
+        message = str(exc).strip()
+        name = type(exc).__name__
+        return f"{name}: {message}" if message else name
 
     # -------------------------------------------------------------------------
     def _validate_request_target(self, url: str) -> None:
@@ -366,7 +389,22 @@ class RetryingHttpProvider(PublicDataProvider):
                     delay = None
         if delay is None:
             delay = max(0.5, self.minimum_retry_delay_seconds) * (2**attempt)
+            # Spread retries so repeated runs do not hit a recovering source in step.
+            delay *= random.uniform(1.0, 1.25)
         return min(delay, self.retry_backoff_max_seconds)
+
+    # -------------------------------------------------------------------------
+    def _transport_retry_delay(self, attempt: int) -> float:
+        """Short bounded exponential backoff with equal jitter for dropped requests.
+
+        Dropped connections and timeouts are not rate-limit signals, so they use a
+        much shorter base delay than HTTP status backoff.
+        """
+        ceiling = min(
+            self.retry_backoff_max_seconds,
+            self.transport_retry_delay_seconds * (2**attempt),
+        )
+        return ceiling / 2 + random.uniform(0.0, ceiling / 2)
 
     # -------------------------------------------------------------------------
     async def health(self) -> ProviderHealth:

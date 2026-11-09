@@ -49,7 +49,7 @@
     display: flex;
     flex-direction: column;
     width: min(560px, calc(100vw - 2rem));
-    max-height: min(70vh, 520px);
+    max-height: min(calc(100dvh - 5rem), 46rem);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--surface);
@@ -130,7 +130,11 @@
 }
 
 .jobs-list {
+    /* Show about ten collapsed rows, then scroll inside the list. The panel's
+       viewport-based max-height still wins on short screens. */
+    --job-row-height: 3.25rem;
     min-height: 0;
+    max-height: calc(10 * var(--job-row-height));
     overflow-y: auto;
     overscroll-behavior: contain;
 }

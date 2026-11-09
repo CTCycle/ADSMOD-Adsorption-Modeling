@@ -1,6 +1,6 @@
 # Public data architecture
 
-Last updated: 2026-11-06
+Last updated: 2026-11-09
 
 ## Scope
 
@@ -207,7 +207,9 @@ The in-process coordinator polls and claims queued rows from the local database;
 
 Acquisition is incremental and bounded. NIST runs fetch at most the configured record cap and save explicit reasons for transport failures and for records excluded by unit support. PubChem enrichment records a permanent failure for compounds PubChem cannot resolve and skips them in later runs. COD preserves each returned CIF and provenance, rejects content without a CIF data block, and refuses to reassign a structure already linked to a different material.
 
-HTTP providers read decoded bodies under `sync_response_size_limit_bytes` (64 MiB by default; the NIST isotherm index is about 18 MB). COD answers short request bursts with HTTP 403, so ADSMOD paces COD to one request per second and retries a 403 after a longer backoff. Exact COD ID lookups skip the count request.
+HTTP providers read decoded bodies under `sync_response_size_limit_bytes` (64 MiB by default; the NIST isotherm index is about 18 MB). COD answers short request bursts with HTTP 403, so ADSMOD paces COD to one request per second and retries a 403 after a longer backoff. Exact COD ID lookups skip the count request. A bulk import reuses the search row for the CIF download instead of looking the entry up again, so a successful material costs three requests (count, search, CIF).
+
+COD also drops a share of requests with `Server disconnected without sending a response` (`httpx.RemoteProtocolError`) or an empty read timeout. A live probe on 2026-11-09 measured roughly one request in five, and the rate was unchanged with keep-alive disabled (fresh connection per request) and with pacing slowed to one request per three seconds, so it is source-side instability rather than stale pooled connections or request rate. A retry sent moments later succeeds. Transport failures therefore use their own short backoff (base 0.5 s, doubling, equal jitter, capped by `retry_backoff_max_seconds`) rather than the 5 s HTTP-status backoff, and COD guarantees at least five attempts so one dropped request does not fail a record. HTTP-status retries (403, 429, 5xx) keep their longer backoff with up to 25% jitter and still honour `Retry-After`. Permanent errors (404, other 4xx, redirects, undecodable bodies) are never retried. Retry warnings and the final error name the exception class, and a record that still fails is stored as a failure with the class in its reason; it does not stop the run or discard records already imported.
 
 Automatic refresh is disabled by default. It can be enabled for an explicit list of NIST collections with a configured interval and fraction; each scheduled refresh is stored as an ordinary durable run.
 

@@ -1156,7 +1156,13 @@ def test_cod_bulk_imports_only_unique_exact_matches_and_remembers_the_rest(
         public_data = PublicDataService(repository=repository, providers=[provider])
         linked: list[tuple[str, int | None]] = []
 
-        async def import_cod(cod_id: str, adsorbent_id: int | None = None) -> Any:
+        async def import_cod(
+            cod_id: str,
+            adsorbent_id: int | None = None,
+            metadata: dict[str, Any] | None = None,
+        ) -> Any:
+            # The bulk run passes the search row so the import skips a lookup.
+            assert metadata is not None and str(metadata["cod_id"]) == cod_id
             linked.append((cod_id, adsorbent_id))
             return len(linked), True
 

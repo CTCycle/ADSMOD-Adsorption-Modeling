@@ -101,6 +101,26 @@ test('sources stay contained across catalog, acquisition, and structures', async
     await expect(page).toHaveURL(/\/datasets$/);
 });
 
+test('wheel scrolling over Acquire tables and cards still scrolls the page', async ({ page }) => {
+    await installApiMocks(page);
+    await page.goto('/sources/acquire');
+    const main = page.locator('.console-main');
+    await expect(page.locator('.collection-table-frame')).toBeVisible();
+    const overflow = await main.evaluate((element) => element.scrollHeight - element.clientHeight);
+    test.skip(overflow < 40, 'The page does not overflow at this viewport.');
+
+    for (const target of ['.collection-table-frame', '.acquire-grid > .source-panel']) {
+        await main.evaluate((element) => { element.scrollTop = 0; });
+        const box = await page.locator(target).first().boundingBox();
+        expect(box).not.toBeNull();
+        const x = box!.x + box!.width / 2;
+        const y = Math.min(box!.y + box!.height / 2, (await main.boundingBox())!.y + (await main.boundingBox())!.height - 20);
+        await page.mouse.move(x, y);
+        await page.mouse.wheel(0, 120);
+        await expect.poll(() => main.evaluate((element) => element.scrollTop), { message: `wheel over ${target}` }).toBeGreaterThan(0);
+    }
+});
+
 test('Catalog renders before one local summary response and skips provider health probes', async ({ page }) => {
     await installApiMocks(page);
 

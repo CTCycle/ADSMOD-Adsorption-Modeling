@@ -822,7 +822,9 @@ input[type="search"] {
   overflow: auto;
   border: 1px solid var(--border-color, #d8dee8);
   background: var(--surface-color, #fff);
-  overscroll-behavior: contain;
+  /* Never contain the vertical axis: a frame that cannot scroll vertically would
+     otherwise swallow the wheel and stop the page from scrolling over it. */
+  overscroll-behavior-x: contain;
 }
 
 .data-table-frame--compact {

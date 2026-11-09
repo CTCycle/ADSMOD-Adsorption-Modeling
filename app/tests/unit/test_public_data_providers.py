@@ -934,7 +934,127 @@ def test_cod_provider_backs_off_after_burst_forbidden_response(monkeypatch) -> N
 
     asyncio.run(exercise())
     assert responses == []
-    assert sleeps == [5.0]
+    # Base 5 s backoff with up to 25% jitter.
+    assert len(sleeps) == 1
+    assert 5.0 <= sleeps[0] <= 6.25
+
+
+###############################################################################
+def _script_http_client(monkeypatch, script: list) -> tuple[list[float], list[int]]:  # type: ignore[no-untyped-def]
+    """Replace httpx.AsyncClient with one that replays ``script`` (exceptions are
+    raised, responses are returned) and record sleeps and attempt counts."""
+    sleeps: list[float] = []
+    attempts = [0]
+
+    class ScriptedStream:
+        def __init__(self, item) -> None:  # type: ignore[no-untyped-def]
+            self.item = item
+
+        async def __aenter__(self):  # type: ignore[no-untyped-def]
+            if isinstance(self.item, Exception):
+                raise self.item
+            return self.item
+
+        async def __aexit__(self, *_args):  # type: ignore[no-untyped-def]
+            return None
+
+    class ScriptedClient:
+        def __init__(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            del kwargs
+
+        def stream(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            del args, kwargs
+            attempts[0] += 1
+            return ScriptedStream(script.pop(0))
+
+        async def aclose(self) -> None:
+            return None
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(httpx, "AsyncClient", ScriptedClient)
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    return sleeps, attempts
+
+
+###############################################################################
+def test_cod_provider_retries_dropped_connections_with_short_jittered_backoff(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    url = "https://www.crystallography.net/cod/retry"
+    request = httpx.Request("GET", url)
+    sleeps, attempts = _script_http_client(
+        monkeypatch,
+        [
+            httpx.RemoteProtocolError("Server disconnected without sending a response."),
+            httpx.ReadTimeout(""),
+            httpx.Response(200, request=request, text="{}"),
+        ],
+    )
+    provider = CODProvider(
+        request_timeout_seconds=1.0, retry_attempts=3, max_interactive_results=10
+    )
+    provider.request_budget = RequestBudget(minimum_interval_seconds=0.0)
+
+    async def exercise() -> int:
+        response = await provider._request("GET", url)
+        await provider.close()
+        return response.status_code
+
+    assert asyncio.run(exercise()) == 200
+    assert attempts[0] == 3
+    # Equal jitter: each delay is between half and the full exponential ceiling.
+    assert 0.25 <= sleeps[0] <= 0.5
+    assert 0.5 <= sleeps[1] <= 1.0
+    assert provider.request_statistics()["retries"] == 2
+
+
+###############################################################################
+def test_cod_provider_transport_retries_are_bounded_and_name_the_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    url = "https://www.crystallography.net/cod/down"
+    sleeps, attempts = _script_http_client(
+        monkeypatch,
+        [httpx.RemoteProtocolError("Server disconnected") for _ in range(10)],
+    )
+    provider = CODProvider(
+        request_timeout_seconds=1.0, retry_attempts=1, max_interactive_results=10
+    )
+    provider.request_budget = RequestBudget(minimum_interval_seconds=0.0)
+
+    async def exercise() -> None:
+        with pytest.raises(ProviderUnavailableError) as raised:
+            await provider._request("GET", url)
+        assert "RemoteProtocolError" in str(raised.value)
+        await provider.close()
+
+    asyncio.run(exercise())
+    # COD guarantees five attempts even when fewer are configured.
+    assert attempts[0] == 5
+    assert len(sleeps) == 4
+    assert all(delay <= provider.retry_backoff_max_seconds for delay in sleeps)
+    assert provider.request_statistics()["failures"] == 1
+
+
+###############################################################################
+def test_cod_fetch_record_reuses_search_metadata_without_a_second_lookup(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    provider = CODProvider(
+        request_timeout_seconds=1.0, retry_attempts=1, max_interactive_results=10
+    )
+    urls: list[str] = []
+
+    async def fake_request(method, url, **kwargs):  # type: ignore[no-untyped-def]
+        del method, kwargs
+        urls.append(url)
+        return httpx.Response(
+            200, request=httpx.Request("GET", url), text="data_1000000\n"
+        )
+
+    monkeypatch.setattr(provider, "_request", fake_request)
+    metadata = {"cod_id": "1000000", "cif_url": "https://www.crystallography.net/cod/1000000.cif"}
+    result, cif_text = asyncio.run(provider.fetch_record("1000000", metadata))
+
+    assert result is metadata
+    assert cif_text.startswith("data_")
+    assert urls == [metadata["cif_url"]]
 
 
 ###############################################################################

@@ -40,50 +40,65 @@
     align-content: start;
 }
 
-/* Same three-column track in both cards: label, progress bar, percentage. */
+/* Same layout in both cards: label and percentage on one line, with the progress
+   bar spanning the full card width underneath so nothing floats in empty space. */
 .acquire-grid .acq-stats {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 6rem 2.5rem;
-    gap: 4px 12px;
-    min-height: 1.25rem;
-    margin-bottom: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 5px 12px;
+    margin-bottom: 10px;
 }
 
-.acquire-grid .acq-stats progress {
-    width: 100%;
+.acquire-grid .acq-stats > span:first-child {
+    grid-column: 1;
+    grid-row: 1;
 }
 
 .acquire-grid .acq-stats > span:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
     text-align: right;
+}
+
+.acquire-grid .acq-stats progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
 }
 
 .acquire-grid .section-heading {
     min-height: 3.25rem;
 }
 
+/* One compact row in both cards: share, primary action, optional secondary action. */
 .bulk-controls {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 10px;
-    align-items: flex-end;
+    align-items: center;
     box-sizing: border-box;
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: 1px solid var(--border-color);
     background: var(--surface-subtle, var(--surface));
 }
 
 .bulk-share {
-    display: grid;
-    gap: 3px;
-    margin: 0;
-    width: 5.5rem;
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 4px 0 0;
     color: var(--text-secondary);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 600;
 }
 
 .bulk-share input {
-    width: 100%;
+    width: 4.5rem;
     min-height: 2rem;
     height: 2rem;
     box-sizing: border-box;
@@ -103,7 +118,6 @@
 }
 
 .bulk-secondary {
-    margin-left: auto;
     border-color: var(--border-color);
 }
 
