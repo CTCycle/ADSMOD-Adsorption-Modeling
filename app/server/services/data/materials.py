@@ -6,12 +6,15 @@ from __future__ import annotations
 from typing import Any
 
 from server.domain.materials import (
+    IdentityAuditResponse,
+    IdentityReviewPageResponse,
     MaterialDetailResponse,
     MaterialPageResponse,
     SpeciesDetailResponse,
     SpeciesPageResponse,
 )
 from server.domain.public_data import Pagination
+from server.repositories.identity import IdentityRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.public_data import PublicDataRepository
 
@@ -24,10 +27,33 @@ class MaterialService:
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, repository: MaterialRepository, public_data: PublicDataRepository
+        self,
+        repository: MaterialRepository,
+        public_data: PublicDataRepository,
+        identity: IdentityRepository,
     ) -> None:
         self.repository = repository
         self.public_data = public_data
+        self.identity = identity
+
+    # -------------------------------------------------------------------------
+    def list_identity_reviews(self, **filters: Any) -> IdentityReviewPageResponse:
+        rows, total = self.identity.list_reviews(**filters)
+        return IdentityReviewPageResponse(
+            items=rows, pagination=self._pagination(filters, total)
+        )
+
+    # -------------------------------------------------------------------------
+    def merge_identity_review(self, review_id: int, keep_id: int) -> None:
+        self.identity.merge(review_id, keep_id)
+
+    # -------------------------------------------------------------------------
+    def reject_identity_review(self, review_id: int) -> None:
+        self.identity.reject(review_id)
+
+    # -------------------------------------------------------------------------
+    def audit_identities(self) -> IdentityAuditResponse:
+        return IdentityAuditResponse(**self.identity.audit())
 
     # -------------------------------------------------------------------------
     @staticmethod

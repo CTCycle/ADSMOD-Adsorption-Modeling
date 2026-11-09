@@ -6,9 +6,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import case, delete, func, or_, select
+from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from server.common.identity import STATUS_PROVISIONAL, STATUS_RESOLVED
 from server.repositories.database.bulk import upsert_records
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.provenance import (
@@ -26,7 +27,10 @@ from server.repositories.schemas.models import (
 )
 from server.repositories.schemas.public_data import (
     CONFORMER_PROPERTY,
+    AdsorbateSourceRecord,
     AdsorbateSynonym,
+    AdsorbentSourceRecord,
+    AdsorbentSynonym,
     ChemicalProperty,
     DataSource,
     SourceRecord,
@@ -71,9 +75,23 @@ class MaterialRepository:
                 }
                 for row in records
             ]
-            return upsert_records(
+            count = upsert_records(
                 session, table, rows, ["key"], keep_existing_on_null=True
             )
+            # A source-issued identifier settles identity; a record without one
+            # must never downgrade a row that already has it.
+            identified = [
+                row["key"]
+                for row in records
+                if row.get(identity) or row.get("nist_identifier")
+            ]
+            if identified:
+                session.execute(
+                    update(model)
+                    .where(model.key.in_(identified))
+                    .values(identity_status=STATUS_RESOLVED)
+                )
+            return count
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -100,6 +118,75 @@ class MaterialRepository:
             value = record.get(identity)
             if value:
                 record["key"] = owners.setdefault(str(value), record["key"])
+        MaterialRepository._follow_merged_identifiers(session, model, records, identity)
+        MaterialRepository._adopt_provisional_rows(
+            session, model, records, identity, set(owners.values())
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _follow_merged_identifiers(
+        session: Session, model: Any, records: list[dict[str, Any]], identity: str
+    ) -> None:
+        """Send a re-imported record to the row its source record was merged into.
+
+        The identifier is dropped from the record so it cannot replace the
+        surviving row's own identifier.
+        """
+        link = AdsorbateSourceRecord if model is Adsorbate else AdsorbentSourceRecord
+        owner = link.adsorbate_id if model is Adsorbate else link.adsorbent_id
+        identifiers = {
+            str(record.get("nist_identifier") or record.get(identity)): record
+            for record in records
+            if record.get("nist_identifier") or record.get(identity)
+        }
+        if not identifiers:
+            return
+        for external_id, key, stored in session.execute(
+            select(SourceRecord.external_id, model.key, getattr(model, identity))
+            .join(link, link.source_record_id == SourceRecord.id)
+            .join(model, model.id == owner)
+            .where(SourceRecord.external_id.in_(list(identifiers)))
+        ):
+            record = identifiers[str(external_id)]
+            record["key"] = str(key)
+            if stored and stored != record.get(identity):
+                record[identity] = None
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _adopt_provisional_rows(
+        session: Session,
+        model: Any,
+        records: list[dict[str, Any]],
+        identity: str,
+        claimed: set[str],
+    ) -> None:
+        """Give a uniquely named provisional row the identifier a source now issues.
+
+        Without this an uploaded species would be duplicated when the same
+        compound later arrives from a provider.
+        """
+        unowned = {
+            normalize_identity(str(record["name"])): record
+            for record in records
+            if record.get(identity) and record["key"] not in claimed
+        }
+        if not unowned:
+            return
+        by_name: dict[str, list[str]] = {}
+        for name, key in session.execute(
+            select(model.normalized_name, model.key).where(
+                model.normalized_name.in_(list(unowned)),
+                getattr(model, identity).is_(None),
+                model.identity_status == STATUS_PROVISIONAL,
+            )
+        ):
+            by_name.setdefault(str(name), []).append(str(key))
+        for name, keys in by_name.items():
+            if len(keys) == 1 and keys[0] not in claimed:
+                unowned[name]["key"] = keys[0]
+                claimed.add(keys[0])
 
     # -------------------------------------------------------------------------
     def upsert_adsorbates(self, records: Iterable[dict[str, Any]]) -> int:
@@ -139,7 +226,17 @@ class MaterialRepository:
         with self.database.session_factory() as session:
             query = select(Adsorbent)
             if query_text:
-                query = query.where(Adsorbent.name.ilike(f"%{query_text.strip()}%"))
+                alias_ids = select(AdsorbentSynonym.adsorbent_id).where(
+                    AdsorbentSynonym.normalized_synonym.ilike(
+                        f"%{normalize_identity(query_text)}%"
+                    )
+                )
+                query = query.where(
+                    or_(
+                        Adsorbent.name.ilike(f"%{query_text.strip()}%"),
+                        Adsorbent.id.in_(alias_ids),
+                    )
+                )
             if formula:
                 query = query.where(Adsorbent.formula.ilike(f"%{formula.strip()}%"))
             if source:
@@ -175,6 +272,13 @@ class MaterialRepository:
         )
         isotherm_counts = counts_by(session, Isotherm.adsorbent_id, Isotherm.id, row_ids)
         provenance = provenance_entries(session, "adsorbent", row_ids)
+        aliases: dict[int, list[str]] = {}
+        for owner, synonym in session.execute(
+            select(AdsorbentSynonym.adsorbent_id, AdsorbentSynonym.synonym)
+            .where(AdsorbentSynonym.adsorbent_id.in_(row_ids))
+            .order_by(AdsorbentSynonym.synonym)
+        ):
+            aliases.setdefault(int(owner), []).append(str(synonym))
         return [
             {
                 "id": item.id,
@@ -182,6 +286,8 @@ class MaterialRepository:
                 "formula": item.formula,
                 "molar_mass_g_mol": item.molar_mass_g_mol,
                 "smiles": item.smiles,
+                "identity_status": item.identity_status,
+                "synonyms": aliases.get(item.id, []),
                 "structure_count": structure_counts.get(item.id, 0),
                 "isotherm_count": isotherm_counts.get(item.id, 0),
                 "external_identifiers": [
@@ -378,6 +484,7 @@ class MaterialRepository:
         return {
             "id": item.id,
             "name": item.name,
+            "identity_status": item.identity_status,
             "preferred_name": preferred.value_text if preferred else None,
             "formula": item.formula,
             "molecular_weight": item.molar_mass_g_mol,

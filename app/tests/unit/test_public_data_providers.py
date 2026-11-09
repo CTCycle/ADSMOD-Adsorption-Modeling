@@ -13,6 +13,7 @@ from server.repositories.public_data import PublicDataRepository
 from server.services.data.nist_mapper import NISTCanonicalMapper
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
+from server.repositories.identity import IdentityRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
 from server.repositories.schemas.models import (
@@ -1247,7 +1248,14 @@ def test_pubchem_attach_enriches_selected_chemical_and_tracks_candidates() -> No
         assert repository.find_local_pubchem_adsorbate("CH4") == attached
         # Linked chemicals and permanent lookup failures are not retried.
         assert repository.pubchem_enrichment_candidates(10) == [
-            {"id": ids["nist-argon"], "query": "argon"}
+            {
+                "id": ids["nist-argon"],
+                "query": "argon",
+                "name": "argon",
+                "inchi_key": None,
+                "formula": None,
+                "smiles": None,
+            }
         ]
         with pytest.raises(ValueError, match="already linked"):
             repository.upsert_pubchem_compound(_methane_payload(), ids["nist-argon"])
@@ -1275,7 +1283,7 @@ def test_navigation_filters_by_ids_and_structure_links_are_explicit() -> None:
         _, by_adsorbate = datasets.experiments(dataset_id, adsorbate_id=adsorbate_id)
         assert by_adsorbate == 1
 
-        material = MaterialService(materials, repository).get_material(material_id)
+        material = MaterialService(materials, repository, IdentityRepository(repository.database)).get_material(material_id)
         assert material.isotherm_count == 1
         assert [item.id for item in material.structures] == [structure_id]
         assert [usage.id for usage in material.datasets] == [dataset_id]
@@ -1438,7 +1446,7 @@ def test_public_data_list_queries_do_not_scale_with_page_size() -> None:
                 manager,
                 lambda: materials.list_materials(page=1, page_size=2),
             )
-            <= 5
+            <= 6
         )
         assert (
             _count_selects(

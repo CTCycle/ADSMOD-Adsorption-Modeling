@@ -22,6 +22,8 @@ from server.services.providers.cod import CODProvider
 from server.services.providers.pubchem import PubChemProvider
 from server.services.providers.public_data import PublicDataProvider
 from server.repositories.public_data import PublicDataRepository
+from server.common.identity import looks_like_formula, names_ion_or_oxidation_state
+from server.repositories.identity import IdentityConflictError
 from server.repositories.schemas.types import normalize_identity
 
 # A separate word-only qualifier such as "(synthetic)", which COD text search
@@ -134,10 +136,81 @@ class PublicDataService:
         if not isinstance(provider, PubChemProvider):
             raise RuntimeError("PubChem provider is not configured.")
         payload = await provider.resolve(query)
-        resolved_id = await asyncio.to_thread(
-            self.repository.upsert_pubchem_compound, payload, adsorbate_id
-        )
+        try:
+            resolved_id = await asyncio.to_thread(
+                self.repository.upsert_pubchem_compound, payload, adsorbate_id
+            )
+        except IdentityConflictError as exc:
+            await asyncio.to_thread(
+                self.repository.open_identity_review,
+                kind=exc.kind,
+                name=exc.name,
+                reason="identifier_conflict",
+                entity_id=exc.entity_id,
+                candidate_id=exc.candidate_id,
+                evidence={"pubchem_cid": str(payload["cid"])},
+            )
+            raise
         return int(resolved_id), True
+
+    # -------------------------------------------------------------------------
+    async def resolve_stored_species(
+        self, candidate: dict[str, Any]
+    ) -> tuple[int, bool]:
+        """Give a stored species a PubChem identity only on unambiguous evidence.
+
+        A name search can return unrelated forms, so anything short of a
+        single consistent compound goes to review instead of being attached.
+        """
+        adsorbate_id = int(candidate["id"])
+        name = str(candidate["name"])
+        if candidate.get("inchi_key"):
+            return await self.resolve_pubchem(str(candidate["inchi_key"]), adsorbate_id)
+        provider = self.providers.get("pubchem")
+        if not isinstance(provider, PubChemProvider):
+            raise RuntimeError("PubChem provider is not configured.")
+        smiles = candidate.get("smiles")
+        if not smiles:
+            unsafe = (
+                "formula_not_unique"
+                if looks_like_formula(name)
+                else "ion_or_oxidation_state"
+                if names_ion_or_oxidation_state(name)
+                else None
+            )
+            if unsafe:
+                await self._review_species(adsorbate_id, name, unsafe, {})
+        options = await provider.candidates(f"smiles:{smiles}" if smiles else name)
+        formula = candidate.get("formula")
+        if formula:
+            expected = provider.elemental_composition(formula)
+            options = [
+                option
+                for option in options
+                if provider.elemental_composition(option.get("formula")) == expected
+            ]
+        if len(options) != 1:
+            await self._review_species(
+                adsorbate_id,
+                name,
+                "ambiguous_external_match",
+                {"pubchem_cids": [option["cid"] for option in options]},
+            )
+        return await self.resolve_pubchem(str(options[0]["cid"]), adsorbate_id)
+
+    # -------------------------------------------------------------------------
+    async def _review_species(
+        self, adsorbate_id: int, name: str, reason: str, evidence: dict[str, Any]
+    ) -> None:
+        await asyncio.to_thread(
+            self.repository.open_identity_review,
+            kind="adsorbate",
+            name=name,
+            reason=reason,
+            entity_id=adsorbate_id,
+            evidence=evidence,
+        )
+        raise ValueError(f"Identity needs review ({reason.replace('_', ' ')}).")
 
     # -------------------------------------------------------------------------
     async def ensure_conformer(self, adsorbate_id: int) -> tuple[str, bool]:

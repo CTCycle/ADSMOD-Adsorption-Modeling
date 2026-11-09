@@ -695,6 +695,12 @@ class NISTDataService:
             drop_columns=drop_columns,
         )
         records = self.mapper.material_records(frame, record_type)
+        self.mapper.attach_synonyms(
+            records,
+            [payload for _identifier, payload in successful],
+            identifier_column,
+            "nist_identifier" if category == "guest" else "external_identifier",
+        )
         if category == "guest":
             self.repository.save_materials(records, [])
         else:

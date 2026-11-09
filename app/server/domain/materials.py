@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +29,8 @@ class MaterialRecordView(BaseModel):
     formula: str | None = None
     molar_mass_g_mol: float | None = None
     smiles: str | None = None
+    identity_status: str = "provisional"
+    synonyms: list[str] = Field(default_factory=list)
     structure_count: int = 0
     isotherm_count: int = 0
     external_identifiers: list[ExternalIdentifierView] = Field(default_factory=list)
@@ -58,6 +61,7 @@ class SpeciesPropertyView(BaseModel):
 class SpeciesRecordView(BaseModel):
     id: int
     name: str
+    identity_status: str = "provisional"
     preferred_name: str | None = None
     formula: str | None = None
     molecular_weight: float | None = None
@@ -85,3 +89,44 @@ class SpeciesPageResponse(BaseModel):
 ###############################################################################
 class SpeciesDetailResponse(SpeciesRecordView):
     datasets: list[DatasetUsage] = Field(default_factory=list)
+
+
+###############################################################################
+class IdentityEntityView(BaseModel):
+    id: int
+    name: str
+    identity_status: str
+    identifier: str | None = None
+    experiment_count: int = 0
+
+
+###############################################################################
+class IdentityReviewView(BaseModel):
+    id: int
+    kind: Literal["adsorbate", "adsorbent"]
+    raw_name: str
+    reason: str
+    score: float | None = None
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["open", "merged", "rejected"]
+    entity: IdentityEntityView | None = None
+    candidate: IdentityEntityView | None = None
+    created_at: datetime
+    decided_at: datetime | None = None
+
+
+###############################################################################
+class IdentityReviewPageResponse(BaseModel):
+    items: list[IdentityReviewView]
+    pagination: Pagination
+
+
+###############################################################################
+class IdentityMergeRequest(BaseModel):
+    keep_id: int = Field(ge=1)
+
+
+###############################################################################
+class IdentityAuditResponse(BaseModel):
+    adsorbate: int = Field(ge=0)
+    adsorbent: int = Field(ge=0)

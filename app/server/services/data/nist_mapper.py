@@ -4,14 +4,13 @@
 from __future__ import annotations
 
 import math
-import re
 from typing import Any
 
 import pandas as pd
 
 from server.common.units import UnitRegistry, parse_number
 from server.common.utils.logger import logger
-from server.repositories.datasets import stable_material_key
+from server.common.identity import is_inchi_key, stable_material_key
 
 ###############################################################################
 def _text(value: object) -> str:
@@ -26,7 +25,6 @@ def _text(value: object) -> str:
 
 # NIST gives species without a public InChIKey a placeholder such as
 # "NIST-ISODB-...". It identifies the NIST record but is not an InChIKey.
-_INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
 
 ###############################################################################
 def _kelvin(value: object) -> float:
@@ -39,7 +37,7 @@ def _kelvin(value: object) -> float:
 
 ###############################################################################
 def _inchi_key(value: str) -> str | None:
-    return value if _INCHI_KEY.fullmatch(value) else None
+    return value if is_inchi_key(value) else None
 
 ###############################################################################
 class NISTCanonicalMapper:
@@ -82,6 +80,24 @@ class NISTCanonicalMapper:
                 }
             )
         return records
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def attach_synonyms(
+        records: list[dict[str, Any]],
+        payloads: list[dict[str, Any]],
+        payload_identifier: str,
+        record_identifier: str,
+    ) -> None:
+        """Keep the synonyms NIST publishes so later uploads can match them."""
+        synonyms = {
+            _text(payload.get(payload_identifier)): payload.get("synonyms")
+            for payload in payloads
+        }
+        for record in records:
+            values = synonyms.get(_text(record.get(record_identifier)))
+            if isinstance(values, list):
+                record["synonyms"] = [_text(value) for value in values if _text(value)]
 
     # -------------------------------------------------------------------------
     @staticmethod

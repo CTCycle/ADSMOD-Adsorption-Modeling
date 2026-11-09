@@ -13,7 +13,13 @@ from sqlalchemy import String, cast, delete, func, literal, or_, select, update
 from sqlalchemy.orm import Session
 
 from server.repositories.database.manager import DatabaseManager
-from server.repositories.datasets import stable_material_key
+from server.common.identity import STATUS_RESOLVED, stable_material_key
+from server.repositories.identity import (
+    IdentityConflictError,
+    add_alias,
+    curated_adsorbate,
+    raise_review,
+)
 from server.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
@@ -584,6 +590,7 @@ class PublicDataRepository:
         external_id: str,
         source_url: str | None = None,
         raw_metadata: dict[str, Any] | None = None,
+        synonyms: list[str] | None = None,
     ) -> None:
         with self.database.transaction() as session:
             source = self._source(session, source_key)
@@ -606,6 +613,8 @@ class PublicDataRepository:
                         source_record_id=record.id, adsorbate_id=adsorbate_id
                     )
                 )
+            for synonym in synonyms or []:
+                add_alias(session, "adsorbate", adsorbate_id, synonym, source_key, record.id)
 
     # -------------------------------------------------------------------------
     def link_adsorbent_record(
@@ -616,6 +625,7 @@ class PublicDataRepository:
         external_id: str,
         source_url: str | None = None,
         raw_metadata: dict[str, Any] | None = None,
+        synonyms: list[str] | None = None,
     ) -> None:
         with self.database.transaction() as session:
             source = self._source(session, source_key)
@@ -638,6 +648,8 @@ class PublicDataRepository:
                         source_record_id=record.id, adsorbent_id=adsorbent_id
                     )
                 )
+            for synonym in synonyms or []:
+                add_alias(session, "adsorbent", adsorbent_id, synonym, source_key, record.id)
 
     # -------------------------------------------------------------------------
     def link_isotherm_record(
@@ -765,6 +777,7 @@ class PublicDataRepository:
                     "automatic merging was refused."
                 )
 
+            adsorbate.identity_status = STATUS_RESOLVED
             # Enrichment keeps the canonical display name chosen by its source.
             adsorbate.inchi_key = inchi_key or adsorbate.inchi_key
             adsorbate.inchi = payload.get("inchi") or adsorbate.inchi
@@ -876,15 +889,31 @@ class PublicDataRepository:
         if adsorbate is None:
             raise LookupError(f"Chemical {adsorbate_id} does not exist.")
         if existing_link is not None and existing_link.adsorbate_id != adsorbate_id:
-            raise ValueError(f"PubChem CID {cid} is already linked to another chemical.")
-        if inchi_key and session.scalar(
-            select(Adsorbate.id).where(
-                Adsorbate.inchi_key == inchi_key, Adsorbate.id != adsorbate_id
+            raise IdentityConflictError(
+                f"PubChem CID {cid} is already linked to another chemical; "
+                "a review was opened.",
+                "adsorbate",
+                adsorbate_id,
+                int(existing_link.adsorbate_id),
+                adsorbate.name,
             )
-        ):
-            raise ValueError(
+        owner_id = (
+            session.scalar(
+                select(Adsorbate.id).where(
+                    Adsorbate.inchi_key == inchi_key, Adsorbate.id != adsorbate_id
+                )
+            )
+            if inchi_key
+            else None
+        )
+        if owner_id is not None:
+            raise IdentityConflictError(
                 f"PubChem CID {cid} matches another chemical's InChIKey; "
-                "automatic merging was refused."
+                "automatic merging was refused and a review was opened.",
+                "adsorbate",
+                adsorbate_id,
+                int(owner_id),
+                adsorbate.name,
             )
         return adsorbate
 
@@ -927,7 +956,19 @@ class PublicDataRepository:
                 .distinct()
                 .limit(2)
             ).all()
-            return int(matches[0]) if len(matches) == 1 else None
+            if len(matches) == 1:
+                return int(matches[0])
+            curated = curated_adsorbate(value)
+            if curated is None:
+                return None
+            return session.scalar(
+                select(Adsorbate.id).where(Adsorbate.inchi_key == curated.inchi_key)
+            )
+
+    # -------------------------------------------------------------------------
+    def open_identity_review(self, **fields: Any) -> None:
+        with self.database.transaction() as session:
+            raise_review(session, **fields)
 
     # -------------------------------------------------------------------------
     def pubchem_enrichment_candidates(
@@ -952,7 +993,13 @@ class PublicDataRepository:
                 PublicDataSyncFailure.external_id.like("adsorbate:%"),
             )
             rows = session.execute(
-                select(Adsorbate.id, Adsorbate.name, Adsorbate.inchi_key)
+                select(
+                    Adsorbate.id,
+                    Adsorbate.name,
+                    Adsorbate.inchi_key,
+                    Adsorbate.formula,
+                    Adsorbate.smiles,
+                )
                 .where(
                     Adsorbate.id.not_in(linked),
                     (literal("adsorbate:") + cast(Adsorbate.id, String)).not_in(
@@ -963,7 +1010,14 @@ class PublicDataRepository:
             ).all()
             selected = rows[: self._fraction_count(len(rows), fraction, limit)]
             return [
-                {"id": int(row.id), "query": row.inchi_key or row.name}
+                {
+                    "id": int(row.id),
+                    "query": row.inchi_key or row.name,
+                    "name": row.name,
+                    "inchi_key": row.inchi_key,
+                    "formula": row.formula,
+                    "smiles": row.smiles,
+                }
                 for row in selected
             ]
 

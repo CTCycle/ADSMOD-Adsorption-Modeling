@@ -94,12 +94,22 @@ class PubChemProvider(RetryingHttpProvider):
     @staticmethod
     def _namespace(query: str) -> tuple[str, str]:
         normalized = query.strip()
+        if normalized.startswith("smiles:"):
+            return "smiles", normalized.removeprefix("smiles:")
         if normalized.isdigit():
             return "cid", normalized
         upper = normalized.upper()
         if _INCHI_KEY.fullmatch(upper):
             return "inchikey", upper
         return "name", normalized
+
+    # -------------------------------------------------------------------------
+    def _compound_url(self, namespace: str, value: str, suffix: str) -> str:
+        encoded = quote(value, safe="")
+        if namespace == "smiles":
+            # SMILES contain '/' and '#', which do not survive in a URL path.
+            return f"{self.base_url}/compound/smiles/{suffix}?smiles={encoded}"
+        return f"{self.base_url}/compound/{namespace}/{encoded}/{suffix}"
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -113,7 +123,7 @@ class PubChemProvider(RetryingHttpProvider):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _elemental_composition(formula: str | None) -> dict[str, float]:
+    def elemental_composition(formula: str | None) -> dict[str, float]:
         if not formula:
             return {}
         composition: dict[str, float] = {}
@@ -166,8 +176,7 @@ class PubChemProvider(RetryingHttpProvider):
         self, namespace: str, value: str, limit: int
     ) -> list[str]:
         response = await self._request(
-            "GET",
-            f"{self.base_url}/compound/{namespace}/{quote(value, safe='')}/cids/JSON",
+            "GET", self._compound_url(namespace, value, "cids/JSON")
         )
         try:
             cids = response.json().get("IdentifierList", {}).get("CID", [])
@@ -196,11 +205,10 @@ class PubChemProvider(RetryingHttpProvider):
         namespace, value = self._namespace(query)
         if not value:
             raise ValueError("PubChem query must not be empty.")
-        encoded = quote(value, safe="")
         property_path = ",".join(self.property_names)
         response = await self._request(
             "GET",
-            f"{self.base_url}/compound/{namespace}/{encoded}/property/{property_path}/JSON",
+            self._compound_url(namespace, value, f"property/{property_path}/JSON"),
         )
         try:
             payload = response.json()
@@ -273,7 +281,7 @@ class PubChemProvider(RetryingHttpProvider):
             "inchi_key": str(row.get("InChIKey") or "").strip() or None,
             "synonyms": synonyms,
             "descriptors": descriptors,
-            "elemental_composition": self._elemental_composition(formula),
+            "elemental_composition": self.elemental_composition(formula),
             "structure_2d_url": f"{self.base_url}/compound/cid/{cid}/PNG?image_size=300x300",
             "conformer_3d_url": conformer_url if has_3d else None,
             "conformer_3d_sdf": conformer_sdf,

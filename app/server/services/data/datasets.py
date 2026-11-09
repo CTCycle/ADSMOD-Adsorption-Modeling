@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from server.configurations.settings import DEFAULT_DATASET_ALLOWED_EXTENSIONS
 from server.domain.datasets import (
+    ImportIdentityPreview,
     DatasetDeleteImpact,
     DatasetDetailResponse,
     DatasetImportResponse,
@@ -36,6 +37,7 @@ from server.services.data.dataset_editing import DatasetEditService
 from server.services.data.importer import AdsorptionImportEngine, PARSER_VERSION
 from server.common.units import BUILT_IN_UNIT_DETAILS, UnitRegistry
 from server.repositories.datasets import DatasetRepository
+from server.repositories.identity import IdentityRepository
 from server.repositories.units import UnitRepository
 
 ###############################################################################
@@ -45,6 +47,7 @@ class DatasetService:
     def __init__(
         self,
         repository: DatasetRepository,
+        identity: IdentityRepository,
         units: UnitRepository,
         editor: DatasetEditService,
         importer: AdsorptionImportEngine | None = None,
@@ -53,6 +56,7 @@ class DatasetService:
         preview_row_limit: int = 20,
     ) -> None:
         self.repository = repository
+        self.identity = identity
         self.units = units
         self.editor = editor
         self.importer = importer or AdsorptionImportEngine(
@@ -98,9 +102,17 @@ class DatasetService:
     def validate(
         self, payload: bytes, filename: str | None, mapping: ImportMapping
     ) -> ImportValidationResponse:
-        return self.importer.validate(
+        bundle = self.importer.validate(
             payload, filename, mapping, self.units.custom_units()
-        ).response
+        )
+        return bundle.response.model_copy(
+            update={
+                "identities": [
+                    ImportIdentityPreview(**row)
+                    for row in self.identity.preview(bundle.experiments)
+                ]
+            }
+        )
 
     # -------------------------------------------------------------------------
     def commit(

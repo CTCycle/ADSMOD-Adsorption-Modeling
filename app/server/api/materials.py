@@ -3,14 +3,21 @@
 
 from __future__ import annotations
 
+import asyncio
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from server.domain.materials import (
+    IdentityAuditResponse,
+    IdentityMergeRequest,
+    IdentityReviewPageResponse,
     MaterialDetailResponse,
     MaterialPageResponse,
     SpeciesDetailResponse,
     SpeciesPageResponse,
 )
+from server.repositories.identity import MergeRefusedError
 from server.repositories.materials import EntityInUseError
 from server.services.container import CoreServiceContainer
 from server.services.data.materials import MaterialService
@@ -119,7 +126,69 @@ class MaterialEndpoint:
             raise self.not_found(exc) from exc
 
     # -------------------------------------------------------------------------
+    def list_identity_reviews(
+        self,
+        page: int = Query(1, ge=1),
+        page_size: int = Query(25, ge=1, le=100),
+        review_status: Literal["open", "merged", "rejected"] = Query(
+            "open", alias="status"
+        ),
+        kind: Literal["adsorbate", "adsorbent"] | None = None,
+    ) -> IdentityReviewPageResponse:
+        return self.service.list_identity_reviews(
+            page=page, page_size=page_size, status=review_status, kind=kind
+        )
+
+    # -------------------------------------------------------------------------
+    def merge_identity_review(
+        self, payload: IdentityMergeRequest, review_id: int = Path(..., ge=1)
+    ) -> None:
+        try:
+            self.service.merge_identity_review(review_id, payload.keep_id)
+        except MergeRefusedError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except LookupError as exc:
+            raise self.not_found(exc) from exc
+
+    # -------------------------------------------------------------------------
+    def reject_identity_review(self, review_id: int = Path(..., ge=1)) -> None:
+        try:
+            self.service.reject_identity_review(review_id)
+        except MergeRefusedError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        except LookupError as exc:
+            raise self.not_found(exc) from exc
+
+    # -------------------------------------------------------------------------
+    async def audit_identities(self) -> IdentityAuditResponse:
+        return await asyncio.to_thread(self.service.audit_identities)
+
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
+        self.router.add_api_route(
+            "/identity/reviews",
+            self.list_identity_reviews,
+            methods=["GET"],
+            response_model=IdentityReviewPageResponse,
+        )
+        self.router.add_api_route(
+            "/identity/reviews/{review_id}/merge",
+            self.merge_identity_review,
+            methods=["POST"],
+            status_code=status.HTTP_204_NO_CONTENT,
+        )
+        self.router.add_api_route(
+            "/identity/reviews/{review_id}/reject",
+            self.reject_identity_review,
+            methods=["POST"],
+            status_code=status.HTTP_204_NO_CONTENT,
+        )
+        self.router.add_api_route(
+            "/identity/audit",
+            self.audit_identities,
+            methods=["POST"],
+            response_model=IdentityAuditResponse,
+        )
         self.router.add_api_route(
             "/materials",
             self.list_materials,

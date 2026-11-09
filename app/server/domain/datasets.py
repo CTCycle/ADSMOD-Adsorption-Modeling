@@ -160,6 +160,15 @@ class NormalizedExperimentPreview(BaseModel):
     observations: list[NormalizedObservationPreview]
 
 ###############################################################################
+class ImportIdentityPreview(BaseModel):
+    kind: Literal["adsorbate", "adsorbent"]
+    received_name: str
+    canonical_name: str | None = None
+    method: str
+    identity_status: str
+    needs_review: bool = False
+
+###############################################################################
 class ImportValidationResponse(BaseModel):
     status: Literal["valid", "invalid", "confirmation_required"]
     source_sha256: str
@@ -168,6 +177,7 @@ class ImportValidationResponse(BaseModel):
     observation_count: int
     experiments: list[NormalizedExperimentPreview]
     issues: list[ImportIssue]
+    identities: list[ImportIdentityPreview] = Field(default_factory=list)
 
 ###############################################################################
 class DatasetSummary(BaseModel):

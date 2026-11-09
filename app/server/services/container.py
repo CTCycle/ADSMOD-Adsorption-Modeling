@@ -18,6 +18,7 @@ from server.repositories.units import UnitRepository
 from server.repositories.fitting import FittingRepository
 from server.repositories.model_settings import ModelSettingsRepository
 from server.repositories.home import HomeRepository
+from server.repositories.identity import IdentityRepository
 from server.repositories.materials import MaterialRepository
 from server.repositories.nist import NISTRepository
 from server.repositories.public_data import PublicDataRepository
@@ -50,6 +51,7 @@ class CoreServiceContainer:
         )
         self.datasets = DatasetRepository(self.database)
         self.materials = MaterialRepository(self.database)
+        self.identity = IdentityRepository(self.database)
         self.fitting = FittingRepository(self.database)
         self.public_data_repository = PublicDataRepository(self.database)
         self.home = HomeRepository(self.database)
@@ -59,6 +61,7 @@ class CoreServiceContainer:
         units = UnitRepository(self.database)
         self.dataset_service = DatasetService(
             repository=self.datasets,
+            identity=self.identity,
             units=units,
             editor=DatasetEditService(self.dataset_edits, units),
             allowed_extensions=config.application.datasets.allowed_extensions,
@@ -73,7 +76,7 @@ class CoreServiceContainer:
             edits=self.dataset_edits,
         )
         self.material_service = MaterialService(
-            self.materials, self.public_data_repository
+            self.materials, self.public_data_repository, self.identity
         )
         self.nist_service = self._build_nist_service(config)
         self.public_data_service = self._build_public_data_service(

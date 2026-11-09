@@ -17,6 +17,7 @@ from server.repositories.datasets import (
     resolve_adsorbent,
     write_experiment_content,
 )
+from server.repositories.identity import IdentityResolver
 from server.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
@@ -278,12 +279,15 @@ class DatasetEditRepository:
                     IsothermComponent.isotherm_id == isotherm.id
                 )
             )
-            adsorbent = resolve_adsorbent(session, {}, record["adsorbent"])
+            resolver = IdentityResolver(
+                session, dataset_id=dataset_id, alias_origin="nist"
+            )
+            adsorbent = resolve_adsorbent(session, resolver, record["adsorbent"])
             for key, value in isotherm_fields(record, adsorbent.id).items():
                 setattr(isotherm, key, value)
             isotherm.edited_at = None
             session.flush()
-            write_experiment_content(session, isotherm, record, {})
+            write_experiment_content(session, isotherm, record, resolver)
             dataset = session.get(Dataset, dataset_id)
             if dataset is not None:
                 dataset.updated_at = utc_now()

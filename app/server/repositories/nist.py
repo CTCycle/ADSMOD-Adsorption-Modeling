@@ -246,6 +246,7 @@ class NISTRepository:
                 adsorbate_id=identifier,
                 external_id=inchi_key,
                 source_url=f"https://adsorption.nist.gov/isodb/api/gas/{inchi_key}.json",
+                synonyms=record.get("synonyms"),
             )
 
         host_ids = self.materials.adsorbent_ids(
@@ -266,6 +267,7 @@ class NISTRepository:
                     "https://adsorption.nist.gov/matdb/api/material/"
                     f"{external_identifier}.json"
                 ),
+                synonyms=record.get("synonyms"),
             )
 
     # -------------------------------------------------------------------------

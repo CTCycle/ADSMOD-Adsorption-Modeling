@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
 
 import numpy as np
@@ -11,7 +10,18 @@ import pandas as pd
 from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from server.common.identity import (
+    STATUS_GENERIC,
+    STATUS_PROVISIONAL,
+    STATUS_RESOLVED,
+    adsorbate_record_key,
+    adsorbent_record_key,
+    clean_name,
+    exact_key,
+    stable_material_key,
+)
 from server.repositories.database.manager import DatabaseManager
+from server.repositories.identity import METHOD_GENERIC, IdentityResolver, add_alias
 from server.repositories.provenance import provenance_entries, references_for_records
 from server.repositories.schemas.models import (
     Adsorbate,
@@ -30,63 +40,66 @@ SUMMARY_NAME_LIMIT = 3
 
 
 ###############################################################################
-def stable_material_key(kind: str, name: str, external: str | None = None) -> str:
-    identity = normalize_identity(external or name)
-    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
-    return f"{kind}:{digest}"
-
-
-###############################################################################
 def resolve_adsorbent(
-    session: Session, cache: dict[str, Adsorbent], record: dict[str, Any]
+    session: Session, resolver: IdentityResolver, record: dict[str, Any]
 ) -> Adsorbent:
     external = record.get("external_identifier")
-    key = record.get("key") or stable_material_key("adsorbent", record["name"], external)
-    adsorbent = cache.get(key) or session.scalar(
-        select(Adsorbent).where(Adsorbent.key == key)
+    name = clean_name(record["name"])
+    key = adsorbent_record_key(record, resolver.dataset_id)
+    resolution = resolver.resolve_adsorbent(record, key)
+    if resolution.entity is not None:
+        return resolution.entity
+    generic = resolution.method == METHOD_GENERIC
+    adsorbent = Adsorbent(
+        key=key,
+        name=name,
+        external_identifier=external,
+        identity_status=(
+            STATUS_GENERIC
+            if generic
+            else STATUS_RESOLVED if external else STATUS_PROVISIONAL
+        ),
+        scope_dataset_id=resolver.dataset_id if generic else None,
     )
-    if adsorbent is None and external:
-        adsorbent = session.scalar(
-            select(Adsorbent).where(Adsorbent.external_identifier == external)
-        )
-    if adsorbent is None:
-        adsorbent = Adsorbent(
-            key=key, name=record["name"].strip(), external_identifier=external
-        )
-        session.add(adsorbent)
-        session.flush()
-    cache[key] = adsorbent
+    session.add(adsorbent)
+    session.flush()
+    resolver.register("adsorbent", adsorbent, record, resolution)
     return adsorbent
 
 
 ###############################################################################
 def resolve_adsorbate(
-    session: Session, cache: dict[str, Adsorbate], record: dict[str, Any]
+    session: Session, resolver: IdentityResolver, record: dict[str, Any]
 ) -> Adsorbate:
     inchi_key = record.get("inchi_key")
-    key = record.get("key") or stable_material_key("adsorbate", record["name"], inchi_key)
-    adsorbate = cache.get(key) or session.scalar(
-        select(Adsorbate).where(Adsorbate.key == key)
+    name = clean_name(record["name"])
+    key = adsorbate_record_key(record)
+    resolution = resolver.resolve_adsorbate(record, key)
+    if resolution.entity is not None:
+        adsorbate: Adsorbate = resolution.entity
+        if record.get("smiles") and not adsorbate.smiles:
+            adsorbate.smiles = record["smiles"]
+        return adsorbate
+    curated = resolution.curated
+    adsorbate = Adsorbate(
+        key=stable_material_key("adsorbate", curated.name, curated.inchi_key)
+        if curated
+        else key,
+        name=curated.name if curated else name,
+        inchi_key=curated.inchi_key if curated else inchi_key,
+        inchi=record.get("inchi"),
+        formula=curated.formula if curated else record.get("formula"),
+        molar_mass_g_mol=record.get("molar_mass_g_mol"),
+        smiles=record.get("smiles"),
+        identity_status=(
+            STATUS_RESOLVED if curated or inchi_key else STATUS_PROVISIONAL
+        ),
     )
-    if adsorbate is None and inchi_key:
-        adsorbate = session.scalar(
-            select(Adsorbate).where(Adsorbate.inchi_key == inchi_key)
-        )
-    if adsorbate is None:
-        adsorbate = Adsorbate(
-            key=key,
-            name=record["name"].strip(),
-            inchi_key=inchi_key,
-            inchi=record.get("inchi"),
-            formula=record.get("formula"),
-            molar_mass_g_mol=record.get("molar_mass_g_mol"),
-            smiles=record.get("smiles"),
-        )
-        session.add(adsorbate)
-        session.flush()
-    elif record.get("smiles") and not adsorbate.smiles:
-        adsorbate.smiles = record["smiles"]
-    cache[key] = adsorbate
+    session.add(adsorbate)
+    session.flush()
+    resolver.register("adsorbate", adsorbate, record, resolution)
+    if curated and exact_key(name) != exact_key(curated.name):
+        add_alias(session, "adsorbate", adsorbate.id, name, "curated")
     return adsorbate
 
 
@@ -95,16 +108,24 @@ def write_experiment_content(
     session: Session,
     isotherm: Isotherm,
     record: dict[str, Any],
-    adsorbates_by_key: dict[str, Adsorbate],
+    resolver: IdentityResolver,
 ) -> None:
     """Insert the components and observations of one canonical experiment."""
     component_by_name: dict[str, IsothermComponent] = {}
+    seen: dict[int, str] = {}
     for position, adsorbate_record in enumerate(record["adsorbates"], start=1):
-        adsorbate = resolve_adsorbate(session, adsorbates_by_key, adsorbate_record)
+        adsorbate = resolve_adsorbate(session, resolver, adsorbate_record)
+        if adsorbate.id in seen:
+            raise ValueError(
+                f"Experiment '{record['name']}' lists '{seen[adsorbate.id]}' and "
+                f"'{adsorbate_record['name']}', which are the same species."
+            )
+        seen[adsorbate.id] = adsorbate_record["name"]
         component = IsothermComponent(
             isotherm_id=isotherm.id,
             position=position,
             adsorbate_id=adsorbate.id,
+            source_name=adsorbate_record["name"],
             mole_fraction=adsorbate_record.get("mole_fraction"),
         )
         session.add(component)
@@ -138,6 +159,7 @@ def isotherm_fields(record: dict[str, Any], adsorbent_id: int) -> dict[str, Any]
     return {
         "name": record["name"],
         "adsorbent_id": adsorbent_id,
+        "adsorbent_source_name": record["adsorbent"]["name"],
         "temperature_original": record["temperature_original"],
         "temperature_original_unit": record["temperature_original_unit"],
         "temperature_k": record["temperature_k"],
@@ -763,12 +785,14 @@ class DatasetRepository:
             if import_manifest is not None:
                 session.add(DatasetImport(dataset_id=dataset.id, **import_manifest))
 
-            adsorbates_by_key: dict[str, Adsorbate] = {}
-            adsorbents_by_key: dict[str, Adsorbent] = {}
+            resolver = IdentityResolver(
+                session,
+                dataset_id=dataset.id,
+                alias_origin="nist" if source == "nist" else "upload",
+            )
+            resolver.prefetch(experiments)
             for record in experiments:
-                adsorbent = resolve_adsorbent(
-                    session, adsorbents_by_key, record["adsorbent"]
-                )
+                adsorbent = resolve_adsorbent(session, resolver, record["adsorbent"])
                 isotherm = Isotherm(
                     dataset_id=dataset.id,
                     external_key=record["external_key"],
@@ -776,6 +800,6 @@ class DatasetRepository:
                 )
                 session.add(isotherm)
                 session.flush()
-                write_experiment_content(session, isotherm, record, adsorbates_by_key)
+                write_experiment_content(session, isotherm, record, resolver)
             session.flush()
             return dataset.id

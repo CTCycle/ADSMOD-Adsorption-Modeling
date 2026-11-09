@@ -195,6 +195,24 @@ class PublicDataSyncCoordinator:
             return run
 
     # -------------------------------------------------------------------------
+    async def queue_uploaded_species_resolution(self) -> None:
+        """After an upload, resolve new species in the background when enabled."""
+        config, _, _ = self._active_settings()
+        if not config.auto_resolve_uploaded_species:
+            return
+        pending = await asyncio.to_thread(
+            self.repository.pubchem_enrichment_candidates, 1, 1.0
+        )
+        if not pending:
+            return
+        try:
+            await self.enqueue(
+                source_key="pubchem", operation="pubchem_enrich", parameters={}
+            )
+        except RuntimeError as exc:
+            logger.warning("Species resolution was not queued: %s", exc)
+
+    # -------------------------------------------------------------------------
     async def resume(self, run_id: str) -> dict[str, Any]:
         async with self._enqueue_lock:
             if self._switch_paused:
@@ -657,8 +675,8 @@ class PublicDataSyncCoordinator:
                     entity_id = int(candidate["id"])
                     _, imported = await public_data.ensure_conformer(entity_id)
                 else:
-                    entity_id, imported = await public_data.resolve_pubchem(
-                        str(candidate["query"]), int(candidate["id"])
+                    entity_id, imported = await public_data.resolve_stored_species(
+                        candidate
                     )
                 entity_ids.append(entity_id)
                 counts["imported" if imported else "skipped"] += 1

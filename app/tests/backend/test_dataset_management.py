@@ -118,14 +118,14 @@ def test_multi_experiment_import_is_listed_as_one_dataset(client: TestClient) ->
     assert summary["observation_count"] == 5
     assert summary["material_count"] == 2 and summary["species_count"] == 2
     assert sorted(summary["material_names"]) == ["Activated carbon", "Zeolite 13X"]
-    assert sorted(summary["species_names"]) == ["CH4", "CO2"]
+    assert sorted(summary["species_names"]) == ["Carbon dioxide", "Methane"]
     assert summary["last_update"] and summary["edited_experiment_count"] == 0
 
     page = _experiments(client, dataset["id"], limit=1)
     assert page["total"] == 2 and len(page["experiments"]) == 1
     co2 = _experiment(client, dataset["id"], "A")
     assert co2["observation_count"] == 3 and co2["temperature_k"] == 298.15
-    assert [component["name"] for component in co2["components"]] == ["CO2"]
+    assert [component["name"] for component in co2["components"]] == ["Carbon dioxide"]
     filtered = _experiments(client, dataset["id"], adsorbate_id=co2["components"][0]["adsorbate_id"])
     assert [item["id"] for item in filtered["experiments"]] == [co2["id"]]
 

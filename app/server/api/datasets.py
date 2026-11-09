@@ -35,6 +35,7 @@ from server.domain.datasets import (
     SupportedUnitsResponse,
 )
 from server.services.container import CoreServiceContainer
+from server.services.data.public_data_sync import PublicDataSyncCoordinator
 from server.services.data.dataset_editing import DatasetEditValidationError
 from server.services.data.datasets import DatasetService
 from server.common.constants import DATASETS_ROUTER_PREFIX, MAX_UPLOAD_SIZE_BYTES
@@ -43,9 +44,15 @@ from server.common.constants import DATASETS_ROUTER_PREFIX, MAX_UPLOAD_SIZE_BYTE
 class DatasetEndpoint:
 
     # -------------------------------------------------------------------------
-    def __init__(self, router: APIRouter, service: DatasetService) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        service: DatasetService,
+        sync: PublicDataSyncCoordinator,
+    ) -> None:
         self.router = router
         self.service = service
+        self.sync = sync
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -110,11 +117,13 @@ class DatasetEndpoint:
     ) -> DatasetImportResponse:
         try:
             payload = await self.read_upload_bytes(file)
-            return self.service.commit(
+            result = self.service.commit(
                 payload, file.filename, self.service.parse_mapping(mapping)
             )
         except ValueError as exc:
             raise self.bad_request(exc) from exc
+        await self.sync.queue_uploaded_species_resolution()
+        return result
 
     # -------------------------------------------------------------------------
     def list_datasets(self) -> DatasetListResponse:
@@ -351,5 +360,7 @@ class DatasetEndpoint:
 ###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:
     router = APIRouter(prefix=DATASETS_ROUTER_PREFIX, tags=["datasets"])
-    DatasetEndpoint(router, container.dataset_service).add_routes()
+    DatasetEndpoint(
+        router, container.dataset_service, container.public_data_sync
+    ).add_routes()
     return router
