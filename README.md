@@ -28,7 +28,7 @@
 
 <p align="center"><img src="assets/figures/fitting-results.jpg" alt="ADSMOD Fitting page with a completed fit for Experiment A and results for Langmuir, Sips, and Freundlich models" width="900"></p>
 
-<p align="center"><em>A completed fit of the included sample isotherm, with three models selected for this run.</em></p>
+<p align="center"><em>A fitting session on the included sample dataset, comparing Langmuir and Sips across both experiments.</em></p>
 
 ADSMOD is a local web application for organizing adsorption measurements, fitting isotherm models, and exploring stored results. SQLite is the default database; PostgreSQL is also supported.
 
@@ -60,21 +60,23 @@ The base profile includes the dataset, public data, fitting, and dashboard works
 
 ### Import and inspect a dataset
 
-Add a CSV, XLS, or XLSX file, review the detected structure, map columns and units, then validate the experiment series before saving. Saved datasets retain their source mapping and can be used in fitting and dashboards.
+Add a CSV, XLS, or XLSX file, review the detected structure, map columns and units, then validate the experiment series before saving. Saved datasets retain their source mapping and can be used in fitting and dashboards. Ambiguous numbers such as `0.001` are rejected while the decimal separator is on automatic; set it under **Advanced** in the mapping step (the sample file needs *Decimal point*).
 
 <p align="center"><img src="assets/figures/custom-datasets.jpg" alt="ADSMOD Custom Datasets page showing a validated sample dataset, detected column mappings, and two experiments" width="900"></p>
 
-<p align="center"><em>The saved sample contains two experiments and 21 observations. Screenshots use the repository's <a href="app/tests/fixtures/sample_adsorption.csv">sample adsorption file</a>.</em></p>
+<p align="center"><em>The saved sample contains two experiments and 21 observations. Screenshots were captured from the running application and use the repository's <a href="app/tests/fixtures/sample_adsorption.csv">sample adsorption file</a>.</em></p>
 
 ### Fit isotherm models
 
-Choose a dataset and experiment, select models, and set the optimizer, weighting, and iteration limit. The built-in models are Langmuir, Sips, Freundlich, Temkin, Toth, Dubinin-Radushkevich, Dual-Site Langmuir, Redlich-Peterson, and Jovanovic. Results report each model's status and metrics; ADSMOD selects the best fit using the configured metric.
+A fitting session fits every experiment of one dataset. Choose the dataset, select models, and set the optimizer, weighting, and iteration limit; models whose inputs are missing (for example Dubinin-Radushkevich without relative or saturation pressure) are marked unavailable. The built-in models are Langmuir, Sips, Freundlich, Temkin, Toth, Dubinin-Radushkevich, Dual-Site Langmuir, Redlich-Peterson, and Jovanovic. Results report each model's status and metrics per experiment; ADSMOD marks the best fit using the configured metric.
 
 A numerical fit describes how a model follows the observations. It does not establish an adsorption mechanism.
 
 ### Explore stored measurements
 
 The overview summarizes the database. Explore filters by source, pressure basis, temperature, material, adsorbate, or dataset, then plots isotherm curves, uptake at a selected pressure against temperature, or a value distribution. Views can be linked with their current filters.
+
+<p align="center"><img src="assets/figures/dashboards-overview.jpg" alt="ADSMOD Dashboards overview with record counts, temperature coverage, and most measured materials and adsorbates" width="900"></p>
 
 ### Retrieve public records
 
